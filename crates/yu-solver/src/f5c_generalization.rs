@@ -356,6 +356,7 @@ pub(super) struct F5cWalkerResources {
     pub(super) peak_bytes: usize,
     pub(super) simultaneous_memo_peak_bytes: usize,
     pub(super) observed_memo_bytes: usize,
+    value_slot_size: usize,
     #[cfg(test)]
     pub(super) independent_lanes: [F5cWalkerLane; 18],
     #[cfg(test)]
@@ -450,6 +451,14 @@ impl F5cWalkerResources {
             .capacity_growths
             .checked_add(1)
             .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        if matches!(kind, F5cWalkerLaneKind::Values) {
+            self.value_slot_size = std::mem::size_of::<T>();
+        }
+        let slot_size = if matches!(kind, F5cWalkerLaneKind::Values) {
+            self.value_slot_size
+        } else {
+            kind.slot_size()
+        };
         let old_capacity = buffer.capacity();
         let reservation = buffer.try_reserve(additional);
         let new_capacity = buffer.capacity();
@@ -464,7 +473,7 @@ impl F5cWalkerResources {
             self.lanes[index].capacity_growths = growth;
             self.lanes[index].peak_bytes = self.lanes[index].peak_bytes.max(
                 new_capacity
-                    .checked_mul(kind.slot_size())
+                    .checked_mul(slot_size)
                     .ok_or(SolveAvailabilityError::IdentityExhausted)?,
             );
             #[cfg(test)]
@@ -519,7 +528,13 @@ impl F5cWalkerResources {
             .iter()
             .enumerate()
             .try_fold(0usize, |sum, (index, lane)| {
-                let size = F5cWalkerLaneKind::ALL[index].slot_size();
+                let kind = F5cWalkerLaneKind::ALL[index];
+                let size = if matches!(kind, F5cWalkerLaneKind::Values) && self.value_slot_size != 0
+                {
+                    self.value_slot_size
+                } else {
+                    kind.slot_size()
+                };
                 sum.checked_add(
                     lane.actual_capacity
                         .checked_mul(size)
@@ -539,7 +554,13 @@ impl F5cWalkerResources {
         );
         #[cfg(test)]
         {
-            let sizes = F5cWalkerLaneKind::ALL.map(F5cWalkerLaneKind::slot_size);
+            let sizes = F5cWalkerLaneKind::ALL.map(|kind| {
+                if matches!(kind, F5cWalkerLaneKind::Values) && self.value_slot_size != 0 {
+                    self.value_slot_size
+                } else {
+                    kind.slot_size()
+                }
+            });
             let bytes = self.independent_lanes.iter().zip(sizes).try_fold(
                 0usize,
                 |sum, (lane, size)| {
@@ -2302,6 +2323,249 @@ pub(super) struct F5cGeneralizer<'a> {
     pub(super) invalid_effects: bool,
 }
 
+trait F5cWalkSink {
+    type Value;
+    fn variable(&mut self, polarity: Polarity, row: u32, cacheable: bool) -> Self::Value;
+    fn shared(&mut self, polarity: Polarity, id: F5cSummaryNodeId) -> Self::Value;
+    fn int(&mut self, polarity: Polarity) -> Self::Value;
+    fn bottom(&mut self, polarity: Polarity) -> Self::Value;
+    fn top(&mut self) -> Self::Value;
+    fn cacheable(&self, value: &Self::Value) -> bool;
+    fn finish_row(
+        &mut self,
+        generalizer: &mut F5cGeneralizer<'_>,
+        values: &mut Vec<Self::Value>,
+        start: usize,
+        row: u32,
+        polarity: Polarity,
+        root: bool,
+    ) -> Result<Self::Value, SolveAvailabilityError>;
+    fn function(
+        &mut self,
+        generalizer: &mut F5cGeneralizer<'_>,
+        polarity: Polarity,
+        argument: Self::Value,
+        result: Self::Value,
+    ) -> Result<Self::Value, SolveAvailabilityError>;
+    fn promote(
+        &mut self,
+        generalizer: &mut F5cGeneralizer<'_>,
+        value: &Self::Value,
+        row: u32,
+        polarity: Polarity,
+    ) -> Result<F5cSummaryNodeId, SolveAvailabilityError>;
+}
+
+struct F5cBoxedWalkSink;
+
+impl F5cWalkSink for F5cBoxedWalkSink {
+    type Value = F5cWalkValue;
+    fn variable(&mut self, polarity: Polarity, row: u32, cacheable: bool) -> Self::Value {
+        match polarity {
+            Polarity::Positive => F5cWalkValue::Positive(F5cPositive::Variable(row), cacheable),
+            Polarity::Negative => F5cWalkValue::Negative(F5cNegative::Variable(row), cacheable),
+        }
+    }
+    fn shared(&mut self, polarity: Polarity, id: F5cSummaryNodeId) -> Self::Value {
+        match polarity {
+            Polarity::Positive => F5cWalkValue::Positive(F5cPositive::Shared(id), true),
+            Polarity::Negative => F5cWalkValue::Negative(F5cNegative::Shared(id), true),
+        }
+    }
+    fn int(&mut self, polarity: Polarity) -> Self::Value {
+        match polarity {
+            Polarity::Positive => F5cWalkValue::Positive(F5cPositive::Int, true),
+            Polarity::Negative => F5cWalkValue::Negative(F5cNegative::Int, true),
+        }
+    }
+    fn bottom(&mut self, polarity: Polarity) -> Self::Value {
+        match polarity {
+            Polarity::Positive => F5cWalkValue::Positive(F5cPositive::Bottom, true),
+            Polarity::Negative => F5cWalkValue::Negative(F5cNegative::Bottom, true),
+        }
+    }
+    fn top(&mut self) -> Self::Value {
+        F5cWalkValue::Negative(F5cNegative::Top, true)
+    }
+    fn cacheable(&self, value: &Self::Value) -> bool {
+        match value {
+            F5cWalkValue::Positive(_, cacheable) | F5cWalkValue::Negative(_, cacheable) => {
+                *cacheable
+            }
+        }
+    }
+    fn finish_row(
+        &mut self,
+        generalizer: &mut F5cGeneralizer<'_>,
+        values: &mut Vec<Self::Value>,
+        values_start: usize,
+        row: u32,
+        polarity: Polarity,
+        root: bool,
+    ) -> Result<Self::Value, SolveAvailabilityError> {
+        let value = match polarity {
+            Polarity::Positive => {
+                let mut parts = Vec::new();
+                let mut cacheable = true;
+                for child in values.drain(values_start..) {
+                    let F5cWalkValue::Positive(value, child_cacheable) = child else {
+                        return Err(SolveAvailabilityError::IdentityExhausted);
+                    };
+                    let duplicate = {
+                        let mut comparisons = Vec::new();
+                        let mut duplicate = false;
+                        for previous in &parts {
+                            generalizer.memo.work_meter.charge(1)?;
+                            if generalizer.structural_equal(
+                                F5cCompareTask::Positive(previous, &value),
+                                &mut comparisons,
+                            )? {
+                                duplicate = true;
+                                break;
+                            }
+                        }
+                        generalizer
+                            .memo
+                            .walker_resources
+                            .release(F5cWalkerLaneKind::Comparison);
+                        duplicate
+                    };
+                    if !duplicate {
+                        cacheable &= child_cacheable;
+                        generalizer
+                            .memo
+                            .reserve_walker(&mut parts, F5cWalkerLaneKind::PositiveParts)?;
+                        parts.push(value);
+                    }
+                }
+                let nonempty = !parts.is_empty();
+                let value = F5cWalkValue::Positive(
+                    match parts.len() {
+                        0 if root => F5cPositive::Bottom,
+                        0 => F5cPositive::Variable(row),
+                        1 => parts.pop().expect("one lower member"),
+                        _ => F5cPositive::Union(parts),
+                    },
+                    cacheable && (nonempty || root),
+                );
+                generalizer
+                    .memo
+                    .walker_resources
+                    .release(F5cWalkerLaneKind::PositiveParts);
+                value
+            }
+            Polarity::Negative => {
+                let mut parts = Vec::new();
+                let mut cacheable = true;
+                for child in values.drain(values_start..) {
+                    let F5cWalkValue::Negative(value, child_cacheable) = child else {
+                        return Err(SolveAvailabilityError::IdentityExhausted);
+                    };
+                    let duplicate = {
+                        let mut comparisons = Vec::new();
+                        let mut duplicate = false;
+                        for previous in &parts {
+                            generalizer.memo.work_meter.charge(1)?;
+                            if generalizer.structural_equal(
+                                F5cCompareTask::Negative(previous, &value),
+                                &mut comparisons,
+                            )? {
+                                duplicate = true;
+                                break;
+                            }
+                        }
+                        generalizer
+                            .memo
+                            .walker_resources
+                            .release(F5cWalkerLaneKind::Comparison);
+                        duplicate
+                    };
+                    if !duplicate {
+                        cacheable &= child_cacheable;
+                        generalizer
+                            .memo
+                            .reserve_walker(&mut parts, F5cWalkerLaneKind::NegativeParts)?;
+                        parts.push(value);
+                    }
+                }
+                let nonempty = !parts.is_empty();
+                let value = F5cWalkValue::Negative(
+                    match parts.len() {
+                        0 => F5cNegative::Variable(row),
+                        1 => parts.pop().expect("one upper member"),
+                        _ => F5cNegative::Intersection(parts),
+                    },
+                    cacheable && nonempty,
+                );
+                generalizer
+                    .memo
+                    .walker_resources
+                    .release(F5cWalkerLaneKind::NegativeParts);
+                value
+            }
+        };
+        Ok(value)
+    }
+    fn function(
+        &mut self,
+        _generalizer: &mut F5cGeneralizer<'_>,
+        polarity: Polarity,
+        argument: Self::Value,
+        result: Self::Value,
+    ) -> Result<Self::Value, SolveAvailabilityError> {
+        #[cfg(test)]
+        F5C_FUNCTION_OUTPUT_CONSTRUCTION.with(|marker| {
+            let count = marker.get().map_or(0, |(_, count)| count);
+            marker.set(Some((_generalizer.memo.work_meter.get(), count + 1)));
+        });
+        Ok(match (polarity, argument, result) {
+            (
+                Polarity::Positive,
+                F5cWalkValue::Negative(argument, argument_cacheable),
+                F5cWalkValue::Positive(result, result_cacheable),
+            ) => F5cWalkValue::Positive(
+                F5cPositive::Function {
+                    argument: Box::new(argument),
+                    argument_effect: F5cNegativeEffect::Empty,
+                    result_effect: F5cPositiveEffect::Bottom,
+                    result: Box::new(result),
+                },
+                argument_cacheable && result_cacheable,
+            ),
+            (
+                Polarity::Negative,
+                F5cWalkValue::Positive(argument, argument_cacheable),
+                F5cWalkValue::Negative(result, result_cacheable),
+            ) => F5cWalkValue::Negative(
+                F5cNegative::Function {
+                    argument: Box::new(argument),
+                    argument_effect: F5cPositiveEffect::Bottom,
+                    result_effect: F5cNegativeEffect::Empty,
+                    result: Box::new(result),
+                },
+                argument_cacheable && result_cacheable,
+            ),
+            _ => return Err(SolveAvailabilityError::IdentityExhausted),
+        })
+    }
+    fn promote(
+        &mut self,
+        generalizer: &mut F5cGeneralizer<'_>,
+        value: &Self::Value,
+        row: u32,
+        polarity: Polarity,
+    ) -> Result<F5cSummaryNodeId, SolveAvailabilityError> {
+        match value {
+            F5cWalkValue::Positive(value, _) => {
+                generalizer.memo.positive_node(value, Some((row, polarity)))
+            }
+            F5cWalkValue::Negative(value, _) => {
+                generalizer.memo.negative_node(value, Some((row, polarity)))
+            }
+        }
+    }
+}
+
 impl<'a> F5cGeneralizer<'a> {
     fn reserve_active_mirrors(&mut self, frame: bool) -> Result<(), SolveAvailabilityError> {
         #[cfg(test)]
@@ -2671,15 +2935,16 @@ impl<'a> F5cGeneralizer<'a> {
         Ok(true)
     }
 
-    pub(super) fn walk(
+    fn walk_with<S: F5cWalkSink>(
         &mut self,
         first: F5cWalkTask,
-    ) -> Result<F5cWalkValue, SolveAvailabilityError> {
+        sink: &mut S,
+    ) -> Result<S::Value, SolveAvailabilityError> {
         let active_checkpoint = self.active.len();
         let frame_checkpoint = self.frames.len();
         let path_checkpoint = self.path.len();
         let mut tasks = Vec::new();
-        let mut values = Vec::<F5cWalkValue>::new();
+        let mut values = Vec::<S::Value>::new();
         let mut direct_edges = Vec::<(usize, u32)>::new();
         let mut direct_targets = HashSet::<u32>::new();
         macro_rules! push_task {
@@ -2730,10 +2995,8 @@ impl<'a> F5cGeneralizer<'a> {
                             self.memo.observe_walker()?;
                             self.mark(row, polarity)?;
                             push_value!(match polarity {
-                                Polarity::Positive =>
-                                    F5cWalkValue::Positive(F5cPositive::Variable(row), false),
-                                Polarity::Negative =>
-                                    F5cWalkValue::Negative(F5cNegative::Variable(row), false),
+                                Polarity::Positive => sink.variable(Polarity::Positive, row, false),
+                                Polarity::Negative => sink.variable(Polarity::Negative, row, false),
                             });
                             continue;
                         }
@@ -2759,10 +3022,8 @@ impl<'a> F5cGeneralizer<'a> {
                                         .checked_add(self.memo.node(id)?.transitive_incidence_count)
                                         .ok_or(SolveAvailabilityError::IdentityExhausted)?;
                                     push_value!(match polarity {
-                                        Polarity::Positive =>
-                                            F5cWalkValue::Positive(F5cPositive::Shared(id), true),
-                                        Polarity::Negative =>
-                                            F5cWalkValue::Negative(F5cNegative::Shared(id), true),
+                                        Polarity::Positive => sink.shared(Polarity::Positive, id),
+                                        Polarity::Negative => sink.shared(Polarity::Negative, id),
                                     });
                                     continue;
                                 }
@@ -2874,107 +3135,8 @@ impl<'a> F5cGeneralizer<'a> {
                         self.active.pop();
                         self.active_set.remove(&(row, polarity));
                         self.memo.observe_walker()?;
-                        let value = match polarity {
-                            Polarity::Positive => {
-                                let mut parts = Vec::new();
-                                let mut cacheable = true;
-                                for child in values.drain(values_start..) {
-                                    let F5cWalkValue::Positive(value, child_cacheable) = child
-                                    else {
-                                        return Err(SolveAvailabilityError::IdentityExhausted);
-                                    };
-                                    let duplicate = {
-                                        let mut comparisons = Vec::new();
-                                        let mut duplicate = false;
-                                        for previous in &parts {
-                                            self.memo.work_meter.charge(1)?;
-                                            if self.structural_equal(
-                                                F5cCompareTask::Positive(previous, &value),
-                                                &mut comparisons,
-                                            )? {
-                                                duplicate = true;
-                                                break;
-                                            }
-                                        }
-                                        self.memo
-                                            .walker_resources
-                                            .release(F5cWalkerLaneKind::Comparison);
-                                        duplicate
-                                    };
-                                    if !duplicate {
-                                        cacheable &= child_cacheable;
-                                        self.memo.reserve_walker(
-                                            &mut parts,
-                                            F5cWalkerLaneKind::PositiveParts,
-                                        )?;
-                                        parts.push(value);
-                                    }
-                                }
-                                let nonempty = !parts.is_empty();
-                                let value = F5cWalkValue::Positive(
-                                    match parts.len() {
-                                        0 if root => F5cPositive::Bottom,
-                                        0 => F5cPositive::Variable(row),
-                                        1 => parts.pop().expect("one lower member"),
-                                        _ => F5cPositive::Union(parts),
-                                    },
-                                    cacheable && (nonempty || root),
-                                );
-                                self.memo
-                                    .walker_resources
-                                    .release(F5cWalkerLaneKind::PositiveParts);
-                                value
-                            }
-                            Polarity::Negative => {
-                                let mut parts = Vec::new();
-                                let mut cacheable = true;
-                                for child in values.drain(values_start..) {
-                                    let F5cWalkValue::Negative(value, child_cacheable) = child
-                                    else {
-                                        return Err(SolveAvailabilityError::IdentityExhausted);
-                                    };
-                                    let duplicate = {
-                                        let mut comparisons = Vec::new();
-                                        let mut duplicate = false;
-                                        for previous in &parts {
-                                            self.memo.work_meter.charge(1)?;
-                                            if self.structural_equal(
-                                                F5cCompareTask::Negative(previous, &value),
-                                                &mut comparisons,
-                                            )? {
-                                                duplicate = true;
-                                                break;
-                                            }
-                                        }
-                                        self.memo
-                                            .walker_resources
-                                            .release(F5cWalkerLaneKind::Comparison);
-                                        duplicate
-                                    };
-                                    if !duplicate {
-                                        cacheable &= child_cacheable;
-                                        self.memo.reserve_walker(
-                                            &mut parts,
-                                            F5cWalkerLaneKind::NegativeParts,
-                                        )?;
-                                        parts.push(value);
-                                    }
-                                }
-                                let nonempty = !parts.is_empty();
-                                let value = F5cWalkValue::Negative(
-                                    match parts.len() {
-                                        0 => F5cNegative::Variable(row),
-                                        1 => parts.pop().expect("one upper member"),
-                                        _ => F5cNegative::Intersection(parts),
-                                    },
-                                    cacheable && nonempty,
-                                );
-                                self.memo
-                                    .walker_resources
-                                    .release(F5cWalkerLaneKind::NegativeParts);
-                                value
-                            }
-                        };
+                        let value =
+                            sink.finish_row(self, &mut values, values_start, row, polarity, root)?;
                         if root {
                             push_value!(value);
                             continue;
@@ -2983,23 +3145,13 @@ impl<'a> F5cGeneralizer<'a> {
                             .frames
                             .pop()
                             .expect("non-root expansion owns one frame");
-                        frame.tainted |= match &value {
-                            F5cWalkValue::Positive(_, cacheable)
-                            | F5cWalkValue::Negative(_, cacheable) => !cacheable,
-                        };
+                        frame.tainted |= !sink.cacheable(&value);
                         if frame.tainted {
                             self.record_uncacheable(row, polarity);
                             self.taint_active_states()?;
                             push_value!(value);
                         } else {
-                            let id = match &value {
-                                F5cWalkValue::Positive(value, _) => {
-                                    self.memo.positive_node(value, Some((row, polarity)))?
-                                }
-                                F5cWalkValue::Negative(value, _) => {
-                                    self.memo.negative_node(value, Some((row, polarity)))?
-                                }
-                            };
+                            let id = sink.promote(self, &value, row, polarity)?;
                             let key = F5cExpansionKey {
                                 row,
                                 polarity,
@@ -3013,20 +3165,18 @@ impl<'a> F5cGeneralizer<'a> {
                                 self.assert_admitted_summary_has_no_active_incidence(id);
                             }
                             push_value!(match polarity {
-                                Polarity::Positive =>
-                                    F5cWalkValue::Positive(F5cPositive::Shared(id), true),
-                                Polarity::Negative =>
-                                    F5cWalkValue::Negative(F5cNegative::Shared(id), true),
+                                Polarity::Positive => sink.shared(Polarity::Positive, id),
+                                Polarity::Negative => sink.shared(Polarity::Negative, id),
                             });
                         }
                     }
                     F5cWalkTask::PositiveEndpoint(endpoint) => push_task!(match endpoint {
                         ValueEndpointKey::IntPositive => {
-                            push_value!(F5cWalkValue::Positive(F5cPositive::Int, true));
+                            push_value!(sink.int(Polarity::Positive));
                             continue;
                         }
                         ValueEndpointKey::BottomPositive => {
-                            push_value!(F5cWalkValue::Positive(F5cPositive::Bottom, true));
+                            push_value!(sink.bottom(Polarity::Positive));
                             continue;
                         }
                         ValueEndpointKey::ValueRow(row) => F5cWalkTask::EnterRow {
@@ -3042,15 +3192,15 @@ impl<'a> F5cGeneralizer<'a> {
                     }),
                     F5cWalkTask::NegativeEndpoint(endpoint) => push_task!(match endpoint {
                         ValueEndpointKey::IntNegative => {
-                            push_value!(F5cWalkValue::Negative(F5cNegative::Int, true));
+                            push_value!(sink.int(Polarity::Negative));
                             continue;
                         }
                         ValueEndpointKey::TopNegative => {
-                            push_value!(F5cWalkValue::Negative(F5cNegative::Top, true));
+                            push_value!(sink.top());
                             continue;
                         }
                         ValueEndpointKey::BottomNegative => {
-                            push_value!(F5cWalkValue::Negative(F5cNegative::Bottom, true));
+                            push_value!(sink.bottom(Polarity::Negative));
                             continue;
                         }
                         ValueEndpointKey::ValueRow(row) => F5cWalkTask::EnterRow {
@@ -3073,19 +3223,19 @@ impl<'a> F5cGeneralizer<'a> {
                                 .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
                         ) {
                             (Polarity::Positive, TermView::Leaf(Leaf::IntPositive)) => {
-                                push_value!(F5cWalkValue::Positive(F5cPositive::Int, true))
+                                push_value!(sink.int(Polarity::Positive))
                             }
                             (Polarity::Negative, TermView::Leaf(Leaf::IntNegative)) => {
-                                push_value!(F5cWalkValue::Negative(F5cNegative::Int, true))
+                                push_value!(sink.int(Polarity::Negative))
                             }
                             (Polarity::Positive, TermView::PositiveBottom) => {
-                                push_value!(F5cWalkValue::Positive(F5cPositive::Bottom, true))
+                                push_value!(sink.bottom(Polarity::Positive))
                             }
                             (Polarity::Negative, TermView::NegativeTop) => {
-                                push_value!(F5cWalkValue::Negative(F5cNegative::Top, true))
+                                push_value!(sink.top())
                             }
                             (Polarity::Negative, TermView::NegativeBottom) => {
-                                push_value!(F5cWalkValue::Negative(F5cNegative::Bottom, true))
+                                push_value!(sink.bottom(Polarity::Negative))
                             }
                             (polarity, TermView::LiveVariable(view))
                                 if view.polarity() == polarity =>
@@ -3180,42 +3330,7 @@ impl<'a> F5cGeneralizer<'a> {
                         let argument = values
                             .pop()
                             .ok_or(SolveAvailabilityError::IdentityExhausted)?;
-                        push_value!({
-                            #[cfg(test)]
-                            F5C_FUNCTION_OUTPUT_CONSTRUCTION.with(|marker| {
-                                let count = marker.get().map_or(0, |(_, count)| count);
-                                marker.set(Some((self.memo.work_meter.get(), count + 1)));
-                            });
-                            match (polarity, argument, result) {
-                                (
-                                    Polarity::Positive,
-                                    F5cWalkValue::Negative(argument, argument_cacheable),
-                                    F5cWalkValue::Positive(result, result_cacheable),
-                                ) => F5cWalkValue::Positive(
-                                    F5cPositive::Function {
-                                        argument: Box::new(argument),
-                                        argument_effect: F5cNegativeEffect::Empty,
-                                        result_effect: F5cPositiveEffect::Bottom,
-                                        result: Box::new(result),
-                                    },
-                                    argument_cacheable && result_cacheable,
-                                ),
-                                (
-                                    Polarity::Negative,
-                                    F5cWalkValue::Positive(argument, argument_cacheable),
-                                    F5cWalkValue::Negative(result, result_cacheable),
-                                ) => F5cWalkValue::Negative(
-                                    F5cNegative::Function {
-                                        argument: Box::new(argument),
-                                        argument_effect: F5cPositiveEffect::Bottom,
-                                        result_effect: F5cNegativeEffect::Empty,
-                                        result: Box::new(result),
-                                    },
-                                    argument_cacheable && result_cacheable,
-                                ),
-                                _ => return Err(SolveAvailabilityError::IdentityExhausted),
-                            }
-                        });
+                        push_value!(sink.function(self, polarity, argument, result)?);
                     }
                 }
             }
@@ -3266,6 +3381,13 @@ impl<'a> F5cGeneralizer<'a> {
             .walker_resources
             .release(F5cWalkerLaneKind::NegativeParts);
         result
+    }
+
+    pub(super) fn walk(
+        &mut self,
+        first: F5cWalkTask,
+    ) -> Result<F5cWalkValue, SolveAvailabilityError> {
+        self.walk_with(first, &mut F5cBoxedWalkSink)
     }
 
     pub(super) fn positive_row(

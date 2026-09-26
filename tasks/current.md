@@ -28,6 +28,29 @@ interpreter, then implement the uncalled tagged flat sink and ordered raw-root
 forest. Production cutover, resource probing, numeric limits, indexed
 finalization, §44 rollback, F5e, and overall F5c closure remain open.
 
+### Latest continuation (2026-09-26): boxed sink on shared interpreter
+
+The existing producer task machine now runs through one generic
+`walk_with<S: F5cWalkSink>` interpreter. `F5cBoxedWalkSink` contains the former
+boxed construction, first-seen deduplication, structural comparison, and memo
+promotion operations. Existing `walk` wrappers and all production callers still
+select this boxed sink. The generic Values lane records the concrete value
+slot size for capacity accounting. No flat sink or candidate raw-root forest
+is present yet.
+
+M2 `spec_auditor` and `performance_auditor` reviews found no confirmed defect
+in this intermediate extraction. Static dispatch and existing allocation
+shape remain; optimized code size and successful-path timing are unmeasured
+and remain under the reviewed §15 plan. Focused checks passed: `cargo fmt`,
+`cargo check -p yu-solver --lib`, the generalization filter (17), the F5c
+filter (209 passed, 1 ignored), and `git diff --check`.
+
+Next: add the uncalled tagged flat sink and keep source Local/Shared references
+alive across the full ordered predicate/bounds forest. The full callback/Q/R
+witness and candidate parity/rollback gates remain open. No production
+cutover, resource probe, numeric boundary, §44 closure, F5e acceptance, or
+overall F5c completion is authorized.
+
 ### Latest continuation (2026-09-26): solve-wide checked work-meter subgate
 
 Added a session-owned checked logical-work meter and threaded it through the

@@ -2846,3 +2846,20 @@ interpreter, then add the uncalled flat sink and ordered forest. The boxed path
 remains production; no resource probe, benchmark, numeric boundary, production
 cutover, §44 closure, F5e acceptance, or overall F5c completion is authorized
 by this slice.
+
+## Latest continuation (2026-09-26): boxed sink extraction
+
+The existing task interpreter now runs through one generic
+`walk_with<S: F5cWalkSink>`. `F5cBoxedWalkSink` owns the former boxed leaf,
+row-deduplication, Function construction, and memo-promotion operations. The
+existing `walk` entrypoint and all production callers still use the boxed
+sink. Generic value-lane capacity accounting uses the instantiated value
+size. No flat sink or candidate flat raw-root forest exists yet.
+
+M2 spec and performance review found no confirmed defect in this intermediate
+extraction. Focused checks passed: formatting, solver library check,
+generalization filter (17), and F5c filter (209 passed, 1 ignored). Code size
+and successful-path timing remain unmeasured under §15. Next: implement the
+uncalled tagged flat sink and ordered forest with complete parity and rollback
+evidence. Production cutover, §15 probes, numeric limits, §44 closure, F5e,
+and overall F5c completion remain open.
