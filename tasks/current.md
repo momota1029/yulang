@@ -4,6 +4,37 @@ Updated: 2026-09-28. Branch: `yulang3`; do not modify frozen `main`.
 
 Resume handoff: [`2026-09-22 F5c scheme-closure handoff`](../notes/handoffs/2026-09-22-f5c-scheme-closure-handoff.md).
 
+### Latest continuation (2026-09-28): live intermediate-graph census
+
+The per-invocation logical graph census is implemented and closed at the
+scoped gate. Each Normalizer checks the projected sum of live node entries and
+child-ID slots before either graph lane grows. The batch path keeps one owner
+across all staged members; the test-only observation confirms a two-member
+batch size equals the sum of separately normalized member sizes. The census
+uses lengths, not capacities, and adds no numeric resource boundary.
+
+The formula is recorded as Authoritative in
+[`live intermediate-graph census addendum`](../notes/design/2026-09-28-f5c-live-intermediate-graph-census-addendum.md),
+selected under the user's delegation. Selected M2. Design review by
+`compiler_referee` and `spec_auditor`, plus implementation review by
+`spec_auditor` and `performance_auditor`; the first implementation review
+found the actual shared-batch witness missing, and a fresh spec delta review
+closed it after repair. Performance review found constant checked work per
+append with no added scans or allocations.
+
+Checks passed: `RUSTC_WRAPPER= cargo test -p yu-solver --lib
+f5c_normalization::tests:: --offline -- --test-threads=1` (29), the actual
+two-member batch witness (1), `RUSTC_WRAPPER= cargo check -p yu-solver --tests
+--offline -j 2`, `cargo fmt --all -- --check`, and `git diff --check`. No full
+package suite, benchmark, or resource probe ran; measurement budget consumed:
+zero. The initial default sccache wrapper hit a local EPERM; runs with
+`RUSTC_WRAPPER=` passed.
+
+Next: close the nested source-capacity owner ledger across draft producers,
+normalization replacement, failure, and finalization overlap. Numeric-boundary
+selection, production cutover, F5e Function products, and overall F5c
+acceptance remain open.
+
 ### Latest continuation (2026-09-28): journal admission and rollback witness
 
 `conflict_journal` is reserved to the live-root upper bound before traversal;
@@ -22,10 +53,9 @@ retry test, the same-key readmission rollback-capacity test,
 or resource probe ran; measurement budget consumed: zero. The test seam has no
 production-path cost. No practical numeric ceiling was added.
 
-Next: record and implement the approved live intermediate graph census as the
-checked sum of all simultaneously live Normalizer node and child-ID lengths,
-accumulated across staged members until those buffers drop. Numeric-boundary
-selection, production cutover, F5e, and overall F5c acceptance remain open.
+At that checkpoint, the next item was the live intermediate-graph census
+recorded above. Numeric-boundary selection, production cutover, F5e, and
+overall F5c acceptance remain open.
 
 ### Completed continuation (2026-09-28): memo reverse-parent incidence preflight
 

@@ -178,6 +178,12 @@ pub(super) struct FlatNormalizationResource {
 thread_local! {
     static FAILED_FLAT_PHYSICAL_RESOURCE: std::cell::RefCell<Option<FlatNormalizationResource>> =
         const { std::cell::RefCell::new(None) };
+    static OBSERVED_FLAT_GRAPH_SIZE: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
+#[cfg(test)]
+pub(super) fn observed_flat_graph_size() -> usize {
+    OBSERVED_FLAT_GRAPH_SIZE.with(std::cell::Cell::get)
 }
 
 #[cfg(test)]
@@ -811,6 +817,33 @@ struct Normalizer<'meter> {
 }
 
 impl<'meter> Normalizer<'meter> {
+    fn projected_graph_size(
+        node_count: usize,
+        child_count: usize,
+        added_nodes: usize,
+        added_children: usize,
+    ) -> Result<usize, SolveAvailabilityError> {
+        node_count
+            .checked_add(child_count)
+            .and_then(|count| count.checked_add(added_nodes))
+            .and_then(|count| count.checked_add(added_children))
+            .ok_or(SolveAvailabilityError::IdentityExhausted)
+    }
+
+    fn preflight_graph_growth(
+        &self,
+        added_nodes: usize,
+        added_children: usize,
+    ) -> Result<(), SolveAvailabilityError> {
+        Self::projected_graph_size(
+            self.nodes.len(),
+            self.children.len(),
+            added_nodes,
+            added_children,
+        )?;
+        Ok(())
+    }
+
     fn new() -> Self {
         Self {
             source_meter: None,
@@ -1001,6 +1034,7 @@ impl<'meter> Normalizer<'meter> {
         kind: NodeKind,
         children: &[NodeId],
     ) -> Result<NodeId, SolveAvailabilityError> {
+        self.preflight_graph_growth(1, children.len())?;
         let start = self.children.len();
         Self::reserve(
             &mut self.children,
@@ -1019,6 +1053,7 @@ impl<'meter> Normalizer<'meter> {
         start: usize,
         child_count: usize,
     ) -> Result<NodeId, SolveAvailabilityError> {
+        self.preflight_graph_growth(1, 0)?;
         let end = start
             .checked_add(child_count)
             .ok_or(SolveAvailabilityError::IdentityExhausted)?;
@@ -1328,6 +1363,7 @@ impl<'meter> Normalizer<'meter> {
         len: usize,
         positive: bool,
     ) -> Result<(usize, usize), SolveAvailabilityError> {
+        self.preflight_graph_growth(1, len)?;
         let start = self
             .values
             .len()
@@ -2593,6 +2629,10 @@ pub(super) fn normalize_flat_batch_metered<'meter>(
             }
             collect_flat_member(input, &mut normalizer)?;
         }
+        #[cfg(test)]
+        OBSERVED_FLAT_GRAPH_SIZE.with(|size| {
+            size.set(normalizer.nodes.len() + normalizer.children.len());
+        });
         normalizer.rank_all()?;
         prepare_flat_representatives(&mut normalizer)?;
         let roots = std::mem::take(&mut normalizer.roots);
@@ -2894,6 +2934,10 @@ fn normalize_flat_inner_work(
     normalizer: &mut Normalizer,
 ) -> Result<(FlatDraft, FlatNormalizationStats), SolveAvailabilityError> {
     collect_flat_member(input, normalizer)?;
+    #[cfg(test)]
+    OBSERVED_FLAT_GRAPH_SIZE.with(|size| {
+        size.set(normalizer.nodes.len() + normalizer.children.len());
+    });
     normalizer.rank_all()?;
     prepare_flat_representatives(normalizer)?;
     let roots = std::mem::take(&mut normalizer.roots);
@@ -4078,6 +4122,94 @@ pub(super) fn normalize_negative<'meter>(
 mod tests {
     use super::*;
     use crate::{F5cNegativeEffect, F5cPositiveEffect};
+
+    #[test]
+    fn graph_projection_counts_both_function_children_and_checks_overflow() {
+        assert_eq!(Normalizer::projected_graph_size(3, 4, 1, 2), Ok(10));
+        assert_eq!(
+            Normalizer::projected_graph_size(usize::MAX - 3, 0, 1, 2),
+            Ok(usize::MAX)
+        );
+        assert_eq!(
+            Normalizer::projected_graph_size(usize::MAX - 2, 0, 1, 2),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+        assert_eq!(
+            Normalizer::projected_graph_size(usize::MAX, 1, 0, 0),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+    }
+
+    #[test]
+    fn graph_growth_preflight_fails_before_lane_reserve() {
+        let mut normalizer = Normalizer::new();
+        normalizer.nodes.push(Node {
+            kind: NodeKind::PositiveInt,
+            height: 0,
+            rank: 0,
+            descriptor: None,
+        });
+        let stats_before = normalizer.stats.clone();
+        let capacities_before = (normalizer.nodes.capacity(), normalizer.children.capacity());
+        assert_eq!(
+            normalizer.take_values_into_children(usize::MAX, true),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+        assert_eq!(normalizer.stats, stats_before);
+        assert_eq!(
+            (normalizer.nodes.capacity(), normalizer.children.capacity()),
+            capacities_before
+        );
+        assert!(normalizer.children.is_empty());
+    }
+
+    #[test]
+    fn graph_projection_accumulates_across_members_in_one_normalizer() {
+        let mut normalizer = Normalizer::new();
+        for _member in 0..2 {
+            let argument = normalizer.push_node(NodeKind::NegativeTop, &[]).unwrap();
+            let result = normalizer.push_node(NodeKind::PositiveInt, &[]).unwrap();
+            normalizer
+                .push_node(NodeKind::PositiveFunction { start: 0 }, &[argument, result])
+                .unwrap();
+        }
+        assert_eq!(normalizer.nodes.len(), 6);
+        assert_eq!(normalizer.children.len(), 4);
+        assert_eq!(normalizer.preflight_graph_growth(1, 2), Ok(()));
+        assert_eq!(
+            Normalizer::projected_graph_size(
+                normalizer.nodes.len(),
+                normalizer.children.len(),
+                1,
+                2,
+            ),
+            Ok(13)
+        );
+    }
+
+    #[test]
+    fn failed_node_reserve_after_child_growth_drops_cleanly_and_fresh_owner_retries() {
+        let mut normalizer = Normalizer::new();
+        let leaf = normalizer.push_node(NodeKind::PositiveInt, &[]).unwrap();
+        let prior_children = normalizer.children.capacity();
+        normalizer.stats.index_lanes[Lane::Nodes as usize].requested_slots = usize::MAX;
+        assert_eq!(
+            normalizer.push_node(NodeKind::PositiveUnion { start: 0, len: 0 }, &[leaf]),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+        assert_eq!(normalizer.nodes.len(), 1);
+        assert_eq!(normalizer.children, [leaf]);
+        assert!(normalizer.children.capacity() > prior_children);
+        drop(normalizer);
+
+        let mut fresh = Normalizer::new();
+        let leaf = fresh.push_node(NodeKind::PositiveInt, &[]).unwrap();
+        fresh
+            .push_node(NodeKind::PositiveUnion { start: 0, len: 0 }, &[leaf])
+            .unwrap();
+        assert_eq!(fresh.nodes.len(), 2);
+        assert_eq!(fresh.children.len(), 1);
+    }
 
     #[test]
     fn root_count_rejects_usize_overflow() {

@@ -437,6 +437,14 @@ fn flat_batch_compound_members_keep_boxed_counters_and_indexed_schemes() {
                 .iter()
                 .any(|node| matches!(node, crate::f5c_draft::NegativeNode::Intersection(_)))
         }));
+        assert_eq!(staged.len(), 2);
+        let member_graph_sizes = staged
+            .iter()
+            .map(|member| {
+                crate::f5c_normalization::normalize_flat(&member.candidate.draft).unwrap();
+                crate::f5c_normalization::observed_flat_graph_size()
+            })
+            .collect::<Vec<_>>();
         let flat_stats = crate::f5c_normalization::normalize_flat_batch_metered(
             &mut flat_memo,
             &flat_meter,
@@ -444,6 +452,13 @@ fn flat_batch_compound_members_keep_boxed_counters_and_indexed_schemes() {
             None,
         )
         .unwrap();
+        let batch_graph_size = crate::f5c_normalization::observed_flat_graph_size();
+        assert!(
+            member_graph_sizes
+                .iter()
+                .all(|size| batch_graph_size > *size)
+        );
+        assert_eq!(batch_graph_size, member_graph_sizes.iter().sum());
         let resource = flat_stats.resource.as_ref().unwrap();
         let snapshot_bytes = resource
             .index_peak_capacities
