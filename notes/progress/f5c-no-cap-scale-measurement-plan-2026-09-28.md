@@ -1,7 +1,9 @@
 # F5c no-cap §26/§34 scale measurement plan
 
-Status: Reviewed; execution pending explicit user approval
+Status: Reviewed; measurement campaign approved; execution pending successful preflight
 Reviewed-by: spec_auditor, performance_auditor (matrix, formulas, safety, and budget deltas closed without unresolved findings)
+Approved-by: user
+Approved-at: 2026-09-28
 Decision scope: deterministic logical-counter and per-lane capacity evidence for the approved no-numeric-cap F5c policy
 Authority: `notes/design/2026-09-21-f5-general-function-scheme-foundation-draft.md` §§26, 34, 36; `notes/design/2026-09-28-f5c-no-numeric-resource-caps-addendum.md` §§3–4; `rules/performance.md`; existing closed capture plans dated 2026-09-27 and 2026-09-28
 No probe, measurement, or test for this plan has run.
@@ -160,11 +162,12 @@ ordinary 8-process/10-minute budget and the distinct 16-process/20-minute
 user-approval threshold in `rules/performance.md`. Before the preflight or any
 matrix run, record independent spec/performance plan review, written
 performance-auditor justification, primary approval, and explicit user
-approval for the full 37-process/43-minute nominal campaign. That approval
-authorizes the 1-process/60-second preflight first and conditionally authorizes
-the remaining 36-process/42-minute matrix only after the preflight passes and
-its result is reviewed. Approval of the no-cap design alone does not approve
-this experiment budget.
+approval for the full 37-process/43-minute nominal campaign. The user approved
+the full campaign on 2026-09-28. That approval authorizes the
+1-process/60-second preflight first and conditionally authorizes the remaining
+36-process/42-minute matrix only after the preflight passes and its result is
+reviewed. Approval of the no-cap design alone did not approve this experiment
+budget.
 
 Written performance-auditor justification (2026-09-28): F5 §§26/34 require
 dimension-specific exact-counter and physical-lane evidence at three sizes;
@@ -173,7 +176,8 @@ ratios or expose work multiplication as each named dimension grows. The
 exhausted §15 captures do not contain these seven builders. This campaign
 collects deterministic counts and capacity observations only, with no timing
 repetitions. The primary approves the full campaign conditionally on explicit
-user approval; no process is authorized before that approval.
+user approval; the approval was given on 2026-09-28. No process is authorized
+before the test-only harness is implemented and reviewed.
 
 Prior whole-process maxima were 556,296 KiB for the §15 scale capture and
 647,412 KiB for the failure capture, including build. At plan preparation,

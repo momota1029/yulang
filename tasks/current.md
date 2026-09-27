@@ -15,15 +15,17 @@ host-availability floor. Independent spec and performance reviews, including
 targeted deltas, closed without findings. The performance auditor supplied a
 written justification for the required larger budget.
 
-No probe or test has run for this plan. Before any process, the full campaign
-needs explicit user approval: one 32-size preflight, then 36 isolated
-1k/2k/4k cases only if the preflight passes. The total is 37 processes and 43
-minutes of nominal timeout budget, plus at most one 10-second kill grace.
-Primary and reviewer approvals are recorded; the matrix remains conditional
-on successful reviewed preflight. The prior §15 plans remain exhausted.
+No probe or test has run for this plan. The user approved the full campaign on
+2026-09-28: one 32-size preflight, then 36 isolated 1k/2k/4k cases only if the
+preflight passes. The total is 37 processes and 43 minutes of nominal timeout
+budget, plus at most one 10-second kill grace. Primary, reviewer, and user
+approvals are recorded; the matrix remains conditional on a successful,
+reviewed preflight. The prior §15 plans remain exhausted.
 
-Next: approve the exact reviewed 37-process campaign. If approved, run the
-preflight first; only then can the scale matrix proceed.
+Next: implement and independently review the fixed-size test-only per-lane and
+per-boundary summaries required by the plan, without production hooks or use of
+the 64-row capture; then run the approved preflight first. Only after a passing
+reviewed preflight may the 36-case scale matrix proceed.
 
 ### Completed continuation (2026-09-28): no-cap resource-policy design approved
 
