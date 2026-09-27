@@ -66,6 +66,16 @@ pub(crate) struct F5cFlatWalkSink {
     pub(crate) promotion_observation: Option<[usize; 10]>,
 }
 
+fn checked_output_root_count(
+    existing: usize,
+    additional: usize,
+) -> Result<u32, SolveAvailabilityError> {
+    let count = existing
+        .checked_add(additional)
+        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+    u32::try_from(count).map_err(|_| SolveAvailabilityError::IdentityExhausted)
+}
+
 impl F5cFlatWalkSink {
     /// Append every raw occurrence in caller order. The source arena stays live for
     /// subsequent producer work; a failed batch restores all draft append lanes.
@@ -98,6 +108,7 @@ impl F5cFlatWalkSink {
         let mut values: Vec<NodeRef> = Vec::new();
         let result = (|| {
             let bad = SolveAvailabilityError::IdentityExhausted;
+            checked_output_root_count(outputs.len(), roots.len())?;
             macro_rules! reserve {
                 ($buffer:expr, $lane:expr, $count:expr) => {{
                     let bytes = memo.retained_bytes()?;
@@ -400,6 +411,24 @@ impl F5cFlatWalkSink {
 #[cfg(test)]
 mod materialization_tests {
     use super::*;
+
+    #[test]
+    fn output_root_count_rejects_unrepresentable_sum() {
+        assert_eq!(checked_output_root_count(0, 0), Ok(0));
+        assert_eq!(checked_output_root_count(1, 2), Ok(3));
+        assert_eq!(
+            checked_output_root_count(0, u32::MAX as usize),
+            Ok(u32::MAX)
+        );
+        assert_eq!(
+            checked_output_root_count(1, u32::MAX as usize),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+        assert_eq!(
+            checked_output_root_count(usize::MAX, 1),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+    }
 
     #[test]
     fn mixed_occurrences_keep_order_and_batch_failure_restores_draft() {

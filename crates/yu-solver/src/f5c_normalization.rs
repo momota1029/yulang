@@ -122,6 +122,12 @@ struct Root {
     location: RootLocation,
 }
 
+fn next_root_count(count: usize) -> Result<usize, SolveAvailabilityError> {
+    count
+        .checked_add(1)
+        .ok_or(SolveAvailabilityError::IdentityExhausted)
+}
+
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub(super) struct NormalizationStats {
     pub(super) key_writes: usize,
@@ -1357,6 +1363,7 @@ impl<'meter> Normalizer<'meter> {
         value: BuiltRef,
         location: RootLocation,
     ) -> Result<(), SolveAvailabilityError> {
+        next_root_count(self.roots.len())?;
         let node = match value {
             BuiltRef::Positive(node) | BuiltRef::Negative(node) => node,
         };
@@ -4071,6 +4078,16 @@ pub(super) fn normalize_negative<'meter>(
 mod tests {
     use super::*;
     use crate::{F5cNegativeEffect, F5cPositiveEffect};
+
+    #[test]
+    fn root_count_rejects_usize_overflow() {
+        assert_eq!(next_root_count(0), Ok(1));
+        assert_eq!(next_root_count(usize::MAX - 1), Ok(usize::MAX));
+        assert_eq!(
+            next_root_count(usize::MAX),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+    }
 
     #[test]
     fn emitted_output_requests_sum_each_members_final_length() {
