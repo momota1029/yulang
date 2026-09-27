@@ -4,7 +4,29 @@ Updated: 2026-09-28. Branch: `yulang3`; do not modify frozen `main`.
 
 Resume handoff: [`2026-09-22 F5c scheme-closure handoff`](../notes/handoffs/2026-09-22-f5c-scheme-closure-handoff.md).
 
-### Latest continuation (2026-09-28): producer structural-incidence admission
+### Latest continuation (2026-09-28): Q/R bound-count preflight
+
+The flat candidate now checks the representable Q+R bound count before growing
+the post-R recursive map or selected-bound lane. `FlatDraft::bound` applies the
+same checked count before reserve, while indexed conversion retains its check.
+The Q/R ordinal order is unchanged. The `Q = u32::MAX, R = 1` witness now fails
+before bound length or capacity changes, then retries at a representable count;
+the valid Q=1/R=1 candidate still preserves ordinal 1.
+
+Selected M2 with `spec_auditor` and `performance_auditor`; both focused delta
+reviews found no issue. Checks passed: the overflowing indexed-conversion
+fixture and Q/R parity fixture (1 each), `cargo check -p yu-solver --tests
+--offline -j 2`, `cargo fmt --all -- --check`, and `git diff --check`. Direct
+test startup hit the local sccache EPERM; `RUSTC_WRAPPER=` runs passed. No broad
+suite, probe, benchmark, timing run, or §15 capture ran; measurement budget
+consumed: zero. No numeric ceiling or production cutover was selected.
+
+Next: preflight the next FlatDraft positive/negative node count before its
+lane grows, then audit root, descriptor, and live intermediate-graph counts.
+The wider source arena, numeric boundary, production cutover, F5e, and overall
+F5c acceptance remain open.
+
+### Completed continuation (2026-09-28): producer structural-incidence admission
 
 The producer audit now distinguishes stored child-ID entries from logical
 parent-to-child incidences at the `FlatDraft` owner. Stored entries count every
@@ -26,11 +48,10 @@ and `git diff --check`. No broad suite, resource probe, benchmark, timing run,
 or §15 capture ran; measurement budget consumed: zero.
 
 No numeric ceiling, supported-input boundary, or production cutover was
-selected. Next: audit remaining §5 pre-growth dimensions at their owning
-producers—node arrays, roots, Q/R bounds, normalization descriptors, and live
-intermediate graph—then choose the smallest §5/7-authorized implementation
-slice. F5e, numeric-boundary selection, production cutover, and overall F5c
-acceptance remain open.
+selected. A follow-up source audit identified Q/R bound count as the next
+slice; that preflight is now complete above. FlatDraft node-count preflight,
+other producer owners, numeric-boundary selection, production cutover, F5e,
+and overall F5c acceptance remain open.
 
 ### Completed continuation (2026-09-28): source-draft/finalizer co-resident peak
 

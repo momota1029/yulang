@@ -8314,6 +8314,7 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
         let result = (|| {
             let q_count = u32::try_from(selection.q.len())
                 .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+            f5c_draft::checked_q_r_count(q_count, selection.recursive_owners.len())?;
             let mut positive_eliminated = HashSet::new();
             let mut negative_eliminated = HashSet::new();
             for &ordinal in &self.order {
@@ -8428,6 +8429,7 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
         let result = (|| {
             let q_count = u32::try_from(selection.q.len())
                 .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+            f5c_draft::checked_q_r_count(q_count, selection.recursive_owners.len())?;
             let mut positive_eliminated = HashSet::new();
             let mut negative_eliminated = HashSet::new();
             for &ordinal in &self.order {
@@ -9250,6 +9252,7 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
         source.release_post_r_lane(memo, F5cWalkerLaneKind::PostROccurrenceOrder);
         let q_count =
             u32::try_from(q.len()).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+        f5c_draft::checked_q_r_count(q_count, recursive_owners.len())?;
         let mut r = HashMap::new();
         for (index, ordinal) in recursive_owners.iter().enumerate() {
             memo.work_meter.charge(1)?; // R owner

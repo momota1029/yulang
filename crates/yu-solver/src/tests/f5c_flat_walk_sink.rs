@@ -3344,13 +3344,21 @@ fn indexed_flat_conversion_rejects_incomplete_and_overflowing_input() {
     draft.positive_nodes[0] = PositiveNode::Int;
     draft.quantifier_count = u32::MAX;
     let upper = draft.negative(crate::f5c_draft::NegativeNode::Top).unwrap();
-    draft
-        .bound(crate::f5c_draft::RecursiveBound {
-            ordinal: 0,
-            lower: draft.predicate.unwrap(),
-            upper,
-        })
-        .unwrap();
+    let bound = crate::f5c_draft::RecursiveBound {
+        ordinal: 0,
+        lower: draft.predicate.unwrap(),
+        upper,
+    };
+    let bounds_capacity = draft.recursive_bounds.capacity();
+    assert!(matches!(
+        draft.bound(bound),
+        Err(SolveAvailabilityError::IdentityExhausted)
+    ));
+    assert_eq!(draft.recursive_bounds.len(), 0);
+    assert_eq!(draft.recursive_bounds.capacity(), bounds_capacity);
+    draft.quantifier_count = 0;
+    draft.bound(bound).unwrap();
+    draft.quantifier_count = u32::MAX;
     assert!(matches!(
         draft.indexed(&meter),
         Err(SolveAvailabilityError::IdentityExhausted)

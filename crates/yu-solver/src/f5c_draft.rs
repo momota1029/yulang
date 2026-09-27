@@ -154,6 +154,11 @@ fn indexed_count(len: usize) -> Result<u32, SolveAvailabilityError> {
     u32::try_from(len).map_err(|_| SolveAvailabilityError::IdentityExhausted)
 }
 
+pub(super) fn checked_q_r_count(q: u32, r: usize) -> Result<u32, SolveAvailabilityError> {
+    q.checked_add(indexed_count(r)?)
+        .ok_or(SolveAvailabilityError::IdentityExhausted)
+}
+
 #[cfg(test)]
 pub(super) fn indexed_count_for_test(len: usize) -> Result<u32, SolveAvailabilityError> {
     indexed_count(len)
@@ -271,8 +276,7 @@ impl FlatDraft {
         meter: &'meter DraftHeapMeter,
     ) -> Result<IndexedFlatDraft<'meter>, SolveAvailabilityError> {
         let exhausted = SolveAvailabilityError::IdentityExhausted;
-        let bounds = indexed_count(self.recursive_bounds.len())?;
-        self.quantifier_count.checked_add(bounds).ok_or(exhausted)?;
+        checked_q_r_count(self.quantifier_count, self.recursive_bounds.len())?;
         for len in [
             self.positive_nodes.len(),
             self.negative_nodes.len(),
@@ -429,6 +433,12 @@ impl FlatDraft {
     }
 
     pub(super) fn bound(&mut self, bound: RecursiveBound) -> Result<(), SolveAvailabilityError> {
+        let next = self
+            .recursive_bounds
+            .len()
+            .checked_add(1)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        checked_q_r_count(self.quantifier_count, next)?;
         self.recursive_bounds
             .try_reserve(1)
             .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
