@@ -5134,6 +5134,31 @@ impl<'meter> F5cWalkSink<'meter> for F5cBoxedWalkSink {
 }
 
 impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
+    fn pure_function_effect(
+        &mut self,
+        term: Term,
+        polarity: Polarity,
+    ) -> Result<bool, SolveAvailabilityError> {
+        match (polarity, self.session.store.term_view(term)) {
+            (Polarity::Positive, Ok(TermView::Leaf(Leaf::EffectBottomPositive)))
+            | (Polarity::Negative, Ok(TermView::Leaf(Leaf::EmptyEffectNegative))) => Ok(true),
+            (expected, Ok(TermView::LiveVariable(view)))
+                if view.kind() == ComponentKind::Effect && view.polarity() == expected =>
+            {
+                let row = self
+                    .session
+                    .effect_bounds
+                    .get(
+                        usize::try_from(view.ordinal())
+                            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
+                    )
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                self.memo.work_meter.charge(2)?; // exact lower and upper effect bounds
+                Ok(row.has_bottom_lower && row.has_empty_upper)
+            }
+            _ => Ok(false),
+        }
+    }
     #[cfg(test)]
     pub(super) fn component_idle_checkpoint_for_test(
         &self,
@@ -5918,11 +5943,53 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
                                 }));
                             }
                         }
+                        // The sole direct target already carries this entire lower
+                        // sequence. Its traversal supplies the same positive values.
+                        let mut replayed_lower = false;
+                        if !root
+                            && polarity == Polarity::Positive
+                            && bounds.direct_lower_rows.len() == 1
+                            && bounds.direct_lower_rows[0] != row
+                            && !bounds.exact_non_variable_lowers.is_empty()
+                            && bounds.direct_upper_rows.is_empty()
+                            && bounds.exact_non_variable_uppers.is_empty()
+                        {
+                            self.memo.work_meter.charge(1)?;
+                            if let Some(target) = self
+                                .session
+                                .bounds
+                                .get(bounds.direct_lower_rows[0] as usize)
+                            {
+                                if target.direct_lower_rows.is_empty()
+                                    && target.exact_non_variable_lowers.len()
+                                        == bounds.exact_non_variable_lowers.len()
+                                {
+                                    replayed_lower = true;
+                                    for (left, right) in bounds
+                                        .exact_non_variable_lowers
+                                        .iter()
+                                        .zip(&target.exact_non_variable_lowers)
+                                    {
+                                        self.memo.work_meter.charge(1)?;
+                                        if left != right {
+                                            replayed_lower = false;
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                        }
                         let exact = match polarity {
                             Polarity::Positive => &bounds.exact_non_variable_lowers,
                             Polarity::Negative => &bounds.exact_non_variable_uppers,
                         };
-                        for (slot, endpoint) in exact.iter().copied().enumerate().rev() {
+                        for (slot, endpoint) in exact
+                            .iter()
+                            .copied()
+                            .enumerate()
+                            .rev()
+                            .take(if replayed_lower { 0 } else { exact.len() })
+                        {
                             self.memo.work_meter.charge(1)?;
                             let side = match polarity {
                                 Polarity::Positive => F5cBoundSide::Lower,
@@ -6099,26 +6166,15 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
                                     result,
                                 },
                             ) => {
-                                let valid = match polarity {
-                                    Polarity::Positive => {
-                                        matches!(
-                                            self.session.store.term_view(argument_effect),
-                                            Ok(TermView::Leaf(Leaf::EmptyEffectNegative))
-                                        ) && matches!(
-                                            self.session.store.term_view(result_effect),
-                                            Ok(TermView::Leaf(Leaf::EffectBottomPositive))
-                                        )
-                                    }
-                                    Polarity::Negative => {
-                                        matches!(
-                                            self.session.store.term_view(argument_effect),
-                                            Ok(TermView::Leaf(Leaf::EffectBottomPositive))
-                                        ) && matches!(
-                                            self.session.store.term_view(result_effect),
-                                            Ok(TermView::Leaf(Leaf::EmptyEffectNegative))
-                                        )
-                                    }
+                                let (argument_polarity, result_polarity) = match polarity {
+                                    Polarity::Positive => (Polarity::Negative, Polarity::Positive),
+                                    Polarity::Negative => (Polarity::Positive, Polarity::Negative),
                                 };
+                                let argument_valid =
+                                    self.pure_function_effect(argument_effect, argument_polarity)?;
+                                let result_valid =
+                                    self.pure_function_effect(result_effect, result_polarity)?;
+                                let valid = argument_valid && result_valid;
                                 if !valid {
                                     self.invalid_effects = true;
                                     self.taint_failed_draft()?;

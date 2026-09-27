@@ -167,7 +167,8 @@ fn inject_f5b_post_reserve_failure_after(lane: F5bCapacityLane, successful_reser
 }
 
 use yu_hir::{
-    DefId, DefinitionRootId, HirItem, HirModule, HirOccurrenceId, NameResolution, ResolvedExpr,
+    DefId, DefinitionRootId, HirItem, HirModule, HirOccurrenceId, HirParameterId, NameResolution,
+    ResolvedExpr,
 };
 use yu_types::{
     ClosedSchemeFinalization, ClosedTypeArena, ClosedTypeFinalizationSession,
@@ -649,6 +650,19 @@ struct RootComponentPositions {
     component: usize,
 }
 
+/// A source Lambda whose endpoints are completed by the owning inference
+/// session. The parameter is a recipe position, never a live variable ID.
+#[derive(Clone, Debug)]
+struct LambdaRecipe {
+    occurrence: HirOccurrenceId,
+    parameter_position: usize,
+    root_component: usize,
+    body_value_component: Option<usize>,
+    body_effect_component: usize,
+    lambda_effect_component: usize,
+    after_collected_fact: usize,
+}
+
 #[allow(
     dead_code,
     reason = "Bottom/Top are F5b live algebra endpoints; source construction is deferred to F5d"
@@ -742,6 +756,8 @@ pub struct ConstraintBatch {
     test_term_arena_dirty: bool,
     occurrence_component_positions: HashMap<HirOccurrenceId, ComponentPositions>,
     root_component_positions: HashMap<DefinitionRootId, RootComponentPositions>,
+    parameter_recipes: Vec<HirParameterId>,
+    lambda_recipes: Vec<LambdaRecipe>,
     /// The F4 scheme slot key.  The ordinal is scheduling storage only; the
     /// semantic key remains the artifact-branded definition root.
     root_definition_positions: HashMap<DefinitionRootId, usize>,
@@ -788,6 +804,8 @@ impl ConstraintBatch {
             test_term_arena_dirty: false,
             occurrence_component_positions: HashMap::new(),
             root_component_positions: HashMap::new(),
+            parameter_recipes: Vec::new(),
+            lambda_recipes: Vec::new(),
             root_definition_positions: HashMap::new(),
             root_scheme_identity_payload_bytes: Vec::new(),
             occurrences: Vec::new(),
@@ -883,10 +901,8 @@ impl ConstraintBatch {
                             resolution: NameResolution::Parameter(_),
                             ..
                         } => CollectedBodyStatus::Error,
-                        // F5a retains the source Lambda in HIR, but Function
-                        // facts remain deliberately deferred to F5d. Its
-                        // owned body still determines the existing complete
-                        // versus error collection disposition.
+                        // The owned Lambda body determines whether the
+                        // session receives a complete Function recipe.
                         ResolvedExpr::Lambda { body, .. } => match body.as_ref() {
                             ResolvedExpr::Integer { .. }
                             | ResolvedExpr::Name {
@@ -966,7 +982,7 @@ impl ConstraintBatch {
                 },
             ) = (definition.as_ref(), definition_root.as_ref(), expression)
             {
-                batch.emit_resolved_binding_name(occurrence.clone(), (*root).clone())?;
+                batch.emit_resolved_binding_name(occurrence.clone(), Some((*root).clone()))?;
                 let old_capacity = pending_uses.capacity();
                 pending_uses.push(PendingDefinitionUse {
                     parent_ordinal: parent.ordinal(),
@@ -984,6 +1000,45 @@ impl ConstraintBatch {
                     batch
                         .counters
                         .definition_use_endpoint_workspace_capacity_growths += 1;
+                }
+            }
+            if let (
+                Some(parent),
+                Some(root),
+                ResolvedExpr::Lambda {
+                    occurrence,
+                    parameter,
+                    body,
+                    ..
+                },
+            ) = (definition.as_ref(), definition_root.as_ref(), expression)
+            {
+                let parameter_position = batch.parameter_recipes.len();
+                batch.parameter_recipes.push(parameter.clone());
+                batch.emit_lambda(occurrence.clone(), parameter_position, body, root)?;
+                if let ResolvedExpr::Name {
+                    resolution: NameResolution::Resolved(target),
+                    ..
+                } = body.as_ref()
+                {
+                    let old_capacity = pending_uses.capacity();
+                    pending_uses.push(PendingDefinitionUse {
+                        parent_ordinal: parent.ordinal(),
+                        target,
+                        occurrence: body.occurrence().clone(),
+                    });
+                    let capacity = pending_uses.capacity();
+                    batch
+                        .counters
+                        .definition_use_endpoint_workspace_peak_capacity = batch
+                        .counters
+                        .definition_use_endpoint_workspace_peak_capacity
+                        .max(capacity);
+                    if capacity != old_capacity {
+                        batch
+                            .counters
+                            .definition_use_endpoint_workspace_capacity_growths += 1;
+                    }
                 }
             }
             if let Some(definition) = definition {
@@ -1425,7 +1480,7 @@ impl ConstraintBatch {
     fn emit_resolved_binding_name(
         &mut self,
         occurrence: HirOccurrenceId,
-        definition_root: DefinitionRootId,
+        definition_root: Option<DefinitionRootId>,
     ) -> Result<(), CollectionAvailabilityError> {
         let value = self.occurrence_component(occurrence.clone(), ComponentKind::Value)?;
         let effect = self.occurrence_component(occurrence.clone(), ComponentKind::Effect)?;
@@ -1440,7 +1495,6 @@ impl ConstraintBatch {
         {
             return Err(CollectionAvailabilityError::DuplicateDefinitionUseId);
         }
-        let root = self.root_value_component_for_collect(&definition_root)?;
         let effect_bottom = self.term_for_leaf(Leaf::EffectBottomPositive)?;
         let effect_empty = self.term_for_leaf(Leaf::EmptyEffectNegative)?;
         self.emit(
@@ -1455,12 +1509,78 @@ impl ConstraintBatch {
             self.term_for_component(&effect),
             effect_empty,
         )?;
-        self.emit(
+        if let Some(root) = definition_root {
+            let root = self.root_value_component_for_collect(&root)?;
+            self.emit(
+                occurrence,
+                3,
+                self.term_for_component(&value),
+                self.term_for_component(&root),
+            )?;
+        }
+        Ok(())
+    }
+
+    fn emit_lambda(
+        &mut self,
+        occurrence: HirOccurrenceId,
+        parameter_position: usize,
+        body: &ResolvedExpr,
+        root: &DefinitionRootId,
+    ) -> Result<(), CollectionAvailabilityError> {
+        let (body_value_component, body_effect_component) = match body {
+            ResolvedExpr::Name {
+                occurrence: body_occurrence,
+                resolution: NameResolution::Parameter(parameter),
+                ..
+            } if parameter == &self.parameter_recipes[parameter_position] => {
+                self.occurrence_component(body_occurrence.clone(), ComponentKind::Effect)?;
+                let effect_position = self.components.len() - 1;
+                let effect_term = self.component_term_at(effect_position);
+                let bottom = self.term_for_leaf(Leaf::EffectBottomPositive)?;
+                let empty = self.term_for_leaf(Leaf::EmptyEffectNegative)?;
+                self.emit(body_occurrence.clone(), 0, bottom, effect_term)?;
+                self.emit(body_occurrence.clone(), 1, effect_term, empty)?;
+                (None, effect_position)
+            }
+            ResolvedExpr::Integer {
+                occurrence: body_occurrence,
+                ..
+            } => {
+                self.emit_integer(body_occurrence.clone(), None)?;
+                let positions = self.occurrence_component_positions[body_occurrence];
+                (Some(positions.value), positions.effect)
+            }
+            ResolvedExpr::Name {
+                occurrence: body_occurrence,
+                resolution: NameResolution::Resolved(_),
+                ..
+            } => {
+                self.emit_resolved_binding_name(body_occurrence.clone(), None)?;
+                let positions = self.occurrence_component_positions[body_occurrence];
+                (Some(positions.value), positions.effect)
+            }
+            _ => return Ok(()),
+        };
+        self.occurrence_component(occurrence.clone(), ComponentKind::Effect)?;
+        let lambda_effect_component = self.components.len() - 1;
+        let lambda_effect = self.component_term_at(lambda_effect_component);
+        let bottom = self.term_for_leaf(Leaf::EffectBottomPositive)?;
+        let empty = self.term_for_leaf(Leaf::EmptyEffectNegative)?;
+        self.emit(occurrence.clone(), 0, bottom, lambda_effect)?;
+        self.emit(occurrence.clone(), 1, lambda_effect, empty)?;
+        let root_component = self.root_component_positions[root].component;
+        self.lambda_recipes.push(LambdaRecipe {
             occurrence,
-            3,
-            self.term_for_component(&value),
-            self.term_for_component(&root),
-        )?;
+            parameter_position,
+            root_component,
+            body_value_component,
+            body_effect_component,
+            lambda_effect_component,
+            after_collected_fact: self.occurrences.len(),
+        });
+        self.counters.emitted_facts += 1;
+        self.counters.generated_work_items += 1;
         Ok(())
     }
     fn occurrence_component(
@@ -1738,6 +1858,14 @@ impl ConstraintBatch {
                 self.counters.definition_use_retained_bytes,
                 self.counters.definition_use_index_retained_bytes,
                 self.counters.component_retained_bytes,
+                checked_capacity_bytes::<HirParameterId>(
+                    self.parameter_recipes.capacity(),
+                    "F5d parameter recipes",
+                ),
+                checked_capacity_bytes::<LambdaRecipe>(
+                    self.lambda_recipes.capacity(),
+                    "F5d Lambda recipes",
+                ),
                 checked_capacity_bytes::<(Term, usize)>(
                     self.component_term_positions.capacity(),
                     "F5b collected component-term recipe index",
@@ -6394,6 +6522,7 @@ struct InferenceSession {
     /// recipes.  These dense entries are live-session identity, not source
     /// component/root/occurrence identity.
     live_components: Vec<LiveComponentEndpoint>,
+    parameter_live_base: u32,
     bounds: Vec<VariableBounds>,
     effect_bounds: Vec<EffectBounds>,
     value_levels: Vec<u32>,
@@ -8147,6 +8276,7 @@ impl InferenceSession {
             .iter()
             .filter(|component| component.kind() == ComponentKind::Value)
             .count();
+        let parameter_count = batch.parameter_recipes.len();
         let effect_component_count = batch
             .components
             .iter()
@@ -8157,8 +8287,9 @@ impl InferenceSession {
         let fact_capacity = batch
             .occurrences
             .len()
-            .checked_add(batch.definition_uses.len())
-            .expect("F4 fact capacity");
+            .checked_add(batch.lambda_recipes.len())
+            .and_then(|count| count.checked_add(batch.definition_uses.len()))
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
         let draft_capacity = batch.counters.scc_maximum_component_size;
         let routed_capacity = batch.definition_uses.len();
         let mut session = Self {
@@ -8176,6 +8307,8 @@ impl InferenceSession {
             reported_errors: HashSet::new(),
             cross_kind_components: HashSet::new(),
             live_components: Vec::new(),
+            parameter_live_base: u32::try_from(value_component_count)
+                .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
             bounds: Vec::new(),
             effect_bounds: Vec::new(),
             value_levels: Vec::new(),
@@ -8317,7 +8450,10 @@ impl InferenceSession {
         };
         // Every F5b live table and diagnostic workspace acquires capacity
         // before startup can publish a live identity or mutate a row.
-        let extrusion_capacity = value_component_count
+        let value_capacity = value_component_count
+            .checked_add(parameter_count)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        let extrusion_capacity = value_capacity
             .checked_add(effect_component_count)
             .ok_or(SolveAvailabilityError::IdentityExhausted)?;
         macro_rules! reserve_startup {
@@ -8327,18 +8463,14 @@ impl InferenceSession {
             };
         }
         reserve_startup!(live_components, component_count, LiveComponents);
-        reserve_startup!(bounds, value_component_count, ValueBounds);
+        reserve_startup!(bounds, value_capacity, ValueBounds);
         reserve_startup!(effect_bounds, effect_component_count, EffectBounds);
-        reserve_startup!(value_levels, value_component_count, ValueLevels);
+        reserve_startup!(value_levels, value_capacity, ValueLevels);
         reserve_startup!(effect_levels, effect_component_count, EffectLevels);
-        reserve_startup!(value_metadata, value_component_count, ValueMetadata);
+        reserve_startup!(value_metadata, value_capacity, ValueMetadata);
         reserve_startup!(effect_metadata, effect_component_count, EffectMetadata);
         reserve_startup!(extrusion_stack, extrusion_capacity, ExtrusionStack);
-        reserve_startup!(
-            extrusion_value_marks,
-            value_component_count,
-            ExtrusionValueMarks
-        );
+        reserve_startup!(extrusion_value_marks, value_capacity, ExtrusionValueMarks);
         reserve_startup!(
             extrusion_effect_marks,
             effect_component_count,
@@ -8415,11 +8547,7 @@ impl InferenceSession {
         );
         reserve_startup!(errors, fact_capacity, Errors);
         reserve_startup!(reported_errors, fact_capacity, ReportedErrors);
-        reserve_startup!(
-            cross_kind_components,
-            value_component_count,
-            CrossKindComponents
-        );
+        reserve_startup!(cross_kind_components, value_capacity, CrossKindComponents);
         reserve_startup!(routed_uses, routed_capacity, RoutedUses);
         reserve_startup!(routed_use_positions, routed_capacity, RoutedUsePositions);
         reserve_startup!(schemes, definition_count, Schemes);
@@ -8473,6 +8601,20 @@ impl InferenceSession {
             };
             session.live_components.push(endpoint);
         }
+        for _ in &session.batch.parameter_recipes {
+            let ordinal = next_value;
+            next_value = next_value
+                .checked_add(1)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            session.bounds.push(VariableBounds::default());
+            session.value_levels.push(1);
+            session.value_metadata.push(LiveVariableMetadata {
+                origin: LiveVariableOrigin::Collected,
+                non_generic: false,
+            });
+            let _ = ordinal;
+        }
+        session.extrusion_value_marks.resize(value_capacity, 0);
         // Initial reservations coexist before any fact admission and are a
         // real resource boundary, not a final retained-byte alias.
         session.sample_f4_resources(ResourceBoundary::InitialReservation)?;
@@ -9363,7 +9505,21 @@ impl InferenceSession {
     }
 
     fn admit_all_collected_facts(&mut self) -> Result<(), SolveAvailabilityError> {
-        for occurrence_index in 0..self.batch.occurrences().len() {
+        let mut lambda_index = 0;
+        for occurrence_index in 0..=self.batch.occurrences().len() {
+            while self
+                .batch
+                .lambda_recipes
+                .get(lambda_index)
+                .is_some_and(|recipe| recipe.after_collected_fact == occurrence_index)
+            {
+                let recipe = self.batch.lambda_recipes[lambda_index].clone();
+                self.admit_lambda_fact(&recipe)?;
+                lambda_index += 1;
+            }
+            if occurrence_index == self.batch.occurrences().len() {
+                break;
+            }
             let occurrence = self.batch.occurrences()[occurrence_index].clone();
             let result = {
                 let mut transaction = self.store.transaction();
@@ -9433,6 +9589,57 @@ impl InferenceSession {
                 Err(error) => return Err(error.into()),
             }
         }
+        Ok(())
+    }
+
+    fn admit_lambda_fact(&mut self, recipe: &LambdaRecipe) -> Result<(), SolveAvailabilityError> {
+        let parameter = self
+            .parameter_live_base
+            .checked_add(
+                u32::try_from(recipe.parameter_position)
+                    .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
+            )
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        let argument = self.live_value_term(Polarity::Negative, parameter)?;
+        let result = match recipe.body_value_component {
+            Some(position) => {
+                self.live_value_term(Polarity::Positive, self.live_components[position].ordinal)?
+            }
+            None => self.live_value_term(Polarity::Positive, parameter)?,
+        };
+        let empty = self.batch.collected_leaf_term(Leaf::EmptyEffectNegative);
+        let body_effect = self.live_effect_term(
+            Polarity::Positive,
+            self.live_components[recipe.body_effect_component].ordinal,
+        )?;
+        let function = self.positive_function_term(argument, empty, body_effect, result)?;
+        let root = self.batch.component_term_at(recipe.root_component);
+        let id = ConstraintOccurrenceId::new(recipe.occurrence.clone(), 2);
+        let occurrence = ConstraintOccurrence {
+            cause: CauseId::for_occurrence(id.clone()),
+            id,
+            lower: function,
+            upper: root,
+        };
+        self.store
+            .admit_and_record_provenance(&occurrence)
+            .map_err(SolveAvailabilityError::from)?;
+        #[cfg(test)]
+        {
+            self.initial_value_pair_probes += 1;
+        }
+        let key = CanonicalValuePairKey {
+            lower: self.value_endpoint(function, Polarity::Positive),
+            upper: self.value_endpoint(root, Polarity::Negative),
+        };
+        let transitions = self.constrain_live_value(key, &occurrence.id, &occurrence.cause)?;
+        #[cfg(test)]
+        {
+            self.summary_false_to_true_transitions += transitions;
+        }
+        #[cfg(not(test))]
+        let _ = transitions;
+        self.sample_f4_resources(ResourceBoundary::InitialAdmission)?;
         Ok(())
     }
 
@@ -13942,6 +14149,7 @@ impl InferenceSession {
     fn finish(mut self) -> Result<SolvedModule, SolveAvailabilityError> {
         let mut projections = HashMap::with_capacity(self.batch.projection_order.len());
         let mut work = ProductionCounters::default();
+        let mut lambda_recipes = self.batch.lambda_recipes.iter().peekable();
         for occurrence in &self.batch.projection_order {
             work.finish_projection_visits += 1;
             let (value, effect) = if let Some(positions) =
@@ -13961,6 +14169,22 @@ impl InferenceSession {
                     } else {
                         SolvedValue::Unknown
                     },
+                    if effect_row.has_bottom_lower && effect_row.has_empty_upper {
+                        SolvedEffect::Empty
+                    } else {
+                        SolvedEffect::Unknown
+                    },
+                )
+            } else if lambda_recipes
+                .peek()
+                .is_some_and(|recipe| recipe.occurrence == *occurrence)
+            {
+                let recipe = lambda_recipes.next().expect("matched Lambda recipe");
+                let effect_live =
+                    self.live_components[recipe.lambda_effect_component].ordinal as usize;
+                let effect_row = &self.effect_bounds[effect_live];
+                (
+                    SolvedValue::Unknown,
                     if effect_row.has_bottom_lower && effect_row.has_empty_upper {
                         SolvedEffect::Empty
                     } else {
@@ -14442,7 +14666,7 @@ mod tests {
             let parent_root = batch.definitions[parent].root.clone();
             let target_definition = batch.definitions[target].definition.clone();
             batch
-                .emit_resolved_binding_name(occurrence.clone(), parent_root)
+                .emit_resolved_binding_name(occurrence.clone(), Some(parent_root))
                 .expect("synthetic occurrence and root share the real artifact");
             let id = DefinitionUseId::new(batch.collection_artifact.clone(), occurrence.clone());
             assert!(
@@ -18233,8 +18457,8 @@ mod tests {
     }
 
     #[test]
-    fn f5a_lambda_is_retained_but_collector_emits_no_function_facts() {
-        let hir = module("my f x = x", "f5a-no-function-facts.yu");
+    fn f5d_identity_lambda_admits_exact_effect_and_function_facts() {
+        let hir = module("my f x = x", "f5d-identity-facts.yu");
         let [HirItem::Binding(binding)] = hir.items() else {
             panic!("one binding")
         };
@@ -18247,16 +18471,393 @@ mod tests {
             batch.definitions()[0].body_status(),
             CollectedBodyStatus::Complete
         );
-        assert_eq!(batch.definitions()[0].body_fact_range(), &(0..0));
+        assert_eq!(batch.definitions()[0].body_fact_range(), &(0..4));
         assert!(batch.definition_uses().is_empty());
-        assert!(batch.occurrences().is_empty());
+        assert_eq!(batch.occurrences().len(), 4);
 
-        let solved = SolvedModule::solve(batch).expect("F5a Lambda remains solvable");
-        assert!(solved.store().facts().is_empty());
+        let mut session = InferenceSession::try_new(batch).expect("F5d startup");
+        session
+            .admit_all_collected_facts()
+            .expect("F5d source admission");
+        assert_eq!(session.bounds.len(), 2);
+        assert_eq!(session.effect_bounds.len(), 2);
+        assert_eq!(session.store.facts().len(), 5);
+        assert_eq!(session.store.provenance().len(), 5);
+        let ResolvedExpr::Lambda { body, .. } = binding.value() else {
+            panic!("identity Lambda");
+        };
+        for (index, slot) in [0, 1, 0, 1, 2].into_iter().enumerate() {
+            let cause = session.store.provenance()[index].cause().occurrence();
+            assert_eq!(cause.local_slot(), slot);
+            assert_eq!(
+                cause.occurrence(),
+                if index < 2 {
+                    body.occurrence()
+                } else {
+                    binding.value().occurrence()
+                }
+            );
+        }
+        let TermView::PositiveFunction {
+            argument,
+            argument_effect,
+            result_effect,
+            result,
+        } = session
+            .store
+            .term_view(session.store.facts()[4].lower())
+            .unwrap()
+        else {
+            panic!("Lambda owns the direct Function fact");
+        };
+        let TermView::LiveVariable(argument) = session.store.term_view(argument).unwrap() else {
+            panic!("parameter argument is live");
+        };
+        let TermView::LiveVariable(result) = session.store.term_view(result).unwrap() else {
+            panic!("parameter result is live");
+        };
+        assert_eq!(argument.ordinal(), result.ordinal());
+        assert_eq!(argument.polarity(), Polarity::Negative);
+        assert_eq!(result.polarity(), Polarity::Positive);
+        assert!(matches!(
+            session.store.term_view(argument_effect),
+            Ok(TermView::Leaf(Leaf::EmptyEffectNegative))
+        ));
+        assert!(matches!(
+            session.store.term_view(result_effect),
+            Ok(TermView::LiveVariable(_))
+        ));
+        let test_source_meter = DraftHeapMeter::default();
+        let definition = session.batch.definitions[0].definition.clone();
+        let draft = session
+            .generalization_draft(&test_source_meter, &definition)
+            .expect("F5d identity draft");
+        assert_eq!(draft.quantifier_count, 1);
+        session.execute_scc_plan().expect("F5d SCC execution");
+        session.store.finish_accounting();
+        let solved = session.finish().expect("F5d identity remains solvable");
+        assert_eq!(solved.store().facts().len(), 5);
         assert_eq!(
             solved.root_value_for(binding.definition_root()),
+            Ok(SolvedValue::Unknown)
+        );
+        assert_eq!(
+            solved.projection_for(binding.value().occurrence()),
+            Ok(SolvedProjection {
+                value: SolvedValue::Unknown,
+                effect: SolvedEffect::Empty,
+            })
+        );
+    }
+    #[test]
+    fn f5d_constant_and_module_name_bodies_close_to_pure_functions() {
+        for (source, function_index) in [
+            ("my k x = 42", 0),
+            ("my n = 42; my f x = n", 1),
+            ("my f x = n; my n = 42", 0),
+        ] {
+            let hir = module(source, source);
+            assert!(hir.errors().is_empty(), "{source}");
+            let batch = collect(hir.clone());
+            let solved = SolvedModule::solve(batch).expect("source Function solves");
+            let HirItem::Binding(binding) = &hir.items()[function_index] else {
+                panic!("Function binding");
+            };
+            let scheme = solved.schemes[function_index].as_ref().unwrap();
+            let view = solved.closed_types.scheme_view(scheme).unwrap();
+            assert_eq!(view.quantifier_count(), 0, "{source}");
+            let PositiveValueView::Function {
+                argument, result, ..
+            } = view.positive_value(view.predicate()).unwrap()
+            else {
+                panic!("pure Function for {source}");
+            };
+            assert!(matches!(
+                view.negative_value(argument),
+                Ok(NegativeValueView::Top)
+            ));
+            assert!(matches!(
+                view.positive_value(result),
+                Ok(PositiveValueView::Int)
+            ));
+            assert_eq!(
+                solved.root_value_for(binding.definition_root()),
+                Ok(SolvedValue::Unknown)
+            );
+            if function_index != 0 || source.contains("my n") {
+                assert_eq!(solved.routed_uses.len(), 1, "{source}");
+            }
+        }
+    }
+    #[test]
+    fn f5d_ineligible_lambda_omits_all_lambda_facts_and_keeps_independent_integer() {
+        for source in ["my f x = @; my n = 42", "my f x = missing; my n = 42"] {
+            let hir = module(source, source);
+            let [HirItem::Binding(function), HirItem::Binding(integer)] = hir.items() else {
+                panic!("two registered bindings");
+            };
+            assert!(matches!(function.value(), ResolvedExpr::Lambda { .. }));
+            let batch = collect(hir.clone());
+            assert_eq!(batch.parameter_recipes.len(), 1);
+            assert!(batch.lambda_recipes.is_empty());
+            assert_eq!(batch.occurrences().len(), 5);
+            let solved = SolvedModule::solve(batch).expect("independent integer solves");
+            assert_eq!(solved.store().facts().len(), 5);
+            assert_eq!(
+                solved.root_value_for(function.definition_root()),
+                Ok(SolvedValue::Never)
+            );
+            assert_eq!(
+                solved.root_value_for(integer.definition_root()),
+                Ok(SolvedValue::Int)
+            );
+        }
+    }
+    #[test]
+    fn f5d_parameter_alpha_rename_shadows_module_name_and_does_not_leak() {
+        for source in ["my f x = x", "my f alpha = alpha", "my x = 42; my f x = x"] {
+            let hir = module(source, source);
+            let function_index = usize::from(source.starts_with("my x"));
+            let batch = collect(hir.clone());
+            let solved = SolvedModule::solve(batch).expect("identity solves");
+            let view = solved
+                .closed_types
+                .scheme_view(solved.schemes[function_index].as_ref().unwrap())
+                .unwrap();
+            assert_eq!(view.quantifier_count(), 1, "{source}");
+            let PositiveValueView::Function {
+                argument, result, ..
+            } = view.positive_value(view.predicate()).unwrap()
+            else {
+                panic!("identity Function");
+            };
+            let NegativeValueView::Quantified(argument) = view.negative_value(argument).unwrap()
+            else {
+                panic!("quantified argument");
+            };
+            let PositiveValueView::Quantified(result) = view.positive_value(result).unwrap() else {
+                panic!("quantified result");
+            };
+            assert_eq!(argument.ordinal(), result.ordinal());
+        }
+        let hir = module("my f x = x; my g = x", "f5d-scope-restored.yu");
+        let solved = SolvedModule::solve(collect(hir.clone())).unwrap();
+        let HirItem::Binding(g) = &hir.items()[1] else {
+            panic!("following binding");
+        };
+        assert_eq!(
+            solved.root_value_for(g.definition_root()),
             Ok(SolvedValue::Never)
         );
+    }
+    #[test]
+    fn f5d_productive_function_recursion_and_unproductive_names() {
+        for (source, function_depth) in [("my f x = f", 1), ("my f x = g; my g y = f", 2)] {
+            for flat in [false, true] {
+                let hir = module(source, source);
+                let mut session = InferenceSession::try_new(collect(hir.clone())).unwrap();
+                session.flat_candidate_enabled = flat;
+                let solved = session.run().expect("productive source cycle");
+                for scheme in &solved.schemes {
+                    let view = solved
+                        .closed_types
+                        .scheme_view(scheme.as_ref().unwrap())
+                        .unwrap();
+                    assert_eq!(view.quantifier_count(), 0, "{source}");
+                    assert_eq!(view.recursive_bounds().len(), 1, "{source}");
+                    let bound = &view.recursive_bounds()[0];
+                    assert_eq!(bound.binder().ordinal(), 0);
+                    let yu_types::NeutralValueView::Bounds { lower, upper } =
+                        view.neutral_value(bound.bounds()).unwrap();
+                    assert!(matches!(
+                        view.negative_value(upper),
+                        Ok(NegativeValueView::Top)
+                    ));
+                    for mut value in [view.predicate(), lower] {
+                        for _ in 0..function_depth {
+                            let PositiveValueView::Function {
+                                argument,
+                                argument_effect,
+                                result_effect,
+                                result,
+                            } = view.positive_value(value).unwrap()
+                            else {
+                                panic!("recursive pure Function for {source}");
+                            };
+                            assert!(matches!(
+                                view.negative_value(argument),
+                                Ok(NegativeValueView::Top)
+                            ));
+                            assert!(matches!(
+                                view.negative_effect(argument_effect),
+                                Ok(yu_types::NegativeEffectView::Empty)
+                            ));
+                            assert!(matches!(
+                                view.positive_effect(result_effect),
+                                Ok(yu_types::PositiveEffectView::Bottom)
+                            ));
+                            value = result;
+                        }
+                        let PositiveValueView::Recursive(recursive) =
+                            view.positive_value(value).unwrap()
+                        else {
+                            panic!("recursive result for {source}");
+                        };
+                        assert_eq!(recursive.ordinal(), 0);
+                    }
+                }
+            }
+        }
+        for source in ["my f = f", "my f = g; my g = f"] {
+            let hir = module(source, source);
+            let solved =
+                SolvedModule::solve(collect(hir.clone())).expect("unproductive source cycle");
+            for item in hir.items() {
+                let HirItem::Binding(binding) = item else {
+                    panic!("binding");
+                };
+                assert_eq!(
+                    solved.root_value_for(binding.definition_root()),
+                    Ok(SolvedValue::Never)
+                );
+            }
+        }
+    }
+    #[test]
+    fn f5c_replayed_lower_guard_keeps_unmatched_and_upper_sided_rows() {
+        for upper_side in [false, true] {
+            let meter = DraftHeapMeter::default();
+            let batch = collect(module("my f = 1", "f5c-replayed-lower-guard"));
+            let mut session = InferenceSession::new(batch);
+            let target = session.fresh_value_at_level(1).unwrap();
+            let body = session.fresh_value_at_level(1).unwrap();
+            let top = session.negative_top_term().unwrap();
+            let function = session
+                .positive_function_term(
+                    top,
+                    session.batch.collected_leaf_term(Leaf::EmptyEffectNegative),
+                    session
+                        .batch
+                        .collected_leaf_term(Leaf::EffectBottomPositive),
+                    session.batch.collected_leaf_term(Leaf::IntPositive),
+                )
+                .unwrap();
+            session.bounds[target as usize]
+                .exact_non_variable_lowers
+                .push(ValueEndpointKey::IntPositive);
+            session.bounds[body as usize].direct_lower_rows.push(target);
+            session.bounds[body as usize]
+                .exact_non_variable_lowers
+                .push(if upper_side {
+                    ValueEndpointKey::IntPositive
+                } else {
+                    ValueEndpointKey::PositiveFunction(function)
+                });
+            if upper_side {
+                session.bounds[body as usize]
+                    .exact_non_variable_uppers
+                    .push(ValueEndpointKey::IntNegative);
+            }
+            let mut generalizer = F5cGeneralizer::with_source_meter(&session, &meter);
+            let value = generalizer.positive_row(body, false).unwrap();
+            let F5cPositive::Shared(id) = value else {
+                panic!("row summary remains shared");
+            };
+            assert!(matches!(
+                generalizer.memo.node(id).unwrap().kind,
+                F5cSummaryNodeKind::PositiveUnion { len: 2, .. }
+            ));
+        }
+    }
+    #[test]
+    fn f5d_source_identity_boxed_and_flat_candidates_agree() {
+        for flat in [false, true] {
+            let hir = module(
+                "my f x = x",
+                if flat { "f5d-flat.yu" } else { "f5d-boxed.yu" },
+            );
+            let mut session = InferenceSession::try_new(collect(hir.clone())).unwrap();
+            session.flat_candidate_enabled = flat;
+            let solved = session.run().expect("source identity candidate");
+            let view = solved
+                .closed_types
+                .scheme_view(solved.schemes[0].as_ref().unwrap())
+                .unwrap();
+            assert_eq!(view.quantifier_count(), 1);
+            assert!(view.recursive_bounds().is_empty());
+            let PositiveValueView::Function {
+                argument,
+                argument_effect,
+                result_effect,
+                result,
+            } = view.positive_value(view.predicate()).unwrap()
+            else {
+                panic!("source identity Function");
+            };
+            let NegativeValueView::Quantified(argument) = view.negative_value(argument).unwrap()
+            else {
+                panic!("source identity argument");
+            };
+            let PositiveValueView::Quantified(result) = view.positive_value(result).unwrap() else {
+                panic!("source identity result");
+            };
+            assert_eq!(argument.ordinal(), result.ordinal());
+            assert!(matches!(
+                view.negative_effect(argument_effect),
+                Ok(yu_types::NegativeEffectView::Empty)
+            ));
+            assert!(matches!(
+                view.positive_effect(result_effect),
+                Ok(yu_types::PositiveEffectView::Bottom)
+            ));
+            assert_eq!(solved.store().facts().len(), 5);
+        }
+    }
+
+    #[test]
+    fn f5d_unproved_live_effect_row_rejects_before_scheme_publication() {
+        let hir = module("my f x = x", "f5d-unproved-effect.yu");
+        let mut session = InferenceSession::try_new(collect(hir)).unwrap();
+        session.admit_all_collected_facts().unwrap();
+        let body_effect = session.batch.lambda_recipes[0].body_effect_component;
+        let body_effect_row = session.live_components[body_effect].ordinal as usize;
+        session.effect_bounds[body_effect_row].has_empty_upper = false;
+        assert_eq!(
+            session.execute_scc_plan(),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+        assert!(session.schemes.iter().all(Option::is_none));
+        assert!(session.drafts.is_empty());
+
+        let hir = module("my f x = x", "f5d-out-of-range-effect.yu");
+        let mut session = InferenceSession::try_new(collect(hir)).unwrap();
+        session.admit_all_collected_facts().unwrap();
+        let function = session.store.facts()[4].lower();
+        let TermView::PositiveFunction {
+            argument,
+            argument_effect,
+            result,
+            ..
+        } = session.store.term_view(function).unwrap()
+        else {
+            panic!("source Function");
+        };
+        let invalid_effect = session
+            .live_effect_term(Polarity::Positive, u32::MAX)
+            .unwrap();
+        let invalid_function = session
+            .positive_function_term(argument, argument_effect, invalid_effect, result)
+            .unwrap();
+        let root = session.batch.lambda_recipes[0].root_component;
+        let root_row = session.live_components[root].ordinal as usize;
+        session.bounds[root_row]
+            .exact_non_variable_lowers
+            .push(ValueEndpointKey::PositiveFunction(invalid_function));
+        assert_eq!(
+            session.execute_scc_plan(),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+        assert!(session.schemes.iter().all(Option::is_none));
     }
     #[test]
     fn roots_and_components_reject_foreign_artifacts_without_name_relations() {

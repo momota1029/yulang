@@ -4,6 +4,34 @@ Updated: 2026-09-27. Branch: `yulang3`; do not modify frozen `main`.
 
 Resume handoff: [`2026-09-22 F5c scheme-closure handoff`](../notes/handoffs/2026-09-22-f5c-scheme-closure-handoff.md).
 
+### Latest continuation (2026-09-27): F5d source Lambda and §23 recursion gate
+
+Source Lambda recipes now reach the F5c candidate in boxed and flat paths,
+including parameter rows, Function facts/effects, source identity and constant
+handling, and pure top-level effect projection. The exact §23 self- and
+mutual-recursive schemes now use one guarded R binder; unproductive name-only
+cycles remain binder-free, and the existing two-owner case is unchanged. The
+repair skips only a duplicate positive exact-lower expansion when a single
+direct target carries the identical ordered endpoints. Stored bounds, direct
+routes, negative traversal, and upper-bound traversal are preserved.
+
+Selected M3 for the recursion/generalization invariant. Independent
+`spec_auditor`, `performance_auditor`, and `compiler_referee` reviews closed
+with no accepted blocker; the referee withdrew its initial concern after the
+concrete incidence path showed the guarded route survives. Focused `f5d_`
+tests (7), the duplicate/upper fallback test, exact recursive-scheme test,
+walker failure/retry test, solver library check, formatting, and diff checks
+pass. No broad suite, benchmark, resource probe, or timing measurement ran.
+
+Next: continue the nested source-payload owner migration for predicate
+Union/Intersection vectors, Function boxes, and producer-local nested vectors;
+then reconstruct the source/solver/finalizer co-resident peak and review the
+fresh §15 plan before any probe. F5e Function products and overall acceptance
+remain after those gates. The two approved measurement extensions are recorded
+in the existing §15 and §44 campaigns; their command ceilings apply to those
+campaigns only. Numeric supported-input boundary and production cutover remain
+separate decisions requiring their own reviewed proposal and approval.
+
 ### Latest continuation (2026-09-27): §44 closed-pure incoming-route resource/rollback gate
 
 The approved closed-pure incoming-route scope now has independent M2

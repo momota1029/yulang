@@ -3477,3 +3477,34 @@ Next: map this gap against the authorized F5d interface and identify how to
 establish a practical work margin without repeating captures under the
 completed §15 plan. Do not choose a numeric boundary from the current
 synthetic maximum or reuse the exhausted plan.
+
+## Latest continuation (2026-09-27): F5d source Lambda and §23 recursion
+
+Source Lambda recipes now reach the F5c boxed and flat candidate paths,
+including parameter rows, Function facts/effects, source identity and constant
+handling, and pure top-level effect projection. The source-to-candidate gap
+for the existing Function-rich fixtures is closed for this F5d path. The exact
+§23 self- and mutual-recursive schemes now use one guarded R binder;
+unproductive name-only cycles remain binder-free, and the existing two-owner
+case remains unchanged.
+
+The implementation suppresses only duplicate positive exact-lower expansion
+when one direct target already carries the same ordered endpoints. Stored row
+constraints, direct routes, negative traversal, and upper-bound traversal are
+preserved. Selected M3 for the recursion/generalization invariant. Independent
+`spec_auditor`, `performance_auditor`, and `compiler_referee` reviews closed
+with no accepted blocker; the referee withdrew its initial concern after
+tracing the concrete incidence path. Checks passed: `f5d_` (7 tests), the
+unmatched/upper fallback test, exact recursive-scheme test, walker
+failure/retry test, solver library check, formatting, and `git diff --check`.
+No broad suite, benchmark, resource probe, or timing measurement ran.
+
+Next: continue the nested source-payload owner migration for predicate
+Union/Intersection vectors, Function boxes, and producer-local nested vectors.
+Then reconstruct the source/solver/finalizer co-resident peak and review the
+fresh §15 plan before any probe. F5e Function products and overall acceptance
+follow those gates. The two approved §15 and §44 measurement extensions remain
+scoped to their campaign commands. Numeric supported-input boundary and
+production cutover still need their own reviewed proposal and approval.
+
+<!-- handoff-append-anchor: 2026-09-27 -->
