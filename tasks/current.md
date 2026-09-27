@@ -47,18 +47,22 @@ the measurement budget remains zero.
 The fresh §15 measurement plan is now complete and reviewed by `spec_auditor`,
 `performance_auditor`, and primary. It specifies source SCC rings of 2/4/8/16,
 seeded depth and width points, rollback/retry and failed-reserve evidence,
-successful solver/`yu-types` checkpoints, a 64-record per-session capture cap,
-and two capture processes capped at 190 seconds each including kill grace
-(380 seconds total capture time, 570 seconds including bounded prebuild). It
-explicitly excludes quantitative late-finalizer error samples because §5
-provides no successful checkpoint there, and leaves §13 R-round/owner/trace/
-frontier subtotals unresolved. No harness or probe has been added or run yet;
-the measurement budget remains zero.
+successful solver/`yu-types` checkpoints, 27 physical normalizer/index/output
+lanes (with the existing 28-slot indexed ledger's unused zero placeholder
+identified separately), a 64-record per-session capture cap, and two capture
+processes capped at 190 seconds each including kill grace (380 seconds total
+capture time, 570 seconds including bounded prebuild). It explicitly excludes
+quantitative late-finalizer error samples because §5 provides no successful
+checkpoint there, and leaves §13 R-round/owner/trace/frontier subtotals
+unresolved. Test-only capture instrumentation and initial source/failure
+fixtures are in the working tree, but the seeded depth/width parity, complete
+failure assertions, and diagnostic-capacity reporting still need completion
+and review. No resource capture has run; the measurement budget remains zero.
 
-Next: implement the reviewed test-only capture observer and ignored harness,
-then obtain focused review of the instrumentation before running exactly the
-two planned captures. Numeric boundary approval, production cutover, §44, F5e,
-and overall F5c acceptance remain open.
+Next: finish the reviewed test-only capture observer and ignored harness,
+obtain focused review of the complete instrumentation, then run exactly the two
+planned captures. Numeric boundary approval, production cutover, §44, F5e, and
+overall F5c acceptance remain open.
 
 ### Latest continuation (2026-09-27): checked indexed finalizer conversion
 

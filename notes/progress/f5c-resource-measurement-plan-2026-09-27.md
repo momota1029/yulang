@@ -1,7 +1,9 @@
 # F5c candidate resource measurement plan
 
 Status: Reviewed on 2026-09-27 by `spec_auditor`, `performance_auditor`, and
-primary. This plan authorizes only the two capture invocations and inputs
+primary. The later lane-slot clarification passed a fresh exact-conformance
+review and primary review; it changes no input, record cap, process count, or
+time budget. This plan authorizes only the two capture invocations and inputs
 listed below; it selects no numeric supported-input boundary and does not
 authorize production cutover or F5c acceptance.
 
@@ -77,7 +79,12 @@ samples. For each applicable sample, record:
 
 - current source, staged-draft, and indexed-mapping bytes;
 - current and retained bytes plus observed peaks for the 5 memo lanes, all 98
-  walker lanes, and all 27 normalizer/index/output lanes;
+  walker lanes, and all 27 physical normalizer/index/output lanes (13 base
+  normalizer, 8 additional scratch, and 6 emitted-output lanes). The current
+  independent ledger uses 28 indexed slots; `LANE_COUNT + 3` is an unused,
+  zero-capacity/request/growth placeholder between the collect-scratch and
+  later scratch slots. Print that placeholder separately and exclude it from
+  physical lane totals;
 - per-lane requested slots, capacity growths, actual capacity, retained bytes,
   and peak capacity/bytes;
 - F5 semantic/session retained and peak values and current closed-type retained
