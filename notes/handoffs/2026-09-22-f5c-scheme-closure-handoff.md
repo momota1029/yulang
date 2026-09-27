@@ -3478,7 +3478,7 @@ establish a practical work margin without repeating captures under the
 completed §15 plan. Do not choose a numeric boundary from the current
 synthetic maximum or reuse the exhausted plan.
 
-## Latest continuation (2026-09-27): F5d source Lambda and §23 recursion
+## Completed continuation (2026-09-27): F5d source Lambda and §23 recursion
 
 Source Lambda recipes now reach the F5c boxed and flat candidate paths,
 including parameter rows, Function facts/effects, source identity and constant
@@ -3499,12 +3499,29 @@ unmatched/upper fallback test, exact recursive-scheme test, walker
 failure/retry test, solver library check, formatting, and `git diff --check`.
 No broad suite, benchmark, resource probe, or timing measurement ran.
 
-Next: continue the nested source-payload owner migration for predicate
-Union/Intersection vectors, Function boxes, and producer-local nested vectors.
-Then reconstruct the source/solver/finalizer co-resident peak and review the
-fresh §15 plan before any probe. F5e Function products and overall acceptance
-follow those gates. The two approved §15 and §44 measurement extensions remain
-scoped to their campaign commands. Numeric supported-input boundary and
-production cutover still need their own reviewed proposal and approval.
+This gate is complete. F5e Function products, numeric supported-input boundary,
+production cutover, and overall F5c acceptance remain open. The two approved
+§15 and §44 measurement extensions remain scoped to their campaign commands.
+
+## Latest continuation (2026-09-27): published nested-source census sub-slice
+
+The independent test ledger now records each published nested source buffer's
+actual capacity and slot size. After normalization and partial normalization
+failure, a separate test-side traversal compares the ordered physical records
+against the actual drafts; release clears the records. The ledger reserves
+record capacity before changing its count/byte state. This is test-ledger-only;
+production observations remain unchanged.
+
+M2 `spec_auditor` and `performance_auditor` delta reviews closed with no
+remaining finding. Two focused `source_nested_census` tests, the solver library
+check, formatting, and `git diff --check` pass. Added diagnostic storage is
+O(B) `(capacity, slot size)` records (16 bytes each on 64-bit targets plus spare
+capacity); no measurement ran.
+
+Next: independently reconstruct producer-local `PositiveParts` and
+`NegativeParts` capacities, transient peaks, and `try_adopt_raw`
+transfer/release events through failure. Then complete source-draft/finalizer
+co-resident peak accounting. This checkpoint does not close the full nested
+source or F5c resource gate.
 
 <!-- handoff-append-anchor: 2026-09-27 -->

@@ -4,7 +4,27 @@ Updated: 2026-09-27. Branch: `yulang3`; do not modify frozen `main`.
 
 Resume handoff: [`2026-09-22 F5c scheme-closure handoff`](../notes/handoffs/2026-09-22-f5c-scheme-closure-handoff.md).
 
-### Latest continuation (2026-09-27): F5d source Lambda and §23 recursion gate
+### Latest continuation (2026-09-27): published nested-source census
+
+The independent test ledger now records each published nested source buffer's
+actual capacity and slot size. A separate test-side walk compares the exact
+ordered physical records after normalization and partial normalization failure;
+release clears the records. `try_reserve` happens before ledger state changes.
+The gate is test-ledger-only and leaves production observations unchanged.
+
+M2 `spec_auditor` and `performance_auditor` delta reviews closed with no
+remaining finding. The focused `source_nested_census` tests (2), solver library
+check, formatting, and diff checks pass. The test ledger now retains O(B)
+`(capacity, slot size)` records (16 bytes per record on 64-bit targets, plus
+spare capacity); no probe or timing run was made.
+
+Next: independently wire the producer-local `PositiveParts` and `NegativeParts`
+capacity/transfer events through their `TrackedVec::try_adopt_raw` handoffs,
+including transient failure and release evidence. Then close the source-draft
+and finalizer co-resident peak. Do not claim the full nested-source or F5c
+resource gate complete yet.
+
+### Completed continuation (2026-09-27): F5d source Lambda and §23 recursion gate
 
 Source Lambda recipes now reach the F5c candidate in boxed and flat paths,
 including parameter rows, Function facts/effects, source identity and constant
@@ -23,14 +43,10 @@ tests (7), the duplicate/upper fallback test, exact recursive-scheme test,
 walker failure/retry test, solver library check, formatting, and diff checks
 pass. No broad suite, benchmark, resource probe, or timing measurement ran.
 
-Next: continue the nested source-payload owner migration for predicate
-Union/Intersection vectors, Function boxes, and producer-local nested vectors;
-then reconstruct the source/solver/finalizer co-resident peak and review the
-fresh §15 plan before any probe. F5e Function products and overall acceptance
-remain after those gates. The two approved measurement extensions are recorded
-in the existing §15 and §44 campaigns; their command ceilings apply to those
-campaigns only. Numeric supported-input boundary and production cutover remain
-separate decisions requiring their own reviewed proposal and approval.
+This checkpoint closes the F5d source Lambda and exact-recursion gate. F5e
+Function products, numeric supported-input boundary, production cutover, and
+overall F5c acceptance remain open. The approved §15 and §44 command extensions
+apply to those measurement campaigns only; no new measurement ran here.
 
 ### Latest continuation (2026-09-27): §44 closed-pure incoming-route resource/rollback gate
 

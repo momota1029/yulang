@@ -4067,6 +4067,7 @@ struct IndependentResourceLedger {
     source_draft_slots: IndependentMemoLane,
     source_nested_draft_count: usize,
     source_nested_bytes: usize,
+    source_nested_buffers: Vec<(usize, usize)>,
     source_actual_bound_capacity: usize,
     source_bound_tokens: IndependentMemoLane,
     source_recursive_bounds: IndependentMemoLane,
@@ -4761,9 +4762,10 @@ impl IndependentResourceLedger {
         let bound_bytes = actual_bound_capacity
             .checked_mul(std::mem::size_of::<F5cRecursiveBound>())
             .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        let new_buffers = Self::source_nested_capacities(new_drafts)?;
         let nested_bytes = self
             .source_nested_bytes
-            .checked_add(Self::source_nested_capacity_bytes(new_drafts)?)
+            .checked_add(Self::source_nested_capacity_bytes(&new_buffers)?)
             .ok_or(SolveAvailabilityError::IdentityExhausted)?;
         let physical_bytes = buffer_bytes
             .checked_add(sidecar_bytes)
@@ -4773,8 +4775,12 @@ impl IndependentResourceLedger {
         if meter.current_bytes() != Some(physical_bytes) {
             return Err(SolveAvailabilityError::IdentityExhausted);
         }
+        self.source_nested_buffers
+            .try_reserve(new_buffers.len())
+            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
         self.source_nested_draft_count = drafts.len();
         self.source_nested_bytes = nested_bytes;
+        self.source_nested_buffers.extend(new_buffers);
         self.source_actual_bound_capacity = actual_bound_capacity;
         if let Some(sidecar) = sidecar {
             let lane = &mut self.source_bound_tokens;
@@ -4819,9 +4825,9 @@ impl IndependentResourceLedger {
             .ok_or(SolveAvailabilityError::IdentityExhausted)
     }
 
-    fn source_nested_capacity_bytes(
+    fn source_nested_capacities(
         drafts: &[GeneralizationDraft<'_>],
-    ) -> Result<usize, SolveAvailabilityError> {
+    ) -> Result<Vec<(usize, usize)>, SolveAvailabilityError> {
         enum Visit<'a, 'meter> {
             Positive(&'a F5cPositive<'meter>),
             Negative(&'a F5cNegative<'meter>),
@@ -4840,20 +4846,16 @@ impl IndependentResourceLedger {
                 pending.push(Visit::Negative(&bound.upper));
             }
         }
-        let mut bytes = 0usize;
+        let mut buffers = Vec::new();
         while let Some(value) = pending.pop() {
             let (capacity, size) = match value {
                 Visit::Positive(F5cPositive::Function {
                     argument, result, ..
                 }) => {
-                    bytes = bytes
-                        .checked_add(
-                            argument
-                                .capacity()
-                                .checked_mul(std::mem::size_of::<F5cNegative>())
-                                .ok_or(SolveAvailabilityError::IdentityExhausted)?,
-                        )
-                        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                    buffers
+                        .try_reserve(1)
+                        .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                    buffers.push((argument.capacity(), std::mem::size_of::<F5cNegative>()));
                     pending
                         .try_reserve(2)
                         .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
@@ -4864,14 +4866,10 @@ impl IndependentResourceLedger {
                 Visit::Negative(F5cNegative::Function {
                     argument, result, ..
                 }) => {
-                    bytes = bytes
-                        .checked_add(
-                            argument
-                                .capacity()
-                                .checked_mul(std::mem::size_of::<F5cPositive>())
-                                .ok_or(SolveAvailabilityError::IdentityExhausted)?,
-                        )
-                        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                    buffers
+                        .try_reserve(1)
+                        .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                    buffers.push((argument.capacity(), std::mem::size_of::<F5cPositive>()));
                     pending
                         .try_reserve(2)
                         .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
@@ -4895,15 +4893,23 @@ impl IndependentResourceLedger {
                 }
                 Visit::Positive(_) | Visit::Negative(_) => continue,
             };
-            bytes = bytes
-                .checked_add(
-                    capacity
-                        .checked_mul(size)
-                        .ok_or(SolveAvailabilityError::IdentityExhausted)?,
-                )
-                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            buffers
+                .try_reserve(1)
+                .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+            buffers.push((capacity, size));
         }
-        Ok(bytes)
+        Ok(buffers)
+    }
+
+    fn source_nested_capacity_bytes(
+        buffers: &[(usize, usize)],
+    ) -> Result<usize, SolveAvailabilityError> {
+        buffers
+            .iter()
+            .try_fold(0usize, |sum, &(capacity, size)| {
+                sum.checked_add(capacity.checked_mul(size)?)
+            })
+            .ok_or(SolveAvailabilityError::IdentityExhausted)
     }
 
     fn reconcile_source_draft_slots_after_mutation(
@@ -4920,7 +4926,8 @@ impl IndependentResourceLedger {
         if actual_bound_capacity != held_bound_capacity {
             return Err(SolveAvailabilityError::IdentityExhausted);
         }
-        let nested_bytes = Self::source_nested_capacity_bytes(drafts)?;
+        let nested_buffers = Self::source_nested_capacities(drafts)?;
+        let nested_bytes = Self::source_nested_capacity_bytes(&nested_buffers)?;
         let source_bytes = drafts
             .capacity()
             .checked_mul(std::mem::size_of::<GeneralizationDraft>())
@@ -4943,6 +4950,7 @@ impl IndependentResourceLedger {
         }
         self.source_nested_draft_count = drafts.len();
         self.source_nested_bytes = nested_bytes;
+        self.source_nested_buffers = nested_buffers;
         self.source_actual_bound_capacity = actual_bound_capacity;
         Ok(())
     }
@@ -4950,6 +4958,7 @@ impl IndependentResourceLedger {
     fn release_source_draft_slots(&mut self) {
         self.source_nested_draft_count = 0;
         self.source_nested_bytes = 0;
+        self.source_nested_buffers.clear();
         self.source_actual_bound_capacity = 0;
         self.source_draft_slots.actual_capacity = 0;
         self.source_draft_slots.retained_bytes = 0;
@@ -5875,6 +5884,59 @@ fn source_draft_slot_ledger_reconciles_failed_initial_reserve_and_release() {
 }
 
 #[cfg(test)]
+fn observed_source_nested_buffers(drafts: &[GeneralizationDraft<'_>]) -> Vec<(usize, usize)> {
+    fn positive(value: &F5cPositive<'_>, buffers: &mut Vec<(usize, usize)>) {
+        match value {
+            F5cPositive::Function {
+                argument, result, ..
+            } => {
+                buffers.push((argument.capacity(), std::mem::size_of::<F5cNegative>()));
+                positive(result, buffers);
+                negative(argument, buffers);
+                buffers.push((result.capacity(), std::mem::size_of::<F5cPositive>()));
+            }
+            F5cPositive::Union(children) => {
+                for child in children.iter().rev() {
+                    positive(child, buffers);
+                }
+                buffers.push((children.capacity(), std::mem::size_of::<F5cPositive>()));
+            }
+            _ => {}
+        }
+    }
+
+    fn negative(value: &F5cNegative<'_>, buffers: &mut Vec<(usize, usize)>) {
+        match value {
+            F5cNegative::Function {
+                argument, result, ..
+            } => {
+                buffers.push((argument.capacity(), std::mem::size_of::<F5cPositive>()));
+                negative(result, buffers);
+                positive(argument, buffers);
+                buffers.push((result.capacity(), std::mem::size_of::<F5cNegative>()));
+            }
+            F5cNegative::Intersection(children) => {
+                for child in children.iter().rev() {
+                    negative(child, buffers);
+                }
+                buffers.push((children.capacity(), std::mem::size_of::<F5cNegative>()));
+            }
+            _ => {}
+        }
+    }
+
+    let mut buffers = Vec::new();
+    for draft in drafts.iter().rev() {
+        for bound in draft.recursive_bounds.iter().rev() {
+            negative(&bound.upper, &mut buffers);
+            positive(&bound.lower, &mut buffers);
+        }
+        positive(&draft.predicate, &mut buffers);
+    }
+    buffers
+}
+
+#[cfg(test)]
 #[test]
 fn source_nested_census_advances_once_per_appended_draft() {
     let meter = DraftHeapMeter::default();
@@ -5893,6 +5955,13 @@ fn source_nested_census_advances_once_per_appended_draft() {
         .unwrap();
     let first_nested = ledger.source_nested_bytes;
     assert!(first_nested > 0);
+    let F5cPositive::Union(first_members) = &drafts[0].predicate else {
+        panic!("expected union");
+    };
+    assert_eq!(
+        ledger.source_nested_buffers,
+        vec![(first_members.capacity(), std::mem::size_of::<F5cPositive>())]
+    );
     let function = F5cPositive::Function {
         argument: TrackedOne::try_new(&meter, F5cNegative::Top).unwrap(),
         argument_effect: F5cNegativeEffect::Empty,
@@ -5909,12 +5978,27 @@ fn source_nested_census_advances_once_per_appended_draft() {
         .unwrap();
     assert_eq!(ledger.source_nested_draft_count, 2);
     assert!(ledger.source_nested_bytes > first_nested);
+    let F5cPositive::Function {
+        argument, result, ..
+    } = &drafts[1].predicate
+    else {
+        panic!("expected function");
+    };
+    assert_eq!(
+        &ledger.source_nested_buffers[1..],
+        &[
+            (argument.capacity(), std::mem::size_of::<F5cNegative>()),
+            (result.capacity(), std::mem::size_of::<F5cPositive>()),
+        ]
+    );
     assert_eq!(total, meter.current_bytes().unwrap());
     let nested = ledger.source_nested_bytes;
     ledger
         .record_source_draft_slots(&drafts, None, 0, 0, 0, 0, 0, 0, &meter)
         .unwrap();
     assert_eq!(ledger.source_nested_bytes, nested);
+    assert_eq!(ledger.source_nested_buffers.len(), 3);
+    let before_normalization = observed_source_nested_buffers(&drafts);
     let mut stats = f5c_normalization::NormalizationStats::default();
     f5c_normalization::normalize_component_with_stats(&meter, drafts.as_mut_slice(), &mut stats)
         .unwrap();
@@ -5922,10 +6006,21 @@ fn source_nested_census_advances_once_per_appended_draft() {
         .reconcile_source_draft_slots_after_mutation(&drafts, None, 0, &meter)
         .unwrap();
     assert_eq!(ledger.source_nested_draft_count, 2);
+    let after_normalization = observed_source_nested_buffers(&drafts);
+    assert_ne!(after_normalization, before_normalization);
+    assert_eq!(ledger.source_nested_buffers, after_normalization);
+    assert_eq!(
+        ledger.source_nested_bytes,
+        after_normalization
+            .iter()
+            .map(|&(capacity, size)| capacity * size)
+            .sum()
+    );
     drop(drafts);
     ledger.release_source_draft_slots();
     assert_eq!(ledger.source_nested_draft_count, 0);
     assert_eq!(ledger.source_nested_bytes, 0);
+    assert!(ledger.source_nested_buffers.is_empty());
     assert_eq!(meter.current_bytes(), Some(0));
 }
 
@@ -5964,8 +6059,16 @@ fn source_nested_census_reconciles_partial_normalization_error() {
         .unwrap();
     assert_eq!(drafts[0].predicate, F5cPositive::Bottom);
     assert_eq!(ledger.source_nested_bytes, 0);
+    assert_eq!(
+        ledger.source_nested_buffers,
+        observed_source_nested_buffers(&drafts)
+    );
+    assert!(ledger.source_nested_buffers.is_empty());
     drop(drafts);
     ledger.release_source_draft_slots();
+    assert_eq!(ledger.source_nested_draft_count, 0);
+    assert_eq!(ledger.source_nested_bytes, 0);
+    assert!(ledger.source_nested_buffers.is_empty());
     assert_eq!(meter.current_bytes(), Some(0));
 }
 
