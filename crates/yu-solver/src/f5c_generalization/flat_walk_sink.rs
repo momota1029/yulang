@@ -91,6 +91,7 @@ impl F5cFlatWalkSink {
             draft.negative_children.len(),
             draft.recursive_bounds.len(),
             draft.insertion_order.len(),
+            draft.structural_census()?.1,
         );
         let output_checkpoint = outputs.len();
         let mut tasks = Vec::new();
@@ -123,6 +124,8 @@ impl F5cFlatWalkSink {
             }
             macro_rules! positive {
                 ($node:expr) => {{
+                    let node = $node;
+                    draft.admit_positive_node(node)?;
                     reserve!(
                         &mut draft.positive_nodes,
                         F5cWalkerLaneKind::DraftPositiveNodes,
@@ -134,11 +137,13 @@ impl F5cFlatWalkSink {
                         1
                     );
                     memo.work_meter.charge(1)?;
-                    value!(NodeRef::Positive(draft.positive($node)?));
+                    value!(NodeRef::Positive(draft.positive(node)?));
                 }};
             }
             macro_rules! negative {
                 ($node:expr) => {{
+                    let node = $node;
+                    draft.admit_negative_node(node)?;
                     reserve!(
                         &mut draft.negative_nodes,
                         F5cWalkerLaneKind::DraftNegativeNodes,
@@ -150,7 +155,7 @@ impl F5cFlatWalkSink {
                         1
                     );
                     memo.work_meter.charge(1)?;
-                    value!(NodeRef::Negative(draft.negative($node)?));
+                    value!(NodeRef::Negative(draft.negative(node)?));
                 }};
             }
             // Account for an already-reserved output vector, including an empty
@@ -296,6 +301,8 @@ impl F5cFlatWalkSink {
                                         len: u32::try_from(count).map_err(|_| bad)?,
                                     };
                                     span.start.checked_add(span.len).ok_or(bad)?;
+                                    draft.admit_child_entries(count)?;
+                                    draft.admit_logical_incidences(count)?;
                                     reserve!(
                                         &mut draft.positive_children,
                                         F5cWalkerLaneKind::DraftPositiveChildren,
@@ -306,7 +313,7 @@ impl F5cFlatWalkSink {
                                         let NodeRef::Positive(id) = item else {
                                             return Err(bad);
                                         };
-                                        draft.positive_children.push(id);
+                                        draft.push_reserved_positive_child(id);
                                     }
                                     positive!(DraftPositiveNode::Union(span));
                                 }
@@ -318,6 +325,8 @@ impl F5cFlatWalkSink {
                                         len: u32::try_from(count).map_err(|_| bad)?,
                                     };
                                     span.start.checked_add(span.len).ok_or(bad)?;
+                                    draft.admit_child_entries(count)?;
+                                    draft.admit_logical_incidences(count)?;
                                     reserve!(
                                         &mut draft.negative_children,
                                         F5cWalkerLaneKind::DraftNegativeChildren,
@@ -328,7 +337,7 @@ impl F5cFlatWalkSink {
                                         let NodeRef::Negative(id) = item else {
                                             return Err(bad);
                                         };
-                                        draft.negative_children.push(id);
+                                        draft.push_reserved_negative_child(id);
                                     }
                                     negative!(DraftNegativeNode::Intersection(span));
                                 }
@@ -376,6 +385,7 @@ impl F5cFlatWalkSink {
             draft.negative_children.truncate(checkpoint.3);
             draft.recursive_bounds.truncate(checkpoint.4);
             draft.insertion_order.truncate(checkpoint.5);
+            draft.restore_structural_census(checkpoint.6);
         }
         result
     }

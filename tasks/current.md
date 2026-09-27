@@ -4,6 +4,34 @@ Updated: 2026-09-28. Branch: `yulang3`; do not modify frozen `main`.
 
 Resume handoff: [`2026-09-22 F5c scheme-closure handoff`](../notes/handoffs/2026-09-22-f5c-scheme-closure-handoff.md).
 
+### Latest continuation (2026-09-28): producer structural-incidence admission
+
+The producer audit now distinguishes stored child-ID entries from logical
+parent-to-child incidences at the `FlatDraft` owner. Stored entries count every
+slot in both polarity arrays, including repeated IDs. Logical incidences count
+each Union/Intersection span per parent, including overlapping spans, plus two
+edges for each Function. Checked arithmetic runs before the relevant child or
+node lane grows; bulk append paths retain their existing lane reservations and
+avoid per-edge reserve work. Failure checkpoints restore the census with the
+truncated draft lanes.
+
+Selected M2. Specification review found missing scalar-node and generic-span
+preflight plus an early failure witness; performance review found repeated
+per-edge count/reserve work. One batched repair closed those findings, then a
+focused delta pass found the generic-span preflight and late rollback witness
+gaps. The final repair and spec/performance delta reviews closed the scope.
+Checks passed: the structural census and nested-Union rollback tests (1 each),
+`cargo check -p yu-solver --tests --offline -j 2`, `cargo fmt --all -- --check`,
+and `git diff --check`. No broad suite, resource probe, benchmark, timing run,
+or §15 capture ran; measurement budget consumed: zero.
+
+No numeric ceiling, supported-input boundary, or production cutover was
+selected. Next: audit remaining §5 pre-growth dimensions at their owning
+producers—node arrays, roots, Q/R bounds, normalization descriptors, and live
+intermediate graph—then choose the smallest §5/7-authorized implementation
+slice. F5e, numeric-boundary selection, production cutover, and overall F5c
+acceptance remain open.
+
 ### Completed continuation (2026-09-28): source-draft/finalizer co-resident peak
 
 The `yu-types` indexed finalizer now has a test-only same-time capacity
@@ -61,14 +89,10 @@ work about 4.24×, so the scale margin remains unresolved. No numeric support
 boundary or production cutover follows from these repository-bounded samples.
 The plan, review reports, and full capture result are recorded in
 [`notes/progress/f5c-source-lambda-measurement-plan-2026-09-28.md`](../notes/progress/f5c-source-lambda-measurement-plan-2026-09-28.md);
-one process was consumed and no retry or additional dimension ran. Next: do a
-read-only producer-incidence audit across the generalizer, flat sink,
-materializer, replay, normalizer, and indexed conversion. Track stored child-ID
-entries separately from logical parent-to-child incidences, especially for
-overlapping spans and repeated Function edges. Then implement the smallest
-§§5/7-authorized admission slice the audit identifies, keeping thresholds
-unset. Numeric supported-input boundary, production cutover, F5e, and overall
-F5c acceptance remain open.
+one process was consumed and no retry or additional dimension ran. The
+producer-incidence audit and first checked census slice are recorded above.
+Numeric supported-input boundary, production cutover, F5e, and overall F5c
+acceptance remain open.
 
 ### Completed continuation (2026-09-28): producer-local parts transfer census
 

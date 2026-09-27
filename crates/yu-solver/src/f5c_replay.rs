@@ -132,6 +132,7 @@ pub(super) fn replay_flat(
         output.positive_children.len(),
         output.negative_children.len(),
         output.insertion_order.len(),
+        output.structural_census()?.1,
     );
     let result = (|| {
         let exhausted = SolveAvailabilityError::IdentityExhausted;
@@ -355,6 +356,8 @@ pub(super) fn replay_flat(
                             u32::try_from(output.positive_children.len()).map_err(|_| exhausted)?;
                         let child_len = u32::try_from(count).map_err(|_| exhausted)?;
                         child_start.checked_add(child_len).ok_or(exhausted)?;
+                        output.admit_child_entries(count)?;
+                        output.admit_logical_incidences(count)?;
                         output
                             .positive_children
                             .try_reserve(count)
@@ -363,7 +366,7 @@ pub(super) fn replay_flat(
                             let NodeRef::Positive(child) = value else {
                                 return Err(exhausted);
                             };
-                            output.positive_children.push(child);
+                            output.push_reserved_positive_child(child);
                         }
                         push_positive!(PositiveNode::Union(ChildSpan {
                             start: child_start,
@@ -376,6 +379,8 @@ pub(super) fn replay_flat(
                             u32::try_from(output.negative_children.len()).map_err(|_| exhausted)?;
                         let child_len = u32::try_from(count).map_err(|_| exhausted)?;
                         child_start.checked_add(child_len).ok_or(exhausted)?;
+                        output.admit_child_entries(count)?;
+                        output.admit_logical_incidences(count)?;
                         output
                             .negative_children
                             .try_reserve(count)
@@ -384,7 +389,7 @@ pub(super) fn replay_flat(
                             let NodeRef::Negative(child) = value else {
                                 return Err(exhausted);
                             };
-                            output.negative_children.push(child);
+                            output.push_reserved_negative_child(child);
                         }
                         push_negative!(NegativeNode::Intersection(ChildSpan {
                             start: child_start,
@@ -450,6 +455,7 @@ pub(super) fn replay_flat(
         output.positive_children.truncate(checkpoint.2);
         output.negative_children.truncate(checkpoint.3);
         output.insertion_order.truncate(checkpoint.4);
+        output.restore_structural_census(checkpoint.5);
     }
     result
 }

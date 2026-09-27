@@ -54,6 +54,7 @@ pub(super) struct RecursiveBound {
 
 #[derive(Default)]
 pub(super) struct FlatDraft {
+    pub(super) structural_incidences: usize,
     pub(super) quantifier_count: u32,
     pub(super) predicate: Option<PositiveId>,
     pub(super) positive_nodes: Vec<PositiveNode>,
@@ -159,6 +160,111 @@ pub(super) fn indexed_count_for_test(len: usize) -> Result<u32, SolveAvailabilit
 }
 
 impl FlatDraft {
+    pub(super) fn structural_census(&self) -> Result<(usize, usize), SolveAvailabilityError> {
+        Ok((
+            self.positive_children
+                .len()
+                .checked_add(self.negative_children.len())
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?,
+            self.structural_incidences,
+        ))
+    }
+
+    pub(super) fn restore_structural_census(&mut self, incidences: usize) {
+        self.structural_incidences = incidences;
+    }
+
+    pub(super) fn admit_child_entries(&self, count: usize) -> Result<(), SolveAvailabilityError> {
+        self.structural_census()?
+            .0
+            .checked_add(count)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        Ok(())
+    }
+
+    pub(super) fn positive_child(
+        &mut self,
+        child: PositiveId,
+    ) -> Result<(), SolveAvailabilityError> {
+        self.admit_child_entries(1)?;
+        u32::try_from(self.positive_children.len())
+            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?
+            .checked_add(1)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        self.positive_children
+            .try_reserve(1)
+            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+        self.positive_children.push(child);
+        Ok(())
+    }
+
+    pub(super) fn negative_child(
+        &mut self,
+        child: NegativeId,
+    ) -> Result<(), SolveAvailabilityError> {
+        self.admit_child_entries(1)?;
+        u32::try_from(self.negative_children.len())
+            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?
+            .checked_add(1)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        self.negative_children
+            .try_reserve(1)
+            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+        self.negative_children.push(child);
+        Ok(())
+    }
+
+    fn node_incidences(&self, count: usize) -> Result<usize, SolveAvailabilityError> {
+        self.structural_incidences
+            .checked_add(count)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)
+    }
+
+    pub(super) fn admit_logical_incidences(
+        &self,
+        count: usize,
+    ) -> Result<(), SolveAvailabilityError> {
+        self.node_incidences(count)?;
+        Ok(())
+    }
+
+    // The caller admits the entire batch and reserves this lane before draining it.
+    pub(super) fn push_reserved_positive_child(&mut self, child: PositiveId) {
+        debug_assert!(self.positive_children.len() < self.positive_children.capacity());
+        self.positive_children.push(child);
+    }
+
+    pub(super) fn push_reserved_negative_child(&mut self, child: NegativeId) {
+        debug_assert!(self.negative_children.len() < self.negative_children.capacity());
+        self.negative_children.push(child);
+    }
+
+    pub(super) fn admit_positive_node(
+        &self,
+        node: PositiveNode,
+    ) -> Result<(), SolveAvailabilityError> {
+        indexed_count(self.positive_nodes.len())?;
+        self.node_incidences(match node {
+            PositiveNode::Union(span) => span.len as usize,
+            PositiveNode::Function { .. } => 2,
+            _ => 0,
+        })?;
+        Ok(())
+    }
+
+    pub(super) fn admit_negative_node(
+        &self,
+        node: NegativeNode,
+    ) -> Result<(), SolveAvailabilityError> {
+        indexed_count(self.negative_nodes.len())?;
+        self.node_incidences(match node {
+            NegativeNode::Intersection(span) => span.len as usize,
+            NegativeNode::Function { .. } => 2,
+            _ => 0,
+        })?;
+        Ok(())
+    }
+
     #[allow(dead_code)]
     pub(super) fn indexed<'meter>(
         &self,
@@ -234,6 +340,12 @@ impl FlatDraft {
         &mut self,
         node: PositiveNode,
     ) -> Result<PositiveId, SolveAvailabilityError> {
+        self.admit_positive_node(node)?;
+        let incidences = self.node_incidences(match node {
+            PositiveNode::Union(span) => span.len as usize,
+            PositiveNode::Function { .. } => 2,
+            _ => 0,
+        })?;
         let id = PositiveId(
             u32::try_from(self.positive_nodes.len())
                 .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
@@ -246,6 +358,7 @@ impl FlatDraft {
             .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
         self.positive_nodes.push(node);
         self.insertion_order.push(NodeRef::Positive(id));
+        self.structural_incidences = incidences;
         Ok(id)
     }
 
@@ -253,6 +366,12 @@ impl FlatDraft {
         &mut self,
         node: NegativeNode,
     ) -> Result<NegativeId, SolveAvailabilityError> {
+        self.admit_negative_node(node)?;
+        let incidences = self.node_incidences(match node {
+            NegativeNode::Intersection(span) => span.len as usize,
+            NegativeNode::Function { .. } => 2,
+            _ => 0,
+        })?;
         let id = NegativeId(
             u32::try_from(self.negative_nodes.len())
                 .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
@@ -265,6 +384,7 @@ impl FlatDraft {
             .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
         self.negative_nodes.push(node);
         self.insertion_order.push(NodeRef::Negative(id));
+        self.structural_incidences = incidences;
         Ok(id)
     }
 
@@ -272,6 +392,8 @@ impl FlatDraft {
         &mut self,
         children: &[PositiveId],
     ) -> Result<ChildSpan, SolveAvailabilityError> {
+        self.admit_child_entries(children.len())?;
+        self.admit_logical_incidences(children.len())?;
         let start = u32::try_from(self.positive_children.len())
             .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
         let len =
@@ -290,6 +412,8 @@ impl FlatDraft {
         &mut self,
         children: &[NegativeId],
     ) -> Result<ChildSpan, SolveAvailabilityError> {
+        self.admit_child_entries(children.len())?;
+        self.admit_logical_incidences(children.len())?;
         let start = u32::try_from(self.negative_children.len())
             .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
         let len =
@@ -310,5 +434,52 @@ impl FlatDraft {
             .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
         self.recursive_bounds.push(bound);
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod structural_census_tests {
+    use super::*;
+
+    #[test]
+    fn counts_stored_entries_and_parent_incidences_separately() {
+        let mut draft = FlatDraft::default();
+        let leaf = draft.positive(PositiveNode::Int).unwrap();
+        let negative = draft.negative(NegativeNode::Top).unwrap();
+        draft.negative_child(negative).unwrap();
+        let span = draft.positive_span(&[leaf, leaf]).unwrap();
+        let negative_span = draft.negative_span(&[negative, negative]).unwrap();
+        assert_eq!(draft.structural_census().unwrap(), (5, 0));
+        draft.positive(PositiveNode::Union(span)).unwrap();
+        draft.positive(PositiveNode::Union(span)).unwrap();
+        draft
+            .negative(NegativeNode::Intersection(negative_span))
+            .unwrap();
+        draft
+            .positive(PositiveNode::Function {
+                argument: negative,
+                result: leaf,
+            })
+            .unwrap();
+        draft
+            .negative(NegativeNode::Function {
+                argument: leaf,
+                result: negative,
+            })
+            .unwrap();
+        assert_eq!(draft.structural_census().unwrap(), (5, 10));
+        let before = draft.structural_census().unwrap();
+        draft.positive_child(leaf).unwrap();
+        draft
+            .positive(PositiveNode::Function {
+                argument: negative,
+                result: leaf,
+            })
+            .unwrap();
+        draft.positive_children.pop();
+        draft.positive_nodes.pop();
+        draft.insertion_order.pop();
+        draft.restore_structural_census(before.1);
+        assert_eq!(draft.structural_census().unwrap(), before);
     }
 }
