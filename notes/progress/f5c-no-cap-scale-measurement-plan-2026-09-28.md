@@ -2,10 +2,11 @@
 
 Status: Reviewed; measurement campaign approved; execution pending successful preflight
 Reviewed-by: spec_auditor, performance_auditor (matrix, formulas, safety, and budget deltas closed without unresolved findings)
+Observer-scope delta review: architect, spec_auditor, performance_auditor; no blocking or major findings
 Approved-by: user
 Approved-at: 2026-09-28
-Decision scope: deterministic logical-counter and per-lane capacity evidence for the approved no-numeric-cap F5c policy
-Authority: `notes/design/2026-09-21-f5-general-function-scheme-foundation-draft.md` §§26, 34, 36; `notes/design/2026-09-28-f5c-no-numeric-resource-caps-addendum.md` §§3–4; `rules/performance.md`; existing closed capture plans dated 2026-09-27 and 2026-09-28
+Decision scope: deterministic logical-counter and per-lane capacity evidence for the approved no-numeric-cap F5c policy, including a narrowly gated yu-types observation feature needed to report its private physical lanes
+Authority: `notes/design/2026-09-21-f5-general-function-scheme-foundation-draft.md` §§26, 34, 36; `notes/design/2026-09-22-f5b-terminal-finish-evidence-boundary-addendum.md`; `notes/design/2026-09-28-f5c-no-numeric-resource-caps-addendum.md` §§3–4; `rules/performance.md`; existing closed capture plans dated 2026-09-27 and 2026-09-28
 No probe, measurement, or test for this plan has run.
 
 ## Purpose and exclusions
@@ -26,9 +27,25 @@ The current test module has four ignored resource probes:
 `f5c_candidate_resource_probe_scale`,
 `f5c_candidate_resource_probe_failures`, and
 `f5c_resource_probe_scale_families`; none implements this §34 matrix.
-Implement it as test-only code in
-`crates/yu-solver/src/tests/f5c_resource_probe.rs`; do not add production
-branches, allocations, or counters for the probes.
+Implement the builders in
+`crates/yu-solver/src/tests/f5c_resource_probe.rs` and a separate
+`#[cfg(test)]` observer in `crates/yu-solver/src/lib.rs` to retain fixed-size
+per-lane/per-boundary summaries at the existing resource and flat-candidate
+checkpoints. `yu-types` is compiled as a normal dependency of solver tests, so
+its `#[cfg(test)]` internals are unavailable there; the user approved a narrow
+`f5c_resource_probe` opt-in feature in `yu-types`, forwarded only by the
+same-named `yu-solver` feature, for closed-type physical-lane observation. The
+feature exposes a doc-hidden fixed-size summary for its 8 arena, 17 scratch,
+and 11 indexed-temporary lanes. It must not add a growing event history, drive
+the terminal-capacity seam, or change semantic results, counters, or
+transaction behavior. With the feature disabled (the default), no observer
+fields, hooks, branches, or allocations are compiled into `yu-types`.
+
+Allocate solver observer storage before the measured solve, update both
+observers without per-event allocation, and disable the flat path's growing
+`boundary_order` history for matrix runs. Do not use
+`F5cCandidateCapture`'s 64-row log. This measurement-only feature does not
+change the approved 37-process campaign or enable production cutover.
 
 ## Authority mapping and exact run matrix
 
@@ -105,6 +122,14 @@ and growths for every physical lane in the eight §34 resource families:
 `closed_normalization_index`, `generalization_scratch`, and
 `instantiation_substitution`.
 
+The `closed_type_arena` family includes all 36 physical lanes owned by
+`yu-types`: 8 permanent arena lanes, 17 finalization scratch lanes, and 11
+indexed-temporary lanes. `yu-types` owns and updates those fixed-size lane
+summaries at its existing reserve/reconciliation events and boundary
+checkpoints; the solver observer reads them at finalizer checkpoints instead
+of reconstructing them from the aggregate accounting checkpoint. The
+independent ledger reconciles same-time cross-crate peaks exactly once.
+
 The independent test ledger also records slot size, clear/transfer point, and
 the aggregate semantic-arena and inference-session retained/peak totals. Every
 physical lane is counted once. For each dimension series, assert exact logical
@@ -127,8 +152,15 @@ ledger, and emits one bounded summary. Invoke its exact unique Cargo filter in
 one process:
 
 ```text
-timeout --signal=TERM --kill-after=10s 60s /usr/bin/time -v env RUSTC_WRAPPER= cargo test -p yu-solver --lib f5c_resource_matrix_preflight --offline -j 2 -- --ignored --nocapture --test-threads=1
+timeout --signal=TERM --kill-after=10s 60s /usr/bin/time -v env RUSTC_WRAPPER= cargo test -p yu-solver --lib --features f5c_resource_probe f5c_resource_matrix_preflight --offline -j 2 -- --ignored --nocapture --test-threads=1
 ```
+
+All preflight and matrix commands enable `yu-solver`'s
+`f5c_resource_probe` feature, which forwards the opt-in observer feature to
+`yu-types`. Include `--features f5c_resource_probe` in each Cargo invocation;
+ordinary default-feature builds do not compile the observer. Cargo feature
+unification applies to the selected build, so do not substitute a workspace
+`--all-features` command for the isolated campaign commands.
 
 The separate ignored matrix entrypoint is planned as the unique filter
 `f5c_resource_matrix_case`, dispatched by these required environment values:
@@ -144,7 +176,7 @@ Command template for one matrix row (`TIMEOUT` is 30, 60, or 120 seconds for
 sizes 1,000, 2,000, or 4,000 respectively):
 
 ```text
-timeout --signal=TERM --kill-after=10s TIMEOUT /usr/bin/time -v env RUSTC_WRAPPER= F5C_RESOURCE_MATRIX_FAMILY=FAMILY F5C_RESOURCE_MATRIX_DIMENSION=DIMENSION F5C_RESOURCE_MATRIX_SIZE=SIZE F5C_RESOURCE_MATRIX_COMPANION=COMPANION cargo test -p yu-solver --lib f5c_resource_matrix_case --offline -j 2 -- --ignored --nocapture --test-threads=1
+timeout --signal=TERM --kill-after=10s TIMEOUT /usr/bin/time -v env RUSTC_WRAPPER= F5C_RESOURCE_MATRIX_FAMILY=FAMILY F5C_RESOURCE_MATRIX_DIMENSION=DIMENSION F5C_RESOURCE_MATRIX_SIZE=SIZE F5C_RESOURCE_MATRIX_COMPANION=COMPANION cargo test -p yu-solver --lib --features f5c_resource_probe f5c_resource_matrix_case --offline -j 2 -- --ignored --nocapture --test-threads=1
 ```
 
 Set `COMPANION=none` for `independent_identities` and `identity_aliases`; use

@@ -4,16 +4,20 @@ Updated: 2026-09-28. Branch: `yulang3`; do not modify frozen `main`.
 
 Resume handoff: [`2026-09-22 F5c scheme-closure handoff`](../notes/handoffs/2026-09-22-f5c-scheme-closure-handoff.md).
 
-### Latest continuation (2026-09-28): no-cap scale plan reviewed
+### Latest continuation (2026-09-28): no-cap scale plan and observer scope reviewed
 
 The fresh §26/§34 plan is
 [`F5c no-cap scale measurement plan`](../notes/progress/f5c-no-cap-scale-measurement-plan-2026-09-28.md).
 It maps the §26 shared-graph family to `shared_acyclic`, covers all seven §34
 builders and each named dimension, and specifies exact counters, independent
 per-lane observations, adjacent ratios, companions, stop rules, and an 8 GiB
-host-availability floor. Independent spec and performance reviews, including
-targeted deltas, closed without findings. The performance auditor supplied a
-written justification for the required larger budget.
+host-availability floor. A scope delta added an opt-in `yu-types` feature for
+its private 36 closed-finalizer physical lanes; `yu-solver` forwards it only
+for these measurement commands. Architect, spec, and performance reviews
+closed without blocking or major findings. Default builds compile no observer
+code, and the feature does not exercise the terminal-capacity seam. The
+performance auditor supplied a written justification for the required larger
+budget.
 
 No probe or test has run for this plan. The user approved the full campaign on
 2026-09-28: one 32-size preflight, then 36 isolated 1k/2k/4k cases only if the
@@ -22,10 +26,19 @@ budget, plus at most one 10-second kill grace. Primary, reviewer, and user
 approvals are recorded; the matrix remains conditional on a successful,
 reviewed preflight. The prior §15 plans remain exhausted.
 
-Next: implement and independently review the fixed-size test-only per-lane and
-per-boundary summaries required by the plan, without production hooks or use of
-the 64-row capture; then run the approved preflight first. Only after a passing
-reviewed preflight may the 36-case scale matrix proceed.
+Next: implement and independently review the fixed-size `yu-types` and
+`yu-solver` per-lane/per-boundary summaries required by the plan, with the
+feature disabled by default and no use of the 64-row capture; then run the
+approved preflight first. Only after a passing reviewed preflight may the
+36-case scale matrix proceed.
+
+The separate ordinary Function-ring source proof remains open. The audit at
+[`F5c ordinary ring complexity audit`](../notes/progress/f5c-ordinary-ring-complexity-audit-2026-09-28.md)
+closed the owner/trace count as one owner and two `Θ(N)` traces per member, but
+did not bound cumulative active memo-edge propagation or exact draft/output
+cardinality through normalization. The `O(N² log N)` target is not certified;
+production cutover remains closed. No source-ring measurement is authorized
+under the exhausted §15 plan.
 
 ### Completed continuation (2026-09-28): no-cap resource-policy design approved
 
