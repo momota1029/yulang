@@ -672,3 +672,34 @@ keep the candidate unselected. Prepare and independently review the fresh
 §15 measurement plan before the first resource, scale, or capacity probe.
 F5b §6 callback accounting, numeric boundary approval, production cutover,
 §44, F5e, and overall F5c acceptance remain open.
+
+### Per-member memo transaction through SCC staging (2026-09-27)
+
+The private consuming `build_and_stage_flat_candidate` path now keeps the
+normalized candidate's raw forest and memo root transaction live while the
+candidate transfers to a reserved SCC slot. It commits and releases that
+forest only after transfer succeeds. On stage error, it aborts the current
+forest and member while retaining any candidates already staged in the SCC.
+The existing `build_flat_candidate` wrapper still commits before returning;
+this slice does not connect the candidate to production or `lib.rs`.
+
+The two-root witness stages A, injects B's post-transfer observation failure,
+checks B's semantic memo rollback against the post-A state, verifies A's draft
+and meter ownership remain live, then retries B. The M2 specification and
+performance reviews found no blocking or major implementation finding.
+Reviewers noted two minor evidence gaps for the next all-member ledger gate:
+the composed witness does not pair a previous member with every earlier
+stage/normalization error boundary, and independent physical-capacity
+enumeration has not reconstructed raw-forest plus staged-source coexistence at
+the live transfer event. Static accounting carries the raw-forest walker
+capacity into the stage baseline. These limits keep the all-member physical
+gate open; no resource probe or numeric boundary was part of this slice.
+
+The 45-test `f5c_flat_walk_sink` filter and solver library/test-target checks
+pass, as do formatting and diff checks. A test-only wrapper was gated under
+`cfg(test)` after the first non-test package check reported dead code; final
+package checks are warning-free. Next integrate ordered all-member staging,
+the checked five-lane indexed mapping and finalizer calls, and the independent
+solver/`yu-types` co-resident peak ledger. Prepare and review the fresh §15
+measurement plan before any resource, scale, or capacity probe. Production
+remains boxed.

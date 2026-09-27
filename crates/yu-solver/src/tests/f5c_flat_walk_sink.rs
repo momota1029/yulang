@@ -1537,6 +1537,77 @@ fn staged_flat_candidates_transfer_six_buffers_and_retry() {
 }
 
 #[test]
+fn staged_second_root_failure_restores_only_its_memo_transaction() {
+    use crate::f5c_generalization::F5cStagedCandidate;
+
+    macro_rules! semantic_memo {
+        ($memo:expr) => {{
+            let memo = &$memo;
+            (
+                (memo.roots.clone(), memo.nodes.clone()),
+                (
+                    memo.children.clone(),
+                    memo.parent_heads.clone(),
+                    memo.reverse_parents.clone(),
+                    memo.incidence_heads.clone(),
+                    memo.incidences.clone(),
+                ),
+                (
+                    memo.root_heads.clone(),
+                    memo.root_edges.clone(),
+                    memo.root_edge_marks.clone(),
+                    memo.root_undo.clone(),
+                ),
+            )
+        }};
+    }
+
+    let source_meter = DraftHeapMeter::default();
+    let batch = collect(module("my f = 1", "f5c-flat-stage-atomic-roots"));
+    let mut session = InferenceSession::new(batch);
+    let a = session.fresh_value_at_level(1).unwrap();
+    let b = session.fresh_value_at_level(1).unwrap();
+    for root in [a, b] {
+        let child = session.fresh_value_at_level(1).unwrap();
+        session.bounds[child as usize]
+            .exact_non_variable_lowers
+            .push(ValueEndpointKey::IntPositive);
+        session.bounds[root as usize]
+            .exact_non_variable_lowers
+            .push(ValueEndpointKey::ValueRow(child));
+    }
+    let mut staged = TrackedVec::<F5cStagedCandidate<'_>>::new(&source_meter);
+    staged.try_reserve(2).unwrap();
+    let memo = F5cComponentExpansionMemo::default();
+    let (a_result, memo, _, _) = F5cGeneralizer::with_memo(&session, &source_meter, memo, 0)
+        .build_and_stage_flat_candidate(a, &mut staged);
+    a_result.unwrap();
+    let post_a = semantic_memo!(memo);
+    let a_draft = staged[0].candidate.draft.positive_nodes.clone();
+    let a_meter = source_meter.current_bytes();
+
+    let (b_failure, memo, _, _) = F5cGeneralizer::with_memo(&session, &source_meter, memo, 0)
+        .build_and_stage_flat_candidate_with_failure(b, &mut staged);
+    assert_eq!(b_failure, Err(SolveAvailabilityError::IdentityExhausted));
+    assert_eq!(semantic_memo!(memo), post_a);
+    assert_eq!(staged.len(), 1);
+    assert_eq!(staged[0].candidate.draft.positive_nodes, a_draft);
+    assert_eq!(source_meter.current_bytes(), a_meter);
+
+    let (b_result, memo, _, _) = F5cGeneralizer::with_memo(&session, &source_meter, memo, 0)
+        .build_and_stage_flat_candidate(b, &mut staged);
+    b_result.unwrap();
+    assert_eq!(staged.len(), 2);
+    assert_eq!(staged[0].candidate.draft.positive_nodes, a_draft);
+    assert!(memo.roots.len() > post_a.0.0.len());
+    staged.clear();
+    assert_eq!(
+        source_meter.current_bytes(),
+        Some(staged.capacity() * std::mem::size_of::<F5cStagedCandidate<'_>>())
+    );
+}
+
+#[test]
 fn flat_candidate_entrypoint_late_r_q_failure_releases_transient_lanes() {
     let source_meter = DraftHeapMeter::default();
     let batch = collect(module("my f = 1", "f5c-flat-entrypoint-rollback"));

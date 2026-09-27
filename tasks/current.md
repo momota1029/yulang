@@ -4,6 +4,48 @@ Updated: 2026-09-27. Branch: `yulang3`; do not modify frozen `main`.
 
 Resume handoff: [`2026-09-22 F5c scheme-closure handoff`](../notes/handoffs/2026-09-22-f5c-scheme-closure-handoff.md).
 
+### Latest continuation (2026-09-27): per-member memo transaction through SCC staging
+
+The private `build_and_stage_flat_candidate` owner now retains the normalized
+candidate's raw forest and open memo root transaction through the fallible SCC
+slot transfer. It commits and releases that forest only after the candidate
+has transferred successfully. On stage error it drops only the current member
+and aborts that member's forest, preserving earlier staged candidates and memo
+state. The existing `build_flat_candidate` helper still commits before
+returning, as its focused fixtures require. Production remains on the boxed
+path; `lib.rs` orchestration is not connected yet.
+
+A two-root witness stages A, injects B's post-transfer observation failure,
+compares semantic memo state with the post-A snapshot, verifies A and source
+ownership survive, then retries B. M2 spec and performance reviews found no
+blocking or major issue. Their minor evidence notes remain assigned to the
+next all-member ledger gate: the composed test does not combine every earlier
+stage/normalization failure with a prior staged member, and independent
+physical-capacity enumeration has not yet reconstructed raw-forest plus
+staged-source coexistence at the transfer event. Static lane accounting
+includes current raw-forest walker capacity in the transfer baseline; no
+resource probe ran.
+
+Checks passed: `RUSTC_WRAPPER= cargo test -p yu-solver --lib
+f5c_flat_walk_sink --offline -- --test-threads=1` (45),
+`RUSTC_WRAPPER= cargo check -p yu-solver --lib --offline`,
+`RUSTC_WRAPPER= cargo check -p yu-solver --tests --offline`,
+`cargo fmt --all -- --check`, and `git diff --check`. The first library check
+exposed a dead-code warning on a test-only wrapper; gating it with `cfg(test)`
+removed the warning, and the library and test-target checks then passed. No
+broad suite, scale/resource/capacity probe, benchmark, or timing measurement
+ran; measurement budget remains zero.
+
+Next integrate the consuming stage helper into SCC orchestration: build all
+members in plan order with the same source meter and memo, preserve the
+AllDrafts-before-finalization and DraftMember sampling points, convert and
+finalize each member in order, and independently reconcile all co-resident
+solver, staged, indexed-input, memo/walker, and `yu-types` checkpoint lanes.
+Close the noted transaction/physical evidence gaps there. Review a fresh §15
+measurement plan before any resource, scale, or capacity probe. Numeric
+boundary approval, production cutover, §44, F5e, and overall F5c acceptance
+remain open.
+
 ### Latest continuation (2026-09-27): checked indexed finalizer conversion
 
 `FlatDraft` now has a private checked conversion to `yu_types::IndexedSchemeRef`.

@@ -6043,6 +6043,20 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
         root: u32,
         #[cfg(test)] fail_after_first_post_output: bool,
     ) -> Result<F5cNormalizedCandidate, SolveAvailabilityError> {
+        let (candidate, forest) = self.build_flat_candidate_pending(
+            root,
+            #[cfg(test)]
+            fail_after_first_post_output,
+        )?;
+        self.release_raw_forest(forest);
+        Ok(candidate)
+    }
+
+    fn build_flat_candidate_pending(
+        &mut self,
+        root: u32,
+        #[cfg(test)] fail_after_first_post_output: bool,
+    ) -> Result<(F5cNormalizedCandidate, F5cRawForest), SolveAvailabilityError> {
         if self.normalized_candidate_live {
             return Err(SolveAvailabilityError::IdentityExhausted);
         }
@@ -6163,7 +6177,7 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
                 drop(negative);
                 self.release_flat_candidate_preparation_lanes();
                 let finished = selected.and_then(|(selection, output, forest)| {
-                    self.flat_finish_selected_candidate(
+                    self.flat_finish_selected_candidate_pending(
                         selection,
                         output,
                         forest,
@@ -6193,6 +6207,84 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
                 return Err(error);
             }
         }
+    }
+
+    /// Keep this member's memo transaction open until its candidate owns a
+    /// reserved SCC slot. Earlier staged members retain their own ownership.
+    #[allow(dead_code)]
+    pub(super) fn build_and_stage_flat_candidate(
+        self,
+        root: u32,
+        staged: &mut TrackedVec<'meter, F5cStagedCandidate<'meter>>,
+    ) -> (
+        Result<f5c_normalization::FlatNormalizationStats, SolveAvailabilityError>,
+        F5cComponentExpansionMemo,
+        usize,
+        usize,
+    ) {
+        self.build_and_stage_flat_candidate_inner(root, staged, false)
+    }
+
+    fn build_and_stage_flat_candidate_inner(
+        mut self,
+        root: u32,
+        staged: &mut TrackedVec<'meter, F5cStagedCandidate<'meter>>,
+        fail_observe: bool,
+    ) -> (
+        Result<f5c_normalization::FlatNormalizationStats, SolveAvailabilityError>,
+        F5cComponentExpansionMemo,
+        usize,
+        usize,
+    ) {
+        let result = self.build_flat_candidate_pending(
+            root,
+            #[cfg(test)]
+            false,
+        );
+        let result = result.and_then(|(candidate, forest)| {
+            let stats = f5c_normalization::FlatNormalizationStats {
+                key_writes: candidate.stats.key_writes,
+                child_comparisons: candidate.stats.child_comparisons,
+                descriptor_words: candidate.stats.descriptor_words,
+                word_comparisons: candidate.stats.word_comparisons,
+                duplicates: candidate.stats.duplicates,
+            };
+            let hits = self.shared_summary_hits;
+            let uncacheable = self.uncacheable_states;
+            match self.stage_normalized_candidate_inner(staged, candidate, false, fail_observe) {
+                Ok(()) => {
+                    self.release_raw_forest(forest);
+                    Ok((stats, hits, uncacheable))
+                }
+                Err(error) => {
+                    self.abort_raw_forest(forest)?;
+                    Err(error)
+                }
+            }
+        });
+        let (result, hits, uncacheable) = match result {
+            Ok((stats, hits, uncacheable)) => (Ok(stats), hits, uncacheable),
+            Err(error) => (
+                Err(error),
+                self.shared_summary_hits,
+                self.uncacheable_states,
+            ),
+        };
+        (result, self.memo, hits, uncacheable)
+    }
+
+    #[cfg(test)]
+    pub(super) fn build_and_stage_flat_candidate_with_failure(
+        self,
+        root: u32,
+        staged: &mut TrackedVec<'meter, F5cStagedCandidate<'meter>>,
+    ) -> (
+        Result<f5c_normalization::FlatNormalizationStats, SolveAvailabilityError>,
+        F5cComponentExpansionMemo,
+        usize,
+        usize,
+    ) {
+        self.build_and_stage_flat_candidate_inner(root, staged, true)
     }
 
     fn release_flat_candidate_one_sided_lanes(&mut self) {
@@ -7307,7 +7399,33 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
         self.release_raw_forest(forest);
     }
 
+    #[cfg(test)]
     pub(super) fn flat_finish_selected_candidate(
+        &mut self,
+        selection: F5cPostRSelection<
+            (f5c_draft::PositiveId, f5c_draft::NegativeId),
+            f5c_draft::PositiveId,
+        >,
+        output: f5c_draft::FlatDraft,
+        forest: F5cRawForest,
+        positive_only: &HashSet<u32>,
+        negative_only: &HashSet<u32>,
+        #[cfg(test)] fail_during_normalization: bool,
+    ) -> Result<F5cNormalizedCandidate, SolveAvailabilityError> {
+        let (candidate, forest) = self.flat_finish_selected_candidate_pending(
+            selection,
+            output,
+            forest,
+            positive_only,
+            negative_only,
+            #[cfg(test)]
+            fail_during_normalization,
+        )?;
+        self.release_raw_forest(forest);
+        Ok(candidate)
+    }
+
+    fn flat_finish_selected_candidate_pending(
         &mut self,
         selection: F5cPostRSelection<
             (f5c_draft::PositiveId, f5c_draft::NegativeId),
@@ -7318,7 +7436,7 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
         positive_only: &HashSet<u32>,
         negative_only: &HashSet<u32>,
         #[cfg(test)] fail_during_normalization: bool,
-    ) -> Result<F5cNormalizedCandidate, SolveAvailabilityError> {
+    ) -> Result<(F5cNormalizedCandidate, F5cRawForest), SolveAvailabilityError> {
         if self.normalized_candidate_live {
             drop(selection);
             f5c_replay::release_flat_output(&mut self.memo, output);
@@ -7460,9 +7578,8 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
                     self.abort_raw_forest(forest)?;
                     return Err(error);
                 }
-                self.release_raw_forest(forest);
                 self.normalized_candidate_live = true;
-                Ok(F5cNormalizedCandidate { draft, stats })
+                Ok((F5cNormalizedCandidate { draft, stats }, forest))
             }
             Err(error) => {
                 self.abort_raw_forest(forest)?;
