@@ -1,25 +1,19 @@
 # F5c candidate resource measurement plan
 
-Status: The original reviewed eight-command plan and its approved ninth-command
-continuation are both consumed. The full source/depth/width scale capture
-passed. The first failure capture stopped before a sample at a whole-
-`ProductionCounters` equality; a read-only `compiler_referee` found intended
-historical values included in that assertion and nonzero current memo gauges
-after rollback. The repair in `55baa9b8` clears current memo storage/gauges,
-preserves physical history, and adds a focused no-capture complete counter/lane
-regression. The approved ninth capture then emitted post-transfer and batch-
-normalization failure/retry records, but stopped before the failed-reserve
-record at `bounded reserve retry: IdentityExhausted`. It took 3.17 seconds and
-peaked at 559,212 KiB RSS; cumulative §15 time is about 40.80 seconds and
-combined §15+§44 about 95.90 seconds. The owning helper defect was a nonempty
-Vec paired with default zero-capacity ledger state. Its repair now initializes
-the lane through tracked reserve and asserts the physical, lane, and aggregate
-baseline/failure/retry states. A `spec_auditor` closed the finding; test-target
-compilation and formatting pass, but no probe ran after this repair. No capture
-is authorized under the exhausted ninth-command plan. A proposed tenth capture
-below is pending fresh performance review and primary approval. The combined
-1,010s ceiling and local 570s / 440s ceilings remain. No numeric boundary or
-production cutover is selected. One tenth capture is approved below.
+Status: The approved 10-invocation candidate capture campaign completed. The
+source rings 2/4/8/16, paired boxed/flat seeded depths 8/32/64/256, and widths
+8/32/64 all passed. Failure/rollback/retry cases and failed-reserve/retry now
+also pass with physical capacity reconciled against lane and aggregate stats.
+The final filtered test passed in 4.01 seconds, with 647,412 KiB maximum RSS.
+The reserve failure retained 8 bytes at capacity 8 with one growth; bounded
+retry retained 16 bytes at capacity 16 with two growths. A read-only
+`spec_auditor` found no issue in the final capture evidence. Ten of ten
+invocations are charged; cumulative §15 time is about 44.81 seconds and
+combined §15+§44 about 99.91 seconds, within the 570s and 1,010s campaign
+ceilings. No further capture is authorized under this plan. This closes the
+listed repository-candidate capture evidence only; no numeric supported-input
+boundary or production cutover is selected, and the separate §44 gate remains
+open.
 
 ## Approved ninth-command continuation and outcome (2026-09-27)
 
@@ -66,9 +60,9 @@ tracked reserve and checks pre-failure, failed-reserve, and retry transitions.
 `cargo check -p yu-solver --tests --offline -j 2` passed. The post-fix reserve
 probe remains unexecuted.
 
-## Approved tenth-command capture (2026-09-27)
+## Approved tenth-command capture and outcome (2026-09-27)
 
-The ninth-command allowance is consumed. Exactly one tenth invocation is
+The ninth-command allowance is consumed. Exactly one tenth invocation was
 authorized for the same filtered failure/rollback/retry probe to verify the
 corrected failed-reserve baseline and obtain its missing lane sample. The test
 reruns its four small two-member failure/retry cases before the reserve probe;
@@ -80,24 +74,33 @@ any assertion fails.
 timeout --signal=TERM --kill-after=10s 180s /usr/bin/time -v env RUSTC_WRAPPER= cargo test -p yu-solver --lib f5c_candidate_resource_probe_failures --offline -j 2 -- --ignored --nocapture --test-threads=1
 ```
 
-The timeout is 180 seconds plus at most 10 seconds of kill grace, including any
-test-binary rebuild. This is one command and one measurement
-process, raising the total to ten invocations. Cumulative §15 time is about
-40.80 seconds; the projected maximum is 230.80 seconds. Combined §15+§44 time
-is about 95.90 seconds now and at most 285.90 seconds under the proposal. Both
+The timeout was 180 seconds plus at most 10 seconds of kill grace, including
+the test-binary rebuild. This charged one command and one measurement process,
+raising the total to ten invocations. Cumulative §15 time before the command
+was about 40.80 seconds and combined §15+§44 was about 95.90 seconds. The
+command completed in 4.01 seconds, bringing the totals to about 44.81 and
+99.91 seconds. `/usr/bin/time -v` reported 647,412 KiB maximum RSS. Both totals
 remain below the local 570-second and combined 1,010-second ceilings. Ten
-exceeds the default eight-process budget. The `performance_auditor` provided
+exceeded the default eight-process budget. The `performance_auditor` provided
 written justification: the ninth command captured route failure/retry cases
 but stopped before the failed-reserve record because a test-only lane baseline
-was missing; the baseline repair is independently reviewed, and one filtered
-capture is the remaining evidence. The auditor approved one tenth invocation,
-and primary approval is recorded here before execution. This remains below the
+was missing; the baseline repair was independently reviewed, and one filtered
+capture was the remaining evidence. The auditor approved one tenth invocation,
+and primary approval was recorded before execution. This remains below the
 separate 16-invocation / 20-minute user-approval threshold.
 
-Stop on any mismatch, retain the exact log, and make no retry under this plan.
-The result cannot select the numeric supported-input boundary, authorize
-production cutover, or close the separate §44 resource and rollback gate.
-Primary disposition: approved exactly this one invocation.
+The command passed: one test passed, zero failed. Both expected route failures
+reached `SourceDrafts`, emitted `post_transfer` and `batch_normalization`
+failure samples, and were followed by fresh successful retries with scheme
+parity. The failed-reserve record reports requested slots 9,223,372,036,854,
+775,808 with physical and ledger capacity 8, retained bytes 8, and one growth.
+The bounded retry reports requested slots 9,223,372,036,854,775,817 with
+capacity 16, retained bytes 16, and two cumulative growths. The exact log is
+`/tmp/yulang-f5c-failures-final-20260927.log`. A read-only `spec_auditor`
+review found no issue in this capture scope. The result does not select the
+numeric supported-input boundary, authorize production cutover, or close the
+separate §44 resource and rollback gate. Primary disposition approved exactly
+this one invocation; no further capture is authorized under this plan.
 
 Authority: `notes/design/2026-09-25-f5c-flat-indexed-stack-independent-draft.md`
 §§5 and 15; `notes/design/2026-09-21-f5-general-function-scheme-foundation-draft.md`
@@ -106,9 +109,10 @@ all-member accounting and rollback sections; `rules/performance.md`.
 
 ## Decision this campaign can inform
 
-This campaign will establish repository-bounded logical-work and physical
-capacity/retained/peak observations for the unselected F5c candidate. It will
-not choose a numeric supported-input boundary or authorize production cutover.
+This campaign established repository-bounded logical-work and physical
+capacity/retained/peak observations for the unselected F5c candidate's listed
+input families. It does not choose a numeric supported-input boundary or
+authorize production cutover.
 No representative external Oracle corpus is available. The current source
 collector also defers Lambda Function facts to F5d, so the deep structural
 input below is explicitly a test-seeded solver graph, not a source-program
@@ -255,8 +259,12 @@ are charged. The latest scale process took 3.57 seconds and peaked at 556,296
 KiB RSS; the failed failure-capture process took 0.05 seconds and peaked at
 35,836 KiB RSS. Cumulative §15 wall time is about 37.63 seconds and combined
 §15+§44 about 92.73 seconds. No further capture is authorized under this plan;
-remaining time does not override the stop rule or command cap. Correctness-only
-tests remain outside the capture budget under `rules/testing.md`.
+remaining time did not override its stop rule or command cap. Correctness-only
+tests remain outside the capture budget under `rules/testing.md`. The reviewed
+ninth and tenth continuations subsequently completed the failure/retry and
+failed-reserve/retry evidence. Total use is ten invocations, about 44.81
+seconds for §15 and 99.91 seconds combined. No further capture is authorized
+under the ten-invocation continuation.
 
 ## Failure handling and stop rules
 
@@ -270,11 +278,11 @@ tests remain outside the capture budget under `rules/testing.md`.
   assertion; static audit found nonzero current memo gauges after owner drop.
   That code gate is closed by releasing memo storage, restoring zero current
   gauges, preserving history, and adding a focused no-capture full
-  counter/lane regression. The original eight-command budget and the approved
-  ninth-command continuation are exhausted. The ninth run stopped before the
-  reserve sample; the helper baseline repair is reviewed but still awaits one
-  post-fix capture. The proposed tenth invocation above is pending fresh review.
-  Do not add input dimensions.
+  counter/lane regression. The ninth run stopped before the reserve sample; the
+  tracked-baseline repair was independently reviewed and the tenth run passed.
+  It recorded physical/lane/aggregate reserve agreement at capacity 8 and retry
+  growth to capacity 16. All ten invocations are consumed; no more run under
+  this plan. Do not add input dimensions.
 - Stop the campaign on any boxed/flat semantic or public-counter mismatch,
   independent-lane reconciliation failure, incomplete checkpoint sample,
   unexpected `IdentityExhausted` on the listed success cases, or missing

@@ -81,10 +81,17 @@ checks its initial capacity through tracked reserve. `spec_auditor` closed the
 baseline-witness finding, and `cargo check -p yu-solver --tests --offline -j 2`
 plus formatting pass. The repair has not been exercised at runtime. Nine of
 nine approved commands are consumed; cumulative §15 time is about 40.80
-seconds and combined §15+§44 about 95.90 seconds. Fresh performance review
-provided written justification and primary approval for exactly one tenth
-failure/rollback/retry capture. It has not run yet. §15 remains incomplete; no
-numeric boundary or production cutover is selected.
+seconds and combined §15+§44 about 95.90 seconds. The approved tenth capture
+passed in 4.01 seconds with 647,412 KiB maximum RSS. It recorded failed-reserve
+capacity 8 / retained 8 bytes / one growth and bounded retry capacity 16 /
+retained 16 bytes / two growths, matching the independent physical capacity.
+Both injected failures reached `SourceDrafts`, and fresh retries matched scheme
+parity. A read-only `spec_auditor` found no issue in the result. The ten-command
+campaign is complete: cumulative §15 time is about 44.81 seconds and combined
+§15+§44 about 99.91 seconds, below 570/1,010 seconds. The captured candidate
+families now have failure, retry, and reserve evidence. The numeric support
+boundary and production cutover remain open for separate review/approval; the
+§44 resource/rollback gate also remains open.
 
 ### Latest continuation (2026-09-27): all-member candidate and independent physical ledger
 
