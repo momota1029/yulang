@@ -7,6 +7,7 @@ pub(super) struct PhysicalJoint {
     pub(super) memo_current: u128,
     pub(super) walker_current: u128,
     pub(super) source_current: u128,
+    pub(super) source_nested_bytes: u128,
     pub(super) staged_source_current: u128,
     pub(super) peak: u128,
     pub(super) aggregate_overflow: bool,
@@ -51,6 +52,7 @@ impl Default for PhysicalJoint {
             memo_current: 0,
             walker_current: 0,
             source_current: 0,
+            source_nested_bytes: 0,
             staged_source_current: 0,
             peak: 0,
             aggregate_overflow: false,
@@ -74,6 +76,7 @@ impl PhysicalJoint {
             std::mem::size_of::<F5cRecursiveBound>(),
         ];
         self.source_current = Self::sum_products(self.source_capacities.iter().copied().zip(sizes))
+            .and_then(|bytes| bytes.checked_add(self.source_nested_bytes))
             .unwrap_or_else(|| {
                 self.aggregate_overflow = true;
                 u128::MAX
@@ -1851,6 +1854,8 @@ pub(super) struct F5cComponentExpansionMemo {
     #[cfg(test)]
     pub(super) independent_joint_peak_bytes: std::cell::Cell<u128>,
     #[cfg(test)]
+    pub(super) source_owner_current: u128,
+    #[cfg(test)]
     pub(super) transfer_raw_staged_samples: Vec<(u128, u128, u128)>,
     #[cfg(test)]
     pub(super) transfer_physical_samples: Vec<(u128, u128, u128, u128, u128)>,
@@ -2023,8 +2028,10 @@ impl F5cComponentExpansionMemo {
 
     #[cfg(test)]
     pub(super) fn release_physical_source(&mut self) {
+        self.source_owner_current = 0;
         let joint = &mut self.walker_resources.physical_joint;
         joint.source_capacities = [0; 4];
+        joint.source_nested_bytes = 0;
         joint.source_event();
     }
 
@@ -2080,6 +2087,35 @@ impl F5cComponentExpansionMemo {
         &mut self,
         source_meter: &DraftHeapMeter,
     ) -> Result<(), SolveAvailabilityError> {
+        #[cfg(test)]
+        {
+            let joint = &mut self.walker_resources.physical_joint;
+            let sizes = [
+                std::mem::size_of::<GeneralizationDraft>(),
+                std::mem::size_of::<TrackedAllocation<'static>>(),
+                std::mem::size_of::<F5cRecursiveBound>(),
+                std::mem::size_of::<F5cRecursiveBound>(),
+            ];
+            let fixed =
+                PhysicalJoint::sum_products(joint.source_capacities.iter().copied().zip(sizes))
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            let owned = source_meter
+                .physical_current_bytes()
+                .ok_or(SolveAvailabilityError::IdentityExhausted)? as u128;
+            // Flat staging has its own source lane and uses a separate meter.
+            // The boxed source lanes are explicitly active only while at least
+            // one of their fixed owner capacities is present.
+            self.source_owner_current = if joint.source_capacities == [0; 4] {
+                0
+            } else {
+                owned
+            };
+            joint.source_nested_bytes = self
+                .source_owner_current
+                .checked_sub(fixed)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            joint.source_event();
+        }
         self.observe_source_bytes(source_meter.current_bytes())?;
         self.observe_component_external(source_meter)
     }
@@ -4117,6 +4153,7 @@ impl F5cComponentExpansionMemo {
         {
             let joint = &mut self.walker_resources.physical_joint;
             joint.source_capacities = prior_joint.source_capacities;
+            joint.source_nested_bytes = prior_joint.source_nested_bytes;
             joint.staged_source_current = prior_joint.staged_source_current;
             joint.peak = prior_joint.peak;
             joint.aggregate_overflow = prior_joint.aggregate_overflow;

@@ -4,7 +4,44 @@ Updated: 2026-09-28. Branch: `yulang3`; do not modify frozen `main`.
 
 Resume handoff: [`2026-09-22 F5c scheme-closure handoff`](../notes/handoffs/2026-09-22-f5c-scheme-closure-handoff.md).
 
-### Latest continuation (2026-09-28): live intermediate-graph census
+### Latest continuation (2026-09-28): nested source-owner event census
+
+The existing independent source-draft walk now cross-checks a test-only
+per-owner event census for nested source allocations. Each tracked allocation
+owner reports its actual capacity and slot size in O(1) at growth, failed
+reserve, transfer, and drop; released owner IDs are reused, so test registry
+storage follows the peak number of simultaneously live owners rather than all
+owner constructions. `PhysicalJoint` includes boxed nested owner bytes at the
+existing source events, and the independent `lib.rs` walk reconciles them at
+publish and normalization boundaries. Flat staged source remains separately
+accounted. Production has no added scan or allocation.
+
+Selected M2. The spec review found no issue. Performance review found a major
+test-memory issue: the first registry version kept one slot per historical
+owner event. A fresh implementer added an O(1) free-ID stack; fresh performance
+delta review closed the finding. The registry stays test-only.
+
+Checks passed:
+
+- `RUSTC_WRAPPER= cargo check -p yu-solver --tests --offline -j 2`
+- `RUSTC_WRAPPER= cargo test -p yu-solver --lib f5c_draft_heap::tests:: --offline -- --test-threads=1` (14)
+- `RUSTC_WRAPPER= cargo test -p yu-solver --lib source_nested_census --offline -- --test-threads=1` (2)
+- `RUSTC_WRAPPER= cargo test -p yu-solver --lib source_function_children_reconcile_full_component_joint_peak --offline -- --test-threads=1` (1)
+- `RUSTC_WRAPPER= cargo test -p yu-solver --lib f5d_source_identity_boxed_and_flat_candidates_agree --offline -- --test-threads=1` (1)
+- `cargo fmt --all -- --check`
+- `git diff --check`
+
+The implementation's `source_` filter reported 29 passed, 4 ignored, and one
+known F4 sample-count failure. The exact test also fails unchanged on isolated
+baseline `8e43271e` (6021 actual, 6017 expected). Its expectation and route
+logic were left untouched. No full package suite, benchmark, or resource probe
+ran; measurement budget consumed: zero.
+
+Next: close the remaining independent all-drafts solver/`yu-types` same-time
+physical peak reconstruction across finalizer overlap. Numeric-boundary
+selection, production cutover, F5e, and overall F5c acceptance remain open.
+
+### Completed continuation (2026-09-28): live intermediate-graph census
 
 The per-invocation logical graph census is implemented and closed at the
 scoped gate. Each Normalizer checks the projected sum of live node entries and
@@ -30,10 +67,9 @@ package suite, benchmark, or resource probe ran; measurement budget consumed:
 zero. The initial default sccache wrapper hit a local EPERM; runs with
 `RUSTC_WRAPPER=` passed.
 
-Next: close the nested source-capacity owner ledger across draft producers,
-normalization replacement, failure, and finalization overlap. Numeric-boundary
-selection, production cutover, F5e Function products, and overall F5c
-acceptance remain open.
+At that checkpoint, the next item was the nested source-owner event census
+recorded above. Numeric-boundary selection, production cutover, F5e Function
+products, and overall F5c acceptance remain open.
 
 ### Latest continuation (2026-09-28): journal admission and rollback witness
 

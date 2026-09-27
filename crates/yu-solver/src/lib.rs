@@ -4314,11 +4314,18 @@ impl IndependentResourceLedger {
             std::mem::size_of::<(u32, Polarity)>(),
             std::mem::size_of::<u32>(),
         ];
-        let source_bytes: u128 = source_capacities
+        let fixed_source_bytes: u128 = source_capacities
             .iter()
             .zip(source_sizes)
             .map(|(capacity, size)| capacity * size as u128)
             .sum();
+        let source_bytes = memo.source_owner_current;
+        assert_eq!(
+            source_bytes,
+            fixed_source_bytes
+                .checked_add(memo.walker_resources.physical_joint.source_nested_bytes)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?
+        );
         let memo_bytes: u128 = memo_capacities
             .iter()
             .zip(memo_sizes)
@@ -4775,6 +4782,9 @@ impl IndependentResourceLedger {
         if meter.current_bytes() != Some(physical_bytes) {
             return Err(SolveAvailabilityError::IdentityExhausted);
         }
+        if meter.physical_current_bytes() != Some(physical_bytes) {
+            return Err(SolveAvailabilityError::IdentityExhausted);
+        }
         self.source_nested_buffers
             .try_reserve(new_buffers.len())
             .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
@@ -4946,6 +4956,9 @@ impl IndependentResourceLedger {
             .and_then(|bytes| bytes.checked_add(nested_bytes))
             .ok_or(SolveAvailabilityError::IdentityExhausted)?;
         if meter.current_bytes() != Some(source_bytes) {
+            return Err(SolveAvailabilityError::IdentityExhausted);
+        }
+        if meter.physical_current_bytes() != Some(source_bytes) {
             return Err(SolveAvailabilityError::IdentityExhausted);
         }
         self.source_nested_draft_count = drafts.len();
@@ -6088,6 +6101,7 @@ fn source_function_children_reconcile_full_component_joint_peak() {
             + bound_capacity * std::mem::size_of::<F5cRecursiveBound>()
             + nested_bytes;
         assert_eq!(meter.current_bytes(), Some(source_bytes));
+        assert_eq!(meter.physical_owner_bytes(), Some(source_bytes));
         assert_eq!(
             meter.physical_component_joint_peak(),
             Some(source_bytes + external_bytes)
@@ -6108,6 +6122,7 @@ fn source_function_children_reconcile_full_component_joint_peak() {
             + bound_capacity * std::mem::size_of::<F5cRecursiveBound>()
             + nested_bytes;
         assert_eq!(meter.current_bytes(), Some(source_bytes));
+        assert_eq!(meter.physical_owner_bytes(), Some(source_bytes));
         assert_eq!(meter.physical_component_joint_peak(), Some(peak_bytes));
         assert!(peak_bytes >= source_bytes + external_bytes);
     }

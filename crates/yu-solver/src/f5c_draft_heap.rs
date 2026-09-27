@@ -19,6 +19,10 @@ struct MeterState {
     #[cfg(test)]
     physical_current: Cell<Option<usize>>,
     #[cfg(test)]
+    physical_owners: std::cell::RefCell<Vec<Option<(usize, usize)>>>,
+    #[cfg(test)]
+    free_physical_owners: std::cell::RefCell<Vec<usize>>,
+    #[cfg(test)]
     physical_component_external: Cell<Option<usize>>,
     #[cfg(test)]
     physical_joint_peak: Cell<Option<usize>>,
@@ -34,6 +38,10 @@ impl Default for MeterState {
             component_joint_peak: Cell::new(None),
             #[cfg(test)]
             physical_current: Cell::new(Some(0)),
+            #[cfg(test)]
+            physical_owners: std::cell::RefCell::new(vec![None]),
+            #[cfg(test)]
+            free_physical_owners: std::cell::RefCell::new(Vec::new()),
             #[cfg(test)]
             physical_component_external: Cell::new(None),
             #[cfg(test)]
@@ -68,21 +76,7 @@ impl DraftHeapMeter {
             next.checked_add(future_external).ok_or(())?;
         }
         self.0.current.set(Some(next));
-        #[cfg(test)]
-        {
-            self.0.physical_current.set(
-                self.0
-                    .physical_current
-                    .get()
-                    .and_then(|n| n.checked_add(added)),
-            );
-        }
-        Ok(bytes.map(|byte| {
-            TrackedAllocation(AllocationToken {
-                meter: self,
-                bytes: byte,
-            })
-        }))
+        Ok(bytes.map(|byte| TrackedAllocation(AllocationToken::new(self, byte))))
     }
     pub(super) fn begin_component(&self) -> Result<(), ()> {
         let current = self.current_bytes().ok_or(())?;
@@ -218,6 +212,70 @@ impl DraftHeapMeter {
         self.0.physical_current.get()
     }
 
+    #[cfg(test)]
+    pub(super) fn physical_owner_bytes(&self) -> Option<usize> {
+        self.0
+            .physical_owners
+            .borrow()
+            .iter()
+            .flatten()
+            .try_fold(0usize, |sum, (capacity, slot_size)| {
+                sum.checked_add(capacity.checked_mul(*slot_size)?)
+            })
+    }
+
+    #[cfg(test)]
+    fn register_physical_owner(&self, bytes: usize) -> usize {
+        let mut owners = self.0.physical_owners.borrow_mut();
+        let id = if let Some(id) = self.0.free_physical_owners.borrow_mut().pop() {
+            assert!(owners[id].replace((bytes, 1)).is_none());
+            id
+        } else {
+            let id = owners.len();
+            owners.push(Some((bytes, 1)));
+            id
+        };
+        self.0.physical_current.set(
+            self.0
+                .physical_current
+                .get()
+                .and_then(|total| total.checked_add(bytes)),
+        );
+        id
+    }
+
+    #[cfg(test)]
+    fn replace_physical_owner(&self, id: usize, capacity: usize, slot_size: usize) {
+        let mut owners = self.0.physical_owners.borrow_mut();
+        let (old_capacity, old_size) = owners[id]
+            .replace((capacity, slot_size))
+            .expect("live physical source owner");
+        self.0
+            .physical_current
+            .set(self.0.physical_current.get().and_then(|total| {
+                total
+                    .checked_sub(old_capacity.checked_mul(old_size)?)?
+                    .checked_add(capacity.checked_mul(slot_size)?)
+            }));
+    }
+
+    #[cfg(test)]
+    fn release_physical_owner(&self, id: usize) {
+        if id == 0 {
+            return;
+        }
+        let (capacity, slot_size) = self.0.physical_owners.borrow_mut()[id]
+            .take()
+            .expect("live physical source owner");
+        self.0.physical_current.set(
+            self.0
+                .physical_current
+                .get()
+                .and_then(|total| total.checked_sub(capacity.checked_mul(slot_size)?)),
+        );
+        self.0.free_physical_owners.borrow_mut().push(id);
+    }
+
     pub(super) const fn fixed_payload_bytes() -> usize {
         0
     }
@@ -240,15 +298,6 @@ impl DraftHeapMeter {
             return Err(());
         };
         self.0.current.set(Some(next));
-        #[cfg(test)]
-        {
-            let physical = self.0.physical_current.get().and_then(|current| {
-                current
-                    .checked_sub(old)
-                    .and_then(|bytes| bytes.checked_add(new))
-            });
-            self.0.physical_current.set(physical);
-        }
         if new > old {
             self.observe_normalization_joint()?;
         }
@@ -262,10 +311,6 @@ impl DraftHeapMeter {
         if let Some(current) = self.current_bytes() {
             self.0.current.set(current.checked_sub(bytes));
         }
-        #[cfg(test)]
-        if let Some(current) = self.0.physical_current.get() {
-            self.0.physical_current.set(current.checked_sub(bytes));
-        }
         let _ = self.observe_component_joint();
     }
 }
@@ -273,9 +318,20 @@ impl DraftHeapMeter {
 struct AllocationToken<'meter> {
     meter: &'meter DraftHeapMeter,
     bytes: usize,
+    #[cfg(test)]
+    physical_owner: usize,
 }
 
 impl AllocationToken<'_> {
+    fn new(meter: &DraftHeapMeter, bytes: usize) -> AllocationToken<'_> {
+        AllocationToken {
+            meter,
+            bytes,
+            #[cfg(test)]
+            physical_owner: meter.register_physical_owner(bytes),
+        }
+    }
+
     fn reconcile<T>(&mut self, capacity: usize) -> Result<(), ()> {
         self.reconcile_with_component_sample::<T>(capacity, true)
     }
@@ -285,6 +341,9 @@ impl AllocationToken<'_> {
         capacity: usize,
         sample_component: bool,
     ) -> Result<(), ()> {
+        #[cfg(test)]
+        self.meter
+            .replace_physical_owner(self.physical_owner, capacity, size_of::<T>());
         let Some(bytes) = capacity.checked_mul(size_of::<T>()) else {
             self.meter.0.current.set(None);
             return Err(());
@@ -304,6 +363,8 @@ impl AllocationToken<'_> {
 impl Drop for AllocationToken<'_> {
     fn drop(&mut self) {
         self.meter.release(self.bytes);
+        #[cfg(test)]
+        self.meter.release_physical_owner(self.physical_owner);
     }
 }
 
@@ -318,7 +379,7 @@ impl<'meter, T> TrackedVec<'meter, T> {
     pub(super) fn new(meter: &'meter DraftHeapMeter) -> Self {
         Self {
             values: Some(Vec::new()),
-            token: AllocationToken { meter, bytes: 0 },
+            token: AllocationToken::new(meter, 0),
         }
     }
 
@@ -349,7 +410,7 @@ impl<'meter, T> TrackedVec<'meter, T> {
     ) -> Result<Self, (Vec<T>, ())> {
         let mut owned = Self {
             values: Some(values),
-            token: AllocationToken { meter, bytes: 0 },
+            token: AllocationToken::new(meter, 0),
         };
         match owned.token.reconcile::<T>(owned.capacity()) {
             Ok(()) => Ok(owned),
@@ -366,7 +427,7 @@ impl<'meter, T> TrackedVec<'meter, T> {
     ) -> Result<Self, (Vec<T>, ())> {
         let mut owned = Self {
             values: Some(values),
-            token: AllocationToken { meter, bytes: 0 },
+            token: AllocationToken::new(meter, 0),
         };
         match owned
             .token
@@ -382,11 +443,15 @@ impl<'meter, T> TrackedVec<'meter, T> {
     pub(super) fn into_raw_with_token(mut self) -> (Vec<T>, TrackedAllocation<'meter>) {
         let values = self.values.take().unwrap();
         let bytes = std::mem::replace(&mut self.token.bytes, 0);
+        #[cfg(test)]
+        let physical_owner = std::mem::replace(&mut self.token.physical_owner, 0);
         (
             values,
             TrackedAllocation(AllocationToken {
                 meter: self.token.meter,
                 bytes,
+                #[cfg(test)]
+                physical_owner,
             }),
         )
     }
@@ -538,11 +603,15 @@ impl<'meter, T> IntoIterator for TrackedVec<'meter, T> {
         let values = self.values.take().unwrap();
         let bytes = self.token.bytes;
         self.token.bytes = 0;
+        #[cfg(test)]
+        let physical_owner = std::mem::replace(&mut self.token.physical_owner, 0);
         TrackedIntoIter {
             iter: Some(values.into_iter()),
             token: AllocationToken {
                 meter: self.token.meter,
                 bytes,
+                #[cfg(test)]
+                physical_owner,
             },
         }
     }
@@ -624,6 +693,26 @@ mod tests {
     use std::cell::Cell;
 
     #[test]
+    fn physical_owner_registry_reuses_slots_after_drop() {
+        let meter = DraftHeapMeter::default();
+        let retained = TrackedVec::<u64>::new(&meter);
+        for _ in 0..128 {
+            let mut transient = TrackedVec::<u64>::new(&meter);
+            transient.try_push(1).unwrap();
+            assert_eq!(
+                meter.physical_owner_bytes(),
+                Some(transient.accounted_bytes())
+            );
+            assert_eq!(meter.0.physical_owners.borrow().len(), 3);
+            drop(transient);
+            assert_eq!(meter.physical_owner_bytes(), Some(0));
+            assert_eq!(meter.0.physical_owners.borrow().len(), 3);
+        }
+        drop(retained);
+        assert_eq!(meter.0.free_physical_owners.borrow().len(), 2);
+    }
+
+    #[test]
     fn function_child_owners_charge_nested_payloads_and_retry_after_second_failure() {
         let meter = DraftHeapMeter::default();
         let build_positive = || -> Result<F5cPositive<'_>, ()> {
@@ -643,6 +732,7 @@ mod tests {
         FAIL_TRACKED_ONE_AFTER.with(|remaining| remaining.set(Some(1)));
         assert_eq!(build_positive(), Err(()));
         assert_eq!(meter.current_bytes(), Some(0));
+        assert_eq!(meter.physical_owner_bytes(), Some(0));
         let positive = build_positive().unwrap();
         let F5cPositive::Function {
             argument, result, ..
@@ -661,8 +751,10 @@ mod tests {
             + negative_members.accounted_bytes()
             + positive_members.accounted_bytes();
         assert_eq!(meter.current_bytes(), Some(expected));
+        assert_eq!(meter.physical_owner_bytes(), Some(expected));
         drop(positive);
         assert_eq!(meter.current_bytes(), Some(0));
+        assert_eq!(meter.physical_owner_bytes(), Some(0));
 
         let build_negative = || -> Result<F5cNegative<'_>, ()> {
             let mut members = TrackedVec::new(&meter);
@@ -681,6 +773,7 @@ mod tests {
         FAIL_TRACKED_ONE_AFTER.with(|remaining| remaining.set(Some(1)));
         assert_eq!(build_negative(), Err(()));
         assert_eq!(meter.current_bytes(), Some(0));
+        assert_eq!(meter.physical_owner_bytes(), Some(0));
         let negative = build_negative().unwrap();
         let F5cNegative::Function {
             argument, result, ..
@@ -699,8 +792,10 @@ mod tests {
             + positive_members.accounted_bytes()
             + negative_members.accounted_bytes();
         assert_eq!(meter.current_bytes(), Some(expected));
+        assert_eq!(meter.physical_owner_bytes(), Some(expected));
         drop(negative);
         assert_eq!(meter.current_bytes(), Some(0));
+        assert_eq!(meter.physical_owner_bytes(), Some(0));
     }
 
     #[test]
@@ -811,8 +906,13 @@ mod tests {
             assert_eq!(adopted.as_ptr(), pointer);
             assert_eq!(adopted.capacity(), capacity);
             assert_eq!(meter.current_bytes(), Some(capacity * size_of::<Witness>()));
+            assert_eq!(
+                meter.physical_owner_bytes(),
+                Some(capacity * size_of::<Witness>())
+            );
             drop(adopted);
             assert_eq!(meter.current_bytes(), Some(0));
+            assert_eq!(meter.physical_owner_bytes(), Some(0));
         }
     }
 
@@ -830,6 +930,7 @@ mod tests {
             let owner = TrackedVec::try_adopt_raw_from_walker(&meter, raw)
                 .unwrap_or_else(|_| panic!("walker transfer failed"));
             assert_eq!(meter.physical_current_bytes(), Some(raw_bytes));
+            assert_eq!(meter.physical_owner_bytes(), Some(raw_bytes));
             assert_eq!(meter.component_joint_peak(), Some(raw_bytes + 23));
             assert_eq!(meter.physical_component_joint_peak(), Some(raw_bytes + 23));
             meter.observe_component_external_pair(23, 23).unwrap();
@@ -883,6 +984,7 @@ mod tests {
         assert_eq!(result, Err(()));
         assert_eq!(lane.len(), 0);
         assert_eq!(meter.current_bytes(), Some(lane.capacity() * 8));
+        assert_eq!(meter.physical_owner_bytes(), Some(lane.capacity() * 8));
     }
 
     #[test]
@@ -900,11 +1002,13 @@ mod tests {
         );
         let first_bytes = lane.capacity() * size_of::<u64>();
         assert_eq!(meter.current_bytes(), Some(first_bytes));
+        assert_eq!(meter.physical_owner_bytes(), Some(first_bytes));
         lane.try_push(1).unwrap();
         assert_eq!(lane.len(), 1);
         assert_eq!(meter.end_normalization(), Some(first_bytes + 128));
         drop(lane);
         assert_eq!(meter.current_bytes(), Some(0));
+        assert_eq!(meter.physical_owner_bytes(), Some(0));
     }
 
     #[test]
@@ -942,6 +1046,7 @@ mod tests {
         lane.try_push(3).unwrap();
         lane.clear();
         assert_eq!(meter.current_bytes(), Some(bytes));
+        assert_eq!(meter.physical_owner_bytes(), Some(bytes));
         assert_eq!(lane.accounted_bytes(), bytes);
         drop(lane);
         assert_eq!(meter.current_bytes(), Some(0));
@@ -967,8 +1072,10 @@ mod tests {
         let mut iter = lane.into_iter();
         assert_eq!(iter.next(), Some(1));
         assert_eq!(meter.current_bytes(), Some(bytes));
+        assert_eq!(meter.physical_owner_bytes(), Some(bytes));
         drop(iter);
         assert_eq!(meter.current_bytes(), Some(0));
+        assert_eq!(meter.physical_owner_bytes(), Some(0));
     }
 
     #[test]
