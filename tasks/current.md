@@ -27,17 +27,35 @@ all-member candidate test (1), `cargo check -p yu-types --lib --offline`,
 formatting, and diff checks. No broad suite, probe, benchmark, or timing run
 was done; measurement budget remains zero.
 
+### Completed harness gate (2026-09-28): source-Lambda capture preparation
+
+The source probe now checks each exact F5d recipe, source byte count, complete
+body, resolved-use count, and SCC partition before candidate execution. Its
+focused non-capture test passes boxed/flat scheme and normalization-counter
+parity for identity, constant, name-result, self-recursive, and Function ring
+inputs of 2/4/8/16 members. The ignored capture path adds success boundary
+ordinal/cardinality assertions plus a Function-ring normalization failure,
+rollback high-water comparison, fresh retry, and boxed parity. Probe summary
+labels no longer report maximum SCC size as total definitions/references, and
+diagnostic capture memory/output-length data are emitted.
+
+Selected M2. Specification review found missing boundary/member ordinals and
+failure rollback evidence; performance review found missing lane high-water
+reconciliation and diagnostic-memory reporting. One batched repair closed
+these findings, and both focused delta reviews found no remaining issue. The
+named correctness test (1), test-target check, formatting, and diff checks
+pass. No ignored capture, broad suite, benchmark, or timing run has executed;
+measurement budget remains zero.
+
 The fresh §15 plan for source Lambda/Function-rich inputs is now recorded in
 [`notes/progress/f5c-source-lambda-measurement-plan-2026-09-28.md`](../notes/progress/f5c-source-lambda-measurement-plan-2026-09-28.md).
 Specification and performance reviews, including focused deltas, closed with
 no open finding. The primary authorized one capture process after the plan's
 named source-eligibility checks, non-capture boxed/flat correctness test, and
-focused code review are complete. No probe ran during plan review. Next:
-implement those harness prerequisites and the summary-label repair, run the
-focused correctness witness, and review the code before using the authorized
-capture command. The source/finalizer physical ledger gate is closed, but the
-numeric supported-input boundary, production cutover, F5e, and overall F5c
-acceptance remain open.
+focused code review, now complete. Next: run exactly the authorized capture
+command in that plan once. The source/finalizer physical ledger gate is closed,
+but the numeric supported-input boundary, production cutover, F5e, and overall
+F5c acceptance remain open.
 
 ### Completed continuation (2026-09-28): producer-local parts transfer census
 

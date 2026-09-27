@@ -1,11 +1,11 @@
 # F5c source Lambda candidate measurement plan
 
 Status: Reviewed and authorized by the primary on 2026-09-28 for exactly one
-dedicated capture process, after the harness eligibility checks, the named
-non-capture correctness test, and focused code review are complete. The
-`spec_auditor` and `performance_auditor` each reviewed the plan and their
-focused delta; both rounds closed without an open finding. The earlier §15
-campaign remains complete and closed under its own plan; this is a fresh
+dedicated capture process. Harness eligibility checks, the named non-capture
+correctness test, and focused M2 code review are complete; accepted review
+findings were repaired and both specification/performance deltas closed with
+no open issue. The capture command is now ready but has not run. The earlier
+§15 campaign remains complete and closed under its own plan; this is a fresh
 campaign for source Lambda/Function inputs connected by the F5d source recipe
 gate.
 

@@ -178,7 +178,7 @@ fn candidate_probe_run(
             .expect("candidate capture incomplete: history reservation failed")
     });
     let batch = collect(module(source, name));
-    let member_count = batch.counters.scc_maximum_component_size;
+    let max_scc_members = batch.counters.scc_maximum_component_size;
     let mut session = InferenceSession::new(batch);
     session.flat_candidate_enabled = flat;
     session.flat_candidate_normalization_failure_after = normalization_failure_after;
@@ -279,7 +279,7 @@ fn candidate_probe_run(
             }
         }
         eprintln!(
-            "F5C_CANDIDATE_SUMMARY\tcase={name}\tsource_bytes={}\tdefinitions={member_count}\tinternal_references={member_count}\tmembers={member_count}\tpaired_parity_capacity_bytes={paired_parity_bytes}\ttest_capture_inline_bytes={}\tcapture_record_capacity_bytes={}\tboundary_order_capacity_bytes={}\tboundary_samples_capacity_bytes={}\tnormalizer_physical_samples_capacity_bytes={}\tmember_output_length_samples_capacity_bytes={}",
+            "F5C_CANDIDATE_SUMMARY\tcase={name}\tsource_bytes={}\tmax_scc_members={max_scc_members}\tpaired_parity_capacity_bytes={paired_parity_bytes}\ttest_capture_inline_bytes={}\tcapture_record_capacity_bytes={}\tboundary_order_capacity_bytes={}\tboundary_samples_capacity_bytes={}\tnormalizer_physical_samples_capacity_bytes={}\tmember_output_length_samples_capacity_bytes={}",
             source.len(),
             std::mem::size_of::<F5cCandidateCapture>(),
             capture.bytes(),
@@ -298,6 +298,382 @@ fn candidate_probe_run(
         );
     }
     candidate_result(&session)
+}
+
+struct SourceLambdaCase {
+    name: String,
+    source: String,
+    bytes: usize,
+    definitions: usize,
+    components: usize,
+    max_members: usize,
+    uses: usize,
+    internal_uses: usize,
+    recursive: bool,
+}
+
+fn source_lambda_cases() -> Vec<SourceLambdaCase> {
+    let mut cases = vec![
+        ("identity", "my f x = x", 10, 1, 1, 1, 0, 0, false),
+        ("constant", "my k x = 42", 11, 1, 1, 1, 0, 0, false),
+        (
+            "name_body",
+            "my n = 42; my f x = n",
+            21,
+            2,
+            2,
+            1,
+            1,
+            0,
+            false,
+        ),
+        ("self_recursive", "my f x = f", 10, 1, 1, 1, 1, 1, true),
+    ]
+    .into_iter()
+    .map(
+        |(
+            name,
+            source,
+            bytes,
+            definitions,
+            components,
+            max_members,
+            uses,
+            internal_uses,
+            recursive,
+        )| SourceLambdaCase {
+            name: name.into(),
+            source: source.into(),
+            bytes,
+            definitions,
+            components,
+            max_members,
+            uses,
+            internal_uses,
+            recursive,
+        },
+    )
+    .collect::<Vec<_>>();
+    for (n, bytes) in [(2, 26), (4, 54), (8, 110), (16, 234)] {
+        cases.push(SourceLambdaCase {
+            name: format!("function_ring_{n}"),
+            source: (0..n)
+                .map(|i| format!("my n{i} x = n{}", (i + 1) % n))
+                .collect::<Vec<_>>()
+                .join("; "),
+            bytes,
+            definitions: n,
+            components: 1,
+            max_members: n,
+            uses: n,
+            internal_uses: n,
+            recursive: true,
+        });
+    }
+    cases
+}
+
+fn checked_source_lambda_batch(case: &SourceLambdaCase) -> ConstraintBatch {
+    assert_eq!(case.source.len(), case.bytes, "{} UTF-8 bytes", case.name);
+    let hir = module(&case.source, &case.name);
+    assert!(
+        hir.diagnostics().is_empty(),
+        "{} HIR diagnostics",
+        case.name
+    );
+    let batch = collect(hir);
+    assert_eq!(batch.definitions().len(), case.definitions);
+    assert!(
+        batch
+            .definitions()
+            .iter()
+            .all(|definition| definition.body_status() == CollectedBodyStatus::Complete)
+    );
+    assert_eq!(
+        batch.lambda_recipes.len(),
+        if case.name == "name_body" {
+            1
+        } else {
+            case.definitions
+        }
+    );
+    assert_eq!(batch.definition_uses().len(), case.uses);
+    let components = batch
+        .scc_components_in_dependency_first_order()
+        .collect::<Vec<_>>();
+    assert_eq!(components.len(), case.components);
+    assert_eq!(
+        components
+            .iter()
+            .map(|component| batch.scc_component_members(component).unwrap().len())
+            .max(),
+        Some(case.max_members)
+    );
+    assert_eq!(
+        components
+            .iter()
+            .map(|component| batch.scc_component_internal_uses(component).unwrap().len())
+            .sum::<usize>(),
+        case.internal_uses
+    );
+    if case.name == "name_body" {
+        assert_eq!(
+            components
+                .iter()
+                .map(|component| batch.scc_component_incoming_uses(component).unwrap().len())
+                .sum::<usize>(),
+            1
+        );
+    }
+    batch
+}
+
+fn source_lambda_run(
+    case: &SourceLambdaCase,
+    flat: bool,
+    capture_enabled: bool,
+    fail: bool,
+    paired_parity_bytes: usize,
+) -> CandidateProbeResult {
+    let batch = checked_source_lambda_batch(case);
+    let mut session = InferenceSession::new(batch);
+    session.flat_candidate_enabled = flat;
+    session.flat_candidate_normalization_failure_after = fail.then_some(0);
+    session.f5c_candidate_capture = (flat && capture_enabled).then(|| {
+        F5cCandidateCapture::with_reserved_history().expect("candidate capture history reservation")
+    });
+    session.admit_all_collected_facts().unwrap();
+    let execution = session.execute_scc_plan();
+    if fail {
+        assert_eq!(execution, Err(SolveAvailabilityError::IdentityExhausted));
+    } else {
+        execution.unwrap();
+    }
+    if fail {
+        assert!(session.schemes.iter().all(Option::is_none));
+    } else {
+        assert_eq!(session.schemes.iter().flatten().count(), case.definitions);
+        if case.recursive {
+            for scheme in session.schemes.iter().flatten() {
+                let view = session
+                    .finalization
+                    .as_ref()
+                    .unwrap()
+                    .scheme_view(scheme)
+                    .unwrap();
+                assert!(
+                    !view.recursive_bounds().is_empty(),
+                    "{} recursive bounds",
+                    case.name
+                );
+                assert!(
+                    matches!(
+                        view.positive_value(view.predicate()).unwrap(),
+                        yu_types::PositiveValueView::Function { .. }
+                    ),
+                    "{} productive Function",
+                    case.name
+                );
+            }
+        }
+    }
+    if let Some(capture) = session.f5c_candidate_capture.take() {
+        let expected = if fail {
+            2
+        } else {
+            2 * case.components + 3 * case.definitions
+        };
+        assert!(expected <= 64);
+        assert_eq!(
+            capture.records.len(),
+            expected,
+            "{} capture cardinality",
+            case.name
+        );
+        if fail {
+            let mut expected = capture
+                .transactional_counter_baseline
+                .as_ref()
+                .unwrap()
+                .clone();
+            let actual = &session.execution_counters;
+            assert!(actual.semantic_arena_peak_bytes >= expected.semantic_arena_peak_bytes);
+            assert!(actual.inference_session_peak_bytes >= expected.inference_session_peak_bytes);
+            assert!(
+                actual.component_expansion_memo_requested_slots
+                    > expected.component_expansion_memo_requested_slots
+            );
+            assert!(
+                actual.component_expansion_memo_capacity_growths
+                    > expected.component_expansion_memo_capacity_growths
+            );
+            assert!(
+                actual.component_expansion_memo_peak_bytes
+                    > expected.component_expansion_memo_peak_bytes
+            );
+            assert_eq!(actual.component_expansion_memo_actual_capacity, 0);
+            assert_eq!(actual.component_expansion_memo_retained_bytes, 0);
+            expected.semantic_arena_peak_bytes = actual.semantic_arena_peak_bytes;
+            expected.inference_session_peak_bytes = actual.inference_session_peak_bytes;
+            expected.component_expansion_memo_requested_slots =
+                actual.component_expansion_memo_requested_slots;
+            expected.component_expansion_memo_capacity_growths =
+                actual.component_expansion_memo_capacity_growths;
+            expected.component_expansion_memo_peak_bytes =
+                actual.component_expansion_memo_peak_bytes;
+            assert_eq!(
+                *actual, expected,
+                "transactional counters changed on failure"
+            );
+            assert_eq!(
+                session
+                    .resource_ledger
+                    .component_expansion_memo_actual_capacity,
+                0
+            );
+            assert_eq!(
+                session
+                    .resource_ledger
+                    .component_expansion_memo_retained_bytes,
+                0
+            );
+            assert_eq!(
+                capture.records[0].boundary,
+                Some(ResourceBoundary::SourceDrafts)
+            );
+            assert_eq!(capture.records[0].component, 1);
+            assert_eq!(capture.records[0].member, None);
+            assert_eq!(capture.records[0].failure_site, None);
+            let event = &capture.records[1];
+            assert_eq!(event.boundary, None);
+            assert_eq!(event.failure_site, Some("batch_normalization"));
+            assert_eq!(event.component, 1);
+            assert_eq!(event.member, None);
+            assert_eq!(
+                event.last_successful_boundary,
+                Some(ResourceBoundary::SourceDrafts)
+            );
+            let retained = &session.resource_ledger;
+            for (before, after) in event.memo_lanes.iter().zip([
+                &retained.component_expansion_memo_roots,
+                &retained.component_expansion_memo_nodes,
+                &retained.component_expansion_memo_children,
+                &retained.component_expansion_memo_index,
+                &retained.component_expansion_memo_scratch,
+            ]) {
+                assert!(after.peak_capacity >= before.peak_capacity);
+                assert!(after.peak_bytes >= before.peak_bytes);
+            }
+            for (before, after) in event
+                .walker_lanes
+                .iter()
+                .zip(&retained.generalization_walker_lanes)
+            {
+                assert!(after.peak_capacity >= before.peak_capacity);
+                assert!(after.peak_bytes >= before.peak_bytes);
+            }
+            for (before, after) in event
+                .index_lanes
+                .iter()
+                .zip(&retained.closed_normalization_index_lanes)
+            {
+                assert!(after.peak_capacity >= before.peak_capacity);
+                assert!(after.peak_bytes >= before.peak_bytes);
+            }
+        } else {
+            let member_counts = if case.name == "name_body" {
+                vec![1, 1]
+            } else {
+                vec![case.definitions]
+            };
+            let mut records = capture.records.iter();
+            let mut previous = None;
+            for (component, members) in member_counts.into_iter().enumerate() {
+                let component = component + 1;
+                for boundary in [ResourceBoundary::SourceDrafts, ResourceBoundary::AllDrafts] {
+                    let record = records.next().unwrap();
+                    assert_eq!(record.boundary, Some(boundary));
+                    assert_eq!(record.component, component);
+                    assert_eq!(record.member, None);
+                    assert_eq!(record.failure_site, None);
+                    assert_eq!(record.last_successful_boundary, previous);
+                    previous = Some(boundary);
+                }
+                for member in 0..members {
+                    for boundary in [
+                        ResourceBoundary::IndexedMapping,
+                        ResourceBoundary::DraftMember,
+                    ] {
+                        let record = records.next().unwrap();
+                        assert_eq!(record.boundary, Some(boundary));
+                        assert_eq!(record.component, component);
+                        assert_eq!(record.member, Some(member));
+                        assert_eq!(record.failure_site, None);
+                        assert_eq!(record.last_successful_boundary, previous);
+                        previous = Some(boundary);
+                    }
+                }
+                for member in 0..members {
+                    let record = records.next().unwrap();
+                    assert_eq!(record.boundary, Some(ResourceBoundary::SchemeInstall));
+                    assert_eq!(record.component, component);
+                    assert_eq!(record.member, Some(member));
+                    assert_eq!(record.failure_site, None);
+                    assert_eq!(record.last_successful_boundary, previous);
+                    previous = Some(ResourceBoundary::SchemeInstall);
+                }
+            }
+            assert!(records.next().is_none());
+        }
+        eprintln!(
+            "F5C_CANDIDATE_SUMMARY\tcase={}\tsource_bytes={}\tmax_scc_members={}\tpaired_parity_capacity_bytes={}\ttest_capture_inline_bytes={}\tcapture_record_capacity_bytes={}\tboundary_order_capacity_bytes={}\tboundary_samples_capacity_bytes={}\tnormalizer_physical_samples_capacity_bytes={}\tmember_output_length_samples_capacity_bytes={}",
+            case.name,
+            case.bytes,
+            case.max_members,
+            paired_parity_bytes,
+            std::mem::size_of::<F5cCandidateCapture>(),
+            capture.bytes(),
+            session.resource_ledger.boundary_order.capacity()
+                * std::mem::size_of::<ResourceBoundary>(),
+            capture.diagnostic_capacity_bytes[0],
+            capture.diagnostic_capacity_bytes[1],
+            capture.diagnostic_capacity_bytes[2]
+        );
+        for record in &capture.records {
+            record.emit(&case.name);
+        }
+        eprintln!(
+            "F5C_CANDIDATE_OUTPUT_LENGTHS\tcase={}\tsamples={:?}",
+            case.name,
+            &capture.output_lengths[..capture.output_length_count]
+        );
+    }
+    candidate_result(&session)
+}
+
+#[test]
+fn f5c_source_lambda_function_correctness() {
+    for case in source_lambda_cases() {
+        let boxed = source_lambda_run(&case, false, false, false, 0);
+        let flat = source_lambda_run(&case, true, false, false, 0);
+        boxed.assert_parity(&flat);
+    }
+}
+
+#[test]
+#[ignore = "manual F5c source Function resource capture"]
+fn f5c_candidate_resource_probe_source_functions() {
+    let cases = source_lambda_cases();
+    for case in &cases {
+        let boxed = source_lambda_run(case, false, false, false, 0);
+        let flat = source_lambda_run(case, true, true, false, boxed.retained_bytes());
+        boxed.assert_parity(&flat);
+    }
+    let ring = &cases[4];
+    source_lambda_run(ring, true, true, true, 0);
+    let boxed = source_lambda_run(ring, false, false, false, 0);
+    let retry = source_lambda_run(ring, true, true, false, boxed.retained_bytes());
+    boxed.assert_parity(&retry);
 }
 
 #[test]
