@@ -39,6 +39,15 @@ impl ChildSpan {
     }
 }
 
+fn checked_node_id(current_len: usize) -> Result<u32, SolveAvailabilityError> {
+    let post_append_count = current_len
+        .checked_add(1)
+        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+    let post_append_count =
+        u32::try_from(post_append_count).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+    Ok(post_append_count - 1)
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum PositiveNode {
     Bottom,
@@ -128,17 +137,11 @@ impl FlatSourceArena {
     }
 
     fn positive_id(&self) -> Result<PositiveId, SolveAvailabilityError> {
-        Ok(PositiveId(
-            u32::try_from(self.positive_nodes.len())
-                .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
-        ))
+        Ok(PositiveId(checked_node_id(self.positive_nodes.len())?))
     }
 
     fn negative_id(&self) -> Result<NegativeId, SolveAvailabilityError> {
-        Ok(NegativeId(
-            u32::try_from(self.negative_nodes.len())
-                .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
-        ))
+        Ok(NegativeId(checked_node_id(self.negative_nodes.len())?))
     }
 
     pub(super) fn positive(
@@ -253,6 +256,22 @@ impl FlatSourceArena {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn node_id_checks_post_append_count_without_allocating() {
+        assert_eq!(
+            checked_node_id(u32::MAX as usize - 1).unwrap(),
+            u32::MAX - 1
+        );
+        assert!(matches!(
+            checked_node_id(u32::MAX as usize),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        ));
+        assert!(matches!(
+            checked_node_id(usize::MAX),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        ));
+    }
 
     #[test]
     fn tagged_children_and_functions_keep_polarity_and_order() {
