@@ -2257,6 +2257,7 @@ impl F5cComponentExpansionMemo {
         Ok(())
     }
 
+    #[cfg(test)]
     pub(super) fn positive_node(
         &mut self,
         value: &F5cPositive,
@@ -2277,6 +2278,7 @@ impl F5cComponentExpansionMemo {
         )
     }
 
+    #[cfg(test)]
     pub(super) fn negative_node(
         &mut self,
         value: &F5cNegative,

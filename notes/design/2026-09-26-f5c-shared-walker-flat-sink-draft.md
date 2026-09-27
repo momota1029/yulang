@@ -616,9 +616,10 @@ publication rollback never clears A's live output lanes. M2 specification and
 performance review findings closed after repair; the final rollback-state
 spec delta is clean. Checks pass for the 41-test `f5c_flat_walk_sink` filter,
 non-test `yu-solver` check, formatting, and diff whitespace. The package check
-still reports the two pre-existing test-only `positive_node` and
-`negative_node` warnings, queued for a separate M0 cleanup. No broad suite,
-resource/scale/capacity probe, benchmark, or timing measurement ran.
+at the candidate checkpoint reported two pre-existing test-only `positive_node`
+and `negative_node` warnings. A separate M0 cleanup now gates those wrappers
+under `cfg(test)`; library and test-target checks pass without warnings. No
+broad suite, resource/scale/capacity probe, benchmark, or timing measurement ran.
 
 Next: integrate a checked solver-owned FlatDraft conversion with the existing
 indexed `yu-types` finalizer and complete the independent all-drafts,

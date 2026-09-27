@@ -4,6 +4,23 @@ Updated: 2026-09-27. Branch: `yulang3`; do not modify frozen `main`.
 
 Resume handoff: [`2026-09-22 F5c scheme-closure handoff`](../notes/handoffs/2026-09-22-f5c-scheme-closure-handoff.md).
 
+### Latest continuation (2026-09-27): test-only helper warning cleanup
+
+The uncalled non-test `F5cComponentExpansionMemo::positive_node` and
+`negative_node` wrappers now compile only in test builds. Their production
+counterparts are the source-meter-aware helpers; every bare-wrapper callsite
+is test-only. This separate M0 cleanup follows the normalized candidate
+checkpoint and changes no runtime behavior.
+
+`RUSTC_WRAPPER= cargo check -p yu-solver --lib --offline` and
+`RUSTC_WRAPPER= cargo check -p yu-solver --tests --offline` pass without
+warnings. `cargo fmt --all -- --check` and `git diff --check` pass. No tests,
+broad suite, benchmark, or measurement ran for this cleanup.
+
+Next integrate the checked private FlatDraft-to-indexed-finalizer handoff and
+independent all-drafts solver/finalizer ledger. Keep the candidate unselected;
+review a fresh §15 plan before any resource, scale, or capacity probe.
+
 ### Latest continuation (2026-09-27): private normalized FlatDraft candidate
 
 `F5cGeneralizer::build_flat_candidate` now connects the raw ordered forest,
@@ -32,10 +49,10 @@ Checks passed: `RUSTC_WRAPPER= cargo test -p yu-solver --lib
 f5c_flat_walk_sink --offline -- --test-threads=1` (41),
 `RUSTC_WRAPPER= cargo check -p yu-solver --lib --offline`,
 `cargo fmt --all -- --check`, and `git diff --check`. The non-test package
-check reports the two pre-existing test-only `positive_node` and
-`negative_node` dead-code warnings; clean them in a separate M0 commit before
-the next candidate slice. No broad suite, resource/scale/capacity probe,
-benchmark, or timing measurement ran.
+check at that checkpoint reported two pre-existing test-only `positive_node`
+and `negative_node` dead-code warnings. A separate M0 commit removed those
+wrappers from the non-test build with warning-free package checks. No broad
+suite, resource/scale/capacity probe, benchmark, or timing measurement ran.
 
 Next integrate a checked private `FlatDraft`-to-`IndexedSchemeRef` handoff with
 the existing `yu-types` indexed finalizer and extend the independent
