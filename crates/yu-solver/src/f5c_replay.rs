@@ -75,7 +75,6 @@ pub(super) fn observe_flat_output(
     )
 }
 
-#[cfg(test)]
 pub(super) fn release_flat_output(memo: &mut F5cComponentExpansionMemo, output: FlatDraft) {
     drop(output);
     for lane in [

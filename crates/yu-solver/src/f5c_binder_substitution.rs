@@ -31,7 +31,6 @@ pub(super) fn substitute_flat(
     substitute_flat_inner(None, draft, q, r, positive_eliminated, negative_eliminated)
 }
 
-#[cfg(test)]
 pub(super) fn substitute_flat_metered(
     memo: &mut F5cComponentExpansionMemo,
     draft: &mut FlatDraft,

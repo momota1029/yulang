@@ -590,3 +590,40 @@ broad suite or measurement ran. Full physical resource
 reconciliation, the reviewed §15 measurement plan and campaign, indexed
 finalization under its approved API scope, and final implementation review
 remain open. Production remains boxed.
+
+### Private normalized candidate entrypoint (2026-09-27)
+
+The flat path is now connected through a production-compiled private
+`F5cGeneralizer::build_flat_candidate` entrypoint. It builds the ordered raw
+forest, runs the shared R/Q selector, replays and substitutes into flat arrays,
+and normalizes into a returned `FlatDraft` with statistics. The path is not
+selected by production, does not call `yu-types`, and leaves the boxed caller
+and `lib.rs` orchestration unchanged.
+
+Successful publication retains the six normalized-output lanes at actual
+capacity until explicit candidate release. A boolean live-owner check rejects
+a second candidate at both the high-level entrypoint and the shared staged
+publication boundary. Rejected staged B releases only its own selection,
+output, post-R lanes, and raw-forest transaction; the witness compares A's
+complete draft and stats, persistent memo roots/edges and epoch scratch, all
+six retained capacity/request pairs, idle transient memo/producer scratch, and
+component/root checkpoints before a successful warm retry.
+
+Failure cleanup also closes the selected preparation, closure, and normalized
+publication paths: one-sided-lane owners are dropped before release, closure
+cleanup exhausts all lane releases while retaining the first error, and
+publication rollback never clears A's live output lanes. M2 specification and
+performance review findings closed after repair; the final rollback-state
+spec delta is clean. Checks pass for the 41-test `f5c_flat_walk_sink` filter,
+non-test `yu-solver` check, formatting, and diff whitespace. The package check
+still reports the two pre-existing test-only `positive_node` and
+`negative_node` warnings, queued for a separate M0 cleanup. No broad suite,
+resource/scale/capacity probe, benchmark, or timing measurement ran.
+
+Next: integrate a checked solver-owned FlatDraft conversion with the existing
+indexed `yu-types` finalizer and complete the independent all-drafts,
+solver/finalizer same-time physical ledger. Preserve all-member staging and
+keep the candidate unselected. Prepare and independently review the fresh
+§15 measurement plan before the first resource, scale, or capacity probe.
+F5b §6 callback accounting, numeric boundary approval, production cutover,
+§44, F5e, and overall F5c acceptance remain open.

@@ -4,6 +4,48 @@ Updated: 2026-09-27. Branch: `yulang3`; do not modify frozen `main`.
 
 Resume handoff: [`2026-09-22 F5c scheme-closure handoff`](../notes/handoffs/2026-09-22-f5c-scheme-closure-handoff.md).
 
+### Latest continuation (2026-09-27): private normalized FlatDraft candidate
+
+`F5cGeneralizer::build_flat_candidate` now connects the raw ordered forest,
+shared R/Q selection, flat replay and substitution, and metered normalization
+as a production-compiled but unselected private candidate entrypoint. It
+returns a normalized `FlatDraft` and normalization statistics; no boxed
+production caller, `lib.rs` orchestration, `yu-types` finalization, or
+production selection changed. Successful publication retains the six
+normalized-output capacity lanes until explicit candidate release. Both the
+entrypoint and common staged publication boundary reject a second live
+candidate; the staged rejection aborts B without changing A's draft, stats,
+persistent memo, or retained capacity accounting.
+
+Failure ownership closes the accepted review findings: temporary outputs drop
+before lane release and memo abort; preparation failure releases both
+one-sided lanes; closure cleanup releases every live closure lane while
+preserving the first error; and failed candidate publication leaves no live
+forest or transient scratch. The staged second-publication witness compares
+A's full draft and stats, persistent memo state and epochs, six retained output
+lane capacity/request pairs, idle memo/producer scratch, and component/root
+checkpoints before retrying successfully. M2 spec and performance reviews
+closed the publication ownership findings; the final spec delta review closed
+the rollback-state evidence gap. Measurement budget remains zero.
+
+Checks passed: `RUSTC_WRAPPER= cargo test -p yu-solver --lib
+f5c_flat_walk_sink --offline -- --test-threads=1` (41),
+`RUSTC_WRAPPER= cargo check -p yu-solver --lib --offline`,
+`cargo fmt --all -- --check`, and `git diff --check`. The non-test package
+check reports the two pre-existing test-only `positive_node` and
+`negative_node` dead-code warnings; clean them in a separate M0 commit before
+the next candidate slice. No broad suite, resource/scale/capacity probe,
+benchmark, or timing measurement ran.
+
+Next integrate a checked private `FlatDraft`-to-`IndexedSchemeRef` handoff with
+the existing `yu-types` indexed finalizer and extend the independent
+all-drafts/solver/finalizer physical ledger. Keep it non-shipping and preserve
+all-member staging. Review a fresh §15 measurement plan before any candidate
+resource, scale, or capacity probe. The F5b §6 boxed-callback accounting defect
+still needs a separate reviewed, user-approved authority amendment before any
+callback contract change. Numeric support-boundary approval, production
+cutover, §44, F5e, and overall F5c acceptance remain open.
+
 ### Latest continuation (2026-09-27): full-capacity duplicate insertion
 
 `F5cComponentExpansionMemo::insert_physical_set` now skips

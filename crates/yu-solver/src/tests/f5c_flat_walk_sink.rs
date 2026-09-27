@@ -921,7 +921,7 @@ fn post_r_failure_aborts_memo_after_replay_output_and_retries_warm_lookup() {
         reentry_polarity: Polarity::Positive,
         path: Vec::new(),
     };
-    let error = generalizer.flat_r_q_with_raw_forest_for_test(
+    let error = generalizer.flat_r_q_with_raw_forest_candidate_for_test(
         forest,
         &[trace],
         &HashMap::from([(owner, vec![0])]),
@@ -1008,7 +1008,7 @@ fn post_r_success_retains_predicate_output_until_forest_release() {
     let forest = generalizer.build_raw_forest(root).unwrap();
     let (positive, negative) = generalizer.flat_raw_forest_incidences(&forest).unwrap();
     let (selection, output, forest) = generalizer
-        .flat_r_q_with_raw_forest_for_test(
+        .flat_r_q_with_raw_forest_candidate_for_test(
             forest,
             &[],
             &HashMap::new(),
@@ -1047,7 +1047,7 @@ fn selected_flat_candidate_completes_under_open_raw_forest() {
     let forest = generalizer.build_raw_forest(root).unwrap();
     let (positive, negative) = generalizer.flat_raw_forest_incidences(&forest).unwrap();
     let (selection, output, forest) = generalizer
-        .flat_r_q_with_raw_forest_for_test(
+        .flat_r_q_with_raw_forest_candidate_for_test(
             forest,
             &[],
             &HashMap::new(),
@@ -1062,7 +1062,7 @@ fn selected_flat_candidate_completes_under_open_raw_forest() {
         .unwrap();
     let selected_positive_slots = output.positive_nodes.len();
     let candidate = generalizer
-        .flat_finish_selected_for_test(
+        .flat_finish_selected_candidate(
             selection,
             output,
             forest,
@@ -1127,13 +1127,459 @@ fn selected_flat_candidate_completes_under_open_raw_forest() {
             .actual_capacity
             > 0
     );
-    generalizer.release_normalized_candidate_for_test(candidate);
+    generalizer.release_normalized_candidate(candidate);
     assert_eq!(
         generalizer.memo.walker_resources.lanes
             [F5cWalkerLaneKind::NormalizedPositiveNodes as usize]
             .actual_capacity,
         0
     );
+}
+
+#[test]
+fn flat_candidate_entrypoint_returns_normalized_draft() {
+    let source_meter = DraftHeapMeter::default();
+    let batch = collect(module("my f = 1", "f5c-flat-entrypoint"));
+    let mut session = InferenceSession::new(batch);
+    let root = session.fresh_value_at_level(1).unwrap();
+    session.bounds[root as usize]
+        .exact_non_variable_lowers
+        .push(ValueEndpointKey::IntPositive);
+    let mut generalizer = F5cGeneralizer::with_source_meter(&session, &source_meter);
+    let candidate = generalizer.build_flat_candidate(root, false).unwrap();
+    assert_eq!(candidate.draft.quantifier_count, 0);
+    let predicate = candidate.draft.predicate.unwrap();
+    assert!(matches!(
+        candidate.draft.positive_nodes[predicate.0 as usize],
+        crate::f5c_draft::PositiveNode::Int
+    ));
+    assert!(candidate.stats.key_writes > 0);
+    for kind in [
+        F5cWalkerLaneKind::NormalizedPositiveNodes,
+        F5cWalkerLaneKind::NormalizedNegativeNodes,
+        F5cWalkerLaneKind::NormalizedPositiveChildren,
+        F5cWalkerLaneKind::NormalizedNegativeChildren,
+        F5cWalkerLaneKind::NormalizedRecursiveBounds,
+        F5cWalkerLaneKind::NormalizedInsertionOrder,
+    ] {
+        let lane = &generalizer.memo.walker_resources.lanes[kind as usize];
+        assert_eq!(
+            lane.actual_capacity,
+            match kind {
+                F5cWalkerLaneKind::NormalizedPositiveNodes =>
+                    candidate.draft.positive_nodes.capacity(),
+                F5cWalkerLaneKind::NormalizedNegativeNodes =>
+                    candidate.draft.negative_nodes.capacity(),
+                F5cWalkerLaneKind::NormalizedPositiveChildren =>
+                    candidate.draft.positive_children.capacity(),
+                F5cWalkerLaneKind::NormalizedNegativeChildren =>
+                    candidate.draft.negative_children.capacity(),
+                F5cWalkerLaneKind::NormalizedRecursiveBounds =>
+                    candidate.draft.recursive_bounds.capacity(),
+                F5cWalkerLaneKind::NormalizedInsertionOrder =>
+                    candidate.draft.insertion_order.capacity(),
+                _ => unreachable!(),
+            }
+        );
+    }
+    assert!(matches!(
+        generalizer.build_flat_candidate(root, false),
+        Err(SolveAvailabilityError::IdentityExhausted)
+    ));
+    generalizer.release_normalized_candidate(candidate);
+    for kind in [
+        F5cWalkerLaneKind::NormalizedPositiveNodes,
+        F5cWalkerLaneKind::NormalizedNegativeNodes,
+        F5cWalkerLaneKind::NormalizedPositiveChildren,
+        F5cWalkerLaneKind::NormalizedNegativeChildren,
+        F5cWalkerLaneKind::NormalizedRecursiveBounds,
+        F5cWalkerLaneKind::NormalizedInsertionOrder,
+    ] {
+        assert_eq!(
+            generalizer.memo.walker_resources.lanes[kind as usize].actual_capacity,
+            0
+        );
+    }
+    let retried = generalizer.build_flat_candidate(root, false).unwrap();
+    generalizer.release_normalized_candidate(retried);
+}
+
+#[test]
+fn staged_flat_candidate_rejects_second_live_publication_and_retries() {
+    use std::collections::{HashMap, HashSet};
+
+    let source_meter = DraftHeapMeter::default();
+    let batch = collect(module("my f = 1", "f5c-flat-staged-live-owner"));
+    let mut session = InferenceSession::new(batch);
+    let root = session.fresh_value_at_level(1).unwrap();
+    session.bounds[root as usize]
+        .exact_non_variable_lowers
+        .push(ValueEndpointKey::IntPositive);
+    let mut generalizer = F5cGeneralizer::with_source_meter(&session, &source_meter);
+    let candidate_a = generalizer.build_flat_candidate(root, false).unwrap();
+    let draft_a_before = (
+        candidate_a.draft.quantifier_count,
+        candidate_a.draft.predicate,
+        candidate_a.draft.positive_nodes.clone(),
+        candidate_a.draft.negative_nodes.clone(),
+        candidate_a.draft.positive_children.clone(),
+        candidate_a.draft.negative_children.clone(),
+        candidate_a.draft.recursive_bounds.clone(),
+        candidate_a.draft.insertion_order.clone(),
+    );
+    let stats_a_before = (
+        candidate_a.stats.key_writes,
+        candidate_a.stats.child_comparisons,
+        candidate_a.stats.descriptor_words,
+        candidate_a.stats.word_comparisons,
+        candidate_a.stats.duplicates,
+    );
+    let memo_before = (
+        generalizer.memo.roots.clone(),
+        generalizer.memo.nodes.clone(),
+        generalizer.memo.children.clone(),
+        generalizer.memo.parent_heads.clone(),
+        generalizer.memo.reverse_parents.clone(),
+        generalizer.memo.incidence_heads.clone(),
+        generalizer.memo.incidences.clone(),
+        generalizer.memo.root_heads.clone(),
+        generalizer.memo.root_edges.clone(),
+        (
+            generalizer.memo.root_edge_marks.clone(),
+            generalizer.memo.root_edge_mark_epoch,
+            generalizer.memo.root_undo.clone(),
+            generalizer.memo.visit_epochs.clone(),
+            generalizer.memo.visit_epoch,
+        ),
+    );
+    let output_lanes = [
+        F5cWalkerLaneKind::NormalizedPositiveNodes,
+        F5cWalkerLaneKind::NormalizedNegativeNodes,
+        F5cWalkerLaneKind::NormalizedPositiveChildren,
+        F5cWalkerLaneKind::NormalizedNegativeChildren,
+        F5cWalkerLaneKind::NormalizedRecursiveBounds,
+        F5cWalkerLaneKind::NormalizedInsertionOrder,
+    ];
+    let retained = output_lanes.map(|kind| {
+        let lane = &generalizer.memo.walker_resources.lanes[kind as usize];
+        (lane.actual_capacity, lane.requested_slots)
+    });
+    let idle_checkpoint_before = generalizer.component_idle_checkpoint_for_test();
+
+    let forest = generalizer.build_raw_forest(root).unwrap();
+    let (positive, negative) = generalizer.flat_raw_forest_incidences(&forest).unwrap();
+    let (selection, output, forest) = generalizer
+        .flat_r_q_with_raw_forest_candidate_for_test(
+            forest,
+            &[],
+            &HashMap::new(),
+            &[],
+            |_| true,
+            &positive,
+            &negative,
+            &HashSet::new(),
+            &HashSet::new(),
+            false,
+        )
+        .unwrap();
+    assert!(matches!(
+        generalizer.flat_finish_selected_candidate(
+            selection,
+            output,
+            forest,
+            &HashSet::new(),
+            &HashSet::new(),
+            false,
+        ),
+        Err(SolveAvailabilityError::IdentityExhausted)
+    ));
+    assert!(generalizer.memo.active_rows.is_empty());
+    assert!(generalizer.memo.active_conflicts.is_empty());
+    assert!(generalizer.memo.work.is_empty());
+    assert!(generalizer.memo.conflict_journal.is_empty());
+    assert!(generalizer.active.is_empty());
+    assert!(generalizer.active_set.is_empty());
+    assert!(generalizer.frames.is_empty());
+    assert!(generalizer.path.is_empty());
+    assert!(generalizer.order.is_empty());
+    assert!(generalizer.order_seen.is_empty());
+    assert!(generalizer.reentries.is_empty());
+    assert_eq!(idle_checkpoint_before.0, false);
+    assert_eq!(idle_checkpoint_before.1, false);
+    assert_eq!(idle_checkpoint_before.2, false);
+    assert_eq!(
+        generalizer.component_idle_checkpoint_for_test(),
+        idle_checkpoint_before,
+    );
+    assert_eq!(
+        (
+            candidate_a.draft.quantifier_count,
+            candidate_a.draft.predicate,
+            candidate_a.draft.positive_nodes.clone(),
+            candidate_a.draft.negative_nodes.clone(),
+            candidate_a.draft.positive_children.clone(),
+            candidate_a.draft.negative_children.clone(),
+            candidate_a.draft.recursive_bounds.clone(),
+            candidate_a.draft.insertion_order.clone(),
+        ),
+        draft_a_before,
+    );
+    assert_eq!(
+        (
+            candidate_a.stats.key_writes,
+            candidate_a.stats.child_comparisons,
+            candidate_a.stats.descriptor_words,
+            candidate_a.stats.word_comparisons,
+            candidate_a.stats.duplicates,
+        ),
+        stats_a_before,
+    );
+    assert_eq!(
+        (
+            generalizer.memo.roots.clone(),
+            generalizer.memo.nodes.clone(),
+            generalizer.memo.children.clone(),
+            generalizer.memo.parent_heads.clone(),
+            generalizer.memo.reverse_parents.clone(),
+            generalizer.memo.incidence_heads.clone(),
+            generalizer.memo.incidences.clone(),
+            generalizer.memo.root_heads.clone(),
+            generalizer.memo.root_edges.clone(),
+            (
+                generalizer.memo.root_edge_marks.clone(),
+                generalizer.memo.root_edge_mark_epoch,
+                generalizer.memo.root_undo.clone(),
+                generalizer.memo.visit_epochs.clone(),
+                generalizer.memo.visit_epoch,
+            ),
+        ),
+        memo_before,
+    );
+    for (kind, expected) in output_lanes.into_iter().zip(retained) {
+        let lane = &generalizer.memo.walker_resources.lanes[kind as usize];
+        assert_eq!((lane.actual_capacity, lane.requested_slots), expected);
+    }
+    for kind in [
+        F5cWalkerLaneKind::RawOwnerOrder,
+        F5cWalkerLaneKind::RawOwnerBounds,
+        F5cWalkerLaneKind::RawCallbackTrace,
+        F5cWalkerLaneKind::DraftPositiveNodes,
+        F5cWalkerLaneKind::DraftNegativeNodes,
+        F5cWalkerLaneKind::DraftPositiveChildren,
+        F5cWalkerLaneKind::DraftNegativeChildren,
+        F5cWalkerLaneKind::DraftRecursiveBounds,
+        F5cWalkerLaneKind::DraftInsertionOrder,
+        F5cWalkerLaneKind::ReplayOutputPositiveNodes,
+        F5cWalkerLaneKind::ReplayOutputNegativeNodes,
+        F5cWalkerLaneKind::ReplayOutputPositiveChildren,
+        F5cWalkerLaneKind::ReplayOutputNegativeChildren,
+        F5cWalkerLaneKind::ReplayOutputInsertionOrder,
+        F5cWalkerLaneKind::RetainedOwnerBounds,
+        F5cWalkerLaneKind::PostRSurvivingBounds,
+        F5cWalkerLaneKind::PostRSurvivingTraces,
+        F5cWalkerLaneKind::PostRRecursiveOwners,
+        F5cWalkerLaneKind::PostRRecursiveSet,
+        F5cWalkerLaneKind::PostROccurrenceOrder,
+        F5cWalkerLaneKind::PostROccurrenceSeen,
+        F5cWalkerLaneKind::PostRQuantifiers,
+        F5cWalkerLaneKind::PostRRecursives,
+    ] {
+        assert_eq!(
+            generalizer.memo.walker_resources.lanes[kind as usize].actual_capacity,
+            0
+        );
+    }
+
+    generalizer.release_normalized_candidate(candidate_a);
+    let candidate_b = generalizer.build_flat_candidate(root, false).unwrap();
+    generalizer.release_normalized_candidate(candidate_b);
+}
+
+#[test]
+fn flat_candidate_entrypoint_late_r_q_failure_releases_transient_lanes() {
+    let source_meter = DraftHeapMeter::default();
+    let batch = collect(module("my f = 1", "f5c-flat-entrypoint-rollback"));
+    let mut session = InferenceSession::new(batch);
+    let warm = session.fresh_value_at_level(1).unwrap();
+    let owner = session.fresh_value_at_level(1).unwrap();
+    let relay = session.fresh_value_at_level(1).unwrap();
+    session.bounds[warm as usize]
+        .exact_non_variable_lowers
+        .push(ValueEndpointKey::IntPositive);
+    let argument = session.negative_top_term().unwrap();
+    let result = session.live_value_term(Polarity::Positive, relay).unwrap();
+    let function = session
+        .positive_function_term(
+            argument,
+            session.batch.collected_leaf_term(Leaf::EmptyEffectNegative),
+            session
+                .batch
+                .collected_leaf_term(Leaf::EffectBottomPositive),
+            result,
+        )
+        .unwrap();
+    session.bounds[owner as usize]
+        .exact_non_variable_lowers
+        .push(ValueEndpointKey::PositiveFunction(function));
+    session.bounds[relay as usize].direct_lower_rows.push(owner);
+
+    let (warm_result, memo, _, _) =
+        F5cGeneralizer::with_source_meter(&session, &source_meter).build_component(warm);
+    assert!(warm_result.is_ok());
+    let mut generalizer = F5cGeneralizer::with_memo(&session, &source_meter, memo, 0);
+    generalizer.memo.reset_active_scratch();
+    let before = (
+        generalizer.memo.roots.clone(),
+        generalizer.memo.nodes.clone(),
+        generalizer.memo.children.clone(),
+        generalizer.memo.root_edges.clone(),
+        generalizer.memo.root_heads.clone(),
+        generalizer.memo.incidences.clone(),
+    );
+    let failed = generalizer.build_flat_candidate(owner, true);
+    assert!(matches!(
+        failed,
+        Err(SolveAvailabilityError::IdentityExhausted)
+    ));
+    assert!(crate::f5c_replay::failed_after_flat_output_count() > 0);
+    assert_eq!(
+        (
+            generalizer.memo.roots.clone(),
+            generalizer.memo.nodes.clone(),
+            generalizer.memo.children.clone(),
+            generalizer.memo.root_edges.clone(),
+            generalizer.memo.root_heads.clone(),
+            generalizer.memo.incidences.clone(),
+        ),
+        before,
+    );
+    assert!(generalizer.memo.active_rows.is_empty());
+    assert!(generalizer.memo.active_conflicts.is_empty());
+    assert!(generalizer.memo.conflict_journal.is_empty());
+    assert!(generalizer.memo.work.is_empty());
+    assert!(generalizer.order.is_empty());
+    assert!(generalizer.reentries.is_empty());
+    for lane in [
+        F5cWalkerLaneKind::BoxedPositiveOnly,
+        F5cWalkerLaneKind::BoxedNegativeOnly,
+        F5cWalkerLaneKind::Order,
+        F5cWalkerLaneKind::Reentries,
+        F5cWalkerLaneKind::ReentryPaths,
+        F5cWalkerLaneKind::BoxedReentriesByOwner,
+        F5cWalkerLaneKind::BoxedReentryIndices,
+        F5cWalkerLaneKind::RawPositiveIncidences,
+        F5cWalkerLaneKind::RawNegativeIncidences,
+        F5cWalkerLaneKind::RawOwnerOrder,
+        F5cWalkerLaneKind::RawOwnerBounds,
+        F5cWalkerLaneKind::RawCallbackTrace,
+        F5cWalkerLaneKind::DraftPositiveNodes,
+        F5cWalkerLaneKind::DraftNegativeNodes,
+        F5cWalkerLaneKind::DraftPositiveChildren,
+        F5cWalkerLaneKind::DraftNegativeChildren,
+        F5cWalkerLaneKind::DraftRecursiveBounds,
+        F5cWalkerLaneKind::DraftInsertionOrder,
+        F5cWalkerLaneKind::ReplayOutputPositiveNodes,
+        F5cWalkerLaneKind::ReplayOutputNegativeNodes,
+        F5cWalkerLaneKind::ReplayOutputPositiveChildren,
+        F5cWalkerLaneKind::ReplayOutputNegativeChildren,
+        F5cWalkerLaneKind::ReplayOutputInsertionOrder,
+        F5cWalkerLaneKind::RetainedOwnerBounds,
+        F5cWalkerLaneKind::PostRSurvivingBounds,
+        F5cWalkerLaneKind::PostRSurvivingTraces,
+        F5cWalkerLaneKind::PostRRecursiveOwners,
+        F5cWalkerLaneKind::PostRRecursiveSet,
+        F5cWalkerLaneKind::PostROccurrenceOrder,
+        F5cWalkerLaneKind::PostROccurrenceSeen,
+        F5cWalkerLaneKind::PostRQuantifiers,
+        F5cWalkerLaneKind::PostRRecursives,
+    ] {
+        assert_eq!(
+            generalizer.memo.walker_resources.lanes[lane as usize].actual_capacity,
+            0
+        );
+        assert_eq!(
+            generalizer.memo.walker_resources.independent_lanes[lane as usize].actual_capacity,
+            0
+        );
+    }
+    generalizer.memo.work_meter.set(0);
+    let retried = generalizer.build_flat_candidate(owner, false).unwrap();
+    assert!(retried.draft.predicate.is_some());
+    generalizer.release_normalized_candidate(retried);
+}
+
+#[test]
+fn flat_candidate_entrypoint_preparation_failure_releases_one_sided_lane() {
+    let source_meter = DraftHeapMeter::default();
+    let batch = collect(module("my f = 1", "f5c-flat-preparation-rollback"));
+    let mut session = InferenceSession::new(batch);
+    let root = session.fresh_value_at_level(1).unwrap();
+    let relay = session.fresh_value_at_level(1).unwrap();
+    let argument = session.negative_top_term().unwrap();
+    let result = session.live_value_term(Polarity::Positive, relay).unwrap();
+    let function = session
+        .positive_function_term(
+            argument,
+            session.batch.collected_leaf_term(Leaf::EmptyEffectNegative),
+            session
+                .batch
+                .collected_leaf_term(Leaf::EffectBottomPositive),
+            result,
+        )
+        .unwrap();
+    session.bounds[root as usize]
+        .exact_non_variable_lowers
+        .push(ValueEndpointKey::PositiveFunction(function));
+    session.bounds[relay as usize].direct_lower_rows.push(root);
+    let mut generalizer = F5cGeneralizer::with_source_meter(&session, &source_meter);
+    generalizer.memo.fail_reserve_at =
+        Some((F5cTestReserveFailure::FlatPreparationAfterPositiveOnly, 0));
+    assert!(matches!(
+        generalizer.build_flat_candidate(root, false),
+        Err(SolveAvailabilityError::IdentityExhausted)
+    ));
+    assert_eq!(generalizer.memo.fail_reserve_at, None);
+    for lane in [
+        F5cWalkerLaneKind::BoxedPositiveOnly,
+        F5cWalkerLaneKind::BoxedNegativeOnly,
+    ] {
+        assert_eq!(
+            generalizer.memo.walker_resources.lanes[lane as usize].actual_capacity,
+            0
+        );
+    }
+    generalizer.memo.work_meter.set(0);
+    let candidate = generalizer.build_flat_candidate(root, false).unwrap();
+    generalizer.release_normalized_candidate(candidate);
+}
+
+#[test]
+fn flat_candidate_closure_observation_failure_releases_all_closure_lanes() {
+    let source_meter = DraftHeapMeter::default();
+    let batch = collect(module("my f = 1", "f5c-closure-release-rollback"));
+    let mut session = InferenceSession::new(batch);
+    let root = session.fresh_value_at_level(1).unwrap();
+    session.value_metadata[root as usize].non_generic = true;
+    let mut generalizer = F5cGeneralizer::with_source_meter(&session, &source_meter);
+    generalizer.memo.fail_observation_at = Some(F5cTestObservationFailure::ClosureRelease);
+    assert!(matches!(
+        generalizer.non_generic_closure(),
+        Err(SolveAvailabilityError::IdentityExhausted)
+    ));
+    assert!(generalizer.memo.fail_observation_at.is_none());
+    for lane in [
+        F5cWalkerLaneKind::ClosureAdjacency,
+        F5cWalkerLaneKind::ClosureNeighbors,
+        F5cWalkerLaneKind::ClosureConnected,
+        F5cWalkerLaneKind::ClosureFrontier,
+        F5cWalkerLaneKind::ClosureResult,
+    ] {
+        assert_eq!(
+            generalizer.memo.walker_resources.lanes[lane as usize].actual_capacity,
+            0
+        );
+    }
+    assert!(generalizer.non_generic_closure().unwrap().contains(&root));
 }
 
 #[test]
@@ -1172,7 +1618,7 @@ fn selected_flat_normalization_work_failure_aborts_forest_and_retries_warm_root(
     let forest = generalizer.build_raw_forest(root).unwrap();
     let (positive, negative) = generalizer.flat_raw_forest_incidences(&forest).unwrap();
     let (selection, output, forest) = generalizer
-        .flat_r_q_with_raw_forest_for_test(
+        .flat_r_q_with_raw_forest_candidate_for_test(
             forest,
             &[],
             &HashMap::new(),
@@ -1186,7 +1632,7 @@ fn selected_flat_normalization_work_failure_aborts_forest_and_retries_warm_root(
         )
         .unwrap();
     assert!(matches!(
-        generalizer.flat_finish_selected_for_test(
+        generalizer.flat_finish_selected_candidate(
             selection,
             output,
             forest,
@@ -1288,7 +1734,7 @@ fn selected_flat_normalizer_request_overflow_preserves_shared_lane_counters() {
     let forest = generalizer.build_raw_forest(root).unwrap();
     let (positive, negative) = generalizer.flat_raw_forest_incidences(&forest).unwrap();
     let (selection, output, forest) = generalizer
-        .flat_r_q_with_raw_forest_for_test(
+        .flat_r_q_with_raw_forest_candidate_for_test(
             forest,
             &[],
             &HashMap::new(),
@@ -1305,7 +1751,7 @@ fn selected_flat_normalizer_request_overflow_preserves_shared_lane_counters() {
     generalizer.memo.walker_resources.flat_candidate_lanes[lane].requested_slots = usize::MAX;
     let before = generalizer.memo.walker_resources.flat_candidate_lanes;
     assert!(matches!(
-        generalizer.flat_finish_selected_for_test(
+        generalizer.flat_finish_selected_candidate(
             selection,
             output,
             forest,
@@ -1346,7 +1792,7 @@ fn selected_flat_published_output_growth_overflow_aborts_forest() {
     let forest = generalizer.build_raw_forest(root).unwrap();
     let (positive, negative) = generalizer.flat_raw_forest_incidences(&forest).unwrap();
     let (selection, output, forest) = generalizer
-        .flat_r_q_with_raw_forest_for_test(
+        .flat_r_q_with_raw_forest_candidate_for_test(
             forest,
             &[],
             &HashMap::new(),
@@ -1362,7 +1808,7 @@ fn selected_flat_published_output_growth_overflow_aborts_forest() {
     let lane = F5cWalkerLaneKind::NormalizedPositiveNodes as usize;
     generalizer.memo.walker_resources.lanes[lane].capacity_growths = usize::MAX;
     assert!(matches!(
-        generalizer.flat_finish_selected_for_test(
+        generalizer.flat_finish_selected_candidate(
             selection,
             output,
             forest,
@@ -1509,6 +1955,14 @@ fn selected_flat_candidate_matches_boxed_q_r_and_normalization_counters() {
         .exact_non_variable_lowers
         .push(ValueEndpointKey::PositiveFunction(second_function));
 
+    let mut endpoint_generalizer = F5cGeneralizer::with_source_meter(&session, &test_source_meter);
+    let endpoint_candidate = endpoint_generalizer
+        .build_flat_candidate(owner, false)
+        .unwrap();
+    assert_eq!(endpoint_candidate.draft.quantifier_count, 1);
+    assert_eq!(endpoint_candidate.draft.recursive_bounds.len(), 2);
+    endpoint_generalizer.release_normalized_candidate(endpoint_candidate);
+
     let mut baseline = None;
     for reverse_bounds in [false, true] {
         let (warm_result, mut boxed_memo, _, _) =
@@ -1571,7 +2025,7 @@ fn selected_flat_candidate_matches_boxed_q_r_and_normalization_counters() {
             .copied()
             .collect::<HashSet<_>>();
         let (selection, output, forest) = generalizer
-            .flat_r_q_with_raw_forest_for_test(
+            .flat_r_q_with_raw_forest_candidate_for_test(
                 forest,
                 &traces,
                 &by_owner,
@@ -1605,7 +2059,7 @@ fn selected_flat_candidate_matches_boxed_q_r_and_normalization_counters() {
                 .any(|node| matches!(node, PositiveNode::Variable(_)))
         );
         let candidate = generalizer
-            .flat_finish_selected_for_test(
+            .flat_finish_selected_candidate(
                 selection,
                 output,
                 forest,
@@ -1742,7 +2196,7 @@ fn selected_flat_candidate_matches_boxed_q_r_and_normalization_counters() {
                 .iter()
                 .any(|node| matches!(node, NegativeNode::Variable(_)))
         );
-        generalizer.release_normalized_candidate_for_test(candidate);
+        generalizer.release_normalized_candidate(candidate);
     }
 }
 

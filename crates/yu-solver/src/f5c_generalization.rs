@@ -116,7 +116,6 @@ impl F5cDraftWorkMeter {
         Ok(())
     }
 
-    #[cfg(test)]
     pub(super) fn get(&self) -> usize {
         self.0.get()
     }
@@ -253,7 +252,6 @@ pub(super) struct F5cSummaryNodeId(pub(super) u32);
 mod flat_source_arena;
 #[allow(dead_code)] // The candidate is exercised only by module-local test entrypoints.
 mod flat_walk_sink;
-#[cfg(test)]
 pub(super) use flat_walk_sink::{F5cFlatWalkSink, FlatWalkValue};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -329,6 +327,7 @@ pub(super) enum F5cTestObservationFailure {
     Admit,
     Enter,
     Leave,
+    ClosureRelease,
 }
 
 #[cfg(test)]
@@ -342,6 +341,7 @@ pub(super) enum F5cTestReserveFailure {
     ChildrenAfterReserve,
     RootUndo,
     RecursiveBoundAfterReserve,
+    FlatPreparationAfterPositiveOnly,
 }
 
 #[derive(Clone, Copy, Default)]
@@ -665,7 +665,6 @@ impl F5cWalkerLaneKind {
     }
 }
 
-#[cfg(test)]
 pub(super) fn release_flat_post_r_lanes(memo: &mut F5cComponentExpansionMemo) {
     for kind in [
         F5cWalkerLaneKind::RetainedOwnerBounds,
@@ -708,7 +707,6 @@ pub(super) struct F5cWalkerResources {
     pub(super) independent_peak_bytes: usize,
     #[cfg(test)]
     pub(super) independent_simultaneous_memo_peak_bytes: usize,
-    #[cfg(test)]
     pub(super) flat_candidate_lanes:
         [f5c_normalization::FlatCandidateLane; f5c_normalization::FLAT_CANDIDATE_LANE_COUNT],
 }
@@ -733,7 +731,6 @@ impl Default for F5cWalkerResources {
             independent_peak_bytes: 0,
             #[cfg(test)]
             independent_simultaneous_memo_peak_bytes: 0,
-            #[cfg(test)]
             flat_candidate_lanes: [f5c_normalization::FlatCandidateLane::default();
                 f5c_normalization::FLAT_CANDIDATE_LANE_COUNT],
         }
@@ -1102,7 +1099,6 @@ impl F5cWalkerResources {
             }
         }
     }
-    #[cfg(test)]
     fn observe_existing_capacity(
         &mut self,
         kind: F5cWalkerLaneKind,
@@ -1110,11 +1106,27 @@ impl F5cWalkerResources {
         requested_slots: usize,
         memo_bytes: usize,
     ) -> Result<(), SolveAvailabilityError> {
+        #[cfg(test)]
         if capacity != self.independent_lanes[kind as usize].actual_capacity {
             self.observe_physical_walker_target(kind, capacity as u128);
         }
         let lane = &self.lanes[kind as usize];
+        #[cfg(test)]
         let independent = &self.independent_lanes[kind as usize];
+        #[cfg(not(test))]
+        let independent_requested = 0;
+        #[cfg(not(test))]
+        let independent_growth = 0;
+        #[cfg(test)]
+        let independent_requested = independent
+            .requested_slots
+            .checked_add(requested_slots)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        #[cfg(test)]
+        let independent_growth = independent
+            .capacity_growths
+            .checked_add(1)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
         let counters = (
             lane.requested_slots
                 .checked_add(requested_slots)
@@ -1122,14 +1134,8 @@ impl F5cWalkerResources {
             lane.capacity_growths
                 .checked_add(1)
                 .ok_or(SolveAvailabilityError::IdentityExhausted)?,
-            independent
-                .requested_slots
-                .checked_add(requested_slots)
-                .ok_or(SolveAvailabilityError::IdentityExhausted)?,
-            independent
-                .capacity_growths
-                .checked_add(1)
-                .ok_or(SolveAvailabilityError::IdentityExhausted)?,
+            independent_requested,
+            independent_growth,
         );
         let slot_size = kind.slot_size();
         let old_bytes = lane
@@ -1150,7 +1156,6 @@ impl F5cWalkerResources {
         self.observe_table_capacity(kind, 0, capacity, memo_bytes, counters)
     }
 
-    #[cfg(test)]
     fn preflight_table_counters(
         &self,
         kind: F5cWalkerLaneKind,
@@ -1164,19 +1169,24 @@ impl F5cWalkerResources {
             .capacity_growths
             .checked_add(1)
             .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        #[cfg(test)]
         let independent = &self.independent_lanes[kind as usize];
+        #[cfg(test)]
         let independent_requested = independent
             .requested_slots
             .checked_add(1)
             .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        #[cfg(test)]
         let independent_growth = independent
             .capacity_growths
             .checked_add(1)
             .ok_or(SolveAvailabilityError::IdentityExhausted)?;
-        Ok((requested, growth, independent_requested, independent_growth))
+        #[cfg(test)]
+        return Ok((requested, growth, independent_requested, independent_growth));
+        #[cfg(not(test))]
+        Ok((requested, growth, 0, 0))
     }
 
-    #[cfg(test)]
     fn observe_table_capacity(
         &mut self,
         kind: F5cWalkerLaneKind,
@@ -1187,8 +1197,12 @@ impl F5cWalkerResources {
     ) -> Result<(), SolveAvailabilityError> {
         self.lanes[kind as usize].requested_slots = counters.0;
         self.lanes[kind as usize].actual_capacity = capacity;
-        self.independent_lanes[kind as usize].requested_slots = counters.2;
-        self.independent_lanes[kind as usize].actual_capacity = capacity;
+        #[cfg(test)]
+        {
+            self.independent_lanes[kind as usize].requested_slots = counters.2;
+            self.independent_lanes[kind as usize].actual_capacity = capacity;
+        }
+        #[cfg(test)]
         if old != capacity {
             self.observe_physical_walker();
         }
@@ -1200,13 +1214,15 @@ impl F5cWalkerResources {
                     .checked_mul(kind.slot_size())
                     .ok_or(SolveAvailabilityError::IdentityExhausted)?,
             );
-            self.independent_lanes[kind as usize].capacity_growths = counters.3;
-            self.independent_lanes[kind as usize].peak_bytes = lane.peak_bytes;
+            #[cfg(test)]
+            {
+                self.independent_lanes[kind as usize].capacity_growths = counters.3;
+                self.independent_lanes[kind as usize].peak_bytes = lane.peak_bytes;
+            }
         }
         self.observe_memo(memo_bytes)
     }
 
-    #[cfg(test)]
     fn reserve_raw_map(
         &mut self,
         map: &mut HashMap<u32, (f5c_draft::PositiveId, f5c_draft::NegativeId)>,
@@ -1220,7 +1236,6 @@ impl F5cWalkerResources {
         result.map_err(|_| SolveAvailabilityError::IdentityExhausted)
     }
 
-    #[cfg(test)]
     fn reserve_retained_map(
         &mut self,
         map: &mut HashMap<u32, (f5c_draft::PositiveId, f5c_draft::NegativeId)>,
@@ -1234,7 +1249,6 @@ impl F5cWalkerResources {
         result.map_err(|_| SolveAvailabilityError::IdentityExhausted)
     }
 
-    #[cfg(test)]
     fn reserve_post_r_set<T: Eq + std::hash::Hash>(
         &mut self,
         set: &mut HashSet<T>,
@@ -1248,7 +1262,6 @@ impl F5cWalkerResources {
         result.map_err(|_| SolveAvailabilityError::IdentityExhausted)
     }
 
-    #[cfg(test)]
     fn reserve_post_r_map(
         &mut self,
         map: &mut HashMap<u32, u32>,
@@ -1262,7 +1275,6 @@ impl F5cWalkerResources {
         result.map_err(|_| SolveAvailabilityError::IdentityExhausted)
     }
 
-    #[cfg(test)]
     fn reserve_raw_set(
         &mut self,
         set: &mut HashSet<u32>,
@@ -1520,7 +1532,6 @@ impl F5cWalkerResources {
             sum.checked_add(lane.requested_slots)
                 .ok_or(SolveAvailabilityError::IdentityExhausted)
         })?;
-        #[cfg(test)]
         {
             return self
                 .flat_candidate_lanes
@@ -1530,8 +1541,6 @@ impl F5cWalkerResources {
                         .ok_or(SolveAvailabilityError::IdentityExhausted)
                 });
         }
-        #[cfg(not(test))]
-        Ok(walker)
     }
 
     pub(super) fn actual_capacity(&self) -> Result<usize, SolveAvailabilityError> {
@@ -1940,6 +1949,13 @@ impl F5cComponentExpansionMemo {
         self.walker_resources.release(kind);
         if prior_capacity == 0 {
             return Ok(());
+        }
+        #[cfg(test)]
+        if kind as usize == F5cWalkerLaneKind::ClosureAdjacency as usize
+            && self.fail_observation_at == Some(F5cTestObservationFailure::ClosureRelease)
+        {
+            self.fail_observation_at = None;
+            return Err(SolveAvailabilityError::IdentityExhausted);
         }
         let memo_bytes = self.retained_bytes()?;
         self.walker_resources
@@ -3879,11 +3895,9 @@ pub(super) struct F5cGeneralizer<'a, 'meter> {
     pub(super) session: &'a InferenceSession,
     pub(super) source_meter: &'meter DraftHeapMeter,
     pub(super) memo: F5cComponentExpansionMemo,
-    #[cfg(test)]
     pub(super) flat_sink: F5cFlatWalkSink,
-    #[cfg(test)]
     raw_forest_live: bool,
-    #[cfg(test)]
+    normalized_candidate_live: bool,
     raw_forest_rollback_failed: bool,
     frozen_bound_epoch: usize,
     pub(super) frames: Vec<F5cExpansionFrame>,
@@ -3909,15 +3923,15 @@ pub(super) struct F5cGeneralizer<'a, 'meter> {
     pub(super) invalid_effects: bool,
 }
 
-#[cfg(test)]
 pub(super) struct F5cRawForest {
     pub(super) draft: f5c_draft::FlatDraft,
     pub(super) raw_owner_order: Vec<u32>,
     pub(super) raw_bounds: HashMap<u32, (f5c_draft::PositiveId, f5c_draft::NegativeId)>,
+    #[cfg(test)]
     pub(super) callback_trace: Vec<(u32, Polarity)>,
 }
 
-#[cfg(test)]
+#[allow(dead_code)] // The private candidate entrypoint is intentionally unselected.
 pub(super) struct F5cNormalizedCandidate {
     pub(super) draft: f5c_draft::FlatDraft,
     pub(super) stats: f5c_normalization::FlatNormalizationStats,
@@ -4289,14 +4303,12 @@ impl<'meter> F5cRCandidateSource<'meter> for F5cBoxedRCandidateSource<'_, 'meter
     }
 }
 
-#[cfg(test)]
 struct F5cFlatRCandidateSource<'a> {
     source: &'a f5c_draft::FlatDraft,
     output: f5c_draft::FlatDraft,
     bounds: &'a HashMap<u32, (f5c_draft::PositiveId, f5c_draft::NegativeId)>,
 }
 
-#[cfg(test)]
 impl<'meter> F5cRCandidateSource<'meter> for F5cFlatRCandidateSource<'_> {
     type ReplayedBound = (f5c_draft::PositiveId, f5c_draft::NegativeId);
     type ReplayedPredicate = f5c_draft::PositiveId;
@@ -4930,6 +4942,22 @@ impl<'meter> F5cWalkSink<'meter> for F5cBoxedWalkSink {
 }
 
 impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
+    #[cfg(test)]
+    pub(super) fn component_idle_checkpoint_for_test(
+        &self,
+    ) -> (bool, bool, bool, usize, usize, usize, usize, usize) {
+        (
+            self.raw_forest_live,
+            self.raw_forest_rollback_failed,
+            self.in_component,
+            self.node_checkpoint,
+            self.child_checkpoint,
+            self.reverse_checkpoint,
+            self.incidence_checkpoint,
+            self.root_undo_checkpoint,
+        )
+    }
+
     fn release_persistent_lanes(&mut self) {
         self.uncacheable_seen = HashSet::new();
         self.provisional_recursive_rows = HashSet::new();
@@ -5041,11 +5069,9 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
             session,
             source_meter,
             memo,
-            #[cfg(test)]
             flat_sink: F5cFlatWalkSink::default(),
-            #[cfg(test)]
             raw_forest_live: false,
-            #[cfg(test)]
+            normalized_candidate_live: false,
             raw_forest_rollback_failed: false,
             frozen_bound_epoch,
             frames: Vec::new(),
@@ -5997,7 +6023,186 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
         self.walk_with(first, &mut F5cBoxedWalkSink)
     }
 
-    #[cfg(test)]
+    /// Private flat producer candidate. Production callers continue to use the boxed draft.
+    #[allow(dead_code)]
+    pub(super) fn build_flat_candidate(
+        &mut self,
+        root: u32,
+        #[cfg(test)] fail_after_first_post_output: bool,
+    ) -> Result<F5cNormalizedCandidate, SolveAvailabilityError> {
+        if self.normalized_candidate_live {
+            return Err(SolveAvailabilityError::IdentityExhausted);
+        }
+        let forest = self.build_raw_forest_inner(
+            root,
+            #[cfg(test)]
+            false,
+        )?;
+        let mut positive_only = HashSet::new();
+        let mut negative_only = HashSet::new();
+        let prepared = (|| {
+            let mut reentries_by_owner = HashMap::<u32, Vec<usize>>::new();
+            for (index, trace) in self.reentries.iter().enumerate() {
+                self.memo.work_meter.charge(2)?;
+                let bytes = self.memo.retained_bytes()?;
+                if let Some(indices) = reentries_by_owner.get_mut(&trace.owner) {
+                    self.memo
+                        .walker_resources
+                        .reserve_boxed_indices(indices, bytes)?;
+                    indices.push(index);
+                } else {
+                    self.memo.walker_resources.reserve_boxed_map(
+                        &mut reentries_by_owner,
+                        F5cWalkerLaneKind::BoxedReentriesByOwner,
+                        bytes,
+                    )?;
+                    let mut indices = Vec::new();
+                    self.memo
+                        .walker_resources
+                        .reserve_boxed_indices(&mut indices, bytes)?;
+                    indices.push(index);
+                    reentries_by_owner.insert(trace.owner, indices);
+                }
+            }
+            let non_generic = self.non_generic_closure()?;
+            let (positive, negative) = self.flat_raw_forest_incidences(&forest)?;
+            for &owner in &self.order {
+                self.memo.work_meter.charge(2)?;
+                let eligible = self
+                    .session
+                    .value_levels
+                    .get(owner as usize)
+                    .is_some_and(|level| *level > 0)
+                    && !non_generic.contains(&owner);
+                if eligible && positive.contains(&owner) && !negative.contains(&owner) {
+                    self.memo.work_meter.charge(1)?;
+                    let bytes = self.memo.retained_bytes()?;
+                    self.memo.walker_resources.reserve_generalizer_set(
+                        &mut positive_only,
+                        F5cWalkerLaneKind::BoxedPositiveOnly,
+                        bytes,
+                    )?;
+                    positive_only.insert(owner);
+                    #[cfg(test)]
+                    if self.memo.fail_reserve_at
+                        == Some((F5cTestReserveFailure::FlatPreparationAfterPositiveOnly, 0))
+                    {
+                        self.memo.fail_reserve_at = None;
+                        return Err(SolveAvailabilityError::IdentityExhausted);
+                    }
+                }
+                if eligible && negative.contains(&owner) && !positive.contains(&owner) {
+                    self.memo.work_meter.charge(1)?;
+                    let bytes = self.memo.retained_bytes()?;
+                    self.memo.walker_resources.reserve_generalizer_set(
+                        &mut negative_only,
+                        F5cWalkerLaneKind::BoxedNegativeOnly,
+                        bytes,
+                    )?;
+                    negative_only.insert(owner);
+                }
+            }
+            Ok::<_, SolveAvailabilityError>((reentries_by_owner, non_generic, positive, negative))
+        })();
+        let (reentries_by_owner, non_generic, positive, negative) = match prepared {
+            Ok(values) => values,
+            Err(error) => {
+                drop(positive_only);
+                drop(negative_only);
+                self.release_flat_candidate_one_sided_lanes();
+                let rollback = self.abort_raw_forest(forest);
+                self.release_flat_candidate_preparation_lanes();
+                rollback?;
+                return Err(error);
+            }
+        };
+        let session = self.session;
+        let eligible = |ordinal: u32| {
+            session
+                .value_levels
+                .get(ordinal as usize)
+                .is_some_and(|level| *level > 0)
+                && !non_generic.contains(&ordinal)
+        };
+        let reentries = std::mem::take(&mut self.reentries);
+        let order = std::mem::take(&mut self.order);
+        let selected = self.flat_r_q_with_raw_forest_candidate_inner(
+            forest,
+            &reentries,
+            &reentries_by_owner,
+            &order,
+            eligible,
+            &positive,
+            &negative,
+            &positive_only,
+            &negative_only,
+            #[cfg(test)]
+            fail_after_first_post_output,
+        );
+        match selected {
+            Ok(selected) => {
+                self.reentries = reentries;
+                self.order = order;
+                let selected = Ok(selected);
+                drop(reentries_by_owner);
+                drop(non_generic);
+                drop(positive);
+                drop(negative);
+                self.release_flat_candidate_preparation_lanes();
+                let finished = selected.and_then(|(selection, output, forest)| {
+                    self.flat_finish_selected_candidate(
+                        selection,
+                        output,
+                        forest,
+                        &positive_only,
+                        &negative_only,
+                        #[cfg(test)]
+                        false,
+                    )
+                });
+                drop(positive_only);
+                drop(negative_only);
+                self.release_flat_candidate_one_sided_lanes();
+                return finished;
+            }
+            Err((error, forest)) => {
+                drop(reentries);
+                drop(order);
+                drop(reentries_by_owner);
+                drop(non_generic);
+                drop(positive);
+                drop(negative);
+                drop(positive_only);
+                drop(negative_only);
+                self.release_flat_candidate_preparation_lanes();
+                self.release_flat_candidate_one_sided_lanes();
+                self.abort_raw_forest(forest)?;
+                return Err(error);
+            }
+        }
+    }
+
+    fn release_flat_candidate_one_sided_lanes(&mut self) {
+        for kind in [
+            F5cWalkerLaneKind::BoxedPositiveOnly,
+            F5cWalkerLaneKind::BoxedNegativeOnly,
+        ] {
+            self.memo.walker_resources.release(kind);
+        }
+    }
+
+    fn release_flat_candidate_preparation_lanes(&mut self) {
+        for kind in [
+            F5cWalkerLaneKind::BoxedReentriesByOwner,
+            F5cWalkerLaneKind::BoxedReentryIndices,
+            F5cWalkerLaneKind::ClosureResult,
+            F5cWalkerLaneKind::RawPositiveIncidences,
+            F5cWalkerLaneKind::RawNegativeIncidences,
+        ] {
+            self.memo.walker_resources.release(kind);
+        }
+    }
+
     pub(super) fn walk_flat(
         &mut self,
         first: F5cWalkTask,
@@ -6013,7 +6218,6 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
         result
     }
 
-    /// Test-only raw producer forest. Binder selection and Q/R rewriting are later gates.
     #[cfg(test)]
     pub(super) fn build_raw_forest(
         &mut self,
@@ -6028,6 +6232,14 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
         root: u32,
         reverse_bounds: bool,
     ) -> Result<F5cRawForest, SolveAvailabilityError> {
+        self.build_raw_forest_inner(root, reverse_bounds)
+    }
+
+    fn build_raw_forest_inner(
+        &mut self,
+        root: u32,
+        #[cfg(test)] reverse_bounds: bool,
+    ) -> Result<F5cRawForest, SolveAvailabilityError> {
         if self.raw_forest_live || self.raw_forest_rollback_failed {
             return Err(SolveAvailabilityError::IdentityExhausted);
         }
@@ -6037,6 +6249,7 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
         let mut seen = HashSet::<u32>::new();
         let mut roots = Vec::<FlatWalkValue>::new();
         let mut outputs = Vec::<NodeRef>::new();
+        #[cfg(test)]
         let mut callback_trace = Vec::<(u32, Polarity)>::new();
         let mut draft = f5c_draft::FlatDraft::default();
         let result = (|| {
@@ -6141,6 +6354,7 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
             if self.invalid_effects {
                 return Err(SolveAvailabilityError::IdentityExhausted);
             }
+            #[cfg(test)]
             if reverse_bounds {
                 for owner in raw_owner_order.iter().rev() {
                     let bounds = raw_bounds
@@ -6151,27 +6365,36 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
             }
             let memo = &mut self.memo;
             let sink = &self.flat_sink;
-            let bytes = memo.retained_bytes()?;
-            memo.walker_resources.reserve(
-                &mut callback_trace,
-                F5cWalkerLaneKind::RawCallbackTrace,
-                0,
-                bytes,
-            )?;
-            memo.walker_resources.observe_memo(bytes)?;
+            #[cfg(test)]
+            {
+                let bytes = memo.retained_bytes()?;
+                memo.walker_resources.reserve(
+                    &mut callback_trace,
+                    F5cWalkerLaneKind::RawCallbackTrace,
+                    0,
+                    bytes,
+                )?;
+                memo.walker_resources.observe_memo(bytes)?;
+            }
             sink.materialize_roots(
                 memo,
                 &mut draft,
                 &roots,
                 &mut outputs,
-                |resources, memo_bytes, row, polarity| {
-                    resources.reserve(
-                        &mut callback_trace,
-                        F5cWalkerLaneKind::RawCallbackTrace,
-                        1,
-                        memo_bytes,
-                    )?;
-                    callback_trace.push((row, polarity));
+                |#[allow(unused_variables)] resources,
+                 #[allow(unused_variables)] memo_bytes,
+                 #[allow(unused_variables)] row,
+                 #[allow(unused_variables)] polarity| {
+                    #[cfg(test)]
+                    {
+                        resources.reserve(
+                            &mut callback_trace,
+                            F5cWalkerLaneKind::RawCallbackTrace,
+                            1,
+                            memo_bytes,
+                        )?;
+                        callback_trace.push((row, polarity));
+                    }
                     Ok(())
                 },
             )?;
@@ -6218,6 +6441,7 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
             }
             drop(raw_owner_order);
             drop(raw_bounds);
+            #[cfg(test)]
             drop(callback_trace);
             self.memo
                 .walker_resources
@@ -6247,11 +6471,11 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
             draft,
             raw_owner_order,
             raw_bounds,
+            #[cfg(test)]
             callback_trace,
         })
     }
 
-    #[cfg(test)]
     pub(super) fn release_raw_forest(&mut self, forest: F5cRawForest) {
         assert!(
             self.raw_forest_live,
@@ -6269,7 +6493,6 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
         self.reset_after_raw_forest();
     }
 
-    #[cfg(test)]
     pub(super) fn abort_raw_forest(
         &mut self,
         forest: F5cRawForest,
@@ -6281,7 +6504,6 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
         rollback
     }
 
-    #[cfg(test)]
     fn release_raw_forest_lanes(&mut self, forest: F5cRawForest) {
         drop(forest);
         for kind in [
@@ -6299,7 +6521,6 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
         }
     }
 
-    #[cfg(test)]
     fn reset_after_raw_forest(&mut self) {
         self.memo.reset_active_scratch();
         self.frames = Vec::new();
@@ -6315,7 +6536,6 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
         self.raw_forest_live = false;
     }
 
-    #[cfg(test)]
     fn walk_flat_with_sink(
         &mut self,
         first: F5cWalkTask,
@@ -6339,7 +6559,6 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
         result
     }
 
-    #[cfg(test)]
     fn abort_flat_component(&mut self) -> Result<(), SolveAvailabilityError> {
         if let Some(checkpoint) = self.flat_sink.component_checkpoint.take() {
             self.flat_sink.arena.rollback(checkpoint);
@@ -6564,18 +6783,29 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
 
     pub(super) fn non_generic_closure(&mut self) -> Result<HashSet<u32>, SolveAvailabilityError> {
         let result = self.non_generic_closure_work();
+        let mut release_error = None;
         for kind in [
             F5cWalkerLaneKind::ClosureAdjacency,
             F5cWalkerLaneKind::ClosureNeighbors,
             F5cWalkerLaneKind::ClosureConnected,
             F5cWalkerLaneKind::ClosureFrontier,
         ] {
-            self.memo
-                .release_walker_with_source(kind, self.source_meter)?;
+            if let Err(error) = self
+                .memo
+                .release_walker_with_source(kind, self.source_meter)
+            {
+                release_error.get_or_insert(error);
+            }
         }
-        if result.is_err() {
-            self.memo
-                .release_walker_with_source(F5cWalkerLaneKind::ClosureResult, self.source_meter)?;
+        if result.is_err() || release_error.is_some() {
+            let work_error = result.err();
+            if let Err(error) = self
+                .memo
+                .release_walker_with_source(F5cWalkerLaneKind::ClosureResult, self.source_meter)
+            {
+                release_error.get_or_insert(error);
+            }
+            return Err(work_error.or(release_error).unwrap());
         }
         result
     }
@@ -6824,7 +7054,6 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
         )
     }
 
-    #[cfg(test)]
     pub(super) fn flat_raw_forest_incidences(
         &mut self,
         forest: &F5cRawForest,
@@ -6840,7 +7069,6 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
         )
     }
 
-    #[cfg(test)]
     pub(super) fn flat_raw_forest_incidences_for_test(
         memo: &mut F5cComponentExpansionMemo,
         draft: &f5c_draft::FlatDraft,
@@ -6930,7 +7158,7 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
     }
 
     #[cfg(test)]
-    pub(super) fn flat_r_q_with_raw_forest_for_test(
+    pub(super) fn flat_r_q_with_raw_forest_candidate_for_test(
         &mut self,
         forest: F5cRawForest,
         reentries: &[F5cGuardedTrace],
@@ -6941,7 +7169,7 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
         negative_incidences: &HashSet<u32>,
         positive_only: &HashSet<u32>,
         negative_only: &HashSet<u32>,
-        fail_after_first_post_output: bool,
+        #[cfg(test)] fail_after_first_post_output: bool,
     ) -> Result<
         (
             F5cPostRSelection<
@@ -6953,8 +7181,52 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
         ),
         SolveAvailabilityError,
     > {
+        match self.flat_r_q_with_raw_forest_candidate_inner(
+            forest,
+            reentries,
+            reentries_by_owner,
+            order,
+            eligible,
+            positive_incidences,
+            negative_incidences,
+            positive_only,
+            negative_only,
+            #[cfg(test)]
+            fail_after_first_post_output,
+        ) {
+            Ok(value) => Ok(value),
+            Err((error, forest)) => {
+                self.abort_raw_forest(forest)?;
+                Err(error)
+            }
+        }
+    }
+
+    fn flat_r_q_with_raw_forest_candidate_inner(
+        &mut self,
+        forest: F5cRawForest,
+        reentries: &[F5cGuardedTrace],
+        reentries_by_owner: &HashMap<u32, Vec<usize>>,
+        order: &[u32],
+        eligible: impl Fn(u32) -> bool + Copy,
+        positive_incidences: &HashSet<u32>,
+        negative_incidences: &HashSet<u32>,
+        positive_only: &HashSet<u32>,
+        negative_only: &HashSet<u32>,
+        #[cfg(test)] fail_after_first_post_output: bool,
+    ) -> Result<
+        (
+            F5cPostRSelection<
+                (f5c_draft::PositiveId, f5c_draft::NegativeId),
+                f5c_draft::PositiveId,
+            >,
+            f5c_draft::FlatDraft,
+            F5cRawForest,
+        ),
+        (SolveAvailabilityError, F5cRawForest),
+    > {
         if !self.raw_forest_live {
-            return Err(SolveAvailabilityError::IdentityExhausted);
+            return Err((SolveAvailabilityError::IdentityExhausted, forest));
         }
         let mut source = F5cFlatRCandidateSource {
             source: &forest.draft,
@@ -6972,6 +7244,7 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
                 positive_only,
                 negative_only,
             )?;
+            #[cfg(test)]
             if fail_after_first_post_output {
                 f5c_replay::inject_failure_after_flat_output();
             }
@@ -7000,8 +7273,7 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
             Err(error) => {
                 f5c_replay::release_flat_output(&mut self.memo, output);
                 release_flat_post_r_lanes(&mut self.memo);
-                self.abort_raw_forest(forest)?;
-                Err(error)
+                Err((error, forest))
             }
         }
     }
@@ -7022,8 +7294,7 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
         self.release_raw_forest(forest);
     }
 
-    #[cfg(test)]
-    pub(super) fn flat_finish_selected_for_test(
+    pub(super) fn flat_finish_selected_candidate(
         &mut self,
         selection: F5cPostRSelection<
             (f5c_draft::PositiveId, f5c_draft::NegativeId),
@@ -7033,8 +7304,15 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
         forest: F5cRawForest,
         positive_only: &HashSet<u32>,
         negative_only: &HashSet<u32>,
-        fail_during_normalization: bool,
+        #[cfg(test)] fail_during_normalization: bool,
     ) -> Result<F5cNormalizedCandidate, SolveAvailabilityError> {
+        if self.normalized_candidate_live {
+            drop(selection);
+            f5c_replay::release_flat_output(&mut self.memo, output);
+            release_flat_post_r_lanes(&mut self.memo);
+            self.abort_raw_forest(forest)?;
+            return Err(SolveAvailabilityError::IdentityExhausted);
+        }
         let result = (|| {
             let q_count = u32::try_from(selection.q.len())
                 .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
@@ -7110,6 +7388,7 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
             f5c_normalization::normalize_flat_metered(
                 &mut self.memo,
                 &output,
+                #[cfg(test)]
                 fail_during_normalization,
             )
         })();
@@ -7168,6 +7447,7 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
                     return Err(error);
                 }
                 self.release_raw_forest(forest);
+                self.normalized_candidate_live = true;
                 Ok(F5cNormalizedCandidate { draft, stats })
             }
             Err(error) => {
@@ -7177,7 +7457,6 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
         }
     }
 
-    #[cfg(test)]
     fn release_normalized_candidate_lanes(&mut self) {
         for kind in [
             F5cWalkerLaneKind::NormalizedPositiveNodes,
@@ -7191,13 +7470,11 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
         }
     }
 
-    #[cfg(test)]
-    pub(super) fn release_normalized_candidate_for_test(
-        &mut self,
-        candidate: F5cNormalizedCandidate,
-    ) {
+    #[allow(dead_code)] // The private candidate entrypoint is intentionally unselected.
+    pub(super) fn release_normalized_candidate(&mut self, candidate: F5cNormalizedCandidate) {
         drop(candidate);
         self.release_normalized_candidate_lanes();
+        self.normalized_candidate_live = false;
     }
 
     #[cfg(test)]

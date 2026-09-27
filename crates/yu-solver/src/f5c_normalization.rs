@@ -154,44 +154,9 @@ pub(super) struct FlatNormalizationStats {
     pub(super) duplicates: usize,
 }
 
-#[cfg(test)]
 #[derive(Clone)]
 struct FlatCandidateObserver(FlatCandidateCapacity);
 
-#[cfg(not(test))]
-#[derive(Clone, Debug, Eq, PartialEq)]
-struct FlatCandidateObserver;
-
-#[cfg(not(test))]
-impl FlatCandidateObserver {
-    fn preflight_requested(
-        &self,
-        _lane: usize,
-        _additional: usize,
-    ) -> Result<(), SolveAvailabilityError> {
-        Ok(())
-    }
-
-    fn charge(&self, _work: usize) -> Result<(), SolveAvailabilityError> {
-        Ok(())
-    }
-
-    fn observe(
-        &mut self,
-        _lane: usize,
-        _capacity: usize,
-        _slot_size: usize,
-        _work: usize,
-    ) -> Result<(), SolveAvailabilityError> {
-        Ok(())
-    }
-
-    fn observe_output(&mut self, _output: &FlatDraft) -> Result<(), SolveAvailabilityError> {
-        Ok(())
-    }
-}
-
-#[cfg(test)]
 #[derive(Clone)]
 struct FlatCandidateCapacity {
     work: super::f5c_generalization::F5cDraftWorkMeter,
@@ -207,10 +172,8 @@ struct FlatCandidateCapacity {
     peak_total_bytes: usize,
 }
 
-#[cfg(test)]
 pub(super) const FLAT_CANDIDATE_LANE_COUNT: usize = LANE_COUNT + 14;
 
-#[cfg(test)]
 #[derive(Clone, Copy, Default)]
 pub(super) struct FlatCandidateLane {
     pub(super) observations: usize,
@@ -221,7 +184,6 @@ pub(super) struct FlatCandidateLane {
     pub(super) slot_size: usize,
 }
 
-#[cfg(test)]
 impl FlatCandidateCapacity {
     fn refresh_peak(&mut self) -> Result<(), SolveAvailabilityError> {
         let scratch = self.capacities.iter().zip(self.sizes.iter()).try_fold(
@@ -250,14 +212,12 @@ impl FlatCandidateCapacity {
     }
 }
 
-#[cfg(test)]
 impl std::fmt::Debug for FlatCandidateObserver {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str("FlatCandidateObserver")
     }
 }
 
-#[cfg(test)]
 impl PartialEq for FlatCandidateObserver {
     fn eq(&self, other: &Self) -> bool {
         self.0.capacities == other.0.capacities
@@ -272,10 +232,8 @@ impl PartialEq for FlatCandidateObserver {
     }
 }
 
-#[cfg(test)]
 impl Eq for FlatCandidateObserver {}
 
-#[cfg(test)]
 impl FlatCandidateObserver {
     fn preflight_requested(
         &self,
@@ -2107,11 +2065,10 @@ pub(super) fn normalize_flat(
     normalize_flat_inner(input, None).0
 }
 
-#[cfg(test)]
 pub(super) fn normalize_flat_metered(
     memo: &mut super::F5cComponentExpansionMemo,
     input: &FlatDraft,
-    fail_after_selection_work: bool,
+    #[cfg(test)] fail_after_selection_work: bool,
 ) -> Result<(FlatDraft, FlatNormalizationStats), SolveAvailabilityError> {
     let observer = FlatCandidateObserver(FlatCandidateCapacity {
         work: memo.work_meter.clone(),
@@ -2135,6 +2092,7 @@ pub(super) fn normalize_flat_metered(
         .and_then(|n| n.checked_add(input.recursive_bounds.len()))
         .ok_or(SolveAvailabilityError::IdentityExhausted)?;
     observer.charge(selection_work)?;
+    #[cfg(test)]
     if fail_after_selection_work {
         memo.work_meter.set(usize::MAX);
     }

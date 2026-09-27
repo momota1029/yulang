@@ -1,4 +1,3 @@
-#[cfg(test)]
 use super::f5c_draft::{FlatDraft, NegativeId, NegativeNode, NodeRef, PositiveId, PositiveNode};
 use super::{
     ConstraintStore, DraftHeapMeter, F5cComponentExpansionMemo, F5cNegative, F5cPositive,
@@ -10,9 +9,7 @@ pub(super) enum Task<'tree, 'meter> {
     Positive(&'tree F5cPositive<'meter>, bool),
     Negative(&'tree F5cNegative<'meter>, bool),
     Term(Term),
-    #[cfg(test)]
     FlatPositive(PositiveId, bool),
-    #[cfg(test)]
     FlatNegative(NegativeId, bool),
 }
 
@@ -70,7 +67,7 @@ impl<'memo, 'tree, 'meter> Walker<'memo, 'tree, 'meter> {
         &mut self,
         first: Task<'tree, 'meter>,
         store: Option<&ConstraintStore>,
-        #[cfg(test)] flat: Option<&FlatDraft>,
+        flat: Option<&FlatDraft>,
         mut visit: impl FnMut(
             Event,
             &mut F5cComponentExpansionMemo,
@@ -156,7 +153,6 @@ impl<'memo, 'tree, 'meter> Walker<'memo, 'tree, 'meter> {
                             _ => {}
                         }
                     }
-                    #[cfg(test)]
                     Task::FlatPositive(id, guarded) => {
                         let flat = flat.ok_or(SolveAvailabilityError::IdentityExhausted)?;
                         let node = flat
@@ -202,7 +198,6 @@ impl<'memo, 'tree, 'meter> Walker<'memo, 'tree, 'meter> {
                             _ => {}
                         }
                     }
-                    #[cfg(test)]
                     Task::FlatNegative(id, guarded) => {
                         let flat = flat.ok_or(SolveAvailabilityError::IdentityExhausted)?;
                         let node = flat
@@ -262,22 +257,16 @@ impl<'memo, 'tree, 'meter> Walker<'memo, 'tree, 'meter> {
         owner: u32,
     ) -> Result<bool, SolveAvailabilityError> {
         let mut found = false;
-        self.walk(
-            Task::Positive(value, false),
-            None,
-            #[cfg(test)]
-            None,
-            |event, _memo| {
-                Ok({
-                    if matches!(event, Event::Value(row, _, true) if row == owner) {
-                        found = true;
-                        false
-                    } else {
-                        true
-                    }
-                })
-            },
-        )?;
+        self.walk(Task::Positive(value, false), None, None, |event, _memo| {
+            Ok({
+                if matches!(event, Event::Value(row, _, true) if row == owner) {
+                    found = true;
+                    false
+                } else {
+                    true
+                }
+            })
+        })?;
         Ok(found)
     }
 
@@ -287,22 +276,16 @@ impl<'memo, 'tree, 'meter> Walker<'memo, 'tree, 'meter> {
         owner: u32,
     ) -> Result<bool, SolveAvailabilityError> {
         let mut found = false;
-        self.walk(
-            Task::Negative(value, false),
-            None,
-            #[cfg(test)]
-            None,
-            |event, _memo| {
-                Ok({
-                    if matches!(event, Event::Value(row, _, true) if row == owner) {
-                        found = true;
-                        false
-                    } else {
-                        true
-                    }
-                })
-            },
-        )?;
+        self.walk(Task::Negative(value, false), None, None, |event, _memo| {
+            Ok({
+                if matches!(event, Event::Value(row, _, true) if row == owner) {
+                    found = true;
+                    false
+                } else {
+                    true
+                }
+            })
+        })?;
         Ok(found)
     }
 
@@ -337,30 +320,24 @@ impl<'memo, 'tree, 'meter> Walker<'memo, 'tree, 'meter> {
         lane: Option<F5cWalkerLaneKind>,
     ) -> Result<(), SolveAvailabilityError> {
         let source_meter = self.source_meter;
-        self.walk(
-            Task::Positive(value, false),
-            None,
-            #[cfg(test)]
-            None,
-            |event, memo| {
-                Ok({
-                    if let Event::Value(owner, _, _) = event
-                        && owners.contains(&owner)
-                    {
-                        if let Some(kind) = lane {
-                            if let Some(meter) = source_meter {
-                                memo.insert_physical_set_with_source(out, owner, kind, meter)?;
-                            } else {
-                                memo.insert_physical_set(out, owner, kind)?;
-                            }
+        self.walk(Task::Positive(value, false), None, None, |event, memo| {
+            Ok({
+                if let Event::Value(owner, _, _) = event
+                    && owners.contains(&owner)
+                {
+                    if let Some(kind) = lane {
+                        if let Some(meter) = source_meter {
+                            memo.insert_physical_set_with_source(out, owner, kind, meter)?;
                         } else {
-                            out.insert(owner);
+                            memo.insert_physical_set(out, owner, kind)?;
                         }
+                    } else {
+                        out.insert(owner);
                     }
-                    true
-                })
-            },
-        )
+                }
+                true
+            })
+        })
     }
 
     pub(super) fn references_negative_with_lane(
@@ -371,30 +348,24 @@ impl<'memo, 'tree, 'meter> Walker<'memo, 'tree, 'meter> {
         lane: Option<F5cWalkerLaneKind>,
     ) -> Result<(), SolveAvailabilityError> {
         let source_meter = self.source_meter;
-        self.walk(
-            Task::Negative(value, false),
-            None,
-            #[cfg(test)]
-            None,
-            |event, memo| {
-                Ok({
-                    if let Event::Value(owner, _, _) = event
-                        && owners.contains(&owner)
-                    {
-                        if let Some(kind) = lane {
-                            if let Some(meter) = source_meter {
-                                memo.insert_physical_set_with_source(out, owner, kind, meter)?;
-                            } else {
-                                memo.insert_physical_set(out, owner, kind)?;
-                            }
+        self.walk(Task::Negative(value, false), None, None, |event, memo| {
+            Ok({
+                if let Event::Value(owner, _, _) = event
+                    && owners.contains(&owner)
+                {
+                    if let Some(kind) = lane {
+                        if let Some(meter) = source_meter {
+                            memo.insert_physical_set_with_source(out, owner, kind, meter)?;
                         } else {
-                            out.insert(owner);
+                            memo.insert_physical_set(out, owner, kind)?;
                         }
+                    } else {
+                        out.insert(owner);
                     }
-                    true
-                })
-            },
-        )
+                }
+                true
+            })
+        })
     }
 
     pub(super) fn incidences_positive(
@@ -404,37 +375,31 @@ impl<'memo, 'tree, 'meter> Walker<'memo, 'tree, 'meter> {
         negative: &mut HashSet<u32>,
     ) -> Result<(), SolveAvailabilityError> {
         let source_meter = self.source_meter;
-        self.walk(
-            Task::Positive(value, false),
-            None,
-            #[cfg(test)]
-            None,
-            |event, memo| {
-                Ok({
-                    if let Event::Value(owner, polarity, _) = event {
-                        match polarity {
-                            Polarity::Positive => {
-                                memo.insert_physical_set_observed(
-                                    positive,
-                                    owner,
-                                    F5cWalkerLaneKind::RawPositiveIncidences,
-                                    source_meter,
-                                )?;
-                            }
-                            Polarity::Negative => {
-                                memo.insert_physical_set_observed(
-                                    negative,
-                                    owner,
-                                    F5cWalkerLaneKind::RawNegativeIncidences,
-                                    source_meter,
-                                )?;
-                            }
+        self.walk(Task::Positive(value, false), None, None, |event, memo| {
+            Ok({
+                if let Event::Value(owner, polarity, _) = event {
+                    match polarity {
+                        Polarity::Positive => {
+                            memo.insert_physical_set_observed(
+                                positive,
+                                owner,
+                                F5cWalkerLaneKind::RawPositiveIncidences,
+                                source_meter,
+                            )?;
+                        }
+                        Polarity::Negative => {
+                            memo.insert_physical_set_observed(
+                                negative,
+                                owner,
+                                F5cWalkerLaneKind::RawNegativeIncidences,
+                                source_meter,
+                            )?;
                         }
                     }
-                    true
-                })
-            },
-        )
+                }
+                true
+            })
+        })
     }
 
     pub(super) fn incidences_negative(
@@ -444,37 +409,31 @@ impl<'memo, 'tree, 'meter> Walker<'memo, 'tree, 'meter> {
         negative: &mut HashSet<u32>,
     ) -> Result<(), SolveAvailabilityError> {
         let source_meter = self.source_meter;
-        self.walk(
-            Task::Negative(value, false),
-            None,
-            #[cfg(test)]
-            None,
-            |event, memo| {
-                Ok({
-                    if let Event::Value(owner, polarity, _) = event {
-                        match polarity {
-                            Polarity::Positive => {
-                                memo.insert_physical_set_observed(
-                                    positive,
-                                    owner,
-                                    F5cWalkerLaneKind::RawPositiveIncidences,
-                                    source_meter,
-                                )?;
-                            }
-                            Polarity::Negative => {
-                                memo.insert_physical_set_observed(
-                                    negative,
-                                    owner,
-                                    F5cWalkerLaneKind::RawNegativeIncidences,
-                                    source_meter,
-                                )?;
-                            }
+        self.walk(Task::Negative(value, false), None, None, |event, memo| {
+            Ok({
+                if let Event::Value(owner, polarity, _) = event {
+                    match polarity {
+                        Polarity::Positive => {
+                            memo.insert_physical_set_observed(
+                                positive,
+                                owner,
+                                F5cWalkerLaneKind::RawPositiveIncidences,
+                                source_meter,
+                            )?;
+                        }
+                        Polarity::Negative => {
+                            memo.insert_physical_set_observed(
+                                negative,
+                                owner,
+                                F5cWalkerLaneKind::RawNegativeIncidences,
+                                source_meter,
+                            )?;
                         }
                     }
-                    true
-                })
-            },
-        )
+                }
+                true
+            })
+        })
     }
 
     #[cfg_attr(not(test), allow(dead_code))]
@@ -484,22 +443,16 @@ impl<'memo, 'tree, 'meter> Walker<'memo, 'tree, 'meter> {
         ordered: &mut Vec<u32>,
         seen: &mut HashSet<u32>,
     ) -> Result<(), SolveAvailabilityError> {
-        self.walk(
-            Task::Positive(value, false),
-            None,
-            #[cfg(test)]
-            None,
-            |event, _memo| {
-                Ok({
-                    if let Event::Value(owner, _, _) = event
-                        && seen.insert(owner)
-                    {
-                        ordered.push(owner);
-                    }
-                    true
-                })
-            },
-        )
+        self.walk(Task::Positive(value, false), None, None, |event, _memo| {
+            Ok({
+                if let Event::Value(owner, _, _) = event
+                    && seen.insert(owner)
+                {
+                    ordered.push(owner);
+                }
+                true
+            })
+        })
     }
 
     pub(super) fn occurrences_positive_checked(
@@ -527,48 +480,42 @@ impl<'memo, 'tree, 'meter> Walker<'memo, 'tree, 'meter> {
         seen: &mut HashSet<u32>,
     ) -> Result<(), SolveAvailabilityError> {
         let source_meter = self.source_meter;
-        self.walk(
-            first,
-            None,
-            #[cfg(test)]
-            None,
-            |event, memo| {
-                if let Event::Value(owner, _, _) = event
-                    && !seen.contains(&owner)
-                {
-                    let bytes = memo.retained_bytes()?;
-                    if let Some(meter) = source_meter {
-                        memo.walker_resources.with_source(
-                            meter,
-                            bytes,
-                            F5cWalkerLaneKind::PostROccurrenceSeen,
-                            |walker| {
-                                walker.reserve_generalizer_set(
-                                    seen,
-                                    F5cWalkerLaneKind::PostROccurrenceSeen,
-                                    bytes,
-                                )
-                            },
-                        )?;
-                        memo.reserve_walker_with_source(
-                            ordered,
-                            F5cWalkerLaneKind::PostROccurrenceOrder,
-                            meter,
-                        )?;
-                    } else {
-                        memo.walker_resources.reserve_generalizer_set(
-                            seen,
-                            F5cWalkerLaneKind::PostROccurrenceSeen,
-                            bytes,
-                        )?;
-                        memo.reserve_walker(ordered, F5cWalkerLaneKind::PostROccurrenceOrder)?;
-                    }
-                    seen.insert(owner);
-                    ordered.push(owner);
+        self.walk(first, None, None, |event, memo| {
+            if let Event::Value(owner, _, _) = event
+                && !seen.contains(&owner)
+            {
+                let bytes = memo.retained_bytes()?;
+                if let Some(meter) = source_meter {
+                    memo.walker_resources.with_source(
+                        meter,
+                        bytes,
+                        F5cWalkerLaneKind::PostROccurrenceSeen,
+                        |walker| {
+                            walker.reserve_generalizer_set(
+                                seen,
+                                F5cWalkerLaneKind::PostROccurrenceSeen,
+                                bytes,
+                            )
+                        },
+                    )?;
+                    memo.reserve_walker_with_source(
+                        ordered,
+                        F5cWalkerLaneKind::PostROccurrenceOrder,
+                        meter,
+                    )?;
+                } else {
+                    memo.walker_resources.reserve_generalizer_set(
+                        seen,
+                        F5cWalkerLaneKind::PostROccurrenceSeen,
+                        bytes,
+                    )?;
+                    memo.reserve_walker(ordered, F5cWalkerLaneKind::PostROccurrenceOrder)?;
                 }
-                Ok(true)
-            },
-        )
+                seen.insert(owner);
+                ordered.push(owner);
+            }
+            Ok(true)
+        })
     }
 
     #[cfg_attr(not(test), allow(dead_code))]
@@ -578,22 +525,16 @@ impl<'memo, 'tree, 'meter> Walker<'memo, 'tree, 'meter> {
         ordered: &mut Vec<u32>,
         seen: &mut HashSet<u32>,
     ) -> Result<(), SolveAvailabilityError> {
-        self.walk(
-            Task::Negative(value, false),
-            None,
-            #[cfg(test)]
-            None,
-            |event, _memo| {
-                Ok({
-                    if let Event::Value(owner, _, _) = event
-                        && seen.insert(owner)
-                    {
-                        ordered.push(owner);
-                    }
-                    true
-                })
-            },
-        )
+        self.walk(Task::Negative(value, false), None, None, |event, _memo| {
+            Ok({
+                if let Event::Value(owner, _, _) = event
+                    && seen.insert(owner)
+                {
+                    ordered.push(owner);
+                }
+                true
+            })
+        })
     }
 
     #[cfg(test)]
@@ -614,26 +555,19 @@ impl<'memo, 'tree, 'meter> Walker<'memo, 'tree, 'meter> {
         lane: Option<F5cWalkerLaneKind>,
     ) -> Result<(), SolveAvailabilityError> {
         let source_meter = self.source_meter;
-        self.walk(
-            Task::Term(term),
-            Some(store),
-            #[cfg(test)]
-            None,
-            |event, memo| {
-                Ok({
-                    if let Event::TermRow(row) = event {
-                        if let Some(kind) = lane {
-                            memo.insert_physical_set_observed(rows, row, kind, source_meter)?;
-                        } else {
-                            rows.insert(row);
-                        }
+        self.walk(Task::Term(term), Some(store), None, |event, memo| {
+            Ok({
+                if let Event::TermRow(row) = event {
+                    if let Some(kind) = lane {
+                        memo.insert_physical_set_observed(rows, row, kind, source_meter)?;
+                    } else {
+                        rows.insert(row);
                     }
-                    true
-                })
-            },
-        )
+                }
+                true
+            })
+        })
     }
-    #[cfg(test)]
     fn flat_events(
         &mut self,
         draft: &FlatDraft,
@@ -645,7 +579,6 @@ impl<'memo, 'tree, 'meter> Walker<'memo, 'tree, 'meter> {
         })
     }
 
-    #[cfg(test)]
     fn flat_events_checked(
         &mut self,
         draft: &FlatDraft,
@@ -693,7 +626,6 @@ impl<'memo, 'tree, 'meter> Walker<'memo, 'tree, 'meter> {
         self.tasks.is_empty()
     }
 
-    #[cfg(test)]
     pub(super) fn flat_guarded_bound_survives(
         &mut self,
         draft: &FlatDraft,
@@ -741,7 +673,6 @@ impl<'memo, 'tree, 'meter> Walker<'memo, 'tree, 'meter> {
         self.flat_references_with_lane(draft, root, owners, out, None)
     }
 
-    #[cfg(test)]
     pub(super) fn flat_references_with_lane(
         &mut self,
         draft: &FlatDraft,
@@ -762,7 +693,6 @@ impl<'memo, 'tree, 'meter> Walker<'memo, 'tree, 'meter> {
         })
     }
 
-    #[cfg(test)]
     pub(super) fn flat_incidences(
         &mut self,
         draft: &FlatDraft,
@@ -807,7 +737,6 @@ impl<'memo, 'tree, 'meter> Walker<'memo, 'tree, 'meter> {
         })
     }
 
-    #[cfg(test)]
     pub(super) fn flat_occurrences_checked(
         &mut self,
         draft: &FlatDraft,
