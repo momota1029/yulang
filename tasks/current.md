@@ -4,25 +4,26 @@ Updated: 2026-09-28. Branch: `yulang3`; do not modify frozen `main`.
 
 Resume handoff: [`2026-09-22 F5c scheme-closure handoff`](../notes/handoffs/2026-09-22-f5c-scheme-closure-handoff.md).
 
-### Latest continuation (2026-09-28): normalizer/materializer root preflight
+### Latest continuation (2026-09-28): FlatSourceArena incidence preflight
 
-`Normalizer::add_root` now checks `roots.len() + 1` with checked `usize`
-arithmetic before reserve. Flat root materialization checks the combined
-output count against the existing u32 root-index representation before any
-lane grows. The check remains inside its cleanup path; root order,
-`reserve(0)` observation, rollback, and physical accounting remain unchanged.
+The source arena now maintains a separate checked logical-incidence count.
+Each repeated Union/Intersection child occurrence adds one; each positive or
+negative Function adds two; scalar nodes add none. The count is checked before
+any lane reserve, published after append, and saved/restored with checkpoints.
+Stored child entries, work charges, ordering, and retained capacity remain
+separate.
 
 Selected M1 with `spec_auditor`; the focused review found no issue. Checks
-passed: both root-count boundary tests and the normalizer/materializer order
-and rollback tests (1 each), `cargo fmt --all -- --check`, and
-`git diff --check`. The checks add constant work per root, with no allocation
-or traversal. No broad suite or resource probe ran; measurement budget
-consumed: zero. No practical numeric ceiling was added.
+passed: all eight `f5c_generalization::flat_source_arena::tests`,
+`cargo fmt --all -- --check`, and `git diff --check`. The census adds one
+checked addition per source node, with no allocation or traversal. No broad
+suite or resource probe ran; measurement budget consumed: zero. No practical
+numeric ceiling was added.
 
-Next: define the live-intermediate-graph census before implementation. The
-proposal requires this dimension, but does not specify whether it combines
-Normalizer nodes and child slots. Numeric-boundary selection, production
-cutover, F5e, and overall F5c acceptance remain open.
+Next: preflight memo reverse-parent incidences before node/index lane growth.
+The live-intermediate-graph formula is awaiting a separate definition;
+numeric-boundary selection, production cutover, F5e, and overall F5c
+acceptance remain open.
 
 ### Completed continuation (2026-09-28): Q/R bound-count preflight
 

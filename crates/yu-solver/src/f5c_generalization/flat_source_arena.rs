@@ -48,6 +48,12 @@ fn checked_node_id(current_len: usize) -> Result<u32, SolveAvailabilityError> {
     Ok(post_append_count - 1)
 }
 
+fn checked_incidences(current: usize, added: usize) -> Result<usize, SolveAvailabilityError> {
+    current
+        .checked_add(added)
+        .ok_or(SolveAvailabilityError::IdentityExhausted)
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum PositiveNode {
     Bottom,
@@ -87,6 +93,7 @@ pub(super) struct Checkpoint {
     negative_nodes: usize,
     positive_children: usize,
     negative_children: usize,
+    structural_incidences: usize,
 }
 
 #[derive(Default)]
@@ -95,6 +102,7 @@ pub(super) struct FlatSourceArena {
     pub(super) negative_nodes: Vec<NegativeNode>,
     pub(super) positive_children: Vec<PositiveRef>,
     pub(super) negative_children: Vec<NegativeRef>,
+    pub(super) structural_incidences: usize,
 }
 
 impl FlatSourceArena {
@@ -124,6 +132,7 @@ impl FlatSourceArena {
             negative_nodes: self.negative_nodes.len(),
             positive_children: self.positive_children.len(),
             negative_children: self.negative_children.len(),
+            structural_incidences: self.structural_incidences,
         }
     }
 
@@ -134,6 +143,7 @@ impl FlatSourceArena {
             .truncate(checkpoint.positive_children);
         self.negative_children
             .truncate(checkpoint.negative_children);
+        self.structural_incidences = checkpoint.structural_incidences;
     }
 
     fn positive_id(&self) -> Result<PositiveId, SolveAvailabilityError> {
@@ -155,6 +165,14 @@ impl FlatSourceArena {
             return Err(SolveAvailabilityError::IdentityExhausted);
         }
         let id = self.positive_id()?;
+        let incidences = checked_incidences(
+            self.structural_incidences,
+            if matches!(node, PositiveNode::Function { .. }) {
+                2
+            } else {
+                0
+            },
+        )?;
         resources.reserve(
             &mut self.positive_nodes,
             F5cWalkerLaneKind::SourcePositiveNodes,
@@ -163,6 +181,7 @@ impl FlatSourceArena {
         )?;
         meter.charge(1)?;
         self.positive_nodes.push(node);
+        self.structural_incidences = incidences;
         Ok(PositiveRef::Local(id))
     }
 
@@ -177,6 +196,14 @@ impl FlatSourceArena {
             return Err(SolveAvailabilityError::IdentityExhausted);
         }
         let id = self.negative_id()?;
+        let incidences = checked_incidences(
+            self.structural_incidences,
+            if matches!(node, NegativeNode::Function { .. }) {
+                2
+            } else {
+                0
+            },
+        )?;
         resources.reserve(
             &mut self.negative_nodes,
             F5cWalkerLaneKind::SourceNegativeNodes,
@@ -185,6 +212,7 @@ impl FlatSourceArena {
         )?;
         meter.charge(1)?;
         self.negative_nodes.push(node);
+        self.structural_incidences = incidences;
         Ok(NegativeRef::Local(id))
     }
 
@@ -197,6 +225,7 @@ impl FlatSourceArena {
     ) -> Result<PositiveRef, SolveAvailabilityError> {
         let id = self.positive_id()?;
         let span = ChildSpan::checked(self.positive_children.len(), children.len())?;
+        let incidences = checked_incidences(self.structural_incidences, children.len())?;
         resources.reserve(
             &mut self.positive_nodes,
             F5cWalkerLaneKind::SourcePositiveNodes,
@@ -217,6 +246,7 @@ impl FlatSourceArena {
         )?;
         self.positive_children.extend_from_slice(children);
         self.positive_nodes.push(PositiveNode::Union(span));
+        self.structural_incidences = incidences;
         Ok(PositiveRef::Local(id))
     }
 
@@ -229,6 +259,7 @@ impl FlatSourceArena {
     ) -> Result<NegativeRef, SolveAvailabilityError> {
         let id = self.negative_id()?;
         let span = ChildSpan::checked(self.negative_children.len(), children.len())?;
+        let incidences = checked_incidences(self.structural_incidences, children.len())?;
         resources.reserve(
             &mut self.negative_nodes,
             F5cWalkerLaneKind::SourceNegativeNodes,
@@ -249,6 +280,7 @@ impl FlatSourceArena {
         )?;
         self.negative_children.extend_from_slice(children);
         self.negative_nodes.push(NegativeNode::Intersection(span));
+        self.structural_incidences = incidences;
         Ok(NegativeRef::Local(id))
     }
 }
@@ -271,6 +303,16 @@ mod tests {
             checked_node_id(usize::MAX),
             Err(SolveAvailabilityError::IdentityExhausted)
         ));
+    }
+
+    #[test]
+    fn incidence_addition_checks_usize_boundary_without_allocating() {
+        assert_eq!(checked_incidences(usize::MAX - 2, 2).unwrap(), usize::MAX);
+        assert!(matches!(
+            checked_incidences(usize::MAX - 1, 2),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        ));
+        assert_eq!(checked_incidences(usize::MAX, 0).unwrap(), usize::MAX);
     }
 
     #[test]
@@ -329,6 +371,55 @@ mod tests {
             NegativeRef::Local(NegativeId(2))
         ));
         assert_eq!(meter.get(), 10);
+        assert_eq!(arena.structural_incidences, 8);
+    }
+
+    #[test]
+    fn repeated_children_each_contribute_an_incidence() {
+        let mut arena = FlatSourceArena::default();
+        let mut resources = F5cWalkerResources::default();
+        let meter = F5cDraftWorkMeter::default();
+        let positive = PositiveRef::Shared(F5cSummaryNodeId(1));
+        let negative = NegativeRef::Shared(F5cSummaryNodeId(2));
+        arena
+            .union(&[positive, positive], &mut resources, &meter, 0)
+            .unwrap();
+        arena
+            .intersection(&[negative, negative], &mut resources, &meter, 0)
+            .unwrap();
+        assert_eq!(arena.structural_incidences, 4);
+    }
+
+    #[test]
+    fn failed_incidence_preflight_does_not_grow_or_append_lanes() {
+        let mut arena = FlatSourceArena::default();
+        let mut resources = F5cWalkerResources::default();
+        let meter = F5cDraftWorkMeter::default();
+        arena.structural_incidences = usize::MAX;
+        let positive = PositiveRef::Shared(F5cSummaryNodeId(1));
+        assert!(matches!(
+            arena.union(&[positive], &mut resources, &meter, 0),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        ));
+        assert!(matches!(
+            arena.positive(
+                PositiveNode::Function {
+                    argument: NegativeRef::Shared(F5cSummaryNodeId(2)),
+                    argument_effect: F5cNegativeEffect::Empty,
+                    result_effect: F5cPositiveEffect::Bottom,
+                    result: positive,
+                },
+                &mut resources,
+                &meter,
+                0,
+            ),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        ));
+        assert!(arena.positive_nodes.is_empty() && arena.positive_children.is_empty());
+        assert_eq!(arena.positive_nodes.capacity(), 0);
+        assert_eq!(arena.positive_children.capacity(), 0);
+        assert_eq!(meter.get(), 0);
+        assert_eq!(arena.structural_incidences, usize::MAX);
     }
 
     #[test]
@@ -378,9 +469,11 @@ mod tests {
         arena
             .intersection(&[negative], &mut resources, &meter, 0)
             .unwrap();
+        assert_eq!(arena.structural_incidences, 2);
         arena.rollback(checkpoint);
         assert!(arena.positive_nodes.is_empty() && arena.negative_nodes.is_empty());
         assert!(arena.positive_children.is_empty() && arena.negative_children.is_empty());
+        assert_eq!(arena.structural_incidences, 0);
         assert_eq!(meter.get(), 6);
         assert!(resources.retained_bytes().unwrap() > 0);
     }
