@@ -11848,9 +11848,10 @@ impl InferenceSession {
                 .component_expansion_memo_retained_bytes = 0;
             #[cfg(test)]
             self.resource_ledger
-                .record_component_expansion_memo_with_source(
+                .record_component_expansion_memo_with_sampled_source(
                     &component_expansion_memo,
                     source_draft_bytes,
+                    sampled_source_draft_bytes,
                 )?;
             let mut normalization_stats = f5c_normalization::NormalizationStats::default();
             let normalization_result = f5c_normalization::normalize_component_with_stats(

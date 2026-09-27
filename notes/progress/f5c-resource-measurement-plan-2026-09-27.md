@@ -1,19 +1,18 @@
 # F5c candidate resource measurement plan
 
-Status: Reviewed on 2026-09-27 by `spec_auditor`, `performance_auditor`, and
-primary. The later lane-slot clarification passed a fresh exact-conformance
-review and primary review; it changes no input, record cap, or time budget. On
-2026-09-27, after the first scale command failed before producing samples, the
-user approved one additional command invocation so both planned captures can
-run once after the repair. The total command cap is three including the failed
-attempt; a second scale invocation also failed before producing samples, so two
-commands have now been used. The stop-on-further-failure rule prevents using
-the nominal third slot. The historical `Values` peak-capacity repair passed
-fresh specification and performance delta review and compile-only checks, but
-the capture campaign remains stopped. Further measurement requires approval to
-extend the total cap from three to five commands, allowing one repaired scale
-capture and one failure capture. This amendment has not been approved. The
-existing 570-second aggregate wall limit would remain in force. The plan
+Status: Original plan reviewed on 2026-09-27 by `spec_auditor`,
+`performance_auditor`, and primary. The lane-slot clarification and historical
+`Values` peak-capacity repair passed fresh review. A later repaired scale
+capture stopped on synthetic seeded-depth-64 boxed accounting with
+`IdentityExhausted`; the failure/rollback capture and any retry were stopped as
+required. The owning test-only ledger defect is now corrected and the focused
+depth-64 boxed fixture passes. On 2026-09-27, the user authorized a reasonable
+bounded continuation and confirmed both measurement extensions. This amendment
+allows one rebuilt scale recapture and one failure/rollback capture, with no
+new input dimensions or further retry. The amendment passed fresh
+`spec_auditor` and `performance_auditor` review, and primary approves it for
+execution. The current 1,010s
+combined §15+§44 ceiling and local 570s / 440s ceilings remain unchanged. It
 selects no numeric supported-input boundary and does not authorize production
 cutover or F5c acceptance.
 
@@ -142,12 +141,12 @@ benchmarks.
 - Toolchain: `rustc 1.95.0 (59807616e 2026-04-14)`, Cargo 1.95.0.
 - Build mode: Cargo's default test/debug profile, offline dependencies, one test
   thread. Clear `RUSTC_WRAPPER` so the process does not depend on sccache.
-- Rebuild the ignored test binary after the reviewed lane-size repair. The
-  original prebuild took 11.1 seconds; cap this rebuild at 160 seconds plus 10
-  seconds kill grace to preserve the aggregate campaign bound:
+- Rebuild the ignored test binary after the source-baseline fix. The prior
+  rebuilt binary took 9.69 seconds to compile; cap this rebuild at 90 seconds
+  plus 10 seconds kill grace:
 
   ```text
-  timeout --signal=TERM --kill-after=10s 160s env RUSTC_WRAPPER= cargo test -p yu-solver --lib f5c_candidate_resource_probe --offline --no-run -j 2
+  timeout --signal=TERM --kill-after=10s 90s env RUSTC_WRAPPER= cargo test -p yu-solver --lib f5c_candidate_resource_probe --offline --no-run -j 2
   ```
 
 - Capture the source/scale cases in one process:
@@ -162,30 +161,28 @@ benchmarks.
   timeout --signal=TERM --kill-after=10s 180s /usr/bin/time -v env RUSTC_WRAPPER= cargo test -p yu-solver --lib f5c_candidate_resource_probe_failures --offline -- --ignored --nocapture --test-threads=1
   ```
 
-Campaign budget: **3 capture-command invocations total** under the approved
-plan. Two scale attempts have used two invocations and failed before any F5c
-record: the first took 0.1 seconds; the second took 0.06 seconds. The original
-prebuild took 11.1 seconds and the later prebuild took 5.62 seconds. Total
-elapsed campaign command time is 16.88 seconds. The third invocation is unused
-but barred by the stop-on-further-failure rule. To collect the repaired scale
-and failure captures, a proposed extension would raise the cap to five total
-invocations and require a fresh ignored-test-binary build capped at 160 seconds
-plus 10 seconds grace, followed by two captures each capped at 180 seconds
-plus 10 seconds grace. This would total at most 566.88 seconds, within the
-existing **570-second (9 minutes 30 seconds)** aggregate wall limit. The
-extension is not authorized yet; stop at the current cap and await the user's
-decision. The proposed five invocations remain within §15's default maximum of
-eight and ten minutes. Do not add repetitions or input dimensions.
-Correctness-only tests remain outside the capture budget under
-`rules/testing.md`.
+Campaign budget: the first two scale invocations failed before any F5c record.
+After the five-command extension, a rebuild and one scale capture ran; the
+scale capture then stopped at the boxed depth-64 accounting failure. The
+campaign has used four capture/build command invocations and about 26.78
+seconds. The user authorized a bounded continuation, raising the total cap to
+seven invocations: one rebuild, one scale recapture, and one failure/rollback
+capture. The rebuild is capped at 90 seconds plus 10 seconds grace; each
+capture remains capped at 180 seconds plus 10 seconds grace. The remaining
+maximum is 480 seconds, for a campaign total of at most 506.78 seconds, within
+the unchanged **570-second (9 minutes 30 seconds)** local wall limit. Including
+the completed §44 run, the combined campaign would use at most 561.88 of 1,010
+seconds. Correctness-only tests remain outside the capture budget under
+`rules/testing.md`. Do not add repetitions or input dimensions.
 
 ## Failure handling and stop rules
 
-- The first scale attempt and its reviewed rerun both failed before any F5c
-  record. The user-approved total cap is three; two invocations were used. Stop
-  on any further failure and do not use the remaining nominal slot under this
-  plan. A repaired scale capture plus the failure capture require approval for
-  two additional invocations before either command runs.
+- The first two scale attempts failed before any F5c record. The first
+  post-repair capture stopped on boxed depth-64 with a test-only accounting
+  underflow. A focused correctness test now passes after correcting its sampled
+  source baseline. After fresh review, run only the scale recapture and the
+  failure capture after the bounded rebuild. No additional retry or input
+  dimensions are authorized.
 - Stop the campaign on any boxed/flat semantic or public-counter mismatch,
   independent-lane reconciliation failure, incomplete checkpoint sample,
   unexpected `IdentityExhausted` on the listed success cases, or missing
@@ -197,10 +194,10 @@ Correctness-only tests remain outside the capture budget under
   checkpoint and failure site. On failed reserve, record actual capacity after
   the reserve result before proceeding, then verify the retry's retained
   capacity/growth accounting.
-- If the user approves the proposed extension, each of its two captures has a
-  180-second TERM timeout plus at most 10 seconds kill grace, and the required
-  test-binary rebuild has a 160-second timeout plus 10 seconds grace. Stop if
-  any bound is exceeded or aggregate campaign wall time reaches 570 seconds.
+- Each capture has a 180-second TERM timeout plus at most 10 seconds kill
+  grace, and the required test-binary rebuild has a 90-second timeout plus 10
+  seconds grace. Stop if any bound is exceeded or the §15 local aggregate wall
+  time reaches 570 seconds; also enforce the combined 1,010-second limit.
   These bounds include timeout grace and remain within §15's ten-minute
   ceiling. Do not infer a supported boundary from the largest successful
   point.

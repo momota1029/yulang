@@ -4,6 +4,51 @@ Updated: 2026-09-27. Branch: `yulang3`; do not modify frozen `main`.
 
 Resume handoff: [`2026-09-22 F5c scheme-closure handoff`](../notes/handoffs/2026-09-22-f5c-scheme-closure-handoff.md).
 
+### Completed continuation (2026-09-27): §44 successful-path sampler-cost run
+
+The feature-gated 2,048-alias route harness completed one corrected release
+run after the first process stopped before timing on an accounting assertion.
+Across each run, 6,209 central entries reconcile to one untimed
+`InitialReservation` plus 6,208 timed `IncomingRoute` samples; semantic facts,
+provenance, routed-use records, snapshots, and uniform transitions match.
+Three paired full/bypass ratios were 0.9763, 1.0225, and 1.0472. Medians were
+8.755 ms and 8.562 ms with overlapping ranges. The performance-auditor result
+review found no detected material difference on this fixed workload; the
+aggregate-body cost remains unresolved within these bounded samples. This
+closes the successful-path sampler-cost experiment only; separate §44 per-use
+resource and rollback closure remains open.
+
+The corrected build took 13.5 seconds; the successful measurement process took
+0.103 seconds and systemd reported a 364 KiB memory peak. Including the failed
+launcher/run, the five command launches used about 55.1 seconds total and two
+benchmark-process invocations. The local cap was 440 seconds, with no retry.
+The user approved both this extension and the §15 capture extension. A fresh
+performance review and primary approval set a sequential combined ceiling of
+1,010 seconds, retaining §44's 440-second and §15's 570-second local caps.
+Numeric support-boundary selection and production cutover remain separate
+decisions.
+
+### Latest continuation (2026-09-27): corrected §15 boxed depth-64 accounting
+
+The §15 rebuild succeeded in 9.69 seconds. Its scale capture then stopped with
+`IdentityExhausted` on synthetic seeded-depth-64 boxed execution, before the
+paired flat run. Source rings through 16 members and paired flat runs at depths
+8 and 32 completed; those outputs remain partial evidence and select no
+supported boundary. A focused diagnostic located the failure in the test-only
+independent physical ledger after memo clearing: it used current source bytes as
+the previous sampled-source baseline, so a checked subtraction underflowed
+(31,928 retained minus 42,992 current source bytes). The boxed solver path had
+completed both member generalizations and production memo accounting. The
+post-clear ledger call now passes the captured `sampled_source_draft_bytes`,
+matching the neighboring accounting path. The focused depth-64 boxed fixture
+passes after the correction; one `performance_auditor` found no blocking issue
+and no added runtime work. The amended plan passed `spec_auditor` and
+`performance_auditor` review and primary approval. No measurement retry has
+run yet. It allows one scale recapture and the failure/rollback capture, with
+total cap seven commands and a remaining 480-second maximum; §15 remains within
+570 seconds and combined §15+§44 within 1,010 seconds. §15 remains incomplete;
+no numeric boundary or production cutover is selected.
+
 ### Latest continuation (2026-09-27): all-member candidate and independent physical ledger
 
 The test-only SCC candidate now builds and stages every member in dependency
@@ -61,13 +106,13 @@ specification and performance delta reviews found no remaining issue.
 
 The original prebuild took 11.1 seconds; the subsequent rebuild took 5.62
 seconds. The two failed scale commands took 0.1 and 0.06 seconds, with zero F5c
-records. The user-approved cap is three capture invocations total; two were
-used. The remaining nominal invocation is barred by the stop-on-further-failure
-rule. To collect a repaired scale capture and the failure capture, approval is
-needed to raise the cap to five total commands. With another ignored-test
-binary rebuild capped at 170 seconds and two 190-second captures, the proposed
-remaining command caps plus 16.88 seconds already spent total 566.88 seconds,
-under the unchanged 570-second aggregate limit. No further capture command ran.
+records. Two of the original three capture invocations were used; the nominal
+third remains barred by the stop-on-further-failure rule. The user approved
+raising the total cap to five, allowing a fresh test-binary build plus the
+repaired scale and failure captures. The build is capped at 160 seconds plus
+10 seconds grace and each capture at 180 seconds plus 10 seconds grace. Together
+with the 16.88 seconds already used, the campaign ceiling is 566.88 seconds,
+within the unchanged 570-second limit. No further capture command has run.
 Compile-only verification passes: `RUSTC_WRAPPER= cargo check -p yu-solver
 --tests --offline`, `cargo fmt --all -- --check`, and `git diff --check`. Numeric
 boundary approval, production cutover, §44, F5e, and overall F5c acceptance
