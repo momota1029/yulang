@@ -449,6 +449,7 @@ pub(super) enum F5cTestReserveFailure {
     BoxedReentryIndices,
     ChildrenAfterReserve,
     RootUndo,
+    ConflictJournal,
     RecursiveBoundAfterReserve,
     FlatPreparationAfterPositiveOnly,
     PartsAfterReserve(usize),
@@ -3365,6 +3366,12 @@ impl F5cComponentExpansionMemo {
     ) -> Result<(), SolveAvailabilityError> {
         self.conflict_journal.clear();
         let (journal_requested, journal_growth) = self.prepare_scratch_reserve(self.roots.len())?;
+        #[cfg(test)]
+        if self.fail_reserve_at == Some((F5cTestReserveFailure::ConflictJournal, self.roots.len()))
+        {
+            self.fail_reserve_at = None;
+            return Err(SolveAvailabilityError::IdentityExhausted);
+        }
         let old_journal_capacity = self.conflict_journal.capacity();
         let reservation = self.conflict_journal.try_reserve(self.roots.len());
         #[cfg(test)]

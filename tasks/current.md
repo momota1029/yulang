@@ -4,7 +4,30 @@ Updated: 2026-09-28. Branch: `yulang3`; do not modify frozen `main`.
 
 Resume handoff: [`2026-09-22 F5c scheme-closure handoff`](../notes/handoffs/2026-09-22-f5c-scheme-closure-handoff.md).
 
-### Latest continuation (2026-09-28): memo reverse-parent incidence preflight
+### Latest continuation (2026-09-28): journal admission and rollback witness
+
+`conflict_journal` is reserved to the live-root upper bound before traversal;
+the live-edge/roots-map invariant bounds unique journal entries by that same
+count. A test-only failure seam proves a reserve failure after an earlier
+admission restores state and permits a fresh retry. The invalidate/readmit
+abort witness now also proves rollback reinsertion fits retained `roots`
+capacity without growing it. The earlier `root_undo` mutation gap is closed:
+admission and invalidation reserve and append each undo record before any later
+fallible operation.
+
+Selected M1 with `compiler_referee`; the source audit and focused delta review
+found no issue. Checks passed: the component reserve-preparation failure and
+retry test, the same-key readmission rollback-capacity test,
+`cargo fmt --all -- --check`, and `git diff --check`. No broad suite, benchmark,
+or resource probe ran; measurement budget consumed: zero. The test seam has no
+production-path cost. No practical numeric ceiling was added.
+
+Next: record and implement the approved live intermediate graph census as the
+checked sum of all simultaneously live Normalizer node and child-ID lengths,
+accumulated across staged members until those buffers drop. Numeric-boundary
+selection, production cutover, F5e, and overall F5c acceptance remain open.
+
+### Completed continuation (2026-09-28): memo reverse-parent incidence preflight
 
 `push_node` now checks `reverse_parents.len() + child_count` before any node or
 index lane grows. The count covers each new parent-child incidence even when
@@ -19,8 +42,8 @@ helper, while the existing transaction test covers edge rollback/retry. No
 broad suite or resource probe ran; measurement budget consumed: zero. No
 practical numeric ceiling was added.
 
-Next: apply the pending definition for the live-intermediate-graph census.
-Numeric-boundary selection, production cutover, F5e, and overall F5c
+Next: record and implement the live-intermediate-graph census, as described
+above. Numeric-boundary selection, production cutover, F5e, and overall F5c
 acceptance remain open.
 
 ### Completed continuation (2026-09-28): Q/R bound-count preflight

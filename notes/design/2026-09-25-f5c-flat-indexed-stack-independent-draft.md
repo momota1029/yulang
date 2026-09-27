@@ -377,22 +377,27 @@ is intentionally narrower than full F5c/F5e closure.
 The proposed private failure invariant is that work-meter exhaustion stops
 new forward work and returns existing `IdentityExhausted` without partial
 publication. Cleanup is not interrupted by the exhausted forward meter.
-Future implementation must size-admit each undo/invalidation journal entry as
-an explicit separate dimension before its reversible mutation; final node/edge
-counts do not bound the journal. No fallible operation may separate a private
-mutation from its rollback-visible undo record. In the current source sequence,
-`memo.admit` followed by fallible `observe_walker()?` before the `admitted_keys`
-push exposes this gap. Future implementation must close it; if admission can
-partially mutate and then fail, journal enough prior state before that mutation
-to restore every failure path. A focused failure/exhaustion witness must cover
-this exact mutation-to-journal boundary. Cleanup must be bounded by admitted journal
-and memo entries, require no fallible reserve or allocation after exhaustion,
-and remain uninterruptible by the forward meter. It must restore memo
-admissions, invalidations, nodes, and edges, then return existing
-`IdentityExhausted` without a public result. Whether invalidation and
-reinsertion can restore state without allocation, and whether their capacity
-is sufficient, remain unverified. The co-resident memory peak is unmeasured;
-source proof and exhaustion witnesses remain required.
+The required size admission counts each undo/invalidation journal entry as a
+separate dimension; final node and edge counts do not bound this history.
+Admissions and invalidations now reserve a distinct `root_undo` entry before
+their reversible mutation, then publish the undo record without an intervening
+fallible operation. The earlier `memo.admit` / fallible-observation gap noted
+when this proposal was drafted is closed; the current implementation records
+`F5cRootUndo::Admit` before fallible observation.
+
+The transient `conflict_journal` is separately reserved to `roots.len()` before
+traversal. The implementation marks each live root edge at most once per epoch;
+the one-to-one live-edge/roots-map invariant bounds its appended entries by
+`roots.len()`. Transaction rollback preflights reverse replay and proves each
+intermediate live-root count fits the retained map capacity before replay. The
+replay path uses no forward-meter charge or fallible reserve, and invalidation
+reinsertion stays within that retained capacity. Focused witnesses cover
+conflict-journal reserve failure after prior admission with cleanup and retry,
+and invalidation/readmission abort with retained-capacity preservation. This
+source gate closed 2026-09-28 after focused compiler-referee review. Cleanup
+remains bounded by admitted journal and memo entries and returns the existing
+`IdentityExhausted` without a public result. The co-resident memory peak is
+unmeasured and remains a separate resource gate.
 
 The existing F5/F4 resource contracts are not removed by this draft. Every
 new or retained physical lane remains classified and counted exactly once;

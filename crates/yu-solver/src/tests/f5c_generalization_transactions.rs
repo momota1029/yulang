@@ -311,8 +311,11 @@ fn f5c_component_expansion_memo_same_key_readmission_failure_restores_prior_root
         memo.observe_walker(),
         Err(SolveAvailabilityError::IdentityExhausted)
     );
+    let retained_root_capacity = memo.roots.capacity();
+    assert!(retained_root_capacity >= 1);
     memo.finish_root_transaction(invalidation_checkpoint, false)
         .unwrap();
+    assert_eq!(memo.roots.capacity(), retained_root_capacity);
     memo.reset_active_scratch();
     memo.rollback_nodes(
         node_checkpoint,
@@ -520,6 +523,7 @@ fn f5c_component_reserve_preparation_failures_roll_back_prior_admission() {
     for point in [
         F5cTestReserveFailure::ActiveMirrors,
         F5cTestReserveFailure::RootUndo,
+        F5cTestReserveFailure::ConflictJournal,
     ] {
         let mut memo = F5cComponentExpansionMemo::default();
         let before = persistent_memo_state!(memo);
@@ -532,6 +536,7 @@ fn f5c_component_reserve_preparation_failures_roll_back_prior_admission() {
             "{point:?}"
         );
         assert_eq!(persistent_memo_state!(memo), before);
+        assert_eq!(memo.fail_reserve_at, None, "{point:?} was not reached");
         assert!(memo.root_undo.is_empty());
         assert!(memo.active_rows.is_empty() && memo.active_conflicts.is_empty());
         assert!(memo.work.is_empty() && memo.conflict_journal.is_empty());
