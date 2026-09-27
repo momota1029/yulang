@@ -289,6 +289,26 @@ fn checked_summary_node_admission(len: usize) -> Result<F5cSummaryNodeId, SolveA
     Ok(F5cSummaryNodeId(next - 1))
 }
 
+fn checked_next_root_lane_len(len: usize) -> Result<usize, SolveAvailabilityError> {
+    len.checked_add(1)
+        .ok_or(SolveAvailabilityError::IdentityExhausted)
+}
+
+#[cfg(test)]
+mod root_lane_len_tests {
+    use super::*;
+
+    #[test]
+    fn checks_post_append_usize_boundary_without_a_u32_root_limit() {
+        assert_eq!(checked_next_root_lane_len(0), Ok(1));
+        assert_eq!(checked_next_root_lane_len(usize::MAX - 1), Ok(usize::MAX));
+        assert_eq!(
+            checked_next_root_lane_len(usize::MAX),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+    }
+}
+
 #[cfg(test)]
 mod summary_node_admission_tests {
     use super::*;
@@ -2470,6 +2490,11 @@ impl F5cComponentExpansionMemo {
     }
 
     fn reserve_root_undo(&mut self) -> Result<(), SolveAvailabilityError> {
+        checked_next_root_lane_len(self.root_undo.len())?;
+        self.reserve_root_undo_prechecked()
+    }
+
+    fn reserve_root_undo_prechecked(&mut self) -> Result<(), SolveAvailabilityError> {
         #[cfg(test)]
         if self.fail_reserve_at == Some((F5cTestReserveFailure::RootUndo, self.root_undo.len())) {
             self.fail_reserve_at = None;
@@ -3774,6 +3799,15 @@ impl F5cComponentExpansionMemo {
             return Err(SolveAvailabilityError::IdentityExhausted);
         }
         self.node(root)?;
+        for len in [
+            self.roots.len(),
+            self.root_edges.len(),
+            self.root_edge_marks.len(),
+            self.active_conflicts.len(),
+            self.root_undo.len(),
+        ] {
+            checked_next_root_lane_len(len)?;
+        }
         let requested = self
             .root_lane
             .requested_slots
@@ -3829,7 +3863,7 @@ impl F5cComponentExpansionMemo {
         self.observe_physical_memo();
         self.commit_scratch_reserve(next, growth, old, self.active_conflicts.capacity())?;
         reservation.map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
-        self.reserve_root_undo()?;
+        self.reserve_root_undo_prechecked()?;
         // Re-entry, conflicted warm lookup, and Shared materialization taint
         // active frames. A completed root-neutral summary therefore has no
         // active incidence when it reaches admission.

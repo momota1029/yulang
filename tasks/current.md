@@ -4,24 +4,25 @@ Updated: 2026-09-28. Branch: `yulang3`; do not modify frozen `main`.
 
 Resume handoff: [`2026-09-22 F5c scheme-closure handoff`](../notes/handoffs/2026-09-22-f5c-scheme-closure-handoff.md).
 
-### Latest continuation (2026-09-28): raw-forest root-count preflight
+### Latest continuation (2026-09-28): memo root-lane count preflight
 
-`build_raw_forest_inner` now checks the post-append root count before growing
-the RawRoots lane for both the predicate and each lower/upper pair. The helper
-uses checked addition and the existing u32 index representation; the pair's
-lower index remains the pre-append length. Root order, accounting, reserve
-order, and rollback are unchanged. Boundary tests cover the representable
-count edge without allocating a large vector.
+Memo root admission now checks the next `usize` count for the roots map, root
+edges, edge marks, active-conflict reservation lane, and undo log before any
+lane can grow. Invalidation checks its undo append before reservation or
+mutation. Tombstoned edge/undo lengths remain separate from live roots, and no
+u32 cap was added. Reservation accounting, edge order, epochs, and rollback
+remain unchanged.
 
 Selected M1 with `spec_auditor`; the focused review found no issue. Checks
-passed: the root-count boundary, raw-forest endpoint-order, and late-failure
-rollback/retry tests (1 each), `cargo fmt --all -- --check`, and
-`git diff --check`. No broad suite or resource probe ran; measurement budget
-consumed: zero. No practical numeric ceiling or API decision was added.
+passed: the lane-count boundary, prior-admission reserve-failure, and
+admit/invalidate rollback/retry tests (1 each), `cargo fmt --all -- --check`,
+and `git diff --check`. No broad suite or resource probe ran; measurement
+budget consumed: zero. No practical numeric ceiling or API decision was
+added.
 
-Next: audit and close memo root-map/edge admissions as a separate owner, then
-normalization descriptor words and live intermediate-graph counts.
-Numeric-boundary selection, production cutover, F5e, and overall F5c
+Next: preflight normalization descriptor-word counts before descriptor
+construction, then close live intermediate-graph counts and remaining root
+owners. Numeric-boundary selection, production cutover, F5e, and overall F5c
 acceptance remain open.
 
 ### Completed continuation (2026-09-28): Q/R bound-count preflight
