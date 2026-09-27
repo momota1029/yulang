@@ -4,6 +4,33 @@ Updated: 2026-09-27. Branch: `yulang3`; do not modify frozen `main`.
 
 Resume handoff: [`2026-09-22 F5c scheme-closure handoff`](../notes/handoffs/2026-09-22-f5c-scheme-closure-handoff.md).
 
+### Latest continuation (2026-09-27): §44 closed-pure incoming-route resource/rollback gate
+
+The approved closed-pure incoming-route scope now has independent M2
+specification and performance reviews with no remaining finding. The review
+confirmed that normalized Union members are admitted under one transaction
+before publishing the canonical first-member representative; failures restore
+public and logical state, preserve physical event peaks, take exactly one
+conditional post-rollback sample, and permit a correctly linked retry. The
+focused `f5c_incoming_` filter passes (59 tests). This closes the §44 per-use
+resource/rollback gate for the approved closed-pure route scope. Live effect-row
+mutation remains outside that scope; F5e Function products, the numeric support
+boundary, production cutover, and overall F5c acceptance remain open.
+
+Read-only corpus inventory: the stable-core public-signature set has 16 cases;
+10 source files are only the literal `1`, while the six substantive programs
+include two Function-rich fixtures of 241 and 274 bytes. Their expected
+signatures contain nested Function types, but `InferenceSession` explicitly
+defers source Lambda Function facts to F5d. The current source-to-candidate
+path therefore cannot measure these as practical F5c Function workloads.
+
+Next: map this source gap against the authorized F5d interface and identify
+what can establish a practical work margin without exceeding the completed
+§15 campaign. Treat existing captures as repository-bounded evidence; do not
+derive a numeric limit from the largest passing synthetic case. Any numeric
+boundary and production cutover still need their separate reviewed proposal
+and user approval. Measurement command ceilings do not cap overall F5c work.
+
 ### Completed continuation (2026-09-27): §44 successful-path sampler-cost run
 
 The feature-gated 2,048-alias route harness completed one corrected release
@@ -15,8 +42,9 @@ Three paired full/bypass ratios were 0.9763, 1.0225, and 1.0472. Medians were
 8.755 ms and 8.562 ms with overlapping ranges. The performance-auditor result
 review found no detected material difference on this fixed workload; the
 aggregate-body cost remains unresolved within these bounded samples. This
-closes the successful-path sampler-cost experiment only; separate §44 per-use
-resource and rollback closure remains open.
+closes the successful-path sampler-cost experiment. The separate per-use
+resource/rollback gate for the approved closed-pure route scope is recorded
+above.
 
 The corrected build took 13.5 seconds; the successful measurement process took
 0.103 seconds and systemd reported a 364 KiB memory peak. Including the failed
@@ -90,8 +118,9 @@ parity. A read-only `spec_auditor` found no issue in the result. The ten-command
 campaign is complete: cumulative §15 time is about 44.81 seconds and combined
 §15+§44 about 99.91 seconds, below 570/1,010 seconds. The captured candidate
 families now have failure, retry, and reserve evidence. The numeric support
-boundary and production cutover remain open for separate review/approval; the
-§44 resource/rollback gate also remains open.
+boundary and production cutover remain open for separate review/approval. The
+§44 closed-pure per-use resource/rollback gate has since closed, as recorded
+above.
 
 ### Latest continuation (2026-09-27): all-member candidate and independent physical ledger
 

@@ -12,8 +12,9 @@ invocations are charged; cumulative §15 time is about 44.81 seconds and
 combined §15+§44 about 99.91 seconds, within the 570s and 1,010s campaign
 ceilings. No further capture is authorized under this plan. This closes the
 listed repository-candidate capture evidence only; no numeric supported-input
-boundary or production cutover is selected, and the separate §44 gate remains
-open.
+boundary or production cutover is selected. The separate §44 per-use
+resource/rollback gate for the approved closed-pure route scope has since
+closed after independent M2 review and 59 focused incoming-route tests.
 
 ## Approved ninth-command continuation and outcome (2026-09-27)
 

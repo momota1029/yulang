@@ -3448,3 +3448,32 @@ solver/draft/finalizer same-time peak. The complete independently reconstructed
 physical ledger and fresh §15 plan review remain prerequisites to probes.
 Production stays boxed; no admission boundary, numeric limit, cutover, §44,
 F5e, or overall F5c acceptance is claimed.
+
+## Latest continuation (2026-09-27): §44 closed-pure incoming-route resource/rollback
+
+The approved closed-pure incoming-route scope passed independent M2
+specification and performance review with no remaining finding. The audit
+confirmed that `route_many` admits all normalized Union members under one
+transaction before publishing the canonical first-member public fact. Failure
+restores public/logical state, preserves physical event peaks, takes exactly
+one conditional post-rollback sample after changed capacity/ownership, and
+supports a retry with the same public representative and full private relation.
+
+`RUSTC_WRAPPER= cargo test -p yu-solver --lib f5c_incoming_ --offline
+-- --test-threads=1` passes (59). This closes the §44 per-use resource/rollback
+gate for the approved closed-pure route scope. Live effect-row mutation,
+F5e Function products, the numeric support boundary, production cutover, and
+overall F5c acceptance remain open. The fixed-workload sampler-cost evidence
+remains bounded; no further measurement ran in this continuation.
+
+Read-only source inventory: the stable-core public-signature set has 16 cases;
+10 source files are the literal `1`, while six are substantive programs. Two
+Function-rich fixtures are 241 and 274 bytes and expect nested Function types.
+The current `InferenceSession` collector explicitly defers source Lambda
+Function facts to F5d, so these fixtures cannot yet measure practical F5c
+Function workloads.
+
+Next: map this gap against the authorized F5d interface and identify how to
+establish a practical work margin without repeating captures under the
+completed §15 plan. Do not choose a numeric boundary from the current
+synthetic maximum or reuse the exhausted plan.
