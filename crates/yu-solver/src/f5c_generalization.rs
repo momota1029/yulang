@@ -7,6 +7,7 @@ pub(super) struct PhysicalJoint {
     pub(super) memo_current: u128,
     pub(super) walker_current: u128,
     pub(super) source_current: u128,
+    pub(super) staged_source_current: u128,
     pub(super) peak: u128,
     pub(super) aggregate_overflow: bool,
 }
@@ -20,6 +21,7 @@ impl Default for PhysicalJoint {
             memo_current: 0,
             walker_current: 0,
             source_current: 0,
+            staged_source_current: 0,
             peak: 0,
             aggregate_overflow: false,
         }
@@ -52,7 +54,8 @@ impl PhysicalJoint {
     fn pair(&mut self) {
         let Some(total) = self
             .source_current
-            .checked_add(self.memo_current)
+            .checked_add(self.staged_source_current)
+            .and_then(|sum| sum.checked_add(self.memo_current))
             .and_then(|sum| sum.checked_add(self.walker_current))
         else {
             self.aggregate_overflow = true;
@@ -3659,6 +3662,7 @@ impl F5cComponentExpansionMemo {
         {
             let joint = &mut self.walker_resources.physical_joint;
             joint.source_capacities = prior_joint.source_capacities;
+            joint.staged_source_current = prior_joint.staged_source_current;
             joint.peak = prior_joint.peak;
             joint.aggregate_overflow = prior_joint.aggregate_overflow;
             joint.source_event();
@@ -3937,6 +3941,13 @@ pub(super) struct F5cRawForest {
 pub(super) struct F5cNormalizedCandidate {
     pub(super) draft: f5c_draft::FlatDraft,
     pub(super) stats: f5c_normalization::FlatNormalizationStats,
+}
+
+/// An SCC-owned candidate. Field order drops every array before its charge.
+#[allow(dead_code)]
+pub(super) struct F5cStagedCandidate<'meter> {
+    pub(super) candidate: F5cNormalizedCandidate,
+    _allocations: [TrackedAllocation<'meter>; 6],
 }
 
 trait F5cRCandidateSource<'meter> {
@@ -7389,6 +7400,7 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
             )?;
             f5c_normalization::normalize_flat_metered(
                 &mut self.memo,
+                self.source_meter,
                 &output,
                 #[cfg(test)]
                 fail_during_normalization,
@@ -7477,6 +7489,133 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
         drop(candidate);
         self.release_normalized_candidate_lanes();
         self.normalized_candidate_live = false;
+    }
+
+    /// The SCC owner reserves its member slot before this transfer. No vector
+    /// buffer is copied or grown here, and the emitted requests stay unchanged.
+    #[allow(dead_code)]
+    pub(super) fn stage_normalized_candidate(
+        &mut self,
+        staged: &mut TrackedVec<'meter, F5cStagedCandidate<'meter>>,
+        candidate: F5cNormalizedCandidate,
+    ) -> Result<(), SolveAvailabilityError> {
+        self.stage_normalized_candidate_inner(staged, candidate, false, false)
+    }
+
+    #[cfg(test)]
+    pub(super) fn stage_normalized_candidate_with_failure(
+        &mut self,
+        staged: &mut TrackedVec<'meter, F5cStagedCandidate<'meter>>,
+        candidate: F5cNormalizedCandidate,
+        fail_preflight: bool,
+        fail_observe: bool,
+    ) -> Result<(), SolveAvailabilityError> {
+        self.stage_normalized_candidate_inner(staged, candidate, fail_preflight, fail_observe)
+    }
+
+    #[cfg(test)]
+    pub(super) fn observe_staged_physical_source(&mut self, bytes: u128) {
+        let joint = &mut self.memo.walker_resources.physical_joint;
+        joint.staged_source_current = joint.staged_source_current.min(bytes);
+        self.memo.observe_physical_memo();
+        self.memo.walker_resources.observe_physical_walker();
+        let joint = &mut self.memo.walker_resources.physical_joint;
+        let prior_peak = joint.peak;
+        joint.staged_source_current = bytes;
+        joint.pair();
+        assert_eq!(
+            joint.peak,
+            prior_peak
+                .max(joint.source_current + bytes + joint.memo_current + joint.walker_current)
+        );
+    }
+
+    fn stage_normalized_candidate_inner(
+        &mut self,
+        staged: &mut TrackedVec<'meter, F5cStagedCandidate<'meter>>,
+        candidate: F5cNormalizedCandidate,
+        fail_preflight: bool,
+        fail_observe: bool,
+    ) -> Result<(), SolveAvailabilityError> {
+        if !self.normalized_candidate_live || staged.len() == staged.capacity() {
+            self.release_normalized_candidate(candidate);
+            return Err(SolveAvailabilityError::IdentityExhausted);
+        }
+        let draft = &candidate.draft;
+        let capacities = [
+            draft.positive_nodes.capacity(),
+            draft.negative_nodes.capacity(),
+            draft.positive_children.capacity(),
+            draft.negative_children.capacity(),
+            draft.recursive_bounds.capacity(),
+            draft.insertion_order.capacity(),
+        ];
+        let kinds = [
+            F5cWalkerLaneKind::NormalizedPositiveNodes,
+            F5cWalkerLaneKind::NormalizedNegativeNodes,
+            F5cWalkerLaneKind::NormalizedPositiveChildren,
+            F5cWalkerLaneKind::NormalizedNegativeChildren,
+            F5cWalkerLaneKind::NormalizedRecursiveBounds,
+            F5cWalkerLaneKind::NormalizedInsertionOrder,
+        ];
+        let mut bytes = [0; 6];
+        for i in 0..6 {
+            if self.memo.walker_resources.lanes[kinds[i] as usize].actual_capacity != capacities[i]
+            {
+                self.release_normalized_candidate(candidate);
+                return Err(SolveAvailabilityError::IdentityExhausted);
+            }
+            let Some(size) = capacities[i].checked_mul(kinds[i].slot_size()) else {
+                self.release_normalized_candidate(candidate);
+                return Err(SolveAvailabilityError::IdentityExhausted);
+            };
+            bytes[i] = size;
+        }
+        let total = bytes
+            .iter()
+            .try_fold(0usize, |sum, byte| sum.checked_add(*byte));
+        let future_external = self.memo.retained_bytes().and_then(|memo| {
+            self.memo
+                .walker_resources
+                .retained_bytes()?
+                .checked_sub(total.ok_or(SolveAvailabilityError::IdentityExhausted)?)
+                .and_then(|walker| walker.checked_add(memo))
+                .ok_or(SolveAvailabilityError::IdentityExhausted)
+        });
+        let Ok(future_external) = future_external else {
+            self.release_normalized_candidate(candidate);
+            return Err(SolveAvailabilityError::IdentityExhausted);
+        };
+        if fail_preflight {
+            self.release_normalized_candidate(candidate);
+            return Err(SolveAvailabilityError::IdentityExhausted);
+        }
+        let allocations = match self
+            .source_meter
+            .claim_existing_batch(bytes, future_external)
+        {
+            Ok(allocations) => allocations,
+            Err(()) => {
+                self.release_normalized_candidate(candidate);
+                return Err(SolveAvailabilityError::IdentityExhausted);
+            }
+        };
+        self.release_normalized_candidate_lanes();
+        self.normalized_candidate_live = false;
+        staged.push_reserved(F5cStagedCandidate {
+            candidate,
+            _allocations: allocations,
+        });
+        let observation = if fail_observe {
+            Err(SolveAvailabilityError::IdentityExhausted)
+        } else {
+            self.memo.observe_source_meter(self.source_meter)
+        };
+        if let Err(error) = observation {
+            drop(staged.pop());
+            return Err(error);
+        }
+        Ok(())
     }
 
     #[cfg(test)]

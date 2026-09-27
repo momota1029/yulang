@@ -4,6 +4,38 @@ Updated: 2026-09-27. Branch: `yulang3`; do not modify frozen `main`.
 
 Resume handoff: [`2026-09-22 F5c scheme-closure handoff`](../notes/handoffs/2026-09-22-f5c-scheme-closure-handoff.md).
 
+### Latest continuation (2026-09-27): normalized candidate ownership transfer
+
+The private normalized FlatDraft candidate now transfers its six output buffers
+without copying into a pre-reserved SCC staging vector. The source meter takes
+over those actual capacities before the normalized walker lanes release them;
+normalization peak observations include already staged candidates alongside
+memo and walker storage. The candidate remains unselected and no `yu-types`
+finalizer call was added.
+
+Failure witnesses cover preflight rejection and an injected error after the
+transfer, then verify candidate cleanup, unchanged lane requests, the baseline
+source charge, and a successful retry. The independent test ledger enumerates
+the staged vector capacity and all six vector capacities for each staged
+candidate, then reconciles exact source, memo, walker, and same-time peak
+values across two successful stages and cleanup. M2 spec and performance
+findings are closed, including preserving `IdentityExhausted` when normalization
+never recorded a peak.
+
+Checks passed: `RUSTC_WRAPPER= cargo test -p yu-solver --lib
+staged_flat_candidate --offline -- --test-threads=1` (2),
+`RUSTC_WRAPPER= cargo check -p yu-solver --lib --offline`,
+`cargo fmt --all -- --check`, and `git diff --check`. No broad suite,
+resource/scale/capacity probe, benchmark, or timing measurement ran;
+measurement budget remains zero.
+
+Next integrate checked private FlatDraft-to-indexed-finalizer conversion and
+the independent all-drafts solver/finalizer ledger. Keep all-member staging and
+the candidate unselected; review a fresh §15 plan before any resource, scale,
+or capacity probe. Numeric boundary approval, production cutover, §44, F5e, and
+overall F5c acceptance remain open. F5b §6 callback-contract changes remain a
+separate user-approval boundary.
+
 ### Latest continuation (2026-09-27): test-only helper warning cleanup
 
 The uncalled non-test `F5cComponentExpansionMemo::positive_node` and

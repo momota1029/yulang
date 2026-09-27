@@ -48,6 +48,42 @@ impl Default for MeterState {
 pub(super) struct DraftHeapMeter(MeterState);
 
 impl DraftHeapMeter {
+    /// Claim already allocated buffers as one checked transfer. The caller
+    /// releases their former ledger lanes before the next observation.
+    pub(super) fn claim_existing_batch<'meter>(
+        &'meter self,
+        bytes: [usize; 6],
+        future_external: usize,
+    ) -> Result<[TrackedAllocation<'meter>; 6], ()> {
+        let added = bytes
+            .iter()
+            .try_fold(0usize, |sum, byte| sum.checked_add(*byte))
+            .ok_or(())?;
+        let next = self
+            .current_bytes()
+            .ok_or(())?
+            .checked_add(added)
+            .ok_or(())?;
+        if self.0.component_external.get().is_some() {
+            next.checked_add(future_external).ok_or(())?;
+        }
+        self.0.current.set(Some(next));
+        #[cfg(test)]
+        {
+            self.0.physical_current.set(
+                self.0
+                    .physical_current
+                    .get()
+                    .and_then(|n| n.checked_add(added)),
+            );
+        }
+        Ok(bytes.map(|byte| {
+            TrackedAllocation(AllocationToken {
+                meter: self,
+                bytes: byte,
+            })
+        }))
+    }
     pub(super) fn begin_component(&self) -> Result<(), ()> {
         let current = self.current_bytes().ok_or(())?;
         self.0.component_external.set(Some(0));

@@ -1396,6 +1396,147 @@ fn staged_flat_candidate_rejects_second_live_publication_and_retries() {
 }
 
 #[test]
+fn staged_flat_candidates_transfer_six_buffers_and_retry() {
+    use crate::f5c_generalization::F5cStagedCandidate;
+    fn vector_bytes<T>(values: &Vec<T>) -> u128 {
+        values.capacity() as u128 * std::mem::size_of::<T>() as u128
+    }
+    fn physical_snapshot(
+        generalizer: &mut F5cGeneralizer<'_, '_>,
+        staged: &TrackedVec<'_, F5cStagedCandidate<'_>>,
+        source_meter: &DraftHeapMeter,
+    ) -> u128 {
+        let source = staged.capacity() as u128
+            * std::mem::size_of::<F5cStagedCandidate<'_>>() as u128
+            + staged.iter().fold(0, |sum, member| {
+                let draft = &member.candidate.draft;
+                sum + vector_bytes(&draft.positive_nodes)
+                    + vector_bytes(&draft.negative_nodes)
+                    + vector_bytes(&draft.positive_children)
+                    + vector_bytes(&draft.negative_children)
+                    + vector_bytes(&draft.recursive_bounds)
+                    + vector_bytes(&draft.insertion_order)
+            });
+        assert_eq!(source_meter.current_bytes(), Some(source as usize));
+        generalizer.observe_staged_physical_source(source);
+        let joint = &generalizer.memo.walker_resources.physical_joint;
+        assert!(!joint.aggregate_overflow);
+        assert_eq!(joint.staged_source_current, source);
+        assert_eq!(joint.source_current, 0);
+        assert_eq!(
+            joint.memo_current as usize,
+            generalizer.memo.retained_bytes().unwrap()
+        );
+        assert_eq!(
+            joint.walker_current as usize,
+            generalizer.memo.walker_resources.retained_bytes().unwrap()
+        );
+        let total = source + joint.memo_current + joint.walker_current;
+        assert!(joint.peak >= total);
+        total
+    }
+    let source_meter = DraftHeapMeter::default();
+    let batch = collect(module("my f = 1", "f5c-flat-two-staged"));
+    let mut session = InferenceSession::new(batch);
+    let root = session.fresh_value_at_level(1).unwrap();
+    session.bounds[root as usize]
+        .exact_non_variable_lowers
+        .push(ValueEndpointKey::IntPositive);
+    let mut staged = TrackedVec::new(&source_meter);
+    staged.try_reserve(2).unwrap();
+    let baseline = source_meter.current_bytes().unwrap();
+    let mut generalizer = F5cGeneralizer::with_source_meter(&session, &source_meter);
+    physical_snapshot(&mut generalizer, &staged, &source_meter);
+    let kinds = [
+        F5cWalkerLaneKind::NormalizedPositiveNodes,
+        F5cWalkerLaneKind::NormalizedNegativeNodes,
+        F5cWalkerLaneKind::NormalizedPositiveChildren,
+        F5cWalkerLaneKind::NormalizedNegativeChildren,
+        F5cWalkerLaneKind::NormalizedRecursiveBounds,
+        F5cWalkerLaneKind::NormalizedInsertionOrder,
+    ];
+    let mut sizes = [0; 2];
+    for (fail_preflight, fail_observe) in [(true, false), (false, true)] {
+        let candidate = generalizer.build_flat_candidate(root, false).unwrap();
+        let before_requests = kinds
+            .map(|kind| generalizer.memo.walker_resources.lanes[kind as usize].requested_slots);
+        assert_eq!(
+            generalizer.stage_normalized_candidate_with_failure(
+                &mut staged,
+                candidate,
+                fail_preflight,
+                fail_observe,
+            ),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+        assert!(staged.is_empty());
+        assert_eq!(source_meter.current_bytes(), Some(baseline));
+        physical_snapshot(&mut generalizer, &staged, &source_meter);
+        for (kind, requested) in kinds.iter().zip(before_requests) {
+            let lane = &generalizer.memo.walker_resources.lanes[*kind as usize];
+            assert_eq!(lane.actual_capacity, 0);
+            assert_eq!(lane.requested_slots, requested);
+        }
+    }
+    for slot in 0..2 {
+        let candidate = generalizer.build_flat_candidate(root, false).unwrap();
+        physical_snapshot(&mut generalizer, &staged, &source_meter);
+        let before_requests = kinds
+            .map(|kind| generalizer.memo.walker_resources.lanes[kind as usize].requested_slots);
+        let bytes = kinds
+            .iter()
+            .map(|kind| {
+                let lane = &generalizer.memo.walker_resources.lanes[*kind as usize];
+                lane.actual_capacity * kind.slot_size()
+            })
+            .sum::<usize>();
+        sizes[slot] = bytes;
+        let before = &generalizer.memo.walker_resources.physical_joint;
+        assert!(!before.aggregate_overflow);
+        assert_eq!(
+            before.walker_current as usize,
+            generalizer.memo.walker_resources.retained_bytes().unwrap()
+        );
+        let walker_before = before.walker_current;
+        generalizer
+            .stage_normalized_candidate(&mut staged, candidate)
+            .unwrap();
+        assert_eq!(
+            source_meter.current_bytes().unwrap(),
+            baseline + sizes[..=slot].iter().sum::<usize>()
+        );
+        for (kind, requested) in kinds.iter().zip(before_requests) {
+            let lane = &generalizer.memo.walker_resources.lanes[*kind as usize];
+            assert_eq!(lane.actual_capacity, 0);
+            assert_eq!(lane.requested_slots, requested);
+        }
+        assert_eq!(staged.len(), slot + 1);
+        physical_snapshot(&mut generalizer, &staged, &source_meter);
+        let after = &generalizer.memo.walker_resources.physical_joint;
+        assert!(!after.aggregate_overflow);
+        assert_eq!(
+            after.walker_current as usize,
+            generalizer.memo.walker_resources.retained_bytes().unwrap()
+        );
+        assert_eq!(
+            walker_before as usize - after.walker_current as usize,
+            bytes
+        );
+        assert_eq!(
+            staged[slot].candidate.draft.predicate,
+            Some(crate::f5c_draft::PositiveId(0))
+        );
+    }
+    staged.clear();
+    assert_eq!(source_meter.current_bytes(), Some(baseline));
+    physical_snapshot(&mut generalizer, &staged, &source_meter);
+    let retry = generalizer.build_flat_candidate(root, false).unwrap();
+    physical_snapshot(&mut generalizer, &staged, &source_meter);
+    generalizer.release_normalized_candidate(retry);
+    physical_snapshot(&mut generalizer, &staged, &source_meter);
+}
+
+#[test]
 fn flat_candidate_entrypoint_late_r_q_failure_releases_transient_lanes() {
     let source_meter = DraftHeapMeter::default();
     let batch = collect(module("my f = 1", "f5c-flat-entrypoint-rollback"));

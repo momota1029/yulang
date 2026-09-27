@@ -621,6 +621,30 @@ and `negative_node` warnings. A separate M0 cleanup now gates those wrappers
 under `cfg(test)`; library and test-target checks pass without warnings. No
 broad suite, resource/scale/capacity probe, benchmark, or timing measurement ran.
 
+### SCC candidate staging ownership transfer (2026-09-27)
+
+The six normalized output buffers now move into a pre-reserved SCC staging
+vector without a buffer copy. A batch capacity claim transfers ownership from
+the normalized walker lanes into the source meter; lane request counters stay
+unchanged. Normalization peak accounting includes current source bytes so
+previously staged candidates remain live beside memo and walker scratch on
+later members. The candidate remains private, unselected, and disconnected from
+the indexed `yu-types` finalizer.
+
+Focused tests cover two successful transfers, preflight rejection, injected
+post-transfer observation failure, cleanup, and warm retry. The independent
+cfg(test) physical ledger enumerates the staged vector's actual capacity and
+each staged candidate's six actual array capacities, then checks exact
+same-time source, memo, and walker totals and the peak transition through
+staging and cleanup. M2 spec and performance findings were repaired; the
+final spec delta review found the physical-ledger evidence sufficient. The
+normalizer also preserves `IdentityExhausted` when peak refresh fails before a
+peak is recorded, without subtraction panic.
+
+Checks pass: the `staged_flat_candidate` filter (2), non-test `yu-solver`
+check, formatting, and diff checks. No broad suite or resource/scale/capacity
+probe ran; measurement budget remains zero.
+
 Next: integrate a checked solver-owned FlatDraft conversion with the existing
 indexed `yu-types` finalizer and complete the independent all-drafts,
 solver/finalizer same-time physical ledger. Preserve all-member staging and

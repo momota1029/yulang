@@ -162,6 +162,7 @@ struct FlatCandidateCapacity {
     work: super::f5c_generalization::F5cDraftWorkMeter,
     base_memo_bytes: usize,
     base_walker_bytes: usize,
+    source_bytes: usize,
     capacities: [usize; LANE_COUNT + 14],
     sizes: [usize; LANE_COUNT + 14],
     lane_observations: [usize; LANE_COUNT + 14],
@@ -204,7 +205,9 @@ impl FlatCandidateCapacity {
             .ok_or(SolveAvailabilityError::IdentityExhausted)?;
         self.peak_walker_bytes = self.peak_walker_bytes.max(walker);
         self.peak_total_bytes = self.peak_total_bytes.max(
-            self.base_memo_bytes
+            self.source_bytes
+                .checked_add(self.base_memo_bytes)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?
                 .checked_add(walker)
                 .ok_or(SolveAvailabilityError::IdentityExhausted)?,
         );
@@ -228,6 +231,7 @@ impl PartialEq for FlatCandidateObserver {
             && self.0.lane_peaks == other.0.lane_peaks
             && self.0.peak_walker_bytes == other.0.peak_walker_bytes
             && self.0.peak_total_bytes == other.0.peak_total_bytes
+            && self.0.source_bytes == other.0.source_bytes
             && self.0.work.get() == other.0.work.get()
     }
 }
@@ -2067,6 +2071,7 @@ pub(super) fn normalize_flat(
 
 pub(super) fn normalize_flat_metered(
     memo: &mut super::F5cComponentExpansionMemo,
+    source_meter: &DraftHeapMeter,
     input: &FlatDraft,
     #[cfg(test)] fail_after_selection_work: bool,
 ) -> Result<(FlatDraft, FlatNormalizationStats), SolveAvailabilityError> {
@@ -2074,6 +2079,9 @@ pub(super) fn normalize_flat_metered(
         work: memo.work_meter.clone(),
         base_memo_bytes: memo.retained_bytes()?,
         base_walker_bytes: memo.walker_resources.retained_bytes()?,
+        source_bytes: source_meter
+            .current_bytes()
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?,
         capacities: [0; LANE_COUNT + 14],
         sizes: [0; LANE_COUNT + 14],
         lane_observations: [0; LANE_COUNT + 14],
@@ -2129,6 +2137,10 @@ pub(super) fn normalize_flat_metered(
     memo.walker_resources.simultaneous_memo_peak_bytes = memo
         .walker_resources
         .simultaneous_memo_peak_bytes
+        .max(state.peak_total_bytes.saturating_sub(state.source_bytes));
+    memo.walker_resources.simultaneous_source_memo_peak_bytes = memo
+        .walker_resources
+        .simultaneous_source_memo_peak_bytes
         .max(state.peak_total_bytes);
     memo.walker_resources.flat_candidate_lanes = merged_lanes;
     result
@@ -3199,6 +3211,7 @@ mod tests {
             work: Default::default(),
             base_memo_bytes: 0,
             base_walker_bytes: 0,
+            source_bytes: 0,
             capacities: std::array::from_fn(
                 |index| if index == lane { items.capacity() } else { 0 },
             ),
@@ -3259,6 +3272,7 @@ mod tests {
                 work: Default::default(),
                 base_memo_bytes: 0,
                 base_walker_bytes: 0,
+                source_bytes: 0,
                 capacities: std::array::from_fn(
                     |index| {
                         if index == lane { old_capacity } else { 0 }
