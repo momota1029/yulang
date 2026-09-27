@@ -72,11 +72,19 @@ zero, and preserves historical requests, growths, and peaks. A focused
 no-capture regression compares the full transactional counter snapshot while
 allowing only those documented historical fields, and verifies all five
 independent memo lanes have zero current capacity with history retained. The
-focused test and formatting checks pass. No ignored capture was rerun because
-the eight-command plan is exhausted; any further capture needs a fresh reviewed
-plan. The `performance_auditor`'s written justification and primary approval
-authorize exactly one ninth failure/rollback/retry capture. It has not run yet.
-§15 remains incomplete; no numeric boundary or production cutover is selected.
+focused test and formatting checks pass. The approved ninth capture emitted
+post-transfer and batch-normalization failure/retry records, then stopped at
+`bounded reserve retry: IdentityExhausted` before any reserve sample. It took
+3.17 seconds and peaked at 559,212 KiB RSS. The probe's nonempty Vec began with
+capacity missing from its default ledger; the test helper now creates and
+checks its initial capacity through tracked reserve. `spec_auditor` closed the
+baseline-witness finding, and `cargo check -p yu-solver --tests --offline -j 2`
+plus formatting pass. The repair has not been exercised at runtime. Nine of
+nine approved commands are consumed; cumulative §15 time is about 40.80
+seconds and combined §15+§44 about 95.90 seconds. Fresh performance review
+provided written justification and primary approval for exactly one tenth
+failure/rollback/retry capture. It has not run yet. §15 remains incomplete; no
+numeric boundary or production cutover is selected.
 
 ### Latest continuation (2026-09-27): all-member candidate and independent physical ledger
 

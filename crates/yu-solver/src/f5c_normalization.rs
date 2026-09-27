@@ -197,8 +197,20 @@ pub(super) fn failed_reserve_retry_probe() -> (Vec<(NormalizationLaneStats, usiz
         .expect("reserve probe history allocation");
     let capacity_bytes =
         records.capacity() * std::mem::size_of::<(NormalizationLaneStats, usize, usize)>();
-    let mut items = vec![1u8];
+    let mut items = Vec::new();
     let mut stats = NormalizationStats::default();
+    Normalizer::reserve(&mut items, 1, Lane::Nodes, &mut stats, None)
+        .expect("initial tracked reserve");
+    items.push(1u8);
+    let baseline_capacity = items.capacity();
+    let baseline_bytes = baseline_capacity * std::mem::size_of::<u8>();
+    let baseline_lane = stats.index_lanes[Lane::Nodes as usize];
+    assert_eq!(baseline_lane.actual_capacity, baseline_capacity);
+    assert_eq!(baseline_lane.retained_bytes, baseline_bytes);
+    assert_eq!(stats.index_actual_capacity, baseline_capacity);
+    assert_eq!(stats.index_retained_bytes, baseline_bytes);
+    assert_eq!(stats.index_requested_slots, baseline_lane.requested_slots);
+    let baseline_growths = stats.index_capacity_growths;
     let failed = Normalizer::reserve(
         &mut items,
         isize::MAX as usize,
@@ -210,11 +222,21 @@ pub(super) fn failed_reserve_retry_probe() -> (Vec<(NormalizationLaneStats, usiz
     assert!(records.len() < 2 && records.len() < records.capacity());
     let failed_capacity = items.capacity();
     let failed_bytes = failed_capacity * std::mem::size_of::<u8>();
-    records.push((
-        stats.index_lanes[Lane::Nodes as usize],
-        failed_capacity,
-        failed_bytes,
-    ));
+    let failed_lane = stats.index_lanes[Lane::Nodes as usize];
+    assert_eq!(failed_capacity, baseline_capacity);
+    assert_eq!(failed_bytes, baseline_bytes);
+    assert_eq!(failed_lane.actual_capacity, failed_capacity);
+    assert_eq!(failed_lane.retained_bytes, failed_bytes);
+    assert_eq!(stats.index_actual_capacity, failed_capacity);
+    assert_eq!(stats.index_retained_bytes, failed_bytes);
+    assert_eq!(
+        failed_lane.requested_slots,
+        baseline_lane.requested_slots + isize::MAX as usize
+    );
+    assert_eq!(stats.index_requested_slots, failed_lane.requested_slots);
+    assert_eq!(failed_lane.capacity_growths, baseline_lane.capacity_growths);
+    assert_eq!(stats.index_capacity_growths, baseline_growths);
+    records.push((failed_lane, failed_capacity, failed_bytes));
     let before = items.capacity();
     assert!(before < 1024);
     Normalizer::reserve(&mut items, before + 1, Lane::Nodes, &mut stats, None)
@@ -223,11 +245,14 @@ pub(super) fn failed_reserve_retry_probe() -> (Vec<(NormalizationLaneStats, usiz
     assert!(records.len() < 2 && records.len() < records.capacity());
     let retry_capacity = items.capacity();
     let retry_bytes = retry_capacity * std::mem::size_of::<u8>();
-    records.push((
-        stats.index_lanes[Lane::Nodes as usize],
-        retry_capacity,
-        retry_bytes,
-    ));
+    let retry_lane = stats.index_lanes[Lane::Nodes as usize];
+    assert_eq!(retry_lane.actual_capacity, retry_capacity);
+    assert_eq!(retry_lane.retained_bytes, retry_bytes);
+    assert_eq!(stats.index_actual_capacity, retry_capacity);
+    assert_eq!(stats.index_retained_bytes, retry_bytes);
+    assert!(retry_lane.capacity_growths > failed_lane.capacity_growths);
+    assert!(stats.index_capacity_growths > baseline_growths);
+    records.push((retry_lane, retry_capacity, retry_bytes));
     (records, capacity_bytes)
 }
 
