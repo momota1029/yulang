@@ -4,7 +4,28 @@ Updated: 2026-09-28. Branch: `yulang3`; do not modify frozen `main`.
 
 Resume handoff: [`2026-09-22 F5c scheme-closure handoff`](../notes/handoffs/2026-09-22-f5c-scheme-closure-handoff.md).
 
-### Latest continuation (2026-09-28): no-cap resource-policy design reviewed
+### Latest continuation (2026-09-28): no-cap scale plan reviewed
+
+The fresh §26/§34 plan is
+[`F5c no-cap scale measurement plan`](../notes/progress/f5c-no-cap-scale-measurement-plan-2026-09-28.md).
+It maps the §26 shared-graph family to `shared_acyclic`, covers all seven §34
+builders and each named dimension, and specifies exact counters, independent
+per-lane observations, adjacent ratios, companions, stop rules, and an 8 GiB
+host-availability floor. Independent spec and performance reviews, including
+targeted deltas, closed without findings. The performance auditor supplied a
+written justification for the required larger budget.
+
+No probe or test has run for this plan. Before any process, the full campaign
+needs explicit user approval: one 32-size preflight, then 36 isolated
+1k/2k/4k cases only if the preflight passes. The total is 37 processes and 43
+minutes of nominal timeout budget, plus at most one 10-second kill grace.
+Primary and reviewer approvals are recorded; the matrix remains conditional
+on successful reviewed preflight. The prior §15 plans remain exhausted.
+
+Next: approve the exact reviewed 37-process campaign. If approved, run the
+preflight first; only then can the scale matrix proceed.
+
+### Completed continuation (2026-09-28): no-cap resource-policy design approved
 
 The user selected removal of F5c numeric input-size and charged-work caps, no
 fixed compiler runtime cutoff, and a polynomial-in-compressed-source goal for
@@ -29,9 +50,8 @@ on 2026-09-28, so the addendum is now `Authoritative`. Keep the flat candidate
 non-shipping and production on the boxed route until the separate production
 gate and approval. F5e remains separate.
 
-Next: prepare and review the fresh bounded measurement plan required by
-`rules/performance.md`; reconcile the mandatory §26 scale runs with its process
-and wall-time budget before running any measurements.
+At that checkpoint, the next step was to prepare and review the fresh bounded
+measurement plan recorded above.
 
 ### Latest continuation (2026-09-28): Function-rich source eligibility audit
 
