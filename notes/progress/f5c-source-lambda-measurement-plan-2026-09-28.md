@@ -1,13 +1,11 @@
 # F5c source Lambda candidate measurement plan
 
-Status: Reviewed and authorized by the primary on 2026-09-28 for exactly one
-dedicated capture process. Harness eligibility checks, the named non-capture
-correctness test, and focused M2 code review are complete; accepted review
-findings were repaired and both specification/performance deltas closed with
-no open issue. The capture command is now ready but has not run. The earlier
-§15 campaign remains complete and closed under its own plan; this is a fresh
-campaign for source Lambda/Function inputs connected by the F5d source recipe
-gate.
+Status: The reviewed one-process source-Lambda capture completed on 2026-09-28.
+Harness eligibility checks, the named non-capture correctness test, focused M2
+code review, and a bounded result review by `performance_auditor` are complete.
+The earlier §15 campaign remains complete and closed under its own plan; this
+fresh campaign measured the source Lambda/Function inputs connected by the
+F5d source recipe gate.
 
 ## Decision and scope
 
@@ -129,11 +127,43 @@ mismatch, scheme/counter mismatch, failed physical reconciliation, missing or
 mislabelled failure sample, capture-limit/reservation failure, unexpected
 diagnostic, or timeout. Preserve partial output and mark the campaign
 incomplete; do not rerun or add an input dimension without a newly reviewed
-plan. The plan review gate is closed, but the capture command remains gated on
-implementing and reviewing its harness prerequisites.
+plan. The reviewed command ran once and passed; the one-process allowance for
+this plan is consumed.
 
 Authority: `notes/design/2026-09-25-f5c-flat-indexed-stack-independent-draft.md`
 §15; the F5d source recipe and Lambda tests in `crates/yu-solver/src/lib.rs`;
 `notes/progress/f5c-resource-measurement-plan-2026-09-27.md` (closed prior
 campaign); `rules/performance.md`; and the prior 2026-09-28 M2 review record
 for the test-only `yu-types` lane-event snapshot.
+
+## Capture result (2026-09-28)
+
+The exact filtered command above passed one ignored capture test (408 other
+tests filtered). Cargo reported 0.73 seconds for the test; `/usr/bin/time`
+reported 1.04 seconds elapsed and 35,396 KiB maximum RSS for the whole process,
+including build and boxed/flat parity work. The log is
+`/tmp/yulang-f5c-source-functions-20260928.log`.
+
+All eight successful source inputs matched boxed/flat schemes and all four
+normalization counters. Ten flat captures emitted 133 rows: the eight
+successful sessions emitted 5, 5, 10, 5, 8, 14, 26, and 50 rows; the injected
+two-member ring failure emitted one `SourceDrafts` sample and one separate
+`batch_normalization` event; its fresh retry emitted 8 rows. All rows included
+the five memo lanes, 98 walker lanes, 27 physical indexed lanes, and the
+separate zero placeholder. The failure assertions confirmed counter rollback,
+released memo current capacity, and preserved per-lane high-water peaks; retry
+parity passed.
+
+For the recursive Function rings, source bytes, solve-wide F5c draft work, and
+maximum session peak were: N=2: 26 bytes, 3,031 work, 44,116 bytes; N=4: 54,
+9,256, 75,736; N=8: 110, 35,245, 160,752; N=16: 234, 149,517, 410,656. Work
+grew about 4.24× when the member count doubled from 8 to 16. This is
+repository-bounded scale evidence; it leaves the complexity margin unresolved
+and does not select a numeric supported-input boundary or production cutover.
+The 16-member session used 50 of the 64 reserved capture records. Each capture
+session reserved 430,592 bytes for those records, plus 5,144 inline bytes. Its
+largest boundary-order, boundary-sample, normalizer-physical-sample, and
+member-output-sample capacities were 98, 40,960, 1,456, and 816 bytes. The
+boxed parity result capacity was 16,824 bytes. Performance review found no
+missing planned sample or physical reconciliation issue. One measurement
+process is charged to this fresh plan; no retry or extra dimension ran.

@@ -44,17 +44,30 @@ failure rollback evidence; performance review found missing lane high-water
 reconciliation and diagnostic-memory reporting. One batched repair closed
 these findings, and both focused delta reviews found no remaining issue. The
 named correctness test (1), test-target check, formatting, and diff checks
-pass. No ignored capture, broad suite, benchmark, or timing run has executed;
-measurement budget remains zero.
+pass. At this code-review checkpoint, the ignored capture, broad suite,
+benchmark, and timing run had not yet executed.
 
-The fresh §15 plan for source Lambda/Function-rich inputs is now recorded in
-[`notes/progress/f5c-source-lambda-measurement-plan-2026-09-28.md`](../notes/progress/f5c-source-lambda-measurement-plan-2026-09-28.md).
-Specification and performance reviews, including focused deltas, closed with
-no open finding. The primary authorized one capture process after the plan's
-named source-eligibility checks, non-capture boxed/flat correctness test, and
-focused code review, now complete. Next: run exactly the authorized capture
-command in that plan once. The source/finalizer physical ledger gate is closed,
-but the numeric supported-input boundary, production cutover, F5e, and overall
+The reviewed source-Lambda capture then passed one ignored test: 8 successful
+inputs, one injected Function-ring failure, and one fresh retry. Ten flat
+sessions emitted 133 rows; per-input boundary counts were 5/5/10/5/8/14/26/50,
+with 2 failure rows and 8 retry rows. All five memo lanes, 98 walker lanes, 27
+physical indexed lanes, and the separately labelled zero placeholder were
+present. The failure event retained high-water peaks after rollback; counter
+rollback and fresh retry parity passed. The process took 1.04 seconds and
+peaked at 35,396 KiB RSS; the test itself took 0.73 seconds. For Function
+rings of 2/4/8/16 members, F5c work was 3,031/9,256/35,245/149,517 and session
+peak was 44,116/75,736/160,752/410,656 bytes. Doubling 8 to 16 members raised
+work about 4.24×, so the scale margin remains unresolved. No numeric support
+boundary or production cutover follows from these repository-bounded samples.
+The plan, review reports, and full capture result are recorded in
+[`notes/progress/f5c-source-lambda-measurement-plan-2026-09-28.md`](../notes/progress/f5c-source-lambda-measurement-plan-2026-09-28.md);
+one process was consumed and no retry or additional dimension ran. Next: do a
+read-only producer-incidence audit across the generalizer, flat sink,
+materializer, replay, normalizer, and indexed conversion. Track stored child-ID
+entries separately from logical parent-to-child incidences, especially for
+overlapping spans and repeated Function edges. Then implement the smallest
+§§5/7-authorized admission slice the audit identifies, keeping thresholds
+unset. Numeric supported-input boundary, production cutover, F5e, and overall
 F5c acceptance remain open.
 
 ### Completed continuation (2026-09-28): producer-local parts transfer census
