@@ -3597,8 +3597,21 @@ format, and diff checks pass; M2 architecture/root-cause and spec delta reviews
 found no remaining blocking or major issue. Commit `00246809` records this
 gate and its progress/design updates.
 
-Next: audit whether the remaining Function-rich source fixtures satisfy the
-current narrow F5d recipe. If eligible, prepare a fresh bounded §15 measurement
-plan and review it before any new resource/scale probe. Numeric supported-input
-boundary and production cutover still need separate reviewed proposals and
-recorded user approval. F5e remains a separate stage; F5c acceptance is open.
+At that checkpoint, the next item was to audit whether the remaining
+Function-rich source fixtures satisfy the current narrow F5d recipe.
+
+## Latest continuation (2026-09-28): Function-rich fixture eligibility
+
+The 241-byte and 274-byte public-signature fixtures are not eligible under the
+current F5d source recipe. Their selected methods use typed parameters, nested
+Lambda/control-flow shapes, and effects; the collector admits only top-level
+one-parameter Lambda bindings with an immediate integer or resolved-name body.
+The existing source-Lambda capture already covers all eight currently admitted
+inputs and is exhausted. These two fixtures do not justify a new measurement
+plan unless a later F5d scope change makes them eligible.
+
+No code, test, or measurement ran for this audit. The remaining F5c gates are
+numeric-boundary selection and production acceptance, each requiring its own
+reviewed proposal and recorded user approval. Until then the flat candidate
+stays non-shipping and production remains boxed. F5e remains separate; F5c
+acceptance is open.

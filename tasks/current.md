@@ -4,7 +4,29 @@ Updated: 2026-09-28. Branch: `yulang3`; do not modify frozen `main`.
 
 Resume handoff: [`2026-09-22 F5c scheme-closure handoff`](../notes/handoffs/2026-09-22-f5c-scheme-closure-handoff.md).
 
-### Latest continuation (2026-09-28): all-drafts finalizer peak reconciliation
+### Latest continuation (2026-09-28): Function-rich source eligibility audit
+
+Read-only audit found that the two public-signature examples with nested
+Function signatures (241 and 274 source bytes) are not eligible for the
+current F5d source recipe. Their selected methods have typed parameters,
+nested Lambda/control-flow shapes, and effects; the current collector accepts
+only top-level one-parameter Lambda bindings with an immediate integer or
+resolved-name body. Their source size and expected signature cannot stand in
+for measured F5c solver work or memory.
+
+The completed source-Lambda capture already covers all eight inputs admitted
+by the current recipe, including recursive Function rings through 16 members.
+The prior §15 capture budget is exhausted. No new capture plan is justified for
+the two ineligible fixtures; measuring them requires a later F5d scope change
+and a fresh reviewed plan.
+
+Next: decide the remaining F5c boundary/production acceptance path from the
+completed evidence. A concrete deterministic numeric boundary and production
+cutover each require a reviewed proposal and recorded user approval. Until
+then, keep the flat candidate non-shipping and production on the boxed route.
+F5e remains separate. No tests or measurements ran in this read-only audit.
+
+### Completed continuation (2026-09-28): all-drafts finalizer peak reconciliation
 
 Closed the scoped solver/`yu-types` same-time peak gate. The independent ledger
 had combined the current source byte count with an older memo/walker maximum,
@@ -34,10 +56,8 @@ No broad suite, benchmark, or resource probe ran; measurement budget consumed:
 zero. The §15 capture plan is exhausted. No numeric supported-input boundary,
 production cutover, F5e acceptance, or overall F5c acceptance is selected.
 
-Next: audit the remaining F5c gates against the approved design and completed
-measurement records, then prepare the exact reviewed proposal needed for any
-remaining support-boundary or production-cutover decision. Keep production on
-the boxed route until that decision is recorded. F5e is a separate stage.
+At that checkpoint, the next item was to audit the remaining F5c gates against
+the approved design and completed measurement records.
 
 ### Completed continuation (2026-09-28): nested source-owner event census
 
