@@ -74,6 +74,13 @@ fn flat_all_member_candidate_preserves_order_and_indexed_scheme_parity() {
             .closed_normalization_word_comparisons
     );
     assert_eq!(flat.successful_finalizations, 2);
+    assert_eq!(flat.resource_ledger.flat_finalizer_calls, 2);
+    assert_eq!(
+        flat.resource_ledger.flat_finalizer_previous_after,
+        Some(flat.current_closed_retained_bytes)
+    );
+    assert!(flat.resource_ledger.flat_finalizer_previous_source > 0);
+    assert!(flat.resource_ledger.flat_finalizer_peak_bytes >= flat.current_closed_retained_bytes);
     assert_eq!(flat.drafts.len(), 2);
     assert_eq!(flat.resource_ledger.flat_all_drafts_members, 2);
     assert!(flat.resource_ledger.flat_all_drafts_bytes > 0);
@@ -174,6 +181,7 @@ fn flat_all_member_candidate_preserves_order_and_indexed_scheme_parity() {
         Err(SolveAvailabilityError::IdentityExhausted)
     );
     assert_eq!(failed.successful_finalizations, 1);
+    assert_eq!(failed.resource_ledger.flat_finalizer_calls, 1);
     assert!(failed.schemes.iter().all(Option::is_none));
     let failed_events = failed.resource_ledger.boundary_order.clone();
     assert_eq!(

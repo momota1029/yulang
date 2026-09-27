@@ -4,7 +4,42 @@ Updated: 2026-09-28. Branch: `yulang3`; do not modify frozen `main`.
 
 Resume handoff: [`2026-09-22 F5c scheme-closure handoff`](../notes/handoffs/2026-09-22-f5c-scheme-closure-handoff.md).
 
-### Latest continuation (2026-09-28): nested source-owner event census
+### Latest continuation (2026-09-28): all-drafts finalizer peak reconciliation
+
+Closed the scoped solver/`yu-types` same-time peak gate. The independent ledger
+had combined the current source byte count with an older memo/walker maximum,
+creating a peak that never existed. The two-member fixture measured that false
+combination as 8,172 bytes; the maximum same-time physical and normalization
+peaks were 8,092 and 8,144 bytes. The independent ledger now compares the
+current source+memo+walker snapshot, the event-reconstructed physical joint
+peak, and the normalization peak. No test expectation changed.
+
+The finalizer witness now checks retained-base equality before every call,
+checkpoint continuity across successful members, source bytes held through
+each call, indexed release afterward, and staged-owner release after the
+batch. A late second-member failure records one successful finalizer and
+publishes no scheme. Selected M2. Architecture and root-cause review isolated
+the bad historical-peak combination; a specification delta review found no
+blocking or major issue. The original 28-byte mismatch against the production
+counter is resolved by the corrected same-time fold.
+
+Checks passed:
+
+- `RUSTC_WRAPPER= cargo test -p yu-solver --lib flat_all_member_candidate_preserves_order_and_indexed_scheme_parity --offline -- --test-threads=1` (1)
+- `RUSTC_WRAPPER= cargo check -p yu-solver --tests --offline -j 2`
+- `cargo fmt --all -- --check`
+- `git diff --check`
+
+No broad suite, benchmark, or resource probe ran; measurement budget consumed:
+zero. The §15 capture plan is exhausted. No numeric supported-input boundary,
+production cutover, F5e acceptance, or overall F5c acceptance is selected.
+
+Next: audit the remaining F5c gates against the approved design and completed
+measurement records, then prepare the exact reviewed proposal needed for any
+remaining support-boundary or production-cutover decision. Keep production on
+the boxed route until that decision is recorded. F5e is a separate stage.
+
+### Completed continuation (2026-09-28): nested source-owner event census
 
 The existing independent source-draft walk now cross-checks a test-only
 per-owner event census for nested source allocations. Each tracked allocation
@@ -37,9 +72,8 @@ baseline `8e43271e` (6021 actual, 6017 expected). Its expectation and route
 logic were left untouched. No full package suite, benchmark, or resource probe
 ran; measurement budget consumed: zero.
 
-Next: close the remaining independent all-drafts solver/`yu-types` same-time
-physical peak reconstruction across finalizer overlap. Numeric-boundary
-selection, production cutover, F5e, and overall F5c acceptance remain open.
+At that checkpoint, the next item was the independent all-drafts
+solver/`yu-types` same-time peak reconstruction across finalizer overlap.
 
 ### Completed continuation (2026-09-28): live intermediate-graph census
 

@@ -1323,6 +1323,33 @@ yu-solver --tests --message-format short`, `cargo fmt --check`, and
 `git diff --check` passed. No full suite, benchmark, or resource probe ran;
 measurement budget consumed remains zero. Production wiring, §5/§15 admission
 and peak certification, indexed finalization, F5e products, and §44 rollback
-remain open. Next: compose flat summary materialization with this downstream
-candidate pipeline before production wiring; review the exact §15 plan before
-any resource probe.
+remain open. At that checkpoint, the next item was to compose flat summary
+materialization with the downstream candidate pipeline before production
+wiring and review the exact §15 plan before any resource probe.
+
+## 22. All-drafts finalizer-overlap peak reconciliation (2026-09-28)
+
+The independent solver ledger now reconciles the live source, memo, and walker
+capacities at the same time as the indexed `yu-types` finalizer checkpoint. It
+had previously added the current source byte count to a historical memo/walker
+peak, which could combine non-overlapping owners. The existing two-member
+fixture exposed a fabricated 8,172-byte combination; its same-time physical
+joint peak was 8,092 bytes and its normalization peak was 8,144 bytes. The
+independent fold now takes the maximum of the current joint snapshot, the
+event-reconstructed physical joint peak, and the normalization peak.
+
+The all-member solver witness freezes the retained base before every finalizer
+call and checks equality with production, checkpoint continuity across
+successful members, source retention through the call, indexed-owner release
+after success, and staged-owner release after the batch. Injected failure
+before the second call leaves one successful finalizer and no published
+scheme. A root-cause review isolated the invalid historical-peak combination;
+the focused specification delta review found no blocker or major issue.
+
+Verification passed: the focused all-member finalizer witness (1), test-target
+`yu-solver` check, formatting, and whitespace checks. The initial focused run
+reproduced the known 28-byte baseline mismatch; after the ledger repair it
+passed. No broad suite, benchmark, or resource probe ran. Measurement budget
+consumed: zero. This closes only the scoped same-time ledger gate. The §15
+capture plan is exhausted; numeric supported-input boundary, production
+cutover, F5e, and overall F5c acceptance remain open.

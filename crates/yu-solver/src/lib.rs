@@ -4081,6 +4081,10 @@ struct IndependentResourceLedger {
     flat_transfer_peak_bytes: usize,
     flat_all_drafts_members: usize,
     flat_all_drafts_bytes: usize,
+    flat_finalizer_calls: usize,
+    flat_finalizer_previous_after: Option<usize>,
+    flat_finalizer_previous_source: usize,
+    flat_finalizer_peak_bytes: usize,
     flat_normalization_peak_bytes: usize,
     flat_normalization_scratch_peak_bytes: usize,
     component_expansion_memo_roots: IndependentMemoLane,
@@ -4449,8 +4453,7 @@ impl IndependentResourceLedger {
 
     fn record_flat_finalizer_peak(
         &mut self,
-        closed_before: usize,
-        call_peak: usize,
+        checkpoint: &yu_types::ClosedTypeAccountingCheckpoint,
         source_bytes: usize,
     ) -> Result<(), SolveAvailabilityError> {
         let enumerated_source = self
@@ -4458,6 +4461,16 @@ impl IndependentResourceLedger {
             .checked_add(self.flat_indexed_bytes)
             .ok_or(SolveAvailabilityError::IdentityExhausted)?;
         assert_eq!(source_bytes, enumerated_source);
+        assert_eq!(self.component_expansion_memo_retained_bytes, 0);
+        assert_eq!(self.generalization_walker_retained_bytes, 0);
+        if let Some(previous_after) = self.flat_finalizer_previous_after {
+            assert_eq!(checkpoint.retained_bytes_before(), previous_after);
+            assert!(self.flat_finalizer_previous_source > 0);
+        }
+        assert!(checkpoint.peak_bytes_during_call() >= checkpoint.retained_bytes_before());
+        assert!(checkpoint.peak_bytes_during_call() >= checkpoint.retained_bytes_after());
+        let closed_before = checkpoint.retained_bytes_before();
+        let call_peak = checkpoint.peak_bytes_during_call();
         let semantic = self
             .semantic_arena_retained_bytes
             .checked_sub(closed_before)
@@ -4474,6 +4487,10 @@ impl IndependentResourceLedger {
             .ok_or(SolveAvailabilityError::IdentityExhausted)?;
         self.semantic_arena_peak_bytes = self.semantic_arena_peak_bytes.max(semantic);
         self.inference_session_peak_bytes = self.inference_session_peak_bytes.max(session);
+        self.flat_finalizer_peak_bytes = self.flat_finalizer_peak_bytes.max(call_peak);
+        self.flat_finalizer_previous_after = Some(checkpoint.retained_bytes_after());
+        self.flat_finalizer_previous_source = source_bytes;
+        self.flat_finalizer_calls += 1;
         Ok(())
     }
 
@@ -5441,9 +5458,11 @@ impl IndependentResourceLedger {
         }
         let physical_peak = usize::try_from(physical.peak)
             .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
-        let expansion_peak = source_draft_bytes
-            .checked_add(retained_bytes.max(walker.independent_simultaneous_memo_peak_bytes))
-            .ok_or(SolveAvailabilityError::IdentityExhausted)?
+        let current_joint = source_draft_bytes
+            .checked_add(retained_bytes)
+            .and_then(|bytes| bytes.checked_add(walker_bytes))
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        let expansion_peak = current_joint
             .max(physical_peak)
             .max(self.flat_normalization_peak_bytes);
         self.semantic_arena_peak_bytes = self.semantic_arena_peak_bytes.max(
@@ -12678,6 +12697,7 @@ impl InferenceSession {
                     observer
                         .record(|| ExecutionEvent::DraftsVisible(component.clone(), staged.len()));
                 }
+                let finalizer_calls_before = self.resource_ledger.flat_finalizer_calls;
                 for index in 0..staged.len() {
                     let old_capacity = self.drafts.capacity();
                     if self.flat_candidate_failure_after == Some(index) {
@@ -12711,11 +12731,12 @@ impl InferenceSession {
                         self.current_closed_retained_bytes,
                         "successful solver finalizations form one uninterrupted accounting epoch"
                     );
-                    self.resource_ledger.record_flat_finalizer_peak(
-                        self.current_closed_retained_bytes,
-                        checkpoint.peak_bytes_during_call(),
-                        source_draft_bytes,
-                    )?;
+                    assert_eq!(
+                        self.resource_ledger.semantic_arena_retained_bytes,
+                        self.execution_counters.semantic_arena_retained_bytes
+                    );
+                    self.resource_ledger
+                        .record_flat_finalizer_peak(&checkpoint, source_draft_bytes)?;
                     let semantic_without_closed = self
                         .execution_counters
                         .semantic_arena_retained_bytes
@@ -12746,6 +12767,7 @@ impl InferenceSession {
                     drop(mapped);
                     self.resource_ledger
                         .record_flat_staged(&staged, &source_meter)?;
+                    assert_eq!(self.resource_ledger.flat_indexed_bytes, 0);
                     self.drafts.push(DraftScheme(draft));
                     self.successful_finalizations += 1;
                     if self.drafts.capacity() != old_capacity {
@@ -12771,10 +12793,16 @@ impl InferenceSession {
                     .execution_counters
                     .draft_scratch_max_len
                     .max(self.drafts.len());
+                let finalized_member_count = staged.len();
                 drop(staged);
                 drop(source_meter);
                 source_draft_bytes = 0;
                 self.resource_ledger.release_flat_staged();
+                assert_eq!(self.resource_ledger.flat_staged_bytes, 0);
+                assert_eq!(
+                    self.resource_ledger.flat_finalizer_calls - finalizer_calls_before,
+                    finalized_member_count
+                );
             } else {
                 boxed_component!();
             }
