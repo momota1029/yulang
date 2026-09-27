@@ -4,25 +4,23 @@ Updated: 2026-09-28. Branch: `yulang3`; do not modify frozen `main`.
 
 Resume handoff: [`2026-09-22 F5c scheme-closure handoff`](../notes/handoffs/2026-09-22-f5c-scheme-closure-handoff.md).
 
-### Latest continuation (2026-09-28): FlatSourceArena incidence preflight
+### Latest continuation (2026-09-28): memo reverse-parent incidence preflight
 
-The source arena now maintains a separate checked logical-incidence count.
-Each repeated Union/Intersection child occurrence adds one; each positive or
-negative Function adds two; scalar nodes add none. The count is checked before
-any lane reserve, published after append, and saved/restored with checkpoints.
-Stored child entries, work charges, ordering, and retained capacity remain
-separate.
+`push_node` now checks `reverse_parents.len() + child_count` before any node or
+index lane grows. The count covers each new parent-child incidence even when
+several nodes reuse the same stored child span. Child visitation charges,
+reserve order/accounting, append order, and caller rollback remain unchanged.
 
 Selected M1 with `spec_auditor`; the focused review found no issue. Checks
-passed: all eight `f5c_generalization::flat_source_arena::tests`,
-`cargo fmt --all -- --check`, and `git diff --check`. The census adds one
-checked addition per source node, with no allocation or traversal. No broad
-suite or resource probe ran; measurement budget consumed: zero. No practical
-numeric ceiling was added.
+passed: the reverse-parent count boundary and memo admit/invalidate rollback
+test (1 each), `cargo fmt --all -- --check`, and `git diff --check`. The review
+noted no blocking issue; the large-length rejection is covered by the pure
+helper, while the existing transaction test covers edge rollback/retry. No
+broad suite or resource probe ran; measurement budget consumed: zero. No
+practical numeric ceiling was added.
 
-Next: preflight memo reverse-parent incidences before node/index lane growth.
-The live-intermediate-graph formula is awaiting a separate definition;
-numeric-boundary selection, production cutover, F5e, and overall F5c
+Next: apply the pending definition for the live-intermediate-graph census.
+Numeric-boundary selection, production cutover, F5e, and overall F5c
 acceptance remain open.
 
 ### Completed continuation (2026-09-28): Q/R bound-count preflight

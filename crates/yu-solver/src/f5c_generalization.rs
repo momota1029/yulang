@@ -294,6 +294,33 @@ fn checked_next_root_lane_len(len: usize) -> Result<usize, SolveAvailabilityErro
         .ok_or(SolveAvailabilityError::IdentityExhausted)
 }
 
+fn checked_reverse_parent_len(
+    current: usize,
+    child_count: usize,
+) -> Result<usize, SolveAvailabilityError> {
+    current
+        .checked_add(child_count)
+        .ok_or(SolveAvailabilityError::IdentityExhausted)
+}
+
+#[cfg(test)]
+mod reverse_parent_len_tests {
+    use super::*;
+
+    #[test]
+    fn checks_logical_incidence_append_at_usize_boundary() {
+        assert_eq!(checked_reverse_parent_len(0, 0), Ok(0));
+        assert_eq!(
+            checked_reverse_parent_len(usize::MAX - 2, 2),
+            Ok(usize::MAX)
+        );
+        assert_eq!(
+            checked_reverse_parent_len(usize::MAX - 1, 2),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+    }
+}
+
 #[cfg(test)]
 mod root_lane_len_tests {
     use super::*;
@@ -3597,6 +3624,7 @@ impl F5cComponentExpansionMemo {
             | F5cSummaryNodeKind::NegativeFunction { .. } => 2,
             _ => 0,
         };
+        checked_reverse_parent_len(self.reverse_parents.len(), child_count)?;
         let requested = self
             .node_lane
             .requested_slots
