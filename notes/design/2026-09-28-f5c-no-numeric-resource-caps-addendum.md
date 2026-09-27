@@ -1,11 +1,13 @@
 # F5c no-numeric-resource-cap addendum
 
-Status: Reviewed; exact-text user approval pending
+Status: Authoritative
+Approved-by: user
+Approved-at: 2026-09-28
 Reviewed-by: spec_auditor, compiler_referee, performance_auditor (round-one and targeted delta reviews closed with no unresolved findings)
 Scope: F5c numeric admission, runtime resource failure, and complexity evidence for production acceptance
 Related authority: F5 §§9, 14, 26, 34, 36; reviewed flat indexed candidate §§2–8, 13, 15, 17, 20, 22
 Decision: remove deterministic numeric input-size and charged-work caps for F5c; do not impose a fixed runtime cutoff. Keep checked representation and allocation failure handling, and assess ordinary inputs by phase-specific asymptotic complexity and resource evidence.
-Supersedes: proposes to supersede only F5c clauses requiring numeric draft-size/repeat-work thresholds or a numeric supported-input boundary before production acceptance. No authority is superseded until this addendum is independently reviewed and user-approved.
+Supersedes: F5c clauses requiring numeric draft-size/repeat-work thresholds or a numeric supported-input boundary before production acceptance, and the bounded-envelope preference in rules/design-authority.md within F5c only; see §5 for exact scope.
 
 ## 1. User direction and scope
 
@@ -169,7 +171,7 @@ outside this gate.
 
 ## 5. Supersession and open implementation evidence
 
-If approved, this addendum supersedes only the forward-looking numeric
+This addendum supersedes only the forward-looking numeric
 admission and production-gate requirements in these scopes:
 
 - Flat indexed candidate §5's configured draft-size and repeat-work ceilings,

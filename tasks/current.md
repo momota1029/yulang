@@ -24,13 +24,12 @@ arena-factorization runs remain mandatory. No probes or tests ran in this
 design review.
 
 Independent spec, compiler, and performance reviews, including targeted delta
-reviews, closed without unresolved findings. The proposal is now `Reviewed`,
-but exact-text user approval remains pending. Keep the flat candidate
-non-shipping and production on the boxed route until the required production
+reviews, closed without unresolved findings. The user approved the exact text
+on 2026-09-28, so the addendum is now `Authoritative`. Keep the flat candidate
+non-shipping and production on the boxed route until the separate production
 gate and approval. F5e remains separate.
 
-Next: obtain the user's exact-text approval of the reviewed addendum. After
-approval, prepare the fresh bounded measurement plan required by
+Next: prepare and review the fresh bounded measurement plan required by
 `rules/performance.md`; reconcile the mandatory §26 scale runs with its process
 and wall-time budget before running any measurements.
 
