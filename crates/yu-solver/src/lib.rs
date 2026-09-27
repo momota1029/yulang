@@ -5267,13 +5267,10 @@ impl IndependentResourceLedger {
                 [index]
                 .peak_bytes
                 .max(lane.peak_bytes);
-            if size > 0 {
-                assert_eq!(lane.peak_bytes % size, 0);
-                self.generalization_walker_lanes[index].peak_capacity = self
-                    .generalization_walker_lanes[index]
-                    .peak_capacity
-                    .max(lane.peak_bytes / size);
-            }
+            self.generalization_walker_lanes[index].peak_capacity = self
+                .generalization_walker_lanes[index]
+                .peak_capacity
+                .max(lane.peak_capacity);
         }
         self.generalization_walker_requested_slots = self
             .generalization_walker_requested_slots

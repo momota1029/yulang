@@ -688,6 +688,8 @@ pub(super) fn release_flat_post_r_lanes(memo: &mut F5cComponentExpansionMemo) {
 pub(super) struct F5cWalkerLane {
     pub(super) requested_slots: usize,
     pub(super) actual_capacity: usize,
+    #[cfg(test)]
+    pub(super) peak_capacity: usize,
     pub(super) peak_bytes: usize,
     pub(super) capacity_growths: usize,
 }
@@ -779,6 +781,9 @@ impl F5cWalkerResources {
     #[cfg(test)]
     fn observe_physical_walker(&mut self) {
         self.physical_walker_samples += 1;
+        for lane in &mut self.independent_lanes {
+            lane.peak_capacity = lane.peak_capacity.max(lane.actual_capacity);
+        }
         let sizes = F5cWalkerLaneKind::ALL.map(|kind| {
             if matches!(kind, F5cWalkerLaneKind::Values) && self.value_slot_size != 0 {
                 self.value_slot_size
@@ -807,6 +812,10 @@ impl F5cWalkerResources {
     fn observe_physical_walker_target(&mut self, kind: F5cWalkerLaneKind, capacity: u128) {
         self.physical_walker_samples += 1;
         let index = kind as usize;
+        if let Ok(capacity) = usize::try_from(capacity) {
+            self.independent_lanes[index].peak_capacity =
+                self.independent_lanes[index].peak_capacity.max(capacity);
+        }
         self.physical_joint.walker_capacities[index] = capacity;
         self.physical_joint.walker_current = PhysicalJoint::sum_products(
             self.physical_joint

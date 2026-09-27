@@ -50,22 +50,28 @@ paired routes retain only exact alpha-canonical scheme tokens and counters, and
 the summaries report parity/capture overhead separately from candidate lanes.
 M2 specification and performance delta reviews closed the result-lifetime,
 failed-reserve witness, seeded-width, and quadratic-history findings. The first
-planned scale command stopped before emitting any capture record: independent
-walker peak conversion used the fixed `Values` slot size instead of the actual
-element size. The ledger now uses the physical owner's `value_slot_size` for
-both current and peak calculations; fresh specification and performance delta
-reviews closed that repair.
+scale attempt stopped before emitting any capture record because the ledger
+divided historical `Values` peak bytes by the current element size. A follow-up
+run after switching current and peak byte calculation to the owner's
+`value_slot_size` also failed before samples: the historical peak had been
+recorded under a different `Values` size. The independent walker owner now
+retains a direct per-lane peak-capacity witness from physical capacity events,
+and the ledger consumes that value without dividing historical bytes. Fresh
+specification and performance delta reviews found no remaining issue.
 
-The ignored test binary prebuild passed in 11 seconds. The first scale command
-failed in 0.05 seconds before any F5c sample; the sample count is zero and one
-of the plan's two capture-command invocations is used. Compile-only verification
-passes: `RUSTC_WRAPPER= cargo check -p yu-solver --tests --offline`,
-`cargo fmt --all -- --check`, and `git diff --check`. The measurement plan's
-failure rule forbids automatic retry, so no further capture has run. A user
-decision is pending on adding one capture-command invocation so both planned
-captures can be rerun once after the repair, or leaving the §15 evidence
-incomplete. Numeric boundary approval, production cutover, §44, F5e, and overall
-F5c acceptance remain open.
+The original prebuild took 11.1 seconds; the subsequent rebuild took 5.62
+seconds. The two failed scale commands took 0.1 and 0.06 seconds, with zero F5c
+records. The user-approved cap is three capture invocations total; two were
+used. The remaining nominal invocation is barred by the stop-on-further-failure
+rule. To collect a repaired scale capture and the failure capture, approval is
+needed to raise the cap to five total commands. With another ignored-test
+binary rebuild capped at 170 seconds and two 190-second captures, the proposed
+remaining command caps plus 16.88 seconds already spent total 566.88 seconds,
+under the unchanged 570-second aggregate limit. No further capture command ran.
+Compile-only verification passes: `RUSTC_WRAPPER= cargo check -p yu-solver
+--tests --offline`, `cargo fmt --all -- --check`, and `git diff --check`. Numeric
+boundary approval, production cutover, §44, F5e, and overall F5c acceptance
+remain open.
 
 ### Latest continuation (2026-09-27): checked indexed finalizer conversion
 
