@@ -27,11 +27,17 @@ all-member candidate test (1), `cargo check -p yu-types --lib --offline`,
 formatting, and diff checks. No broad suite, probe, benchmark, or timing run
 was done; measurement budget remains zero.
 
-Next: prepare a fresh bounded §15 plan for source Lambda/Function-rich
-candidate inputs, accounting for the new diagnostic snapshot history. Review
-the plan before any resource or scale probe. The source/finalizer physical
-ledger gate is closed, but the numeric supported-input boundary, production
-cutover, F5e, and overall F5c acceptance remain open.
+The fresh §15 plan for source Lambda/Function-rich inputs is now recorded in
+[`notes/progress/f5c-source-lambda-measurement-plan-2026-09-28.md`](../notes/progress/f5c-source-lambda-measurement-plan-2026-09-28.md).
+Specification and performance reviews, including focused deltas, closed with
+no open finding. The primary authorized one capture process after the plan's
+named source-eligibility checks, non-capture boxed/flat correctness test, and
+focused code review are complete. No probe ran during plan review. Next:
+implement those harness prerequisites and the summary-label repair, run the
+focused correctness witness, and review the code before using the authorized
+capture command. The source/finalizer physical ledger gate is closed, but the
+numeric supported-input boundary, production cutover, F5e, and overall F5c
+acceptance remain open.
 
 ### Completed continuation (2026-09-28): producer-local parts transfer census
 
