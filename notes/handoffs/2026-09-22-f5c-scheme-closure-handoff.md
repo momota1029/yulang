@@ -3573,8 +3573,32 @@ events and belongs in the next §15 process-memory plan. Focused checks passed:
 benchmark, or timing measurement ran. Measurement budget consumed remains
 zero.
 
-Next: prepare and independently review a fresh bounded §15 plan for the now
-available Lambda/Function source path, including diagnostic snapshot memory.
-Do not run resource or scale probes until that plan is reviewed. The physical
-ledger gate is closed; numeric boundary, production cutover, F5e, and overall
-F5c acceptance remain open.
+At that checkpoint, next was to prepare a fresh bounded §15 plan for the
+Lambda/Function source path, including diagnostic snapshot memory.
+
+## Latest continuation (2026-09-28): source-Lambda capture and finalizer peak
+
+The source-Lambda plan and its one authorized capture have since completed.
+Eight source inputs, one injected Function-ring failure, and one retry were
+captured; ten flat sessions emitted 133 boundary rows. The 8-to-16 Function
+ring work increase remains a measured scale concern. The capture budget under
+that plan is exhausted; do not repeat or extend it without a fresh reviewed
+plan.
+
+The independent all-drafts ledger now closes the solver/`yu-types` finalizer
+same-time peak gate. Its prior formula paired current source bytes with a
+historical memo/walker peak, fabricating 8,172 bytes. The same-time physical
+and normalization peaks are 8,092 and 8,144 bytes. The corrected independent
+fold uses current co-resident capacities and event-reconstructed physical and
+normalization peaks. The all-member witness checks finalizer checkpoint
+continuity, source retention, indexed release, staged-owner release, and late
+failure without scheme publication. Focused solver test, test-target check,
+format, and diff checks pass; M2 architecture/root-cause and spec delta reviews
+found no remaining blocking or major issue. Commit `00246809` records this
+gate and its progress/design updates.
+
+Next: audit whether the remaining Function-rich source fixtures satisfy the
+current narrow F5d recipe. If eligible, prepare a fresh bounded §15 measurement
+plan and review it before any new resource/scale probe. Numeric supported-input
+boundary and production cutover still need separate reviewed proposals and
+recorded user approval. F5e remains a separate stage; F5c acceptance is open.
