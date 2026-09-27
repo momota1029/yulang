@@ -849,6 +849,13 @@ impl ClosedTypeArena {
     }
     #[cfg(test)]
     fn retained_bytes(&self) -> usize {
+        self.lane_bytes()
+            .into_iter()
+            .try_fold(0usize, |sum, lane| sum.checked_add(lane))
+            .expect("closed type arena accounting fits")
+    }
+    #[cfg(test)]
+    fn lane_bytes(&self) -> [usize; 8] {
         fn bytes<T>(lane: &Vec<T>) -> usize {
             lane.capacity()
                 .checked_mul(std::mem::size_of::<T>())
@@ -864,8 +871,6 @@ impl ClosedTypeArena {
             bytes(&self.neutrals),
             bytes(&self.recursive_bounds),
         ]
-        .into_iter()
-        .sum()
     }
 }
 
@@ -1229,6 +1234,52 @@ impl Scratch {
         self.checked_capacity_bytes()
             .expect("closed finalization scratch accounting fits")
     }
+    #[cfg(test)]
+    fn lane_bytes(&self) -> [usize; 17] {
+        fn bytes<T>(lane: &Vec<T>) -> usize {
+            lane.capacity()
+                .checked_mul(std::mem::size_of::<T>())
+                .unwrap()
+        }
+        [
+            bytes(&self.q),
+            bytes(&self.r),
+            bytes(&self.p),
+            bytes(&self.p_children),
+            bytes(&self.n),
+            bytes(&self.n_children),
+            bytes(&self.pe),
+            bytes(&self.ne),
+            bytes(&self.neutral),
+            bytes(&self.bounds),
+            bytes(&self.scheme_bounds),
+            bytes(&self.mapped_p),
+            bytes(&self.mapped_p_children),
+            bytes(&self.mapped_n),
+            bytes(&self.mapped_n_children),
+            bytes(&self.mapped_neutral),
+            bytes(&self.mapped_bounds),
+        ]
+    }
+}
+
+#[cfg(test)]
+#[derive(Clone, Copy)]
+struct PhysicalLaneSnapshot {
+    arena: [usize; 8],
+    scratch: [usize; 17],
+    indexed: [usize; 11],
+}
+#[cfg(test)]
+impl PhysicalLaneSnapshot {
+    fn total(self) -> usize {
+        self.arena
+            .into_iter()
+            .chain(self.scratch)
+            .chain(self.indexed)
+            .try_fold(0usize, |sum, lane| sum.checked_add(lane))
+            .expect("closed finalization physical lane sum fits")
+    }
 }
 
 #[cfg(test)]
@@ -1301,6 +1352,7 @@ struct FinalizationTestControl {
     indexed_lane_bytes: [usize; 11],
     indexed_reserve_attempts: [usize; 11],
     indexed_peak_bytes: usize,
+    physical_lane_snapshots: Vec<PhysicalLaneSnapshot>,
 }
 #[cfg(test)]
 impl FinalizationTestControl {
@@ -1356,6 +1408,8 @@ impl FinalizationTestControl {
 /// ```
 #[doc(hidden)]
 pub struct ClosedTypeFinalizer<'tx> {
+    #[cfg(test)]
+    arena: &'tx ClosedTypeArena,
     scratch: &'tx mut Scratch,
     retained_bytes: &'tx mut usize,
     arena_retained_bytes: usize,
@@ -1368,6 +1422,17 @@ pub struct ClosedTypeFinalizer<'tx> {
     marker: PhantomData<Rc<()>>,
 }
 impl<'tx> ClosedTypeFinalizer<'tx> {
+    #[cfg(test)]
+    fn snapshot_physical_lanes(&mut self, indexed: [usize; 11]) -> usize {
+        let snapshot = PhysicalLaneSnapshot {
+            arena: self.arena.lane_bytes(),
+            scratch: self.scratch.lane_bytes(),
+            indexed,
+        };
+        let total = snapshot.total();
+        self.control.physical_lane_snapshots.push(snapshot);
+        total
+    }
     fn reconcile_indexed_temp(
         &mut self,
         temp: &IndexedTemp<'_>,
@@ -1384,10 +1449,16 @@ impl<'tx> ClosedTypeFinalizer<'tx> {
                 #[cfg(test)]
                 {
                     let lanes = temp.lane_bytes();
-                    assert_eq!(lanes.into_iter().sum::<usize>(), indexed);
+                    assert_eq!(
+                        lanes
+                            .into_iter()
+                            .try_fold(0usize, |sum, lane| sum.checked_add(lane)),
+                        Some(indexed)
+                    );
                     self.control.indexed_lane_bytes = lanes;
                     self.control.indexed_reserve_attempts = temp.reserve_attempts;
                     self.control.indexed_peak_bytes = self.control.indexed_peak_bytes.max(indexed);
+                    assert_eq!(self.snapshot_physical_lanes(lanes), total);
                 }
                 *self.indexed_live_bytes = indexed;
                 *self.peak_bytes = (*self.peak_bytes).max(total);
@@ -1428,6 +1499,11 @@ impl<'tx> ClosedTypeFinalizer<'tx> {
             }
         };
         *self.peak_bytes = (*self.peak_bytes).max(retained_bytes);
+        #[cfg(test)]
+        assert_eq!(
+            self.snapshot_physical_lanes(self.control.indexed_lane_bytes),
+            retained_bytes
+        );
         *self.retained_bytes = retained_bytes - *self.indexed_live_bytes;
         Ok(())
     }
@@ -2213,6 +2289,15 @@ impl ClosedTypeFinalizationSession {
         let capacity_before = {
             self.control.seen.clear();
             self.control.commit_started = false;
+            self.control.indexed_lane_bytes = [0; 11];
+            self.control.physical_lane_snapshots.clear();
+            self.control
+                .physical_lane_snapshots
+                .push(PhysicalLaneSnapshot {
+                    arena: self.arena.lane_bytes(),
+                    scratch: self.scratch.lane_bytes(),
+                    indexed: [0; 11],
+                });
             self.arena
                 .retained_bytes()
                 .checked_add(self.scratch.capacity_bytes())
@@ -2221,6 +2306,8 @@ impl ClosedTypeFinalizationSession {
         self.scratch.clear();
         let outcome = {
             let mut finalizer = ClosedTypeFinalizer {
+                #[cfg(test)]
+                arena: &self.arena,
                 scratch: &mut self.scratch,
                 retained_bytes: &mut self.retained_bytes,
                 arena_retained_bytes: self.arena_retained_bytes,
@@ -2365,6 +2452,14 @@ impl ClosedTypeFinalizationSession {
         self.retained_bytes = retained_bytes;
         self.arena_retained_bytes = arena_retained_bytes;
         self.peak_bytes = self.peak_bytes.max(retained_bytes);
+        #[cfg(test)]
+        self.control
+            .physical_lane_snapshots
+            .push(PhysicalLaneSnapshot {
+                arena: self.arena.lane_bytes(),
+                scratch: self.scratch.lane_bytes(),
+                indexed: [0; 11],
+            });
         Ok(())
     }
     fn reconcile_after_reservation(
@@ -4060,14 +4155,102 @@ mod tests {
             assert!(session.control.indexed_lane_seen[lane], "lane {lane}");
             assert_eq!(session.test_lengths(), before, "lane {lane}");
             assert_eq!(session.test_failure_epoch(), 1, "lane {lane}");
+            let failed_peak = session
+                .control
+                .physical_lane_snapshots
+                .iter()
+                .map(|snapshot| snapshot.total())
+                .max()
+                .unwrap();
+            assert_eq!(session.peak_bytes, failed_peak, "lane {lane}");
             let retained = session.test_retained_bytes();
+            assert_eq!(
+                session
+                    .control
+                    .physical_lane_snapshots
+                    .last()
+                    .unwrap()
+                    .total(),
+                retained,
+                "lane {lane}"
+            );
             let retry = session.finalize_indexed_scheme(input).unwrap();
             assert_eq!(
                 retry.checkpoint.retained_bytes_before(),
                 retained,
                 "lane {lane}"
             );
+            let physical_peak = session
+                .control
+                .physical_lane_snapshots
+                .iter()
+                .map(|snapshot| snapshot.total())
+                .max()
+                .unwrap();
+            assert_eq!(
+                retry.checkpoint.peak_bytes_during_call(),
+                physical_peak,
+                "lane {lane}"
+            );
+            assert!(
+                session
+                    .control
+                    .physical_lane_snapshots
+                    .iter()
+                    .any(|snapshot| {
+                        snapshot.indexed.iter().filter(|&&bytes| bytes > 0).count() > 1
+                            && snapshot.scratch.iter().any(|&bytes| bytes > 0)
+                    }),
+                "lane {lane}"
+            );
         }
+        let mut session = ClosedTypeFinalizationSession::try_new().unwrap();
+        let before = session.test_lengths();
+        session.control.fail_after_indexed_overlay_growth = true;
+        assert!(matches!(
+            session.finalize_indexed_scheme(input),
+            Err(ClosedTypeFinalizeError::IdentityExhausted)
+        ));
+        assert_eq!(session.test_lengths(), before);
+        assert_eq!(session.test_failure_epoch(), 1);
+        assert!(
+            session
+                .control
+                .physical_lane_snapshots
+                .iter()
+                .any(|snapshot| {
+                    snapshot.indexed.iter().filter(|&&bytes| bytes > 0).count() > 1
+                        && snapshot.scratch.iter().any(|&bytes| bytes > 0)
+                })
+        );
+        let failed_peak = session
+            .control
+            .physical_lane_snapshots
+            .iter()
+            .map(|snapshot| snapshot.total())
+            .max()
+            .unwrap();
+        assert_eq!(session.peak_bytes, failed_peak);
+        let retained = session.test_retained_bytes();
+        assert_eq!(
+            session
+                .control
+                .physical_lane_snapshots
+                .last()
+                .unwrap()
+                .total(),
+            retained
+        );
+        let retry = session.finalize_indexed_scheme(input).unwrap();
+        assert_eq!(retry.checkpoint.retained_bytes_before(), retained);
+        let physical_peak = session
+            .control
+            .physical_lane_snapshots
+            .iter()
+            .map(|snapshot| snapshot.total())
+            .max()
+            .unwrap();
+        assert_eq!(retry.checkpoint.peak_bytes_during_call(), physical_peak);
     }
 
     #[test]

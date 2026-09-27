@@ -3550,3 +3550,31 @@ boxed; numeric supported-input boundary, production cutover, F5e, and overall
 F5c acceptance remain open.
 
 <!-- handoff-append-anchor: 2026-09-28 -->
+
+## Completed continuation (2026-09-28): source-draft/finalizer co-resident peak
+
+The `yu-types` indexed finalizer now carries a test-only same-time lane witness
+for its eight arena, seventeen scratch, and eleven indexed temporary vectors.
+It snapshots actual capacities at existing reserve/reconciliation events and
+checks their checked aggregate against the scalar peak checkpoint. Failure
+coverage checks every indexed reserve lane and a post-overlay-growth error;
+each failed-attempt high-water and retained capacity is reconciled before the
+same-session retry check. The existing solver all-member test verifies the
+combined source/finalizer ledger against production counters. Production APIs,
+observation boundaries, and boxed caller selection are unchanged.
+
+Selected M2. Initial spec review found an unchecked indexed-lane sum and
+failure evidence lost when retry cleared the prior snapshots; both were
+repaired and spec delta review closed. Performance review found no production
+cost. Test-only history is O(E) snapshots over E existing reconciliation
+events and belongs in the next §15 process-memory plan. Focused checks passed:
+`yu-types` indexed tests (13), solver all-member candidate test (1), non-test
+`yu-types` check, formatting, and diff checks. No broad suite, probe,
+benchmark, or timing measurement ran. Measurement budget consumed remains
+zero.
+
+Next: prepare and independently review a fresh bounded §15 plan for the now
+available Lambda/Function source path, including diagnostic snapshot memory.
+Do not run resource or scale probes until that plan is reviewed. The physical
+ledger gate is closed; numeric boundary, production cutover, F5e, and overall
+F5c acceptance remain open.

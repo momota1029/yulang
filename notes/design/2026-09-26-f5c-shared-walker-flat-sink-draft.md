@@ -740,3 +740,28 @@ benchmark, or timing measurement ran. Prepare the fresh §15 plan, including
 test-process diagnostic memory, and obtain performance-auditor and primary
 review before running a candidate probe. Numeric boundary, production
 cutover, §44, F5e, and overall F5c acceptance remain open.
+
+### Source-draft/finalizer co-resident physical peak (2026-09-28)
+
+The `yu-types` indexed finalizer now captures a test-only same-time vector of
+actual capacities for its eight arena lanes, seventeen scratch lanes, and
+eleven indexed temporary lanes at existing reservation/reconciliation events.
+Checked sums match the scalar finalizer checkpoint peak. Indexed reserve
+failure tests compare each failed-attempt peak and retained baseline before
+retry; a late post-overlay-growth failure has the same rollback/retry witness.
+The solver's existing all-member candidate test checks the combined
+source/finalizer ledger against production counters. No production API,
+sampling point, or caller changed.
+
+M2 specification review found an unchecked assertion sum and failure snapshots
+being discarded before reconciliation. Both were repaired; the spec delta
+review closed with no finding. Performance review found no production cost.
+The test-only snapshot history is O(E) entries for E existing reconciliation
+events and must remain included in the §15 diagnostic process-memory budget.
+The focused `yu-types` `indexed_` filter passes (13), the solver all-member
+integration witness passes (1), and the `yu-types` non-test check, formatting,
+and diff checks pass. No probe, benchmark, timing, or broad suite ran. The
+source-draft/finalizer physical ledger gate is closed. Next: prepare and review
+a fresh bounded §15 plan for the newly connected Lambda/Function candidate
+inputs before any resource or scale probe. Numeric supported-input boundary,
+production cutover, F5e, and overall F5c acceptance remain open.

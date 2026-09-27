@@ -4,6 +4,35 @@ Updated: 2026-09-28. Branch: `yulang3`; do not modify frozen `main`.
 
 Resume handoff: [`2026-09-22 F5c scheme-closure handoff`](../notes/handoffs/2026-09-22-f5c-scheme-closure-handoff.md).
 
+### Completed continuation (2026-09-28): source-draft/finalizer co-resident peak
+
+The `yu-types` indexed finalizer now has a test-only same-time capacity
+snapshot across its eight arena lanes, seventeen scratch lanes, and eleven
+indexed temporary lanes. It captures actual capacities at existing
+reservation/reconciliation events and invocation boundaries, then checks the
+independently checked lane sum against the scalar checkpoint peak. Failure
+tests cover every indexed temporary reserve lane and a late post-overlay-growth
+failure; before retry they compare failed high-water and retained capacity,
+then check the retry peak separately. The existing solver all-member test
+reconciles the combined source/finalizer result against production counters.
+No production hook, API, sample point, or caller cutover was added.
+
+Selected M2. Specification review found an unchecked lane sum and missing
+failed-attempt reconciliation before retry; both were repaired and a focused
+delta review closed them. Performance review found no production-path cost;
+the new fixed-lane snapshot history is test-only O(E) storage for E existing
+reconciliation events and remains part of the §15 diagnostic-memory budget.
+Verification passed: the `yu-types` `indexed_` filter (13), the focused solver
+all-member candidate test (1), `cargo check -p yu-types --lib --offline`,
+formatting, and diff checks. No broad suite, probe, benchmark, or timing run
+was done; measurement budget remains zero.
+
+Next: prepare a fresh bounded §15 plan for source Lambda/Function-rich
+candidate inputs, accounting for the new diagnostic snapshot history. Review
+the plan before any resource or scale probe. The source/finalizer physical
+ledger gate is closed, but the numeric supported-input boundary, production
+cutover, F5e, and overall F5c acceptance remain open.
+
 ### Completed continuation (2026-09-28): producer-local parts transfer census
 
 Producer-local `PositiveParts` and `NegativeParts` now defer the component
@@ -24,12 +53,6 @@ closed with no finding. Verification passed: scalar transfer census (1),
 positive and negative mixed-row failure/retry tests (1 each), solver library
 and test-target checks, format check, and `git diff --check`. No broad suite,
 probe, benchmark, or timing measurement ran; measurement budget remains zero.
-
-Next: independently close the source-draft/finalizer co-resident peak across
-published nested owners, solver lanes, indexed staging, and `yu-types`
-finalization, including failure and retry. This is a producer-local transfer
-checkpoint only; the full nested-source/resource gate and overall F5c remain
-open. Production remains boxed, with no numeric boundary or cutover selected.
 
 ### Completed continuation (2026-09-27): F5d source Lambda and §23 recursion gate
 
