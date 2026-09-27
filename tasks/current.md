@@ -4,6 +4,30 @@ Updated: 2026-09-27. Branch: `yulang3`; do not modify frozen `main`.
 
 Resume handoff: [`2026-09-22 F5c scheme-closure handoff`](../notes/handoffs/2026-09-22-f5c-scheme-closure-handoff.md).
 
+### Latest continuation (2026-09-27): full-capacity duplicate insertion
+
+`F5cComponentExpansionMemo::insert_physical_set` now skips
+`HashSet::insert` when the set is full and already contains the value. The
+reserve/accounting owner still records one request and determines whether
+growth is needed; std `HashSet::insert` no longer grows the full table before
+recognizing a duplicate. Full novel values, spare-capacity values, reserve-only
+callers, source sampling, and work charging retain their prior flow.
+
+An M1 `regression_auditor` review found no sibling-callsite issue. The exact
+regression passed:
+`RUSTC_WRAPPER= cargo test -p yu-solver physical_set_duplicate_at_capacity_keeps_growth_and_counts_attempt --lib --offline -- --test-threads=1`
+(1), and the full focused `f5c_flat_walk_sink` filter passed (36), along with
+`cargo fmt --all -- --check` and `git diff --check`. This repairs the adjacent
+pre-existing failure discovered during the Function-owner slice; no test
+expectation changed. No broad suite, resource probe, benchmark, or timing
+measurement ran.
+
+This closes the duplicate-at-capacity physical-set behavior. Continue with the
+all-drafts solver/`yu-types` same-time physical ledger while keeping the F5b
+callback authority boundary explicit. A reviewed §15 measurement plan is still
+required before probes; numeric boundary approval, production cutover, §44,
+F5e, and overall F5c acceptance remain open.
+
 ### Latest continuation (2026-09-27): tracked Function owners and nested source ledger
 
 The four positive/negative Function argument/result Box payloads now use
@@ -29,11 +53,8 @@ Focused checks passed: `RUSTC_WRAPPER= cargo check -p yu-solver --tests
 handoff (1), `f5c_draft_heap` (12), and `f5c_normalization` (28) tests;
 `cargo fmt --all -- --check`; and `git diff --check`. Producer-side focused
 replay, substitution, materialization, work, tree, depth, and incoming-route
-filters passed in the implementation pass. The exact
-`physical_set_duplicate_at_capacity_keeps_growth_and_counts_attempt` test
-still fails at its pre-existing capacity assertion (actual 7, expected 3);
-the assertion and `insert_physical_set` implementation are unchanged from the
-committed base and will be handled in a separate owner-local repair. No broad
+filters passed in the implementation pass. The full-capacity duplicate failure
+was repaired in the separate owner-local follow-on recorded above. No broad
 suite, resource probe, benchmark, or timing measurement ran; measurement budget
 remains zero.
 

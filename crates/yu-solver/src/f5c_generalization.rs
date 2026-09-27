@@ -1970,7 +1970,10 @@ impl F5cComponentExpansionMemo {
         kind: F5cWalkerLaneKind,
     ) -> Result<(), SolveAvailabilityError> {
         self.reserve_physical_set_insert(set, value, kind)?;
-        set.insert(value);
+        // HashSet::insert may grow a full table before it finds a duplicate.
+        if set.len() < set.capacity() || !set.contains(&value) {
+            set.insert(value);
+        }
         Ok(())
     }
 
