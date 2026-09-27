@@ -154,6 +154,13 @@ fn indexed_count(len: usize) -> Result<u32, SolveAvailabilityError> {
     u32::try_from(len).map_err(|_| SolveAvailabilityError::IdentityExhausted)
 }
 
+fn checked_next_node_count(len: usize) -> Result<u32, SolveAvailabilityError> {
+    indexed_count(
+        len.checked_add(1)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?,
+    )
+}
+
 pub(super) fn checked_q_r_count(q: u32, r: usize) -> Result<u32, SolveAvailabilityError> {
     q.checked_add(indexed_count(r)?)
         .ok_or(SolveAvailabilityError::IdentityExhausted)
@@ -248,7 +255,7 @@ impl FlatDraft {
         &self,
         node: PositiveNode,
     ) -> Result<(), SolveAvailabilityError> {
-        indexed_count(self.positive_nodes.len())?;
+        checked_next_node_count(self.positive_nodes.len())?;
         self.node_incidences(match node {
             PositiveNode::Union(span) => span.len as usize,
             PositiveNode::Function { .. } => 2,
@@ -261,7 +268,7 @@ impl FlatDraft {
         &self,
         node: NegativeNode,
     ) -> Result<(), SolveAvailabilityError> {
-        indexed_count(self.negative_nodes.len())?;
+        checked_next_node_count(self.negative_nodes.len())?;
         self.node_incidences(match node {
             NegativeNode::Intersection(span) => span.len as usize,
             NegativeNode::Function { .. } => 2,
@@ -444,6 +451,36 @@ impl FlatDraft {
             .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
         self.recursive_bounds.push(bound);
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod node_count_tests {
+    use super::*;
+
+    #[test]
+    fn next_node_count_fits_indexed_array_length() {
+        assert_eq!(checked_next_node_count(u32::MAX as usize - 1), Ok(u32::MAX));
+        assert_eq!(
+            checked_next_node_count(u32::MAX as usize),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+        assert_eq!(
+            checked_next_node_count(usize::MAX),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+    }
+
+    #[test]
+    fn append_ids_and_counts_remain_polarity_specific() {
+        let mut draft = FlatDraft::default();
+        assert_eq!(draft.positive(PositiveNode::Int), Ok(PositiveId(0)));
+        assert_eq!(draft.negative(NegativeNode::Top), Ok(NegativeId(0)));
+        assert_eq!(draft.positive(PositiveNode::Bottom), Ok(PositiveId(1)));
+        assert_eq!(draft.negative(NegativeNode::Int), Ok(NegativeId(1)));
+        assert_eq!(draft.positive_nodes.len(), 2);
+        assert_eq!(draft.negative_nodes.len(), 2);
+        assert_eq!(draft.insertion_order.len(), 4);
     }
 }
 

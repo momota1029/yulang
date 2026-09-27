@@ -4,7 +4,29 @@ Updated: 2026-09-28. Branch: `yulang3`; do not modify frozen `main`.
 
 Resume handoff: [`2026-09-22 F5c scheme-closure handoff`](../notes/handoffs/2026-09-22-f5c-scheme-closure-handoff.md).
 
-### Latest continuation (2026-09-28): Q/R bound-count preflight
+### Latest continuation (2026-09-28): FlatDraft node-count preflight
+
+Both positive and negative candidate-node admissions now check the
+post-append lane length before growth. The check uses checked `len + 1` and the
+existing u32 count conversion; node IDs still use the pre-append length, and
+the two polarities remain separate. Indexed conversion retains its final
+validation. Boundary tests cover u32::MAX without allocating a large vector
+and keep the ordinary alternating positive/negative IDs unchanged.
+
+Selected M1 with `spec_auditor`; the focused review found no issue. Checks
+passed: `RUSTC_WRAPPER= cargo test -p yu-solver --lib
+f5c_draft::node_count_tests -- --test-threads=1` (2),
+`cargo fmt --all -- --check`, and `git diff --check`. The default wrapper hit
+local sccache EPERM; the direct test run passed with `RUSTC_WRAPPER=`. No
+broad suite or resource probe ran; measurement budget consumed: zero. No
+numeric ceiling or API decision was added.
+
+Next: audit the separate `FlatSourceArena` and memo node admissions, then root
+index growth, normalization descriptor words, and live intermediate-graph
+counts. Numeric-boundary selection, production cutover, F5e, and overall F5c
+acceptance remain open.
+
+### Completed continuation (2026-09-28): Q/R bound-count preflight
 
 The flat candidate now checks the representable Q+R bound count before growing
 the post-R recursive map or selected-bound lane. `FlatDraft::bound` applies the
@@ -21,10 +43,10 @@ test startup hit the local sccache EPERM; `RUSTC_WRAPPER=` runs passed. No broad
 suite, probe, benchmark, timing run, or §15 capture ran; measurement budget
 consumed: zero. No numeric ceiling or production cutover was selected.
 
-Next: preflight the next FlatDraft positive/negative node count before its
-lane grows, then audit root, descriptor, and live intermediate-graph counts.
-The wider source arena, numeric boundary, production cutover, F5e, and overall
-F5c acceptance remain open.
+The follow-up source audit identified FlatDraft node count as the next slice;
+that preflight is now complete above. Source-arena/memo nodes, roots,
+descriptors, live intermediate-graph limits, numeric-boundary selection,
+production cutover, F5e, and overall F5c acceptance remain open.
 
 ### Completed continuation (2026-09-28): producer structural-incidence admission
 
