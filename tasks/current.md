@@ -28,7 +28,7 @@ performance review and primary approval set a sequential combined ceiling of
 Numeric support-boundary selection and production cutover remain separate
 decisions.
 
-### Latest continuation (2026-09-27): corrected §15 boxed depth-64 accounting
+### Latest continuation (2026-09-27): repaired §15 resource-probe gates
 
 The §15 rebuild succeeded in 9.69 seconds. Its scale capture then stopped with
 `IdentityExhausted` on synthetic seeded-depth-64 boxed execution, before the
@@ -50,10 +50,20 @@ expected two Union children and observed three. The command took 0.42 seconds
 and reported 35,676 KiB maximum RSS. The failure/rollback capture did not run
 because the plan stops on a semantic or counter mismatch. Six of seven
 capture/build commands have been used; §15 wall time is about 34.01 seconds and
-combined §15+§44 about 89.11 seconds. No further capture is authorized by this
-plan. The width assertion is under focused code review; do not change its
-expected output to match the observation. §15 remains incomplete; no numeric
-boundary or production cutover is selected.
+combined §15+§44 about 89.11 seconds. The width probe now allows the fixture's
+distinct `Quantified` lower member while requiring exactly one `Int` and one
+representative repeated `Function`. It checks predicate and recursive-lower
+roots directly, preserves child uniqueness and boxed/flat parity, and no
+longer counts repeated root visits as unique Union nodes. A focused non-ignored
+boxed/flat correctness test passed; each of two schemes in both routes had
+predicate children `Int=1, Function=1, Quantified=0` and recursive-lower
+children `Int=1, Function=1, Quantified=1`. `spec_auditor` found no issue in
+the final code delta. The next plan amendment passed fresh spec/performance
+review and primary approval. It authorizes one full scale capture and, only on
+success, one failure/rollback capture; total cap eight commands with six
+charged. Both commands have a 180-second limit plus 10 seconds grace, and any
+build is inside the scale command. §15 remains incomplete; no numeric boundary
+or production cutover is selected.
 
 ### Latest continuation (2026-09-27): all-member candidate and independent physical ledger
 

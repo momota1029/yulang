@@ -359,8 +359,9 @@ fn candidate_seeded_run(
     width: usize,
     flat: bool,
     paired_parity_bytes: usize,
+    capture_enabled: bool,
 ) -> CandidateProbeResult {
-    let capture = flat.then(|| {
+    let capture = (flat && capture_enabled).then(|| {
         F5cCandidateCapture::with_reserved_history()
             .expect("candidate capture incomplete: history reservation failed")
     });
@@ -382,8 +383,25 @@ fn candidate_seeded_run(
                 view.neutral_value(bound.bounds()).unwrap();
             (lower, 0)
         }));
+        if width > 1 {
+            assert!(
+                matches!(
+                    view.positive_value(view.predicate()).unwrap(),
+                    yu_types::PositiveValueView::Union(_)
+                ),
+                "predicate retains the width union"
+            );
+            for &(lower, _) in pending.iter().skip(1) {
+                assert!(
+                    matches!(
+                        view.positive_value(lower).unwrap(),
+                        yu_types::PositiveValueView::Union(_)
+                    ),
+                    "recursive lower bound retains the width union"
+                );
+            }
+        }
         let mut maximum_function_depth = 0;
-        let mut normalized_unions = 0;
         while let Some((id, function_depth)) = pending.pop() {
             match view.positive_value(id).unwrap() {
                 yu_types::PositiveValueView::Function { result, .. } => {
@@ -391,17 +409,25 @@ fn candidate_seeded_run(
                     pending.push((result, function_depth + 1));
                 }
                 yu_types::PositiveValueView::Union(children) => {
-                    normalized_unions += 1;
                     let mut unique = std::collections::HashSet::new();
                     assert!(
                         children.iter().all(|child| unique.insert(*child)),
                         "normalized union retains duplicate child IDs"
                     );
                     if width > 1 {
-                        assert_eq!(
-                            children.len(),
-                            2,
-                            "width endpoint collapses to one representative beside Int"
+                        let quantified = children
+                            .iter()
+                            .filter(|child| {
+                                matches!(
+                                    view.positive_value(**child).unwrap(),
+                                    yu_types::PositiveValueView::Quantified(_)
+                                )
+                            })
+                            .count();
+                        assert_eq!(children.len(), 2 + quantified);
+                        assert!(
+                            quantified <= 1,
+                            "only the fixture's quantified row may remain"
                         );
                         assert_eq!(
                             children
@@ -433,12 +459,6 @@ fn candidate_seeded_run(
             maximum_function_depth >= depth,
             "seeded Function result chain was not retained"
         );
-        if width > 1 {
-            assert_eq!(
-                normalized_unions, 1,
-                "seeded width must retain one normalized Union"
-            );
-        }
     }
     if let Some(capture) = session.f5c_candidate_capture.take() {
         eprintln!(
@@ -463,6 +483,13 @@ fn candidate_seeded_run(
 }
 
 #[test]
+fn f5c_candidate_seeded_width_normalizes_distinct_members() {
+    let boxed = candidate_seeded_run("seeded_width_correctness_boxed", 1, 8, false, 0, false);
+    let flat = candidate_seeded_run("seeded_width_correctness_flat", 1, 8, true, 0, false);
+    boxed.assert_parity(&flat);
+}
+
+#[test]
 #[ignore = "manual F5c candidate resource capture"]
 fn f5c_candidate_resource_probe_scale() {
     for n in [2usize, 4, 8, 16] {
@@ -479,26 +506,40 @@ fn f5c_candidate_resource_probe_scale() {
         candidate_probe_run(&format!("source_ring_{n}"), &source, true, None, None, 0);
     }
     for depth in [8usize, 32, 64, 256] {
-        let boxed =
-            candidate_seeded_run(&format!("seeded_depth_{depth}_boxed"), depth, 1, false, 0);
+        let boxed = candidate_seeded_run(
+            &format!("seeded_depth_{depth}_boxed"),
+            depth,
+            1,
+            false,
+            0,
+            true,
+        );
         let flat = candidate_seeded_run(
             &format!("seeded_depth_{depth}_flat"),
             depth,
             1,
             true,
             boxed.retained_bytes(),
+            true,
         );
         boxed.assert_parity(&flat);
     }
     for width in [8usize, 32, 64] {
-        let boxed =
-            candidate_seeded_run(&format!("seeded_width_{width}_boxed"), 1, width, false, 0);
+        let boxed = candidate_seeded_run(
+            &format!("seeded_width_{width}_boxed"),
+            1,
+            width,
+            false,
+            0,
+            true,
+        );
         let flat = candidate_seeded_run(
             &format!("seeded_width_{width}_flat"),
             1,
             width,
             true,
             boxed.retained_bytes(),
+            true,
         );
         boxed.assert_parity(&flat);
     }

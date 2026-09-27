@@ -1,19 +1,28 @@
 # F5c candidate resource measurement plan
 
-Status: Original plan and its budget amendment passed review by
+Status: Original plan and its budget amendments passed review by
 `spec_auditor`, `performance_auditor`, and primary. The source-baseline
-correction cleared the synthetic seeded-depth-64 boxed ledger failure. The one
-authorized scale recapture then stopped at the first seeded-width boxed
-assertion (observed three Union children where the probe expects two). The
-failure/rollback capture did not run. The stop rule now requires returning to
-the owning correctness gate; this plan authorizes no further capture. The user
-authorized bounded continuation and both measurement extensions. The current
-1,010s combined §15+§44 ceiling and local 570s / 440s ceilings remain recorded,
-but remaining wall time does not authorize a retry. No numeric supported-input
-boundary or production cutover is selected.
+correction cleared the synthetic seeded-depth-64 boxed ledger failure. The
+scale capture then stopped at a probe assertion that treated every Union as
+having only two children. The fixture's predicate and recursive lower roots
+legitimately retain different distinct children. The probe now checks one
+`Int` and one repeated-endpoint `Function`, permits the fixture's one
+`Quantified` lower member, and no longer counts repeated root visits as unique
+Unions. A focused non-ignored test passed for boxed and flat routes with scheme
+and counter parity; an independent `spec_auditor` review found no issue. The
+stop rule barred the failure/rollback capture. The probe repair passed a
+focused non-ignored boxed/flat parity test and fresh spec review. A new bounded
+continuation passed fresh `spec_auditor` and `performance_auditor` review, and
+primary approves exactly one full scale capture and, only if it passes, one
+failure/rollback capture. The total command cap is eight, with six commands
+already charged. Each remaining command is bounded at 180 seconds plus 10
+seconds grace, including any test-binary rebuild in the scale command. The
+1,010s combined §15+§44 ceiling and local 570s / 440s ceilings remain unchanged.
+No numeric supported-input boundary or production cutover is selected.
 
 Authority: `notes/design/2026-09-25-f5c-flat-indexed-stack-independent-draft.md`
-§§5 and 15; `notes/design/2026-09-26-f5c-shared-walker-flat-sink-draft.md`
+§§5 and 15; `notes/design/2026-09-21-f5-general-function-scheme-foundation-draft.md`
+§36 structural-rank deduplication; `notes/design/2026-09-26-f5c-shared-walker-flat-sink-draft.md`
 all-member accounting and rollback sections; `rules/performance.md`.
 
 ## Decision this campaign can inform
@@ -50,9 +59,12 @@ the all-member correctness tests.
    scale points, not source-corpus inputs.
 3. **Seeded normalization width.** Use the same fixture with 8, 32, and 64
    repeated exact lower endpoints to exercise duplicate-heavy normalization
-   through the complete SCC candidate. Assert the expected normalized result
-   and boxed/flat public-counter parity. These widths are diagnostic points,
-   not a resource threshold.
+   through the complete SCC candidate. At each predicate and recursive-lower
+   union, require one `Int`, one representative for the repeated `Function`,
+   and at most the fixture's one distinct `Quantified` lower member; reject
+   duplicate child IDs or any other member kind. Compare boxed/flat schemes
+   and public counters. These widths are diagnostic points, not a resource
+   threshold.
 4. **Failure, rollback, failed reserve, and retry.** In a separate ignored
    test, measure a two-member route with a post-transfer failure and a batch
    normalization failure. Capture each failure before transactional rollback,
@@ -137,18 +149,12 @@ benchmarks.
 - Toolchain: `rustc 1.95.0 (59807616e 2026-04-14)`, Cargo 1.95.0.
 - Build mode: Cargo's default test/debug profile, offline dependencies, one test
   thread. Clear `RUSTC_WRAPPER` so the process does not depend on sccache.
-- Rebuild the ignored test binary after the source-baseline fix. The prior
-  rebuilt binary took 9.69 seconds to compile; cap this rebuild at 90 seconds
-  plus 10 seconds kill grace:
+- Capture the complete source/scale families in one process. A stale test
+  binary rebuilds as part of this command, and its compilation is included in
+  the same 180-second bound:
 
   ```text
-  timeout --signal=TERM --kill-after=10s 90s env RUSTC_WRAPPER= cargo test -p yu-solver --lib f5c_candidate_resource_probe --offline --no-run -j 2
-  ```
-
-- Capture the source/scale cases in one process:
-
-  ```text
-  timeout --signal=TERM --kill-after=10s 180s /usr/bin/time -v env RUSTC_WRAPPER= cargo test -p yu-solver --lib f5c_candidate_resource_probe_scale --offline -- --ignored --nocapture --test-threads=1
+  timeout --signal=TERM --kill-after=10s 180s /usr/bin/time -v env RUSTC_WRAPPER= cargo test -p yu-solver --lib f5c_candidate_resource_probe_scale --offline -j 2 -- --ignored --nocapture --test-threads=1
   ```
 
 - Capture failure/rollback/retry cases in one process:
@@ -157,30 +163,33 @@ benchmarks.
   timeout --signal=TERM --kill-after=10s 180s /usr/bin/time -v env RUSTC_WRAPPER= cargo test -p yu-solver --lib f5c_candidate_resource_probe_failures --offline -- --ignored --nocapture --test-threads=1
   ```
 
-Campaign budget: the first two scale invocations failed before any F5c record.
+Campaign budget: two initial scale invocations failed before any F5c record.
 After the five-command extension, a rebuild and scale capture stopped at the
-boxed depth-64 accounting failure. The reviewed amendment then authorized one
-rebuild and one scale recapture, with a failure/rollback capture contingent on
-the scale completing without a stop condition. Six of seven capture/build
-commands have now been used. The latest rebuild took 6.81 seconds and the scale
-capture took 0.42 seconds; cumulative §15 wall time is about 34.01 seconds and
-combined §15+§44 wall time about 89.11 seconds. The scale capture completed
-source rings through 16 and paired depth points through 256, then failed its
-first seeded-width boxed assertion (expected two Union children, observed
-three). The failure/rollback capture is barred by the stop rule. The 570-second
-§15 and 1,010-second combined ceilings still apply, but no remaining time or
-nominal command authorizes another capture. Correctness-only tests remain
+boxed depth-64 accounting failure. A later reviewed amendment allowed one
+rebuild and scale recapture; that capture completed source rings through 16 and
+paired depth points through 256, then stopped at the over-specific width probe
+assertion. The probe correction passed focused boxed/flat correctness and
+parity review. Six of seven commands are charged; cumulative §15 wall time is
+about 34.01 seconds and combined §15+§44 about 89.11 seconds. This amendment
+proposes one full scale capture (with any rebuild included in its timeout),
+then the failure/rollback capture only if scale completes successfully. This
+raises the cap to eight total commands, with six already used and two remaining.
+Each has a 180-second timeout plus 10 seconds grace; together the remaining
+maximum is 380 seconds. The projected §15 total is 414.01 of 570 seconds; the
+combined total is 469.11 of 1,010 seconds. Correctness-only tests remain
 outside the capture budget under `rules/testing.md`.
 
 ## Failure handling and stop rules
 
-- The first two scale attempts failed before any F5c record. The first
-  post-repair capture stopped on boxed depth-64 with a test-only accounting
-  underflow; the corrected sampled-source baseline passes a focused boxed
-  depth-64 correctness test. One reviewed scale recapture then stopped at the
-  seeded-width boxed Union child-count assertion. Do not run the contingent
-  failure/rollback capture or any further capture until the owning correctness
-  gate resolves and a fresh plan passes review. Do not add input dimensions.
+- The first two scale attempts failed before any F5c record. One post-repair
+  capture stopped on boxed depth-64 with a test-only accounting underflow; the
+  corrected sampled-source baseline passes a focused boxed depth-64 correctness
+  test. A reviewed scale recapture then stopped at the over-specific seeded-
+  width Union assertion; a focused correctness test and independent review
+  closed that probe-contract defect. After this amendment passes fresh review,
+  run one full scale capture. Run the failure/rollback capture only if scale
+  completes without any stop condition. No additional retry or input dimension
+  is authorized.
 - Stop the campaign on any boxed/flat semantic or public-counter mismatch,
   independent-lane reconciliation failure, incomplete checkpoint sample,
   unexpected `IdentityExhausted` on the listed success cases, or missing
@@ -192,10 +201,10 @@ outside the capture budget under `rules/testing.md`.
   checkpoint and failure site. On failed reserve, record actual capacity after
   the reserve result before proceeding, then verify the retry's retained
   capacity/growth accounting.
-- Each capture has a 180-second TERM timeout plus at most 10 seconds kill
-  grace, and the required test-binary rebuild has a 90-second timeout plus 10
-  seconds grace. Stop if any bound is exceeded or the §15 local aggregate wall
-  time reaches 570 seconds; also enforce the combined 1,010-second limit.
+- Each capture, including any required test-binary rebuild, has a 180-second
+  TERM timeout plus at most 10 seconds kill grace. Stop if any bound is
+  exceeded or the §15 local aggregate wall time reaches 570 seconds; also
+  enforce the combined 1,010-second limit.
   These bounds include timeout grace and remain within §15's ten-minute
   ceiling. Do not infer a supported boundary from the largest successful
   point.
