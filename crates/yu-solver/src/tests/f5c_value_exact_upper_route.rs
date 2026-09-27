@@ -827,10 +827,10 @@ fn f5c_incoming_value_undo_growth_precedes_later_provenance_failure() {
             vec![
                 F5cPositive::Int,
                 F5cPositive::Function {
-                    argument: Box::new(F5cNegative::Top),
+                    argument: test_tracked_one(&test_source_meter, F5cNegative::Top),
                     argument_effect: F5cNegativeEffect::Empty,
                     result_effect: F5cPositiveEffect::Bottom,
-                    result: Box::new(F5cPositive::Int),
+                    result: test_tracked_one(&test_source_meter, F5cPositive::Int),
                 },
             ],
         )),
@@ -1012,10 +1012,10 @@ fn check_journal_key_changed_reserve(reported: bool) {
                 vec![
                     F5cPositive::Int,
                     F5cPositive::Function {
-                        argument: Box::new(F5cNegative::Top),
+                        argument: test_tracked_one(&test_source_meter, F5cNegative::Top),
                         argument_effect: F5cNegativeEffect::Empty,
                         result_effect: F5cPositiveEffect::Bottom,
-                        result: Box::new(F5cPositive::Quantified(0)),
+                        result: test_tracked_one(&test_source_meter, F5cPositive::Quantified(0)),
                     },
                 ],
             ))
@@ -1494,10 +1494,10 @@ fn f5c_incoming_reported_errors_growth_samples_after_first_union_member_and_retr
             vec![
                 F5cPositive::Int,
                 F5cPositive::Function {
-                    argument: Box::new(F5cNegative::Top),
+                    argument: test_tracked_one(&test_source_meter, F5cNegative::Top),
                     argument_effect: F5cNegativeEffect::Empty,
                     result_effect: F5cPositiveEffect::Bottom,
-                    result: Box::new(F5cPositive::Quantified(0)),
+                    result: test_tracked_one(&test_source_meter, F5cPositive::Quantified(0)),
                 },
             ],
         )),
@@ -1749,10 +1749,10 @@ fn f5c_incoming_errors_growth_samples_after_first_union_member_and_retries() {
             vec![
                 F5cPositive::Int,
                 F5cPositive::Function {
-                    argument: Box::new(F5cNegative::Top),
+                    argument: test_tracked_one(&test_source_meter, F5cNegative::Top),
                     argument_effect: F5cNegativeEffect::Empty,
                     result_effect: F5cPositiveEffect::Bottom,
-                    result: Box::new(F5cPositive::Quantified(0)),
+                    result: test_tracked_one(&test_source_meter, F5cPositive::Quantified(0)),
                 },
             ],
         )),
@@ -2250,10 +2250,10 @@ fn check_incoming_route_changed_reserve(lane: IncomingRouteReserveLane) {
                 vec![
                     F5cPositive::Int,
                     F5cPositive::Function {
-                        argument: Box::new(F5cNegative::Top),
+                        argument: test_tracked_one(&test_source_meter, F5cNegative::Top),
                         argument_effect: F5cNegativeEffect::Empty,
                         result_effect: F5cPositiveEffect::Bottom,
-                        result: Box::new(F5cPositive::Quantified(0)),
+                        result: test_tracked_one(&test_source_meter, F5cPositive::Quantified(0)),
                     },
                 ],
             ))
@@ -3852,6 +3852,7 @@ fn f5c_incoming_value_exact_lower_growth_samples_before_rollback_and_retries() {
 
 #[test]
 fn f5c_incoming_value_exact_upper_growth_samples_before_rollback_and_retries() {
+    let test_source_meter = DraftHeapMeter::default();
     let batch = collect(module(
         "my source = 1; my sink = source",
         "f5c-value-exact-upper-route",
@@ -3862,10 +3863,10 @@ fn f5c_incoming_value_exact_upper_growth_samples_before_rollback_and_retries() {
         quantifier_count: 1,
         recursive_bounds: Vec::new(),
         predicate: F5cPositive::Function {
-            argument: Box::new(F5cNegative::Top),
+            argument: test_tracked_one(&test_source_meter, F5cNegative::Top),
             argument_effect: F5cNegativeEffect::Empty,
             result_effect: F5cPositiveEffect::Bottom,
-            result: Box::new(F5cPositive::Quantified(0)),
+            result: test_tracked_one(&test_source_meter, F5cPositive::Quantified(0)),
         },
     };
     let finalized = InferenceSession::finalize_generalization_draft(

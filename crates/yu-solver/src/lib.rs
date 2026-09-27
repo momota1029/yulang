@@ -180,9 +180,9 @@ mod scc;
 use scc::{SccComponentId, SccPlan};
 mod f5c_binder_substitution;
 mod f5c_draft;
-#[allow(dead_code)] // The physical source-draft owners await the next migration slice.
+#[allow(dead_code)] // The source-draft owner migration proceeds in staged slices.
 mod f5c_draft_heap;
-use f5c_draft_heap::{DraftHeapMeter, TrackedAllocation, TrackedVec};
+use f5c_draft_heap::{DraftHeapMeter, TrackedAllocation, TrackedOne, TrackedVec};
 
 #[cfg(test)]
 trait IntoTestTracked<'meter, T> {
@@ -210,6 +210,11 @@ fn test_tracked<'meter, T>(
     values: impl IntoTestTracked<'meter, T>,
 ) -> TrackedVec<'meter, T> {
     values.into_test_tracked(meter)
+}
+
+#[cfg(test)]
+fn test_tracked_one<'meter, T>(meter: &'meter DraftHeapMeter, value: T) -> TrackedOne<'meter, T> {
+    TrackedOne::try_new(meter, value).unwrap()
 }
 mod f5c_generalization;
 #[cfg(test)]
@@ -3774,6 +3779,9 @@ struct IndependentResourceLedger {
     component_expansion_memo_peak_bytes: usize,
     component_expansion_memo_capacity_growths: usize,
     source_draft_slots: IndependentMemoLane,
+    source_nested_draft_count: usize,
+    source_nested_bytes: usize,
+    source_actual_bound_capacity: usize,
     source_bound_tokens: IndependentMemoLane,
     source_recursive_bounds: IndependentMemoLane,
     component_expansion_memo_roots: IndependentMemoLane,
@@ -3926,17 +3934,46 @@ impl IndependentResourceLedger {
             .checked_mul(std::mem::size_of::<GeneralizationDraft>())
             .ok_or(SolveAvailabilityError::IdentityExhausted)?;
         let payload_bytes = DraftHeapMeter::fixed_payload_bytes();
-        let sidecar_bytes = sidecar.map_or(0, TrackedVec::accounted_bytes);
-        let bound_bytes = held_bound_capacity
+        let sidecar_bytes = sidecar
+            .map_or(0, TrackedVec::capacity)
+            .checked_mul(std::mem::size_of::<TrackedAllocation<'_>>())
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        if drafts.len() < self.source_nested_draft_count {
+            return Err(SolveAvailabilityError::IdentityExhausted);
+        }
+        // Published draft values are immutable until the source-slot release.
+        // Census each newly appended draft once so member-by-member staging
+        // remains linear in its total nested node count.
+        let new_drafts = &drafts[self.source_nested_draft_count..];
+        let added_bound_capacity = new_drafts.iter().try_fold(0usize, |sum, draft| {
+            sum.checked_add(draft.recursive_bounds.capacity())
+                .ok_or(SolveAvailabilityError::IdentityExhausted)
+        })?;
+        let actual_bound_capacity = self
+            .source_actual_bound_capacity
+            .checked_add(added_bound_capacity)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        if held_bound_capacity != actual_bound_capacity {
+            return Err(SolveAvailabilityError::IdentityExhausted);
+        }
+        let bound_bytes = actual_bound_capacity
             .checked_mul(std::mem::size_of::<F5cRecursiveBound>())
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        let nested_bytes = self
+            .source_nested_bytes
+            .checked_add(Self::source_nested_capacity_bytes(new_drafts)?)
             .ok_or(SolveAvailabilityError::IdentityExhausted)?;
         let physical_bytes = buffer_bytes
             .checked_add(sidecar_bytes)
             .and_then(|sum| sum.checked_add(bound_bytes))
+            .and_then(|sum| sum.checked_add(nested_bytes))
             .ok_or(SolveAvailabilityError::IdentityExhausted)?;
         if meter.current_bytes() != Some(physical_bytes) {
             return Err(SolveAvailabilityError::IdentityExhausted);
         }
+        self.source_nested_draft_count = drafts.len();
+        self.source_nested_bytes = nested_bytes;
+        self.source_actual_bound_capacity = actual_bound_capacity;
         if let Some(sidecar) = sidecar {
             let lane = &mut self.source_bound_tokens;
             lane.requested_slots = lane
@@ -3980,7 +4017,138 @@ impl IndependentResourceLedger {
             .ok_or(SolveAvailabilityError::IdentityExhausted)
     }
 
+    fn source_nested_capacity_bytes(
+        drafts: &[GeneralizationDraft<'_>],
+    ) -> Result<usize, SolveAvailabilityError> {
+        enum Visit<'a, 'meter> {
+            Positive(&'a F5cPositive<'meter>),
+            Negative(&'a F5cNegative<'meter>),
+        }
+        let mut pending = Vec::new();
+        for draft in drafts.iter() {
+            pending
+                .try_reserve(1)
+                .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+            pending.push(Visit::Positive(&draft.predicate));
+            for bound in &draft.recursive_bounds {
+                pending
+                    .try_reserve(2)
+                    .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                pending.push(Visit::Positive(&bound.lower));
+                pending.push(Visit::Negative(&bound.upper));
+            }
+        }
+        let mut bytes = 0usize;
+        while let Some(value) = pending.pop() {
+            let (capacity, size) = match value {
+                Visit::Positive(F5cPositive::Function {
+                    argument, result, ..
+                }) => {
+                    bytes = bytes
+                        .checked_add(
+                            argument
+                                .capacity()
+                                .checked_mul(std::mem::size_of::<F5cNegative>())
+                                .ok_or(SolveAvailabilityError::IdentityExhausted)?,
+                        )
+                        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                    pending
+                        .try_reserve(2)
+                        .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                    pending.push(Visit::Negative(argument.as_ref()));
+                    pending.push(Visit::Positive(result.as_ref()));
+                    (result.capacity(), std::mem::size_of::<F5cPositive>())
+                }
+                Visit::Negative(F5cNegative::Function {
+                    argument, result, ..
+                }) => {
+                    bytes = bytes
+                        .checked_add(
+                            argument
+                                .capacity()
+                                .checked_mul(std::mem::size_of::<F5cPositive>())
+                                .ok_or(SolveAvailabilityError::IdentityExhausted)?,
+                        )
+                        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                    pending
+                        .try_reserve(2)
+                        .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                    pending.push(Visit::Positive(argument.as_ref()));
+                    pending.push(Visit::Negative(result.as_ref()));
+                    (result.capacity(), std::mem::size_of::<F5cNegative>())
+                }
+                Visit::Positive(F5cPositive::Union(children)) => {
+                    pending
+                        .try_reserve(children.len())
+                        .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                    pending.extend(children.iter().map(Visit::Positive));
+                    (children.capacity(), std::mem::size_of::<F5cPositive>())
+                }
+                Visit::Negative(F5cNegative::Intersection(children)) => {
+                    pending
+                        .try_reserve(children.len())
+                        .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                    pending.extend(children.iter().map(Visit::Negative));
+                    (children.capacity(), std::mem::size_of::<F5cNegative>())
+                }
+                Visit::Positive(_) | Visit::Negative(_) => continue,
+            };
+            bytes = bytes
+                .checked_add(
+                    capacity
+                        .checked_mul(size)
+                        .ok_or(SolveAvailabilityError::IdentityExhausted)?,
+                )
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        }
+        Ok(bytes)
+    }
+
+    fn reconcile_source_draft_slots_after_mutation(
+        &mut self,
+        drafts: &TrackedVec<GeneralizationDraft<'_>>,
+        sidecar: Option<&TrackedVec<TrackedAllocation<'_>>>,
+        held_bound_capacity: usize,
+        meter: &DraftHeapMeter,
+    ) -> Result<(), SolveAvailabilityError> {
+        let actual_bound_capacity = drafts.iter().try_fold(0usize, |sum, draft| {
+            sum.checked_add(draft.recursive_bounds.capacity())
+                .ok_or(SolveAvailabilityError::IdentityExhausted)
+        })?;
+        if actual_bound_capacity != held_bound_capacity {
+            return Err(SolveAvailabilityError::IdentityExhausted);
+        }
+        let nested_bytes = Self::source_nested_capacity_bytes(drafts)?;
+        let source_bytes = drafts
+            .capacity()
+            .checked_mul(std::mem::size_of::<GeneralizationDraft>())
+            .and_then(|bytes| {
+                bytes.checked_add(
+                    sidecar
+                        .map_or(0, TrackedVec::capacity)
+                        .checked_mul(std::mem::size_of::<TrackedAllocation<'_>>())?,
+                )
+            })
+            .and_then(|bytes| {
+                bytes.checked_add(
+                    actual_bound_capacity.checked_mul(std::mem::size_of::<F5cRecursiveBound>())?,
+                )
+            })
+            .and_then(|bytes| bytes.checked_add(nested_bytes))
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        if meter.current_bytes() != Some(source_bytes) {
+            return Err(SolveAvailabilityError::IdentityExhausted);
+        }
+        self.source_nested_draft_count = drafts.len();
+        self.source_nested_bytes = nested_bytes;
+        self.source_actual_bound_capacity = actual_bound_capacity;
+        Ok(())
+    }
+
     fn release_source_draft_slots(&mut self) {
+        self.source_nested_draft_count = 0;
+        self.source_nested_bytes = 0;
+        self.source_actual_bound_capacity = 0;
         self.source_draft_slots.actual_capacity = 0;
         self.source_draft_slots.retained_bytes = 0;
         self.source_bound_tokens.actual_capacity = 0;
@@ -4857,6 +5025,486 @@ fn source_draft_slot_ledger_reconciles_failed_initial_reserve_and_release() {
     assert_eq!(ledger.source_draft_slots.actual_capacity, 0);
     assert_eq!(ledger.source_draft_slots.retained_bytes, 0);
     assert_eq!(ledger.source_draft_slots.peak_bytes, bytes);
+}
+
+#[cfg(test)]
+#[test]
+fn source_nested_census_advances_once_per_appended_draft() {
+    let meter = DraftHeapMeter::default();
+    let mut drafts = TrackedVec::<GeneralizationDraft>::new(&meter);
+    drafts.try_reserve_exact(2).unwrap();
+    let mut ledger = IndependentResourceLedger::default();
+    let mut members = TrackedVec::new(&meter);
+    members.try_push(F5cPositive::Int).unwrap();
+    drafts.push_reserved(GeneralizationDraft {
+        quantifier_count: 0,
+        recursive_bounds: Vec::new(),
+        predicate: F5cPositive::Union(members),
+    });
+    ledger
+        .record_source_draft_slots(&drafts, None, 0, 1, 1, 0, 0, 0, &meter)
+        .unwrap();
+    let first_nested = ledger.source_nested_bytes;
+    assert!(first_nested > 0);
+    let function = F5cPositive::Function {
+        argument: TrackedOne::try_new(&meter, F5cNegative::Top).unwrap(),
+        argument_effect: F5cNegativeEffect::Empty,
+        result_effect: F5cPositiveEffect::Bottom,
+        result: TrackedOne::try_new(&meter, F5cPositive::Int).unwrap(),
+    };
+    drafts.push_reserved(GeneralizationDraft {
+        quantifier_count: 0,
+        recursive_bounds: Vec::new(),
+        predicate: function,
+    });
+    let total = ledger
+        .record_source_draft_slots(&drafts, None, 0, 1, 0, 0, 0, 0, &meter)
+        .unwrap();
+    assert_eq!(ledger.source_nested_draft_count, 2);
+    assert!(ledger.source_nested_bytes > first_nested);
+    assert_eq!(total, meter.current_bytes().unwrap());
+    let nested = ledger.source_nested_bytes;
+    ledger
+        .record_source_draft_slots(&drafts, None, 0, 0, 0, 0, 0, 0, &meter)
+        .unwrap();
+    assert_eq!(ledger.source_nested_bytes, nested);
+    let mut stats = f5c_normalization::NormalizationStats::default();
+    f5c_normalization::normalize_component_with_stats(&meter, drafts.as_mut_slice(), &mut stats)
+        .unwrap();
+    ledger
+        .reconcile_source_draft_slots_after_mutation(&drafts, None, 0, &meter)
+        .unwrap();
+    assert_eq!(ledger.source_nested_draft_count, 2);
+    drop(drafts);
+    ledger.release_source_draft_slots();
+    assert_eq!(ledger.source_nested_draft_count, 0);
+    assert_eq!(ledger.source_nested_bytes, 0);
+    assert_eq!(meter.current_bytes(), Some(0));
+}
+
+#[cfg(test)]
+#[test]
+fn source_nested_census_reconciles_partial_normalization_error() {
+    let meter = DraftHeapMeter::default();
+    let mut drafts = TrackedVec::<GeneralizationDraft>::new(&meter);
+    drafts.try_reserve_exact(1).unwrap();
+    drafts.push_reserved(GeneralizationDraft {
+        quantifier_count: 0,
+        recursive_bounds: Vec::new(),
+        predicate: F5cPositive::Function {
+            argument: TrackedOne::try_new(&meter, F5cNegative::Top).unwrap(),
+            argument_effect: F5cNegativeEffect::Empty,
+            result_effect: F5cPositiveEffect::Bottom,
+            result: TrackedOne::try_new(&meter, F5cPositive::Variable(1)).unwrap(),
+        },
+    });
+    let mut ledger = IndependentResourceLedger::default();
+    ledger
+        .record_source_draft_slots(&drafts, None, 0, 1, 1, 0, 0, 0, &meter)
+        .unwrap();
+    assert!(ledger.source_nested_bytes > 0);
+    let mut stats = f5c_normalization::NormalizationStats::default();
+    assert_eq!(
+        f5c_normalization::normalize_component_with_stats(
+            &meter,
+            drafts.as_mut_slice(),
+            &mut stats,
+        ),
+        Err(SolveAvailabilityError::IdentityExhausted)
+    );
+    ledger
+        .reconcile_source_draft_slots_after_mutation(&drafts, None, 0, &meter)
+        .unwrap();
+    assert_eq!(drafts[0].predicate, F5cPositive::Bottom);
+    assert_eq!(ledger.source_nested_bytes, 0);
+    drop(drafts);
+    ledger.release_source_draft_slots();
+    assert_eq!(meter.current_bytes(), Some(0));
+}
+
+#[cfg(test)]
+#[test]
+fn source_function_children_reconcile_full_component_joint_peak() {
+    fn assert_live_growth(
+        meter: &DraftHeapMeter,
+        outer_capacity: usize,
+        sidecar_capacity: usize,
+        bound_capacity: usize,
+        nested_bytes: usize,
+        external_bytes: usize,
+    ) {
+        let source_bytes = outer_capacity * std::mem::size_of::<GeneralizationDraft>()
+            + sidecar_capacity * std::mem::size_of::<TrackedAllocation<'_>>()
+            + bound_capacity * std::mem::size_of::<F5cRecursiveBound>()
+            + nested_bytes;
+        assert_eq!(meter.current_bytes(), Some(source_bytes));
+        assert_eq!(
+            meter.physical_component_joint_peak(),
+            Some(source_bytes + external_bytes)
+        );
+    }
+
+    fn assert_live_release(
+        meter: &DraftHeapMeter,
+        outer_capacity: usize,
+        sidecar_capacity: usize,
+        bound_capacity: usize,
+        nested_bytes: usize,
+        external_bytes: usize,
+        peak_bytes: usize,
+    ) {
+        let source_bytes = outer_capacity * std::mem::size_of::<GeneralizationDraft>()
+            + sidecar_capacity * std::mem::size_of::<TrackedAllocation<'_>>()
+            + bound_capacity * std::mem::size_of::<F5cRecursiveBound>()
+            + nested_bytes;
+        assert_eq!(meter.current_bytes(), Some(source_bytes));
+        assert_eq!(meter.physical_component_joint_peak(), Some(peak_bytes));
+        assert!(peak_bytes >= source_bytes + external_bytes);
+    }
+
+    let meter = DraftHeapMeter::default();
+    let mut memo = F5cComponentExpansionMemo::default();
+    memo.positive_node(&F5cPositive::Int, None).unwrap();
+    meter.begin_component().unwrap();
+    memo.observe_component_external(&meter).unwrap();
+    let mut walker = Vec::<u32>::new();
+    memo.reserve_walker_with_source(&mut walker, F5cWalkerLaneKind::RawOwnerOrder, &meter)
+        .unwrap();
+    let memo_bytes = usize::try_from(memo.walker_resources.physical_joint.memo_current).unwrap();
+    let walker_bytes = walker.capacity() * std::mem::size_of::<u32>();
+    let external = memo_bytes + walker_bytes;
+    assert!(memo.walker_resources.physical_joint.memo_current > 0);
+    assert_eq!(
+        memo.walker_resources.physical_joint.walker_current,
+        walker_bytes as u128
+    );
+
+    let mut drafts = TrackedVec::<GeneralizationDraft>::new(&meter);
+    drafts.try_reserve_exact(1).unwrap();
+    let mut sidecar = TrackedVec::<TrackedAllocation<'_>>::new(&meter);
+    sidecar.try_reserve_exact(1).unwrap();
+    let mut nested_bytes = 0usize;
+    assert_live_growth(
+        &meter,
+        drafts.capacity(),
+        sidecar.capacity(),
+        0,
+        nested_bytes,
+        external,
+    );
+    let mut negative_members = TrackedVec::new(&meter);
+    let prior_capacity = negative_members.capacity();
+    negative_members
+        .try_push(F5cNegative::Shared(F5cSummaryNodeId(0)))
+        .unwrap();
+    nested_bytes +=
+        (negative_members.capacity() - prior_capacity) * std::mem::size_of::<F5cNegative>();
+    assert_live_growth(
+        &meter,
+        drafts.capacity(),
+        sidecar.capacity(),
+        0,
+        nested_bytes,
+        external,
+    );
+    let prior_capacity = negative_members.capacity();
+    negative_members.try_push(F5cNegative::Int).unwrap();
+    nested_bytes +=
+        (negative_members.capacity() - prior_capacity) * std::mem::size_of::<F5cNegative>();
+    assert_live_growth(
+        &meter,
+        drafts.capacity(),
+        sidecar.capacity(),
+        0,
+        nested_bytes,
+        external,
+    );
+    let positive_argument =
+        TrackedOne::try_new(&meter, F5cNegative::Intersection(negative_members)).unwrap();
+    nested_bytes += positive_argument.capacity() * std::mem::size_of::<F5cNegative>();
+    assert_live_growth(
+        &meter,
+        drafts.capacity(),
+        sidecar.capacity(),
+        0,
+        nested_bytes,
+        external,
+    );
+    let mut positive_members = TrackedVec::new(&meter);
+    let prior_capacity = positive_members.capacity();
+    positive_members
+        .try_push(F5cPositive::Shared(F5cSummaryNodeId(0)))
+        .unwrap();
+    nested_bytes +=
+        (positive_members.capacity() - prior_capacity) * std::mem::size_of::<F5cPositive>();
+    assert_live_growth(
+        &meter,
+        drafts.capacity(),
+        sidecar.capacity(),
+        0,
+        nested_bytes,
+        external,
+    );
+    let prior_capacity = positive_members.capacity();
+    positive_members.try_push(F5cPositive::Int).unwrap();
+    nested_bytes +=
+        (positive_members.capacity() - prior_capacity) * std::mem::size_of::<F5cPositive>();
+    assert_live_growth(
+        &meter,
+        drafts.capacity(),
+        sidecar.capacity(),
+        0,
+        nested_bytes,
+        external,
+    );
+    let positive_result =
+        TrackedOne::try_new(&meter, F5cPositive::Union(positive_members)).unwrap();
+    nested_bytes += positive_result.capacity() * std::mem::size_of::<F5cPositive>();
+    assert_live_growth(
+        &meter,
+        drafts.capacity(),
+        sidecar.capacity(),
+        0,
+        nested_bytes,
+        external,
+    );
+    let predicate = F5cPositive::Function {
+        argument: positive_argument,
+        argument_effect: F5cNegativeEffect::Empty,
+        result_effect: F5cPositiveEffect::Bottom,
+        result: positive_result,
+    };
+    let mut positive_members = TrackedVec::new(&meter);
+    positive_members.try_push(F5cPositive::Bottom).unwrap();
+    nested_bytes += positive_members.capacity() * std::mem::size_of::<F5cPositive>();
+    assert_live_growth(
+        &meter,
+        drafts.capacity(),
+        sidecar.capacity(),
+        0,
+        nested_bytes,
+        external,
+    );
+    let negative_argument =
+        TrackedOne::try_new(&meter, F5cPositive::Union(positive_members)).unwrap();
+    nested_bytes += negative_argument.capacity() * std::mem::size_of::<F5cPositive>();
+    assert_live_growth(
+        &meter,
+        drafts.capacity(),
+        sidecar.capacity(),
+        0,
+        nested_bytes,
+        external,
+    );
+    let mut negative_members = TrackedVec::new(&meter);
+    negative_members.try_push(F5cNegative::Top).unwrap();
+    nested_bytes += negative_members.capacity() * std::mem::size_of::<F5cNegative>();
+    assert_live_growth(
+        &meter,
+        drafts.capacity(),
+        sidecar.capacity(),
+        0,
+        nested_bytes,
+        external,
+    );
+    let negative_result =
+        TrackedOne::try_new(&meter, F5cNegative::Intersection(negative_members)).unwrap();
+    nested_bytes += negative_result.capacity() * std::mem::size_of::<F5cNegative>();
+    assert_live_growth(
+        &meter,
+        drafts.capacity(),
+        sidecar.capacity(),
+        0,
+        nested_bytes,
+        external,
+    );
+    let upper = F5cNegative::Function {
+        argument: negative_argument,
+        argument_effect: F5cPositiveEffect::Bottom,
+        result_effect: F5cNegativeEffect::Empty,
+        result: negative_result,
+    };
+    let mut bounds = TrackedVec::<F5cRecursiveBound>::new(&meter);
+    bounds.try_reserve_exact(1).unwrap();
+    assert_live_growth(
+        &meter,
+        drafts.capacity(),
+        sidecar.capacity(),
+        bounds.capacity(),
+        nested_bytes,
+        external,
+    );
+    bounds.push_reserved(F5cRecursiveBound {
+        ordinal: 0,
+        lower: F5cPositive::Bottom,
+        upper,
+    });
+    assert_live_growth(
+        &meter,
+        drafts.capacity(),
+        sidecar.capacity(),
+        bounds.capacity(),
+        nested_bytes,
+        external,
+    );
+    let bound_capacity = bounds.capacity();
+    let (recursive_bounds, token) = bounds.into_raw_with_token();
+    sidecar.push_reserved(token);
+    drafts.push_reserved(GeneralizationDraft {
+        quantifier_count: 0,
+        recursive_bounds,
+        predicate,
+    });
+    assert_live_growth(
+        &meter,
+        drafts.capacity(),
+        sidecar.capacity(),
+        bound_capacity,
+        nested_bytes,
+        external,
+    );
+
+    let mut ledger = IndependentResourceLedger::default();
+    let expected = ledger
+        .record_source_draft_slots(
+            &drafts,
+            Some(&sidecar),
+            bound_capacity,
+            1,
+            1,
+            1,
+            1,
+            1,
+            &meter,
+        )
+        .unwrap();
+    assert_eq!(
+        expected,
+        drafts.capacity() * std::mem::size_of::<GeneralizationDraft>()
+            + sidecar.capacity() * std::mem::size_of::<TrackedAllocation<'_>>()
+            + bound_capacity * std::mem::size_of::<F5cRecursiveBound>()
+            + nested_bytes
+    );
+    assert_eq!(
+        meter.physical_component_joint_peak(),
+        Some(expected + external)
+    );
+    memo.capture_component_joint_peak(&meter).unwrap();
+    assert_eq!(
+        memo.walker_resources.physical_joint.peak,
+        (expected + external) as u128
+    );
+    let peak = expected + external;
+    let draft = drafts.pop().unwrap();
+    let GeneralizationDraft {
+        predicate,
+        mut recursive_bounds,
+        ..
+    } = draft;
+    let F5cPositive::Function {
+        argument: positive_argument,
+        result: positive_result,
+        ..
+    } = predicate
+    else {
+        unreachable!()
+    };
+    let F5cNegative::Intersection(members) = positive_argument.as_ref() else {
+        unreachable!()
+    };
+    nested_bytes -= positive_argument.capacity() * std::mem::size_of::<F5cNegative>()
+        + members.capacity() * std::mem::size_of::<F5cNegative>();
+    drop(positive_argument);
+    assert_live_release(
+        &meter,
+        drafts.capacity(),
+        sidecar.capacity(),
+        bound_capacity,
+        nested_bytes,
+        external,
+        peak,
+    );
+    let F5cPositive::Union(members) = positive_result.as_ref() else {
+        unreachable!()
+    };
+    nested_bytes -= positive_result.capacity() * std::mem::size_of::<F5cPositive>()
+        + members.capacity() * std::mem::size_of::<F5cPositive>();
+    drop(positive_result);
+    assert_live_release(
+        &meter,
+        drafts.capacity(),
+        sidecar.capacity(),
+        bound_capacity,
+        nested_bytes,
+        external,
+        peak,
+    );
+    let bound = recursive_bounds.pop().unwrap();
+    let F5cNegative::Function {
+        argument: negative_argument,
+        result: negative_result,
+        ..
+    } = bound.upper
+    else {
+        unreachable!()
+    };
+    let F5cPositive::Union(members) = negative_argument.as_ref() else {
+        unreachable!()
+    };
+    nested_bytes -= negative_argument.capacity() * std::mem::size_of::<F5cPositive>()
+        + members.capacity() * std::mem::size_of::<F5cPositive>();
+    drop(negative_argument);
+    assert_live_release(
+        &meter,
+        drafts.capacity(),
+        sidecar.capacity(),
+        bound_capacity,
+        nested_bytes,
+        external,
+        peak,
+    );
+    let F5cNegative::Intersection(members) = negative_result.as_ref() else {
+        unreachable!()
+    };
+    nested_bytes -= negative_result.capacity() * std::mem::size_of::<F5cNegative>()
+        + members.capacity() * std::mem::size_of::<F5cNegative>();
+    drop(negative_result);
+    assert_eq!(nested_bytes, 0);
+    assert_live_release(
+        &meter,
+        drafts.capacity(),
+        sidecar.capacity(),
+        bound_capacity,
+        nested_bytes,
+        external,
+        peak,
+    );
+    drop(recursive_bounds);
+    assert_live_release(
+        &meter,
+        drafts.capacity(),
+        sidecar.capacity(),
+        bound_capacity,
+        nested_bytes,
+        external,
+        peak,
+    );
+    drop(sidecar);
+    assert_live_release(
+        &meter,
+        drafts.capacity(),
+        0,
+        0,
+        nested_bytes,
+        external,
+        peak,
+    );
+    drop(drafts);
+    assert_live_release(&meter, 0, 0, 0, 0, external, peak);
+    memo.release_walker_with_source(F5cWalkerLaneKind::RawOwnerOrder, &meter)
+        .unwrap();
+    drop(walker);
+    ledger.release_source_draft_slots();
 }
 
 #[test]
@@ -10390,6 +11038,22 @@ impl InferenceSession {
                 &mut normalization_stats,
             );
             #[cfg(test)]
+            if let Err(error) = self
+                .resource_ledger
+                .reconcile_source_draft_slots_after_mutation(
+                    &generalization_drafts,
+                    Some(&bound_sidecar),
+                    held_bound_capacity,
+                    &source_meter,
+                )
+            {
+                drop(generalization_drafts);
+                drop(bound_sidecar);
+                drop(source_meter);
+                self.resource_ledger.release_source_draft_slots();
+                return Err(error);
+            }
+            #[cfg(test)]
             self.resource_ledger.record_closed_normalization_index(
                 &normalization_stats,
                 sampled_source_draft_bytes,
@@ -10636,7 +11300,11 @@ impl InferenceSession {
                 result_effect,
                 result,
             } => Ok(F5cPositive::Function {
-                argument: Box::new(Self::decode_negative_scheme(source_meter, view, argument)?),
+                argument: TrackedOne::try_new(
+                    source_meter,
+                    Self::decode_negative_scheme(source_meter, view, argument)?,
+                )
+                .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
                 argument_effect: match view.negative_effect(argument_effect) {
                     Ok(yu_types::NegativeEffectView::Empty) => F5cNegativeEffect::Empty,
                     Err(_) => return Err(SolveAvailabilityError::IdentityExhausted),
@@ -10645,7 +11313,11 @@ impl InferenceSession {
                     Ok(yu_types::PositiveEffectView::Bottom) => F5cPositiveEffect::Bottom,
                     Err(_) => return Err(SolveAvailabilityError::IdentityExhausted),
                 },
-                result: Box::new(Self::decode_positive_scheme(source_meter, view, result)?),
+                result: TrackedOne::try_new(
+                    source_meter,
+                    Self::decode_positive_scheme(source_meter, view, result)?,
+                )
+                .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
             }),
             PositiveValueView::Union(values) => values
                 .iter()
@@ -10676,7 +11348,11 @@ impl InferenceSession {
                 result_effect,
                 result,
             } => Ok(F5cNegative::Function {
-                argument: Box::new(Self::decode_positive_scheme(source_meter, view, argument)?),
+                argument: TrackedOne::try_new(
+                    source_meter,
+                    Self::decode_positive_scheme(source_meter, view, argument)?,
+                )
+                .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
                 argument_effect: match view.positive_effect(argument_effect) {
                     Ok(yu_types::PositiveEffectView::Bottom) => F5cPositiveEffect::Bottom,
                     Err(_) => return Err(SolveAvailabilityError::IdentityExhausted),
@@ -10685,7 +11361,11 @@ impl InferenceSession {
                     Ok(yu_types::NegativeEffectView::Empty) => F5cNegativeEffect::Empty,
                     Err(_) => return Err(SolveAvailabilityError::IdentityExhausted),
                 },
-                result: Box::new(Self::decode_negative_scheme(source_meter, view, result)?),
+                result: TrackedOne::try_new(
+                    source_meter,
+                    Self::decode_negative_scheme(source_meter, view, result)?,
+                )
+                .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
             }),
             NegativeValueView::Intersection(values) => values
                 .iter()
@@ -18356,10 +19036,10 @@ mod tests {
         let test_source_meter = DraftHeapMeter::default();
         let mut memo = F5cComponentExpansionMemo::default();
         let positive_cold = F5cPositive::Function {
-            argument: Box::new(F5cNegative::Int),
+            argument: test_tracked_one(&test_source_meter, F5cNegative::Int),
             argument_effect: F5cNegativeEffect::Empty,
             result_effect: F5cPositiveEffect::Bottom,
-            result: Box::new(F5cPositive::Int),
+            result: test_tracked_one(&test_source_meter, F5cPositive::Int),
         };
         let positive_child = memo.positive_node(&positive_cold, None).unwrap();
         let positive_root = memo
@@ -18375,10 +19055,10 @@ mod tests {
         );
 
         let negative_cold = F5cNegative::Function {
-            argument: Box::new(F5cPositive::Int),
+            argument: test_tracked_one(&test_source_meter, F5cPositive::Int),
             argument_effect: F5cPositiveEffect::Bottom,
             result_effect: F5cNegativeEffect::Empty,
-            result: Box::new(F5cNegative::Int),
+            result: test_tracked_one(&test_source_meter, F5cNegative::Int),
         };
         let negative_child = memo.negative_node(&negative_cold, None).unwrap();
         let negative_root = memo
@@ -19737,7 +20417,7 @@ mod tests {
                 ) => {
                     assert!(matches!(*result, F5cPositive::Int));
                     functions += 1;
-                    F5cWalkValue::Negative(*argument, true)
+                    F5cWalkValue::Negative(argument.into_inner(), true)
                 }
                 F5cWalkValue::Negative(
                     F5cNegative::Function {
@@ -19747,7 +20427,7 @@ mod tests {
                 ) => {
                     assert!(matches!(*result, F5cNegative::Int));
                     functions += 1;
-                    F5cWalkValue::Positive(*argument, true)
+                    F5cWalkValue::Positive(argument.into_inner(), true)
                 }
                 F5cWalkValue::Positive(F5cPositive::Int, _) => break,
                 _ => panic!("alternating argument chain remains intact"),
@@ -20781,6 +21461,7 @@ mod tests {
 
     #[test]
     fn f5c_malformed_draft_ordinals_return_invalid_draft() {
+        let test_source_meter = DraftHeapMeter::default();
         let malformed = [
             GeneralizationDraft {
                 quantifier_count: 1,
@@ -20791,10 +21472,10 @@ mod tests {
                 quantifier_count: 1,
                 recursive_bounds: Vec::new(),
                 predicate: F5cPositive::Function {
-                    argument: Box::new(F5cNegative::Recursive(0)),
+                    argument: test_tracked_one(&test_source_meter, F5cNegative::Recursive(0)),
                     argument_effect: F5cNegativeEffect::Empty,
                     result_effect: F5cPositiveEffect::Bottom,
-                    result: Box::new(F5cPositive::Bottom),
+                    result: test_tracked_one(&test_source_meter, F5cPositive::Bottom),
                 },
             },
             GeneralizationDraft {
@@ -20898,10 +21579,10 @@ mod tests {
                 upper: F5cNegative::Recursive(1),
             }],
             predicate: F5cPositive::Function {
-                argument: Box::new(F5cNegative::Quantified(0)),
+                argument: test_tracked_one(&test_source_meter, F5cNegative::Quantified(0)),
                 argument_effect: F5cNegativeEffect::Empty,
                 result_effect: F5cPositiveEffect::Bottom,
-                result: Box::new(F5cPositive::Recursive(1)),
+                result: test_tracked_one(&test_source_meter, F5cPositive::Recursive(1)),
             },
         };
         let mut finalization = ClosedTypeFinalizationSession::try_new().unwrap();
@@ -21313,6 +21994,7 @@ mod tests {
 
     #[test]
     fn f5c_guard_trace_direct_hops_ignore_opposite_polarity_elimination() {
+        let test_source_meter = DraftHeapMeter::default();
         let owner = 7;
         let intermediary = 8;
         let trace = |side| F5cGuardedTrace {
@@ -21333,10 +22015,10 @@ mod tests {
             owner,
             (
                 F5cPositive::Function {
-                    argument: Box::new(F5cNegative::Top),
+                    argument: test_tracked_one(&test_source_meter, F5cNegative::Top),
                     argument_effect: F5cNegativeEffect::Empty,
                     result_effect: F5cPositiveEffect::Bottom,
-                    result: Box::new(F5cPositive::Variable(owner)),
+                    result: test_tracked_one(&test_source_meter, F5cPositive::Variable(owner)),
                 },
                 F5cNegative::Top,
             ),
@@ -21659,10 +22341,10 @@ mod tests {
      {
         let test_source_meter = DraftHeapMeter::default();
         let identity = |ordinal| F5cPositive::Function {
-            argument: Box::new(F5cNegative::Quantified(ordinal)),
+            argument: test_tracked_one(&test_source_meter, F5cNegative::Quantified(ordinal)),
             argument_effect: F5cNegativeEffect::Empty,
             result_effect: F5cPositiveEffect::Bottom,
-            result: Box::new(F5cPositive::Quantified(ordinal)),
+            result: test_tracked_one(&test_source_meter, F5cPositive::Quantified(ordinal)),
         };
         let normalized = F5cGeneralizer::normalize_positive(
             &test_source_meter,
@@ -22183,19 +22865,19 @@ mod tests {
         let route_id = batch.definition_uses()[0].id.clone();
         let mut session = InferenceSession::new(batch);
         let shallow = || F5cPositive::Function {
-            argument: Box::new(F5cNegative::Top),
+            argument: test_tracked_one(&test_source_meter, F5cNegative::Top),
             argument_effect: F5cNegativeEffect::Empty,
             result_effect: F5cPositiveEffect::Bottom,
-            result: Box::new(F5cPositive::Int),
+            result: test_tracked_one(&test_source_meter, F5cPositive::Int),
         };
         let deep = || {
             F5cPositive::Union(test_tracked(
                 &test_source_meter,
                 vec![F5cPositive::Function {
-                    argument: Box::new(F5cNegative::Bottom),
+                    argument: test_tracked_one(&test_source_meter, F5cNegative::Bottom),
                     argument_effect: F5cNegativeEffect::Empty,
                     result_effect: F5cPositiveEffect::Bottom,
-                    result: Box::new(F5cPositive::Int),
+                    result: test_tracked_one(&test_source_meter, F5cPositive::Int),
                 }],
             ))
         };
@@ -22764,6 +23446,7 @@ mod tests {
 
     #[test]
     fn f5c_incoming_nested_preflight_overflow_exits_through_outer_route() {
+        let test_source_meter = DraftHeapMeter::default();
         let batch = collect(module(
             "my source = 1; my sink = source",
             "f5c-nested-preflight-outer-route",
@@ -22779,10 +23462,10 @@ mod tests {
                 upper: F5cNegative::Recursive(1),
             }],
             predicate: F5cPositive::Function {
-                argument: Box::new(F5cNegative::Quantified(0)),
+                argument: test_tracked_one(&test_source_meter, F5cNegative::Quantified(0)),
                 argument_effect: F5cNegativeEffect::Empty,
                 result_effect: F5cPositiveEffect::Bottom,
-                result: Box::new(F5cPositive::Recursive(1)),
+                result: test_tracked_one(&test_source_meter, F5cPositive::Recursive(1)),
             },
         };
         session.schemes[target] = Some(
@@ -22938,16 +23621,22 @@ mod tests {
             quantifier_count: 0,
             recursive_bounds: Vec::new(),
             predicate: F5cPositive::Function {
-                argument: Box::new(F5cNegative::Intersection(test_tracked(
+                argument: test_tracked_one(
                     &test_source_meter,
-                    vec![F5cNegative::Top, F5cNegative::Bottom],
-                ))),
+                    F5cNegative::Intersection(test_tracked(
+                        &test_source_meter,
+                        vec![F5cNegative::Top, F5cNegative::Bottom],
+                    )),
+                ),
                 argument_effect: F5cNegativeEffect::Empty,
                 result_effect: F5cPositiveEffect::Bottom,
-                result: Box::new(F5cPositive::Union(test_tracked(
+                result: test_tracked_one(
                     &test_source_meter,
-                    vec![F5cPositive::Int, F5cPositive::Bottom],
-                ))),
+                    F5cPositive::Union(test_tracked(
+                        &test_source_meter,
+                        vec![F5cPositive::Int, F5cPositive::Bottom],
+                    )),
+                ),
             },
         };
         let finalized = InferenceSession::finalize_generalization_draft(
@@ -23563,6 +24252,7 @@ mod tests {
 
     #[test]
     fn f5c_incoming_restores_recursive_lower_then_upper_with_q_before_r() {
+        let test_source_meter = DraftHeapMeter::default();
         let batch = collect(module(
             "my source = 1; my sink = source",
             "f5c-incoming-r-order",
@@ -23577,10 +24267,10 @@ mod tests {
                 upper: F5cNegative::Recursive(1),
             }],
             predicate: F5cPositive::Function {
-                argument: Box::new(F5cNegative::Quantified(0)),
+                argument: test_tracked_one(&test_source_meter, F5cNegative::Quantified(0)),
                 argument_effect: F5cNegativeEffect::Empty,
                 result_effect: F5cPositiveEffect::Bottom,
-                result: Box::new(F5cPositive::Recursive(1)),
+                result: test_tracked_one(&test_source_meter, F5cPositive::Recursive(1)),
             },
         };
         let finalized = InferenceSession::finalize_generalization_draft(
@@ -23632,6 +24322,7 @@ mod tests {
 
     #[test]
     fn f5c_incoming_fresh_nested_growth_peaks_then_drops_on_late_failure() {
+        let test_source_meter = DraftHeapMeter::default();
         let batch = collect(module(
             "my source = 1; my sink = source",
             "f5c-fresh-nested-route-failure",
@@ -23646,10 +24337,10 @@ mod tests {
                 upper: F5cNegative::Recursive(1),
             }],
             predicate: F5cPositive::Function {
-                argument: Box::new(F5cNegative::Quantified(0)),
+                argument: test_tracked_one(&test_source_meter, F5cNegative::Quantified(0)),
                 argument_effect: F5cNegativeEffect::Empty,
                 result_effect: F5cPositiveEffect::Bottom,
-                result: Box::new(F5cPositive::Recursive(1)),
+                result: test_tracked_one(&test_source_meter, F5cPositive::Recursive(1)),
             },
         };
         let finalized = InferenceSession::finalize_generalization_draft(
@@ -24118,10 +24809,10 @@ mod tests {
                 vec![
                     F5cPositive::Int,
                     F5cPositive::Function {
-                        argument: Box::new(F5cNegative::Top),
+                        argument: test_tracked_one(&test_source_meter, F5cNegative::Top),
                         argument_effect: F5cNegativeEffect::Empty,
                         result_effect: F5cPositiveEffect::Bottom,
-                        result: Box::new(F5cPositive::Int),
+                        result: test_tracked_one(&test_source_meter, F5cPositive::Int),
                     },
                 ],
             )),
@@ -24165,10 +24856,10 @@ mod tests {
                 vec![
                     F5cPositive::Int,
                     F5cPositive::Function {
-                        argument: Box::new(F5cNegative::Top),
+                        argument: test_tracked_one(&test_source_meter, F5cNegative::Top),
                         argument_effect: F5cNegativeEffect::Empty,
                         result_effect: F5cPositiveEffect::Bottom,
-                        result: Box::new(F5cPositive::Int),
+                        result: test_tracked_one(&test_source_meter, F5cPositive::Int),
                     },
                 ],
             )),
@@ -24351,10 +25042,10 @@ mod tests {
                 vec![
                     F5cPositive::Int,
                     F5cPositive::Function {
-                        argument: Box::new(F5cNegative::Top),
+                        argument: test_tracked_one(&test_source_meter, F5cNegative::Top),
                         argument_effect: F5cNegativeEffect::Empty,
                         result_effect: F5cPositiveEffect::Bottom,
-                        result: Box::new(F5cPositive::Int),
+                        result: test_tracked_one(&test_source_meter, F5cPositive::Int),
                     },
                 ],
             )),
@@ -24455,10 +25146,10 @@ mod tests {
                 vec![
                     F5cPositive::Int,
                     F5cPositive::Function {
-                        argument: Box::new(F5cNegative::Top),
+                        argument: test_tracked_one(&test_source_meter, F5cNegative::Top),
                         argument_effect: F5cNegativeEffect::Empty,
                         result_effect: F5cPositiveEffect::Bottom,
-                        result: Box::new(F5cPositive::Quantified(0)),
+                        result: test_tracked_one(&test_source_meter, F5cPositive::Quantified(0)),
                     },
                 ],
             )),
@@ -24552,10 +25243,10 @@ mod tests {
                 vec![
                     F5cPositive::Int,
                     F5cPositive::Function {
-                        argument: Box::new(F5cNegative::Top),
+                        argument: test_tracked_one(&test_source_meter, F5cNegative::Top),
                         argument_effect: F5cNegativeEffect::Empty,
                         result_effect: F5cPositiveEffect::Bottom,
-                        result: Box::new(F5cPositive::Int),
+                        result: test_tracked_one(&test_source_meter, F5cPositive::Int),
                     },
                 ],
             )),

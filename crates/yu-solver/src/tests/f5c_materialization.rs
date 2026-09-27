@@ -156,25 +156,28 @@ fn assert_flat_summary_matches_boxed(
     }
 }
 
-fn alternating_function_chain(depth: usize) -> F5cWalkValue<'static> {
+fn alternating_function_chain<'meter>(
+    test_source_meter: &'meter DraftHeapMeter,
+    depth: usize,
+) -> F5cWalkValue<'meter> {
     let mut value = F5cWalkValue::Positive(F5cPositive::Int, true);
     for _ in 0..depth {
         value = match value {
             F5cWalkValue::Positive(value, _) => F5cWalkValue::Negative(
                 F5cNegative::Function {
-                    argument: Box::new(value),
+                    argument: test_tracked_one(&test_source_meter, value),
                     argument_effect: F5cPositiveEffect::Bottom,
                     result_effect: F5cNegativeEffect::Empty,
-                    result: Box::new(F5cNegative::Int),
+                    result: test_tracked_one(&test_source_meter, F5cNegative::Int),
                 },
                 true,
             ),
             F5cWalkValue::Negative(value, _) => F5cWalkValue::Positive(
                 F5cPositive::Function {
-                    argument: Box::new(value),
+                    argument: test_tracked_one(&test_source_meter, value),
                     argument_effect: F5cNegativeEffect::Empty,
                     result_effect: F5cPositiveEffect::Bottom,
-                    result: Box::new(F5cPositive::Int),
+                    result: test_tracked_one(&test_source_meter, F5cPositive::Int),
                 },
                 true,
             ),
@@ -195,7 +198,7 @@ fn consume_alternating_function_chain(mut value: F5cWalkValue) -> usize {
             ) => {
                 assert!(matches!(*result, F5cPositive::Int));
                 functions += 1;
-                F5cWalkValue::Negative(*argument, true)
+                F5cWalkValue::Negative(argument.into_inner(), true)
             }
             F5cWalkValue::Negative(
                 F5cNegative::Function {
@@ -205,7 +208,7 @@ fn consume_alternating_function_chain(mut value: F5cWalkValue) -> usize {
             ) => {
                 assert!(matches!(*result, F5cNegative::Int));
                 functions += 1;
-                F5cWalkValue::Positive(*argument, true)
+                F5cWalkValue::Positive(argument.into_inner(), true)
             }
             F5cWalkValue::Positive(F5cPositive::Int, _) => return functions,
             _ => panic!("alternating Function chain remains intact"),
@@ -222,7 +225,9 @@ fn f5c_draft_materialization_handles_deep_alternating_functions_on_small_stack()
             let test_source_meter = DraftHeapMeter::default();
             let mut memo = F5cComponentExpansionMemo::default();
 
-            let F5cWalkValue::Positive(positive, _) = alternating_function_chain(DEPTH) else {
+            let F5cWalkValue::Positive(positive, _) =
+                alternating_function_chain(&test_source_meter, DEPTH)
+            else {
                 panic!("even-depth chain has positive root");
             };
             let F5cWalkValue::Positive(positive, _) =
@@ -241,7 +246,9 @@ fn f5c_draft_materialization_handles_deep_alternating_functions_on_small_stack()
                 DEPTH
             );
 
-            let F5cWalkValue::Negative(negative, _) = alternating_function_chain(DEPTH + 1) else {
+            let F5cWalkValue::Negative(negative, _) =
+                alternating_function_chain(&test_source_meter, DEPTH + 1)
+            else {
                 panic!("odd-depth chain has negative root");
             };
             let F5cWalkValue::Negative(negative, _) =
@@ -341,19 +348,19 @@ fn f5c_recursive_bound_materialization_moves_deep_trees_on_small_stack() {
             let mut lower = F5cPositive::Int;
             for _ in 0..DEPTH {
                 lower = F5cPositive::Function {
-                    argument: Box::new(F5cNegative::Int),
+                    argument: test_tracked_one(&test_source_meter, F5cNegative::Int),
                     argument_effect: F5cNegativeEffect::Empty,
                     result_effect: F5cPositiveEffect::Bottom,
-                    result: Box::new(lower),
+                    result: test_tracked_one(&test_source_meter, lower),
                 };
             }
             let mut upper = F5cNegative::Int;
             for _ in 0..DEPTH {
                 upper = F5cNegative::Function {
-                    argument: Box::new(F5cPositive::Int),
+                    argument: test_tracked_one(&test_source_meter, F5cPositive::Int),
                     argument_effect: F5cPositiveEffect::Bottom,
                     result_effect: F5cNegativeEffect::Empty,
-                    result: Box::new(upper),
+                    result: test_tracked_one(&test_source_meter, upper),
                 };
             }
             let mut memo = F5cComponentExpansionMemo::default();

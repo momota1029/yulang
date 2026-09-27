@@ -161,10 +161,10 @@ pub(super) enum F5cPositive<'meter> {
     Shared(F5cSummaryNodeId),
     Union(TrackedVec<'meter, F5cPositive<'meter>>),
     Function {
-        argument: Box<F5cNegative<'meter>>,
+        argument: TrackedOne<'meter, F5cNegative<'meter>>,
         argument_effect: F5cNegativeEffect,
         result_effect: F5cPositiveEffect,
-        result: Box<F5cPositive<'meter>>,
+        result: TrackedOne<'meter, F5cPositive<'meter>>,
     },
 }
 
@@ -189,10 +189,10 @@ pub(super) enum F5cNegative<'meter> {
     Shared(F5cSummaryNodeId),
     Intersection(TrackedVec<'meter, F5cNegative<'meter>>),
     Function {
-        argument: Box<F5cPositive<'meter>>,
+        argument: TrackedOne<'meter, F5cPositive<'meter>>,
         argument_effect: F5cPositiveEffect,
         result_effect: F5cNegativeEffect,
-        result: Box<F5cNegative<'meter>>,
+        result: TrackedOne<'meter, F5cNegative<'meter>>,
     },
 }
 
@@ -2782,10 +2782,12 @@ impl F5cComponentExpansionMemo {
                         };
                         push_value!(F5cWalkValue::Positive(
                             F5cPositive::Function {
-                                argument: Box::new(argument),
+                                argument: TrackedOne::try_new(source_meter, argument)
+                                    .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
                                 argument_effect: F5cNegativeEffect::Empty,
                                 result_effect: F5cPositiveEffect::Bottom,
-                                result: Box::new(result),
+                                result: TrackedOne::try_new(source_meter, result)
+                                    .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
                             },
                             true
                         ));
@@ -2805,10 +2807,12 @@ impl F5cComponentExpansionMemo {
                         };
                         push_value!(F5cWalkValue::Negative(
                             F5cNegative::Function {
-                                argument: Box::new(argument),
+                                argument: TrackedOne::try_new(source_meter, argument)
+                                    .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
                                 argument_effect: F5cPositiveEffect::Bottom,
                                 result_effect: F5cNegativeEffect::Empty,
-                                result: Box::new(result),
+                                result: TrackedOne::try_new(source_meter, result)
+                                    .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
                             },
                             true
                         ));
@@ -4873,10 +4877,12 @@ impl<'meter> F5cWalkSink<'meter> for F5cBoxedWalkSink {
                 F5cWalkValue::Positive(result, result_cacheable),
             ) => F5cWalkValue::Positive(
                 F5cPositive::Function {
-                    argument: Box::new(argument),
+                    argument: TrackedOne::try_new(_generalizer.source_meter, argument)
+                        .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
                     argument_effect: F5cNegativeEffect::Empty,
                     result_effect: F5cPositiveEffect::Bottom,
-                    result: Box::new(result),
+                    result: TrackedOne::try_new(_generalizer.source_meter, result)
+                        .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
                 },
                 argument_cacheable && result_cacheable,
             ),
@@ -4886,10 +4892,12 @@ impl<'meter> F5cWalkSink<'meter> for F5cBoxedWalkSink {
                 F5cWalkValue::Negative(result, result_cacheable),
             ) => F5cWalkValue::Negative(
                 F5cNegative::Function {
-                    argument: Box::new(argument),
+                    argument: TrackedOne::try_new(_generalizer.source_meter, argument)
+                        .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
                     argument_effect: F5cPositiveEffect::Bottom,
                     result_effect: F5cNegativeEffect::Empty,
-                    result: Box::new(result),
+                    result: TrackedOne::try_new(_generalizer.source_meter, result)
+                        .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
                 },
                 argument_cacheable && result_cacheable,
             ),

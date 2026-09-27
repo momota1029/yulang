@@ -395,12 +395,13 @@ fn f5c_work_taint_frame_overflow_precedes_mutation_and_component_restores_state(
 
 #[test]
 fn f5c_work_charges_child_inspection_separately_from_scheduling() {
+    let test_source_meter = DraftHeapMeter::default();
     let mut memo = F5cComponentExpansionMemo::default();
     let mut function = F5cPositive::Int;
     for _ in 0..64 {
         function = F5cPositive::Function {
-            argument: Box::new(F5cNegative::Int),
-            result: Box::new(function),
+            argument: test_tracked_one(&test_source_meter, F5cNegative::Int),
+            result: test_tracked_one(&test_source_meter, function),
             argument_effect: F5cNegativeEffect::Empty,
             result_effect: F5cPositiveEffect::Bottom,
         };

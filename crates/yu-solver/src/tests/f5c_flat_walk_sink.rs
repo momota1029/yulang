@@ -89,10 +89,10 @@ fn raw_forest_census_matches_boxed_and_flat_exact_sets() {
         vec![
             F5cPositive::Variable(10),
             F5cPositive::Function {
-                argument: Box::new(F5cNegative::Variable(11)),
+                argument: test_tracked_one(&test_source_meter, F5cNegative::Variable(11)),
                 argument_effect: F5cNegativeEffect::Empty,
                 result_effect: F5cPositiveEffect::Bottom,
-                result: Box::new(F5cPositive::Variable(12)),
+                result: test_tracked_one(&test_source_meter, F5cPositive::Variable(12)),
             },
         ],
     ));
@@ -103,10 +103,10 @@ fn raw_forest_census_matches_boxed_and_flat_exact_sets() {
             (
                 F5cPositive::Variable(30),
                 F5cNegative::Function {
-                    argument: Box::new(F5cPositive::Variable(32)),
+                    argument: test_tracked_one(&test_source_meter, F5cPositive::Variable(32)),
                     argument_effect: F5cPositiveEffect::Bottom,
                     result_effect: F5cNegativeEffect::Empty,
-                    result: Box::new(F5cNegative::Variable(33)),
+                    result: test_tracked_one(&test_source_meter, F5cNegative::Variable(33)),
                 },
             ),
         ),
@@ -234,10 +234,10 @@ fn r_candidate_fixed_point_matches_boxed_and_flat() {
     let boxed_bound = |owner| {
         (
             F5cPositive::Function {
-                argument: Box::new(F5cNegative::Top),
+                argument: test_tracked_one(&test_source_meter, F5cNegative::Top),
                 argument_effect: F5cNegativeEffect::Empty,
                 result_effect: F5cPositiveEffect::Bottom,
-                result: Box::new(F5cPositive::Variable(owner)),
+                result: test_tracked_one(&test_source_meter, F5cPositive::Variable(owner)),
             },
             F5cNegative::Top,
         )
@@ -423,10 +423,10 @@ fn post_r_selected_owners_and_q_r_ordinals_match_boxed_and_flat() {
         1,
         (
             F5cPositive::Function {
-                argument: Box::new(F5cNegative::Top),
+                argument: test_tracked_one(&test_source_meter, F5cNegative::Top),
                 argument_effect: F5cNegativeEffect::Empty,
                 result_effect: F5cPositiveEffect::Bottom,
-                result: Box::new(F5cPositive::Variable(1)),
+                result: test_tracked_one(&test_source_meter, F5cPositive::Variable(1)),
             },
             F5cNegative::Intersection(test_tracked(
                 &test_source_meter,
@@ -558,10 +558,10 @@ fn post_r_trace_order_overrides_raw_order_for_two_retained_owners() {
         ],
     ));
     let boxed_function = |result| F5cPositive::Function {
-        argument: Box::new(F5cNegative::Top),
+        argument: test_tracked_one(&test_source_meter, F5cNegative::Top),
         argument_effect: F5cNegativeEffect::Empty,
         result_effect: F5cPositiveEffect::Bottom,
-        result: Box::new(result),
+        result: test_tracked_one(&test_source_meter, result),
     };
     let boxed_bounds = HashMap::from([
         (
@@ -1409,10 +1409,10 @@ fn selected_flat_candidate_matches_boxed_q_r_and_normalization_counters() {
                     .collect::<Vec<_>>(),
             )),
             PositiveNode::Function { argument, result } => F5cPositive::Function {
-                argument: Box::new(expand_negative(meter, draft, argument)),
+                argument: test_tracked_one(meter, expand_negative(meter, draft, argument)),
                 argument_effect: F5cNegativeEffect::Empty,
                 result_effect: F5cPositiveEffect::Bottom,
-                result: Box::new(expand_positive(meter, draft, result)),
+                result: test_tracked_one(meter, expand_positive(meter, draft, result)),
             },
             PositiveNode::Variable(_) => panic!("selected normalized positive is classified"),
         }
@@ -1436,10 +1436,10 @@ fn selected_flat_candidate_matches_boxed_q_r_and_normalization_counters() {
                     .collect::<Vec<_>>(),
             )),
             NegativeNode::Function { argument, result } => F5cNegative::Function {
-                argument: Box::new(expand_positive(meter, draft, argument)),
+                argument: test_tracked_one(meter, expand_positive(meter, draft, argument)),
                 argument_effect: F5cPositiveEffect::Bottom,
                 result_effect: F5cNegativeEffect::Empty,
-                result: Box::new(expand_negative(meter, draft, result)),
+                result: test_tracked_one(meter, expand_negative(meter, draft, result)),
             },
             NegativeNode::Variable(_) => panic!("selected normalized negative is classified"),
         }

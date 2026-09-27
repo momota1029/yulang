@@ -1,14 +1,15 @@
 use super::*;
 
 fn positive_function<'meter>(
+    test_source_meter: &'meter DraftHeapMeter,
     argument: F5cNegative<'meter>,
     result: F5cPositive<'meter>,
 ) -> F5cPositive<'meter> {
     F5cPositive::Function {
-        argument: Box::new(argument),
+        argument: test_tracked_one(&test_source_meter, argument),
         argument_effect: F5cNegativeEffect::Empty,
         result_effect: F5cPositiveEffect::Bottom,
-        result: Box::new(result),
+        result: test_tracked_one(&test_source_meter, result),
     }
 }
 
@@ -88,7 +89,7 @@ fn drain_positive_function_chain(mut value: F5cPositive) -> usize {
             } => {
                 assert!(matches!(*argument, F5cNegative::Top));
                 depth += 1;
-                value = *result;
+                value = result.into_inner();
             }
             F5cPositive::Int => return depth,
             _ => panic!("probe output remains a Function chain"),
@@ -121,7 +122,7 @@ fn f5c_resource_probe_scale_families() {
     for depth in [64usize, 256, 1024, 4096] {
         let mut value = F5cPositive::Int;
         for _ in 0..depth {
-            value = positive_function(F5cNegative::Top, value);
+            value = positive_function(&test_source_meter, F5cNegative::Top, value);
         }
         let mut drafts = [draft(value, 0)];
         report_normalization(
@@ -156,7 +157,7 @@ fn f5c_resource_probe_scale_families() {
 
     for width in [16usize, 64, 256, 1024] {
         let members = (0..width)
-            .map(|_| positive_function(F5cNegative::Top, F5cPositive::Int))
+            .map(|_| positive_function(&test_source_meter, F5cNegative::Top, F5cPositive::Int))
             .collect::<Vec<_>>();
         let mut drafts = [draft(
             F5cPositive::Union(test_tracked(&test_source_meter, members)),
@@ -217,7 +218,7 @@ fn f5c_resource_probe_scale_families() {
     for depth in [64usize, 256, 1024, 4096] {
         let mut value = F5cPositive::Int;
         for _ in 0..depth {
-            value = positive_function(F5cNegative::Top, value);
+            value = positive_function(&test_source_meter, F5cNegative::Top, value);
         }
         let mut memo = F5cComponentExpansionMemo::default();
         let empty = HashSet::new();

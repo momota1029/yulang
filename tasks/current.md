@@ -4,6 +4,51 @@ Updated: 2026-09-27. Branch: `yulang3`; do not modify frozen `main`.
 
 Resume handoff: [`2026-09-22 F5c scheme-closure handoff`](../notes/handoffs/2026-09-22-f5c-scheme-closure-handoff.md).
 
+### Latest continuation (2026-09-27): tracked Function owners and nested source ledger
+
+The four positive/negative Function argument/result Box payloads now use
+borrowed-meter `TrackedOne` owners across generalization, materialization,
+replay, substitution, normalization, and test fixtures. Value comparison,
+formatting, child extraction, effects, work charging, and Q/R order remain
+unchanged. Focused witnesses cover both polarities, nested Union/Intersection
+children, late second-owner failure and retry, and element destruction before
+capacity release.
+
+The independent test ledger now sums actual Function and Union/Intersection
+buffer capacities from predicate and recursive-bound roots. Its iterative,
+fallible census processes each appended immutable draft once, then performs a
+full reconciliation after normalization (including partial-mutation error)
+before the AllDrafts snapshot. A live event witness independently reconstructs
+source bytes at nested growth, owner allocation, controlled release, R-buffer
+transfer, sidecar release, and outer release while memo and walker capacity
+remain live. M2 spec and performance delta reviews closed the ownership,
+normalization-refresh, linear census, and joint-peak findings.
+
+Focused checks passed: `RUSTC_WRAPPER= cargo check -p yu-solver --tests
+--offline`; source census (2), nested Function joint peak (1), recursive-bound
+handoff (1), `f5c_draft_heap` (12), and `f5c_normalization` (28) tests;
+`cargo fmt --all -- --check`; and `git diff --check`. Producer-side focused
+replay, substitution, materialization, work, tree, depth, and incoming-route
+filters passed in the implementation pass. The exact
+`physical_set_duplicate_at_capacity_keeps_growth_and_counts_attempt` test
+still fails at its pre-existing capacity assertion (actual 7, expected 3);
+the assertion and `insert_physical_set` implementation are unchanged from the
+committed base and will be handled in a separate owner-local repair. No broad
+suite, resource probe, benchmark, or timing measurement ran; measurement budget
+remains zero.
+
+Recursive cleanup of boxed trees on a fallible deep-value path remains
+uncertified and belongs to the FlatDraft producer/error/drop integration gate;
+this tracked-owner slice does not claim deep stack safety. Next repair the
+full-capacity duplicate insertion at its `HashSet` owner in a separate commit,
+then continue the independent all-drafts solver/`yu-types` peak ledger and the
+reviewed F5b callback-authority decision. The shipping boxed callback still
+allocates solver-owned Q/R and child vectors inside the `yu-types` transaction,
+contrary to F5b §6; no API/contract change is authorized yet. Production stays
+boxed. The fresh §15 measurement-plan review, resource campaign, numeric
+support-boundary approval, production cutover, §44 per-use gate, F5e, and
+overall F5c acceptance remain open.
+
 ### Latest continuation (2026-09-27): tracked Union/Intersection owners and component joint peak
 
 Positive Union and negative Intersection source vectors now use borrowed-meter

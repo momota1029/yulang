@@ -452,10 +452,35 @@ impl<'meter, T> IntoIterator for TrackedVec<'meter, T> {
 /// One item with the same fallible allocation and accounting path as a vector.
 pub(super) struct TrackedOne<'meter, T>(TrackedVec<'meter, T>);
 
+#[cfg(test)]
+thread_local! {
+    static FAIL_TRACKED_ONE_AFTER: Cell<Option<usize>> = const { Cell::new(None) };
+}
+
 impl<'meter, T> TrackedOne<'meter, T> {
+    #[cfg(test)]
+    pub(super) fn capacity(&self) -> usize {
+        self.0.capacity()
+    }
+
     pub(super) fn try_new(meter: &'meter DraftHeapMeter, value: T) -> Result<Self, ()> {
+        #[cfg(test)]
+        if FAIL_TRACKED_ONE_AFTER.with(|remaining| match remaining.get() {
+            Some(0) => {
+                remaining.set(None);
+                true
+            }
+            Some(n) => {
+                remaining.set(Some(n - 1));
+                false
+            }
+            None => false,
+        }) {
+            return Err(());
+        }
         let mut values = TrackedVec::new(meter);
-        values.try_push(value)?;
+        values.try_reserve_exact(1)?;
+        values.push_reserved(value);
         Ok(Self(values))
     }
 
@@ -466,19 +491,162 @@ impl<'meter, T> TrackedOne<'meter, T> {
     pub(super) fn into_inner(self) -> T {
         self.0.into_iter().next().unwrap()
     }
+
+    pub(super) fn as_ref(&self) -> &T {
+        &self.0[0]
+    }
 }
 
 impl<T> Deref for TrackedOne<'_, T> {
-    type Target = [T];
+    type Target = T;
     fn deref(&self) -> &Self::Target {
-        &self.0
+        self.as_ref()
     }
 }
+
+impl<T: fmt::Debug> fmt::Debug for TrackedOne<'_, T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.as_ref().fmt(f)
+    }
+}
+
+impl<T: PartialEq> PartialEq for TrackedOne<'_, T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.as_ref() == other.as_ref()
+    }
+}
+
+impl<T: Eq> Eq for TrackedOne<'_, T> {}
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::{F5cNegative, F5cNegativeEffect, F5cPositive, F5cPositiveEffect};
     use std::cell::Cell;
+
+    #[test]
+    fn function_child_owners_charge_nested_payloads_and_retry_after_second_failure() {
+        let meter = DraftHeapMeter::default();
+        let build_positive = || -> Result<F5cPositive<'_>, ()> {
+            let mut members = TrackedVec::new(&meter);
+            members.try_push(F5cNegative::Int)?;
+            let argument = TrackedOne::try_new(&meter, F5cNegative::Intersection(members))?;
+            let mut members = TrackedVec::new(&meter);
+            members.try_push(F5cPositive::Int)?;
+            let result = TrackedOne::try_new(&meter, F5cPositive::Union(members))?;
+            Ok(F5cPositive::Function {
+                argument,
+                argument_effect: F5cNegativeEffect::Empty,
+                result_effect: F5cPositiveEffect::Bottom,
+                result,
+            })
+        };
+        FAIL_TRACKED_ONE_AFTER.with(|remaining| remaining.set(Some(1)));
+        assert_eq!(build_positive(), Err(()));
+        assert_eq!(meter.current_bytes(), Some(0));
+        let positive = build_positive().unwrap();
+        let F5cPositive::Function {
+            argument, result, ..
+        } = &positive
+        else {
+            unreachable!()
+        };
+        let F5cNegative::Intersection(negative_members) = argument.as_ref() else {
+            unreachable!()
+        };
+        let F5cPositive::Union(positive_members) = result.as_ref() else {
+            unreachable!()
+        };
+        let expected = argument.accounted_bytes()
+            + result.accounted_bytes()
+            + negative_members.accounted_bytes()
+            + positive_members.accounted_bytes();
+        assert_eq!(meter.current_bytes(), Some(expected));
+        drop(positive);
+        assert_eq!(meter.current_bytes(), Some(0));
+
+        let build_negative = || -> Result<F5cNegative<'_>, ()> {
+            let mut members = TrackedVec::new(&meter);
+            members.try_push(F5cPositive::Int)?;
+            let argument = TrackedOne::try_new(&meter, F5cPositive::Union(members))?;
+            let mut members = TrackedVec::new(&meter);
+            members.try_push(F5cNegative::Int)?;
+            let result = TrackedOne::try_new(&meter, F5cNegative::Intersection(members))?;
+            Ok(F5cNegative::Function {
+                argument,
+                argument_effect: F5cPositiveEffect::Bottom,
+                result_effect: F5cNegativeEffect::Empty,
+                result,
+            })
+        };
+        FAIL_TRACKED_ONE_AFTER.with(|remaining| remaining.set(Some(1)));
+        assert_eq!(build_negative(), Err(()));
+        assert_eq!(meter.current_bytes(), Some(0));
+        let negative = build_negative().unwrap();
+        let F5cNegative::Function {
+            argument, result, ..
+        } = &negative
+        else {
+            unreachable!()
+        };
+        let F5cPositive::Union(positive_members) = argument.as_ref() else {
+            unreachable!()
+        };
+        let F5cNegative::Intersection(negative_members) = result.as_ref() else {
+            unreachable!()
+        };
+        let expected = argument.accounted_bytes()
+            + result.accounted_bytes()
+            + positive_members.accounted_bytes()
+            + negative_members.accounted_bytes();
+        assert_eq!(meter.current_bytes(), Some(expected));
+        drop(negative);
+        assert_eq!(meter.current_bytes(), Some(0));
+    }
+
+    #[test]
+    fn tracked_one_releases_each_capacity_after_its_child_drops() {
+        struct Probe<'a> {
+            meter: &'a DraftHeapMeter,
+            expected: &'a Cell<usize>,
+            drops: &'a Cell<usize>,
+        }
+        impl Drop for Probe<'_> {
+            fn drop(&mut self) {
+                assert_eq!(self.meter.current_bytes(), Some(self.expected.get()));
+                self.drops.set(self.drops.get() + 1);
+            }
+        }
+        let meter = DraftHeapMeter::default();
+        let expected = Cell::new(0);
+        let drops = Cell::new(0);
+        let first = TrackedOne::try_new(
+            &meter,
+            Probe {
+                meter: &meter,
+                expected: &expected,
+                drops: &drops,
+            },
+        )
+        .unwrap();
+        let second = TrackedOne::try_new(
+            &meter,
+            Probe {
+                meter: &meter,
+                expected: &expected,
+                drops: &drops,
+            },
+        )
+        .unwrap();
+        let first_bytes = first.accounted_bytes();
+        let second_bytes = second.accounted_bytes();
+        expected.set(first_bytes + second_bytes);
+        drop(first);
+        expected.set(second_bytes);
+        drop(second);
+        assert_eq!(drops.get(), 2);
+        assert_eq!(meter.current_bytes(), Some(0));
+    }
 
     #[test]
     fn growth_and_checked_clone() {

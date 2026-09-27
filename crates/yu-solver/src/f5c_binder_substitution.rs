@@ -3,7 +3,8 @@ use super::f5c_draft::{FlatDraft, NegativeNode, NodeRef, PositiveNode};
 use super::f5c_generalization::{F5cBulkDrainSite, record_bulk_drain_boundary};
 use super::{
     DraftHeapMeter, F5cComponentExpansionMemo, F5cNegative, F5cNegativeEffect, F5cPositive,
-    F5cPositiveEffect, F5cWalkValue, F5cWalkerLaneKind, SolveAvailabilityError, TrackedVec,
+    F5cPositiveEffect, F5cWalkValue, F5cWalkerLaneKind, SolveAvailabilityError, TrackedOne,
+    TrackedVec,
 };
 use std::collections::{HashMap, HashSet};
 
@@ -325,9 +326,9 @@ fn substitute<'meter>(
                     } => {
                         push_task!(Task::FinishPositiveFunction);
                         memo.work_meter.charge(1)?; // result child edge
-                        push_task!(Task::Positive(*result));
+                        push_task!(Task::Positive(result.into_inner()));
                         memo.work_meter.charge(1)?; // argument child edge
-                        push_task!(Task::Negative(*argument));
+                        push_task!(Task::Negative(argument.into_inner()));
                     }
                     F5cPositive::Union(children) => {
                         let start = values.len();
@@ -359,9 +360,9 @@ fn substitute<'meter>(
                     } => {
                         push_task!(Task::FinishNegativeFunction);
                         memo.work_meter.charge(1)?; // result child edge
-                        push_task!(Task::Negative(*result));
+                        push_task!(Task::Negative(result.into_inner()));
                         memo.work_meter.charge(1)?; // argument child edge
-                        push_task!(Task::Positive(*argument));
+                        push_task!(Task::Positive(argument.into_inner()));
                     }
                     F5cNegative::Intersection(children) => {
                         let start = values.len();
@@ -446,10 +447,12 @@ fn substitute<'meter>(
                     };
                     push_value!(F5cWalkValue::Positive(
                         F5cPositive::Function {
-                            argument: Box::new(argument),
+                            argument: TrackedOne::try_new(source_meter, argument)
+                                .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
                             argument_effect: F5cNegativeEffect::Empty,
                             result_effect: F5cPositiveEffect::Bottom,
-                            result: Box::new(result),
+                            result: TrackedOne::try_new(source_meter, result)
+                                .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
                         },
                         true,
                     ));
@@ -470,10 +473,12 @@ fn substitute<'meter>(
                     };
                     push_value!(F5cWalkValue::Negative(
                         F5cNegative::Function {
-                            argument: Box::new(argument),
+                            argument: TrackedOne::try_new(source_meter, argument)
+                                .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
                             argument_effect: F5cPositiveEffect::Bottom,
                             result_effect: F5cNegativeEffect::Empty,
-                            result: Box::new(result),
+                            result: TrackedOne::try_new(source_meter, result)
+                                .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
                         },
                         true,
                     ));

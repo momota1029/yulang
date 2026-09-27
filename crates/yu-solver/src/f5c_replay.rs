@@ -5,7 +5,8 @@ use super::f5c_draft::{
 use super::f5c_generalization::{F5cBulkDrainSite, record_bulk_drain_boundary};
 use super::{
     DraftHeapMeter, F5cComponentExpansionMemo, F5cNegative, F5cNegativeEffect, F5cPositive,
-    F5cPositiveEffect, F5cWalkValue, F5cWalkerLaneKind, SolveAvailabilityError, TrackedVec,
+    F5cPositiveEffect, F5cWalkValue, F5cWalkerLaneKind, SolveAvailabilityError, TrackedOne,
+    TrackedVec,
 };
 use std::collections::HashSet;
 
@@ -688,10 +689,12 @@ fn replay<'meter>(
                     };
                     push_value!(F5cWalkValue::Positive(
                         F5cPositive::Function {
-                            argument: Box::new(argument),
+                            argument: TrackedOne::try_new(source_meter, argument)
+                                .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
                             argument_effect: F5cNegativeEffect::Empty,
                             result_effect: F5cPositiveEffect::Bottom,
-                            result: Box::new(result),
+                            result: TrackedOne::try_new(source_meter, result)
+                                .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
                         },
                         true,
                     ));
@@ -711,10 +714,12 @@ fn replay<'meter>(
                     };
                     push_value!(F5cWalkValue::Negative(
                         F5cNegative::Function {
-                            argument: Box::new(argument),
+                            argument: TrackedOne::try_new(source_meter, argument)
+                                .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
                             argument_effect: F5cPositiveEffect::Bottom,
                             result_effect: F5cNegativeEffect::Empty,
-                            result: Box::new(result),
+                            result: TrackedOne::try_new(source_meter, result)
+                                .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
                         },
                         true,
                     ));

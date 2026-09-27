@@ -12,20 +12,21 @@ fn f5c_candidate_depth_256_finalizes_and_drops_on_small_stack() {
     std::thread::Builder::new()
         .stack_size(stack_size)
         .spawn(|| {
+            let test_source_meter = DraftHeapMeter::default();
             let mut positive = F5cPositive::Int;
             let mut negative = F5cNegative::Int;
             for _ in 0..DEPTH {
                 positive = F5cPositive::Function {
-                    argument: Box::new(F5cNegative::Top),
+                    argument: test_tracked_one(&test_source_meter, F5cNegative::Top),
                     argument_effect: F5cNegativeEffect::Empty,
                     result_effect: F5cPositiveEffect::Bottom,
-                    result: Box::new(positive),
+                    result: test_tracked_one(&test_source_meter, positive),
                 };
                 negative = F5cNegative::Function {
-                    argument: Box::new(F5cPositive::Bottom),
+                    argument: test_tracked_one(&test_source_meter, F5cPositive::Bottom),
                     argument_effect: F5cPositiveEffect::Bottom,
                     result_effect: F5cNegativeEffect::Empty,
-                    result: Box::new(negative),
+                    result: test_tracked_one(&test_source_meter, negative),
                 };
             }
 

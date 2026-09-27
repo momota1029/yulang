@@ -6,12 +6,12 @@ use super::f5c_draft::{
     ChildSpan, FlatDraft, NegativeId, NegativeNode, NodeRef, PositiveId, PositiveNode,
     RecursiveBound,
 };
-#[cfg(test)]
-use super::test_tracked;
 use super::{
     DraftHeapMeter, F5cNegative, F5cPositive, GeneralizationDraft, SolveAvailabilityError,
-    TrackedVec,
+    TrackedOne, TrackedVec,
 };
+#[cfg(test)]
+use super::{test_tracked, test_tracked_one};
 
 type NodeId = usize;
 const SOURCE_UNSELECTED: NodeId = NodeId::MAX;
@@ -760,14 +760,14 @@ impl<'meter> Normalizer<'meter> {
                         )?;
                         Self::push(
                             &mut self.walk,
-                            Walk::Positive(*result),
+                            Walk::Positive(result.into_inner()),
                             Lane::Walk,
                             &mut self.stats,
                             self.source_meter,
                         )?;
                         Self::push(
                             &mut self.walk,
-                            Walk::Negative(*argument),
+                            Walk::Negative(argument.into_inner()),
                             Lane::Walk,
                             &mut self.stats,
                             self.source_meter,
@@ -818,14 +818,14 @@ impl<'meter> Normalizer<'meter> {
                         )?;
                         Self::push(
                             &mut self.walk,
-                            Walk::Negative(*result),
+                            Walk::Negative(result.into_inner()),
                             Lane::Walk,
                             &mut self.stats,
                             self.source_meter,
                         )?;
                         Self::push(
                             &mut self.walk,
-                            Walk::Positive(*argument),
+                            Walk::Positive(argument.into_inner()),
                             Lane::Walk,
                             &mut self.stats,
                             self.source_meter,
@@ -1384,10 +1384,12 @@ impl<'meter> Normalizer<'meter> {
                         return Err(SolveAvailabilityError::IdentityExhausted);
                     };
                     BuiltValue::Positive(F5cPositive::Function {
-                        argument: Box::new(argument),
+                        argument: TrackedOne::try_new(source_meter, argument)
+                            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
                         argument_effect: super::F5cNegativeEffect::Empty,
                         result_effect: super::F5cPositiveEffect::Bottom,
-                        result: Box::new(result),
+                        result: TrackedOne::try_new(source_meter, result)
+                            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
                     })
                 }
                 NodeKind::NegativeTop => BuiltValue::Negative(F5cNegative::Top),
@@ -1426,10 +1428,12 @@ impl<'meter> Normalizer<'meter> {
                         return Err(SolveAvailabilityError::IdentityExhausted);
                     };
                     BuiltValue::Negative(F5cNegative::Function {
-                        argument: Box::new(argument),
+                        argument: TrackedOne::try_new(source_meter, argument)
+                            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
                         argument_effect: super::F5cPositiveEffect::Bottom,
                         result_effect: super::F5cNegativeEffect::Empty,
-                        result: Box::new(result),
+                        result: TrackedOne::try_new(source_meter, result)
+                            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
                     })
                 }
             };
@@ -2671,13 +2675,16 @@ mod flat_tests {
         let expected = F5cPositive::Union(test_tracked(
             &test_source_meter,
             vec![F5cPositive::Function {
-                argument: Box::new(F5cNegative::Intersection(test_tracked(
+                argument: test_tracked_one(
                     &test_source_meter,
-                    vec![F5cNegative::Int],
-                ))),
+                    F5cNegative::Intersection(test_tracked(
+                        &test_source_meter,
+                        vec![F5cNegative::Int],
+                    )),
+                ),
                 argument_effect: F5cNegativeEffect::Empty,
                 result_effect: F5cPositiveEffect::Bottom,
-                result: Box::new(F5cPositive::Int),
+                result: test_tracked_one(&test_source_meter, F5cPositive::Int),
             }],
         ));
         assert_eq!(boxed[0].predicate, expected);
@@ -2748,23 +2755,32 @@ mod flat_tests {
                 &test_source_meter,
                 vec![
                     F5cPositive::Function {
-                        argument: Box::new(F5cNegative::Intersection(test_tracked(
+                        argument: test_tracked_one(
                             &test_source_meter,
-                            vec![
-                                F5cNegative::Function {
-                                    argument: Box::new(F5cPositive::Int),
-                                    argument_effect: super::super::F5cPositiveEffect::Bottom,
-                                    result_effect: super::super::F5cNegativeEffect::Empty,
-                                    result: Box::new(F5cNegative::Int),
-                                },
-                                F5cNegative::Top,
-                                F5cNegative::Int,
-                                F5cNegative::Int,
-                            ],
-                        ))),
+                            F5cNegative::Intersection(test_tracked(
+                                &test_source_meter,
+                                vec![
+                                    F5cNegative::Function {
+                                        argument: test_tracked_one(
+                                            &test_source_meter,
+                                            F5cPositive::Int,
+                                        ),
+                                        argument_effect: super::super::F5cPositiveEffect::Bottom,
+                                        result_effect: super::super::F5cNegativeEffect::Empty,
+                                        result: test_tracked_one(
+                                            &test_source_meter,
+                                            F5cNegative::Int,
+                                        ),
+                                    },
+                                    F5cNegative::Top,
+                                    F5cNegative::Int,
+                                    F5cNegative::Int,
+                                ],
+                            )),
+                        ),
                         argument_effect: super::super::F5cNegativeEffect::Empty,
                         result_effect: super::super::F5cPositiveEffect::Bottom,
-                        result: Box::new(F5cPositive::Bottom),
+                        result: test_tracked_one(&test_source_meter, F5cPositive::Bottom),
                     },
                     F5cPositive::Int,
                     F5cPositive::Bottom,
@@ -3321,26 +3337,28 @@ mod tests {
     }
 
     fn positive_function<'meter>(
+        meter: &'meter DraftHeapMeter,
         argument: F5cNegative<'meter>,
         result: F5cPositive<'meter>,
     ) -> F5cPositive<'meter> {
         F5cPositive::Function {
-            argument: Box::new(argument),
+            argument: test_tracked_one(meter, argument),
             argument_effect: F5cNegativeEffect::Empty,
             result_effect: F5cPositiveEffect::Bottom,
-            result: Box::new(result),
+            result: test_tracked_one(meter, result),
         }
     }
 
     fn negative_function<'meter>(
+        meter: &'meter DraftHeapMeter,
         argument: F5cPositive<'meter>,
         result: F5cNegative<'meter>,
     ) -> F5cNegative<'meter> {
         F5cNegative::Function {
-            argument: Box::new(argument),
+            argument: test_tracked_one(meter, argument),
             argument_effect: F5cPositiveEffect::Bottom,
             result_effect: F5cNegativeEffect::Empty,
-            result: Box::new(result),
+            result: test_tracked_one(meter, result),
         }
     }
 
@@ -3402,11 +3420,15 @@ mod tests {
     #[test]
     fn positive_mixed_height_members_use_height_before_discriminator() {
         let test_source_meter = DraftHeapMeter::default();
-        let shallow = || positive_function(F5cNegative::Top, F5cPositive::Int);
+        let shallow = || positive_function(&test_source_meter, F5cNegative::Top, F5cPositive::Int);
         let deep = || {
             F5cPositive::Union(test_tracked(
                 &test_source_meter,
-                vec![positive_function(F5cNegative::Bottom, F5cPositive::Int)],
+                vec![positive_function(
+                    &test_source_meter,
+                    F5cNegative::Bottom,
+                    F5cPositive::Int,
+                )],
             ))
         };
         let mut drafts = [draft(F5cPositive::Union(test_tracked(
@@ -3425,11 +3447,16 @@ mod tests {
     #[test]
     fn negative_mixed_height_members_use_height_before_discriminator() {
         let test_source_meter = DraftHeapMeter::default();
-        let shallow = || negative_function(F5cPositive::Bottom, F5cNegative::Top);
+        let shallow =
+            || negative_function(&test_source_meter, F5cPositive::Bottom, F5cNegative::Top);
         let deep = || {
             F5cNegative::Intersection(test_tracked(
                 &test_source_meter,
-                vec![negative_function(F5cPositive::Int, F5cNegative::Bottom)],
+                vec![negative_function(
+                    &test_source_meter,
+                    F5cPositive::Int,
+                    F5cNegative::Bottom,
+                )],
             ))
         };
         let mut normalizer = Normalizer::new();
@@ -3467,11 +3494,15 @@ mod tests {
     #[test]
     fn exact_duplicate_members_share_rank_and_are_removed() {
         let test_source_meter = DraftHeapMeter::default();
-        let shallow = || positive_function(F5cNegative::Top, F5cPositive::Int);
+        let shallow = || positive_function(&test_source_meter, F5cNegative::Top, F5cPositive::Int);
         let deep = || {
             F5cPositive::Union(test_tracked(
                 &test_source_meter,
-                vec![positive_function(F5cNegative::Bottom, F5cPositive::Int)],
+                vec![positive_function(
+                    &test_source_meter,
+                    F5cNegative::Bottom,
+                    F5cPositive::Int,
+                )],
             ))
         };
         let mut drafts = [draft(F5cPositive::Union(test_tracked(
@@ -3495,11 +3526,15 @@ mod tests {
     #[test]
     fn height_major_ranks_follow_height_then_descriptor_and_share_equal_keys() {
         let test_source_meter = DraftHeapMeter::default();
-        let shallow = || positive_function(F5cNegative::Top, F5cPositive::Int);
+        let shallow = || positive_function(&test_source_meter, F5cNegative::Top, F5cPositive::Int);
         let deep = || {
             F5cPositive::Union(test_tracked(
                 &test_source_meter,
-                vec![positive_function(F5cNegative::Bottom, F5cPositive::Int)],
+                vec![positive_function(
+                    &test_source_meter,
+                    F5cNegative::Bottom,
+                    F5cPositive::Int,
+                )],
             ))
         };
         let mut normalizer = Normalizer::new();
@@ -3847,11 +3882,15 @@ mod tests {
     #[test]
     fn descriptor_order_is_independent_of_union_input_order() {
         let test_source_meter = DraftHeapMeter::default();
-        let shallow = || positive_function(F5cNegative::Top, F5cPositive::Int);
+        let shallow = || positive_function(&test_source_meter, F5cNegative::Top, F5cPositive::Int);
         let deep = || {
             F5cPositive::Union(test_tracked(
                 &test_source_meter,
-                vec![positive_function(F5cNegative::Bottom, F5cPositive::Int)],
+                vec![positive_function(
+                    &test_source_meter,
+                    F5cNegative::Bottom,
+                    F5cPositive::Int,
+                )],
             ))
         };
         let mut forward = [draft(F5cPositive::Union(test_tracked(
@@ -4056,14 +4095,14 @@ mod tests {
                 let test_source_meter = DraftHeapMeter::default();
                 let mut value = F5cPositive::Int;
                 for _ in 0..4096 {
-                    value = positive_function(F5cNegative::Top, value);
+                    value = positive_function(&test_source_meter, F5cNegative::Top, value);
                 }
                 let mut value = normalize_positive(&test_source_meter, value).unwrap();
                 for _ in 0..4096 {
                     let F5cPositive::Function { result, .. } = value else {
                         panic!("the chain retains each Function node");
                     };
-                    value = *result;
+                    value = result.into_inner();
                 }
                 assert_eq!(value, F5cPositive::Int);
             })

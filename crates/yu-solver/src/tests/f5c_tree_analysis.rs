@@ -38,17 +38,17 @@ fn f5c_flat_analysis_traces_repeated_edges_and_recovers_from_bad_indices() {
         vec![
             F5cPositive::Variable(7),
             F5cPositive::Function {
-                argument: Box::new(F5cNegative::Variable(8)),
+                argument: test_tracked_one(&test_source_meter, F5cNegative::Variable(8)),
                 argument_effect: F5cNegativeEffect::Empty,
                 result_effect: F5cPositiveEffect::Bottom,
-                result: Box::new(F5cPositive::Variable(7)),
+                result: test_tracked_one(&test_source_meter, F5cPositive::Variable(7)),
             },
             F5cPositive::Variable(7),
             F5cPositive::Function {
-                argument: Box::new(F5cNegative::Variable(8)),
+                argument: test_tracked_one(&test_source_meter, F5cNegative::Variable(8)),
                 argument_effect: F5cNegativeEffect::Empty,
                 result_effect: F5cPositiveEffect::Bottom,
-                result: Box::new(F5cPositive::Variable(7)),
+                result: test_tracked_one(&test_source_meter, F5cPositive::Variable(7)),
             },
         ],
     ));
@@ -57,17 +57,17 @@ fn f5c_flat_analysis_traces_repeated_edges_and_recovers_from_bad_indices() {
         vec![
             F5cNegative::Variable(8),
             F5cNegative::Function {
-                argument: Box::new(F5cPositive::Variable(7)),
+                argument: test_tracked_one(&test_source_meter, F5cPositive::Variable(7)),
                 argument_effect: F5cPositiveEffect::Bottom,
                 result_effect: F5cNegativeEffect::Empty,
-                result: Box::new(F5cNegative::Variable(8)),
+                result: test_tracked_one(&test_source_meter, F5cNegative::Variable(8)),
             },
             F5cNegative::Variable(8),
             F5cNegative::Function {
-                argument: Box::new(F5cPositive::Variable(7)),
+                argument: test_tracked_one(&test_source_meter, F5cPositive::Variable(7)),
                 argument_effect: F5cPositiveEffect::Bottom,
                 result_effect: F5cNegativeEffect::Empty,
-                result: Box::new(F5cNegative::Variable(8)),
+                result: test_tracked_one(&test_source_meter, F5cNegative::Variable(8)),
             },
         ],
     ));
@@ -211,10 +211,10 @@ fn f5c_flat_tree_analysis_matches_boxed_dfs_and_guarding() {
         vec![
             F5cPositive::Variable(3),
             F5cPositive::Function {
-                argument: Box::new(F5cNegative::Variable(4)),
+                argument: test_tracked_one(&test_source_meter, F5cNegative::Variable(4)),
                 argument_effect: F5cNegativeEffect::Empty,
                 result_effect: F5cPositiveEffect::Bottom,
-                result: Box::new(F5cPositive::Variable(3)),
+                result: test_tracked_one(&test_source_meter, F5cPositive::Variable(3)),
             },
             F5cPositive::Variable(5),
         ],
@@ -300,10 +300,10 @@ fn f5c_flat_tree_analysis_matches_boxed_dfs_and_guarding() {
         vec![
             F5cNegative::Variable(8),
             F5cNegative::Function {
-                argument: Box::new(F5cPositive::Variable(6)),
+                argument: test_tracked_one(&test_source_meter, F5cPositive::Variable(6)),
                 argument_effect: F5cPositiveEffect::Bottom,
                 result_effect: F5cNegativeEffect::Empty,
-                result: Box::new(F5cNegative::Variable(8)),
+                result: test_tracked_one(&test_source_meter, F5cNegative::Variable(8)),
             },
         ],
     ));
@@ -343,10 +343,10 @@ fn f5c_tree_analysis_preserves_depth_first_polarity_and_first_occurrence() {
         vec![
             F5cPositive::Variable(3),
             F5cPositive::Function {
-                argument: Box::new(F5cNegative::Variable(4)),
+                argument: test_tracked_one(&test_source_meter, F5cNegative::Variable(4)),
                 argument_effect: F5cNegativeEffect::Empty,
                 result_effect: F5cPositiveEffect::Bottom,
-                result: Box::new(F5cPositive::Variable(3)),
+                result: test_tracked_one(&test_source_meter, F5cPositive::Variable(3)),
             },
             F5cPositive::Variable(5),
         ],
@@ -390,10 +390,10 @@ fn f5c_tree_analysis_preserves_depth_first_polarity_and_first_occurrence() {
         vec![
             F5cNegative::Variable(8),
             F5cNegative::Function {
-                argument: Box::new(F5cPositive::Variable(6)),
+                argument: test_tracked_one(&test_source_meter, F5cPositive::Variable(6)),
                 argument_effect: F5cPositiveEffect::Bottom,
                 result_effect: F5cNegativeEffect::Empty,
-                result: Box::new(F5cNegative::Variable(8)),
+                result: test_tracked_one(&test_source_meter, F5cNegative::Variable(8)),
             },
             F5cNegative::Variable(9),
         ],
@@ -443,22 +443,23 @@ fn f5c_tree_and_term_analysis_are_stack_safe_on_small_stacks() {
     let worker = std::thread::Builder::new()
         .stack_size(64 * 1024)
         .spawn(move || {
+            let test_source_meter = DraftHeapMeter::default();
             let mut value = F5cPositive::Variable(7);
             for _ in 0..DEPTH {
                 value = F5cPositive::Function {
-                    argument: Box::new(F5cNegative::Variable(99)),
+                    argument: test_tracked_one(&test_source_meter, F5cNegative::Variable(99)),
                     argument_effect: F5cNegativeEffect::Empty,
                     result_effect: F5cPositiveEffect::Bottom,
-                    result: Box::new(value),
+                    result: test_tracked_one(&test_source_meter, value),
                 };
             }
             let mut negative_value = F5cNegative::Variable(8);
             for _ in 0..DEPTH {
                 negative_value = F5cNegative::Function {
-                    argument: Box::new(F5cPositive::Variable(100)),
+                    argument: test_tracked_one(&test_source_meter, F5cPositive::Variable(100)),
                     argument_effect: F5cPositiveEffect::Bottom,
                     result_effect: F5cNegativeEffect::Empty,
-                    result: Box::new(negative_value),
+                    result: test_tracked_one(&test_source_meter, negative_value),
                 };
             }
             let mut memo = F5cComponentExpansionMemo::default();

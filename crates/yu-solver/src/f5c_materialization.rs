@@ -3,13 +3,13 @@ use super::f5c_draft::{FlatDraft, NegativeNode, NodeRef, PositiveNode};
 use super::f5c_generalization::F5cWalkerResources;
 #[cfg(test)]
 use super::f5c_generalization::{F5cBulkDrainSite, record_bulk_drain_boundary};
-#[cfg(test)]
-use super::test_tracked;
 use super::{
     DraftHeapMeter, F5cComponentExpansionMemo, F5cGeneralizer, F5cNegative, F5cNegativeEffect,
     F5cPositive, F5cPositiveEffect, F5cSummaryNodeId, F5cWalkValue, F5cWalkerLaneKind, Polarity,
-    SolveAvailabilityError, TrackedVec,
+    SolveAvailabilityError, TrackedOne, TrackedVec,
 };
+#[cfg(test)]
+use super::{test_tracked, test_tracked_one};
 use std::collections::HashMap;
 
 #[derive(Clone, Copy)]
@@ -742,9 +742,9 @@ pub(super) fn materialize_iterative<'meter>(
                             result_effect,
                         });
                         memo.work_meter.charge(1)?; // result child edge
-                        push_task!(Task::Positive(*result));
+                        push_task!(Task::Positive(result.into_inner()));
                         memo.work_meter.charge(1)?; // argument child edge
-                        push_task!(Task::Negative(*argument));
+                        push_task!(Task::Negative(argument.into_inner()));
                     }
                     value => push_value!(F5cWalkValue::Positive(value, true)),
                 },
@@ -771,9 +771,9 @@ pub(super) fn materialize_iterative<'meter>(
                             result_effect,
                         });
                         memo.work_meter.charge(1)?; // result child edge
-                        push_task!(Task::Negative(*result));
+                        push_task!(Task::Negative(result.into_inner()));
                         memo.work_meter.charge(1)?; // argument child edge
-                        push_task!(Task::Positive(*argument));
+                        push_task!(Task::Positive(argument.into_inner()));
                     }
                     value => push_value!(F5cWalkValue::Negative(value, true)),
                 },
@@ -852,10 +852,12 @@ pub(super) fn materialize_iterative<'meter>(
                     };
                     push_value!(F5cWalkValue::Positive(
                         F5cPositive::Function {
-                            argument: Box::new(argument),
+                            argument: TrackedOne::try_new(source_meter, argument)
+                                .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
                             argument_effect,
                             result_effect,
-                            result: Box::new(result),
+                            result: TrackedOne::try_new(source_meter, result)
+                                .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
                         },
                         true,
                     ));
@@ -878,10 +880,12 @@ pub(super) fn materialize_iterative<'meter>(
                     };
                     push_value!(F5cWalkValue::Negative(
                         F5cNegative::Function {
-                            argument: Box::new(argument),
+                            argument: TrackedOne::try_new(source_meter, argument)
+                                .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
                             argument_effect,
                             result_effect,
-                            result: Box::new(result),
+                            result: TrackedOne::try_new(source_meter, result)
+                                .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
                         },
                         true,
                     ));
@@ -1158,10 +1162,10 @@ mod flat_tests {
                     .collect::<Vec<_>>(),
             )),
             Function { argument, result } => F5cPositive::Function {
-                argument: Box::new(expand_negative(meter, flat, argument)),
+                argument: test_tracked_one(meter, expand_negative(meter, flat, argument)),
                 argument_effect: F5cNegativeEffect::Empty,
                 result_effect: F5cPositiveEffect::Bottom,
-                result: Box::new(expand_positive(meter, flat, result)),
+                result: test_tracked_one(meter, expand_positive(meter, flat, result)),
             },
         }
     }
@@ -1187,10 +1191,10 @@ mod flat_tests {
                     .collect::<Vec<_>>(),
             )),
             Function { argument, result } => F5cNegative::Function {
-                argument: Box::new(expand_positive(meter, flat, argument)),
+                argument: test_tracked_one(meter, expand_positive(meter, flat, argument)),
                 argument_effect: F5cPositiveEffect::Bottom,
                 result_effect: F5cNegativeEffect::Empty,
-                result: Box::new(expand_negative(meter, flat, result)),
+                result: test_tracked_one(meter, expand_negative(meter, flat, result)),
             },
         }
     }
@@ -1536,16 +1540,16 @@ mod flat_tests {
                 &test_source_meter,
                 vec![
                     F5cPositive::Function {
-                        argument: Box::new(F5cNegative::Variable(20)),
+                        argument: test_tracked_one(&test_source_meter, F5cNegative::Variable(20)),
                         argument_effect: F5cNegativeEffect::Empty,
                         result_effect: F5cPositiveEffect::Bottom,
-                        result: Box::new(F5cPositive::Variable(10))
+                        result: test_tracked_one(&test_source_meter, F5cPositive::Variable(10))
                     },
                     F5cPositive::Function {
-                        argument: Box::new(F5cNegative::Variable(20)),
+                        argument: test_tracked_one(&test_source_meter, F5cNegative::Variable(20)),
                         argument_effect: F5cNegativeEffect::Empty,
                         result_effect: F5cPositiveEffect::Bottom,
-                        result: Box::new(F5cPositive::Variable(10))
+                        result: test_tracked_one(&test_source_meter, F5cPositive::Variable(10))
                     },
                 ]
             ))
@@ -1556,16 +1560,16 @@ mod flat_tests {
                 &test_source_meter,
                 vec![
                     F5cNegative::Function {
-                        argument: Box::new(F5cPositive::Variable(10)),
+                        argument: test_tracked_one(&test_source_meter, F5cPositive::Variable(10)),
                         argument_effect: F5cPositiveEffect::Bottom,
                         result_effect: F5cNegativeEffect::Empty,
-                        result: Box::new(F5cNegative::Variable(20))
+                        result: test_tracked_one(&test_source_meter, F5cNegative::Variable(20))
                     },
                     F5cNegative::Function {
-                        argument: Box::new(F5cPositive::Variable(10)),
+                        argument: test_tracked_one(&test_source_meter, F5cPositive::Variable(10)),
                         argument_effect: F5cPositiveEffect::Bottom,
                         result_effect: F5cNegativeEffect::Empty,
-                        result: Box::new(F5cNegative::Variable(20))
+                        result: test_tracked_one(&test_source_meter, F5cNegative::Variable(20))
                     },
                 ]
             ))
@@ -2054,10 +2058,16 @@ mod flat_tests {
         let predicate_summary = summary
             .positive_node(
                 &F5cPositive::Function {
-                    argument: Box::new(F5cNegative::Shared(negative_intersection)),
+                    argument: test_tracked_one(
+                        &test_source_meter,
+                        F5cNegative::Shared(negative_intersection),
+                    ),
                     argument_effect: F5cNegativeEffect::Empty,
                     result_effect: F5cPositiveEffect::Bottom,
-                    result: Box::new(F5cPositive::Shared(positive_union)),
+                    result: test_tracked_one(
+                        &test_source_meter,
+                        F5cPositive::Shared(positive_union),
+                    ),
                 },
                 None,
             )
@@ -2065,10 +2075,16 @@ mod flat_tests {
         let lower_summary = summary
             .positive_node(
                 &F5cPositive::Function {
-                    argument: Box::new(F5cNegative::Shared(negative_two)),
+                    argument: test_tracked_one(
+                        &test_source_meter,
+                        F5cNegative::Shared(negative_two),
+                    ),
                     argument_effect: F5cNegativeEffect::Empty,
                     result_effect: F5cPositiveEffect::Bottom,
-                    result: Box::new(F5cPositive::Shared(positive_three)),
+                    result: test_tracked_one(
+                        &test_source_meter,
+                        F5cPositive::Shared(positive_three),
+                    ),
                 },
                 None,
             )
@@ -2076,10 +2092,16 @@ mod flat_tests {
         let upper_summary = summary
             .negative_node(
                 &F5cNegative::Function {
-                    argument: Box::new(F5cPositive::Shared(positive_two)),
+                    argument: test_tracked_one(
+                        &test_source_meter,
+                        F5cPositive::Shared(positive_two),
+                    ),
                     argument_effect: F5cPositiveEffect::Bottom,
                     result_effect: F5cNegativeEffect::Empty,
-                    result: Box::new(F5cNegative::Shared(negative_three)),
+                    result: test_tracked_one(
+                        &test_source_meter,
+                        F5cNegative::Shared(negative_three),
+                    ),
                 },
                 None,
             )

@@ -4,37 +4,46 @@ use super::*;
 fn f5c_replay_preserves_polarity_elimination_and_product_order() {
     let test_source_meter = DraftHeapMeter::default();
     let positive = F5cPositive::Function {
-        argument: Box::new(F5cNegative::Intersection(test_tracked(
+        argument: test_tracked_one(
             &test_source_meter,
-            vec![F5cNegative::Variable(2), F5cNegative::Variable(3)],
-        ))),
+            F5cNegative::Intersection(test_tracked(
+                &test_source_meter,
+                vec![F5cNegative::Variable(2), F5cNegative::Variable(3)],
+            )),
+        ),
         argument_effect: F5cNegativeEffect::Empty,
         result_effect: F5cPositiveEffect::Bottom,
-        result: Box::new(F5cPositive::Union(test_tracked(
+        result: test_tracked_one(
             &test_source_meter,
-            vec![
-                F5cPositive::Variable(1),
-                F5cPositive::Function {
-                    argument: Box::new(F5cNegative::Top),
-                    argument_effect: F5cNegativeEffect::Empty,
-                    result_effect: F5cPositiveEffect::Bottom,
-                    result: Box::new(F5cPositive::Variable(3)),
-                },
-            ],
-        ))),
+            F5cPositive::Union(test_tracked(
+                &test_source_meter,
+                vec![
+                    F5cPositive::Variable(1),
+                    F5cPositive::Function {
+                        argument: test_tracked_one(&test_source_meter, F5cNegative::Top),
+                        argument_effect: F5cNegativeEffect::Empty,
+                        result_effect: F5cPositiveEffect::Bottom,
+                        result: test_tracked_one(&test_source_meter, F5cPositive::Variable(3)),
+                    },
+                ],
+            )),
+        ),
     };
     let negative = F5cNegative::Intersection(test_tracked(
         &test_source_meter,
         vec![
             F5cNegative::Variable(3),
             F5cNegative::Function {
-                argument: Box::new(F5cPositive::Union(test_tracked(
+                argument: test_tracked_one(
                     &test_source_meter,
-                    vec![F5cPositive::Variable(2), F5cPositive::Variable(3)],
-                ))),
+                    F5cPositive::Union(test_tracked(
+                        &test_source_meter,
+                        vec![F5cPositive::Variable(2), F5cPositive::Variable(3)],
+                    )),
+                ),
                 argument_effect: F5cPositiveEffect::Bottom,
                 result_effect: F5cNegativeEffect::Empty,
-                result: Box::new(F5cNegative::Variable(1)),
+                result: test_tracked_one(&test_source_meter, F5cNegative::Variable(1)),
             },
         ],
     ));
@@ -65,24 +74,30 @@ fn f5c_replay_preserves_polarity_elimination_and_product_order() {
     assert_eq!(
         positive_replayed,
         F5cPositive::Function {
-            argument: Box::new(F5cNegative::Intersection(test_tracked(
+            argument: test_tracked_one(
                 &test_source_meter,
-                vec![F5cNegative::Top, F5cNegative::Variable(3),]
-            ))),
+                F5cNegative::Intersection(test_tracked(
+                    &test_source_meter,
+                    vec![F5cNegative::Top, F5cNegative::Variable(3),]
+                ))
+            ),
             argument_effect: F5cNegativeEffect::Empty,
             result_effect: F5cPositiveEffect::Bottom,
-            result: Box::new(F5cPositive::Union(test_tracked(
+            result: test_tracked_one(
                 &test_source_meter,
-                vec![
-                    F5cPositive::Bottom,
-                    F5cPositive::Function {
-                        argument: Box::new(F5cNegative::Top),
-                        argument_effect: F5cNegativeEffect::Empty,
-                        result_effect: F5cPositiveEffect::Bottom,
-                        result: Box::new(F5cPositive::Variable(3)),
-                    },
-                ]
-            ))),
+                F5cPositive::Union(test_tracked(
+                    &test_source_meter,
+                    vec![
+                        F5cPositive::Bottom,
+                        F5cPositive::Function {
+                            argument: test_tracked_one(&test_source_meter, F5cNegative::Top),
+                            argument_effect: F5cNegativeEffect::Empty,
+                            result_effect: F5cPositiveEffect::Bottom,
+                            result: test_tracked_one(&test_source_meter, F5cPositive::Variable(3)),
+                        },
+                    ]
+                ))
+            ),
         }
     );
     assert_eq!(
@@ -92,13 +107,16 @@ fn f5c_replay_preserves_polarity_elimination_and_product_order() {
             vec![
                 F5cNegative::Variable(3),
                 F5cNegative::Function {
-                    argument: Box::new(F5cPositive::Union(test_tracked(
+                    argument: test_tracked_one(
                         &test_source_meter,
-                        vec![F5cPositive::Bottom, F5cPositive::Variable(3),]
-                    ))),
+                        F5cPositive::Union(test_tracked(
+                            &test_source_meter,
+                            vec![F5cPositive::Bottom, F5cPositive::Variable(3),]
+                        ))
+                    ),
                     argument_effect: F5cPositiveEffect::Bottom,
                     result_effect: F5cNegativeEffect::Empty,
-                    result: Box::new(F5cNegative::Top),
+                    result: test_tracked_one(&test_source_meter, F5cNegative::Top),
                 },
             ]
         ))
@@ -157,37 +175,46 @@ fn f5c_flat_replay_matches_boxed_polarity_and_occurrence_order() {
     let positive_only = HashSet::from([1, 2, 3]);
     let negative_only = HashSet::from([2, 3]);
     let boxed_positive = F5cPositive::Function {
-        argument: Box::new(F5cNegative::Intersection(test_tracked(
+        argument: test_tracked_one(
             &test_source_meter,
-            vec![F5cNegative::Variable(2), F5cNegative::Variable(3)],
-        ))),
+            F5cNegative::Intersection(test_tracked(
+                &test_source_meter,
+                vec![F5cNegative::Variable(2), F5cNegative::Variable(3)],
+            )),
+        ),
         argument_effect: F5cNegativeEffect::Empty,
         result_effect: F5cPositiveEffect::Bottom,
-        result: Box::new(F5cPositive::Union(test_tracked(
+        result: test_tracked_one(
             &test_source_meter,
-            vec![
-                F5cPositive::Variable(1),
-                F5cPositive::Function {
-                    argument: Box::new(F5cNegative::Top),
-                    argument_effect: F5cNegativeEffect::Empty,
-                    result_effect: F5cPositiveEffect::Bottom,
-                    result: Box::new(F5cPositive::Variable(3)),
-                },
-            ],
-        ))),
+            F5cPositive::Union(test_tracked(
+                &test_source_meter,
+                vec![
+                    F5cPositive::Variable(1),
+                    F5cPositive::Function {
+                        argument: test_tracked_one(&test_source_meter, F5cNegative::Top),
+                        argument_effect: F5cNegativeEffect::Empty,
+                        result_effect: F5cPositiveEffect::Bottom,
+                        result: test_tracked_one(&test_source_meter, F5cPositive::Variable(3)),
+                    },
+                ],
+            )),
+        ),
     };
     let boxed_negative = F5cNegative::Intersection(test_tracked(
         &test_source_meter,
         vec![
             F5cNegative::Variable(3),
             F5cNegative::Function {
-                argument: Box::new(F5cPositive::Union(test_tracked(
+                argument: test_tracked_one(
                     &test_source_meter,
-                    vec![F5cPositive::Variable(1), F5cPositive::Variable(3)],
-                ))),
+                    F5cPositive::Union(test_tracked(
+                        &test_source_meter,
+                        vec![F5cPositive::Variable(1), F5cPositive::Variable(3)],
+                    )),
+                ),
                 argument_effect: F5cPositiveEffect::Bottom,
                 result_effect: F5cNegativeEffect::Empty,
-                result: Box::new(F5cNegative::Variable(2)),
+                result: test_tracked_one(&test_source_meter, F5cNegative::Variable(2)),
             },
         ],
     ));
@@ -234,10 +261,10 @@ fn f5c_flat_replay_matches_boxed_polarity_and_occurrence_order() {
                 ))
             }
             PositiveNode::Function { argument, result } => F5cPositive::Function {
-                argument: Box::new(expand_negative(meter, flat, argument)),
+                argument: test_tracked_one(meter, expand_negative(meter, flat, argument)),
                 argument_effect: F5cNegativeEffect::Empty,
                 result_effect: F5cPositiveEffect::Bottom,
-                result: Box::new(expand_positive(meter, flat, result)),
+                result: test_tracked_one(meter, expand_positive(meter, flat, result)),
             },
             _ => panic!("fixture uses only replay-supported positive nodes"),
         }
@@ -266,10 +293,10 @@ fn f5c_flat_replay_matches_boxed_polarity_and_occurrence_order() {
                 ))
             }
             NegativeNode::Function { argument, result } => F5cNegative::Function {
-                argument: Box::new(expand_positive(meter, flat, argument)),
+                argument: test_tracked_one(meter, expand_positive(meter, flat, argument)),
                 argument_effect: F5cPositiveEffect::Bottom,
                 result_effect: F5cNegativeEffect::Empty,
-                result: Box::new(expand_negative(meter, flat, result)),
+                result: test_tracked_one(meter, expand_negative(meter, flat, result)),
             },
             _ => panic!("fixture uses only replay-supported negative nodes"),
         }
@@ -585,19 +612,19 @@ fn f5c_replay_handles_deep_positive_and_negative_trees_on_small_stack() {
             let mut positive = F5cPositive::Variable(7);
             for _ in 0..DEPTH {
                 positive = F5cPositive::Function {
-                    argument: Box::new(F5cNegative::Variable(9)),
+                    argument: test_tracked_one(&test_source_meter, F5cNegative::Variable(9)),
                     argument_effect: F5cNegativeEffect::Empty,
                     result_effect: F5cPositiveEffect::Bottom,
-                    result: Box::new(positive),
+                    result: test_tracked_one(&test_source_meter, positive),
                 };
             }
             let mut negative = F5cNegative::Variable(8);
             for _ in 0..DEPTH {
                 negative = F5cNegative::Function {
-                    argument: Box::new(F5cPositive::Variable(9)),
+                    argument: test_tracked_one(&test_source_meter, F5cPositive::Variable(9)),
                     argument_effect: F5cPositiveEffect::Bottom,
                     result_effect: F5cNegativeEffect::Empty,
-                    result: Box::new(negative),
+                    result: test_tracked_one(&test_source_meter, negative),
                 };
             }
             let mut memo = F5cComponentExpansionMemo::default();
