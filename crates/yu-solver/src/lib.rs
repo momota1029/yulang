@@ -6491,6 +6491,8 @@ struct InferenceSession {
     #[cfg(test)]
     flat_candidate_precommit_failure: Option<FlatCandidatePrecommitFailure>,
     #[cfg(test)]
+    flat_candidate_precommit_counter_baseline: Option<ProductionCounters>,
+    #[cfg(test)]
     f5c_candidate_capture: Option<F5cCandidateCapture>,
     #[cfg(test)]
     ordering_observer: Option<OrderingObserver>,
@@ -8259,6 +8261,8 @@ impl InferenceSession {
             flat_candidate_normalization_failure_after: None,
             #[cfg(test)]
             flat_candidate_precommit_failure: None,
+            #[cfg(test)]
+            flat_candidate_precommit_counter_baseline: None,
             #[cfg(test)]
             f5c_candidate_capture: None,
             #[cfg(test)]
@@ -12030,6 +12034,10 @@ impl InferenceSession {
                 let capture_memo_lengths_before =
                     (memo.roots.len(), memo.nodes.len(), memo.children.len());
                 let counters_before_batch = self.execution_counters.clone();
+                if self.flat_candidate_precommit_failure.is_some() {
+                    self.flat_candidate_precommit_counter_baseline =
+                        Some(counters_before_batch.clone());
+                }
                 if let Some(capture) = self.f5c_candidate_capture.as_mut() {
                     capture.transactional_counter_baseline = Some(counters_before_batch.clone());
                 }
@@ -12318,6 +12326,16 @@ impl InferenceSession {
                         &memo,
                         source_draft_bytes,
                         sampled_source_draft_bytes,
+                    )?;
+                    memo.clear();
+                    self.execution_counters
+                        .component_expansion_memo_actual_capacity = 0;
+                    self.execution_counters
+                        .component_expansion_memo_retained_bytes = 0;
+                    self.resource_ledger.record_component_expansion_memo_inner(
+                        &memo,
+                        source_draft_bytes,
+                        source_draft_bytes,
                     )?;
                     return Err(error);
                 }

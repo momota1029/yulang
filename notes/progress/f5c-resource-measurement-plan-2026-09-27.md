@@ -1,24 +1,19 @@
 # F5c candidate resource measurement plan
 
-Status: Original plan and its budget amendments passed review by
-`spec_auditor`, `performance_auditor`, and primary. The source-baseline
-correction cleared the synthetic seeded-depth-64 boxed ledger failure. The
-scale capture then stopped at a probe assertion that treated every Union as
-having only two children. The fixture's predicate and recursive lower roots
-legitimately retain different distinct children. The probe now checks one
-`Int` and one repeated-endpoint `Function`, permits the fixture's one
-`Quantified` lower member, and no longer counts repeated root visits as unique
-Unions. A focused non-ignored test passed for boxed and flat routes with scheme
-and counter parity; an independent `spec_auditor` review found no issue. The
-stop rule barred the failure/rollback capture. The probe repair passed a
-focused non-ignored boxed/flat parity test and fresh spec review. A new bounded
-continuation passed fresh `spec_auditor` and `performance_auditor` review, and
-primary approves exactly one full scale capture and, only if it passes, one
-failure/rollback capture. The total command cap is eight, with six commands
-already charged. Each remaining command is bounded at 180 seconds plus 10
-seconds grace, including any test-binary rebuild in the scale command. The
-1,010s combined §15+§44 ceiling and local 570s / 440s ceilings remain unchanged.
-No numeric supported-input boundary or production cutover is selected.
+Status: The reviewed eight-command plan completed its one scale capture, which
+passed, then stopped in the conditional failure/rollback capture at a whole-
+`ProductionCounters` equality assertion. A read-only `compiler_referee` found
+that the assertion wrongly includes intended historical resource observations
+and that the rollback path leaves memo current-capacity gauges nonzero after
+the memo owner drops. The capture produced no failure sample. The owning code
+gate is now closed: failure release zeros current memo storage/gauges while
+preserving physical history, and a focused no-capture regression compares all
+transactional counters and all five independent memo lanes. The focused test
+and formatting check pass. The measurement cap is fully used; no further
+capture is authorized under this plan. Any later capture needs a fresh reviewed
+plan. The combined 1,010s ceiling and local 570s / 440s ceilings remain as
+campaign bounds. No numeric supported-input boundary or production cutover is
+selected.
 
 Authority: `notes/design/2026-09-25-f5c-flat-indexed-stack-independent-draft.md`
 §§5 and 15; `notes/design/2026-09-21-f5-general-function-scheme-foundation-draft.md`
@@ -164,32 +159,34 @@ benchmarks.
   ```
 
 Campaign budget: two initial scale invocations failed before any F5c record.
-After the five-command extension, a rebuild and scale capture stopped at the
-boxed depth-64 accounting failure. A later reviewed amendment allowed one
-rebuild and scale recapture; that capture completed source rings through 16 and
-paired depth points through 256, then stopped at the over-specific width probe
-assertion. The probe correction passed focused boxed/flat correctness and
-parity review. Six of seven commands are charged; cumulative §15 wall time is
-about 34.01 seconds and combined §15+§44 about 89.11 seconds. This amendment
-proposes one full scale capture (with any rebuild included in its timeout),
-then the failure/rollback capture only if scale completes successfully. This
-raises the cap to eight total commands, with six already used and two remaining.
-Each has a 180-second timeout plus 10 seconds grace; together the remaining
-maximum is 380 seconds. The projected §15 total is 414.01 of 570 seconds; the
-combined total is 469.11 of 1,010 seconds. Correctness-only tests remain
-outside the capture budget under `rules/testing.md`.
+After the five-command extension, a scale capture stopped at the boxed
+depth-64 accounting failure. The next reviewed capture stopped at the
+over-specific width probe assertion; its probe contract was corrected and
+independently reviewed. Under the final reviewed cap-eight amendment, the full
+scale capture passed all source rings, paired depths, and paired widths. The
+conditional failure/rollback capture then stopped before emitting a sample at
+the whole-counter rollback assertion. Eight of eight capture/build commands
+are charged. The latest scale process took 3.57 seconds and peaked at 556,296
+KiB RSS; the failed failure-capture process took 0.05 seconds and peaked at
+35,836 KiB RSS. Cumulative §15 wall time is about 37.63 seconds and combined
+§15+§44 about 92.73 seconds. No further capture is authorized under this plan;
+remaining time does not override the stop rule or command cap. Correctness-only
+tests remain outside the capture budget under `rules/testing.md`.
 
 ## Failure handling and stop rules
 
 - The first two scale attempts failed before any F5c record. One post-repair
   capture stopped on boxed depth-64 with a test-only accounting underflow; the
   corrected sampled-source baseline passes a focused boxed depth-64 correctness
-  test. A reviewed scale recapture then stopped at the over-specific seeded-
-  width Union assertion; a focused correctness test and independent review
-  closed that probe-contract defect. After this amendment passes fresh review,
-  run one full scale capture. Run the failure/rollback capture only if scale
-  completes without any stop condition. No additional retry or input dimension
-  is authorized.
+  test. A reviewed scale recapture stopped at an over-specific width assertion;
+  a focused test and independent review closed that probe-contract defect. The
+  final scale capture passed all listed source/depth/width cases. Its contingent
+  failure/rollback capture stopped before a sample at the rollback-counter
+  assertion; static audit found nonzero current memo gauges after owner drop.
+  That code gate is closed by releasing memo storage, restoring zero current
+  gauges, preserving history, and adding a focused no-capture full
+  counter/lane regression. The eight-command budget is exhausted. Any further
+  capture requires a fresh plan and review. Do not add input dimensions.
 - Stop the campaign on any boxed/flat semantic or public-counter mismatch,
   independent-lane reconciliation failure, incomplete checkpoint sample,
   unexpected `IdentityExhausted` on the listed success cases, or missing

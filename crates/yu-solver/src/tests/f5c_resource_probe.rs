@@ -197,13 +197,51 @@ fn candidate_probe_run(
     }
     if let Some(capture) = session.f5c_candidate_capture.take() {
         if result.is_err() {
+            let mut expected = capture
+                .transactional_counter_baseline
+                .as_ref()
+                .unwrap()
+                .clone();
+            let actual = &session.execution_counters;
+            assert!(actual.semantic_arena_peak_bytes >= expected.semantic_arena_peak_bytes);
+            assert!(actual.inference_session_peak_bytes >= expected.inference_session_peak_bytes);
+            assert!(
+                actual.component_expansion_memo_requested_slots
+                    > expected.component_expansion_memo_requested_slots
+            );
+            assert!(
+                actual.component_expansion_memo_capacity_growths
+                    > expected.component_expansion_memo_capacity_growths
+            );
+            assert!(
+                actual.component_expansion_memo_peak_bytes
+                    > expected.component_expansion_memo_peak_bytes
+            );
+            assert_eq!(actual.component_expansion_memo_actual_capacity, 0);
+            assert_eq!(actual.component_expansion_memo_retained_bytes, 0);
+            expected.semantic_arena_peak_bytes = actual.semantic_arena_peak_bytes;
+            expected.inference_session_peak_bytes = actual.inference_session_peak_bytes;
+            expected.component_expansion_memo_requested_slots =
+                actual.component_expansion_memo_requested_slots;
+            expected.component_expansion_memo_capacity_growths =
+                actual.component_expansion_memo_capacity_growths;
+            expected.component_expansion_memo_peak_bytes =
+                actual.component_expansion_memo_peak_bytes;
             assert_eq!(
-                session.execution_counters,
-                capture
-                    .transactional_counter_baseline
-                    .as_ref()
-                    .unwrap()
-                    .clone()
+                *actual, expected,
+                "transactional counters changed on failure"
+            );
+            assert_eq!(
+                session
+                    .resource_ledger
+                    .component_expansion_memo_actual_capacity,
+                0
+            );
+            assert_eq!(
+                session
+                    .resource_ledger
+                    .component_expansion_memo_retained_bytes,
+                0
             );
             let event = capture.records.last().expect("failure event sample");
             assert!(event.boundary.is_none());
@@ -260,6 +298,71 @@ fn candidate_probe_run(
         );
     }
     candidate_result(&session)
+}
+
+#[test]
+fn flat_precommit_failure_releases_memo_without_losing_physical_history() {
+    let batch = collect(module(
+        "my left = right; my right = left",
+        "f5c-flat-failure-release",
+    ));
+    let mut session = InferenceSession::new(batch);
+    session.flat_candidate_enabled = true;
+    session.flat_candidate_precommit_failure =
+        Some(FlatCandidatePrecommitFailure::LedgerAfterStage);
+    session.admit_all_collected_facts().unwrap();
+    assert_eq!(
+        session.execute_scc_plan(),
+        Err(SolveAvailabilityError::IdentityExhausted)
+    );
+    assert!(session.schemes.iter().all(Option::is_none));
+    assert_eq!(session.successful_finalizations, 0);
+    let mut before = session
+        .flat_candidate_precommit_counter_baseline
+        .take()
+        .expect("injected failure has an in-batch counter baseline");
+    let actual = &session.execution_counters;
+    assert_eq!(actual.component_expansion_memo_actual_capacity, 0);
+    assert_eq!(actual.component_expansion_memo_retained_bytes, 0);
+    assert!(actual.semantic_arena_peak_bytes >= before.semantic_arena_peak_bytes);
+    assert!(actual.inference_session_peak_bytes >= before.inference_session_peak_bytes);
+    assert!(
+        actual.component_expansion_memo_requested_slots
+            > before.component_expansion_memo_requested_slots
+    );
+    assert!(
+        actual.component_expansion_memo_capacity_growths
+            > before.component_expansion_memo_capacity_growths
+    );
+    assert!(
+        actual.component_expansion_memo_peak_bytes > before.component_expansion_memo_peak_bytes
+    );
+    before.semantic_arena_peak_bytes = actual.semantic_arena_peak_bytes;
+    before.inference_session_peak_bytes = actual.inference_session_peak_bytes;
+    before.component_expansion_memo_requested_slots =
+        actual.component_expansion_memo_requested_slots;
+    before.component_expansion_memo_capacity_growths =
+        actual.component_expansion_memo_capacity_growths;
+    before.component_expansion_memo_peak_bytes = actual.component_expansion_memo_peak_bytes;
+    assert_eq!(*actual, before, "transactional counters changed on failure");
+    let ledger = &session.resource_ledger;
+    assert_eq!(ledger.component_expansion_memo_actual_capacity, 0);
+    assert_eq!(ledger.component_expansion_memo_retained_bytes, 0);
+    assert!(ledger.component_expansion_memo_peak_bytes > 0);
+    let memo_lanes = [
+        &ledger.component_expansion_memo_roots,
+        &ledger.component_expansion_memo_nodes,
+        &ledger.component_expansion_memo_children,
+        &ledger.component_expansion_memo_index,
+        &ledger.component_expansion_memo_scratch,
+    ];
+    for lane in &memo_lanes {
+        assert_eq!(lane.actual_capacity, 0);
+        assert_eq!(lane.retained_bytes, 0);
+    }
+    assert!(memo_lanes.iter().any(|lane| lane.requested_slots > 0));
+    assert!(memo_lanes.iter().any(|lane| lane.capacity_growths > 0));
+    assert!(memo_lanes.iter().any(|lane| lane.peak_bytes > 0));
 }
 
 fn candidate_seeded_compound_fixture(depth: usize, width: usize, flat: bool) -> InferenceSession {

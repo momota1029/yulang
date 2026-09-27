@@ -48,22 +48,34 @@ then completed source rings through 16 members and boxed/flat depth points
 through 256, but stopped at the first duplicate-width boxed assertion: it
 expected two Union children and observed three. The command took 0.42 seconds
 and reported 35,676 KiB maximum RSS. The failure/rollback capture did not run
-because the plan stops on a semantic or counter mismatch. Six of seven
-capture/build commands have been used; §15 wall time is about 34.01 seconds and
-combined §15+§44 about 89.11 seconds. The width probe now allows the fixture's
-distinct `Quantified` lower member while requiring exactly one `Int` and one
-representative repeated `Function`. It checks predicate and recursive-lower
-roots directly, preserves child uniqueness and boxed/flat parity, and no
-longer counts repeated root visits as unique Union nodes. A focused non-ignored
-boxed/flat correctness test passed; each of two schemes in both routes had
-predicate children `Int=1, Function=1, Quantified=0` and recursive-lower
-children `Int=1, Function=1, Quantified=1`. `spec_auditor` found no issue in
-the final code delta. The next plan amendment passed fresh spec/performance
-review and primary approval. It authorizes one full scale capture and, only on
-success, one failure/rollback capture; total cap eight commands with six
-charged. Both commands have a 180-second limit plus 10 seconds grace, and any
-build is inside the scale command. §15 remains incomplete; no numeric boundary
-or production cutover is selected.
+because the plan stops on a semantic or counter mismatch. The width probe now
+allows the fixture's distinct `Quantified` lower member while requiring one
+`Int` and one representative repeated `Function`. It checks predicate and
+recursive-lower roots directly, preserves child uniqueness and boxed/flat
+parity, and no longer counts repeated root visits as unique Union nodes. A
+focused non-ignored boxed/flat correctness test passed; each of two schemes in
+both routes had predicate children `Int=1, Function=1, Quantified=0` and
+recursive-lower children `Int=1, Function=1, Quantified=1`. `spec_auditor` found
+no issue in the final code delta. The next plan amendment passed fresh
+spec/performance review and primary approval. The complete scale capture
+passed: source rings 2/4/8/16, boxed/flat depths 8/32/64/256, and widths
+8/32/64. It passed in 0.52 seconds; the process took 3.57 seconds and peaked
+at 556,296 KiB RSS. The conditional failure capture then stopped at the
+whole-`ProductionCounters` equality in the probe. A read-only
+`compiler_referee` found the assertion includes historical physical peaks and
+that the rollback path leaves memo current-capacity gauges nonzero after the
+owner drops. The failed process took 0.05 seconds and peaked at 35,836 KiB RSS;
+it emitted no resource sample. Eight of eight measurement/build commands are
+charged; §15 wall time is about 37.63 seconds and combined §15+§44 about 92.73
+seconds. The failure path now releases memo storage, sets current gauges to
+zero, and preserves historical requests, growths, and peaks. A focused
+no-capture regression compares the full transactional counter snapshot while
+allowing only those documented historical fields, and verifies all five
+independent memo lanes have zero current capacity with history retained. The
+focused test and formatting checks pass. No ignored capture was rerun because
+the eight-command plan is exhausted; any further capture needs a fresh reviewed
+plan. §15 remains incomplete; no numeric boundary or production cutover is
+selected.
 
 ### Latest continuation (2026-09-27): all-member candidate and independent physical ledger
 
