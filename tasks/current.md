@@ -4,6 +4,36 @@ Updated: 2026-09-28. Branch: `yulang3`; do not modify frozen `main`.
 
 Resume handoff: [`2026-09-22 F5c scheme-closure handoff`](../notes/handoffs/2026-09-22-f5c-scheme-closure-handoff.md).
 
+### Latest continuation (2026-09-28): no-cap resource-policy design reviewed
+
+The user selected removal of F5c numeric input-size and charged-work caps, no
+fixed compiler runtime cutoff, and a polynomial-in-compressed-source goal for
+ordinary inputs without requiring that guarantee for every pathological input.
+The reviewed proposal is
+[`F5c no-numeric-resource-cap addendum`](../notes/design/2026-09-28-f5c-no-numeric-resource-caps-addendum.md).
+
+The addendum retains checked representation arithmetic, fallible allocation
+handling, transaction/failure-epoch behavior, exact counters and ordering, and
+does not make resource exhaustion language-level undefined behavior. Its
+ordinary productive Function SCC ring target is `O(N² log N)` for `N`
+definitions (`O(B²)` coarsely for `B = Θ(N log N)` source bytes); the
+architectural derivation is not yet certified, and `build_inner`/`r_candidates`
+plus batch `rank_all` still need source-owner proofs before production
+cutover. The full F5 §26 1k/2k/4k identity, alias-use, shared-graph, and
+arena-factorization runs remain mandatory. No probes or tests ran in this
+design review.
+
+Independent spec, compiler, and performance reviews, including targeted delta
+reviews, closed without unresolved findings. The proposal is now `Reviewed`,
+but exact-text user approval remains pending. Keep the flat candidate
+non-shipping and production on the boxed route until the required production
+gate and approval. F5e remains separate.
+
+Next: obtain the user's exact-text approval of the reviewed addendum. After
+approval, prepare the fresh bounded measurement plan required by
+`rules/performance.md`; reconcile the mandatory §26 scale runs with its process
+and wall-time budget before running any measurements.
+
 ### Latest continuation (2026-09-28): Function-rich source eligibility audit
 
 Read-only audit found that the two public-signature examples with nested
@@ -20,10 +50,8 @@ The prior §15 capture budget is exhausted. No new capture plan is justified for
 the two ineligible fixtures; measuring them requires a later F5d scope change
 and a fresh reviewed plan.
 
-Next: decide the remaining F5c boundary/production acceptance path from the
-completed evidence. A concrete deterministic numeric boundary and production
-cutover each require a reviewed proposal and recorded user approval. Until
-then, keep the flat candidate non-shipping and production on the boxed route.
+At that checkpoint, the remaining F5c boundary/production acceptance path was
+open. The no-cap design proposal above records the later user direction.
 F5e remains separate. No tests or measurements ran in this read-only audit.
 
 ### Completed continuation (2026-09-28): all-drafts finalizer peak reconciliation
