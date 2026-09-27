@@ -44,11 +44,21 @@ focused emitted-output sum and transferred-member joint-peak tests,
 suite, resource/scale/capacity probe, benchmark, or timing measurement ran;
 the measurement budget remains zero.
 
-Next: prepare the fresh §15 measurement plan with workload shapes, exact
-checkpoint/lane observations, per-process timeout, campaign budget, and
-test-only O(m) ledger memory. Obtain `performance_auditor` and primary review
-before any candidate resource, scale, or capacity probe. Numeric boundary
-approval, production cutover, §44, F5e, and overall F5c acceptance remain open.
+The fresh §15 measurement plan is now complete and reviewed by `spec_auditor`,
+`performance_auditor`, and primary. It specifies source SCC rings of 2/4/8/16,
+seeded depth and width points, rollback/retry and failed-reserve evidence,
+successful solver/`yu-types` checkpoints, a 64-record per-session capture cap,
+and two capture processes capped at 190 seconds each including kill grace
+(380 seconds total capture time, 570 seconds including bounded prebuild). It
+explicitly excludes quantitative late-finalizer error samples because §5
+provides no successful checkpoint there, and leaves §13 R-round/owner/trace/
+frontier subtotals unresolved. No harness or probe has been added or run yet;
+the measurement budget remains zero.
+
+Next: implement the reviewed test-only capture observer and ignored harness,
+then obtain focused review of the instrumentation before running exactly the
+two planned captures. Numeric boundary approval, production cutover, §44, F5e,
+and overall F5c acceptance remain open.
 
 ### Latest continuation (2026-09-27): checked indexed finalizer conversion
 
