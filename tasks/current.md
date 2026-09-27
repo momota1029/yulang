@@ -4,26 +4,25 @@ Updated: 2026-09-28. Branch: `yulang3`; do not modify frozen `main`.
 
 Resume handoff: [`2026-09-22 F5c scheme-closure handoff`](../notes/handoffs/2026-09-22-f5c-scheme-closure-handoff.md).
 
-### Latest continuation (2026-09-28): memo root-lane count preflight
+### Latest continuation (2026-09-28): normalization descriptor-word preflight
 
-Memo root admission now checks the next `usize` count for the roots map, root
-edges, edge marks, active-conflict reservation lane, and undo log before any
-lane can grow. Invalidation checks its undo append before reservation or
-mutation. Tombstoned edge/undo lengths remain separate from live roots, and no
-u32 cap was added. Reservation accounting, edge order, epochs, and rollback
-remain unchanged.
+Before writing a node descriptor, the normalizer now checks its exact word
+count, cumulative word/span counts, lane and aggregate request counts, and
+radix byte length. Union/Intersection child counts must fit u32 before the
+first word is appended. Per-word reserve/accounting and public counter order
+remain unchanged; rejection leaves descriptor storage and publication intact.
 
 Selected M1 with `spec_auditor`; the focused review found no issue. Checks
-passed: the lane-count boundary, prior-admission reserve-failure, and
-admit/invalidate rollback/retry tests (1 each), `cargo fmt --all -- --check`,
-and `git diff --check`. No broad suite or resource probe ran; measurement
-budget consumed: zero. No practical numeric ceiling or API decision was
-added.
+passed: the oversized descriptor rejection and exact-duplicate normalization
+tests (1 each), `cargo fmt --all -- --check`, and `git diff --check`. The
+preflight adds constant work per descriptor, with no allocation or traversal.
+No broad suite, benchmark, or resource probe ran; measurement budget consumed:
+zero. No practical numeric ceiling or public-counter change was added.
 
-Next: preflight normalization descriptor-word counts before descriptor
-construction, then close live intermediate-graph counts and remaining root
-owners. Numeric-boundary selection, production cutover, F5e, and overall F5c
-acceptance remain open.
+Next: audit remaining normalizer/materialization root lanes. The proposed
+live-intermediate-graph dimension still needs an explicit census definition
+before implementation. Numeric-boundary selection, production cutover, F5e,
+and overall F5c acceptance remain open.
 
 ### Completed continuation (2026-09-28): Q/R bound-count preflight
 

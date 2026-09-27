@@ -1663,6 +1663,42 @@ impl<'meter> Normalizer<'meter> {
     fn write_descriptor(&mut self, node_id: NodeId) -> Result<(), SolveAvailabilityError> {
         let start = self.descriptor_words.len();
         let kind = self.nodes[node_id].kind;
+        let word_count = match kind {
+            NodeKind::PositiveQuantified(_)
+            | NodeKind::PositiveRecursive(_)
+            | NodeKind::NegativeQuantified(_)
+            | NodeKind::NegativeRecursive(_) => 2,
+            NodeKind::PositiveUnion { len, .. } | NodeKind::NegativeIntersection { len, .. } => {
+                u32::try_from(len).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                len.checked_mul(2)
+                    .and_then(|words| words.checked_add(2))
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)?
+            }
+            NodeKind::PositiveFunction { .. } | NodeKind::NegativeFunction { .. } => 5,
+            _ => 1,
+        };
+        start
+            .checked_add(word_count)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        self.stats
+            .descriptor_words
+            .checked_add(word_count)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        self.stats.index_lanes[Lane::DescriptorWords as usize]
+            .requested_slots
+            .checked_add(word_count)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        self.stats
+            .index_requested_slots
+            .checked_add(word_count)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        word_count
+            .checked_mul(std::mem::size_of::<u32>())
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        #[cfg(test)]
+        if let Some(observer) = &self.stats.candidate_observer {
+            observer.preflight_requested(Lane::DescriptorWords as usize, word_count)?;
+        }
         self.push_word(discriminator(kind))?;
         match kind {
             NodeKind::PositiveQuantified(ordinal)
@@ -1681,12 +1717,7 @@ impl<'meter> Normalizer<'meter> {
             }
             _ => {}
         }
-        let len = self
-            .descriptor_words
-            .len()
-            .checked_sub(start)
-            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
-        self.nodes[node_id].descriptor = Some((start, len));
+        self.nodes[node_id].descriptor = Some((start, word_count));
         Ok(())
     }
 
@@ -4409,6 +4440,42 @@ mod tests {
             panic!("the normalized root remains an Intersection");
         };
         assert_eq!(&members[..], &[shallow(), deep()]);
+    }
+
+    #[test]
+    fn oversized_descriptor_child_count_fails_before_any_word_is_written() {
+        for kind in [
+            NodeKind::PositiveUnion {
+                start: 0,
+                len: usize::MAX,
+            },
+            NodeKind::NegativeIntersection {
+                start: 0,
+                len: usize::MAX,
+            },
+        ] {
+            let mut normalizer = Normalizer::new();
+            normalizer.nodes.push(Node {
+                kind,
+                height: 0,
+                rank: 0,
+                descriptor: None,
+            });
+            let before_capacity = normalizer.descriptor_words.capacity();
+            assert!(matches!(
+                normalizer.write_descriptor(0),
+                Err(SolveAvailabilityError::IdentityExhausted)
+            ));
+            assert!(normalizer.descriptor_words.is_empty());
+            assert_eq!(normalizer.descriptor_words.capacity(), before_capacity);
+            assert_eq!(normalizer.stats.descriptor_words, 0);
+            assert_eq!(
+                normalizer.stats.index_lanes[Lane::DescriptorWords as usize].requested_slots,
+                0
+            );
+            assert_eq!(normalizer.stats.index_requested_slots, 0);
+            assert!(normalizer.nodes[0].descriptor.is_none());
+        }
     }
 
     #[test]
