@@ -106,6 +106,20 @@ impl DraftHeapMeter {
     }
 
     #[cfg(test)]
+    pub(super) fn observe_component_external_pair(
+        &self,
+        bytes: usize,
+        physical_bytes: usize,
+    ) -> Result<(), ()> {
+        if self.0.component_external.get().is_none() {
+            return Ok(());
+        }
+        self.0.component_external.set(Some(bytes));
+        self.0.physical_component_external.set(Some(physical_bytes));
+        self.observe_component_joint()
+    }
+
+    #[cfg(test)]
     pub(super) fn observe_physical_component_external(&self, bytes: usize) -> Result<(), ()> {
         if self.0.physical_component_external.get().is_none() {
             return Ok(());
@@ -199,11 +213,25 @@ impl DraftHeapMeter {
         self.0.current.get()
     }
 
+    #[cfg(test)]
+    pub(super) fn physical_current_bytes(&self) -> Option<usize> {
+        self.0.physical_current.get()
+    }
+
     pub(super) const fn fixed_payload_bytes() -> usize {
         0
     }
 
     fn replace(&self, old: usize, new: usize) -> Result<(), ()> {
+        self.replace_with_component_sample(old, new, true)
+    }
+
+    fn replace_with_component_sample(
+        &self,
+        old: usize,
+        new: usize,
+        sample_component: bool,
+    ) -> Result<(), ()> {
         let Some(current) = self.current_bytes() else {
             return Err(());
         };
@@ -224,7 +252,9 @@ impl DraftHeapMeter {
         if new > old {
             self.observe_normalization_joint()?;
         }
-        self.observe_component_joint()?;
+        if sample_component {
+            self.observe_component_joint()?;
+        }
         Ok(())
     }
 
@@ -247,12 +277,25 @@ struct AllocationToken<'meter> {
 
 impl AllocationToken<'_> {
     fn reconcile<T>(&mut self, capacity: usize) -> Result<(), ()> {
+        self.reconcile_with_component_sample::<T>(capacity, true)
+    }
+
+    fn reconcile_with_component_sample<T>(
+        &mut self,
+        capacity: usize,
+        sample_component: bool,
+    ) -> Result<(), ()> {
         let Some(bytes) = capacity.checked_mul(size_of::<T>()) else {
             self.meter.0.current.set(None);
             return Err(());
         };
         // Retain the lane's actual capacity even when the aggregate overflows.
-        let result = self.meter.replace(self.bytes, bytes);
+        let result = if sample_component {
+            self.meter.replace(self.bytes, bytes)
+        } else {
+            self.meter
+                .replace_with_component_sample(self.bytes, bytes, false)
+        };
         self.bytes = bytes;
         result
     }
@@ -309,6 +352,26 @@ impl<'meter, T> TrackedVec<'meter, T> {
             token: AllocationToken { meter, bytes: 0 },
         };
         match owned.token.reconcile::<T>(owned.capacity()) {
+            Ok(()) => Ok(owned),
+            Err(()) => Err((owned.values.take().unwrap(), ())),
+        }
+    }
+
+    /// The walker lane still owns this buffer's physical charge until its
+    /// release. The caller must release that lane before the next component
+    /// peak observation.
+    pub(super) fn try_adopt_raw_from_walker(
+        meter: &'meter DraftHeapMeter,
+        values: Vec<T>,
+    ) -> Result<Self, (Vec<T>, ())> {
+        let mut owned = Self {
+            values: Some(values),
+            token: AllocationToken { meter, bytes: 0 },
+        };
+        match owned
+            .token
+            .reconcile_with_component_sample::<T>(owned.capacity(), false)
+        {
             Ok(()) => Ok(owned),
             Err(()) => Err((owned.values.take().unwrap(), ())),
         }
@@ -751,6 +814,33 @@ mod tests {
             drop(adopted);
             assert_eq!(meter.current_bytes(), Some(0));
         }
+    }
+
+    #[test]
+    fn walker_transfer_samples_each_parts_buffer_once() {
+        fn check<T>(value: T) {
+            let meter = DraftHeapMeter::default();
+            let mut raw = Vec::new();
+            raw.push(value);
+            let raw_bytes = raw.capacity() * size_of::<T>();
+            meter.begin_component().unwrap();
+            meter
+                .observe_component_external_pair(raw_bytes + 23, raw_bytes + 23)
+                .unwrap();
+            let owner = TrackedVec::try_adopt_raw_from_walker(&meter, raw)
+                .unwrap_or_else(|_| panic!("walker transfer failed"));
+            assert_eq!(meter.physical_current_bytes(), Some(raw_bytes));
+            assert_eq!(meter.component_joint_peak(), Some(raw_bytes + 23));
+            assert_eq!(meter.physical_component_joint_peak(), Some(raw_bytes + 23));
+            meter.observe_component_external_pair(23, 23).unwrap();
+            assert_eq!(meter.component_joint_peak(), Some(raw_bytes + 23));
+            assert_eq!(meter.physical_component_joint_peak(), Some(raw_bytes + 23));
+            drop(owner);
+            assert_eq!(meter.current_bytes(), Some(0));
+            assert_eq!(meter.end_component(), Some(raw_bytes + 23));
+        }
+        check(F5cPositive::Int);
+        check(F5cNegative::Int);
     }
 
     #[test]

@@ -3,13 +3,43 @@ use super::*;
 #[cfg(test)]
 pub(super) struct PhysicalJoint {
     pub(super) source_capacities: [u128; 4],
-    walker_capacities: [u128; 98],
+    pub(super) walker_capacities: [u128; 98],
     pub(super) memo_current: u128,
     pub(super) walker_current: u128,
     pub(super) source_current: u128,
     pub(super) staged_source_current: u128,
     pub(super) peak: u128,
     pub(super) aggregate_overflow: bool,
+}
+
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, Default)]
+pub(super) struct PartsPhysicalEvent {
+    pub(super) growths: usize,
+    pub(super) transfers: usize,
+    pub(super) failed_reserves: usize,
+    pub(super) live_capacity: usize,
+    pub(super) peak_capacity: usize,
+    pub(super) transfer_capacity: usize,
+    pub(super) growth_joint_bytes: u128,
+    pub(super) transfer_joint_bytes: u128,
+    pub(super) peak_joint_bytes: u128,
+    pub(super) expected_peak_bytes: u128,
+    pub(super) failed_expected_bytes: u128,
+    pub(super) growth_components: [u128; 4],
+    pub(super) transfer_components: [u128; 4],
+    pub(super) failed_components: [u128; 4],
+}
+
+#[cfg(test)]
+#[derive(Clone, Copy, Debug)]
+pub(super) struct PartsCensusSample {
+    pub(super) components: Option<[u128; 3]>,
+    pub(super) total: Option<u128>,
+    pub(super) source_capacities: [usize; 2],
+    pub(super) lane_capacities: [usize; 2],
+    pub(super) logical_peak: Option<usize>,
+    pub(super) physical_peak: Option<usize>,
 }
 
 #[cfg(test)]
@@ -345,6 +375,7 @@ pub(super) enum F5cTestReserveFailure {
     RootUndo,
     RecursiveBoundAfterReserve,
     FlatPreparationAfterPositiveOnly,
+    PartsAfterReserve(usize),
 }
 
 #[derive(Clone, Copy, Default)]
@@ -1622,6 +1653,7 @@ impl F5cWalkerResources {
         let external = memo_bytes
             .checked_add(self.retained_bytes()?)
             .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        #[cfg(not(test))]
         source_meter
             .observe_component_external(external)
             .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
@@ -1635,7 +1667,7 @@ impl F5cWalkerResources {
             )
             .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
             source_meter
-                .observe_physical_component_external(physical)
+                .observe_component_external_pair(external, physical)
                 .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
         }
         Ok(())
@@ -1732,6 +1764,16 @@ pub(super) struct F5cComponentExpansionMemo {
     #[cfg(test)]
     pub(super) recursive_bound_physical_samples: Vec<([u128; 4], u128, u128, u128)>,
     #[cfg(test)]
+    pub(super) parts_physical_events: [PartsPhysicalEvent; 2],
+    #[cfg(test)]
+    pub(super) parts_census_enabled: bool,
+    #[cfg(test)]
+    pub(super) parts_census_source_capacities: std::cell::Cell<[usize; 2]>,
+    #[cfg(test)]
+    pub(super) parts_census_samples: std::cell::RefCell<Vec<PartsCensusSample>>,
+    #[cfg(test)]
+    pub(super) independent_joint_peak_bytes: std::cell::Cell<u128>,
+    #[cfg(test)]
     pub(super) transfer_raw_staged_samples: Vec<(u128, u128, u128)>,
     #[cfg(test)]
     pub(super) transfer_physical_samples: Vec<(u128, u128, u128, u128, u128)>,
@@ -1796,6 +1838,38 @@ impl F5cComponentExpansionMemo {
             self.generalizer_scratch_capacities[2],
             self.generalizer_scratch_capacities[3],
         ]
+    }
+
+    #[cfg(test)]
+    fn parts_census_memo_bytes(&self) -> Option<u128> {
+        let sizes = [
+            std::mem::size_of::<(F5cExpansionKey, F5cSummaryNodeId)>(),
+            std::mem::size_of::<F5cSummaryNode>(),
+            std::mem::size_of::<F5cSummaryNodeId>(),
+            std::mem::size_of::<Option<usize>>(),
+            std::mem::size_of::<F5cReverseParentEdge>(),
+            std::mem::size_of::<(u32, Option<usize>)>(),
+            std::mem::size_of::<F5cIncidenceEdge>(),
+            std::mem::size_of::<Option<usize>>(),
+            std::mem::size_of::<F5cRootEdge>(),
+            std::mem::size_of::<u32>(),
+            std::mem::size_of::<F5cRootUndo>(),
+            std::mem::size_of::<(u32, usize)>(),
+            std::mem::size_of::<(F5cExpansionKey, usize)>(),
+            std::mem::size_of::<F5cSummaryNodeId>(),
+            std::mem::size_of::<(F5cExpansionKey, usize)>(),
+            std::mem::size_of::<u32>(),
+            std::mem::size_of::<F5cExpansionFrame>(),
+            std::mem::size_of::<(u32, Polarity, usize)>(),
+            std::mem::size_of::<(u32, Polarity)>(),
+            std::mem::size_of::<u32>(),
+        ];
+        self.live_capacity_snapshot()
+            .into_iter()
+            .zip(sizes)
+            .try_fold(0u128, |total, (capacity, size)| {
+                total.checked_add((capacity as u128).checked_mul(size as u128)?)
+            })
     }
 
     #[cfg(test)]
@@ -1941,6 +2015,7 @@ impl F5cComponentExpansionMemo {
             .retained_bytes()?
             .checked_add(self.walker_resources.retained_bytes()?)
             .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        #[cfg(not(test))]
         source_meter
             .observe_component_external(external)
             .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
@@ -1955,10 +2030,96 @@ impl F5cComponentExpansionMemo {
             )
             .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
             source_meter
-                .observe_physical_component_external(physical_external)
+                .observe_component_external_pair(external, physical_external)
                 .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
         }
+        #[cfg(test)]
+        self.sample_independent_joint(source_meter);
         Ok(())
+    }
+
+    #[cfg(test)]
+    fn sample_independent_joint(&self, source_meter: &DraftHeapMeter) {
+        let joint = &self.walker_resources.physical_joint;
+        let total = source_meter
+            .physical_current_bytes()
+            .map(|bytes| bytes as u128)
+            .and_then(|source| source.checked_add(joint.memo_current))
+            .and_then(|sum| sum.checked_add(joint.walker_current))
+            .unwrap_or(u128::MAX);
+        self.independent_joint_peak_bytes
+            .set(self.independent_joint_peak_bytes.get().max(total));
+        if self.parts_census_enabled {
+            let source = self.parts_census_source_capacities.get();
+            let source_bytes = (source[0] as u128)
+                .checked_mul(std::mem::size_of::<F5cPositive>() as u128)
+                .and_then(|positive| {
+                    (source[1] as u128)
+                        .checked_mul(std::mem::size_of::<F5cNegative>() as u128)
+                        .and_then(|negative| positive.checked_add(negative))
+                });
+            let memo_bytes = self.parts_census_memo_bytes();
+            let walker_bytes = self
+                .walker_resources
+                .independent_lanes
+                .iter()
+                .zip(F5cWalkerLaneKind::ALL)
+                .try_fold(0u128, |total, (lane, kind)| {
+                    let slot_size = if matches!(kind, F5cWalkerLaneKind::Values)
+                        && self.walker_resources.value_slot_size != 0
+                    {
+                        self.walker_resources.value_slot_size
+                    } else {
+                        kind.slot_size()
+                    };
+                    total
+                        .checked_add((lane.actual_capacity as u128).checked_mul(slot_size as u128)?)
+                });
+            let components = source_bytes
+                .zip(memo_bytes)
+                .zip(walker_bytes)
+                .map(|((source, memo), walker)| [source, memo, walker]);
+            let total =
+                components.and_then(|parts| parts.into_iter().try_fold(0u128, u128::checked_add));
+            let lane_capacities = [
+                self.walker_resources.independent_lanes[F5cWalkerLaneKind::PositiveParts as usize]
+                    .actual_capacity,
+                self.walker_resources.independent_lanes[F5cWalkerLaneKind::NegativeParts as usize]
+                    .actual_capacity,
+            ];
+            self.parts_census_samples
+                .borrow_mut()
+                .push(PartsCensusSample {
+                    components,
+                    total,
+                    source_capacities: source,
+                    lane_capacities,
+                    logical_peak: source_meter.component_joint_peak(),
+                    physical_peak: source_meter.physical_component_joint_peak(),
+                });
+        }
+    }
+
+    #[cfg(test)]
+    fn mark_census_parts_adopted(&self, kind: F5cWalkerLaneKind, capacity: usize) {
+        if self.parts_census_enabled {
+            let mut capacities = self.parts_census_source_capacities.get();
+            capacities[Self::parts_index(kind)] = capacity;
+            self.parts_census_source_capacities.set(capacities);
+        }
+    }
+
+    #[cfg(test)]
+    pub(super) fn observe_census_parts_drop(
+        &self,
+        kind: F5cWalkerLaneKind,
+        source_meter: &DraftHeapMeter,
+    ) {
+        assert!(self.parts_census_enabled);
+        let mut capacities = self.parts_census_source_capacities.get();
+        capacities[Self::parts_index(kind)] = 0;
+        self.parts_census_source_capacities.set(capacities);
+        self.sample_independent_joint(source_meter);
     }
 
     pub(super) fn capture_component_joint_peak(
@@ -2005,9 +2166,100 @@ impl F5cComponentExpansionMemo {
         self.source_meter_overflow = source_meter.current_bytes().is_none();
         let reservation = self.reserve_walker(buffer, kind);
         if self.walker_resources.lanes[kind as usize].actual_capacity != prior_capacity {
+            #[cfg(test)]
+            if matches!(
+                kind,
+                F5cWalkerLaneKind::PositiveParts | F5cWalkerLaneKind::NegativeParts
+            ) {
+                self.observe_parts_physical(kind, buffer.capacity(), source_meter, false);
+            }
             self.observe_walker_with_source(source_meter)?;
+            #[cfg(test)]
+            if matches!(
+                kind,
+                F5cWalkerLaneKind::PositiveParts | F5cWalkerLaneKind::NegativeParts
+            ) {
+                if self.fail_reserve_at
+                    == Some((F5cTestReserveFailure::PartsAfterReserve(kind as usize), 0))
+                {
+                    self.fail_reserve_at = None;
+                    let event = &mut self.parts_physical_events[Self::parts_index(kind)];
+                    event.failed_reserves += 1;
+                    event.failed_expected_bytes = event.expected_peak_bytes;
+                    event.failed_components = event.growth_components;
+                    return Err(SolveAvailabilityError::IdentityExhausted);
+                }
+            }
         }
         reservation
+    }
+
+    #[cfg(test)]
+    fn parts_index(kind: F5cWalkerLaneKind) -> usize {
+        match kind {
+            F5cWalkerLaneKind::PositiveParts => 0,
+            F5cWalkerLaneKind::NegativeParts => 1,
+            _ => unreachable!("parts event kind"),
+        }
+    }
+
+    #[cfg(test)]
+    fn observe_parts_physical(
+        &mut self,
+        kind: F5cWalkerLaneKind,
+        capacity: usize,
+        source_meter: &DraftHeapMeter,
+        transferred: bool,
+    ) {
+        let event = &mut self.parts_physical_events[Self::parts_index(kind)];
+        if transferred {
+            event.transfers += 1;
+            event.transfer_capacity = capacity;
+        } else if capacity != 0 {
+            event.growths += 1;
+        }
+        event.live_capacity = if transferred { 0 } else { capacity };
+        event.peak_capacity = event.peak_capacity.max(capacity);
+        let joint = &self.walker_resources.physical_joint;
+        let raw_parts_bytes = if transferred {
+            0
+        } else {
+            (capacity as u128)
+                .checked_mul(kind.slot_size() as u128)
+                .unwrap_or(u128::MAX)
+        };
+        let other_walker_bytes = joint
+            .walker_current
+            .checked_sub(raw_parts_bytes)
+            .unwrap_or(u128::MAX);
+        let source_bytes = source_meter
+            .physical_current_bytes()
+            .map(|bytes| bytes as u128)
+            .unwrap_or(u128::MAX);
+        let total = source_bytes
+            .checked_add(joint.memo_current)
+            .and_then(|sum| sum.checked_add(other_walker_bytes))
+            .and_then(|sum| sum.checked_add(raw_parts_bytes))
+            .unwrap_or(u128::MAX);
+        let components = [
+            source_bytes,
+            joint.memo_current,
+            other_walker_bytes,
+            raw_parts_bytes,
+        ];
+        if transferred {
+            event.transfer_components = components;
+        } else if capacity != 0 {
+            event.growth_components = components;
+        }
+        event.expected_peak_bytes = event.expected_peak_bytes.max(total);
+        if transferred {
+            event.transfer_joint_bytes = total;
+        } else if capacity != 0 {
+            event.growth_joint_bytes = total;
+        }
+        event.peak_joint_bytes = event.peak_joint_bytes.max(total);
+        self.sample_independent_joint(source_meter);
     }
 
     pub(super) fn release_walker_with_source(
@@ -2017,6 +2269,15 @@ impl F5cComponentExpansionMemo {
     ) -> Result<(), SolveAvailabilityError> {
         let prior_capacity = self.walker_resources.lanes[kind as usize].actual_capacity;
         self.walker_resources.release(kind);
+        #[cfg(test)]
+        if prior_capacity != 0
+            && matches!(
+                kind,
+                F5cWalkerLaneKind::PositiveParts | F5cWalkerLaneKind::NegativeParts
+            )
+        {
+            self.observe_parts_physical(kind, 0, source_meter, false);
+        }
         if prior_capacity == 0 {
             return Ok(());
         }
@@ -2028,8 +2289,12 @@ impl F5cComponentExpansionMemo {
             return Err(SolveAvailabilityError::IdentityExhausted);
         }
         let memo_bytes = self.retained_bytes()?;
-        self.walker_resources
-            .observe_memo_with_source(memo_bytes, source_meter)
+        let result = self
+            .walker_resources
+            .observe_memo_with_source(memo_bytes, source_meter);
+        #[cfg(test)]
+        self.sample_independent_joint(source_meter);
+        result
     }
 
     fn release_reentry_path_with_source(
@@ -2154,6 +2419,8 @@ impl F5cComponentExpansionMemo {
         let memo_bytes = self.retained_bytes()?;
         self.walker_resources
             .observe_memo_with_source(memo_bytes, source_meter)?;
+        #[cfg(test)]
+        self.sample_independent_joint(source_meter);
         result
     }
 
@@ -2794,7 +3061,8 @@ impl F5cComponentExpansionMemo {
                             parts.push(value);
                         }
                         self.observe_component_external(source_meter)?;
-                        let parts = match TrackedVec::try_adopt_raw(source_meter, parts) {
+                        let parts = match TrackedVec::try_adopt_raw_from_walker(source_meter, parts)
+                        {
                             Ok(parts) => parts,
                             Err((parts, ())) => {
                                 drop(parts);
@@ -2805,10 +3073,22 @@ impl F5cComponentExpansionMemo {
                                 return Err(SolveAvailabilityError::IdentityExhausted);
                             }
                         };
+                        #[cfg(test)]
+                        self.mark_census_parts_adopted(
+                            F5cWalkerLaneKind::PositiveParts,
+                            parts.capacity(),
+                        );
                         self.release_walker_with_source(
                             F5cWalkerLaneKind::PositiveParts,
                             source_meter,
                         )?;
+                        #[cfg(test)]
+                        self.observe_parts_physical(
+                            F5cWalkerLaneKind::PositiveParts,
+                            parts.capacity(),
+                            source_meter,
+                            true,
+                        );
                         push_value!(F5cWalkValue::Positive(F5cPositive::Union(parts), true));
                     }
                     F5cMaterializeTask::NegativeIntersection(start) => {
@@ -2838,7 +3118,8 @@ impl F5cComponentExpansionMemo {
                             parts.push(value);
                         }
                         self.observe_component_external(source_meter)?;
-                        let parts = match TrackedVec::try_adopt_raw(source_meter, parts) {
+                        let parts = match TrackedVec::try_adopt_raw_from_walker(source_meter, parts)
+                        {
                             Ok(parts) => parts,
                             Err((parts, ())) => {
                                 drop(parts);
@@ -2849,10 +3130,22 @@ impl F5cComponentExpansionMemo {
                                 return Err(SolveAvailabilityError::IdentityExhausted);
                             }
                         };
+                        #[cfg(test)]
+                        self.mark_census_parts_adopted(
+                            F5cWalkerLaneKind::NegativeParts,
+                            parts.capacity(),
+                        );
                         self.release_walker_with_source(
                             F5cWalkerLaneKind::NegativeParts,
                             source_meter,
                         )?;
+                        #[cfg(test)]
+                        self.observe_parts_physical(
+                            F5cWalkerLaneKind::NegativeParts,
+                            parts.capacity(),
+                            source_meter,
+                            true,
+                        );
                         push_value!(F5cWalkValue::Negative(
                             F5cNegative::Intersection(parts),
                             true
@@ -4956,22 +5249,36 @@ impl<'meter> F5cWalkSink<'meter> for F5cBoxedWalkSink {
                             generalizer
                                 .memo
                                 .observe_component_external(generalizer.source_meter)?;
-                            let parts =
-                                match TrackedVec::try_adopt_raw(generalizer.source_meter, parts) {
-                                    Ok(parts) => parts,
-                                    Err((parts, ())) => {
-                                        drop(parts);
-                                        generalizer.memo.release_walker_with_source(
-                                            F5cWalkerLaneKind::PositiveParts,
-                                            generalizer.source_meter,
-                                        )?;
-                                        return Err(SolveAvailabilityError::IdentityExhausted);
-                                    }
-                                };
+                            let parts = match TrackedVec::try_adopt_raw_from_walker(
+                                generalizer.source_meter,
+                                parts,
+                            ) {
+                                Ok(parts) => parts,
+                                Err((parts, ())) => {
+                                    drop(parts);
+                                    generalizer.memo.release_walker_with_source(
+                                        F5cWalkerLaneKind::PositiveParts,
+                                        generalizer.source_meter,
+                                    )?;
+                                    return Err(SolveAvailabilityError::IdentityExhausted);
+                                }
+                            };
+                            #[cfg(test)]
+                            generalizer.memo.mark_census_parts_adopted(
+                                F5cWalkerLaneKind::PositiveParts,
+                                parts.capacity(),
+                            );
                             generalizer.memo.release_walker_with_source(
                                 F5cWalkerLaneKind::PositiveParts,
                                 generalizer.source_meter,
                             )?;
+                            #[cfg(test)]
+                            generalizer.memo.observe_parts_physical(
+                                F5cWalkerLaneKind::PositiveParts,
+                                parts.capacity(),
+                                generalizer.source_meter,
+                                true,
+                            );
                             F5cPositive::Union(parts)
                         }
                     },
@@ -5039,22 +5346,36 @@ impl<'meter> F5cWalkSink<'meter> for F5cBoxedWalkSink {
                             generalizer
                                 .memo
                                 .observe_component_external(generalizer.source_meter)?;
-                            let parts =
-                                match TrackedVec::try_adopt_raw(generalizer.source_meter, parts) {
-                                    Ok(parts) => parts,
-                                    Err((parts, ())) => {
-                                        drop(parts);
-                                        generalizer.memo.release_walker_with_source(
-                                            F5cWalkerLaneKind::NegativeParts,
-                                            generalizer.source_meter,
-                                        )?;
-                                        return Err(SolveAvailabilityError::IdentityExhausted);
-                                    }
-                                };
+                            let parts = match TrackedVec::try_adopt_raw_from_walker(
+                                generalizer.source_meter,
+                                parts,
+                            ) {
+                                Ok(parts) => parts,
+                                Err((parts, ())) => {
+                                    drop(parts);
+                                    generalizer.memo.release_walker_with_source(
+                                        F5cWalkerLaneKind::NegativeParts,
+                                        generalizer.source_meter,
+                                    )?;
+                                    return Err(SolveAvailabilityError::IdentityExhausted);
+                                }
+                            };
+                            #[cfg(test)]
+                            generalizer.memo.mark_census_parts_adopted(
+                                F5cWalkerLaneKind::NegativeParts,
+                                parts.capacity(),
+                            );
                             generalizer.memo.release_walker_with_source(
                                 F5cWalkerLaneKind::NegativeParts,
                                 generalizer.source_meter,
                             )?;
+                            #[cfg(test)]
+                            generalizer.memo.observe_parts_physical(
+                                F5cWalkerLaneKind::NegativeParts,
+                                parts.capacity(),
+                                generalizer.source_meter,
+                                true,
+                            );
                             F5cNegative::Intersection(parts)
                         }
                     },

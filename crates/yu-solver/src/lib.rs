@@ -23389,9 +23389,61 @@ mod tests {
             .exact_non_variable_lowers
             .push(ValueEndpointKey::PositiveFunction(function));
 
-        let expanded = F5cGeneralizer::with_source_meter(&session, &test_source_meter)
-            .positive_row(mixed, false)
-            .unwrap();
+        test_source_meter.begin_component().unwrap();
+        let mut generalizer = F5cGeneralizer::with_source_meter(&session, &test_source_meter);
+        generalizer.memo.fail_reserve_at = Some((
+            f5c_generalization::F5cTestReserveFailure::PartsAfterReserve(
+                F5cWalkerLaneKind::PositiveParts as usize,
+            ),
+            0,
+        ));
+        assert!(matches!(
+            generalizer.positive_row(mixed, false),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        ));
+        let failed_event = generalizer.memo.parts_physical_events[0];
+        assert_eq!(failed_event.failed_reserves, 1);
+        assert!(failed_event.peak_capacity > 0);
+        assert_eq!(
+            failed_event.failed_components[3],
+            (failed_event.peak_capacity as u128)
+                .checked_mul(std::mem::size_of::<F5cPositive>() as u128)
+                .expect("positive failed parts capacity bytes fit u128")
+        );
+        assert_eq!(
+            failed_event
+                .failed_components
+                .into_iter()
+                .try_fold(0u128, |sum, bytes| sum.checked_add(bytes))
+                .expect("positive failed parts component sum fits u128"),
+            failed_event.failed_expected_bytes
+        );
+        assert_eq!(failed_event.live_capacity, 0);
+        assert_eq!(
+            test_source_meter.component_joint_peak(),
+            Some(
+                usize::try_from(generalizer.memo.independent_joint_peak_bytes.get())
+                    .expect("positive independent joint peak fits usize")
+            )
+        );
+        assert_eq!(
+            test_source_meter.physical_component_joint_peak(),
+            Some(
+                usize::try_from(generalizer.memo.independent_joint_peak_bytes.get())
+                    .expect("positive independent joint peak fits usize")
+            )
+        );
+        assert_eq!(
+            generalizer.memo.walker_resources.independent_lanes
+                [F5cWalkerLaneKind::PositiveParts as usize]
+                .actual_capacity,
+            0
+        );
+        assert_eq!(test_source_meter.current_bytes(), Some(0));
+
+        let work_after_failure = generalizer.memo.work_meter.get();
+        let expanded = generalizer.positive_row(mixed, false).unwrap();
+        assert!(generalizer.memo.work_meter.get() > work_after_failure);
         let F5cPositive::Union(members) = expanded else {
             panic!("mixed positive row retains exact and direct members");
         };
@@ -23403,6 +23455,49 @@ mod tests {
                 if **argument == F5cNegative::Variable(bipolar)
                     && **result == F5cPositive::Variable(bipolar)
         )));
+        let event = generalizer.memo.parts_physical_events[0];
+        assert!(event.growths > 0);
+        assert_eq!(event.failed_reserves, 1);
+        assert_eq!(event.transfers, 1);
+        assert_eq!(event.transfer_capacity, members.capacity());
+        assert_eq!(event.transfer_components[3], 0);
+        assert_eq!(
+            event
+                .transfer_components
+                .into_iter()
+                .try_fold(0u128, |sum, bytes| sum.checked_add(bytes))
+                .expect("positive transferred parts component sum fits u128"),
+            event.transfer_joint_bytes
+        );
+        assert_eq!(event.live_capacity, 0);
+        assert!(event.transfer_joint_bytes > 0);
+        assert!(event.peak_joint_bytes >= event.transfer_joint_bytes);
+        assert_eq!(event.transfer_joint_bytes, event.growth_joint_bytes);
+        assert_eq!(event.expected_peak_bytes, event.peak_joint_bytes);
+        assert_eq!(
+            test_source_meter.component_joint_peak(),
+            Some(
+                usize::try_from(generalizer.memo.independent_joint_peak_bytes.get())
+                    .expect("positive independent joint peak fits usize")
+            )
+        );
+        assert_eq!(
+            test_source_meter.physical_component_joint_peak(),
+            Some(
+                usize::try_from(generalizer.memo.independent_joint_peak_bytes.get())
+                    .expect("positive independent joint peak fits usize")
+            )
+        );
+        assert_eq!(
+            generalizer
+                .memo
+                .walker_resources
+                .physical_joint
+                .walker_capacities[F5cWalkerLaneKind::PositiveParts as usize],
+            0
+        );
+        drop(members);
+        assert_eq!(test_source_meter.current_bytes(), Some(0));
     }
 
     #[test]
@@ -23439,9 +23534,61 @@ mod tests {
             .exact_non_variable_uppers
             .push(ValueEndpointKey::NegativeFunction(function));
 
-        let expanded = F5cGeneralizer::with_source_meter(&session, &test_source_meter)
-            .negative_row(mixed)
-            .unwrap();
+        test_source_meter.begin_component().unwrap();
+        let mut generalizer = F5cGeneralizer::with_source_meter(&session, &test_source_meter);
+        generalizer.memo.fail_reserve_at = Some((
+            f5c_generalization::F5cTestReserveFailure::PartsAfterReserve(
+                F5cWalkerLaneKind::NegativeParts as usize,
+            ),
+            0,
+        ));
+        assert!(matches!(
+            generalizer.negative_row(mixed),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        ));
+        let failed_event = generalizer.memo.parts_physical_events[1];
+        assert_eq!(failed_event.failed_reserves, 1);
+        assert!(failed_event.peak_capacity > 0);
+        assert_eq!(
+            failed_event.failed_components[3],
+            (failed_event.peak_capacity as u128)
+                .checked_mul(std::mem::size_of::<F5cNegative>() as u128)
+                .expect("negative failed parts capacity bytes fit u128")
+        );
+        assert_eq!(
+            failed_event
+                .failed_components
+                .into_iter()
+                .try_fold(0u128, |sum, bytes| sum.checked_add(bytes))
+                .expect("negative failed parts component sum fits u128"),
+            failed_event.failed_expected_bytes
+        );
+        assert_eq!(failed_event.live_capacity, 0);
+        assert_eq!(
+            test_source_meter.component_joint_peak(),
+            Some(
+                usize::try_from(generalizer.memo.independent_joint_peak_bytes.get())
+                    .expect("negative independent joint peak fits usize")
+            )
+        );
+        assert_eq!(
+            test_source_meter.physical_component_joint_peak(),
+            Some(
+                usize::try_from(generalizer.memo.independent_joint_peak_bytes.get())
+                    .expect("negative independent joint peak fits usize")
+            )
+        );
+        assert_eq!(
+            generalizer.memo.walker_resources.independent_lanes
+                [F5cWalkerLaneKind::NegativeParts as usize]
+                .actual_capacity,
+            0
+        );
+        assert_eq!(test_source_meter.current_bytes(), Some(0));
+
+        let work_after_failure = generalizer.memo.work_meter.get();
+        let expanded = generalizer.negative_row(mixed).unwrap();
+        assert!(generalizer.memo.work_meter.get() > work_after_failure);
         let F5cNegative::Intersection(members) = expanded else {
             panic!("mixed negative row retains exact and direct members");
         };
@@ -23453,6 +23600,209 @@ mod tests {
                 if **argument == F5cPositive::Variable(bipolar)
                     && **result == F5cNegative::Variable(bipolar)
         )));
+        let event = generalizer.memo.parts_physical_events[1];
+        assert!(event.growths > 0);
+        assert_eq!(event.failed_reserves, 1);
+        assert_eq!(event.transfers, 1);
+        assert_eq!(event.transfer_capacity, members.capacity());
+        assert_eq!(event.transfer_components[3], 0);
+        assert_eq!(
+            event
+                .transfer_components
+                .into_iter()
+                .try_fold(0u128, |sum, bytes| sum.checked_add(bytes))
+                .expect("negative transferred parts component sum fits u128"),
+            event.transfer_joint_bytes
+        );
+        assert_eq!(event.live_capacity, 0);
+        assert!(event.transfer_joint_bytes > 0);
+        assert!(event.peak_joint_bytes >= event.transfer_joint_bytes);
+        assert_eq!(event.transfer_joint_bytes, event.growth_joint_bytes);
+        assert_eq!(event.expected_peak_bytes, event.peak_joint_bytes);
+        assert_eq!(
+            test_source_meter.component_joint_peak(),
+            Some(
+                usize::try_from(generalizer.memo.independent_joint_peak_bytes.get())
+                    .expect("negative independent joint peak fits usize")
+            )
+        );
+        assert_eq!(
+            test_source_meter.physical_component_joint_peak(),
+            Some(
+                usize::try_from(generalizer.memo.independent_joint_peak_bytes.get())
+                    .expect("negative independent joint peak fits usize")
+            )
+        );
+        assert_eq!(
+            generalizer
+                .memo
+                .walker_resources
+                .physical_joint
+                .walker_capacities[F5cWalkerLaneKind::NegativeParts as usize],
+            0
+        );
+        drop(members);
+        assert_eq!(test_source_meter.current_bytes(), Some(0));
+    }
+
+    #[test]
+    fn f5c_scalar_parts_transfer_has_independent_physical_census() {
+        for positive in [true, false] {
+            let source_meter = DraftHeapMeter::default();
+            let batch = collect(module("my f = 1", "f5c-scalar-parts-census"));
+            let mut session = InferenceSession::new(batch);
+            let mixed = session.fresh_value_at_level(1).unwrap();
+            let direct = session.fresh_value_at_level(1).unwrap();
+            if positive {
+                session.bounds[mixed as usize]
+                    .exact_non_variable_lowers
+                    .push(ValueEndpointKey::IntPositive);
+                session.bounds[mixed as usize]
+                    .direct_lower_rows
+                    .push(direct);
+            } else {
+                session.bounds[mixed as usize]
+                    .exact_non_variable_uppers
+                    .push(ValueEndpointKey::IntNegative);
+                session.bounds[mixed as usize]
+                    .direct_upper_rows
+                    .push(direct);
+            }
+            source_meter.begin_component().unwrap();
+            assert_eq!(source_meter.current_bytes(), Some(0));
+            let mut generalizer = F5cGeneralizer::with_source_meter(&session, &source_meter);
+            generalizer.memo.parts_census_enabled = true;
+            let kind = if positive {
+                F5cWalkerLaneKind::PositiveParts
+            } else {
+                F5cWalkerLaneKind::NegativeParts
+            };
+            generalizer.memo.fail_reserve_at = Some((
+                f5c_generalization::F5cTestReserveFailure::PartsAfterReserve(kind as usize),
+                0,
+            ));
+            let failed = if positive {
+                generalizer.positive_row(mixed, false).map(|_| ())
+            } else {
+                generalizer.negative_row(mixed).map(|_| ())
+            };
+            assert_eq!(failed, Err(SolveAvailabilityError::IdentityExhausted));
+            assert_eq!(source_meter.current_bytes(), Some(0));
+            assert_eq!(
+                generalizer.memo.parts_census_source_capacities.get(),
+                [0; 2]
+            );
+            assert_eq!(
+                generalizer.memo.walker_resources.independent_lanes[kind as usize].actual_capacity,
+                0
+            );
+            let failed_sample_count = generalizer.memo.parts_census_samples.borrow().len();
+            assert!(
+                generalizer.memo.parts_census_samples.borrow()[..failed_sample_count]
+                    .iter()
+                    .any(|sample| sample.source_capacities == [0; 2]
+                        && sample.lane_capacities[usize::from(!positive)] > 0)
+            );
+            assert_eq!(
+                generalizer.memo.parts_census_samples.borrow()[failed_sample_count - 1]
+                    .lane_capacities[usize::from(!positive)],
+                0
+            );
+            if positive {
+                let F5cPositive::Union(parts) = generalizer.positive_row(mixed, false).unwrap()
+                else {
+                    panic!("scalar positive row must transfer parts");
+                };
+                assert_eq!(parts.len(), 2);
+                assert_eq!(parts[0], F5cPositive::Int);
+                assert_eq!(parts[1], F5cPositive::Variable(direct));
+                assert_eq!(
+                    generalizer.memo.parts_census_source_capacities.get()[0],
+                    parts.capacity()
+                );
+                assert_eq!(generalizer.memo.parts_physical_events[0].transfers, 1);
+                assert_eq!(
+                    source_meter.current_bytes(),
+                    Some(
+                        parts
+                            .capacity()
+                            .checked_mul(std::mem::size_of::<F5cPositive>())
+                            .expect("positive parts census byte overflow"),
+                    )
+                );
+                drop(parts);
+            } else {
+                let F5cNegative::Intersection(parts) = generalizer.negative_row(mixed).unwrap()
+                else {
+                    panic!("scalar negative row must transfer parts");
+                };
+                assert_eq!(parts.len(), 2);
+                assert_eq!(parts[0], F5cNegative::Int);
+                assert_eq!(parts[1], F5cNegative::Variable(direct));
+                assert_eq!(
+                    generalizer.memo.parts_census_source_capacities.get()[1],
+                    parts.capacity()
+                );
+                assert_eq!(generalizer.memo.parts_physical_events[1].transfers, 1);
+                assert_eq!(
+                    source_meter.current_bytes(),
+                    Some(
+                        parts
+                            .capacity()
+                            .checked_mul(std::mem::size_of::<F5cNegative>())
+                            .expect("negative parts census byte overflow"),
+                    )
+                );
+                drop(parts);
+            }
+            assert_eq!(source_meter.current_bytes(), Some(0));
+            generalizer
+                .memo
+                .observe_census_parts_drop(kind, &source_meter);
+            assert_eq!(
+                generalizer.memo.walker_resources.independent_lanes[kind as usize].actual_capacity,
+                0
+            );
+            let samples = generalizer.memo.parts_census_samples.borrow();
+            assert!(!samples.is_empty());
+            assert!(samples.len() > failed_sample_count);
+            let part_index = usize::from(!positive);
+            assert_eq!(samples.last().unwrap().source_capacities, [0; 2]);
+            assert_eq!(samples.last().unwrap().lane_capacities[part_index], 0);
+            assert!(
+                samples
+                    .iter()
+                    .any(|sample| sample.source_capacities == [0; 2]
+                        && sample.lane_capacities[part_index] > 0)
+            );
+            assert!(
+                samples
+                    .iter()
+                    .any(|sample| sample.source_capacities[part_index] > 0
+                        && sample.lane_capacities[part_index] == 0)
+            );
+            let mut high_water = 0;
+            for sample in samples.iter() {
+                let components = sample.components.expect("parts census component overflow");
+                let total = sample.total.expect("parts census total overflow");
+                assert_eq!(
+                    Some(total),
+                    components.into_iter().try_fold(0u128, u128::checked_add)
+                );
+                high_water = high_water.max(total);
+                let high_water_usize =
+                    usize::try_from(high_water).expect("parts census high-water exceeds usize");
+                assert!(sample.logical_peak.unwrap() <= high_water_usize);
+                assert!(sample.physical_peak.unwrap() <= high_water_usize);
+            }
+            let high_water_usize =
+                usize::try_from(high_water).expect("parts census high-water exceeds usize");
+            assert_eq!(source_meter.component_joint_peak(), Some(high_water_usize));
+            assert_eq!(
+                source_meter.physical_component_joint_peak(),
+                Some(high_water_usize)
+            );
+        }
     }
 
     #[test]

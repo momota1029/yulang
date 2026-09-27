@@ -1,28 +1,35 @@
 # Current task: complete authorized F5c implementation gates
 
-Updated: 2026-09-27. Branch: `yulang3`; do not modify frozen `main`.
+Updated: 2026-09-28. Branch: `yulang3`; do not modify frozen `main`.
 
 Resume handoff: [`2026-09-22 F5c scheme-closure handoff`](../notes/handoffs/2026-09-22-f5c-scheme-closure-handoff.md).
 
-### Latest continuation (2026-09-27): published nested-source census
+### Completed continuation (2026-09-28): producer-local parts transfer census
 
-The independent test ledger now records each published nested source buffer's
-actual capacity and slot size. A separate test-side walk compares the exact
-ordered physical records after normalization and partial normalization failure;
-release clears the records. `try_reserve` happens before ledger state changes.
-The gate is test-ledger-only and leaves production observations unchanged.
+Producer-local `PositiveParts` and `NegativeParts` now defer the component
+sample during raw-buffer adoption until the walker lane releases the same
+physical allocation. A scalar-only witness independently sums source, memo,
+and per-lane walker capacities at the existing sample points. It covers failed
+post-growth reserve, cleanup, same-generalizer retry, transfer-once, result
+order, and drop for both polarities. Function-rich fixtures remain separate
+value and rollback witnesses.
 
-M2 `spec_auditor` and `performance_auditor` delta reviews closed with no
-remaining finding. The focused `source_nested_census` tests (2), solver library
-check, formatting, and diff checks pass. The test ledger now retains O(B)
-`(capacity, slot size)` records (16 bytes per record on 64-bit targets, plus
-spare capacity); no probe or timing run was made.
+Selected M2. A compiler-referee review found that the first event comparison
+still reused the aggregate under test; that witness was repaired. A bounded
+scalar fixture was confirmed sufficient under F5 §§26/34, avoiding broader
+owner plumbing. Specification delta review then required checked products,
+lane sums, and peak conversions; the scalar census and positive/negative event
+assertions now check overflow explicitly. Final specification delta review
+closed with no finding. Verification passed: scalar transfer census (1),
+positive and negative mixed-row failure/retry tests (1 each), solver library
+and test-target checks, format check, and `git diff --check`. No broad suite,
+probe, benchmark, or timing measurement ran; measurement budget remains zero.
 
-Next: independently wire the producer-local `PositiveParts` and `NegativeParts`
-capacity/transfer events through their `TrackedVec::try_adopt_raw` handoffs,
-including transient failure and release evidence. Then close the source-draft
-and finalizer co-resident peak. Do not claim the full nested-source or F5c
-resource gate complete yet.
+Next: independently close the source-draft/finalizer co-resident peak across
+published nested owners, solver lanes, indexed staging, and `yu-types`
+finalization, including failure and retry. This is a producer-local transfer
+checkpoint only; the full nested-source/resource gate and overall F5c remain
+open. Production remains boxed, with no numeric boundary or cutover selected.
 
 ### Completed continuation (2026-09-27): F5d source Lambda and §23 recursion gate
 

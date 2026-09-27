@@ -3524,4 +3524,29 @@ transfer/release events through failure. Then complete source-draft/finalizer
 co-resident peak accounting. This checkpoint does not close the full nested
 source or F5c resource gate.
 
-<!-- handoff-append-anchor: 2026-09-27 -->
+## Completed continuation (2026-09-28): producer-local parts transfer census
+
+Producer-local `PositiveParts` and `NegativeParts` adoption now transfers the
+raw Vec charge without sampling a temporary source-plus-walker double count.
+The ordinary component sample follows walker-lane release. A test-only
+scalar-fixture census independently combines live memo capacities, per-lane
+walker capacities, and the transferred parts capacity once. Both polarities
+cover post-growth failure, cleanup, same-generalizer retry, result order,
+transfer, and drop. Function-rich fixtures remain value/rollback witnesses.
+
+Selected M2. Compiler-referee review caught a self-referential first witness;
+the independent scalar fixture closed that gap under existing F5 §§26/34
+authority. Specification delta reviews found and closed unchecked arithmetic
+in both the independent census and associated event assertions. Final spec
+delta review passed. Focused scalar/positive/negative tests, solver library and
+test-target checks, formatting, and diff checks pass. The test census is
+constant-size per sample; no broad suite, probe, benchmark, or timing run was
+needed. No measurement budget was consumed.
+
+Next: close the full source-draft and finalizer co-resident peak with
+independent physical capacities through failure and retry. This transfer slice
+does not close the complete nested-source/resource gate. Production remains
+boxed; numeric supported-input boundary, production cutover, F5e, and overall
+F5c acceptance remain open.
+
+<!-- handoff-append-anchor: 2026-09-28 -->
