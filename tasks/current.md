@@ -4,26 +4,25 @@ Updated: 2026-09-28. Branch: `yulang3`; do not modify frozen `main`.
 
 Resume handoff: [`2026-09-22 F5c scheme-closure handoff`](../notes/handoffs/2026-09-22-f5c-scheme-closure-handoff.md).
 
-### Latest continuation (2026-09-28): FlatSourceArena node-count preflight
+### Latest continuation (2026-09-28): memo node-count preflight
 
-Both positive and negative `FlatSourceArena` admissions now check the
-post-append node count before reserving capacity. The pure helper performs
-checked `len + 1` and the existing u32 conversion, while IDs still derive from
-the pre-append length. Charging, append order, child spans, lanes, and rollback
-behavior are unchanged. Boundary tests exercise `u32::MAX` and `usize::MAX`
-without allocating large vectors.
+Memo node admission now checks the post-append node count before child
+inspection and any lane growth. The helper performs checked `len + 1` and u32
+conversion, while the published ID remains the pre-append length. The
+attempted-node work charge stays first; reserve order, accounting, and
+caller-owned rollback are unchanged. Boundary tests exercise `u32::MAX` and
+`usize::MAX` without allocating large vectors.
 
 Selected M1 with `spec_auditor`; the focused review found no issue. Checks
-passed: `RUSTC_WRAPPER= cargo test -p yu-solver --lib
-f5c_generalization::flat_source_arena::tests -- --test-threads=1` (5),
+passed: the memo node boundary test (1), memo test filter (14),
 `cargo fmt --all -- --check`, and `git diff --check`. No broad suite or
 resource probe ran; measurement budget consumed: zero. No numeric ceiling or
 API decision was added.
 
-Next: audit the separate memo node owner and its work-charge/admission order,
-then root index growth, normalization descriptor words, and live
-intermediate-graph counts. Numeric-boundary selection, production cutover,
-F5e, and overall F5c acceptance remain open.
+Next: close producer raw-root count admission, then audit separate memo root
+edges, normalization descriptors, and live intermediate-graph counts.
+Numeric-boundary selection, production cutover, F5e, and overall F5c
+acceptance remain open.
 
 ### Completed continuation (2026-09-28): Q/R bound-count preflight
 

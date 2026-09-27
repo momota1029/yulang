@@ -281,6 +281,35 @@ pub(super) struct F5cExpansionKey {
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub(super) struct F5cSummaryNodeId(pub(super) u32);
 
+fn checked_summary_node_admission(len: usize) -> Result<F5cSummaryNodeId, SolveAvailabilityError> {
+    let next = len
+        .checked_add(1)
+        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+    let next = u32::try_from(next).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+    Ok(F5cSummaryNodeId(next - 1))
+}
+
+#[cfg(test)]
+mod summary_node_admission_tests {
+    use super::*;
+
+    #[test]
+    fn checks_post_append_count_before_admitting_node_id() {
+        assert_eq!(
+            checked_summary_node_admission(u32::MAX as usize - 1).unwrap(),
+            F5cSummaryNodeId(u32::MAX - 1)
+        );
+        assert!(matches!(
+            checked_summary_node_admission(u32::MAX as usize),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        ));
+        assert!(matches!(
+            checked_summary_node_admission(usize::MAX),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        ));
+    }
+}
+
 #[allow(dead_code)] // The candidate source arena is wired to the walker in the next gate.
 mod flat_source_arena;
 #[allow(dead_code)] // The candidate is exercised only by module-local test entrypoints.
@@ -3498,10 +3527,7 @@ impl F5cComponentExpansionMemo {
         incidence: Option<(u32, Polarity)>,
     ) -> Result<F5cSummaryNodeId, SolveAvailabilityError> {
         self.work_meter.charge(1)?;
-        let id = F5cSummaryNodeId(
-            u32::try_from(self.nodes.len())
-                .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
-        );
+        let id = checked_summary_node_admission(self.nodes.len())?;
         let mut count = usize::from(incidence.is_some());
         let mut include = |child: F5cSummaryNodeId| -> Result<(), SolveAvailabilityError> {
             let child = self.node(child)?;
