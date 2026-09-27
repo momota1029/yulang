@@ -43,11 +43,17 @@ post-clear ledger call now passes the captured `sampled_source_draft_bytes`,
 matching the neighboring accounting path. The focused depth-64 boxed fixture
 passes after the correction; one `performance_auditor` found no blocking issue
 and no added runtime work. The amended plan passed `spec_auditor` and
-`performance_auditor` review and primary approval. No measurement retry has
-run yet. It allows one scale recapture and the failure/rollback capture, with
-total cap seven commands and a remaining 480-second maximum; §15 remains within
-570 seconds and combined §15+§44 within 1,010 seconds. §15 remains incomplete;
-no numeric boundary or production cutover is selected.
+`performance_auditor` review and primary approval. The bounded scale recapture
+then completed source rings through 16 members and boxed/flat depth points
+through 256, but stopped at the first duplicate-width boxed assertion: it
+expected two Union children and observed three. The command took 0.42 seconds
+and reported 35,676 KiB maximum RSS. The failure/rollback capture did not run
+because the plan stops on a semantic or counter mismatch. Six of seven
+capture/build commands have been used; §15 wall time is about 34.01 seconds and
+combined §15+§44 about 89.11 seconds. No further capture is authorized by this
+plan. The width assertion is under focused code review; do not change its
+expected output to match the observation. §15 remains incomplete; no numeric
+boundary or production cutover is selected.
 
 ### Latest continuation (2026-09-27): all-member candidate and independent physical ledger
 

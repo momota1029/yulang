@@ -1,20 +1,16 @@
 # F5c candidate resource measurement plan
 
-Status: Original plan reviewed on 2026-09-27 by `spec_auditor`,
-`performance_auditor`, and primary. The lane-slot clarification and historical
-`Values` peak-capacity repair passed fresh review. A later repaired scale
-capture stopped on synthetic seeded-depth-64 boxed accounting with
-`IdentityExhausted`; the failure/rollback capture and any retry were stopped as
-required. The owning test-only ledger defect is now corrected and the focused
-depth-64 boxed fixture passes. On 2026-09-27, the user authorized a reasonable
-bounded continuation and confirmed both measurement extensions. This amendment
-allows one rebuilt scale recapture and one failure/rollback capture, with no
-new input dimensions or further retry. The amendment passed fresh
-`spec_auditor` and `performance_auditor` review, and primary approves it for
-execution. The current 1,010s
-combined §15+§44 ceiling and local 570s / 440s ceilings remain unchanged. It
-selects no numeric supported-input boundary and does not authorize production
-cutover or F5c acceptance.
+Status: Original plan and its budget amendment passed review by
+`spec_auditor`, `performance_auditor`, and primary. The source-baseline
+correction cleared the synthetic seeded-depth-64 boxed ledger failure. The one
+authorized scale recapture then stopped at the first seeded-width boxed
+assertion (observed three Union children where the probe expects two). The
+failure/rollback capture did not run. The stop rule now requires returning to
+the owning correctness gate; this plan authorizes no further capture. The user
+authorized bounded continuation and both measurement extensions. The current
+1,010s combined §15+§44 ceiling and local 570s / 440s ceilings remain recorded,
+but remaining wall time does not authorize a retry. No numeric supported-input
+boundary or production cutover is selected.
 
 Authority: `notes/design/2026-09-25-f5c-flat-indexed-stack-independent-draft.md`
 §§5 and 15; `notes/design/2026-09-26-f5c-shared-walker-flat-sink-draft.md`
@@ -162,27 +158,29 @@ benchmarks.
   ```
 
 Campaign budget: the first two scale invocations failed before any F5c record.
-After the five-command extension, a rebuild and one scale capture ran; the
-scale capture then stopped at the boxed depth-64 accounting failure. The
-campaign has used four capture/build command invocations and about 26.78
-seconds. The user authorized a bounded continuation, raising the total cap to
-seven invocations: one rebuild, one scale recapture, and one failure/rollback
-capture. The rebuild is capped at 90 seconds plus 10 seconds grace; each
-capture remains capped at 180 seconds plus 10 seconds grace. The remaining
-maximum is 480 seconds, for a campaign total of at most 506.78 seconds, within
-the unchanged **570-second (9 minutes 30 seconds)** local wall limit. Including
-the completed §44 run, the combined campaign would use at most 561.88 of 1,010
-seconds. Correctness-only tests remain outside the capture budget under
-`rules/testing.md`. Do not add repetitions or input dimensions.
+After the five-command extension, a rebuild and scale capture stopped at the
+boxed depth-64 accounting failure. The reviewed amendment then authorized one
+rebuild and one scale recapture, with a failure/rollback capture contingent on
+the scale completing without a stop condition. Six of seven capture/build
+commands have now been used. The latest rebuild took 6.81 seconds and the scale
+capture took 0.42 seconds; cumulative §15 wall time is about 34.01 seconds and
+combined §15+§44 wall time about 89.11 seconds. The scale capture completed
+source rings through 16 and paired depth points through 256, then failed its
+first seeded-width boxed assertion (expected two Union children, observed
+three). The failure/rollback capture is barred by the stop rule. The 570-second
+§15 and 1,010-second combined ceilings still apply, but no remaining time or
+nominal command authorizes another capture. Correctness-only tests remain
+outside the capture budget under `rules/testing.md`.
 
 ## Failure handling and stop rules
 
 - The first two scale attempts failed before any F5c record. The first
   post-repair capture stopped on boxed depth-64 with a test-only accounting
-  underflow. A focused correctness test now passes after correcting its sampled
-  source baseline. After fresh review, run only the scale recapture and the
-  failure capture after the bounded rebuild. No additional retry or input
-  dimensions are authorized.
+  underflow; the corrected sampled-source baseline passes a focused boxed
+  depth-64 correctness test. One reviewed scale recapture then stopped at the
+  seeded-width boxed Union child-count assertion. Do not run the contingent
+  failure/rollback capture or any further capture until the owning correctness
+  gate resolves and a fresh plan passes review. Do not add input dimensions.
 - Stop the campaign on any boxed/flat semantic or public-counter mismatch,
   independent-lane reconciliation failure, incomplete checkpoint sample,
   unexpected `IdentityExhausted` on the listed success cases, or missing
