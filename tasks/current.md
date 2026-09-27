@@ -4,23 +4,23 @@ Updated: 2026-09-28. Branch: `yulang3`; do not modify frozen `main`.
 
 Resume handoff: [`2026-09-22 F5c scheme-closure handoff`](../notes/handoffs/2026-09-22-f5c-scheme-closure-handoff.md).
 
-### Latest continuation (2026-09-28): memo node-count preflight
+### Latest continuation (2026-09-28): raw-forest root-count preflight
 
-Memo node admission now checks the post-append node count before child
-inspection and any lane growth. The helper performs checked `len + 1` and u32
-conversion, while the published ID remains the pre-append length. The
-attempted-node work charge stays first; reserve order, accounting, and
-caller-owned rollback are unchanged. Boundary tests exercise `u32::MAX` and
-`usize::MAX` without allocating large vectors.
+`build_raw_forest_inner` now checks the post-append root count before growing
+the RawRoots lane for both the predicate and each lower/upper pair. The helper
+uses checked addition and the existing u32 index representation; the pair's
+lower index remains the pre-append length. Root order, accounting, reserve
+order, and rollback are unchanged. Boundary tests cover the representable
+count edge without allocating a large vector.
 
 Selected M1 with `spec_auditor`; the focused review found no issue. Checks
-passed: the memo node boundary test (1), memo test filter (14),
-`cargo fmt --all -- --check`, and `git diff --check`. No broad suite or
-resource probe ran; measurement budget consumed: zero. No numeric ceiling or
-API decision was added.
+passed: the root-count boundary, raw-forest endpoint-order, and late-failure
+rollback/retry tests (1 each), `cargo fmt --all -- --check`, and
+`git diff --check`. No broad suite or resource probe ran; measurement budget
+consumed: zero. No practical numeric ceiling or API decision was added.
 
-Next: close producer raw-root count admission, then audit separate memo root
-edges, normalization descriptors, and live intermediate-graph counts.
+Next: audit and close memo root-map/edge admissions as a separate owner, then
+normalization descriptor words and live intermediate-graph counts.
 Numeric-boundary selection, production cutover, F5e, and overall F5c
 acceptance remain open.
 

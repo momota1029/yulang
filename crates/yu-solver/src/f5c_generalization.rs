@@ -7247,6 +7247,7 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
                 polarity: Polarity::Positive,
                 root: true,
             })?;
+            checked_raw_root_append(roots.len(), 1)?;
             let bytes = self.memo.retained_bytes()?;
             self.memo.walker_resources.reserve(
                 &mut roots,
@@ -7305,6 +7306,7 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
                     value?
                 };
                 self.memo.work_meter.charge(2)?;
+                let lower_index = checked_raw_root_append(roots.len(), 2)?;
                 let bytes = self.memo.retained_bytes()?;
                 self.memo.walker_resources.reserve(
                     &mut raw_owner_order,
@@ -7321,7 +7323,6 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
                 self.memo
                     .walker_resources
                     .reserve_raw_map(&mut raw_bounds, bytes)?;
-                let lower_index = roots.len();
                 roots.push(lower);
                 roots.push(upper);
                 raw_owner_order.push(owner);
@@ -9995,5 +9996,39 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
             recursive_bounds,
             predicate,
         })
+    }
+}
+
+fn checked_raw_root_append(
+    current: usize,
+    additional: usize,
+) -> Result<usize, SolveAvailabilityError> {
+    let appended = current
+        .checked_add(additional)
+        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+    u32::try_from(appended).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+    Ok(current)
+}
+
+#[cfg(test)]
+mod raw_root_count_tests {
+    use super::{SolveAvailabilityError, checked_raw_root_append};
+
+    #[test]
+    fn checked_raw_root_append_rejects_unrepresentable_post_append_count() {
+        let limit = u32::MAX as usize;
+        assert_eq!(checked_raw_root_append(limit - 1, 1), Ok(limit - 1));
+        assert_eq!(
+            checked_raw_root_append(limit - 1, 2),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+        assert_eq!(
+            checked_raw_root_append(limit, 1),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+        assert_eq!(
+            checked_raw_root_append(usize::MAX, 1),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
     }
 }
