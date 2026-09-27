@@ -645,8 +645,28 @@ Checks pass: the `staged_flat_candidate` filter (2), non-test `yu-solver`
 check, formatting, and diff checks. No broad suite or resource/scale/capacity
 probe ran; measurement budget remains zero.
 
-Next: integrate a checked solver-owned FlatDraft conversion with the existing
-indexed `yu-types` finalizer and complete the independent all-drafts,
+### Checked indexed finalizer conversion (2026-09-27)
+
+`FlatDraft` now maps to a private borrowed `yu_types::IndexedSchemeRef` through
+five tracked, fallibly reserved arrays for indexed nodes, child IDs, and
+recursive bounds. Source order and Q/R ordinals are retained. A missing
+predicate, unresolved Variable, and unrepresentable count or span arithmetic
+return `IdentityExhausted` before the finalizer call; the original flat draft
+remains live and no recursive boxed copy is constructed.
+
+The focused evidence finalizes an actual normalized producer candidate through
+`finalize_indexed_scheme` and compares its closed type with the boxed callback
+result. A separate normalized Q/R fixture covers duplicate Function members,
+a child shared between predicate and recursive-bound roots, and the same
+alpha-equivalence. Conversion failures return mapped capacity to its meter
+baseline. M2 specification and performance reviews found no remaining issue.
+
+The 44-test `f5c_flat_walk_sink` filter, non-test `yu-solver` check,
+formatting, and diff checks pass. No broad suite or resource/scale/capacity
+probe ran; measurement budget remains zero.
+
+Next: integrate the checked FlatDraft conversion into the unselected
+all-member candidate and complete the independent all-drafts,
 solver/finalizer same-time physical ledger. Preserve all-member staging and
 keep the candidate unselected. Prepare and independently review the fresh
 §15 measurement plan before the first resource, scale, or capacity probe.

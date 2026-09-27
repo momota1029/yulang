@@ -2255,6 +2255,26 @@ fn selected_flat_candidate_matches_boxed_q_r_and_normalization_counters() {
             boxed_stats.word_comparisons
         );
         assert_eq!(candidate.stats.duplicates, boxed_stats.duplicates);
+        let indexed = candidate.draft.indexed(&test_source_meter).unwrap();
+        assert!(indexed.retained_bytes().unwrap() > 0);
+        assert_eq!(indexed.as_ref().recursive_bounds[0].ordinal, 1);
+        assert_eq!(indexed.as_ref().recursive_bounds[1].ordinal, 2);
+        let mut indexed_session = ClosedTypeFinalizationSession::try_new().unwrap();
+        let (indexed_scheme, _) = indexed_session
+            .finalize_indexed_scheme(indexed.as_ref())
+            .unwrap()
+            .into_parts();
+        let mut boxed_session = ClosedTypeFinalizationSession::try_new().unwrap();
+        let (boxed_scheme, _) =
+            InferenceSession::finalize_generalization_draft_raw(&mut boxed_session, &boxed, false)
+                .unwrap()
+                .into_parts();
+        assert!(
+            indexed_session
+                .scheme_view(&indexed_scheme)
+                .unwrap()
+                .alpha_eq(boxed_session.scheme_view(&boxed_scheme).unwrap())
+        );
         for (index, lane, length) in [
             (
                 0,
@@ -2339,6 +2359,147 @@ fn selected_flat_candidate_matches_boxed_q_r_and_normalization_counters() {
         );
         generalizer.release_normalized_candidate(candidate);
     }
+}
+
+#[test]
+fn indexed_flat_conversion_rejects_incomplete_and_overflowing_input() {
+    use crate::f5c_draft::{ChildSpan, FlatDraft, PositiveNode};
+    let meter = DraftHeapMeter::default();
+    let mut draft = FlatDraft::default();
+    assert!(matches!(
+        draft.indexed(&meter),
+        Err(SolveAvailabilityError::IdentityExhausted)
+    ));
+    draft.predicate = Some(draft.positive(PositiveNode::Variable(0)).unwrap());
+    let baseline = meter.current_bytes().unwrap();
+    assert!(matches!(
+        draft.indexed(&meter),
+        Err(SolveAvailabilityError::IdentityExhausted)
+    ));
+    assert_eq!(meter.current_bytes().unwrap(), baseline);
+    draft.positive_nodes[0] = PositiveNode::Union(ChildSpan {
+        start: u32::MAX,
+        len: 1,
+    });
+    assert!(matches!(
+        draft.indexed(&meter),
+        Err(SolveAvailabilityError::IdentityExhausted)
+    ));
+    assert_eq!(meter.current_bytes().unwrap(), baseline);
+    draft.positive_nodes[0] = PositiveNode::Int;
+    draft.quantifier_count = u32::MAX;
+    let upper = draft.negative(crate::f5c_draft::NegativeNode::Top).unwrap();
+    draft
+        .bound(crate::f5c_draft::RecursiveBound {
+            ordinal: 0,
+            lower: draft.predicate.unwrap(),
+            upper,
+        })
+        .unwrap();
+    assert!(matches!(
+        draft.indexed(&meter),
+        Err(SolveAvailabilityError::IdentityExhausted)
+    ));
+    assert_eq!(meter.current_bytes().unwrap(), baseline);
+    if usize::BITS > u32::BITS {
+        assert!(matches!(
+            crate::f5c_draft::indexed_count_for_test(
+                usize::try_from(u64::from(u32::MAX) + 1).unwrap()
+            ),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        ));
+    }
+}
+
+#[test]
+fn normalized_q_r_duplicate_dag_finalizes_like_callback() {
+    use crate::f5c_draft::{FlatDraft, NegativeNode, PositiveNode, RecursiveBound};
+    use crate::f5c_generalization::F5cRecursiveBound;
+    let meter = DraftHeapMeter::default();
+    let mut draft = FlatDraft::default();
+    draft.quantifier_count = 1;
+    let argument = draft.negative(NegativeNode::Top).unwrap();
+    let result = draft.positive(PositiveNode::Recursive(1)).unwrap();
+    let function = draft
+        .positive(PositiveNode::Function { argument, result })
+        .unwrap();
+    let duplicate_function = draft
+        .positive(PositiveNode::Function { argument, result })
+        .unwrap();
+    assert_ne!(function, duplicate_function);
+    let quantified = draft.positive(PositiveNode::Quantified(0)).unwrap();
+    let span = draft
+        .positive_span(&[function, duplicate_function, quantified])
+        .unwrap();
+    draft.predicate = Some(draft.positive(PositiveNode::Union(span)).unwrap());
+    draft
+        .bound(RecursiveBound {
+            ordinal: 1,
+            lower: function,
+            upper: argument,
+        })
+        .unwrap();
+    let (normalized, stats) = crate::f5c_normalization::normalize_flat(&draft).unwrap();
+    assert!(stats.duplicates > 0);
+    let root = normalized.predicate.unwrap();
+    let PositiveNode::Union(span) = normalized.positive_nodes[root.0 as usize] else {
+        panic!("union root")
+    };
+    assert_eq!(span.len, 2);
+    assert!(
+        normalized.positive_children[span.start as usize..(span.start + span.len) as usize]
+            .contains(&normalized.recursive_bounds[0].lower)
+    );
+    let indexed = normalized.indexed(&meter).unwrap();
+    assert_eq!(indexed.as_ref().quantifier_count, 1);
+    assert_eq!(indexed.as_ref().recursive_bounds[0].ordinal, 1);
+    let retained = indexed.retained_bytes().unwrap();
+    assert!(retained > 0);
+    assert_eq!(meter.current_bytes().unwrap(), retained);
+    let mut indexed_session = ClosedTypeFinalizationSession::try_new().unwrap();
+    let (indexed_scheme, _) = indexed_session
+        .finalize_indexed_scheme(indexed.as_ref())
+        .unwrap()
+        .into_parts();
+
+    let boxed_function = || F5cPositive::Function {
+        argument: test_tracked_one(&meter, F5cNegative::Top),
+        argument_effect: F5cNegativeEffect::Empty,
+        result_effect: F5cPositiveEffect::Bottom,
+        result: test_tracked_one(&meter, F5cPositive::Recursive(1)),
+    };
+    let mut boxed = GeneralizationDraft {
+        quantifier_count: 1,
+        predicate: F5cPositive::Union(test_tracked(
+            &meter,
+            vec![
+                boxed_function(),
+                boxed_function(),
+                F5cPositive::Quantified(0),
+            ],
+        )),
+        recursive_bounds: vec![F5cRecursiveBound {
+            ordinal: 1,
+            lower: boxed_function(),
+            upper: F5cNegative::Top,
+        }],
+    };
+    crate::f5c_normalization::normalize_component(&meter, std::slice::from_mut(&mut boxed))
+        .unwrap();
+    let mut boxed_session = ClosedTypeFinalizationSession::try_new().unwrap();
+    let (boxed_scheme, _) =
+        InferenceSession::finalize_generalization_draft_raw(&mut boxed_session, &boxed, false)
+            .unwrap()
+            .into_parts();
+    assert!(
+        indexed_session
+            .scheme_view(&indexed_scheme)
+            .unwrap()
+            .alpha_eq(boxed_session.scheme_view(&boxed_scheme).unwrap())
+    );
+    drop(boxed);
+    drop(indexed);
+    assert_eq!(meter.current_bytes().unwrap(), 0);
 }
 
 #[test]

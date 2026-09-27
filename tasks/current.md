@@ -4,6 +4,36 @@ Updated: 2026-09-27. Branch: `yulang3`; do not modify frozen `main`.
 
 Resume handoff: [`2026-09-22 F5c scheme-closure handoff`](../notes/handoffs/2026-09-22-f5c-scheme-closure-handoff.md).
 
+### Latest continuation (2026-09-27): checked indexed finalizer conversion
+
+`FlatDraft` now has a private checked conversion to `yu_types::IndexedSchemeRef`.
+It maps each distinct indexed node, child, and bound type into five
+source-meter-owned fallible arrays, preserving member order and Q/R ordinals.
+The converter rejects a missing predicate, unresolved Variable, and
+unrepresentable count or span arithmetic before calling `yu-types`; no boxed
+tree is rebuilt.
+
+An actual normalized producer candidate with two R bounds now passes through
+the indexed finalizer and compares alpha-equivalent to the existing boxed
+callback result. A second normalized fixture exercises duplicate Function
+members, a shared node across predicate and recursive-bound roots, Q/R ordinals,
+and callback alpha-equivalence. Failure tests check partial mapped-capacity
+cleanup, including Variable and span overflow. M2 spec and performance reviews
+found no remaining issue.
+
+Checks passed: the focused `f5c_flat_walk_sink` filter (44),
+`RUSTC_WRAPPER= cargo check -p yu-solver --lib --offline`,
+`cargo fmt --all -- --check`, and `git diff --check`. No broad suite,
+resource/scale/capacity probe, benchmark, or timing measurement ran;
+measurement budget remains zero.
+
+Next: add the unselected all-member FlatDraft staging and indexed-finalization
+candidate around the solver's existing AllDrafts/DraftMember snapshots, with
+an independent same-time solver/finalizer lane ledger and checked rollback.
+Preserve all-member order and the boxed production path. Review a fresh §15
+plan before any resource, scale, or capacity probe. Numeric boundary approval,
+production cutover, §44, F5e, and overall F5c acceptance remain open.
+
 ### Latest continuation (2026-09-27): normalized candidate ownership transfer
 
 The private normalized FlatDraft candidate now transfers its six output buffers
