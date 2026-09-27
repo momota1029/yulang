@@ -13,7 +13,49 @@ and formatting check pass. The measurement cap is fully used; no further
 capture is authorized under this plan. Any later capture needs a fresh reviewed
 plan. The combined 1,010s ceiling and local 570s / 440s ceilings remain as
 campaign bounds. No numeric supported-input boundary or production cutover is
-selected.
+selected. The code gate is closed. The fresh continuation below received
+written `performance_auditor` approval and primary approval for exactly one
+additional failure/rollback/retry capture.
+
+## Approved fresh continuation (2026-09-27)
+
+The prior eight-command plan is exhausted. Exactly one ninth capture is
+authorized: rerun only the failure/rollback/retry probe after the rollback-
+release and counter-assertion repair. Do not repeat the already-passing scale
+capture or add input dimensions. The earlier failure invocation emitted no
+F5c sample, so this command is necessary to obtain the missing failure
+evidence. One attempt is sufficient; any mismatch stops the capture and returns
+to the owning code gate.
+
+The exact command uses Cargo's offline test profile, two build jobs, and one
+test thread. Any test-binary rebuild is inside the same process limit:
+
+```text
+timeout --signal=TERM --kill-after=10s 180s /usr/bin/time -v env RUSTC_WRAPPER= cargo test -p yu-solver --lib f5c_candidate_resource_probe_failures --offline -j 2 -- --ignored --nocapture --test-threads=1
+```
+
+The command has a 180-second TERM timeout and at most 10 seconds of kill grace.
+The proposal charges one command and one measurement-process invocation,
+raising the cumulative count from eight to nine. The latest measured §15 wall
+time is about 37.63 seconds; the projected maximum including this command is
+227.63 seconds. The combined §15+§44 wall time is about 92.73 seconds now and
+282.73 seconds at that maximum. Both stay below the existing §15 570-second
+and combined 1,010-second campaign ceilings. The ninth invocation exceeds
+§15's default eight-process budget. The `performance_auditor`'s written
+justification is that the original failure invocation stopped before any
+sample, the rollback release/assertion defect is fixed and covered by the
+focused no-capture regression, and this filtered command obtains the one
+remaining failure/retry obligation without repeating scale work. The audit
+approved one ninth invocation, and primary approval is recorded here before
+execution. It remains below the separate 16-invocation / 20-minute threshold
+for explicit user approval.
+
+Stop on any boxed/flat parity, rollback, current-gauge, lane-reconciliation,
+retry, or boundary-sample assertion. On failure, retain the exact process log,
+make no retry, and return to the owning gate. On success, report only the
+captured evidence; it does not select a numeric supported-input boundary,
+authorize production cutover, or close the separate §44 resource/rollback
+gate.
 
 Authority: `notes/design/2026-09-25-f5c-flat-indexed-stack-independent-draft.md`
 §§5 and 15; `notes/design/2026-09-21-f5-general-function-scheme-foundation-draft.md`
@@ -158,7 +200,8 @@ benchmarks.
   timeout --signal=TERM --kill-after=10s 180s /usr/bin/time -v env RUSTC_WRAPPER= cargo test -p yu-solver --lib f5c_candidate_resource_probe_failures --offline -- --ignored --nocapture --test-threads=1
   ```
 
-Campaign budget: two initial scale invocations failed before any F5c record.
+Campaign budget under the original plan: two initial scale invocations failed
+before any F5c record.
 After the five-command extension, a scale capture stopped at the boxed
 depth-64 accounting failure. The next reviewed capture stopped at the
 over-specific width probe assertion; its probe contract was corrected and
@@ -185,8 +228,9 @@ tests remain outside the capture budget under `rules/testing.md`.
   assertion; static audit found nonzero current memo gauges after owner drop.
   That code gate is closed by releasing memo storage, restoring zero current
   gauges, preserving history, and adding a focused no-capture full
-  counter/lane regression. The eight-command budget is exhausted. Any further
-  capture requires a fresh plan and review. Do not add input dimensions.
+  counter/lane regression. The original eight-command budget is exhausted. The
+  approved continuation above allows exactly one ninth capture. Any later
+  capture needs a separate fresh plan and review. Do not add input dimensions.
 - Stop the campaign on any boxed/flat semantic or public-counter mismatch,
   independent-lane reconciliation failure, incomplete checkpoint sample,
   unexpected `IdentityExhausted` on the listed success cases, or missing

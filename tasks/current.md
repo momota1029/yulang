@@ -74,8 +74,9 @@ allowing only those documented historical fields, and verifies all five
 independent memo lanes have zero current capacity with history retained. The
 focused test and formatting checks pass. No ignored capture was rerun because
 the eight-command plan is exhausted; any further capture needs a fresh reviewed
-plan. §15 remains incomplete; no numeric boundary or production cutover is
-selected.
+plan. The `performance_auditor`'s written justification and primary approval
+authorize exactly one ninth failure/rollback/retry capture. It has not run yet.
+§15 remains incomplete; no numeric boundary or production cutover is selected.
 
 ### Latest continuation (2026-09-27): all-member candidate and independent physical ledger
 
