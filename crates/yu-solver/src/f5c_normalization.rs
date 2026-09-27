@@ -169,6 +169,69 @@ pub(super) struct FlatNormalizationResource {
 }
 
 #[cfg(test)]
+thread_local! {
+    static FAILED_FLAT_PHYSICAL_RESOURCE: std::cell::RefCell<Option<FlatNormalizationResource>> =
+        const { std::cell::RefCell::new(None) };
+}
+
+#[cfg(test)]
+pub(super) fn take_failed_flat_physical_resource() -> Option<FlatNormalizationResource> {
+    FAILED_FLAT_PHYSICAL_RESOURCE.with(|slot| slot.borrow_mut().take())
+}
+
+#[cfg(test)]
+pub(super) fn output_sample_capacity_bytes(resource: &FlatNormalizationResource) -> usize {
+    resource.physical_index.output_member_samples.capacity() * std::mem::size_of::<[usize; 6]>()
+}
+
+#[cfg(test)]
+pub(super) fn output_member_samples(resource: &FlatNormalizationResource) -> &[[usize; 6]] {
+    &resource.physical_index.output_member_samples
+}
+
+#[cfg(test)]
+pub(super) fn failed_reserve_retry_probe() -> (Vec<(NormalizationLaneStats, usize, usize)>, usize) {
+    let mut records = Vec::new();
+    records
+        .try_reserve_exact(2)
+        .expect("reserve probe history allocation");
+    let capacity_bytes =
+        records.capacity() * std::mem::size_of::<(NormalizationLaneStats, usize, usize)>();
+    let mut items = vec![1u8];
+    let mut stats = NormalizationStats::default();
+    let failed = Normalizer::reserve(
+        &mut items,
+        isize::MAX as usize,
+        Lane::Nodes,
+        &mut stats,
+        None,
+    );
+    assert_eq!(failed, Err(SolveAvailabilityError::IdentityExhausted));
+    assert!(records.len() < 2 && records.len() < records.capacity());
+    let failed_capacity = items.capacity();
+    let failed_bytes = failed_capacity * std::mem::size_of::<u8>();
+    records.push((
+        stats.index_lanes[Lane::Nodes as usize],
+        failed_capacity,
+        failed_bytes,
+    ));
+    let before = items.capacity();
+    assert!(before < 1024);
+    Normalizer::reserve(&mut items, before + 1, Lane::Nodes, &mut stats, None)
+        .expect("bounded reserve retry");
+    assert!(items.capacity() > before);
+    assert!(records.len() < 2 && records.len() < records.capacity());
+    let retry_capacity = items.capacity();
+    let retry_bytes = retry_capacity * std::mem::size_of::<u8>();
+    records.push((
+        stats.index_lanes[Lane::Nodes as usize],
+        retry_capacity,
+        retry_bytes,
+    ));
+    (records, capacity_bytes)
+}
+
+#[cfg(test)]
 impl FlatNormalizationResource {
     pub(super) fn totals(&self) -> Result<(usize, usize), SolveAvailabilityError> {
         self.lanes
@@ -2443,6 +2506,8 @@ pub(super) fn normalize_flat_batch_metered<'meter>(
     staged: &mut TrackedVec<'meter, super::f5c_generalization::F5cStagedCandidate<'meter>>,
     #[cfg(test)] fail_after_output: Option<usize>,
 ) -> Result<FlatNormalizationStats, SolveAvailabilityError> {
+    #[cfg(test)]
+    FAILED_FLAT_PHYSICAL_RESOURCE.with(|slot| *slot.borrow_mut() = None);
     let mut normalizer = Normalizer::new();
     normalizer.stats.candidate_observer = Some(Box::new(new_flat_candidate_observer(
         memo,
@@ -2548,6 +2613,18 @@ pub(super) fn normalize_flat_batch_metered<'meter>(
     observer.0.physical_index.release_after_normalizer_drop()?;
     let resource = observer.index_resource()?;
     complete_flat_candidate_observer(memo, Some(observer), true)?;
+    #[cfg(test)]
+    match result {
+        Ok(mut stats) => {
+            stats.resource = Some(resource);
+            Ok(stats)
+        }
+        Err(error) => {
+            FAILED_FLAT_PHYSICAL_RESOURCE.with(|slot| *slot.borrow_mut() = Some(resource));
+            Err(error)
+        }
+    }
+    #[cfg(not(test))]
     result.map(|mut stats| {
         stats.resource = Some(resource);
         stats

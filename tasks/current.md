@@ -44,25 +44,28 @@ focused emitted-output sum and transferred-member joint-peak tests,
 suite, resource/scale/capacity probe, benchmark, or timing measurement ran;
 the measurement budget remains zero.
 
-The fresh §15 measurement plan is now complete and reviewed by `spec_auditor`,
-`performance_auditor`, and primary. It specifies source SCC rings of 2/4/8/16,
-seeded depth and width points, rollback/retry and failed-reserve evidence,
-successful solver/`yu-types` checkpoints, 27 physical normalizer/index/output
-lanes (with the existing 28-slot indexed ledger's unused zero placeholder
-identified separately), a 64-record per-session capture cap, and two capture
-processes capped at 190 seconds each including kill grace (380 seconds total
-capture time, 570 seconds including bounded prebuild). It explicitly excludes
-quantitative late-finalizer error samples because §5 provides no successful
-checkpoint there, and leaves §13 R-round/owner/trace/frontier subtotals
-unresolved. Test-only capture instrumentation and initial source/failure
-fixtures are in the working tree, but the seeded depth/width parity, complete
-failure assertions, and diagnostic-capacity reporting still need completion
-and review. No resource capture has run; the measurement budget remains zero.
+The §15 capture harness is implemented in the working tree. It covers the
+reviewed SCC-ring, seeded-depth/width, failure/retry, and failed-reserve cases;
+paired routes retain only exact alpha-canonical scheme tokens and counters, and
+the summaries report parity/capture overhead separately from candidate lanes.
+M2 specification and performance delta reviews closed the result-lifetime,
+failed-reserve witness, seeded-width, and quadratic-history findings. The first
+planned scale command stopped before emitting any capture record: independent
+walker peak conversion used the fixed `Values` slot size instead of the actual
+element size. The ledger now uses the physical owner's `value_slot_size` for
+both current and peak calculations; fresh specification and performance delta
+reviews closed that repair.
 
-Next: finish the reviewed test-only capture observer and ignored harness,
-obtain focused review of the complete instrumentation, then run exactly the two
-planned captures. Numeric boundary approval, production cutover, §44, F5e, and
-overall F5c acceptance remain open.
+The ignored test binary prebuild passed in 11 seconds. The first scale command
+failed in 0.05 seconds before any F5c sample; the sample count is zero and one
+of the plan's two capture-command invocations is used. Compile-only verification
+passes: `RUSTC_WRAPPER= cargo check -p yu-solver --tests --offline`,
+`cargo fmt --all -- --check`, and `git diff --check`. The measurement plan's
+failure rule forbids automatic retry, so no further capture has run. A user
+decision is pending on adding one capture-command invocation so both planned
+captures can be rerun once after the repair, or leaving the §15 evidence
+incomplete. Numeric boundary approval, production cutover, §44, F5e, and overall
+F5c acceptance remain open.
 
 ### Latest continuation (2026-09-27): checked indexed finalizer conversion
 

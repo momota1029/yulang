@@ -3764,6 +3764,152 @@ enum FlatCandidatePrecommitFailure {
 }
 
 #[cfg(test)]
+#[derive(Clone, Debug)]
+struct F5cCandidateCapture {
+    records: Vec<F5cCandidateCaptureRecord>,
+    transactional_counter_baseline: Option<ProductionCounters>,
+    diagnostic_capacity_bytes: [usize; 3],
+    output_lengths: [[usize; 6]; 64],
+    output_length_count: usize,
+}
+
+#[cfg(test)]
+#[allow(
+    dead_code,
+    reason = "diagnostic capture fields are emitted through Debug"
+)]
+#[derive(Clone, Debug)]
+struct F5cCandidateCaptureRecord {
+    boundary: Option<ResourceBoundary>,
+    failure_site: Option<&'static str>,
+    last_successful_boundary: Option<ResourceBoundary>,
+    component: usize,
+    member: Option<usize>,
+    source_bytes: usize,
+    staged_bytes: usize,
+    indexed_bytes: usize,
+    memo_lanes: [IndependentMemoLane; 5],
+    walker_lanes: [IndependentMemoLane; 98],
+    index_lanes: [IndependentNormalizationLane; f5c_normalization::FLAT_CANDIDATE_LANE_COUNT],
+    semantic_retained: usize,
+    semantic_peak: usize,
+    session_retained: usize,
+    session_peak: usize,
+    closed_retained: usize,
+    closed_checkpoint: Option<(usize, usize, usize)>,
+    draft_work: usize,
+    scc_count: usize,
+    member_count: usize,
+    shared_admissions: usize,
+    shared_hits: usize,
+    normalization: [usize; 4],
+}
+
+#[cfg(test)]
+impl F5cCandidateCapture {
+    fn with_reserved_history() -> Result<Self, std::collections::TryReserveError> {
+        let mut records = Vec::new();
+        records.try_reserve_exact(64)?;
+        Ok(Self {
+            records,
+            transactional_counter_baseline: None,
+            diagnostic_capacity_bytes: [0; 3],
+            output_lengths: [[0; 6]; 64],
+            output_length_count: 0,
+        })
+    }
+
+    fn bytes(&self) -> usize {
+        self.records.capacity() * std::mem::size_of::<F5cCandidateCaptureRecord>()
+    }
+
+    fn observe_memo_diagnostics(&mut self, memo: &F5cComponentExpansionMemo) {
+        self.diagnostic_capacity_bytes[0] = self.diagnostic_capacity_bytes[0]
+            .max(memo.capacity_samples.capacity() * std::mem::size_of::<[usize; 20]>());
+        self.diagnostic_capacity_bytes[1] = self.diagnostic_capacity_bytes[1].max(
+            memo.flat_candidate_physical_peaks.capacity()
+                * std::mem::size_of::<f5c_normalization::FlatCandidatePhysicalPeak>(),
+        );
+    }
+
+    fn observe_output_diagnostics(
+        &mut self,
+        resource: &f5c_normalization::FlatNormalizationResource,
+    ) {
+        self.diagnostic_capacity_bytes[2] = self.diagnostic_capacity_bytes[2]
+            .max(f5c_normalization::output_sample_capacity_bytes(resource));
+        let samples = f5c_normalization::output_member_samples(resource);
+        assert!(
+            samples.len() <= self.output_lengths.len(),
+            "output length sample cap"
+        );
+        self.output_lengths[..samples.len()].copy_from_slice(samples);
+        self.output_length_count = samples.len();
+    }
+}
+
+#[cfg(test)]
+impl F5cCandidateCaptureRecord {
+    fn emit(&self, case: &str) {
+        use std::fmt::Write;
+        let mut line = String::new();
+        write!(line, "F5C_CANDIDATE_SAMPLE\tcase={case}\tboundary={:?}\tfailure_site={:?}\tlast_successful_boundary={:?}\tcomponent={}\tmember={:?}\tsource={}\tstaged={}\tindexed={}\tsemantic_retained={}\tsemantic_peak={}\tsession_retained={}\tsession_peak={}\tclosed_retained={}\tclosed_checkpoint={:?}\tdraft_work={}\tscc_count={}\tmember_count={}\tshared_admissions={}\tshared_hits={}\tnormalization={:?}",
+            self.boundary, self.failure_site, self.last_successful_boundary,
+            self.component, self.member, self.source_bytes, self.staged_bytes, self.indexed_bytes,
+            self.semantic_retained, self.semantic_peak, self.session_retained, self.session_peak,
+            self.closed_retained, self.closed_checkpoint, self.draft_work, self.scc_count,
+            self.member_count, self.shared_admissions, self.shared_hits, self.normalization).unwrap();
+        for (index, lane) in self.memo_lanes.iter().enumerate() {
+            write!(
+                line,
+                "\tm{index}={},{},{},{},{},{}",
+                lane.requested_slots,
+                lane.capacity_growths,
+                lane.actual_capacity,
+                lane.retained_bytes,
+                lane.peak_capacity,
+                lane.peak_bytes
+            )
+            .unwrap();
+        }
+        for (index, lane) in self.walker_lanes.iter().enumerate() {
+            write!(
+                line,
+                "\tw{index}={},{},{},{},{},{}",
+                lane.requested_slots,
+                lane.capacity_growths,
+                lane.actual_capacity,
+                lane.retained_bytes,
+                lane.peak_capacity,
+                lane.peak_bytes
+            )
+            .unwrap();
+        }
+        let placeholder = &self.index_lanes[f5c_normalization::LANE_COUNT + 3];
+        assert_eq!(placeholder, &IndependentNormalizationLane::default());
+        write!(line, "\tindex_placeholder={:?}", placeholder).unwrap();
+        for (index, lane) in self.index_lanes.iter().enumerate() {
+            if index == f5c_normalization::LANE_COUNT + 3 {
+                continue;
+            }
+            write!(
+                line,
+                "\ti{index}={},{},{},{},{},{},{}",
+                lane.requested_slots,
+                lane.capacity_growths,
+                lane.actual_capacity,
+                lane.retained_bytes,
+                lane.peak_capacity,
+                lane.peak_bytes,
+                lane.slot_size
+            )
+            .unwrap();
+        }
+        eprintln!("{line}");
+    }
+}
+
+#[cfg(test)]
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 struct IndependentResourceLedger {
     term_lanes: [IndependentMemoLane; 6],
@@ -3788,6 +3934,7 @@ struct IndependentResourceLedger {
     component_expansion_memo_actual_capacity: usize,
     component_expansion_memo_retained_bytes: usize,
     component_expansion_memo_peak_bytes: usize,
+    memo_capacity_samples_seen: usize,
     component_expansion_memo_capacity_growths: usize,
     source_draft_slots: IndependentMemoLane,
     source_nested_draft_count: usize,
@@ -3838,6 +3985,7 @@ struct IndependentResourceLedger {
 struct IndependentMemoLane {
     requested_slots: usize,
     actual_capacity: usize,
+    peak_capacity: usize,
     retained_bytes: usize,
     peak_bytes: usize,
     capacity_growths: usize,
@@ -4339,6 +4487,7 @@ impl IndependentResourceLedger {
         retain_peak!(closed_normalization_index_peak_bytes);
         retain_peak!(instantiation_substitution_peak_bytes);
         fn retain_lane(lane: &mut IndependentMemoLane, observed: &IndependentMemoLane) {
+            lane.peak_capacity = lane.peak_capacity.max(observed.peak_capacity);
             lane.peak_bytes = lane.peak_bytes.max(observed.peak_bytes);
         }
         for (lane, observed) in self.term_lanes.iter_mut().zip(&observed.term_lanes) {
@@ -4388,6 +4537,10 @@ impl IndependentResourceLedger {
         ] {
             retain_lane(lane, observed);
         }
+        self.generalization_walker_lanes.resize_with(
+            observed.generalization_walker_lanes.len(),
+            IndependentMemoLane::default,
+        );
         for (lane, observed) in self
             .generalization_walker_lanes
             .iter_mut()
@@ -5020,27 +5173,63 @@ impl IndependentResourceLedger {
             std::mem::size_of::<(u32, Polarity)>(),
             std::mem::size_of::<u32>(),
         ];
-        let component_peak =
-            memo.capacity_samples
-                .iter()
-                .try_fold(retained_bytes, |peak, sample| {
-                    sample
-                        .iter()
-                        .zip(sizes)
-                        .try_fold(0usize, |sum, (&capacity, size)| {
-                            capacity
-                                .checked_mul(size)
-                                .and_then(|bytes| sum.checked_add(bytes))
-                                .ok_or(SolveAvailabilityError::IdentityExhausted)
-                        })
-                        .map(|bytes| peak.max(bytes))
-                })?;
+        let new_samples = &memo.capacity_samples[self
+            .memo_capacity_samples_seen
+            .min(memo.capacity_samples.len())..];
+        let component_peak = new_samples
+            .iter()
+            .try_fold(retained_bytes, |peak, sample| {
+                sample
+                    .iter()
+                    .zip(sizes)
+                    .try_fold(0usize, |sum, (&capacity, size)| {
+                        capacity
+                            .checked_mul(size)
+                            .and_then(|bytes| sum.checked_add(bytes))
+                            .ok_or(SolveAvailabilityError::IdentityExhausted)
+                    })
+                    .map(|bytes| peak.max(bytes))
+            })?;
         self.component_expansion_memo_peak_bytes =
             self.component_expansion_memo_peak_bytes.max(component_peak);
+        for sample in new_samples {
+            for (lane, range) in [
+                (&mut self.component_expansion_memo_roots, 0..1),
+                (&mut self.component_expansion_memo_nodes, 1..2),
+                (&mut self.component_expansion_memo_children, 2..3),
+                (&mut self.component_expansion_memo_index, 3..11),
+                (&mut self.component_expansion_memo_scratch, 11..20),
+            ] {
+                let capacity = sample[range.clone()]
+                    .iter()
+                    .try_fold(0usize, |sum, value| {
+                        sum.checked_add(*value)
+                            .ok_or(SolveAvailabilityError::IdentityExhausted)
+                    })?;
+                let bytes = sample[range.clone()].iter().zip(&sizes[range]).try_fold(
+                    0usize,
+                    |sum, (&capacity, &size)| {
+                        capacity
+                            .checked_mul(size)
+                            .and_then(|value| sum.checked_add(value))
+                            .ok_or(SolveAvailabilityError::IdentityExhausted)
+                    },
+                )?;
+                lane.peak_capacity = lane.peak_capacity.max(capacity);
+                lane.peak_bytes = lane.peak_bytes.max(bytes);
+            }
+        }
+        self.memo_capacity_samples_seen = memo.capacity_samples.len();
         let walker = &memo.walker_resources;
         self.generalization_walker_lanes
             .resize_with(F5cWalkerLaneKind::ALL.len(), IndependentMemoLane::default);
-        let walker_sizes = F5cWalkerLaneKind::ALL.map(F5cWalkerLaneKind::slot_size);
+        let walker_sizes = F5cWalkerLaneKind::ALL.map(|kind| {
+            if matches!(kind, F5cWalkerLaneKind::Values) && walker.value_slot_size != 0 {
+                walker.value_slot_size
+            } else {
+                kind.slot_size()
+            }
+        });
         let mut walker_capacity = 0usize;
         let mut walker_bytes = 0usize;
         let mut walker_requested = 0usize;
@@ -5078,6 +5267,13 @@ impl IndependentResourceLedger {
                 [index]
                 .peak_bytes
                 .max(lane.peak_bytes);
+            if size > 0 {
+                assert_eq!(lane.peak_bytes % size, 0);
+                self.generalization_walker_lanes[index].peak_capacity = self
+                    .generalization_walker_lanes[index]
+                    .peak_capacity
+                    .max(lane.peak_bytes / size);
+            }
         }
         self.generalization_walker_requested_slots = self
             .generalization_walker_requested_slots
@@ -5136,6 +5332,7 @@ impl IndependentResourceLedger {
             .checked_add(capacity_growths)
             .ok_or(SolveAvailabilityError::IdentityExhausted)?;
         independent.actual_capacity = actual_capacity;
+        independent.peak_capacity = independent.peak_capacity.max(actual_capacity);
         independent.retained_bytes = retained_bytes;
         independent.peak_bytes = independent.peak_bytes.max(retained_bytes);
         Ok(())
@@ -6296,6 +6493,8 @@ struct InferenceSession {
     flat_candidate_normalization_failure_after: Option<usize>,
     #[cfg(test)]
     flat_candidate_precommit_failure: Option<FlatCandidatePrecommitFailure>,
+    #[cfg(test)]
+    f5c_candidate_capture: Option<F5cCandidateCapture>,
     #[cfg(test)]
     ordering_observer: Option<OrderingObserver>,
     #[cfg(test)]
@@ -8063,6 +8262,8 @@ impl InferenceSession {
             flat_candidate_normalization_failure_after: None,
             #[cfg(test)]
             flat_candidate_precommit_failure: None,
+            #[cfg(test)]
+            f5c_candidate_capture: None,
             #[cfg(test)]
             ordering_observer: None,
             #[cfg(test)]
@@ -11278,6 +11479,75 @@ impl InferenceSession {
         Ok(())
     }
 
+    #[cfg(test)]
+    fn capture_f5c_candidate(
+        &mut self,
+        boundary: Option<ResourceBoundary>,
+        component: usize,
+        member: Option<usize>,
+        checkpoint: Option<(usize, usize, usize)>,
+        source_bytes: usize,
+    ) {
+        let Some(capture) = self.f5c_candidate_capture.as_mut() else {
+            return;
+        };
+        assert!(capture.records.len() < 64, "F5c candidate capture limit");
+        assert!(capture.records.len() < capture.records.capacity());
+        let ledger = &self.resource_ledger;
+        let counters = &self.execution_counters;
+        assert_eq!(F5cWalkerLaneKind::ALL.len(), 98);
+        assert!(
+            ledger.generalization_walker_lanes.is_empty()
+                || ledger.generalization_walker_lanes.len() == F5cWalkerLaneKind::ALL.len(),
+            "incomplete independent walker lane sample"
+        );
+        let last_successful_boundary = capture
+            .records
+            .iter()
+            .rev()
+            .find_map(|record| record.boundary);
+        capture.records.push(F5cCandidateCaptureRecord {
+            boundary,
+            failure_site: None,
+            last_successful_boundary,
+            component,
+            member,
+            source_bytes,
+            staged_bytes: ledger.flat_staged_bytes,
+            indexed_bytes: ledger.flat_indexed_bytes,
+            memo_lanes: [
+                ledger.component_expansion_memo_roots.clone(),
+                ledger.component_expansion_memo_nodes.clone(),
+                ledger.component_expansion_memo_children.clone(),
+                ledger.component_expansion_memo_index.clone(),
+                ledger.component_expansion_memo_scratch.clone(),
+            ],
+            walker_lanes: if ledger.generalization_walker_lanes.is_empty() {
+                std::array::from_fn(|_| IndependentMemoLane::default())
+            } else {
+                std::array::from_fn(|index| ledger.generalization_walker_lanes[index].clone())
+            },
+            index_lanes: ledger.closed_normalization_index_lanes.clone(),
+            semantic_retained: ledger.semantic_arena_retained_bytes,
+            semantic_peak: ledger.semantic_arena_peak_bytes,
+            session_retained: ledger.inference_session_retained_bytes,
+            session_peak: ledger.inference_session_peak_bytes,
+            closed_retained: self.current_closed_retained_bytes,
+            closed_checkpoint: checkpoint,
+            draft_work: self.f5c_draft_work.get(),
+            scc_count: counters.scc_execution_component_visits,
+            member_count: counters.scc_execution_draft_members,
+            shared_admissions: counters.generalization_shared_summary_admissions,
+            shared_hits: counters.generalization_shared_summary_hits,
+            normalization: [
+                counters.closed_normalized_key_writes,
+                counters.closed_normalization_child_comparisons,
+                counters.closed_normalization_descriptor_words,
+                counters.closed_normalization_word_comparisons,
+            ],
+        });
+    }
+
     fn execute_scc_plan(&mut self) -> Result<(), SolveAvailabilityError> {
         let result = self.execute_scc_plan_inner();
         #[cfg(test)]
@@ -11746,11 +12016,25 @@ impl InferenceSession {
                 self.resource_ledger
                     .record_flat_staged(&staged, &source_meter)?;
                 sample_boundary!(ResourceBoundary::SourceDrafts)?;
+                self.capture_f5c_candidate(
+                    Some(ResourceBoundary::SourceDrafts),
+                    self.execution_counters.scc_execution_component_visits,
+                    None,
+                    None,
+                    source_draft_bytes,
+                );
                 reservation.map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
                 let sampled_source_draft_bytes = source_draft_bytes;
                 let frozen_bound_epoch = self.execution_counters.scc_execution_component_visits;
                 let batch_checkpoint = memo.begin_flat_batch();
+                // A new batch may reuse the same sample Vec after clearing it.
+                self.resource_ledger.memo_capacity_samples_seen = 0;
+                let capture_memo_lengths_before =
+                    (memo.roots.len(), memo.nodes.len(), memo.children.len());
                 let counters_before_batch = self.execution_counters.clone();
+                if let Some(capture) = self.f5c_candidate_capture.as_mut() {
+                    capture.transactional_counter_baseline = Some(counters_before_batch.clone());
+                }
                 // The boundary history grows across SCCs. Keep its allocation in
                 // place while checkpointing only the bounded ledger state.
                 let boundary_order = std::mem::take(&mut self.resource_ledger.boundary_order);
@@ -11758,6 +12042,7 @@ impl InferenceSession {
                 let ledger_before_batch = self.resource_ledger.clone();
                 self.resource_ledger.boundary_order = boundary_order;
                 let mut normalization_peaks_reconciled = false;
+                let mut capture_failure_site = "precommit";
                 let precommit = (|| -> Result<(), SolveAvailabilityError> {
                     for member in &members {
                         self.execution_counters.scc_execution_draft_members += 1;
@@ -11795,6 +12080,7 @@ impl InferenceSession {
                         if self.flat_candidate_precommit_failure
                             == Some(FlatCandidatePrecommitFailure::LedgerAfterStage)
                         {
+                            capture_failure_site = "post_transfer";
                             self.flat_candidate_precommit_failure = None;
                             return Err(SolveAvailabilityError::IdentityExhausted);
                         }
@@ -11819,6 +12105,12 @@ impl InferenceSession {
                             .generalization_uncacheable_states
                             .checked_add(uncacheable)
                             .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                    }
+                    if self.f5c_candidate_capture.is_some() {
+                        f5c_normalization::take_failed_flat_physical_resource();
+                    }
+                    if self.flat_candidate_normalization_failure_after.is_some() {
+                        capture_failure_site = "batch_normalization";
                     }
                     let stats = f5c_normalization::normalize_flat_batch_metered(
                         &mut memo,
@@ -11864,6 +12156,9 @@ impl InferenceSession {
                         .resource
                         .as_ref()
                         .expect("batch normalization has resource accounting");
+                    if let Some(capture) = self.f5c_candidate_capture.as_mut() {
+                        capture.observe_output_diagnostics(resource);
+                    }
                     let (index_requests, index_growths) = resource.totals()?;
                     self.execution_counters
                         .closed_normalization_index_requested_slots = self
@@ -11934,12 +12229,76 @@ impl InferenceSession {
                     self.resource_ledger.flat_all_drafts_members = staged.len();
                     self.resource_ledger.flat_all_drafts_bytes =
                         self.resource_ledger.flat_staged_bytes;
+                    if let Some(capture) = self.f5c_candidate_capture.as_mut() {
+                        capture.observe_memo_diagnostics(&memo);
+                    }
                     sample_boundary!(ResourceBoundary::AllDrafts)?;
+                    self.capture_f5c_candidate(
+                        Some(ResourceBoundary::AllDrafts),
+                        self.execution_counters.scc_execution_component_visits,
+                        None,
+                        None,
+                        source_draft_bytes,
+                    );
                     Ok(())
                 })();
                 if let Err(error) = precommit {
+                    if self.f5c_candidate_capture.is_some() {
+                        source_draft_bytes = source_meter
+                            .current_bytes()
+                            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                        self.resource_ledger
+                            .reconcile_flat_staged(&staged, &source_meter)?;
+                        let failed_resource =
+                            f5c_normalization::take_failed_flat_physical_resource();
+                        if capture_failure_site == "batch_normalization" {
+                            assert!(
+                                failed_resource.is_some(),
+                                "missing independent failed-normalization sample"
+                            );
+                        }
+                        if let Some(resource) = failed_resource {
+                            if let Some(capture) = self.f5c_candidate_capture.as_mut() {
+                                capture.observe_output_diagnostics(&resource);
+                            }
+                            self.resource_ledger
+                                .record_flat_normalization_index(&resource, source_draft_bytes)?;
+                        }
+                        if let Some(capture) = self.f5c_candidate_capture.as_mut() {
+                            capture.observe_memo_diagnostics(&memo);
+                        }
+                        memo.capture_component_joint_peak(&source_meter)?;
+                        self.resource_ledger
+                            .record_flat_normalization_peaks(&memo)?;
+                        self.record_component_expansion_memo_resources_with_source(
+                            &memo,
+                            source_draft_bytes,
+                            sampled_source_draft_bytes,
+                        )?;
+                    }
+                    self.capture_f5c_candidate(
+                        None,
+                        self.execution_counters.scc_execution_component_visits,
+                        None,
+                        None,
+                        source_draft_bytes,
+                    );
+                    if let Some(record) = self
+                        .f5c_candidate_capture
+                        .as_mut()
+                        .and_then(|capture| capture.records.last_mut())
+                    {
+                        record.failure_site = Some(capture_failure_site);
+                    }
                     staged.clear();
                     memo.finish_flat_batch(batch_checkpoint, false)?;
+                    if self.f5c_candidate_capture.is_some() {
+                        assert_eq!(
+                            (memo.roots.len(), memo.nodes.len(), memo.children.len()),
+                            capture_memo_lengths_before,
+                            "flat memo logical rollback"
+                        );
+                    }
                     self.execution_counters = counters_before_batch;
                     let mut boundary_order =
                         std::mem::take(&mut self.resource_ledger.boundary_order);
@@ -11992,6 +12351,13 @@ impl InferenceSession {
                     self.resource_ledger
                         .record_flat_indexed(&staged, &mapped, &source_meter)?;
                     sample_boundary!(ResourceBoundary::IndexedMapping)?;
+                    self.capture_f5c_candidate(
+                        Some(ResourceBoundary::IndexedMapping),
+                        self.execution_counters.scc_execution_component_visits,
+                        Some(index),
+                        None,
+                        source_draft_bytes,
+                    );
                     let finalized = self
                         .finalization
                         .as_mut()
@@ -12048,6 +12414,17 @@ impl InferenceSession {
                         .current_bytes()
                         .ok_or(SolveAvailabilityError::IdentityExhausted)?;
                     sample_boundary!(ResourceBoundary::DraftMember)?;
+                    self.capture_f5c_candidate(
+                        Some(ResourceBoundary::DraftMember),
+                        self.execution_counters.scc_execution_component_visits,
+                        Some(index),
+                        Some((
+                            checkpoint.retained_bytes_before(),
+                            checkpoint.retained_bytes_after(),
+                            checkpoint.peak_bytes_during_call(),
+                        )),
+                        source_draft_bytes,
+                    );
                 }
                 self.execution_counters.draft_scratch_max_len = self
                     .execution_counters
@@ -12083,6 +12460,16 @@ impl InferenceSession {
                 }
                 // Finalized schemes and drafts coexist at each direct move.
                 sample_boundary!(ResourceBoundary::SchemeInstall)?;
+                #[cfg(test)]
+                if self.flat_candidate_enabled {
+                    self.capture_f5c_candidate(
+                        Some(ResourceBoundary::SchemeInstall),
+                        self.execution_counters.scc_execution_component_visits,
+                        Some(ordinal),
+                        None,
+                        source_draft_bytes,
+                    );
+                }
             }
             let incoming_uses = self
                 .batch
