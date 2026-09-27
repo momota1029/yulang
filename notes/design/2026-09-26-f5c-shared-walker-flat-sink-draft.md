@@ -703,3 +703,40 @@ the checked five-lane indexed mapping and finalizer calls, and the independent
 solver/`yu-types` co-resident peak ledger. Prepare and review the fresh §15
 measurement plan before any resource, scale, or capacity probe. Production
 remains boxed.
+
+### Ordered all-member candidate and independent peak ledger (2026-09-27)
+
+The test-only SCC route now builds and stages all members in dependency order,
+normalizes their drafts together, maps each member to indexed finalizer input,
+and finalizes in member order at the existing `AllDrafts` and `DraftMember`
+boundaries. A compound Q/R Union/Intersection route compares all four public
+normalization counters and each finalized member's alpha-equivalent scheme to
+the boxed route. The fixture also checks order, the drafts-visible barrier,
+and rollback under member-finalization and batch-normalization failures. The
+production route remains boxed.
+
+The independent physical ledger reconstructs lane capacities and simultaneous
+source, memo, walker, staged-draft, indexed-mapping, and `yu-types`
+finalization peaks. It sums each member's six emitted output lengths once and
+publishes zero index bytes only after the normalizer owner has dropped and
+actual capacities are verified as zero. Review caught and repaired two
+accounting defects: repeated test-ledger history scans and rollback that erased
+already observed physical peaks. The sample history now folds once per batch
+outcome, and precommit rollback preserves the cumulative source, transfer,
+memo/walker, normalization, and finalizer high-water observations while
+restoring transactional counters. The independent transfer census runs before
+propagating a post-transfer error. Fresh M2 specification and performance
+delta reviews found no remaining issue. Test-only O(m) output samples and
+diagnostic snapshots remain outside the candidate lanes and belong in the §15
+process-memory budget. A focused compiler-referee review found no issue in the
+subsequent observer-indirection fix: the ordinary boxed normalizer again passes
+its 64 KiB stack witness without added allocation.
+
+The focused `f5c_flat_walk_sink` filter passes (50), as do the 64 KiB stack
+witness, emitted-output sum and transferred-output peak witnesses,
+`cargo check -p yu-solver --lib --offline`, the test-target check,
+formatting, and diff checks. No broad suite, resource/scale/capacity probe,
+benchmark, or timing measurement ran. Prepare the fresh §15 plan, including
+test-process diagnostic memory, and obtain performance-auditor and primary
+review before running a candidate probe. Numeric boundary, production
+cutover, §44, F5e, and overall F5c acceptance remain open.

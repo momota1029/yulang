@@ -83,6 +83,17 @@ pub(super) struct IndexedFlatDraft<'meter> {
 }
 
 impl IndexedFlatDraft<'_> {
+    #[cfg(test)]
+    pub(super) fn physical_capacities(&self) -> [usize; 5] {
+        [
+            self.positive_nodes.capacity(),
+            self.negative_nodes.capacity(),
+            self.positive_children.capacity(),
+            self.negative_children.capacity(),
+            self.recursive_bounds.capacity(),
+        ]
+    }
+
     #[allow(dead_code)]
     pub(super) fn as_ref(&self) -> IndexedSchemeRef<'_> {
         IndexedSchemeRef {

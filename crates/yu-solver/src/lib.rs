@@ -3737,7 +3737,7 @@ struct SummaryObservation {
     dead_code,
     reason = "the named boundary ledger is cfg(test); production keeps the same sampling call sites"
 )]
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum ResourceBoundary {
     InitialReservation,
     InitialAdmission,
@@ -3752,6 +3752,15 @@ enum ResourceBoundary {
     StoreAccounting,
     FinishOutputWithStaging,
     FinishOutput,
+    #[cfg(test)]
+    IndexedMapping,
+}
+
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum FlatCandidatePrecommitFailure {
+    LedgerAfterStage,
+    CounterAfterNormalization,
 }
 
 #[cfg(test)]
@@ -3767,6 +3776,8 @@ struct IndependentResourceLedger {
     term_peak_bytes: usize,
     coverage: u16,
     samples: usize,
+    track_flat_boundary_order: bool,
+    boundary_order: Vec<ResourceBoundary>,
     queue_retained_bytes: usize,
     semantic_arena_retained_bytes: usize,
     inference_session_retained_bytes: usize,
@@ -3784,6 +3795,18 @@ struct IndependentResourceLedger {
     source_actual_bound_capacity: usize,
     source_bound_tokens: IndependentMemoLane,
     source_recursive_bounds: IndependentMemoLane,
+    flat_staged_bytes: usize,
+    flat_staged_members_counted: usize,
+    flat_staged_outer_capacity: usize,
+    flat_staged_census_members: usize,
+    flat_indexed_bytes: usize,
+    flat_source_peak_bytes: usize,
+    flat_transfer_raw_bytes: usize,
+    flat_transfer_peak_bytes: usize,
+    flat_all_drafts_members: usize,
+    flat_all_drafts_bytes: usize,
+    flat_normalization_peak_bytes: usize,
+    flat_normalization_scratch_peak_bytes: usize,
     component_expansion_memo_roots: IndependentMemoLane,
     component_expansion_memo_nodes: IndependentMemoLane,
     component_expansion_memo_children: IndependentMemoLane,
@@ -3800,7 +3823,8 @@ struct IndependentResourceLedger {
     closed_normalization_index_retained_bytes: usize,
     closed_normalization_index_peak_bytes: usize,
     closed_normalization_index_capacity_growths: usize,
-    closed_normalization_index_lanes: [IndependentNormalizationLane; f5c_normalization::LANE_COUNT],
+    closed_normalization_index_lanes:
+        [IndependentNormalizationLane; f5c_normalization::FLAT_CANDIDATE_LANE_COUNT],
     instantiation_substitution_requested_slots: usize,
     instantiation_substitution_actual_capacity: usize,
     instantiation_substitution_retained_bytes: usize,
@@ -3891,6 +3915,503 @@ impl IndependentNestedCapacityLedger {
 
 #[cfg(test)]
 impl IndependentResourceLedger {
+    fn record_flat_staged(
+        &mut self,
+        staged: &TrackedVec<'_, f5c_generalization::F5cStagedCandidate<'_>>,
+        meter: &DraftHeapMeter,
+    ) -> Result<(), SolveAvailabilityError> {
+        self.record_flat_staged_unchecked(staged)?;
+        self.flat_indexed_bytes = 0;
+        self.flat_source_peak_bytes = self.flat_source_peak_bytes.max(self.flat_staged_bytes);
+        if meter.current_bytes() != Some(self.flat_staged_bytes) {
+            return Err(SolveAvailabilityError::IdentityExhausted);
+        }
+        Ok(())
+    }
+
+    fn record_flat_indexed(
+        &mut self,
+        staged: &TrackedVec<'_, f5c_generalization::F5cStagedCandidate<'_>>,
+        indexed: &f5c_draft::IndexedFlatDraft<'_>,
+        meter: &DraftHeapMeter,
+    ) -> Result<(), SolveAvailabilityError> {
+        let capacities = indexed.physical_capacities();
+        let sizes = [
+            std::mem::size_of::<yu_types::IndexedPositiveNode>(),
+            std::mem::size_of::<yu_types::IndexedNegativeNode>(),
+            std::mem::size_of::<yu_types::IndexedPositiveNodeId>(),
+            std::mem::size_of::<yu_types::IndexedNegativeNodeId>(),
+            std::mem::size_of::<yu_types::IndexedRecursiveBound>(),
+        ];
+        self.record_flat_staged_unchecked(staged)?;
+        self.flat_indexed_bytes = capacities
+            .into_iter()
+            .zip(sizes)
+            .try_fold(0usize, |sum, (capacity, size)| {
+                capacity
+                    .checked_mul(size)
+                    .and_then(|bytes| sum.checked_add(bytes))
+            })
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        let current = self
+            .flat_staged_bytes
+            .checked_add(self.flat_indexed_bytes)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        self.flat_source_peak_bytes = self.flat_source_peak_bytes.max(current);
+        if meter.current_bytes() != Some(current) {
+            return Err(SolveAvailabilityError::IdentityExhausted);
+        }
+        Ok(())
+    }
+
+    fn record_flat_transfer(
+        &mut self,
+        memo: &F5cComponentExpansionMemo,
+    ) -> Result<(), SolveAvailabilityError> {
+        let capacities = memo
+            .transfer_raw_capacity_samples
+            .last()
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        let observed = memo
+            .transfer_raw_staged_samples
+            .last()
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        let physical = memo
+            .transfer_physical_samples
+            .last()
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        let (source_capacities, memo_capacities, walker_capacities, value_slot_size) = memo
+            .transfer_live_capacity_samples
+            .last()
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        let sizes = [
+            std::mem::size_of::<f5c_draft::PositiveNode>(),
+            std::mem::size_of::<f5c_draft::NegativeNode>(),
+            std::mem::size_of::<f5c_draft::PositiveId>(),
+            std::mem::size_of::<f5c_draft::NegativeId>(),
+            std::mem::size_of::<f5c_draft::RecursiveBound>(),
+            std::mem::size_of::<f5c_draft::NodeRef>(),
+            std::mem::size_of::<u32>(),
+            std::mem::size_of::<(u32, (f5c_draft::PositiveId, f5c_draft::NegativeId))>(),
+            std::mem::size_of::<(u32, Polarity)>(),
+        ];
+        let raw = capacities
+            .iter()
+            .copied()
+            .zip(sizes)
+            .try_fold(0usize, |sum, (capacity, size)| {
+                capacity
+                    .checked_mul(size)
+                    .and_then(|bytes| sum.checked_add(bytes))
+            })
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        assert_eq!(observed.0, raw as u128);
+        assert_eq!(observed.1, self.flat_staged_bytes as u128);
+        assert_eq!(physical.0, raw as u128);
+        assert_eq!(physical.1, self.flat_staged_bytes as u128);
+        let source_sizes = [
+            std::mem::size_of::<GeneralizationDraft>(),
+            std::mem::size_of::<TrackedAllocation<'static>>(),
+            std::mem::size_of::<F5cRecursiveBound>(),
+            std::mem::size_of::<F5cRecursiveBound>(),
+        ];
+        let memo_sizes = [
+            std::mem::size_of::<(F5cExpansionKey, F5cSummaryNodeId)>(),
+            std::mem::size_of::<F5cSummaryNode>(),
+            std::mem::size_of::<F5cSummaryNodeId>(),
+            std::mem::size_of::<Option<usize>>(),
+            std::mem::size_of::<F5cReverseParentEdge>(),
+            std::mem::size_of::<(u32, Option<usize>)>(),
+            std::mem::size_of::<F5cIncidenceEdge>(),
+            std::mem::size_of::<Option<usize>>(),
+            std::mem::size_of::<F5cRootEdge>(),
+            std::mem::size_of::<u32>(),
+            std::mem::size_of::<F5cRootUndo>(),
+            std::mem::size_of::<(u32, usize)>(),
+            std::mem::size_of::<(F5cExpansionKey, usize)>(),
+            std::mem::size_of::<F5cSummaryNodeId>(),
+            std::mem::size_of::<(F5cExpansionKey, usize)>(),
+            std::mem::size_of::<u32>(),
+            std::mem::size_of::<F5cExpansionFrame>(),
+            std::mem::size_of::<(u32, Polarity, usize)>(),
+            std::mem::size_of::<(u32, Polarity)>(),
+            std::mem::size_of::<u32>(),
+        ];
+        let source_bytes: u128 = source_capacities
+            .iter()
+            .zip(source_sizes)
+            .map(|(capacity, size)| capacity * size as u128)
+            .sum();
+        let memo_bytes: u128 = memo_capacities
+            .iter()
+            .zip(memo_sizes)
+            .map(|(capacity, size)| *capacity as u128 * size as u128)
+            .sum();
+        let walker_bytes: u128 = walker_capacities
+            .iter()
+            .enumerate()
+            .map(|(index, capacity)| {
+                let kind = F5cWalkerLaneKind::ALL[index];
+                let size = if matches!(kind, F5cWalkerLaneKind::Values) && *value_slot_size != 0 {
+                    *value_slot_size
+                } else {
+                    kind.slot_size()
+                };
+                *capacity as u128 * size as u128
+            })
+            .sum();
+        assert_eq!(
+            (source_bytes, memo_bytes, walker_bytes),
+            (physical.2, physical.3, physical.4)
+        );
+        let reconstructed =
+            self.flat_staged_bytes as u128 + source_bytes + memo_bytes + walker_bytes;
+        assert_eq!(observed.2, reconstructed);
+        self.flat_transfer_raw_bytes = raw;
+        self.flat_transfer_peak_bytes = self.flat_transfer_peak_bytes.max(
+            usize::try_from(reconstructed)
+                .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
+        );
+        Ok(())
+    }
+
+    fn record_flat_staged_unchecked(
+        &mut self,
+        staged: &TrackedVec<'_, f5c_generalization::F5cStagedCandidate<'_>>,
+    ) -> Result<(), SolveAvailabilityError> {
+        let outer = staged
+            .capacity()
+            .checked_mul(std::mem::size_of::<
+                f5c_generalization::F5cStagedCandidate<'_>,
+            >())
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        let previous_outer = self
+            .flat_staged_outer_capacity
+            .checked_mul(std::mem::size_of::<
+                f5c_generalization::F5cStagedCandidate<'_>,
+            >())
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        let mut total = self
+            .flat_staged_bytes
+            .checked_sub(previous_outer)
+            .and_then(|bytes| bytes.checked_add(outer))
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        if staged.len() < self.flat_staged_members_counted {
+            self.flat_staged_members_counted = 0;
+            total = outer;
+        }
+        for member in staged.iter().skip(self.flat_staged_members_counted) {
+            self.flat_staged_census_members += 1;
+            let draft = &member.candidate.draft;
+            for (capacity, size) in [
+                (
+                    draft.positive_nodes.capacity(),
+                    std::mem::size_of::<f5c_draft::PositiveNode>(),
+                ),
+                (
+                    draft.negative_nodes.capacity(),
+                    std::mem::size_of::<f5c_draft::NegativeNode>(),
+                ),
+                (
+                    draft.positive_children.capacity(),
+                    std::mem::size_of::<f5c_draft::PositiveId>(),
+                ),
+                (
+                    draft.negative_children.capacity(),
+                    std::mem::size_of::<f5c_draft::NegativeId>(),
+                ),
+                (
+                    draft.recursive_bounds.capacity(),
+                    std::mem::size_of::<f5c_draft::RecursiveBound>(),
+                ),
+                (
+                    draft.insertion_order.capacity(),
+                    std::mem::size_of::<f5c_draft::NodeRef>(),
+                ),
+            ] {
+                total = capacity
+                    .checked_mul(size)
+                    .and_then(|bytes| total.checked_add(bytes))
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            }
+        }
+        self.flat_staged_bytes = total;
+        self.flat_staged_outer_capacity = staged.capacity();
+        self.flat_staged_members_counted = staged.len();
+        Ok(())
+    }
+
+    fn reconcile_flat_staged(
+        &mut self,
+        staged: &TrackedVec<'_, f5c_generalization::F5cStagedCandidate<'_>>,
+        meter: &DraftHeapMeter,
+    ) -> Result<(), SolveAvailabilityError> {
+        self.flat_staged_members_counted = 0;
+        self.flat_staged_bytes = self
+            .flat_staged_outer_capacity
+            .checked_mul(std::mem::size_of::<
+                f5c_generalization::F5cStagedCandidate<'_>,
+            >())
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        self.record_flat_staged(staged, meter)
+    }
+
+    fn release_flat_staged(&mut self) {
+        self.flat_staged_bytes = 0;
+        self.flat_staged_members_counted = 0;
+        self.flat_staged_outer_capacity = 0;
+        self.flat_indexed_bytes = 0;
+    }
+
+    fn record_flat_finalizer_peak(
+        &mut self,
+        closed_before: usize,
+        call_peak: usize,
+        source_bytes: usize,
+    ) -> Result<(), SolveAvailabilityError> {
+        let enumerated_source = self
+            .flat_staged_bytes
+            .checked_add(self.flat_indexed_bytes)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        assert_eq!(source_bytes, enumerated_source);
+        let semantic = self
+            .semantic_arena_retained_bytes
+            .checked_sub(closed_before)
+            .and_then(|bytes| bytes.checked_sub(source_bytes))
+            .and_then(|bytes| bytes.checked_add(call_peak))
+            .and_then(|bytes| bytes.checked_add(source_bytes))
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        let session = self
+            .inference_session_retained_bytes
+            .checked_sub(closed_before)
+            .and_then(|bytes| bytes.checked_sub(source_bytes))
+            .and_then(|bytes| bytes.checked_add(call_peak))
+            .and_then(|bytes| bytes.checked_add(source_bytes))
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        self.semantic_arena_peak_bytes = self.semantic_arena_peak_bytes.max(semantic);
+        self.inference_session_peak_bytes = self.inference_session_peak_bytes.max(session);
+        Ok(())
+    }
+
+    fn flat_memo_snapshot_bytes(capacities: &[usize; 20]) -> Result<usize, SolveAvailabilityError> {
+        let sizes = [
+            std::mem::size_of::<(F5cExpansionKey, F5cSummaryNodeId)>(),
+            std::mem::size_of::<F5cSummaryNode>(),
+            std::mem::size_of::<F5cSummaryNodeId>(),
+            std::mem::size_of::<Option<usize>>(),
+            std::mem::size_of::<F5cReverseParentEdge>(),
+            std::mem::size_of::<(u32, Option<usize>)>(),
+            std::mem::size_of::<F5cIncidenceEdge>(),
+            std::mem::size_of::<Option<usize>>(),
+            std::mem::size_of::<F5cRootEdge>(),
+            std::mem::size_of::<u32>(),
+            std::mem::size_of::<F5cRootUndo>(),
+            std::mem::size_of::<(u32, usize)>(),
+            std::mem::size_of::<(F5cExpansionKey, usize)>(),
+            std::mem::size_of::<F5cSummaryNodeId>(),
+            std::mem::size_of::<(F5cExpansionKey, usize)>(),
+            std::mem::size_of::<u32>(),
+            std::mem::size_of::<F5cExpansionFrame>(),
+            std::mem::size_of::<(u32, Polarity, usize)>(),
+            std::mem::size_of::<(u32, Polarity)>(),
+            std::mem::size_of::<u32>(),
+        ];
+        capacities
+            .iter()
+            .zip(sizes)
+            .try_fold(0usize, |sum, (capacity, size)| {
+                capacity
+                    .checked_mul(size)
+                    .and_then(|bytes| sum.checked_add(bytes))
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)
+            })
+    }
+
+    fn flat_walker_snapshot_bytes(
+        capacities: &[usize; 98],
+        value_slot_size: usize,
+    ) -> Result<usize, SolveAvailabilityError> {
+        capacities
+            .iter()
+            .enumerate()
+            .try_fold(0usize, |sum, (index, capacity)| {
+                let kind = F5cWalkerLaneKind::ALL[index];
+                let size = if matches!(kind, F5cWalkerLaneKind::Values) && value_slot_size != 0 {
+                    value_slot_size
+                } else {
+                    kind.slot_size()
+                };
+                capacity
+                    .checked_mul(size)
+                    .and_then(|bytes| sum.checked_add(bytes))
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)
+            })
+    }
+
+    fn flat_normalization_peaks(
+        &self,
+        memo: &F5cComponentExpansionMemo,
+    ) -> Result<(usize, usize), SolveAvailabilityError> {
+        let mut peak = self.flat_normalization_peak_bytes;
+        let mut scratch_peak = self.flat_normalization_scratch_peak_bytes;
+        for sample in &memo.flat_candidate_physical_peaks {
+            let scratch = sample
+                .capacities
+                .iter()
+                .copied()
+                .zip(sample.sizes)
+                .try_fold(0usize, |sum, (capacity, size)| {
+                    capacity
+                        .checked_mul(size)
+                        .and_then(|bytes| sum.checked_add(bytes))
+                })
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            let physical = sample
+                .physical_source_bytes
+                .checked_add(Self::flat_memo_snapshot_bytes(
+                    &sample.physical_memo_capacities,
+                )?)
+                .and_then(|bytes| {
+                    bytes.checked_add(
+                        Self::flat_walker_snapshot_bytes(
+                            &sample.physical_walker_capacities,
+                            sample.physical_walker_value_slot_size,
+                        )
+                        .ok()?,
+                    )
+                })
+                .and_then(|bytes| bytes.checked_add(scratch))
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            assert_eq!(
+                Self::flat_memo_snapshot_bytes(&sample.physical_memo_capacities)?,
+                sample.physical_memo_bytes
+            );
+            assert_eq!(
+                Self::flat_walker_snapshot_bytes(
+                    &sample.physical_walker_capacities,
+                    sample.physical_walker_value_slot_size,
+                )?,
+                sample.physical_base_walker_bytes
+            );
+            let logical = sample
+                .source_bytes
+                .checked_add(sample.memo_bytes)
+                .and_then(|bytes| bytes.checked_add(sample.base_walker_bytes))
+                .and_then(|bytes| bytes.checked_add(scratch))
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            assert_eq!(logical, sample.observed_total_bytes);
+            assert_eq!(sample.physical_source_bytes, sample.source_bytes);
+            assert_eq!(
+                physical, logical,
+                "normalizer base lanes match actual memo/walker capacity"
+            );
+            peak = peak.max(physical);
+            scratch_peak = scratch_peak.max(scratch);
+        }
+        Ok((peak, scratch_peak))
+    }
+
+    fn record_flat_normalization_peaks(
+        &mut self,
+        memo: &F5cComponentExpansionMemo,
+    ) -> Result<(), SolveAvailabilityError> {
+        let (physical, scratch) = self.flat_normalization_peaks(memo)?;
+        self.flat_normalization_peak_bytes = physical;
+        self.flat_normalization_scratch_peak_bytes = scratch;
+        Ok(())
+    }
+
+    fn retain_flat_batch_physical_peaks(&mut self, observed: &Self) {
+        macro_rules! retain_peak {
+            ($field:ident) => {
+                self.$field = self.$field.max(observed.$field);
+            };
+        }
+        retain_peak!(term_peak_bytes);
+        retain_peak!(semantic_arena_peak_bytes);
+        retain_peak!(inference_session_peak_bytes);
+        retain_peak!(component_expansion_memo_peak_bytes);
+        retain_peak!(flat_source_peak_bytes);
+        retain_peak!(flat_transfer_peak_bytes);
+        retain_peak!(flat_normalization_peak_bytes);
+        retain_peak!(flat_normalization_scratch_peak_bytes);
+        retain_peak!(generalization_walker_peak_bytes);
+        retain_peak!(closed_normalization_index_peak_bytes);
+        retain_peak!(instantiation_substitution_peak_bytes);
+        fn retain_lane(lane: &mut IndependentMemoLane, observed: &IndependentMemoLane) {
+            lane.peak_bytes = lane.peak_bytes.max(observed.peak_bytes);
+        }
+        for (lane, observed) in self.term_lanes.iter_mut().zip(&observed.term_lanes) {
+            retain_lane(lane, observed);
+        }
+        for (lane, observed) in self
+            .route_store_lanes
+            .iter_mut()
+            .zip(&observed.route_store_lanes)
+        {
+            retain_lane(lane, observed);
+        }
+        for (lane, observed) in self
+            .route_use_lanes
+            .iter_mut()
+            .zip(&observed.route_use_lanes)
+        {
+            retain_lane(lane, observed);
+        }
+        for (lane, observed) in [
+            (&mut self.source_draft_slots, &observed.source_draft_slots),
+            (&mut self.source_bound_tokens, &observed.source_bound_tokens),
+            (
+                &mut self.source_recursive_bounds,
+                &observed.source_recursive_bounds,
+            ),
+            (
+                &mut self.component_expansion_memo_roots,
+                &observed.component_expansion_memo_roots,
+            ),
+            (
+                &mut self.component_expansion_memo_nodes,
+                &observed.component_expansion_memo_nodes,
+            ),
+            (
+                &mut self.component_expansion_memo_children,
+                &observed.component_expansion_memo_children,
+            ),
+            (
+                &mut self.component_expansion_memo_index,
+                &observed.component_expansion_memo_index,
+            ),
+            (
+                &mut self.component_expansion_memo_scratch,
+                &observed.component_expansion_memo_scratch,
+            ),
+        ] {
+            retain_lane(lane, observed);
+        }
+        for (lane, observed) in self
+            .generalization_walker_lanes
+            .iter_mut()
+            .zip(&observed.generalization_walker_lanes)
+        {
+            retain_lane(lane, observed);
+        }
+        for (lane, observed) in self
+            .closed_normalization_index_lanes
+            .iter_mut()
+            .zip(&observed.closed_normalization_index_lanes)
+        {
+            lane.peak_capacity = lane.peak_capacity.max(observed.peak_capacity);
+            lane.peak_bytes = lane.peak_bytes.max(observed.peak_bytes);
+        }
+        for (lane, observed) in self
+            .instantiation_lanes
+            .iter_mut()
+            .zip(&observed.instantiation_lanes)
+        {
+            retain_lane(lane, observed);
+        }
+    }
+
     fn record_source_recursive_bound_reserves(
         &mut self,
         events: &[(usize, usize, usize)],
@@ -4580,7 +5101,8 @@ impl IndependentResourceLedger {
         let expansion_peak = source_draft_bytes
             .checked_add(retained_bytes.max(walker.independent_simultaneous_memo_peak_bytes))
             .ok_or(SolveAvailabilityError::IdentityExhausted)?
-            .max(physical_peak);
+            .max(physical_peak)
+            .max(self.flat_normalization_peak_bytes);
         self.semantic_arena_peak_bytes = self.semantic_arena_peak_bytes.max(
             self.semantic_arena_retained_bytes
                 .checked_sub(sampled_source_draft_bytes)
@@ -4672,6 +5194,9 @@ impl IndependentResourceLedger {
         let checked = ResourceSampleChecked::new();
         self.coverage |= 1 << (boundary as u8);
         self.samples = checked.add(self.samples, 1);
+        if self.track_flat_boundary_order {
+            self.boundary_order.push(boundary);
+        }
         let queue_bytes = checked.bytes::<TypedWorkItem>(
             typed_worklist.capacity(),
             "F5b independent typed frontier queue",
@@ -5763,6 +6288,14 @@ struct InferenceSession {
     injected_finalization_failure_after: Option<usize>,
     #[cfg(test)]
     successful_finalizations: usize,
+    #[cfg(test)]
+    flat_candidate_enabled: bool,
+    #[cfg(test)]
+    flat_candidate_failure_after: Option<usize>,
+    #[cfg(test)]
+    flat_candidate_normalization_failure_after: Option<usize>,
+    #[cfg(test)]
+    flat_candidate_precommit_failure: Option<FlatCandidatePrecommitFailure>,
     #[cfg(test)]
     ordering_observer: Option<OrderingObserver>,
     #[cfg(test)]
@@ -7522,6 +8055,14 @@ impl InferenceSession {
             injected_finalization_failure_after: None,
             #[cfg(test)]
             successful_finalizations: 0,
+            #[cfg(test)]
+            flat_candidate_enabled: false,
+            #[cfg(test)]
+            flat_candidate_failure_after: None,
+            #[cfg(test)]
+            flat_candidate_normalization_failure_after: None,
+            #[cfg(test)]
+            flat_candidate_precommit_failure: None,
             #[cfg(test)]
             ordering_observer: None,
             #[cfg(test)]
@@ -10704,12 +11245,22 @@ impl InferenceSession {
                 .ok_or(SolveAvailabilityError::IdentityExhausted)?,
         );
         #[cfg(test)]
-        self.resource_ledger
-            .record_component_expansion_memo_with_sampled_source(
+        if self.flat_candidate_enabled {
+            // The SCC checkpoint owns rollback; avoid cloning its growing
+            // boundary history once per staged member.
+            self.resource_ledger.record_component_expansion_memo_inner(
                 memo,
                 source_draft_bytes,
                 sampled_source_draft_bytes,
             )?;
+        } else {
+            self.resource_ledger
+                .record_component_expansion_memo_with_sampled_source(
+                    memo,
+                    source_draft_bytes,
+                    sampled_source_draft_bytes,
+                )?;
+        }
         self.execution_counters
             .component_expansion_memo_requested_slots = total_requested_slots;
         self.execution_counters
@@ -10732,6 +11283,7 @@ impl InferenceSession {
         #[cfg(test)]
         if result.is_err() {
             self.resource_ledger.release_source_draft_slots();
+            self.resource_ledger.release_flat_staged();
         }
         result
     }
@@ -10860,6 +11412,8 @@ impl InferenceSession {
             // `clear` is a reuse boundary: it changes live draft ownership
             // without changing capacity, so sample it independently.
             sample_boundary!(ResourceBoundary::DraftScratchClear)?;
+            macro_rules! boxed_component {
+                () => {{
             let source_meter = DraftHeapMeter::default();
             let mut bound_sidecar = TrackedVec::<TrackedAllocation<'_>>::new(&source_meter);
             let mut generalization_drafts = TrackedVec::new(&source_meter);
@@ -11173,6 +11727,341 @@ impl InferenceSession {
             source_draft_bytes = 0;
             #[cfg(test)]
             self.resource_ledger.release_source_draft_slots();
+                }};
+            }
+            #[cfg(test)]
+            if self.flat_candidate_enabled {
+                self.resource_ledger.track_flat_boundary_order = true;
+                let source_meter = DraftHeapMeter::default();
+                let mut staged =
+                    TrackedVec::<f5c_generalization::F5cStagedCandidate<'_>>::new(&source_meter);
+                let mut memo = F5cComponentExpansionMemo::default();
+                source_meter
+                    .begin_component()
+                    .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                let reservation = staged.try_reserve_exact(members.len());
+                source_draft_bytes = source_meter
+                    .current_bytes()
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                self.resource_ledger
+                    .record_flat_staged(&staged, &source_meter)?;
+                sample_boundary!(ResourceBoundary::SourceDrafts)?;
+                reservation.map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                let sampled_source_draft_bytes = source_draft_bytes;
+                let frozen_bound_epoch = self.execution_counters.scc_execution_component_visits;
+                let batch_checkpoint = memo.begin_flat_batch();
+                let counters_before_batch = self.execution_counters.clone();
+                // The boundary history grows across SCCs. Keep its allocation in
+                // place while checkpointing only the bounded ledger state.
+                let boundary_order = std::mem::take(&mut self.resource_ledger.boundary_order);
+                let boundary_checkpoint = boundary_order.len();
+                let ledger_before_batch = self.resource_ledger.clone();
+                self.resource_ledger.boundary_order = boundary_order;
+                let mut normalization_peaks_reconciled = false;
+                let precommit = (|| -> Result<(), SolveAvailabilityError> {
+                    for member in &members {
+                        self.execution_counters.scc_execution_draft_members += 1;
+                        if let Some(observer) = self.ordering_observer.as_mut() {
+                            observer.record(|| ExecutionEvent::Drafted(member.clone()));
+                        }
+                        let verified = Self::verified_scheme_definition(&self.batch, member);
+                        let position = self
+                            .batch
+                            .root_component_positions
+                            .get(&verified.record.root)
+                            .expect("definition root retains its immutable component recipe")
+                            .component;
+                        let row = self.live_components[position].ordinal as usize;
+                        let admissions_before = memo.root_lane.requested_slots;
+                        let transfers_before = memo.transfer_raw_capacity_samples.len();
+                        let mut generalizer = F5cGeneralizer::with_memo(
+                            self,
+                            &source_meter,
+                            std::mem::take(&mut memo),
+                            frozen_bound_epoch,
+                        );
+                        generalizer.observe_staged_physical_source(
+                            self.resource_ledger.flat_staged_bytes as u128,
+                        );
+                        let (result, returned_memo, hits, uncacheable) =
+                            generalizer.build_and_stage_flat_raw_candidate(row as u32, &mut staged);
+                        memo = returned_memo;
+                        self.resource_ledger
+                            .record_flat_staged(&staged, &source_meter)?;
+                        if memo.transfer_raw_capacity_samples.len() > transfers_before {
+                            self.resource_ledger.record_flat_transfer(&memo)?;
+                        }
+                        result?;
+                        if self.flat_candidate_precommit_failure
+                            == Some(FlatCandidatePrecommitFailure::LedgerAfterStage)
+                        {
+                            self.flat_candidate_precommit_failure = None;
+                            return Err(SolveAvailabilityError::IdentityExhausted);
+                        }
+                        self.execution_counters
+                            .generalization_shared_summary_admissions = self
+                            .execution_counters
+                            .generalization_shared_summary_admissions
+                            .checked_add(
+                                memo.root_lane
+                                    .requested_slots
+                                    .checked_sub(admissions_before)
+                                    .ok_or(SolveAvailabilityError::IdentityExhausted)?,
+                            )
+                            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                        self.execution_counters.generalization_shared_summary_hits = self
+                            .execution_counters
+                            .generalization_shared_summary_hits
+                            .checked_add(hits)
+                            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                        self.execution_counters.generalization_uncacheable_states = self
+                            .execution_counters
+                            .generalization_uncacheable_states
+                            .checked_add(uncacheable)
+                            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                    }
+                    let stats = f5c_normalization::normalize_flat_batch_metered(
+                        &mut memo,
+                        &source_meter,
+                        &mut staged,
+                        self.flat_candidate_normalization_failure_after.take(),
+                    )?;
+                    source_draft_bytes = source_meter
+                        .current_bytes()
+                        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                    self.resource_ledger
+                        .reconcile_flat_staged(&staged, &source_meter)?;
+                    if self.flat_candidate_precommit_failure
+                        == Some(FlatCandidatePrecommitFailure::CounterAfterNormalization)
+                    {
+                        self.flat_candidate_precommit_failure = None;
+                        self.execution_counters.closed_normalized_key_writes = usize::MAX;
+                    }
+                    self.execution_counters.closed_normalized_key_writes = self
+                        .execution_counters
+                        .closed_normalized_key_writes
+                        .checked_add(stats.key_writes)
+                        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                    self.execution_counters
+                        .closed_normalization_child_comparisons = self
+                        .execution_counters
+                        .closed_normalization_child_comparisons
+                        .checked_add(stats.child_comparisons)
+                        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                    self.execution_counters
+                        .closed_normalization_descriptor_words = self
+                        .execution_counters
+                        .closed_normalization_descriptor_words
+                        .checked_add(stats.descriptor_words)
+                        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                    self.execution_counters
+                        .closed_normalization_word_comparisons = self
+                        .execution_counters
+                        .closed_normalization_word_comparisons
+                        .checked_add(stats.word_comparisons)
+                        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                    let resource = stats
+                        .resource
+                        .as_ref()
+                        .expect("batch normalization has resource accounting");
+                    let (index_requests, index_growths) = resource.totals()?;
+                    self.execution_counters
+                        .closed_normalization_index_requested_slots = self
+                        .execution_counters
+                        .closed_normalization_index_requested_slots
+                        .checked_add(index_requests)
+                        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                    self.execution_counters
+                        .closed_normalization_index_capacity_growths = self
+                        .execution_counters
+                        .closed_normalization_index_capacity_growths
+                        .checked_add(index_growths)
+                        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                    self.execution_counters
+                        .closed_normalization_index_actual_capacity = 0;
+                    self.execution_counters
+                        .closed_normalization_index_retained_bytes = 0;
+                    self.execution_counters
+                        .closed_normalization_index_peak_bytes = self
+                        .execution_counters
+                        .closed_normalization_index_peak_bytes
+                        .max(resource.index_peak_bytes);
+                    let semantic_joint = self
+                        .execution_counters
+                        .semantic_arena_retained_bytes
+                        .checked_sub(source_draft_bytes)
+                        .and_then(|bytes| bytes.checked_add(resource.joint_peak_bytes))
+                        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                    let session_joint = self
+                        .execution_counters
+                        .inference_session_retained_bytes
+                        .checked_sub(source_draft_bytes)
+                        .and_then(|bytes| bytes.checked_add(resource.joint_peak_bytes))
+                        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                    self.execution_counters.semantic_arena_peak_bytes = self
+                        .execution_counters
+                        .semantic_arena_peak_bytes
+                        .max(semantic_joint);
+                    self.execution_counters.inference_session_peak_bytes = self
+                        .execution_counters
+                        .inference_session_peak_bytes
+                        .max(session_joint);
+                    self.resource_ledger
+                        .record_flat_normalization_index(resource, source_draft_bytes)?;
+                    memo.capture_component_joint_peak(&source_meter)?;
+                    self.resource_ledger
+                        .record_flat_normalization_peaks(&memo)?;
+                    normalization_peaks_reconciled = true;
+                    self.record_component_expansion_memo_resources_with_source(
+                        &memo,
+                        source_draft_bytes,
+                        sampled_source_draft_bytes,
+                    )?;
+                    // Prepare the authoritative post-release snapshot while
+                    // the memo transaction can still be rolled back.
+                    self.execution_counters
+                        .component_expansion_memo_actual_capacity = 0;
+                    self.execution_counters
+                        .component_expansion_memo_retained_bytes = 0;
+                    self.resource_ledger.record_component_expansion_memo_inner(
+                        &F5cComponentExpansionMemo::default(),
+                        source_draft_bytes,
+                        source_draft_bytes,
+                    )?;
+                    self.execution_counters
+                        .scc_execution_drafts_visible_barriers += 1;
+                    assert_eq!(staged.len(), members.len());
+                    self.resource_ledger.flat_all_drafts_members = staged.len();
+                    self.resource_ledger.flat_all_drafts_bytes =
+                        self.resource_ledger.flat_staged_bytes;
+                    sample_boundary!(ResourceBoundary::AllDrafts)?;
+                    Ok(())
+                })();
+                if let Err(error) = precommit {
+                    staged.clear();
+                    memo.finish_flat_batch(batch_checkpoint, false)?;
+                    self.execution_counters = counters_before_batch;
+                    let mut boundary_order =
+                        std::mem::take(&mut self.resource_ledger.boundary_order);
+                    boundary_order.truncate(boundary_checkpoint);
+                    let observed_ledger =
+                        std::mem::replace(&mut self.resource_ledger, ledger_before_batch);
+                    self.resource_ledger.boundary_order = boundary_order;
+                    self.resource_ledger
+                        .retain_flat_batch_physical_peaks(&observed_ledger);
+                    source_draft_bytes = source_meter
+                        .current_bytes()
+                        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                    memo.capture_component_joint_peak(&source_meter)?;
+                    if !normalization_peaks_reconciled {
+                        self.resource_ledger
+                            .record_flat_normalization_peaks(&memo)?;
+                    }
+                    self.record_component_expansion_memo_resources_with_source(
+                        &memo,
+                        source_draft_bytes,
+                        sampled_source_draft_bytes,
+                    )?;
+                    return Err(error);
+                }
+                memo.finish_flat_batch(batch_checkpoint, true)
+                    .expect("committing a prepared flat batch only truncates its undo log");
+                memo.clear();
+                source_meter
+                    .observe_component_external(0)
+                    .expect("prepared batch release fits the source meter");
+                source_meter
+                    .observe_physical_component_external(0)
+                    .expect("prepared batch release fits the physical source meter");
+                source_meter.end_component();
+                if let Some(observer) = self.ordering_observer.as_mut() {
+                    observer
+                        .record(|| ExecutionEvent::DraftsVisible(component.clone(), staged.len()));
+                }
+                for index in 0..staged.len() {
+                    let old_capacity = self.drafts.capacity();
+                    if self.flat_candidate_failure_after == Some(index) {
+                        self.flat_candidate_failure_after = None;
+                        staged.as_mut_slice()[index].candidate.draft.positive_nodes[0] =
+                            f5c_draft::PositiveNode::Variable(0);
+                    }
+                    let mapped = staged[index].candidate.draft.indexed(&source_meter)?;
+                    source_draft_bytes = source_meter
+                        .current_bytes()
+                        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                    self.resource_ledger
+                        .record_flat_indexed(&staged, &mapped, &source_meter)?;
+                    sample_boundary!(ResourceBoundary::IndexedMapping)?;
+                    let finalized = self
+                        .finalization
+                        .as_mut()
+                        .expect("F4 finalization session remains live before finish")
+                        .finalize_indexed_scheme(mapped.as_ref())
+                        .map_err(Self::map_finalization_error)?;
+                    let (draft, checkpoint) = finalized.into_parts();
+                    assert_eq!(
+                        checkpoint.retained_bytes_before(),
+                        self.current_closed_retained_bytes,
+                        "successful solver finalizations form one uninterrupted accounting epoch"
+                    );
+                    self.resource_ledger.record_flat_finalizer_peak(
+                        self.current_closed_retained_bytes,
+                        checkpoint.peak_bytes_during_call(),
+                        source_draft_bytes,
+                    )?;
+                    let semantic_without_closed = self
+                        .execution_counters
+                        .semantic_arena_retained_bytes
+                        .checked_sub(self.current_closed_retained_bytes)
+                        .and_then(|bytes| bytes.checked_sub(source_draft_bytes))
+                        .expect("latest F4 semantic sample includes closed storage once");
+                    let session_without_closed = self
+                        .execution_counters
+                        .inference_session_retained_bytes
+                        .checked_sub(self.current_closed_retained_bytes)
+                        .and_then(|bytes| bytes.checked_sub(source_draft_bytes))
+                        .expect("latest F4 session sample includes closed storage once");
+                    self.execution_counters.semantic_arena_peak_bytes =
+                        self.execution_counters.semantic_arena_peak_bytes.max(
+                            semantic_without_closed
+                                .checked_add(checkpoint.peak_bytes_during_call())
+                                .and_then(|bytes| bytes.checked_add(source_draft_bytes))
+                                .expect("F4 indexed finalization semantic peak fits usize"),
+                        );
+                    self.execution_counters.inference_session_peak_bytes =
+                        self.execution_counters.inference_session_peak_bytes.max(
+                            session_without_closed
+                                .checked_add(checkpoint.peak_bytes_during_call())
+                                .and_then(|bytes| bytes.checked_add(source_draft_bytes))
+                                .expect("F4 indexed finalization session peak fits usize"),
+                        );
+                    self.current_closed_retained_bytes = checkpoint.retained_bytes_after();
+                    drop(mapped);
+                    self.resource_ledger
+                        .record_flat_staged(&staged, &source_meter)?;
+                    self.drafts.push(DraftScheme(draft));
+                    self.successful_finalizations += 1;
+                    if self.drafts.capacity() != old_capacity {
+                        self.execution_counters.draft_scratch_growths += 1;
+                    }
+                    source_draft_bytes = source_meter
+                        .current_bytes()
+                        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                    sample_boundary!(ResourceBoundary::DraftMember)?;
+                }
+                self.execution_counters.draft_scratch_max_len = self
+                    .execution_counters
+                    .draft_scratch_max_len
+                    .max(self.drafts.len());
+                drop(staged);
+                drop(source_meter);
+                source_draft_bytes = 0;
+                self.resource_ledger.release_flat_staged();
+            } else {
+                boxed_component!();
+            }
+            #[cfg(not(test))]
+            boxed_component!();
             for (ordinal, member) in members.iter().enumerate() {
                 self.execution_counters.scc_execution_draft_lookups += 1;
                 self.execution_counters.scc_execution_finalized_members += 1;

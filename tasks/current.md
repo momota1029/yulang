@@ -4,47 +4,51 @@ Updated: 2026-09-27. Branch: `yulang3`; do not modify frozen `main`.
 
 Resume handoff: [`2026-09-22 F5c scheme-closure handoff`](../notes/handoffs/2026-09-22-f5c-scheme-closure-handoff.md).
 
-### Latest continuation (2026-09-27): per-member memo transaction through SCC staging
+### Latest continuation (2026-09-27): all-member candidate and independent physical ledger
 
-The private `build_and_stage_flat_candidate` owner now retains the normalized
-candidate's raw forest and open memo root transaction through the fallible SCC
-slot transfer. It commits and releases that forest only after the candidate
-has transferred successfully. On stage error it drops only the current member
-and aborts that member's forest, preserving earlier staged candidates and memo
-state. The existing `build_flat_candidate` helper still commits before
-returning, as its focused fixtures require. Production remains on the boxed
-path; `lib.rs` orchestration is not connected yet.
+The test-only SCC candidate now builds and stages every member in dependency
+order, normalizes the batch, converts each flat draft to indexed finalizer
+input, and finalizes members at the existing `AllDrafts` and `DraftMember`
+boundaries. The boxed route remains the production path. A compound
+Q/R Union/Intersection route matches all four public normalization counters,
+per-member indexed alpha parity, member ordering, and the visible-drafts
+barrier. Injected member and normalization failures publish no schemes and
+restore the prior counters and memo transaction.
 
-A two-root witness stages A, injects B's post-transfer observation failure,
-compares semantic memo state with the post-A snapshot, verifies A and source
-ownership survive, then retries B. M2 spec and performance reviews found no
-blocking or major issue. Their minor evidence notes remain assigned to the
-next all-member ledger gate: the composed test does not combine every earlier
-stage/normalization failure with a prior staged member, and independent
-physical-capacity enumeration has not yet reconstructed raw-forest plus
-staged-source coexistence at the transfer event. Static lane accounting
-includes current raw-forest walker capacity in the transfer baseline; no
-resource probe ran.
+The independent physical index ledger now accounts for actual lane capacities
+and output lengths, reconstructs same-time peaks across source, memo, walker,
+staged drafts, indexed mapping, and `yu-types` checkpoints, and reconciles its
+per-lane and aggregate values against the production observer. Output request
+lengths sum once per member. It verifies zero indexed retained capacity only
+after the normalizer owner drops and actual capacities are checked. Precommit
+rollback now retains observed source, raw-transfer, memo/walker, normalization,
+and finalizer physical high-water values while restoring transactional
+counters. Transfer samples are independently censused before propagating an
+injected post-transfer error. A failed fold publishes no partial peak values.
+The test-only sample vectors use O(m) memory; the independent history fold now
+runs once per batch rather than repeatedly scanning earlier samples at each
+member checkpoint. Include diagnostic memory in the §15 process-RSS budget.
+The normalizer observer is indirectly held, preserving the existing 64 KiB
+boxed-normalization stack witness without allocation on that ordinary path.
 
-Checks passed: `RUSTC_WRAPPER= cargo test -p yu-solver --lib
-f5c_flat_walk_sink --offline -- --test-threads=1` (45),
-`RUSTC_WRAPPER= cargo check -p yu-solver --lib --offline`,
-`RUSTC_WRAPPER= cargo check -p yu-solver --tests --offline`,
-`cargo fmt --all -- --check`, and `git diff --check`. The first library check
-exposed a dead-code warning on a test-only wrapper; gating it with `cfg(test)`
-removed the warning, and the library and test-target checks then passed. No
-broad suite, scale/resource/capacity probe, benchmark, or timing measurement
-ran; measurement budget remains zero.
+An initial M2 specification review found that a full history fold reset prior
+SCC maxima and that rollback lost staged-source peaks; both findings are
+repaired. Fresh specification and performance delta reviews found no remaining
+issue in rollback peak retention or fold cost. The focused compiler-referee
+review of the observer stack fix also found no issue. Checks pass:
+`cargo test -p yu-solver --lib f5c_flat_walk_sink --offline
+-- --test-threads=1` (50), the 64 KiB deep boxed-normalization witness, the
+focused emitted-output sum and transferred-member joint-peak tests,
+`cargo check -p yu-solver --lib --offline`, `cargo fmt --all -- --check`, and
+`git diff --check`. No broad
+suite, resource/scale/capacity probe, benchmark, or timing measurement ran;
+the measurement budget remains zero.
 
-Next integrate the consuming stage helper into SCC orchestration: build all
-members in plan order with the same source meter and memo, preserve the
-AllDrafts-before-finalization and DraftMember sampling points, convert and
-finalize each member in order, and independently reconcile all co-resident
-solver, staged, indexed-input, memo/walker, and `yu-types` checkpoint lanes.
-Close the noted transaction/physical evidence gaps there. Review a fresh §15
-measurement plan before any resource, scale, or capacity probe. Numeric
-boundary approval, production cutover, §44, F5e, and overall F5c acceptance
-remain open.
+Next: prepare the fresh §15 measurement plan with workload shapes, exact
+checkpoint/lane observations, per-process timeout, campaign budget, and
+test-only O(m) ledger memory. Obtain `performance_auditor` and primary review
+before any candidate resource, scale, or capacity probe. Numeric boundary
+approval, production cutover, §44, F5e, and overall F5c acceptance remain open.
 
 ### Latest continuation (2026-09-27): checked indexed finalizer conversion
 

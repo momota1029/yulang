@@ -137,7 +137,7 @@ pub(super) struct NormalizationStats {
     pub(super) source_index_joint_peak_bytes: usize,
     pub(super) index_capacity_growths: usize,
     pub(super) index_lanes: [NormalizationLaneStats; LANE_COUNT],
-    candidate_observer: Option<FlatCandidateObserver>,
+    candidate_observer: Option<Box<FlatCandidateObserver>>,
     #[cfg(test)]
     pub(super) physical_lane_capacities: [usize; LANE_COUNT],
     #[cfg(test)]
@@ -152,6 +152,38 @@ pub(super) struct FlatNormalizationStats {
     pub(super) descriptor_words: usize,
     pub(super) word_comparisons: usize,
     pub(super) duplicates: usize,
+    pub(super) resource: Option<FlatNormalizationResource>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(super) struct FlatNormalizationResource {
+    pub(super) lanes: [FlatCandidateLane; FLAT_CANDIDATE_LANE_COUNT],
+    pub(super) index_peak_bytes: usize,
+    #[cfg(test)]
+    pub(super) index_peak_capacities: [usize; FLAT_CANDIDATE_LANE_COUNT],
+    #[cfg(test)]
+    pub(super) index_peak_sizes: [usize; FLAT_CANDIDATE_LANE_COUNT],
+    #[cfg(test)]
+    pub(super) physical_index: FlatPhysicalIndexLedger,
+    pub(super) joint_peak_bytes: usize,
+}
+
+#[cfg(test)]
+impl FlatNormalizationResource {
+    pub(super) fn totals(&self) -> Result<(usize, usize), SolveAvailabilityError> {
+        self.lanes
+            .iter()
+            .try_fold((0usize, 0usize), |(requests, growths), lane| {
+                Ok((
+                    requests
+                        .checked_add(lane.requested_slots)
+                        .ok_or(SolveAvailabilityError::IdentityExhausted)?,
+                    growths
+                        .checked_add(lane.growths)
+                        .ok_or(SolveAvailabilityError::IdentityExhausted)?,
+                ))
+            })
+    }
 }
 
 #[derive(Clone)]
@@ -162,20 +194,193 @@ struct FlatCandidateCapacity {
     work: super::f5c_generalization::F5cDraftWorkMeter,
     base_memo_bytes: usize,
     base_walker_bytes: usize,
+    #[cfg(test)]
+    physical_base_memo_bytes: usize,
+    #[cfg(test)]
+    physical_base_walker_bytes: usize,
+    #[cfg(test)]
+    physical_memo_capacities: [usize; 20],
+    #[cfg(test)]
+    physical_walker_capacities: [usize; 98],
+    #[cfg(test)]
+    physical_walker_value_slot_size: usize,
     source_bytes: usize,
-    capacities: [usize; LANE_COUNT + 14],
-    sizes: [usize; LANE_COUNT + 14],
-    lane_observations: [usize; LANE_COUNT + 14],
-    lane_requested_slots: [usize; LANE_COUNT + 14],
-    lane_growths: [usize; LANE_COUNT + 14],
-    lane_peaks: [usize; LANE_COUNT + 14],
+    #[cfg(test)]
+    physical_source_bytes: usize,
+    capacities: [usize; LANE_COUNT + 15],
+    sizes: [usize; LANE_COUNT + 15],
+    lane_observations: [usize; LANE_COUNT + 15],
+    lane_requested_slots: [usize; LANE_COUNT + 15],
+    member_output_lengths: [usize; 6],
+    lane_growths: [usize; LANE_COUNT + 15],
+    lane_peaks: [usize; LANE_COUNT + 15],
+    index_peak_bytes: usize,
+    #[cfg(test)]
+    index_peak_capacities: [usize; FLAT_CANDIDATE_LANE_COUNT],
+    #[cfg(test)]
+    index_peak_sizes: [usize; FLAT_CANDIDATE_LANE_COUNT],
     peak_walker_bytes: usize,
     peak_total_bytes: usize,
+    #[cfg(test)]
+    physical_peak: Option<FlatCandidatePhysicalPeak>,
+    #[cfg(test)]
+    physical_index: FlatPhysicalIndexLedger,
 }
 
-pub(super) const FLAT_CANDIDATE_LANE_COUNT: usize = LANE_COUNT + 14;
+#[cfg(test)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub(super) struct FlatPhysicalIndexLedger {
+    pub(super) capacities: [usize; FLAT_CANDIDATE_LANE_COUNT],
+    sizes: [usize; FLAT_CANDIDATE_LANE_COUNT],
+    requests: [usize; FLAT_CANDIDATE_LANE_COUNT],
+    member_output_lengths: [usize; 6],
+    output_member_samples: Vec<[usize; 6]>,
+    growths: [usize; FLAT_CANDIDATE_LANE_COUNT],
+    lane_peaks: [usize; FLAT_CANDIDATE_LANE_COUNT],
+    peak_capacities: [usize; FLAT_CANDIDATE_LANE_COUNT],
+    peak_sizes: [usize; FLAT_CANDIDATE_LANE_COUNT],
+    peak_bytes: usize,
+    joint_peak_bytes: usize,
+    joint_observations: usize,
+}
 
-#[derive(Clone, Copy, Default)]
+#[cfg(test)]
+impl FlatPhysicalIndexLedger {
+    fn record_output(
+        &mut self,
+        offset: usize,
+        capacity: usize,
+        size: usize,
+        length: usize,
+    ) -> Result<(), SolveAvailabilityError> {
+        let delta = length
+            .checked_sub(self.member_output_lengths[offset])
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        self.record(LANE_COUNT + 8 + offset, capacity, size, delta)?;
+        self.member_output_lengths[offset] = length;
+        Ok(())
+    }
+
+    fn handoff_member(&mut self) -> Result<(), SolveAvailabilityError> {
+        self.output_member_samples.push(self.member_output_lengths);
+        self.member_output_lengths = [0; 6];
+        self.clear(LANE_COUNT + 5..LANE_COUNT + 14)
+    }
+
+    fn release_after_normalizer_drop(&mut self) -> Result<(), SolveAvailabilityError> {
+        self.output_member_samples.push(self.member_output_lengths);
+        self.member_output_lengths = [0; 6];
+        self.clear(0..FLAT_CANDIDATE_LANE_COUNT)
+    }
+
+    fn record(
+        &mut self,
+        lane: usize,
+        capacity: usize,
+        size: usize,
+        request: usize,
+    ) -> Result<(), SolveAvailabilityError> {
+        self.requests[lane] = self.requests[lane]
+            .checked_add(request)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        if self.capacities[lane] != capacity {
+            self.growths[lane] = self.growths[lane]
+                .checked_add(1)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        }
+        self.capacities[lane] = capacity;
+        self.sizes[lane] = size;
+        self.lane_peaks[lane] = self.lane_peaks[lane].max(capacity);
+        let current = self.capacities.iter().zip(self.sizes.iter()).try_fold(
+            0usize,
+            |sum, (capacity, size)| {
+                sum.checked_add(
+                    capacity
+                        .checked_mul(*size)
+                        .ok_or(SolveAvailabilityError::IdentityExhausted)?,
+                )
+                .ok_or(SolveAvailabilityError::IdentityExhausted)
+            },
+        )?;
+        if current > self.peak_bytes {
+            self.peak_bytes = current;
+            self.peak_capacities = self.capacities;
+            self.peak_sizes = self.sizes;
+        }
+        Ok(())
+    }
+
+    fn clear(&mut self, lanes: std::ops::Range<usize>) -> Result<(), SolveAvailabilityError> {
+        for lane in lanes {
+            self.capacities[lane] = 0;
+        }
+        Ok(())
+    }
+
+    fn observe_joint(
+        &mut self,
+        source: usize,
+        memo: usize,
+        walker: usize,
+    ) -> Result<(), SolveAvailabilityError> {
+        let current_index =
+            self.capacities
+                .iter()
+                .zip(self.sizes)
+                .try_fold(0usize, |sum, (capacity, size)| {
+                    capacity
+                        .checked_mul(size)
+                        .and_then(|bytes| sum.checked_add(bytes))
+                        .ok_or(SolveAvailabilityError::IdentityExhausted)
+                })?;
+        let joint = source
+            .checked_add(memo)
+            .and_then(|bytes| bytes.checked_add(walker))
+            .and_then(|bytes| bytes.checked_add(current_index))
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        self.joint_peak_bytes = self.joint_peak_bytes.max(joint);
+        self.joint_observations = self
+            .joint_observations
+            .checked_add(1)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        Ok(())
+    }
+
+    fn independently_derived_peak(&self) -> Result<usize, SolveAvailabilityError> {
+        self.peak_capacities
+            .iter()
+            .zip(self.peak_sizes.iter())
+            .try_fold(0usize, |sum, (capacity, size)| {
+                sum.checked_add(
+                    capacity
+                        .checked_mul(*size)
+                        .ok_or(SolveAvailabilityError::IdentityExhausted)?,
+                )
+                .ok_or(SolveAvailabilityError::IdentityExhausted)
+            })
+    }
+}
+
+#[cfg(test)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(super) struct FlatCandidatePhysicalPeak {
+    pub(super) source_bytes: usize,
+    pub(super) physical_source_bytes: usize,
+    pub(super) memo_bytes: usize,
+    pub(super) base_walker_bytes: usize,
+    pub(super) physical_memo_bytes: usize,
+    pub(super) physical_base_walker_bytes: usize,
+    pub(super) physical_memo_capacities: [usize; 20],
+    pub(super) physical_walker_capacities: [usize; 98],
+    pub(super) physical_walker_value_slot_size: usize,
+    pub(super) capacities: [usize; FLAT_CANDIDATE_LANE_COUNT],
+    pub(super) sizes: [usize; FLAT_CANDIDATE_LANE_COUNT],
+    pub(super) observed_total_bytes: usize,
+}
+
+pub(super) const FLAT_CANDIDATE_LANE_COUNT: usize = LANE_COUNT + 15;
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub(super) struct FlatCandidateLane {
     pub(super) observations: usize,
     /// Additional slots requested by reserves, or emitted slots for an output lane.
@@ -199,11 +404,21 @@ impl FlatCandidateCapacity {
                     .ok_or(SolveAvailabilityError::IdentityExhausted)
             },
         )?;
+        if scratch > self.index_peak_bytes {
+            self.index_peak_bytes = scratch;
+            #[cfg(test)]
+            {
+                self.index_peak_capacities = self.capacities;
+                self.index_peak_sizes = self.sizes;
+            }
+        }
         let walker = self
             .base_walker_bytes
             .checked_add(scratch)
             .ok_or(SolveAvailabilityError::IdentityExhausted)?;
         self.peak_walker_bytes = self.peak_walker_bytes.max(walker);
+        #[cfg(test)]
+        let prior_peak = self.peak_total_bytes;
         self.peak_total_bytes = self.peak_total_bytes.max(
             self.source_bytes
                 .checked_add(self.base_memo_bytes)
@@ -211,6 +426,34 @@ impl FlatCandidateCapacity {
                 .checked_add(walker)
                 .ok_or(SolveAvailabilityError::IdentityExhausted)?,
         );
+        #[cfg(test)]
+        self.physical_index.observe_joint(
+            self.physical_source_bytes,
+            super::IndependentResourceLedger::flat_memo_snapshot_bytes(
+                &self.physical_memo_capacities,
+            )?,
+            super::IndependentResourceLedger::flat_walker_snapshot_bytes(
+                &self.physical_walker_capacities,
+                self.physical_walker_value_slot_size,
+            )?,
+        )?;
+        #[cfg(test)]
+        if self.peak_total_bytes > prior_peak {
+            self.physical_peak = Some(FlatCandidatePhysicalPeak {
+                source_bytes: self.source_bytes,
+                physical_source_bytes: self.physical_source_bytes,
+                memo_bytes: self.base_memo_bytes,
+                base_walker_bytes: self.base_walker_bytes,
+                physical_memo_bytes: self.physical_base_memo_bytes,
+                physical_base_walker_bytes: self.physical_base_walker_bytes,
+                physical_memo_capacities: self.physical_memo_capacities,
+                physical_walker_capacities: self.physical_walker_capacities,
+                physical_walker_value_slot_size: self.physical_walker_value_slot_size,
+                capacities: self.capacities,
+                sizes: self.sizes,
+                observed_total_bytes: self.peak_total_bytes,
+            });
+        }
         Ok(())
     }
 }
@@ -229,6 +472,7 @@ impl PartialEq for FlatCandidateObserver {
             && self.0.lane_requested_slots == other.0.lane_requested_slots
             && self.0.lane_growths == other.0.lane_growths
             && self.0.lane_peaks == other.0.lane_peaks
+            && self.0.index_peak_bytes == other.0.index_peak_bytes
             && self.0.peak_walker_bytes == other.0.peak_walker_bytes
             && self.0.peak_total_bytes == other.0.peak_total_bytes
             && self.0.source_bytes == other.0.source_bytes
@@ -239,6 +483,87 @@ impl PartialEq for FlatCandidateObserver {
 impl Eq for FlatCandidateObserver {}
 
 impl FlatCandidateObserver {
+    fn index_resource(&self) -> Result<FlatNormalizationResource, SolveAvailabilityError> {
+        let state = &self.0;
+        let mut lanes = [FlatCandidateLane::default(); FLAT_CANDIDATE_LANE_COUNT];
+        for index in 0..FLAT_CANDIDATE_LANE_COUNT {
+            let lane = FlatCandidateLane {
+                observations: state.lane_observations[index],
+                requested_slots: state.lane_requested_slots[index],
+                growths: state.lane_growths[index],
+                peak_capacity: state.lane_peaks[index],
+                slot_size: state.sizes[index],
+            };
+            lanes[index] = lane;
+        }
+        Ok(FlatNormalizationResource {
+            lanes,
+            index_peak_bytes: state.index_peak_bytes,
+            #[cfg(test)]
+            index_peak_capacities: state.index_peak_capacities,
+            #[cfg(test)]
+            index_peak_sizes: state.index_peak_sizes,
+            #[cfg(test)]
+            physical_index: state.physical_index.clone(),
+            joint_peak_bytes: state.peak_total_bytes,
+        })
+    }
+
+    fn release_collect_scratch(&mut self) -> Result<(), SolveAvailabilityError> {
+        #[cfg(test)]
+        self.0.physical_index.clear(LANE_COUNT..LANE_COUNT + 3)?;
+        for lane in LANE_COUNT..LANE_COUNT + 3 {
+            self.0.capacities[lane] = 0;
+        }
+        self.0.refresh_peak()
+    }
+
+    #[allow(dead_code)] // The private batch path is selected only by test orchestration.
+    fn handoff_member(
+        &mut self,
+        memo: &super::F5cComponentExpansionMemo,
+        source_meter: &DraftHeapMeter,
+        old_member_bytes: usize,
+        new_member_bytes: usize,
+    ) -> Result<(), SolveAvailabilityError> {
+        #[cfg(test)]
+        self.0.physical_index.handoff_member()?;
+        for lane in LANE_COUNT + 5..LANE_COUNT + 14 {
+            self.0.capacities[lane] = 0;
+        }
+        self.0.member_output_lengths = [0; 6];
+        self.0.source_bytes = source_meter
+            .current_bytes()
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        #[cfg(test)]
+        {
+            self.0.physical_source_bytes = self
+                .0
+                .physical_source_bytes
+                .checked_sub(old_member_bytes)
+                .and_then(|bytes| bytes.checked_add(new_member_bytes))
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        }
+        #[cfg(not(test))]
+        let _ = (old_member_bytes, new_member_bytes);
+        self.0.base_memo_bytes = memo.retained_bytes()?;
+        self.0.base_walker_bytes = memo.walker_resources.retained_bytes()?;
+        #[cfg(test)]
+        {
+            self.0.physical_base_memo_bytes = memo.retained_bytes()?;
+            self.0.physical_base_walker_bytes =
+                usize::try_from(memo.walker_resources.physical_walker_bytes())
+                    .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+            self.0.physical_memo_capacities = memo.live_capacity_snapshot();
+            self.0.physical_walker_capacities = memo
+                .walker_resources
+                .independent_lanes
+                .map(|lane| lane.actual_capacity);
+            self.0.physical_walker_value_slot_size = memo.walker_resources.value_slot_size;
+        }
+        self.0.refresh_peak()
+    }
+
     fn preflight_requested(
         &self,
         lane: usize,
@@ -261,6 +586,10 @@ impl FlatCandidateObserver {
         slot_size: usize,
         work: usize,
     ) -> Result<(), SolveAvailabilityError> {
+        #[cfg(test)]
+        self.0
+            .physical_index
+            .record(lane, capacity, slot_size, work)?;
         let state = &mut self.0;
         let requested = state.lane_requested_slots[lane]
             .checked_add(work)
@@ -326,9 +655,19 @@ impl FlatCandidateObserver {
             ),
         ] {
             let lane = LANE_COUNT + 8 + offset;
+            let delta = requested
+                .checked_sub(state.member_output_lengths[offset])
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            state.lane_requested_slots[lane] = state.lane_requested_slots[lane]
+                .checked_add(delta)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            state.member_output_lengths[offset] = requested;
+            #[cfg(test)]
+            state
+                .physical_index
+                .record_output(offset, capacity, size, requested)?;
             state.capacities[lane] = capacity;
             state.sizes[lane] = size;
-            state.lane_requested_slots[lane] = state.lane_requested_slots[lane].max(requested);
         }
         state.refresh_peak()?;
         for lane in LANE_COUNT + 8..LANE_COUNT + 14 {
@@ -354,6 +693,7 @@ impl From<&NormalizationStats> for FlatNormalizationStats {
             descriptor_words: stats.descriptor_words,
             word_comparisons: stats.word_comparisons,
             duplicates: stats.duplicates,
+            resource: None,
         }
     }
 }
@@ -1530,7 +1870,7 @@ fn compare_descriptors(
             .ok_or(SolveAvailabilityError::IdentityExhausted)?,
         &mut stats.word_comparisons,
         #[cfg(test)]
-        stats.candidate_observer.as_mut(),
+        stats.candidate_observer.as_deref_mut(),
     )
 }
 
@@ -2040,7 +2380,7 @@ fn reserve_flat_candidate<T>(
     items: &mut Vec<T>,
     additional: usize,
     lane: usize,
-    observer: &mut Option<FlatCandidateObserver>,
+    observer: &mut Option<Box<FlatCandidateObserver>>,
 ) -> Result<(), SolveAvailabilityError> {
     if let Some(observer) = observer.as_ref() {
         observer.preflight_requested(lane, additional)?;
@@ -2054,7 +2394,7 @@ fn reserve_flat_candidate<T>(
 
 fn observe_flat_output(
     output: &FlatDraft,
-    observer: &mut Option<FlatCandidateObserver>,
+    observer: &mut Option<Box<FlatCandidateObserver>>,
 ) -> Result<(), SolveAvailabilityError> {
     if let Some(observer) = observer.as_mut() {
         observer.observe_output(output)?;
@@ -2075,22 +2415,7 @@ pub(super) fn normalize_flat_metered(
     input: &FlatDraft,
     #[cfg(test)] fail_after_selection_work: bool,
 ) -> Result<(FlatDraft, FlatNormalizationStats), SolveAvailabilityError> {
-    let observer = FlatCandidateObserver(FlatCandidateCapacity {
-        work: memo.work_meter.clone(),
-        base_memo_bytes: memo.retained_bytes()?,
-        base_walker_bytes: memo.walker_resources.retained_bytes()?,
-        source_bytes: source_meter
-            .current_bytes()
-            .ok_or(SolveAvailabilityError::IdentityExhausted)?,
-        capacities: [0; LANE_COUNT + 14],
-        sizes: [0; LANE_COUNT + 14],
-        lane_observations: [0; LANE_COUNT + 14],
-        lane_requested_slots: [0; LANE_COUNT + 14],
-        lane_growths: [0; LANE_COUNT + 14],
-        lane_peaks: [0; LANE_COUNT + 14],
-        peak_walker_bytes: 0,
-        peak_total_bytes: 0,
-    });
+    let observer = new_flat_candidate_observer(memo, source_meter, None)?;
     let selection_work = input
         .positive_nodes
         .len()
@@ -2105,9 +2430,271 @@ pub(super) fn normalize_flat_metered(
         memo.work_meter.set(usize::MAX);
     }
     let (result, observer) = normalize_flat_inner(input, Some(observer));
+    complete_flat_candidate_observer(memo, observer, false)?;
+    result
+}
+
+/// Rank every staged member in one descriptor universe, then hand off each
+/// projected flat output before allocating the next one.
+#[allow(dead_code)]
+pub(super) fn normalize_flat_batch_metered<'meter>(
+    memo: &mut super::F5cComponentExpansionMemo,
+    source_meter: &'meter DraftHeapMeter,
+    staged: &mut TrackedVec<'meter, super::f5c_generalization::F5cStagedCandidate<'meter>>,
+    #[cfg(test)] fail_after_output: Option<usize>,
+) -> Result<FlatNormalizationStats, SolveAvailabilityError> {
+    let mut normalizer = Normalizer::new();
+    normalizer.stats.candidate_observer = Some(Box::new(new_flat_candidate_observer(
+        memo,
+        source_meter,
+        Some(staged),
+    )?));
+    let result = (|| {
+        for member in staged.iter() {
+            let input = &member.candidate.draft;
+            let work = input
+                .positive_nodes
+                .len()
+                .checked_add(input.negative_nodes.len())
+                .and_then(|n| n.checked_add(input.positive_children.len()))
+                .and_then(|n| n.checked_add(input.negative_children.len()))
+                .and_then(|n| n.checked_add(input.recursive_bounds.len()))
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            if let Some(observer) = &normalizer.stats.candidate_observer {
+                observer.charge(work)?;
+            }
+            collect_flat_member(input, &mut normalizer)?;
+        }
+        normalizer.rank_all()?;
+        prepare_flat_representatives(&mut normalizer)?;
+        let roots = std::mem::take(&mut normalizer.roots);
+        let mut start = 0;
+        let mut mapped = Vec::new();
+        reserve_flat_candidate(
+            &mut mapped,
+            normalizer.nodes.len(),
+            LANE_COUNT + 4,
+            &mut normalizer.stats.candidate_observer,
+        )?;
+        mapped.resize(normalizer.nodes.len(), None::<BuiltRef>);
+        let mut touched = Vec::new();
+        for index in 0..staged.len() {
+            let Some(Root {
+                location: RootLocation::Predicate(q),
+                ..
+            }) = roots.get(start)
+            else {
+                return Err(SolveAvailabilityError::IdentityExhausted);
+            };
+            let q = u32::try_from(*q).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+            let mut end = start + 1;
+            while end < roots.len() && !matches!(roots[end].location, RootLocation::Predicate(_)) {
+                end += 1;
+            }
+            if (end - start - 1) % 2 != 0 {
+                return Err(SolveAvailabilityError::IdentityExhausted);
+            }
+            let output = rebuild_flat_member_with_map(
+                &mut normalizer,
+                &roots[start..end],
+                q,
+                &mut mapped,
+                &mut touched,
+            )?;
+            #[cfg(test)]
+            let old_member_bytes = physical_member_bytes(&staged[index].candidate.draft)?;
+            memo.replace_flat_batch_member(
+                source_meter,
+                &mut staged.as_mut_slice()[index],
+                output,
+            )?;
+            if let Some(observer) = &mut normalizer.stats.candidate_observer {
+                #[cfg(test)]
+                let new_member_bytes = physical_member_bytes(&staged[index].candidate.draft)?;
+                observer.handoff_member(
+                    memo,
+                    source_meter,
+                    #[cfg(test)]
+                    old_member_bytes,
+                    #[cfg(test)]
+                    new_member_bytes,
+                    #[cfg(not(test))]
+                    0,
+                    #[cfg(not(test))]
+                    0,
+                )?;
+            }
+            #[cfg(test)]
+            if fail_after_output == Some(index) {
+                return Err(SolveAvailabilityError::IdentityExhausted);
+            }
+            for &id in &touched {
+                mapped[id] = None;
+            }
+            touched.clear();
+            start = end;
+        }
+        if start != roots.len() {
+            return Err(SolveAvailabilityError::IdentityExhausted);
+        }
+        Ok(FlatNormalizationStats::from(&normalizer.stats))
+    })();
+    let observer = normalizer.stats.candidate_observer.take();
+    drop(normalizer);
+    let observer = *observer.expect("batch normalizer retains its observer");
+    #[cfg(test)]
+    let mut observer = observer;
+    #[cfg(test)]
+    observer.0.physical_index.release_after_normalizer_drop()?;
+    let resource = observer.index_resource()?;
+    complete_flat_candidate_observer(memo, Some(observer), true)?;
+    result.map(|mut stats| {
+        stats.resource = Some(resource);
+        stats
+    })
+}
+
+#[cfg(test)]
+fn physical_staged_bytes(
+    staged: &TrackedVec<'_, super::f5c_generalization::F5cStagedCandidate<'_>>,
+) -> Result<usize, SolveAvailabilityError> {
+    let mut total = staged
+        .capacity()
+        .checked_mul(std::mem::size_of::<
+            super::f5c_generalization::F5cStagedCandidate<'_>,
+        >())
+        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+    for member in staged.iter() {
+        total = total
+            .checked_add(physical_member_bytes(&member.candidate.draft)?)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+    }
+    Ok(total)
+}
+
+#[cfg(test)]
+fn physical_member_bytes(draft: &FlatDraft) -> Result<usize, SolveAvailabilityError> {
+    let mut total = 0usize;
+    for (capacity, size) in [
+        (
+            draft.positive_nodes.capacity(),
+            std::mem::size_of::<super::f5c_draft::PositiveNode>(),
+        ),
+        (
+            draft.negative_nodes.capacity(),
+            std::mem::size_of::<super::f5c_draft::NegativeNode>(),
+        ),
+        (
+            draft.positive_children.capacity(),
+            std::mem::size_of::<super::f5c_draft::PositiveId>(),
+        ),
+        (
+            draft.negative_children.capacity(),
+            std::mem::size_of::<super::f5c_draft::NegativeId>(),
+        ),
+        (
+            draft.recursive_bounds.capacity(),
+            std::mem::size_of::<super::f5c_draft::RecursiveBound>(),
+        ),
+        (
+            draft.insertion_order.capacity(),
+            std::mem::size_of::<super::f5c_draft::NodeRef>(),
+        ),
+    ] {
+        total = total
+            .checked_add(
+                capacity
+                    .checked_mul(size)
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)?,
+            )
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+    }
+    Ok(total)
+}
+
+fn new_flat_candidate_observer(
+    memo: &super::F5cComponentExpansionMemo,
+    source_meter: &DraftHeapMeter,
+    staged: Option<&TrackedVec<'_, super::f5c_generalization::F5cStagedCandidate<'_>>>,
+) -> Result<FlatCandidateObserver, SolveAvailabilityError> {
+    #[cfg(not(test))]
+    let _ = staged;
+    Ok(FlatCandidateObserver(FlatCandidateCapacity {
+        work: memo.work_meter.clone(),
+        base_memo_bytes: memo.retained_bytes()?,
+        base_walker_bytes: memo.walker_resources.retained_bytes()?,
+        #[cfg(test)]
+        physical_base_memo_bytes: memo.retained_bytes()?,
+        #[cfg(test)]
+        physical_base_walker_bytes: usize::try_from(memo.walker_resources.physical_walker_bytes())
+            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
+        #[cfg(test)]
+        physical_memo_capacities: memo.live_capacity_snapshot(),
+        #[cfg(test)]
+        physical_walker_capacities: memo
+            .walker_resources
+            .independent_lanes
+            .map(|lane| lane.actual_capacity),
+        #[cfg(test)]
+        physical_walker_value_slot_size: memo.walker_resources.value_slot_size,
+        #[cfg(test)]
+        physical_source_bytes: if let Some(staged) = staged {
+            physical_staged_bytes(staged)?
+        } else {
+            source_meter
+                .current_bytes()
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?
+        },
+        source_bytes: source_meter
+            .current_bytes()
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?,
+        capacities: [0; LANE_COUNT + 15],
+        sizes: [0; LANE_COUNT + 15],
+        lane_observations: [0; LANE_COUNT + 15],
+        lane_requested_slots: [0; LANE_COUNT + 15],
+        member_output_lengths: [0; 6],
+        lane_growths: [0; LANE_COUNT + 15],
+        lane_peaks: [0; LANE_COUNT + 15],
+        index_peak_bytes: 0,
+        #[cfg(test)]
+        index_peak_capacities: [0; FLAT_CANDIDATE_LANE_COUNT],
+        #[cfg(test)]
+        index_peak_sizes: [0; FLAT_CANDIDATE_LANE_COUNT],
+        peak_walker_bytes: 0,
+        peak_total_bytes: 0,
+        #[cfg(test)]
+        physical_peak: None,
+        #[cfg(test)]
+        physical_index: FlatPhysicalIndexLedger::default(),
+    }))
+}
+
+fn complete_flat_candidate_observer(
+    memo: &mut super::F5cComponentExpansionMemo,
+    observer: Option<FlatCandidateObserver>,
+    index_family: bool,
+) -> Result<(), SolveAvailabilityError> {
     let state = observer
         .expect("candidate observer remains owned by normalizer")
         .0;
+    if index_family {
+        let requests = state
+            .lane_requested_slots
+            .iter()
+            .try_fold(0usize, |sum, count| {
+                sum.checked_add(*count)
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)
+            })?;
+        memo.walker_resources.flat_batch_excluded_requests = memo
+            .walker_resources
+            .flat_batch_excluded_requests
+            .checked_add(requests)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+    }
+    #[cfg(test)]
+    if let Some(physical) = state.physical_peak.clone() {
+        memo.flat_candidate_physical_peaks.push(physical);
+    }
     let mut merged_lanes = [FlatCandidateLane::default(); FLAT_CANDIDATE_LANE_COUNT];
     for lane in 0..FLAT_CANDIDATE_LANE_COUNT {
         let retained = memo.walker_resources.flat_candidate_lanes[lane];
@@ -2130,10 +2717,6 @@ pub(super) fn normalize_flat_metered(
             retained.slot_size
         };
     }
-    memo.walker_resources.peak_bytes = memo
-        .walker_resources
-        .peak_bytes
-        .max(state.peak_walker_bytes);
     memo.walker_resources.simultaneous_memo_peak_bytes = memo
         .walker_resources
         .simultaneous_memo_peak_bytes
@@ -2143,7 +2726,7 @@ pub(super) fn normalize_flat_metered(
         .simultaneous_source_memo_peak_bytes
         .max(state.peak_total_bytes);
     memo.walker_resources.flat_candidate_lanes = merged_lanes;
-    result
+    Ok(())
 }
 
 fn normalize_flat_inner(
@@ -2154,15 +2737,34 @@ fn normalize_flat_inner(
     Option<FlatCandidateObserver>,
 ) {
     let mut normalizer = Normalizer::new();
-    normalizer.stats.candidate_observer = observer;
+    normalizer.stats.candidate_observer = observer.map(Box::new);
     let result = normalize_flat_inner_work(input, &mut normalizer);
-    (result, normalizer.stats.candidate_observer.take())
+    (
+        result,
+        normalizer
+            .stats
+            .candidate_observer
+            .take()
+            .map(|observer| *observer),
+    )
 }
 
 fn normalize_flat_inner_work(
     input: &FlatDraft,
     normalizer: &mut Normalizer,
 ) -> Result<(FlatDraft, FlatNormalizationStats), SolveAvailabilityError> {
+    collect_flat_member(input, normalizer)?;
+    normalizer.rank_all()?;
+    prepare_flat_representatives(normalizer)?;
+    let roots = std::mem::take(&mut normalizer.roots);
+    let result = rebuild_flat_member(normalizer, &roots, input.quantifier_count);
+    result.map(|output| (output, FlatNormalizationStats::from(&normalizer.stats)))
+}
+
+fn collect_flat_member(
+    input: &FlatDraft,
+    normalizer: &mut Normalizer,
+) -> Result<(), SolveAvailabilityError> {
     let bad = SolveAvailabilityError::IdentityExhausted;
     let mut positives = Vec::new();
     let mut negatives = Vec::new();
@@ -2307,25 +2909,31 @@ fn normalize_flat_inner_work(
         return Err(bad);
     }
     let predicate = mapped_source_node(&positives, input.predicate.ok_or(bad)?.0)?;
-    let mut roots = Vec::new();
-    reserve_flat_candidate(
-        &mut roots,
-        input
-            .recursive_bounds
-            .len()
-            .checked_mul(2)
-            .and_then(|n| n.checked_add(1))
-            .ok_or(bad)?,
-        LANE_COUNT + 3,
-        &mut normalizer.stats.candidate_observer,
+    normalizer.add_root(
+        BuiltRef::Positive(predicate),
+        RootLocation::Predicate(input.quantifier_count as usize),
     )?;
-    roots.push(predicate);
-    for bound in &input.recursive_bounds {
-        roots.push(mapped_source_node(&positives, bound.lower.0)?);
-        roots.push(mapped_source_node(&negatives, bound.upper.0)?);
+    for (index, bound) in input.recursive_bounds.iter().enumerate() {
+        normalizer.add_root(
+            BuiltRef::Positive(mapped_source_node(&positives, bound.lower.0)?),
+            RootLocation::Lower(0, index),
+        )?;
+        normalizer.add_root(
+            BuiltRef::Negative(mapped_source_node(&negatives, bound.upper.0)?),
+            RootLocation::Upper(0, index),
+        )?;
     }
-    normalizer.rank_all()?;
+    drop(positives);
+    drop(negatives);
+    drop(children);
+    if let Some(observer) = &mut normalizer.stats.candidate_observer {
+        observer.release_collect_scratch()?;
+    }
+    Ok(())
+}
 
+fn prepare_flat_representatives(normalizer: &mut Normalizer) -> Result<(), SolveAvailabilityError> {
+    let bad = SolveAvailabilityError::IdentityExhausted;
     // Reuse the normalizer's sort scratch as a canonical NodeId -> representative
     // map. `rank_all` leaves `height_nodes` ordered by height and descriptor,
     // with equal normalized keys adjacent within each height group.
@@ -2345,10 +2953,14 @@ fn normalize_flat_inner_work(
         }
     }
 
-    let mut output = FlatDraft {
-        quantifier_count: input.quantifier_count,
-        ..FlatDraft::default()
-    };
+    Ok(())
+}
+
+fn rebuild_flat_member(
+    normalizer: &mut Normalizer,
+    roots: &[Root],
+    q_count: u32,
+) -> Result<FlatDraft, SolveAvailabilityError> {
     let mut mapped = Vec::new();
     reserve_flat_candidate(
         &mut mapped,
@@ -2357,10 +2969,27 @@ fn normalize_flat_inner_work(
         &mut normalizer.stats.candidate_observer,
     )?;
     mapped.resize(normalizer.nodes.len(), None::<BuiltRef>);
+    let mut touched = Vec::new();
+    rebuild_flat_member_with_map(normalizer, roots, q_count, &mut mapped, &mut touched)
+}
+
+fn rebuild_flat_member_with_map(
+    normalizer: &mut Normalizer,
+    roots: &[Root],
+    q_count: u32,
+    mapped: &mut Vec<Option<BuiltRef>>,
+    touched: &mut Vec<usize>,
+) -> Result<FlatDraft, SolveAvailabilityError> {
+    let bad = SolveAvailabilityError::IdentityExhausted;
+    let mut output = FlatDraft {
+        quantifier_count: q_count,
+        ..FlatDraft::default()
+    };
     let mut work = Vec::new();
     let mut positive_scratch = Vec::new();
     let mut negative_scratch = Vec::new();
-    for &root in &roots {
+    for root in roots {
+        let root = root.node;
         reserve_flat_candidate(
             &mut work,
             1,
@@ -2377,6 +3006,13 @@ fn normalize_flat_inner_work(
             }
             let representative = normalizer.sort_scratch[id];
             if let Some(shared) = mapped[representative] {
+                reserve_flat_candidate(
+                    touched,
+                    1,
+                    LANE_COUNT + 14,
+                    &mut normalizer.stats.candidate_observer,
+                )?;
+                touched.push(id);
                 mapped[id] = Some(shared);
                 continue;
             }
@@ -2535,6 +3171,14 @@ fn normalize_flat_inner_work(
                 observer.charge(1)?;
             }
             let built = built_result?;
+            reserve_flat_candidate(
+                touched,
+                2,
+                LANE_COUNT + 14,
+                &mut normalizer.stats.candidate_observer,
+            )?;
+            touched.push(id);
+            touched.push(representative);
             mapped[id] = Some(built);
             mapped[representative] = Some(built);
         }
@@ -2547,21 +3191,20 @@ fn normalize_flat_inner_work(
         Some(BuiltRef::Negative(n)) => u32::try_from(n).ok().map(NegativeId),
         _ => None,
     };
-    output.predicate = Some(map_positive(roots[0]).ok_or(bad)?);
-    for (bound, endpoints) in input
-        .recursive_bounds
-        .iter()
-        .zip(roots[1..].chunks_exact(2))
-    {
+    output.predicate = Some(map_positive(roots[0].node).ok_or(bad)?);
+    for (index, endpoints) in roots[1..].chunks_exact(2).enumerate() {
+        let ordinal = q_count
+            .checked_add(u32::try_from(index).map_err(|_| bad)?)
+            .ok_or(bad)?;
         let bound_result = output.bound(RecursiveBound {
-            ordinal: bound.ordinal,
-            lower: map_positive(endpoints[0]).ok_or(bad)?,
-            upper: map_negative(endpoints[1]).ok_or(bad)?,
+            ordinal,
+            lower: map_positive(endpoints[0].node).ok_or(bad)?,
+            upper: map_negative(endpoints[1].node).ok_or(bad)?,
         });
         observe_flat_output(&output, &mut normalizer.stats.candidate_observer)?;
         bound_result?;
     }
-    Ok((output, FlatNormalizationStats::from(&normalizer.stats)))
+    Ok(output)
 }
 
 #[cfg(test)]
@@ -3056,6 +3699,104 @@ pub(super) fn record_production_counters(
 
 #[cfg(test)]
 impl super::IndependentResourceLedger {
+    pub(super) fn record_flat_normalization_index(
+        &mut self,
+        resource: &FlatNormalizationResource,
+        sampled_source_bytes: usize,
+    ) -> Result<(), SolveAvailabilityError> {
+        let physical = &resource.physical_index;
+        if physical.joint_observations == 0 {
+            return Err(SolveAvailabilityError::IdentityExhausted);
+        }
+        if physical.capacities.iter().any(|capacity| *capacity != 0) {
+            return Err(SolveAvailabilityError::IdentityExhausted);
+        }
+        let mut independent_output_requests = [0usize; 6];
+        for member in &physical.output_member_samples {
+            for (total, length) in independent_output_requests.iter_mut().zip(member) {
+                *total = total
+                    .checked_add(*length)
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            }
+        }
+        for (offset, total) in independent_output_requests.iter().enumerate() {
+            if *total != physical.requests[LANE_COUNT + 8 + offset] {
+                return Err(SolveAvailabilityError::IdentityExhausted);
+            }
+        }
+        let mut requested = 0usize;
+        let mut growths = 0usize;
+        let physical_peak = resource.physical_index.independently_derived_peak()?;
+        if physical_peak != resource.physical_index.peak_bytes {
+            return Err(SolveAvailabilityError::IdentityExhausted);
+        }
+        for (index, measured) in resource.lanes.iter().enumerate() {
+            let capacity = physical.lane_peaks[index];
+            let size = physical.sizes[index];
+            let bytes = capacity
+                .checked_mul(size)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            if physical.requests[index] != measured.requested_slots
+                || physical.growths[index] != measured.growths
+                || capacity != measured.peak_capacity
+                || size != measured.slot_size
+            {
+                return Err(SolveAvailabilityError::IdentityExhausted);
+            }
+            requested = requested
+                .checked_add(physical.requests[index])
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            growths = growths
+                .checked_add(physical.growths[index])
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            let independent = &mut self.closed_normalization_index_lanes[index];
+            independent.requested_slots = independent
+                .requested_slots
+                .checked_add(physical.requests[index])
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            independent.capacity_growths = independent
+                .capacity_growths
+                .checked_add(physical.growths[index])
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            independent.peak_capacity = independent.peak_capacity.max(capacity);
+            independent.peak_bytes = independent.peak_bytes.max(bytes);
+            independent.slot_size = size.max(independent.slot_size);
+            independent.actual_capacity = 0;
+            independent.retained_bytes = 0;
+        }
+        if physical_peak != resource.index_peak_bytes
+            || physical.joint_peak_bytes != resource.joint_peak_bytes
+        {
+            return Err(SolveAvailabilityError::IdentityExhausted);
+        }
+        self.closed_normalization_index_requested_slots = self
+            .closed_normalization_index_requested_slots
+            .checked_add(requested)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        self.closed_normalization_index_capacity_growths = self
+            .closed_normalization_index_capacity_growths
+            .checked_add(growths)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        self.closed_normalization_index_actual_capacity = 0;
+        self.closed_normalization_index_retained_bytes = 0;
+        self.closed_normalization_index_peak_bytes = self
+            .closed_normalization_index_peak_bytes
+            .max(physical_peak);
+        let semantic_joint = self
+            .semantic_arena_retained_bytes
+            .checked_sub(sampled_source_bytes)
+            .and_then(|bytes| bytes.checked_add(physical.joint_peak_bytes))
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        let session_joint = self
+            .inference_session_retained_bytes
+            .checked_sub(sampled_source_bytes)
+            .and_then(|bytes| bytes.checked_add(physical.joint_peak_bytes))
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        self.semantic_arena_peak_bytes = self.semantic_arena_peak_bytes.max(semantic_joint);
+        self.inference_session_peak_bytes = self.inference_session_peak_bytes.max(session_joint);
+        Ok(())
+    }
+
     pub(super) fn record_closed_normalization_index(
         &mut self,
         stats: &NormalizationStats,
@@ -3199,6 +3940,86 @@ mod tests {
     use crate::{F5cNegativeEffect, F5cPositiveEffect};
 
     #[test]
+    fn emitted_output_requests_sum_each_members_final_length() {
+        let memo = super::super::F5cComponentExpansionMemo::default();
+        let meter = DraftHeapMeter::default();
+        let mut observer = new_flat_candidate_observer(&memo, &meter, None).unwrap();
+        let mut first = FlatDraft::default();
+        first.insertion_order.push(NodeRef::Positive(PositiveId(0)));
+        observer.observe_output(&first).unwrap();
+        first.insertion_order.push(NodeRef::Positive(PositiveId(1)));
+        observer.observe_output(&first).unwrap();
+        observer.handoff_member(&memo, &meter, 0, 0).unwrap();
+        let mut second = FlatDraft::default();
+        second.insertion_order.extend([
+            NodeRef::Positive(PositiveId(0)),
+            NodeRef::Positive(PositiveId(1)),
+            NodeRef::Positive(PositiveId(2)),
+        ]);
+        observer.observe_output(&second).unwrap();
+        observer
+            .0
+            .physical_index
+            .release_after_normalizer_drop()
+            .unwrap();
+        let resource = observer.index_resource().unwrap();
+        let lane = LANE_COUNT + 13;
+        assert_eq!(resource.lanes[lane].requested_slots, 5);
+        assert_eq!(resource.physical_index.requests[lane], 5);
+        assert_eq!(resource.physical_index.output_member_samples.len(), 2);
+        let mut ledger = super::super::IndependentResourceLedger::default();
+        ledger
+            .record_flat_normalization_index(&resource, 0)
+            .unwrap();
+        assert_eq!(
+            ledger.closed_normalization_index_lanes[lane].requested_slots,
+            5
+        );
+        let mut stale = resource.clone();
+        stale.physical_index.capacities[lane] = 1;
+        assert_eq!(
+            super::super::IndependentResourceLedger::default()
+                .record_flat_normalization_index(&stale, 0),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+    }
+
+    #[test]
+    fn transferred_member_outputs_have_a_simultaneous_index_peak() {
+        let memo = super::super::F5cComponentExpansionMemo::default();
+        let meter = DraftHeapMeter::default();
+        let mut observer = new_flat_candidate_observer(&memo, &meter, None).unwrap();
+        let first = LANE_COUNT + 8;
+        let second = LANE_COUNT + 9;
+        observer.observe(first, 32, 1, 32).unwrap();
+        observer.observe(second, 4, 1, 4).unwrap();
+        observer.0.capacities[first] = 0;
+        observer.0.physical_index.capacities[first] = 0;
+        observer.0.capacities[second] = 0;
+        observer.0.physical_index.capacities[second] = 0;
+        observer.0.refresh_peak().unwrap();
+        observer.observe(first, 2, 1, 2).unwrap();
+        observer.observe(second, 24, 1, 24).unwrap();
+        observer.0.capacities[first] = 0;
+        observer.0.physical_index.capacities[first] = 0;
+        observer.0.capacities[second] = 0;
+        observer.0.physical_index.capacities[second] = 0;
+        observer.0.refresh_peak().unwrap();
+        observer.0.physical_index.output_member_samples = vec![[34, 28, 0, 0, 0, 0]];
+        let resource = observer.index_resource().unwrap();
+        assert_eq!(resource.index_peak_bytes, 36);
+        assert_eq!(resource.lanes[first].peak_capacity, 32);
+        assert_eq!(resource.lanes[second].peak_capacity, 24);
+        let mut ledger = super::super::IndependentResourceLedger::default();
+        ledger
+            .record_flat_normalization_index(&resource, 0)
+            .unwrap();
+        assert_eq!(ledger.closed_normalization_index_peak_bytes, 36);
+        assert_eq!(ledger.closed_normalization_index_actual_capacity, 0);
+        assert_eq!(ledger.closed_normalization_index_retained_bytes, 0);
+    }
+
+    #[test]
     fn failed_reserve_reconciles_physical_and_candidate_lanes() {
         let lane = Lane::DescriptorWords as usize;
         let mut items = vec![1u8];
@@ -3207,22 +4028,34 @@ mod tests {
         stats.index_lanes[lane].retained_bytes = items.capacity();
         stats.index_actual_capacity = items.capacity();
         stats.index_retained_bytes = items.capacity();
-        stats.candidate_observer = Some(FlatCandidateObserver(FlatCandidateCapacity {
+        stats.candidate_observer = Some(Box::new(FlatCandidateObserver(FlatCandidateCapacity {
             work: Default::default(),
             base_memo_bytes: 0,
             base_walker_bytes: 0,
+            physical_base_memo_bytes: 0,
+            physical_source_bytes: 0,
+            physical_base_walker_bytes: 0,
+            physical_memo_capacities: [0; 20],
+            physical_walker_capacities: [0; 98],
+            physical_walker_value_slot_size: 0,
             source_bytes: 0,
             capacities: std::array::from_fn(
                 |index| if index == lane { items.capacity() } else { 0 },
             ),
-            sizes: [0; LANE_COUNT + 14],
-            lane_observations: [0; LANE_COUNT + 14],
-            lane_requested_slots: [0; LANE_COUNT + 14],
-            lane_growths: [0; LANE_COUNT + 14],
-            lane_peaks: [0; LANE_COUNT + 14],
+            sizes: [0; LANE_COUNT + 15],
+            lane_observations: [0; LANE_COUNT + 15],
+            lane_requested_slots: [0; LANE_COUNT + 15],
+            member_output_lengths: [0; 6],
+            lane_growths: [0; LANE_COUNT + 15],
+            lane_peaks: [0; LANE_COUNT + 15],
+            index_peak_bytes: 0,
+            index_peak_capacities: [0; FLAT_CANDIDATE_LANE_COUNT],
+            index_peak_sizes: [0; FLAT_CANDIDATE_LANE_COUNT],
             peak_walker_bytes: 0,
             peak_total_bytes: 0,
-        }));
+            physical_peak: None,
+            physical_index: FlatPhysicalIndexLedger::default(),
+        })));
 
         assert_eq!(
             Normalizer::reserve(
@@ -3268,24 +4101,37 @@ mod tests {
             } else {
                 stats.index_capacity_growths = usize::MAX;
             }
-            stats.candidate_observer = Some(FlatCandidateObserver(FlatCandidateCapacity {
-                work: Default::default(),
-                base_memo_bytes: 0,
-                base_walker_bytes: 0,
-                source_bytes: 0,
-                capacities: std::array::from_fn(
-                    |index| {
-                        if index == lane { old_capacity } else { 0 }
-                    },
-                ),
-                sizes: [0; LANE_COUNT + 14],
-                lane_observations: [0; LANE_COUNT + 14],
-                lane_requested_slots: [0; LANE_COUNT + 14],
-                lane_growths: [0; LANE_COUNT + 14],
-                lane_peaks: [0; LANE_COUNT + 14],
-                peak_walker_bytes: 0,
-                peak_total_bytes: 0,
-            }));
+            stats.candidate_observer =
+                Some(Box::new(FlatCandidateObserver(FlatCandidateCapacity {
+                    work: Default::default(),
+                    base_memo_bytes: 0,
+                    base_walker_bytes: 0,
+                    physical_base_memo_bytes: 0,
+                    physical_source_bytes: 0,
+                    physical_base_walker_bytes: 0,
+                    physical_memo_capacities: [0; 20],
+                    physical_walker_capacities: [0; 98],
+                    physical_walker_value_slot_size: 0,
+                    source_bytes: 0,
+                    capacities: std::array::from_fn(
+                        |index| {
+                            if index == lane { old_capacity } else { 0 }
+                        },
+                    ),
+                    sizes: [0; LANE_COUNT + 15],
+                    lane_observations: [0; LANE_COUNT + 15],
+                    lane_requested_slots: [0; LANE_COUNT + 15],
+                    member_output_lengths: [0; 6],
+                    lane_growths: [0; LANE_COUNT + 15],
+                    lane_peaks: [0; LANE_COUNT + 15],
+                    index_peak_bytes: 0,
+                    index_peak_capacities: [0; FLAT_CANDIDATE_LANE_COUNT],
+                    index_peak_sizes: [0; FLAT_CANDIDATE_LANE_COUNT],
+                    peak_walker_bytes: 0,
+                    peak_total_bytes: 0,
+                    physical_peak: None,
+                    physical_index: FlatPhysicalIndexLedger::default(),
+                })));
 
             assert_eq!(
                 Normalizer::reserve(&mut items, 2, Lane::DescriptorWords, &mut stats, None),

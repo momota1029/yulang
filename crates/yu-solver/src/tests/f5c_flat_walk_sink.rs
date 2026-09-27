@@ -2,6 +2,746 @@ use super::*;
 use crate::f5c_generalization::{F5cTestObservationFailure, F5cTestReserveFailure, F5cWalkTask};
 
 #[test]
+fn flat_all_member_candidate_preserves_order_and_indexed_scheme_parity() {
+    let batch = || {
+        let batch = collect(module(
+            "my left = right; my right = left",
+            "f5c-flat-all-members",
+        ));
+        assert_eq!(batch.counters.scc_maximum_component_size, 2);
+        batch
+    };
+    let mut boxed = InferenceSession::new(batch());
+    boxed.admit_all_collected_facts().unwrap();
+    boxed.execute_scc_plan().unwrap();
+
+    let mut flat = InferenceSession::new(batch());
+    flat.flat_candidate_enabled = true;
+    flat.ordering_observer = Some(OrderingObserver {
+        capacity: 16,
+        events: Vec::new(),
+        omitted: 0,
+    });
+    let component = flat
+        .batch
+        .scc_components_in_dependency_first_order()
+        .next()
+        .unwrap()
+        .clone();
+    let members = flat
+        .batch
+        .scc_component_members(&component)
+        .unwrap()
+        .to_vec();
+    assert_eq!(members.len(), 2);
+    let roots: Vec<_> = members
+        .iter()
+        .map(|member| {
+            InferenceSession::verified_scheme_definition(&flat.batch, member)
+                .record
+                .root
+                .clone()
+        })
+        .collect();
+    flat.admit_all_collected_facts().unwrap();
+    flat.execute_scc_plan().unwrap();
+    assert_eq!(
+        boxed
+            .execution_counters
+            .closed_normalization_word_comparisons,
+        2
+    );
+    assert_eq!(
+        flat.execution_counters
+            .closed_normalization_word_comparisons,
+        boxed
+            .execution_counters
+            .closed_normalization_word_comparisons
+    );
+    let mut reversed = InferenceSession::new(collect(module(
+        "my right = left; my left = right",
+        "f5c-flat-all-members-reversed",
+    )));
+    reversed.flat_candidate_enabled = true;
+    reversed.admit_all_collected_facts().unwrap();
+    reversed.execute_scc_plan().unwrap();
+    assert_eq!(
+        reversed
+            .execution_counters
+            .closed_normalization_word_comparisons,
+        boxed
+            .execution_counters
+            .closed_normalization_word_comparisons
+    );
+    assert_eq!(flat.successful_finalizations, 2);
+    assert_eq!(flat.drafts.len(), 2);
+    assert_eq!(flat.resource_ledger.flat_all_drafts_members, 2);
+    assert!(flat.resource_ledger.flat_all_drafts_bytes > 0);
+    assert!(flat.resource_ledger.flat_transfer_raw_bytes > 0);
+    assert!(
+        flat.resource_ledger.flat_transfer_peak_bytes > flat.resource_ledger.flat_all_drafts_bytes
+    );
+    assert_eq!(flat.resource_ledger.flat_staged_bytes, 0);
+    assert_eq!(flat.resource_ledger.flat_indexed_bytes, 0);
+    assert!(flat.resource_ledger.flat_source_peak_bytes > 0);
+    assert!(
+        flat.resource_ledger.flat_source_peak_bytes >= flat.resource_ledger.flat_all_drafts_bytes
+    );
+    assert!(flat.resource_ledger.flat_normalization_scratch_peak_bytes > 0);
+    assert!(
+        flat.resource_ledger.flat_normalization_peak_bytes
+            > flat.resource_ledger.flat_transfer_peak_bytes
+    );
+    assert_eq!(
+        flat.resource_ledger.semantic_arena_peak_bytes,
+        flat.execution_counters.semantic_arena_peak_bytes
+    );
+    assert_eq!(
+        flat.resource_ledger.inference_session_peak_bytes,
+        flat.execution_counters.inference_session_peak_bytes
+    );
+    assert_eq!(
+        boxed.schemes.iter().filter(|item| item.is_some()).count(),
+        2
+    );
+    assert_eq!(flat.schemes.iter().filter(|item| item.is_some()).count(), 2);
+    let ordering: Vec<_> = flat
+        .ordering_observer
+        .as_ref()
+        .unwrap()
+        .events
+        .iter()
+        .filter(|event| {
+            matches!(
+                event,
+                ExecutionEvent::Drafted(_)
+                    | ExecutionEvent::DraftsVisible(_, _)
+                    | ExecutionEvent::Installed(_)
+            )
+        })
+        .cloned()
+        .collect();
+    assert_eq!(
+        ordering,
+        [
+            ExecutionEvent::Drafted(members[0].clone()),
+            ExecutionEvent::Drafted(members[1].clone()),
+            ExecutionEvent::DraftsVisible(component, 2),
+            ExecutionEvent::Installed(roots[0].clone()),
+            ExecutionEvent::Installed(roots[1].clone()),
+        ]
+    );
+    for (left, right) in boxed.schemes.iter().zip(&flat.schemes) {
+        if let (Some(left), Some(right)) = (left, right) {
+            assert!(
+                boxed
+                    .finalization
+                    .as_ref()
+                    .unwrap()
+                    .scheme_view(left)
+                    .unwrap()
+                    .alpha_eq(
+                        flat.finalization
+                            .as_ref()
+                            .unwrap()
+                            .scheme_view(right)
+                            .unwrap()
+                    )
+            );
+        }
+    }
+    let events = flat.resource_ledger.boundary_order.clone();
+    assert_eq!(
+        events,
+        [
+            ResourceBoundary::SourceDrafts,
+            ResourceBoundary::AllDrafts,
+            ResourceBoundary::IndexedMapping,
+            ResourceBoundary::DraftMember,
+            ResourceBoundary::IndexedMapping,
+            ResourceBoundary::DraftMember,
+            ResourceBoundary::SchemeInstall,
+            ResourceBoundary::SchemeInstall,
+        ]
+    );
+
+    let mut failed = InferenceSession::new(batch());
+    failed.flat_candidate_enabled = true;
+    failed.flat_candidate_failure_after = Some(1);
+    failed.admit_all_collected_facts().unwrap();
+    assert_eq!(
+        failed.execute_scc_plan(),
+        Err(SolveAvailabilityError::IdentityExhausted)
+    );
+    assert_eq!(failed.successful_finalizations, 1);
+    assert!(failed.schemes.iter().all(Option::is_none));
+    let failed_events = failed.resource_ledger.boundary_order.clone();
+    assert_eq!(
+        failed_events,
+        [
+            ResourceBoundary::SourceDrafts,
+            ResourceBoundary::AllDrafts,
+            ResourceBoundary::IndexedMapping,
+            ResourceBoundary::DraftMember,
+        ]
+    );
+
+    let mut failed_during_batch = InferenceSession::new(batch());
+    failed_during_batch.flat_candidate_enabled = true;
+    failed_during_batch.flat_candidate_normalization_failure_after = Some(0);
+    failed_during_batch.admit_all_collected_facts().unwrap();
+    assert_eq!(
+        failed_during_batch.execute_scc_plan(),
+        Err(SolveAvailabilityError::IdentityExhausted)
+    );
+    assert_eq!(failed_during_batch.successful_finalizations, 0);
+    assert!(failed_during_batch.schemes.iter().all(Option::is_none));
+    assert!(failed_during_batch.resource_ledger.flat_source_peak_bytes > 0);
+    assert!(failed_during_batch.resource_ledger.flat_transfer_peak_bytes > 0);
+    assert!(
+        failed_during_batch
+            .resource_ledger
+            .flat_normalization_peak_bytes
+            > 0
+    );
+}
+
+#[test]
+fn flat_batch_precommit_failures_restore_counters_and_publish_no_schemes() {
+    let batch = || {
+        collect(module(
+            "my left = right; my right = left",
+            "f5c-flat-precommit",
+        ))
+    };
+    for failure in [
+        FlatCandidatePrecommitFailure::LedgerAfterStage,
+        FlatCandidatePrecommitFailure::CounterAfterNormalization,
+    ] {
+        let mut session = InferenceSession::new(batch());
+        session.flat_candidate_enabled = true;
+        session.flat_candidate_precommit_failure = Some(failure);
+        session.admit_all_collected_facts().unwrap();
+        let before = session.execution_counters.clone();
+        assert_eq!(
+            session.execute_scc_plan(),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+        assert!(session.schemes.iter().all(Option::is_none));
+        assert_eq!(session.successful_finalizations, 0);
+        assert_eq!(
+            session.execution_counters.closed_normalized_key_writes,
+            before.closed_normalized_key_writes
+        );
+        assert_eq!(
+            session
+                .execution_counters
+                .closed_normalization_word_comparisons,
+            before.closed_normalization_word_comparisons
+        );
+        assert_eq!(
+            session
+                .execution_counters
+                .closed_normalization_index_requested_slots,
+            before.closed_normalization_index_requested_slots
+        );
+        assert_eq!(
+            session
+                .execution_counters
+                .closed_normalization_index_capacity_growths,
+            before.closed_normalization_index_capacity_growths
+        );
+        assert_eq!(
+            session
+                .execution_counters
+                .closed_normalization_index_peak_bytes,
+            before.closed_normalization_index_peak_bytes
+        );
+        assert_eq!(
+            session
+                .resource_ledger
+                .closed_normalization_index_requested_slots,
+            0
+        );
+        assert_eq!(
+            session
+                .resource_ledger
+                .closed_normalization_index_retained_bytes,
+            0
+        );
+        assert_eq!(
+            session
+                .resource_ledger
+                .closed_normalization_index_peak_bytes,
+            0
+        );
+        assert_eq!(
+            session
+                .execution_counters
+                .generalization_shared_summary_admissions,
+            before.generalization_shared_summary_admissions
+        );
+        assert_eq!(session.resource_ledger.flat_staged_bytes, 0);
+        assert_eq!(session.resource_ledger.flat_indexed_bytes, 0);
+        assert!(session.resource_ledger.flat_source_peak_bytes > 0);
+        assert!(session.resource_ledger.flat_transfer_peak_bytes > 0);
+        if failure == FlatCandidatePrecommitFailure::CounterAfterNormalization {
+            assert!(session.resource_ledger.flat_normalization_peak_bytes > 0);
+            assert!(
+                session
+                    .resource_ledger
+                    .flat_normalization_scratch_peak_bytes
+                    > 0
+            );
+        }
+    }
+
+    let mut session = InferenceSession::new(batch());
+    session.flat_candidate_enabled = true;
+    session.flat_candidate_precommit_failure =
+        Some(FlatCandidatePrecommitFailure::LedgerAfterStage);
+    session.admit_all_collected_facts().unwrap();
+    let previous = (111_111, 222_222, 333_333, 444_444);
+    session.resource_ledger.flat_source_peak_bytes = previous.0;
+    session.resource_ledger.flat_transfer_peak_bytes = previous.1;
+    session.resource_ledger.flat_normalization_peak_bytes = previous.2;
+    session
+        .resource_ledger
+        .flat_normalization_scratch_peak_bytes = previous.3;
+    assert_eq!(
+        session.execute_scc_plan(),
+        Err(SolveAvailabilityError::IdentityExhausted)
+    );
+    assert_eq!(
+        (
+            session.resource_ledger.flat_source_peak_bytes,
+            session.resource_ledger.flat_transfer_peak_bytes,
+            session.resource_ledger.flat_normalization_peak_bytes,
+            session
+                .resource_ledger
+                .flat_normalization_scratch_peak_bytes,
+        ),
+        previous
+    );
+}
+
+#[test]
+fn flat_batch_compound_members_keep_boxed_counters_and_indexed_schemes() {
+    use crate::f5c_generalization::F5cStagedCandidate;
+
+    fn fixture(reverse: bool) -> (InferenceSession, [u32; 2]) {
+        let batch = collect(module("my f = 1", "f5c-flat-compound-batch"));
+        let mut session = InferenceSession::new(batch);
+        let mut roots = [0; 2];
+        for root in &mut roots {
+            *root = session.fresh_value_at_level(1).unwrap();
+            let relay = session.fresh_value_at_level(1).unwrap();
+            let quantified = session.fresh_value_at_level(1).unwrap();
+            let first = session.fresh_value_at_level(1).unwrap();
+            let second = session.fresh_value_at_level(1).unwrap();
+            session.bounds[first as usize]
+                .exact_non_variable_lowers
+                .push(ValueEndpointKey::IntPositive);
+            session.bounds[second as usize]
+                .exact_non_variable_uppers
+                .push(ValueEndpointKey::IntNegative);
+            session.bounds[*root as usize]
+                .direct_lower_rows
+                .push(quantified);
+            session.bounds[*root as usize]
+                .direct_upper_rows
+                .push(quantified);
+            session.bounds[relay as usize].direct_lower_rows.push(*root);
+            let argument = session.negative_top_term().unwrap();
+            let result = session.live_value_term(Polarity::Positive, relay).unwrap();
+            let function = session
+                .positive_function_term(
+                    argument,
+                    session.batch.collected_leaf_term(Leaf::EmptyEffectNegative),
+                    session
+                        .batch
+                        .collected_leaf_term(Leaf::EffectBottomPositive),
+                    result,
+                )
+                .unwrap();
+            let lower = &mut session.bounds[*root as usize].exact_non_variable_lowers;
+            lower.extend(if reverse {
+                [
+                    ValueEndpointKey::ValueRow(first),
+                    ValueEndpointKey::PositiveFunction(function),
+                ]
+            } else {
+                [
+                    ValueEndpointKey::PositiveFunction(function),
+                    ValueEndpointKey::ValueRow(first),
+                ]
+            });
+            let upper = &mut session.bounds[*root as usize].exact_non_variable_uppers;
+            upper.extend(if reverse {
+                [
+                    ValueEndpointKey::ValueRow(second),
+                    ValueEndpointKey::TopNegative,
+                ]
+            } else {
+                [
+                    ValueEndpointKey::TopNegative,
+                    ValueEndpointKey::ValueRow(second),
+                ]
+            });
+        }
+        (session, roots)
+    }
+
+    let mut baseline = None;
+    for reverse in [false, true] {
+        let (session, roots) = fixture(reverse);
+        let boxed_meter = DraftHeapMeter::default();
+        let mut boxed_memo = F5cComponentExpansionMemo::default();
+        let mut boxed = Vec::new();
+        for root in roots {
+            let (draft, memo, _, _) =
+                F5cGeneralizer::with_memo(&session, &boxed_meter, boxed_memo, 0)
+                    .build_component(root);
+            boxed.push(draft.unwrap());
+            boxed_memo = memo;
+        }
+        let boxed_stats =
+            crate::f5c_normalization::normalize_component(&boxed_meter, &mut boxed).unwrap();
+        assert!(boxed.iter().all(|draft| draft.quantifier_count > 0));
+        assert!(boxed.iter().all(|draft| !draft.recursive_bounds.is_empty()));
+        let flat_meter = DraftHeapMeter::default();
+        let mut staged = TrackedVec::<F5cStagedCandidate<'_>>::new(&flat_meter);
+        staged.try_reserve(2).unwrap();
+        let mut flat_memo = F5cComponentExpansionMemo::default();
+        let checkpoint = flat_memo.begin_flat_batch();
+        for root in roots {
+            let (result, memo, _, _) =
+                F5cGeneralizer::with_memo(&session, &flat_meter, flat_memo, 0)
+                    .build_and_stage_flat_raw_candidate(root, &mut staged);
+            result.unwrap();
+            flat_memo = memo;
+        }
+        assert!(staged.iter().all(|member| {
+            member
+                .candidate
+                .draft
+                .positive_nodes
+                .iter()
+                .any(|node| matches!(node, crate::f5c_draft::PositiveNode::Union(_)))
+        }));
+        assert!(staged.iter().all(|member| {
+            member
+                .candidate
+                .draft
+                .negative_nodes
+                .iter()
+                .any(|node| matches!(node, crate::f5c_draft::NegativeNode::Intersection(_)))
+        }));
+        let flat_stats = crate::f5c_normalization::normalize_flat_batch_metered(
+            &mut flat_memo,
+            &flat_meter,
+            &mut staged,
+            None,
+        )
+        .unwrap();
+        let resource = flat_stats.resource.as_ref().unwrap();
+        let snapshot_bytes = resource
+            .index_peak_capacities
+            .iter()
+            .zip(resource.index_peak_sizes.iter())
+            .map(|(capacity, size)| capacity * size)
+            .sum::<usize>();
+        assert_eq!(resource.index_peak_bytes, snapshot_bytes);
+        assert!(
+            resource.physical_index.capacities[crate::f5c_normalization::FLAT_CANDIDATE_LANE_COUNT
+                - 7
+                ..crate::f5c_normalization::FLAT_CANDIDATE_LANE_COUNT - 1]
+                .iter()
+                .all(|capacity| *capacity == 0)
+        );
+        let mut independent = IndependentResourceLedger::default();
+        independent
+            .record_flat_normalization_index(resource, 0)
+            .unwrap();
+        assert_eq!(
+            independent.closed_normalization_index_peak_bytes,
+            resource.index_peak_bytes
+        );
+        let mut observer_snapshot_changed = resource.clone();
+        observer_snapshot_changed.index_peak_capacities.fill(0);
+        IndependentResourceLedger::default()
+            .record_flat_normalization_index(&observer_snapshot_changed, 0)
+            .unwrap();
+        for change in [
+            |lane: &mut crate::f5c_normalization::FlatCandidateLane| lane.requested_slots += 1,
+            |lane: &mut crate::f5c_normalization::FlatCandidateLane| lane.growths += 1,
+            |lane: &mut crate::f5c_normalization::FlatCandidateLane| lane.peak_capacity += 1,
+            |lane: &mut crate::f5c_normalization::FlatCandidateLane| lane.slot_size += 1,
+        ] {
+            let mut changed = resource.clone();
+            change(&mut changed.lanes[0]);
+            assert_eq!(
+                IndependentResourceLedger::default().record_flat_normalization_index(&changed, 0),
+                Err(crate::SolveAvailabilityError::IdentityExhausted)
+            );
+        }
+        let mut changed_joint = resource.clone();
+        changed_joint.joint_peak_bytes += 1;
+        assert_eq!(
+            IndependentResourceLedger::default().record_flat_normalization_index(&changed_joint, 0),
+            Err(crate::SolveAvailabilityError::IdentityExhausted)
+        );
+        let mut missing_physical_event = resource.clone();
+        missing_physical_event.physical_index = Default::default();
+        assert_eq!(
+            IndependentResourceLedger::default()
+                .record_flat_normalization_index(&missing_physical_event, 0),
+            Err(crate::SolveAvailabilityError::IdentityExhausted)
+        );
+        flat_memo.finish_flat_batch(checkpoint, true).unwrap();
+        let counters = (
+            flat_stats.key_writes,
+            flat_stats.child_comparisons,
+            flat_stats.descriptor_words,
+            flat_stats.word_comparisons,
+            flat_stats.duplicates,
+        );
+        assert!(counters.3 > 0);
+        assert_eq!(
+            counters,
+            (
+                boxed_stats.key_writes,
+                boxed_stats.child_comparisons,
+                boxed_stats.descriptor_words,
+                boxed_stats.word_comparisons,
+                boxed_stats.duplicates,
+            )
+        );
+        if let Some(expected) = baseline {
+            assert_eq!(counters, expected);
+        } else {
+            baseline = Some(counters);
+        }
+        for (candidate, boxed) in staged.iter().zip(&boxed) {
+            assert_eq!(
+                candidate.candidate.draft.quantifier_count,
+                boxed.quantifier_count
+            );
+            assert_eq!(
+                candidate.candidate.draft.recursive_bounds.len(),
+                boxed.recursive_bounds.len()
+            );
+            let indexed = candidate.candidate.draft.indexed(&flat_meter).unwrap();
+            let mut indexed_session = ClosedTypeFinalizationSession::try_new().unwrap();
+            let (indexed_scheme, _) = indexed_session
+                .finalize_indexed_scheme(indexed.as_ref())
+                .unwrap()
+                .into_parts();
+            let mut boxed_session = ClosedTypeFinalizationSession::try_new().unwrap();
+            let (boxed_scheme, _) = InferenceSession::finalize_generalization_draft_raw(
+                &mut boxed_session,
+                boxed,
+                false,
+            )
+            .unwrap()
+            .into_parts();
+            assert!(
+                indexed_session
+                    .scheme_view(&indexed_scheme)
+                    .unwrap()
+                    .alpha_eq(boxed_session.scheme_view(&boxed_scheme).unwrap())
+            );
+        }
+    }
+}
+
+#[test]
+fn flat_all_member_compound_route_matches_boxed_normalization() {
+    fn fixture(reverse: bool, flat: bool) -> InferenceSession {
+        let batch = collect(module(
+            "my left = right; my right = left",
+            "f5c-flat-compound-route",
+        ));
+        let mut session = InferenceSession::new(batch);
+        session.flat_candidate_enabled = flat;
+        session.admit_all_collected_facts().unwrap();
+        let component = session
+            .batch
+            .scc_components_in_dependency_first_order()
+            .find(|component| {
+                session
+                    .batch
+                    .scc_component_members(component)
+                    .unwrap()
+                    .len()
+                    == 2
+            })
+            .unwrap()
+            .clone();
+        let members = session
+            .batch
+            .scc_component_members(&component)
+            .unwrap()
+            .to_vec();
+        let mut seen_roots = std::collections::HashSet::new();
+        for member in members {
+            let verified = InferenceSession::verified_scheme_definition(&session.batch, &member);
+            let position = session
+                .batch
+                .root_component_positions
+                .get(&verified.record.root)
+                .unwrap()
+                .component;
+            if !seen_roots.insert(position) {
+                continue;
+            }
+            let root = session.fresh_value_at_level(1).unwrap();
+            session.live_components[position].ordinal = root;
+            let relay = session.fresh_value_at_level(1).unwrap();
+            let quantified = session.fresh_value_at_level(1).unwrap();
+            let first = session.fresh_value_at_level(1).unwrap();
+            let second = session.fresh_value_at_level(1).unwrap();
+            session.bounds[first as usize]
+                .exact_non_variable_lowers
+                .push(ValueEndpointKey::IntPositive);
+            session.bounds[second as usize]
+                .exact_non_variable_uppers
+                .push(ValueEndpointKey::IntNegative);
+            session.bounds[root as usize]
+                .direct_lower_rows
+                .push(quantified);
+            session.bounds[root as usize]
+                .direct_upper_rows
+                .push(quantified);
+            session.bounds[relay as usize].direct_lower_rows.push(root);
+            let argument = session.negative_top_term().unwrap();
+            let result = session.live_value_term(Polarity::Positive, relay).unwrap();
+            let function = session
+                .positive_function_term(
+                    argument,
+                    session.batch.collected_leaf_term(Leaf::EmptyEffectNegative),
+                    session
+                        .batch
+                        .collected_leaf_term(Leaf::EffectBottomPositive),
+                    result,
+                )
+                .unwrap();
+            session.bounds[root as usize]
+                .exact_non_variable_lowers
+                .extend(if reverse {
+                    [
+                        ValueEndpointKey::ValueRow(first),
+                        ValueEndpointKey::PositiveFunction(function),
+                    ]
+                } else {
+                    [
+                        ValueEndpointKey::PositiveFunction(function),
+                        ValueEndpointKey::ValueRow(first),
+                    ]
+                });
+            session.bounds[root as usize]
+                .exact_non_variable_uppers
+                .extend(if reverse {
+                    [
+                        ValueEndpointKey::ValueRow(second),
+                        ValueEndpointKey::TopNegative,
+                    ]
+                } else {
+                    [
+                        ValueEndpointKey::TopNegative,
+                        ValueEndpointKey::ValueRow(second),
+                    ]
+                });
+        }
+        assert_eq!(seen_roots.len(), 2);
+        session
+    }
+
+    for reverse in [false, true] {
+        let mut boxed = fixture(reverse, false);
+        let mut flat = fixture(reverse, true);
+        boxed.execute_scc_plan().unwrap();
+        flat.execute_scc_plan().unwrap();
+        let published = |session: &InferenceSession| {
+            let counters = &session.execution_counters;
+            (
+                counters.closed_normalized_key_writes,
+                counters.closed_normalization_child_comparisons,
+                counters.closed_normalization_descriptor_words,
+                counters.closed_normalization_word_comparisons,
+            )
+        };
+        assert_eq!(published(&flat), published(&boxed));
+        assert!(published(&flat).3 > 0);
+        assert!(
+            flat.execution_counters
+                .closed_normalization_index_requested_slots
+                > 0
+        );
+        assert!(
+            flat.execution_counters
+                .closed_normalization_index_capacity_growths
+                > 0
+        );
+        assert!(
+            flat.execution_counters
+                .closed_normalization_index_peak_bytes
+                > 0
+        );
+        assert_eq!(
+            flat.execution_counters
+                .closed_normalization_index_actual_capacity,
+            0
+        );
+        assert_eq!(
+            flat.execution_counters
+                .closed_normalization_index_retained_bytes,
+            0
+        );
+        let lanes = &flat.resource_ledger.closed_normalization_index_lanes;
+        assert!(
+            lanes[..crate::f5c_normalization::LANE_COUNT]
+                .iter()
+                .any(|lane| lane.peak_capacity > 0)
+        );
+        assert!(lanes[crate::f5c_normalization::LANE_COUNT + 14].peak_capacity > 0);
+        let output_lanes = &lanes
+            [crate::f5c_normalization::LANE_COUNT + 8..crate::f5c_normalization::LANE_COUNT + 14];
+        assert!(output_lanes.iter().any(|lane| lane.peak_capacity > 0));
+        for lane in output_lanes {
+            assert_eq!(lane.actual_capacity, 0);
+            assert_eq!(lane.retained_bytes, 0);
+        }
+        assert!(
+            lanes
+                .iter()
+                .all(|lane| lane.actual_capacity == 0 && lane.retained_bytes == 0)
+        );
+        for (left, right) in boxed.schemes.iter().zip(&flat.schemes) {
+            if let (Some(left), Some(right)) = (left, right) {
+                let flat_view = flat
+                    .finalization
+                    .as_ref()
+                    .unwrap()
+                    .scheme_view(right)
+                    .unwrap();
+                assert!(flat_view.quantifier_count() > 0);
+                assert!(!flat_view.recursive_bounds().is_empty());
+                assert!(
+                    boxed
+                        .finalization
+                        .as_ref()
+                        .unwrap()
+                        .scheme_view(left)
+                        .unwrap()
+                        .alpha_eq(flat_view)
+                );
+            }
+        }
+    }
+}
+
+#[test]
 fn physical_set_duplicate_at_capacity_keeps_growth_and_counts_attempt() {
     use crate::f5c_generalization::F5cWalkerLaneKind as Lane;
     for kind in [
@@ -1582,6 +2322,10 @@ fn staged_second_root_failure_restores_only_its_memo_transaction() {
     let (a_result, memo, _, _) = F5cGeneralizer::with_memo(&session, &source_meter, memo, 0)
         .build_and_stage_flat_candidate(a, &mut staged);
     a_result.unwrap();
+    let mut ledger = IndependentResourceLedger::default();
+    ledger.record_flat_staged(&staged, &source_meter).unwrap();
+    assert_eq!(ledger.flat_staged_census_members, 1);
+    ledger.record_flat_transfer(&memo).unwrap();
     let post_a = semantic_memo!(memo);
     let a_draft = staged[0].candidate.draft.positive_nodes.clone();
     let a_meter = source_meter.current_bytes();
@@ -1597,14 +2341,154 @@ fn staged_second_root_failure_restores_only_its_memo_transaction() {
     let (b_result, memo, _, _) = F5cGeneralizer::with_memo(&session, &source_meter, memo, 0)
         .build_and_stage_flat_candidate(b, &mut staged);
     b_result.unwrap();
+    ledger.record_flat_staged(&staged, &source_meter).unwrap();
+    assert_eq!(ledger.flat_staged_census_members, 2);
+    ledger.record_flat_staged(&staged, &source_meter).unwrap();
+    assert_eq!(ledger.flat_staged_census_members, 2);
+    ledger
+        .reconcile_flat_staged(&staged, &source_meter)
+        .unwrap();
+    assert_eq!(ledger.flat_staged_census_members, 4);
+    ledger.record_flat_transfer(&memo).unwrap();
+    assert!(ledger.flat_transfer_raw_bytes > 0);
+    assert!(ledger.flat_transfer_peak_bytes > ledger.flat_staged_bytes);
     assert_eq!(staged.len(), 2);
     assert_eq!(staged[0].candidate.draft.positive_nodes, a_draft);
     assert!(memo.roots.len() > post_a.0.0.len());
+    assert_eq!(memo.transfer_raw_staged_samples.len(), 2);
+    for (raw, staged_source, simultaneous) in &memo.transfer_raw_staged_samples {
+        assert!(*raw > 0);
+        assert!(*staged_source >= a_meter.unwrap() as u128);
+        assert!(*simultaneous >= raw + staged_source);
+    }
     staged.clear();
     assert_eq!(
         source_meter.current_bytes(),
         Some(staged.capacity() * std::mem::size_of::<F5cStagedCandidate<'_>>())
     );
+}
+
+#[test]
+fn staged_batch_normalization_failure_discards_all_members_and_restores_memo() {
+    use crate::f5c_generalization::F5cStagedCandidate;
+
+    let source_meter = DraftHeapMeter::default();
+    let batch = collect(module("my f = 1", "f5c-flat-stage-normalization-failure"));
+    let mut session = InferenceSession::new(batch);
+    let a = session.fresh_value_at_level(1).unwrap();
+    let b = session.fresh_value_at_level(1).unwrap();
+    for root in [a, b] {
+        let child = session.fresh_value_at_level(1).unwrap();
+        session.bounds[child as usize]
+            .exact_non_variable_lowers
+            .push(ValueEndpointKey::IntPositive);
+        session.bounds[root as usize]
+            .exact_non_variable_lowers
+            .push(ValueEndpointKey::ValueRow(child));
+    }
+    let mut staged = TrackedVec::<F5cStagedCandidate<'_>>::new(&source_meter);
+    staged.try_reserve(2).unwrap();
+    let baseline_bytes = source_meter.current_bytes();
+    let mut memo = F5cComponentExpansionMemo::default();
+    let checkpoint = memo.begin_flat_batch();
+    let baseline_roots = memo.roots.clone();
+    let baseline_nodes = memo.nodes.clone();
+    let baseline_children = memo.children.clone();
+    let baseline_parent_heads = memo.parent_heads.clone();
+    let baseline_reverse = memo.reverse_parents.clone();
+    let baseline_incidence_heads = memo.incidence_heads.clone();
+    let baseline_incidences = memo.incidences.clone();
+    let baseline_root_heads = memo.root_heads.clone();
+    let baseline_root_edges = memo.root_edges.clone();
+    let baseline_root_edge_marks = memo.root_edge_marks.clone();
+    for (index, root) in [a, b].into_iter().enumerate() {
+        let mut generalizer = F5cGeneralizer::with_memo(&session, &source_meter, memo, 0);
+        if index == 1 {
+            let key = *generalizer
+                .memo
+                .roots
+                .keys()
+                .find(|key| key.polarity == Polarity::Positive)
+                .expect("first member retains a positive memo root");
+            let value = generalizer
+                .walk_flat(F5cWalkTask::EnterRow {
+                    row: key.row,
+                    polarity: key.polarity,
+                    root: false,
+                })
+                .unwrap();
+            assert!(value.positive_shared_id().is_some());
+            assert_eq!(generalizer.shared_summary_hits, 1);
+        }
+        let (result, returned, _, _) =
+            generalizer.build_and_stage_flat_raw_candidate(root, &mut staged);
+        result.unwrap();
+        memo = returned;
+    }
+    assert_eq!(staged.len(), 2);
+    assert!(!memo.root_undo.is_empty());
+    assert_eq!(
+        crate::f5c_normalization::normalize_flat_batch_metered(
+            &mut memo,
+            &source_meter,
+            &mut staged,
+            Some(0),
+        ),
+        Err(SolveAvailabilityError::IdentityExhausted)
+    );
+    let map_lane = crate::f5c_normalization::LANE_COUNT + 4;
+    assert_eq!(
+        memo.walker_resources.flat_candidate_lanes[map_lane].observations,
+        1
+    );
+    let mut independent = IndependentResourceLedger::default();
+    independent.record_flat_normalization_peaks(&memo).unwrap();
+    assert!(independent.flat_normalization_peak_bytes > 0);
+    let earlier_peak = independent.flat_normalization_peak_bytes;
+    let earlier_scratch_peak = independent.flat_normalization_scratch_peak_bytes;
+    independent
+        .record_flat_normalization_peaks(&F5cComponentExpansionMemo::default())
+        .unwrap();
+    assert_eq!(independent.flat_normalization_peak_bytes, earlier_peak);
+    assert_eq!(
+        independent.flat_normalization_scratch_peak_bytes,
+        earlier_scratch_peak
+    );
+    staged.clear();
+    memo.finish_flat_batch(checkpoint, false).unwrap();
+    assert_eq!(source_meter.current_bytes(), baseline_bytes);
+    assert_eq!(memo.roots, baseline_roots);
+    assert_eq!(memo.nodes, baseline_nodes);
+    assert_eq!(memo.children, baseline_children);
+    assert_eq!(memo.parent_heads, baseline_parent_heads);
+    assert_eq!(memo.reverse_parents, baseline_reverse);
+    assert_eq!(memo.incidence_heads, baseline_incidence_heads);
+    assert_eq!(memo.incidences, baseline_incidences);
+    assert_eq!(memo.root_heads, baseline_root_heads);
+    assert_eq!(memo.root_edges, baseline_root_edges);
+    assert_eq!(memo.root_edge_marks, baseline_root_edge_marks);
+    assert!(memo.root_undo.is_empty());
+
+    let retry_checkpoint = memo.begin_flat_batch();
+    for root in [a, b] {
+        let (result, returned, _, _) = F5cGeneralizer::with_memo(&session, &source_meter, memo, 0)
+            .build_and_stage_flat_raw_candidate(root, &mut staged);
+        result.unwrap();
+        memo = returned;
+    }
+    crate::f5c_normalization::normalize_flat_batch_metered(
+        &mut memo,
+        &source_meter,
+        &mut staged,
+        None,
+    )
+    .unwrap();
+    assert_eq!(
+        memo.walker_resources.flat_candidate_lanes[map_lane].observations,
+        2
+    );
+    memo.finish_flat_batch(retry_checkpoint, true).unwrap();
+    assert_eq!(staged.len(), 2);
 }
 
 #[test]
