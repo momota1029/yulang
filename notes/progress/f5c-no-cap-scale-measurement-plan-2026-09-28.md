@@ -495,9 +495,12 @@ The sixth supervised preflight passed the shared-summary hit formula and
 reached FinishOutput, then found 96 seeded bound slots (656 bytes) missing from
 the independent family-1 event ledger. `compiler_referee` traced both fixture
 seed helpers to the gap: their physical observer is updated, but
-`F5cLiveEventLedger` is not. Add same-time value-row observations after
-successful reserve and push in those two helpers; preserve the event and family
-formulas. Keep diagnostics blocked. Exact evidence and review scope are in
+`F5cLiveEventLedger` was not. Both helpers now report each successful
+reservation and insertion on the correct value lane. Post-write
+`spec_auditor` review confirmed lane mapping, no duplicate owner events, and
+unchanged formulas; the feature-enabled test-target compile passed. Keep
+diagnostics blocked until the seventh preflight succeeds. Exact evidence and
+review scope are in
 [`F5c shared-acyclic hit-count preflight checkpoint`](f5c-shared-acyclic-hit-mismatch-checkpoint-2026-09-29.md).
 
 The six completed preflights used 16.06, 5.02, 6.03, 11.05, 5.03, and 5.02

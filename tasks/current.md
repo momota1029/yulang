@@ -259,10 +259,12 @@ counter itself is consistent with the §34 formula. The sixth preflight reached
 FinishOutput and found fixture-seeded bound slots absent from the independent
 family-1 event ledger: 96 capacities and 656 bytes. The compiler audit traced
 this to both synthetic seed helpers updating the physical observer but not
-`F5cLiveEventLedger`; add the row observations without changing formulas. The
-performance auditor justified and the primary approved a single bounded
-extension to 9 invocations/600 seconds. After the narrow repair and review,
-run the seventh and final preflight under ID
+`F5cLiveEventLedger`. Both helpers now report reserve and insertion states on
+the correct value lanes. Post-write `spec_auditor` review found no duplicate
+owner events or formula changes, and the feature-enabled test-target compile
+passed. The performance auditor justified and the primary approved a single
+bounded extension to 9 invocations/600 seconds. Run the seventh and final
+preflight under ID
 `20260929-live-event-seed-retry-01`; diagnostics remain behind its success. See
 [`F5c logical-term preflight failure checkpoint`](../notes/progress/f5c-preflight-logical-term-count-failure-checkpoint-2026-09-29.md).
 Also see

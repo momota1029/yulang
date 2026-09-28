@@ -1774,6 +1774,8 @@ fn matrix_seed_value_bound(session: &mut InferenceSession, row: u32,
     slot.try_reserve_exact(1).expect("matrix bound reservation");
     session.f5c_matrix_observer.as_mut().unwrap()
         .nested_request(lane_index, old_capacity, slot.capacity());
+    session.f5c_matrix_observer.as_mut().unwrap().live_events.as_mut().unwrap()
+        .row(false, row as usize, lane_index, slot.len(), slot.capacity());
     InferenceSession::record_bound_capacity_growth(
         &mut session.bound_payload_bytes, accounting, &mut session.execution_counters,
         &mut session.route_journal, row as usize, false, old_capacity, slot.capacity(),
@@ -1781,6 +1783,8 @@ fn matrix_seed_value_bound(session: &mut InferenceSession, row: u32,
     ).unwrap();
     slot.push(value);
     session.f5c_matrix_observer.as_mut().unwrap().nested_insert(lane_index);
+    session.f5c_matrix_observer.as_mut().unwrap().live_events.as_mut().unwrap()
+        .row(false, row as usize, lane_index, slot.len(), slot.capacity());
 }
 
 #[cfg(feature = "f5c_resource_probe")]
@@ -1796,6 +1800,8 @@ fn matrix_seed_value_edge(session: &mut InferenceSession, row: u32, next: u32, l
     slot.try_reserve_exact(1).expect("matrix edge reservation");
     session.f5c_matrix_observer.as_mut().unwrap()
         .nested_request(lane_index, old_capacity, slot.capacity());
+    session.f5c_matrix_observer.as_mut().unwrap().live_events.as_mut().unwrap()
+        .row(false, row as usize, lane_index, slot.len(), slot.capacity());
     InferenceSession::record_bound_capacity_growth(
         &mut session.bound_payload_bytes, accounting, &mut session.execution_counters,
         &mut session.route_journal, row as usize, false, old_capacity, slot.capacity(),
@@ -1803,6 +1809,8 @@ fn matrix_seed_value_edge(session: &mut InferenceSession, row: u32, next: u32, l
     ).unwrap();
     slot.push(next);
     session.f5c_matrix_observer.as_mut().unwrap().nested_insert(lane_index);
+    session.f5c_matrix_observer.as_mut().unwrap().live_events.as_mut().unwrap()
+        .row(false, row as usize, lane_index, slot.len(), slot.capacity());
 }
 
 #[cfg(feature = "f5c_resource_probe")]

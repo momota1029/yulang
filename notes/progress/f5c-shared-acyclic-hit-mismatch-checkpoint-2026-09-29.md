@@ -1,14 +1,13 @@
 # F5c shared-acyclic hit-count preflight checkpoint
 
-Status: after retaining original source-use rows, the sixth supervised
-preflight passed the shared-summary hit count and then failed at FinishOutput
-while reconciling the independent family-1 event ledger. The physical family
-has 96 capacity slots and 656 retained bytes absent from its event ledger. A
-`compiler_referee` traced the delta exactly to 62 fixture-seeded direct edges
-and 34 fixture-seeded exact bounds which update the physical observer but not
-`F5cLiveEventLedger`. The route fix and expected formulas remain correct. The
-narrow event-observation repair is active; the one extension-reviewed
-preflight is next, and diagnostics remain blocked until it succeeds.
+Status: the sixth supervised preflight passed the shared-summary hit count,
+then found 96 fixture-seeded slots (656 bytes) absent from the independent
+family-1 event ledger at FinishOutput. Both seed helpers now report each
+successful reservation and insertion to `F5cLiveEventLedger`. Post-write
+`spec_auditor` review confirmed correct lanes, no duplicate owner events, and
+unchanged formulas; the feature-enabled test-target compile passed. The
+seventh and final preflight under the approved extension is next. Diagnostics
+remain blocked until it succeeds.
 
 ## Failed attempt and evidence
 
@@ -101,16 +100,17 @@ The previous logical-term repair remains limited to reading
 `TermLaneState.lengths[3]` for before/after counts; its exact formulas and
 specification review are unaffected by this later assertion.
 
-The family-1 event mismatch is also a fixture observer gap, not unaccounted
+The family-1 event mismatch was a fixture observer gap, not unaccounted
 production capacity. `matrix_seed_value_bound` and `matrix_seed_value_edge`
-reserve and push synthetic row entries, update the physical owner observer,
-but omit the independent `F5cLiveEventLedger` row observation. The preflight
-starts that independent ledger before these seeds. In the shared D=32/K=32
-fixture, 62 direct-edge slots plus 34 exact-bound slots total the observed 96
-slot delta; `62*4 + 34*12 = 656` bytes matches exactly. Both acyclic and
-guarded-cycle builders share these seed helpers, so the repair must report the
-touched value row after each successful reservation and insertion. Keep the
-independent ledger and family formula intact.
+now report the touched value row after successful reserve and push to the
+independent `F5cLiveEventLedger`. The first observation captures capacity at
+the old length; the second captures the inserted length with the same
+capacity. In the shared D=32/K=32 fixture, 62 direct-edge slots plus 34
+exact-bound slots total the observed 96-slot delta; `62*4 + 34*12 = 656`
+bytes matches exactly. Post-write spec review confirmed lane mapping, no
+duplicate owner events, and unchanged formulas. Both acyclic and guarded-cycle
+builders share these seed helpers. The feature-enabled test-target compile
+passed; the seventh supervised preflight remains to verify the repair.
 
 ## Remaining measurement budget
 
