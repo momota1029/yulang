@@ -477,26 +477,34 @@ both before/after values preserves the §34 logical formulas (`3 * cones` and
 `4 * K`). The narrow measurement correction is implemented. Post-write
 `spec_auditor` review confirmed exactly four count-source substitutions and
 unchanged formulas, and the focused feature-enabled test-target compile passed.
-Run the fresh supervised preflight next. Exact run metrics and retained
-evidence are recorded in [`F5c logical-term preflight failure checkpoint`](f5c-preflight-logical-term-count-failure-checkpoint-2026-09-29.md).
+The fifth supervised preflight passed the corrected term-count assertion and
+the raw-state and summary-admission checks, then failed the shared-summary hit
+count: 4,032 observed against the §34 expectation 1,984 for D=32/K=32. A
+`compiler_referee` traced the extra traversals to `matrix_graph_session`
+overwriting each use row with its target root row. Each SCC self-route then
+replays the root's seeded function bound, yielding `2K(2D-1)` hits. The
+counter path is consistent with §34; the fixture has the extra traversal.
+Validate that retaining the original use rows does not introduce other root
+paths, then repair the fixture without changing its expected formula. Keep
+diagnostics blocked. Exact evidence and residual review are in
+[`F5c shared-acyclic hit-count preflight checkpoint`](f5c-shared-acyclic-hit-mismatch-checkpoint-2026-09-29.md).
 
 The next preflight allowance is one supervised process with a 45-second timeout
 and 10-second TERM-to-KILL grace, using the existing 8-GiB memory/disk floors
-and fresh run ID `20260929-logical-term-count-retry-01`. The four completed
-attempts used 16.06, 5.02, 6.03, and 11.05 seconds. This retry plus the
-reviewed 300-second diagnostic and 150-second replay use at most seven
-invocations and 543.16 seconds including grace, leaving 56.84 seconds under
-the 8-process/10-minute budget. One additional 45-second preflight plus its
-10-second grace would bring the total to eight invocations and 598.16 seconds;
-no further supervised process fits this campaign. Do not run the diagnostic or
-replay unless preflight succeeds. Keep all 36 matrix rows; derive their budget
-from diagnostic/replay evidence. The user authorized autonomous continuation
-and budget expansion, so no approval pause is needed.
+and fresh run ID `20260929-shared-acyclic-hit-retry-01`. The five completed
+attempts used 16.06, 5.02, 6.03, 11.05, and 5.03 seconds. This final preflight
+plus the reviewed 300-second diagnostic and 150-second replay use at most eight
+invocations and 548.19 seconds including the 10-second grace, leaving 51.81
+seconds under the 8-process/10-minute budget. If preflight fails, keep
+diagnostic/replay blocked and reassess the measurement plan before any further
+process. Keep all 36 matrix rows; derive their budget from diagnostic/replay
+evidence. The user authorized autonomous continuation and budget expansion, so
+no approval pause is needed.
 
 Exact next preflight command:
 
 ```bash
 set -euo pipefail
-RUN_ID=20260929-logical-term-count-retry-01
+RUN_ID=20260929-shared-acyclic-hit-retry-01
 python3 tools/run_f5c_resource_process.py --timeout-seconds 45 --log "/tmp/f5c-preflight-$RUN_ID.log" --monitor "/tmp/f5c-preflight-$RUN_ID.monitor.jsonl" --summary "/tmp/f5c-preflight-$RUN_ID.summary.json" --sidecar "/tmp/f5c-preflight-$RUN_ID.events" -- /usr/bin/time -v cargo test -p yu-solver --lib --features f5c_resource_probe f5c_resource_matrix_preflight --offline -j 2 -- --ignored --nocapture --test-threads=1
 ```

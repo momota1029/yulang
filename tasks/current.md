@@ -246,10 +246,19 @@ that summed physical Term lanes instead of counting logical terms. The
 pre-write spec review approved reading the interner length for the acyclic and
 guarded-cycle builders, preserving their exact term formulas. That narrow
 measurement correction passed post-write spec review and the feature-enabled
-test-target compile. A fresh preflight under ID
-`20260929-logical-term-count-retry-01` is next; diagnostics and the matrix
-remain behind its success. See
+test-target compile. The fifth supervised preflight passed its count, raw-state,
+and summary-admission checks, then failed the shared-summary-hit assertion
+(4,032 observed, 1,984 expected by §34). A `compiler_referee` is tracing the
+fixture request flow and found that mapping each use row onto its target creates
+self-routes that replay the seeded cone. The counter itself is consistent with
+the §34 formula. The remaining review is whether preserving original use rows
+keeps the D-root fixture exact. After that is closed and the narrow repair is
+reviewed, one supervised preflight remains under ID
+`20260929-shared-acyclic-hit-retry-01`; diagnostics and the matrix remain
+behind its success. See
 [`F5c logical-term preflight failure checkpoint`](../notes/progress/f5c-preflight-logical-term-count-failure-checkpoint-2026-09-29.md).
+Also see
+[`F5c shared-acyclic hit-count preflight checkpoint`](../notes/progress/f5c-shared-acyclic-hit-mismatch-checkpoint-2026-09-29.md).
 
 ### Latest continuation (2026-09-28): user authorized autonomous completion and budget expansion
 
