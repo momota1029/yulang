@@ -31,12 +31,14 @@ pub(super) enum PhysicalOwnerKind {
     WalkerLane(usize),
     #[cfg(all(test, feature = "f5c_resource_probe"))]
     LiveVariableLane(usize),
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    StructuredPairLane(usize),
 }
 
 #[cfg(all(test, feature = "f5c_resource_probe"))]
 mod event_sink {
     use super::PhysicalOwnerKind;
-    use std::{cell::RefCell, fs::File, io::{BufWriter, Write}, path::Path};
+    use std::{cell::{Cell, RefCell}, fs::File, io::{BufWriter, Write}, path::Path};
 
     const MAGIC: &[u8; 8] = b"F5CRES01";
     pub(super) const CREATE: u64 = 1;
@@ -47,7 +49,10 @@ mod event_sink {
     pub(super) const CHECKPOINT: u64 = 6;
 
     struct Sink { writer: BufWriter<File>, next_id: u64, count: u64, checksum: u64, failed: bool }
-    thread_local! { static SINK: RefCell<Option<Sink>> = const { RefCell::new(None) }; }
+    thread_local! {
+        static SINK: RefCell<Option<Sink>> = const { RefCell::new(None) };
+        static STRUCTURED_PAIR_TOTALS: Cell<(usize, usize, usize)> = const { Cell::new((0, 0, 0)) };
+    }
 
     pub(crate) fn open(path: &Path) -> std::io::Result<()> {
         let mut writer = BufWriter::new(File::create(path)?);
@@ -55,6 +60,7 @@ mod event_sink {
         SINK.with(|slot| *slot.borrow_mut() = Some(Sink {
             writer, next_id: 1, count: 0, checksum: 0, failed: false,
         }));
+        STRUCTURED_PAIR_TOTALS.with(|totals| totals.set((0, 0, 0)));
         Ok(())
     }
 
@@ -98,6 +104,26 @@ mod event_sink {
         record(component, 0, CHECKPOINT, PhysicalOwnerKind::Unclassified,
             0, capacity, retained, 0);
     }
+
+    pub(super) fn adjust_structured_pair(capacity_delta: isize, retained_delta: isize) {
+        STRUCTURED_PAIR_TOTALS.with(|cell| {
+            let (capacity, retained, peak) = cell.get();
+            let capacity = capacity.checked_add_signed(capacity_delta)
+                .expect("family-3 event capacity");
+            let retained = retained.checked_add_signed(retained_delta)
+                .expect("family-3 event retained bytes");
+            cell.set((capacity, retained, peak.max(retained)));
+        });
+    }
+
+    pub(super) fn structured_pair_totals() -> (usize, usize, usize) {
+        STRUCTURED_PAIR_TOTALS.with(Cell::get)
+    }
+
+    pub(super) fn checkpoint_structured_pair(capacity: usize, retained: usize) {
+        record(0, 0, CHECKPOINT, PhysicalOwnerKind::StructuredPairLane(0),
+            0, capacity, retained, 0);
+    }
 }
 
 #[cfg(all(test, feature = "f5c_resource_probe"))]
@@ -113,6 +139,7 @@ impl PhysicalOwnerKind {
             Self::IndexedBuffer(index) => 18 + index as u64,
             Self::WalkerLane(index) => 32 + index as u64,
             Self::LiveVariableLane(index) => 512 + index as u64,
+            Self::StructuredPairLane(index) => 530 + index as u64,
         }
     }
 }
@@ -124,6 +151,162 @@ pub(super) use event_sink::{close as close_f5c_resource_events, open as open_f5c
 pub(super) fn checkpoint_live_variable_events(capacity: usize, retained: usize) {
     event_sink::record(0, 0, event_sink::CHECKPOINT,
         PhysicalOwnerKind::LiveVariableLane(0), 0, capacity, retained, 0);
+}
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+pub(super) fn structured_pair_event_totals() -> (usize, usize, usize) {
+    event_sink::structured_pair_totals()
+}
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+pub(super) fn checkpoint_structured_pair_events(capacity: usize, retained: usize) {
+    event_sink::checkpoint_structured_pair(capacity, retained);
+}
+
+/// One of the fixed family-3 owner buffers. The observer owns these records
+/// outliving the corresponding session fields so error exits release only
+/// after their actual allocations have been dropped.
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+#[derive(Debug)]
+pub(super) struct StructuredPairOwner {
+    id: usize,
+    lane: usize,
+    requested: usize,
+    capacity: usize,
+    slot_size: usize,
+    released: bool,
+}
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+impl StructuredPairOwner {
+    pub(super) fn new(lane: usize, slot_size: usize) -> Self {
+        let id = event_sink::next_id();
+        event_sink::record(0, id, event_sink::CREATE,
+            PhysicalOwnerKind::StructuredPairLane(lane), 0, 0, slot_size, 0);
+        Self { id, lane, requested: 0, capacity: 0, slot_size, released: false }
+    }
+
+    pub(super) fn observe(&mut self, requested: usize, capacity: usize) {
+        assert!(!self.released && requested <= capacity);
+        let operation = if self.capacity != capacity { Some(event_sink::GROW) }
+            else if self.requested != requested { Some(event_sink::SHAPE) } else { None };
+        if let Some(operation) = operation {
+            event_sink::record(0, self.id, operation,
+                PhysicalOwnerKind::StructuredPairLane(self.lane), requested, capacity,
+                self.slot_size, 0);
+            if self.id != 0 {
+                let capacity_delta = capacity as isize - self.capacity as isize;
+                let retained_delta = capacity_delta * self.slot_size as isize;
+                event_sink::adjust_structured_pair(capacity_delta, retained_delta);
+            }
+        }
+        self.requested = requested;
+        self.capacity = capacity;
+    }
+
+    pub(super) fn release(&mut self) {
+        if self.released { return; }
+        event_sink::record(0, self.id, event_sink::RELEASE,
+            PhysicalOwnerKind::StructuredPairLane(self.lane), 0, 0, self.slot_size, 0);
+        if self.id != 0 {
+            event_sink::adjust_structured_pair(
+                -(self.capacity as isize),
+                -((self.capacity * self.slot_size) as isize),
+            );
+        }
+        self.requested = 0;
+        self.capacity = 0;
+        self.released = true;
+    }
+
+    pub(super) fn transfer_same_id(&self) {
+        assert!(!self.released);
+        event_sink::record(0, self.id, event_sink::TRANSFER,
+            PhysicalOwnerKind::StructuredPairLane(self.lane), self.requested,
+            self.capacity, self.slot_size,
+            PhysicalOwnerKind::StructuredPairLane(self.lane).code());
+    }
+}
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+impl Drop for StructuredPairOwner {
+    fn drop(&mut self) { self.release(); }
+}
+
+/// Compact per-`TypedPairMemo::Value.children` identity. Requested length is
+/// supplied at each mutation; only capacity must survive until owner drop.
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+#[derive(Debug)]
+pub(super) struct StructuredPairChildOwner {
+    id: usize,
+    capacity: usize,
+}
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+impl StructuredPairChildOwner {
+    pub(super) fn new(slot_size: usize) -> Self {
+        Self::new_with_shape(slot_size, 0, 0)
+    }
+
+    pub(super) fn new_with_shape(slot_size: usize, requested: usize, capacity: usize) -> Self {
+        assert!(requested <= capacity);
+        let id = event_sink::next_id();
+        event_sink::record(0, id, event_sink::CREATE,
+            PhysicalOwnerKind::StructuredPairLane(1), requested, capacity, slot_size, 0);
+        if id != 0 {
+            event_sink::adjust_structured_pair(
+                capacity as isize,
+                (capacity * slot_size) as isize,
+            );
+        }
+        Self { id, capacity }
+    }
+
+    pub(super) fn observe_growth(&mut self, requested: usize, capacity: usize, slot_size: usize) {
+        assert!(requested <= capacity && capacity >= self.capacity);
+        if self.id == 0 {
+            self.capacity = capacity;
+            return;
+        }
+        if capacity == self.capacity { return; }
+        event_sink::record(0, self.id, event_sink::GROW,
+            PhysicalOwnerKind::StructuredPairLane(1), requested, capacity, slot_size, 0);
+        let delta = (capacity - self.capacity) as isize;
+        event_sink::adjust_structured_pair(delta, delta * slot_size as isize);
+        self.capacity = capacity;
+    }
+
+    pub(super) fn observe_shape(&mut self, requested: usize, capacity: usize, slot_size: usize) {
+        assert!(requested <= capacity && capacity == self.capacity);
+        if self.id == 0 { return; }
+        event_sink::record(0, self.id, event_sink::SHAPE,
+            PhysicalOwnerKind::StructuredPairLane(1), requested, capacity, slot_size, 0);
+    }
+
+    pub(super) fn activate(&mut self, requested: usize, capacity: usize, slot_size: usize) {
+        assert!(requested <= capacity);
+        if self.id == 0 {
+            *self = Self::new_with_shape(slot_size, requested, capacity);
+        } else {
+            assert_eq!(self.capacity, capacity);
+        }
+    }
+
+    pub(super) fn clone_for_shape(&self, requested: usize, capacity: usize, slot_size: usize) -> Self {
+        Self::new_with_shape(slot_size, requested, capacity)
+    }
+
+    pub(super) fn release(&mut self, slot_size: usize) {
+        if self.id == 0 { self.capacity = 0; return; }
+        event_sink::record(0, self.id, event_sink::RELEASE,
+            PhysicalOwnerKind::StructuredPairLane(1), 0, 0, slot_size, 0);
+        event_sink::adjust_structured_pair(
+            -(self.capacity as isize),
+            -((self.capacity * slot_size) as isize),
+        );
+        self.capacity = 0;
+        self.id = 0;
+    }
 }
 
 #[cfg(all(test, feature = "f5c_resource_probe"))]

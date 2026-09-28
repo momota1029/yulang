@@ -1,8 +1,9 @@
 # F5c streaming owner event coverage map
 
-Status: family-1 live-variable events and family-6 streaming owner events are
-implemented, independently reviewed, and focused-verified. Family-3
-structured-pair events remain open; no matrix, preflight, or scale row ran.
+Status: family-1 live-variable, family-3 structured-pair, and family-6
+streaming-owner events are implemented, independently reviewed, and
+focused-verified. Other required physical families remain open; no matrix,
+preflight, or scale row ran.
 
 Authority: the Authoritative F5c no-numeric-resource-cap addendum and its
 physical-event requirements in
@@ -60,20 +61,25 @@ incompatible-pair reporting, and rollback truncations. `errors` moves into
 sidecar is closed; do not emit an early release. The terminal fold must permit
 that live owner and reconcile it with the captured terminal lane tuple.
 
-The matrix checker is now family-aware for families 1 and 6. It retains
-per-family same-time peaks, enforces the family-1 terminal-live-owner
-reconciliation and release-only suffix, and accepts repeated family-6
-component checkpoints. Family 3 and the remaining families still need event
-coverage and terminal rules before they can share the stream.
+Implemented and reviewed in the
+[`family-3 structured-pair event checkpoint`](f5c-family3-structured-pair-events-checkpoint-2026-09-29.md).
+The checkpoint includes all 20 top-level owners, one owner per child vector,
+the same-ID `errors` transfer, and family-3 terminal replay rules. It excludes
+the rollback journal's distinct vectors from the `TypedPairs` and
+`ReportedErrors` session owners.
+
+The matrix checker is now family-aware for event families 1, 3, and 6. It
+retains per-family same-time peaks, enforces the family-1 terminal-live-owner
+reconciliation and release-only suffix, enforces family 3's terminal-live
+`errors` owner and same-ID transfer, and accepts repeated family-6 component
+checkpoints. The remaining physical families still need event coverage and
+terminal rules before the all-eight-family stream is complete.
 
 ## Next checkpoint
 
-Implement the family-3 structured-pair owners in `lib.rs` and the owning
-`yu-solver` modules. Cover top-level state seeded at sink open, each child
-vector in `TypedPairMemo::Value`, queue/diagnostic/scratch mutations, rollback,
-and `errors` moving into `SolvedModule` after finish. Then extend the common
-event replay to family 3 and add its terminal-live-owner reconciliation. No
-preflight or scale row is eligible until all eight families have same-time
+Audit the remaining physical families against F5 §34's exact lane list and
+same-time owner requirements, then take the next bounded event-coverage slice.
+No preflight or scale row is eligible until all eight families have same-time
 event aggregation and terminal reconciliation, followed by a reviewed fresh
 diagnostic plan.
 

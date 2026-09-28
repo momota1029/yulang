@@ -3741,6 +3741,105 @@ struct DiagnosticEdge {
     field: Option<FunctionField>,
 }
 
+#[derive(Debug)]
+struct DiagnosticChildren {
+    entries: Vec<DiagnosticEdge>,
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    owner: f5c_draft_heap::StructuredPairChildOwner,
+}
+
+impl DiagnosticChildren {
+    fn new() -> Self {
+        Self {
+            entries: Vec::new(),
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            owner: f5c_draft_heap::StructuredPairChildOwner::new(
+                std::mem::size_of::<DiagnosticEdge>(),
+            ),
+        }
+    }
+
+    fn from_vec(entries: Vec<DiagnosticEdge>) -> Self {
+        Self {
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            owner: f5c_draft_heap::StructuredPairChildOwner::new_with_shape(
+                std::mem::size_of::<DiagnosticEdge>(), entries.len(), entries.capacity(),
+            ),
+            entries,
+        }
+    }
+
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    fn activate_event_owner(&mut self) {
+        self.owner.activate(
+            self.entries.len(), self.entries.capacity(),
+            std::mem::size_of::<DiagnosticEdge>(),
+        );
+    }
+
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    fn observe_reserve(&mut self) {
+        self.owner.observe_growth(
+            self.entries.len(), self.entries.capacity(),
+            std::mem::size_of::<DiagnosticEdge>(),
+        );
+    }
+
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    fn observe_push(&mut self) {
+        self.owner.observe_shape(
+            self.entries.len(), self.entries.capacity(),
+            std::mem::size_of::<DiagnosticEdge>(),
+        );
+    }
+}
+
+impl Clone for DiagnosticChildren {
+    fn clone(&self) -> Self {
+        let entries = self.entries.clone();
+        Self {
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            owner: self.owner.clone_for_shape(
+                entries.len(), entries.capacity(), std::mem::size_of::<DiagnosticEdge>(),
+            ),
+            entries,
+        }
+    }
+}
+
+impl PartialEq for DiagnosticChildren {
+    fn eq(&self, other: &Self) -> bool { self.entries == other.entries }
+}
+impl Eq for DiagnosticChildren {}
+
+impl std::ops::Deref for DiagnosticChildren {
+    type Target = Vec<DiagnosticEdge>;
+    fn deref(&self) -> &Self::Target { &self.entries }
+}
+impl std::ops::DerefMut for DiagnosticChildren {
+    fn deref_mut(&mut self) -> &mut Self::Target { &mut self.entries }
+}
+
+impl<'a> IntoIterator for &'a DiagnosticChildren {
+    type Item = &'a DiagnosticEdge;
+    type IntoIter = std::slice::Iter<'a, DiagnosticEdge>;
+
+    fn into_iter(self) -> Self::IntoIter { self.entries.iter() }
+}
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+impl Drop for DiagnosticChildren {
+    fn drop(&mut self) {
+        let slot_size = std::mem::size_of::<DiagnosticEdge>();
+        drop(std::mem::take(&mut self.entries));
+        self.owner.release(slot_size);
+    }
+}
+
+impl From<Vec<DiagnosticEdge>> for DiagnosticChildren {
+    fn from(entries: Vec<DiagnosticEdge>) -> Self { Self::from_vec(entries) }
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 struct DiagnosticReverseEdge {
     parent: usize,
@@ -3770,7 +3869,7 @@ enum DiagnosticCompletion {
 enum TypedPairMemo {
     Effect,
     Value {
-        children: Vec<DiagnosticEdge>,
+        children: DiagnosticChildren,
         /// A direct incompatibility is a completion seed, not a completed
         /// summary.  The call-local SCC pass is the only place that changes a
         /// Pending entry into Complete.
@@ -4229,6 +4328,71 @@ impl Default for F5cMatrixBoundary {
 }
 
 #[cfg(all(test, feature = "f5c_resource_probe"))]
+struct F5cStructuredPairEvents {
+    /// One event owner for every family-3 matrix lane except lane 25, where
+    /// every `TypedPairMemo::Value.children` vector owns its own identity.
+    top: [Option<f5c_draft_heap::StructuredPairOwner>; 21],
+}
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+impl F5cStructuredPairEvents {
+    fn new() -> Self {
+        let sizes = [
+            std::mem::size_of::<(TypedPairKey, TypedPairMemo)>(),
+            std::mem::size_of::<DiagnosticEdge>(),
+            std::mem::size_of::<TypedWorkItem>(),
+            std::mem::size_of::<CanonicalValuePairKey>(),
+            std::mem::size_of::<(CanonicalValuePairKey, usize)>(),
+            std::mem::size_of::<usize>(),
+            std::mem::size_of::<DiagnosticReverseEdge>(),
+            std::mem::size_of::<usize>(),
+            std::mem::size_of::<(usize, usize)>(),
+            std::mem::size_of::<usize>(),
+            std::mem::size_of::<usize>(),
+            std::mem::size_of::<usize>(),
+            std::mem::size_of::<usize>(),
+            std::mem::size_of::<usize>(),
+            std::mem::size_of::<usize>(),
+            std::mem::size_of::<Option<usize>>(),
+            std::mem::size_of::<Option<usize>>(),
+            std::mem::size_of::<DiagnosticBucketCandidate>(),
+            std::mem::size_of::<Option<DiagnosticWitness>>(),
+            std::mem::size_of::<SolverError>(),
+            std::mem::size_of::<(ConstraintOccurrenceId, SolverErrorKind)>(),
+        ];
+        Self {
+            top: std::array::from_fn(|lane| {
+                (lane != 1).then(|| f5c_draft_heap::StructuredPairOwner::new(lane, sizes[lane]))
+            }),
+        }
+    }
+
+    fn observe(&mut self, lane: usize, requested: usize, capacity: usize) {
+        if let Some(owner) = self.top[lane].as_mut() {
+            owner.observe(requested, capacity);
+        }
+    }
+
+    fn release(&mut self, lane: usize) {
+        if let Some(owner) = self.top[lane].as_mut() {
+            owner.release();
+        }
+    }
+
+    fn transfer_errors(&self) {
+        self.top[19].as_ref().expect("family-3 errors owner")
+            .transfer_same_id();
+    }
+
+    fn sync(&mut self, shapes: [(usize, usize, usize); 20]) {
+        for (lane, requested, capacity) in shapes {
+            self.observe(lane, requested, capacity);
+        }
+    }
+
+}
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
 struct F5cMatrixObserver {
     boundaries: Vec<F5cMatrixBoundary>,
     current: [F5cMatrixLane; F5C_MATRIX_LANES],
@@ -4247,6 +4411,8 @@ struct F5cMatrixObserver {
     lane_count: usize,
     live_events: Option<F5cLiveEventLedger>,
     family1_event_terminal: (usize, usize, usize),
+    structured_pair_events: Option<F5cStructuredPairEvents>,
+    family3_event_terminal: (usize, usize, usize),
 }
 
 #[cfg(all(test, feature = "f5c_resource_probe"))]
@@ -4353,7 +4519,8 @@ impl F5cMatrixObserver {
             family6_event_peak: 0, family6_event_count: 0,
             family6_event_capacity: 0, family6_event_retained: 0,
             family_capacity: [0; 8],
-            lane_count: 0, live_events: None, family1_event_terminal: (0, 0, 0) }
+            lane_count: 0, live_events: None, family1_event_terminal: (0, 0, 0),
+            structured_pair_events: None, family3_event_terminal: (0, 0, 0) }
     }
     fn nested_request(&mut self, index: usize, old_capacity: usize, capacity: usize) {
         // Reservation is not an insertion: a later reservation may fail or roll back.
@@ -8171,6 +8338,13 @@ macro_rules! reserve_typed_route_lane {
                 live.top(index, target.len(), target.capacity());
             }
         }
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        if let Some(index) = f5c_live_structured_pair_top_lane(lane) {
+            if let Some(events) = $session.f5c_matrix_observer.as_mut()
+                .and_then(|observer| observer.structured_pair_events.as_mut()) {
+                events.observe(index, target.len(), target.capacity());
+            }
+        }
         #[cfg(test)]
         if changed {
             if $session.incoming_route_accounting_active {
@@ -8204,6 +8378,34 @@ fn f5c_live_top_lane(lane: F5bCapacityLane) -> Option<usize> {
         F5bCapacityLane::ExtrusionStack => 7,
         F5bCapacityLane::ExtrusionValueMarks => 8,
         F5bCapacityLane::ExtrusionEffectMarks => 9,
+        _ => return None,
+    })
+}
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+fn f5c_live_structured_pair_top_lane(lane: F5bCapacityLane) -> Option<usize> {
+    Some(match lane {
+        F5bCapacityLane::TypedWorklist => 2,
+        F5bCapacityLane::DiagnosticDelta => 3,
+        F5bCapacityLane::DiagnosticDeltaIndices => 4,
+        F5bCapacityLane::DiagnosticReverseOffsets => 5,
+        F5bCapacityLane::DiagnosticReverseEdges => 6,
+        F5bCapacityLane::DiagnosticReverseCursors => 7,
+        F5bCapacityLane::DiagnosticDfsStack => 8,
+        F5bCapacityLane::DiagnosticFinishOrder => 9,
+        F5bCapacityLane::DiagnosticSccIndices => 10,
+        F5bCapacityLane::DiagnosticSccNodes => 11,
+        F5bCapacityLane::DiagnosticSccOffsets => 12,
+        F5bCapacityLane::DiagnosticSccPendingChildren => 13,
+        F5bCapacityLane::DiagnosticSccWorklist => 14,
+        F5bCapacityLane::DiagnosticBucketHeads => 15,
+        F5bCapacityLane::DiagnosticBucketTails => 16,
+        F5bCapacityLane::DiagnosticBucketCandidates => 17,
+        F5bCapacityLane::DiagnosticNodeWitnesses => 18,
+        F5bCapacityLane::Errors => 19,
+        // TypedPairs and ReportedErrors are also used for distinct rollback
+        // journal vectors. Observe the session owners at their call sites.
+        F5bCapacityLane::TypedPairs | F5bCapacityLane::ReportedErrors => return None,
         _ => return None,
     })
 }
@@ -8714,13 +8916,23 @@ impl InferenceSession {
         for key in journal.typed_pair_keys.iter().rev() {
             assert!(self.typed_pairs.remove(&key).is_some());
         }
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        self.observe_f5c_structured_pair_top(
+            0, self.typed_pairs.len(), self.typed_pairs.capacity(),
+        );
         for key in journal.reported_error_keys.iter().rev() {
             assert!(self.reported_errors.remove(&key));
         }
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        self.observe_f5c_structured_pair_top(
+            20, self.reported_errors.len(), self.reported_errors.capacity(),
+        );
         if let Some(id) = &journal.routed_use_id {
             assert!(self.routed_use_positions.remove(&id));
         }
         self.errors.truncate(journal.errors_len);
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        self.observe_f5c_structured_pair_top(19, self.errors.len(), self.errors.capacity());
         self.routed_uses.truncate(journal.routed_uses_len);
         self.extrusion_generation = journal.extrusion_generation;
         self.bound_payload_bytes = journal.bound_payload_bytes;
@@ -8876,6 +9088,10 @@ impl InferenceSession {
         #[cfg(all(test, feature = "f5c_resource_probe"))]
         self.observe_f5c_live_top(7);
         self.typed_worklist.clear();
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        self.observe_f5c_structured_pair_top(
+            2, self.typed_worklist.len(), self.typed_worklist.capacity(),
+        );
         self.clear_diagnostic_scratch();
         #[cfg(test)]
         {
@@ -10224,7 +10440,7 @@ impl InferenceSession {
                     }
                 }
                 Err(ConstraintError::CrossKind { lower, upper }) => {
-                    reserve_f5b(&mut self.errors, 1, F5bCapacityLane::Errors)?;
+                    reserve_typed_route_lane!(self, self.errors, 1, F5bCapacityLane::Errors);
                     reserve_f5b(
                         &mut self.cross_kind_components,
                         2,
@@ -10235,6 +10451,10 @@ impl InferenceSession {
                         cause: occurrence.cause.clone(),
                         kind: SolverErrorKind::CrossKind { lower, upper },
                     });
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    self.observe_f5c_structured_pair_top(
+                        19, self.errors.len(), self.errors.capacity(),
+                    );
                     for term in [occurrence.lower, occurrence.upper] {
                         if let Ok(TermView::Component(component)) = self.store.term_view(term) {
                             self.cross_kind_components.insert(component.clone());
@@ -10782,6 +11002,10 @@ impl InferenceSession {
         let mut transitions = 0;
         self.enqueue_task(initial)?;
         while let Some(item) = self.typed_worklist.pop_front() {
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            self.observe_f5c_structured_pair_top(
+                2, self.typed_worklist.len(), self.typed_worklist.capacity(),
+            );
             #[cfg(test)]
             if matches!(item.task, LiveConstraintTask::Value(_)) {
                 self.typed_pair_worklist_pops += 1;
@@ -10806,7 +11030,7 @@ impl InferenceSession {
                         self.record_typed_pair_admission(
                             memo_key,
                             TypedPairMemo::Value {
-                                children: Vec::new(),
+                                children: DiagnosticChildren::new(),
                                 direct_witness: Some(DiagnosticWitness {
                                     terminal: key,
                                     kind: SolverErrorKind::IncompatibleValue { lower, upper },
@@ -10824,7 +11048,7 @@ impl InferenceSession {
                         self.record_typed_pair_admission(
                             memo_key,
                             TypedPairMemo::Value {
-                                children: Vec::new(),
+                                children: DiagnosticChildren::new(),
                                 direct_witness: None,
                                 completion: DiagnosticCompletion::Pending,
                             },
@@ -10861,7 +11085,7 @@ impl InferenceSession {
                         self.record_typed_pair_admission(
                             memo_key,
                             TypedPairMemo::Value {
-                                children: Vec::new(),
+                                children: DiagnosticChildren::new(),
                                 direct_witness: None,
                                 completion: DiagnosticCompletion::Pending,
                             },
@@ -10902,7 +11126,7 @@ impl InferenceSession {
                     self.record_typed_pair_admission(
                         memo_key,
                         TypedPairMemo::Value {
-                            children: Vec::new(),
+                            children: DiagnosticChildren::new(),
                             direct_witness: None,
                             completion: DiagnosticCompletion::Pending,
                         },
@@ -10939,6 +11163,10 @@ impl InferenceSession {
         reserve_typed_route_lane!(self, self.typed_worklist, 1, F5bCapacityLane::TypedWorklist);
         let old_capacity = self.typed_worklist.capacity();
         self.typed_worklist.push_back(TypedWorkItem { task });
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        self.observe_f5c_structured_pair_top(
+            2, self.typed_worklist.len(), self.typed_worklist.capacity(),
+        );
         #[cfg(test)]
         self.record_typed_worklist_push(task, old_capacity);
         #[cfg(not(test))]
@@ -10950,6 +11178,10 @@ impl InferenceSession {
         reserve_typed_route_lane!(self, self.typed_worklist, 1, F5bCapacityLane::TypedWorklist);
         let old_capacity = self.typed_worklist.capacity();
         self.typed_worklist.push_front(TypedWorkItem { task });
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        self.observe_f5c_structured_pair_top(
+            2, self.typed_worklist.len(), self.typed_worklist.capacity(),
+        );
         #[cfg(test)]
         self.record_typed_worklist_push(task, old_capacity);
         #[cfg(not(test))]
@@ -10986,6 +11218,10 @@ impl InferenceSession {
         // availability failure, but no unreserved logical edge is published.
         let pair_capacity = self.typed_pairs.capacity();
         let pair_reservation = reserve_f5b(&mut self.typed_pairs, 1, F5bCapacityLane::TypedPairs);
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        self.observe_f5c_structured_pair_top(
+            0, self.typed_pairs.len(), self.typed_pairs.capacity(),
+        );
         if self.typed_pairs.capacity() != pair_capacity {
             #[cfg(test)]
             if self.incoming_route_accounting_active {
@@ -11046,6 +11282,10 @@ impl InferenceSession {
             self.typed_pairs.insert(key, entry).is_none(),
             "pair admitted once"
         );
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        self.observe_f5c_structured_pair_top(
+            0, self.typed_pairs.len(), self.typed_pairs.capacity(),
+        );
         self.execution_counters.constraint_pair_admissions += 1;
         if let TypedPairKey::Value(value) = key {
             let index = self.diagnostic_delta.len();
@@ -11054,6 +11294,15 @@ impl InferenceSession {
                 self.diagnostic_delta_indices.insert(value, index).is_none(),
                 "a newly admitted value pair enters one diagnostic delta"
             );
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            {
+                self.observe_f5c_structured_pair_top(
+                    3, self.diagnostic_delta.len(), self.diagnostic_delta.capacity(),
+                );
+                self.observe_f5c_structured_pair_top(
+                    4, self.diagnostic_delta_indices.len(), self.diagnostic_delta_indices.capacity(),
+                );
+            }
         }
         Ok(())
     }
@@ -11072,7 +11321,13 @@ impl InferenceSession {
                 unreachable!("a semantic value pair owns its diagnostic children");
             };
             let old_capacity = children.capacity();
-            let reservation = reserve_f5b(children, 1, F5bCapacityLane::DiagnosticEdges);
+            let reservation = reserve_f5b(
+                &mut children.entries,
+                1,
+                F5bCapacityLane::DiagnosticEdges,
+            );
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            children.observe_reserve();
             (old_capacity, children.capacity(), reservation)
         };
         #[cfg(all(test, feature = "f5c_resource_probe"))]
@@ -11139,6 +11394,8 @@ impl InferenceSession {
             unreachable!("a semantic value pair owns its diagnostic children");
         };
         children.push(parent_edge);
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        children.observe_push();
         #[cfg(all(test, feature = "f5c_resource_probe"))]
         if let Some(observer) = self.f5c_matrix_observer.as_mut() {
             observer.nested_insert(8);
@@ -11543,9 +11800,13 @@ impl InferenceSession {
     }
 
     fn clear_diagnostic_scratch(&mut self) {
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        self.sync_f5c_structured_pair_scratch();
         self.diagnostic_delta.clear();
         self.diagnostic_delta_indices.clear();
         self.clear_diagnostic_completion_scratch();
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        self.sync_f5c_structured_pair_scratch();
     }
 
     fn clear_diagnostic_completion_scratch(&mut self) {
@@ -12045,13 +12306,17 @@ impl InferenceSession {
         let kind = SolverErrorKind::IncompatibleValue { lower, upper };
         let key = (occurrence.clone(), kind);
         if !self.reported_errors.contains(&key) {
-            reserve_typed_route_lane!(
-                self,
-                self.reported_errors,
-                1,
-                F5bCapacityLane::ReportedErrors
-            );
-            reserve_typed_route_lane!(self, self.errors, 1, F5bCapacityLane::Errors);
+        reserve_typed_route_lane!(
+            self,
+            self.reported_errors,
+            1,
+            F5bCapacityLane::ReportedErrors
+        );
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        self.observe_f5c_structured_pair_top(
+            20, self.reported_errors.len(), self.reported_errors.capacity(),
+        );
+        reserve_typed_route_lane!(self, self.errors, 1, F5bCapacityLane::Errors);
             if self.route_journal.is_some() {
                 reserve_typed_route_lane!(
                     self,
@@ -12066,11 +12331,19 @@ impl InferenceSession {
                     .push(key.clone());
             }
             assert!(self.reported_errors.insert(key));
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            self.observe_f5c_structured_pair_top(
+                20, self.reported_errors.len(), self.reported_errors.capacity(),
+            );
             self.errors.push(SolverError {
                 occurrence: occurrence.clone(),
                 cause: cause.clone(),
                 kind,
             });
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            self.observe_f5c_structured_pair_top(
+                19, self.errors.len(), self.errors.capacity(),
+            );
         }
         Ok(())
     }
@@ -15207,6 +15480,44 @@ impl InferenceSession {
             drop(std::mem::take(&mut self.extrusion_effect_marks));
             live.release_all();
         }
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        if let Some(mut observer) = self.f5c_matrix_observer.take() {
+            let events = observer.structured_pair_events.as_mut()
+                .expect("family-3 event owners seeded before admission");
+            macro_rules! drop_family3_lane {
+                ($field:ident, $lane:expr) => {{
+                    drop(std::mem::take(&mut self.$field));
+                    events.release($lane);
+                }};
+            }
+            drop_family3_lane!(typed_pairs, 0);
+            drop_family3_lane!(typed_worklist, 2);
+            drop_family3_lane!(diagnostic_delta, 3);
+            drop_family3_lane!(diagnostic_delta_indices, 4);
+            drop_family3_lane!(diagnostic_reverse_offsets, 5);
+            drop_family3_lane!(diagnostic_reverse_edges, 6);
+            drop_family3_lane!(diagnostic_reverse_cursors, 7);
+            drop_family3_lane!(diagnostic_dfs_stack, 8);
+            drop_family3_lane!(diagnostic_finish_order, 9);
+            drop_family3_lane!(diagnostic_scc_indices, 10);
+            drop_family3_lane!(diagnostic_scc_nodes, 11);
+            drop_family3_lane!(diagnostic_scc_offsets, 12);
+            drop_family3_lane!(diagnostic_scc_pending_children, 13);
+            drop_family3_lane!(diagnostic_scc_worklist, 14);
+            drop_family3_lane!(diagnostic_bucket_heads, 15);
+            drop_family3_lane!(diagnostic_bucket_tails, 16);
+            drop_family3_lane!(diagnostic_bucket_candidates, 17);
+            drop_family3_lane!(diagnostic_node_witnesses, 18);
+            drop_family3_lane!(reported_errors, 20);
+            self.f5c_matrix_observer = Some(observer);
+        }
+        let errors = std::mem::take(&mut self.errors);
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        if let Some(observer) = self.f5c_matrix_observer.as_ref() {
+            if let Some(events) = observer.structured_pair_events.as_ref() {
+                events.transfer_errors();
+            }
+        }
         Ok(SolvedModule {
             hir: self.batch.hir,
             projection_order: self.batch.projection_order,
@@ -15216,7 +15527,7 @@ impl InferenceSession {
             schemes: self.schemes,
             closed_types,
             routed_uses: self.routed_uses,
-            errors: self.errors,
+            errors,
             store: self.store,
             counters,
             solved_root_query_probes: AtomicUsize::new(0),
@@ -15321,6 +15632,41 @@ impl SolvedModule {
 
 #[cfg(all(test, feature = "f5c_resource_probe"))]
 impl InferenceSession {
+    fn observe_f5c_structured_pair_top(
+        &mut self,
+        lane: usize,
+        requested: usize,
+        capacity: usize,
+    ) {
+        if let Some(events) = self.f5c_matrix_observer.as_mut()
+            .and_then(|observer| observer.structured_pair_events.as_mut()) {
+            events.observe(lane, requested, capacity);
+        }
+    }
+
+    fn sync_f5c_structured_pair_scratch(&mut self) {
+        for (lane, requested, capacity) in [
+            (3, self.diagnostic_delta.len(), self.diagnostic_delta.capacity()),
+            (4, self.diagnostic_delta_indices.len(), self.diagnostic_delta_indices.capacity()),
+            (5, self.diagnostic_reverse_offsets.len(), self.diagnostic_reverse_offsets.capacity()),
+            (6, self.diagnostic_reverse_edges.len(), self.diagnostic_reverse_edges.capacity()),
+            (7, self.diagnostic_reverse_cursors.len(), self.diagnostic_reverse_cursors.capacity()),
+            (8, self.diagnostic_dfs_stack.len(), self.diagnostic_dfs_stack.capacity()),
+            (9, self.diagnostic_finish_order.len(), self.diagnostic_finish_order.capacity()),
+            (10, self.diagnostic_scc_indices.len(), self.diagnostic_scc_indices.capacity()),
+            (11, self.diagnostic_scc_nodes.len(), self.diagnostic_scc_nodes.capacity()),
+            (12, self.diagnostic_scc_offsets.len(), self.diagnostic_scc_offsets.capacity()),
+            (13, self.diagnostic_scc_pending_children.len(), self.diagnostic_scc_pending_children.capacity()),
+            (14, self.diagnostic_scc_worklist.len(), self.diagnostic_scc_worklist.capacity()),
+            (15, self.diagnostic_bucket_heads.len(), self.diagnostic_bucket_heads.capacity()),
+            (16, self.diagnostic_bucket_tails.len(), self.diagnostic_bucket_tails.capacity()),
+            (17, self.diagnostic_bucket_candidates.len(), self.diagnostic_bucket_candidates.capacity()),
+            (18, self.diagnostic_node_witnesses.len(), self.diagnostic_node_witnesses.capacity()),
+        ] {
+            self.observe_f5c_structured_pair_top(lane, requested, capacity);
+        }
+    }
+
     fn seed_f5c_matrix_live_events(&mut self) {
         let sizes = [
             std::mem::size_of::<LiveComponentEndpoint>(),
@@ -15363,6 +15709,39 @@ impl InferenceSession {
             ].into_iter().enumerate() { live.row(true, index, lane, len, capacity); }
         }
         self.f5c_matrix_observer.as_mut().expect("matrix observer").live_events = Some(live);
+
+        let mut structured = F5cStructuredPairEvents::new();
+        for (lane, requested, capacity) in [
+            (0, self.typed_pairs.len(), self.typed_pairs.capacity()),
+            (2, self.typed_worklist.len(), self.typed_worklist.capacity()),
+            (3, self.diagnostic_delta.len(), self.diagnostic_delta.capacity()),
+            (4, self.diagnostic_delta_indices.len(), self.diagnostic_delta_indices.capacity()),
+            (5, self.diagnostic_reverse_offsets.len(), self.diagnostic_reverse_offsets.capacity()),
+            (6, self.diagnostic_reverse_edges.len(), self.diagnostic_reverse_edges.capacity()),
+            (7, self.diagnostic_reverse_cursors.len(), self.diagnostic_reverse_cursors.capacity()),
+            (8, self.diagnostic_dfs_stack.len(), self.diagnostic_dfs_stack.capacity()),
+            (9, self.diagnostic_finish_order.len(), self.diagnostic_finish_order.capacity()),
+            (10, self.diagnostic_scc_indices.len(), self.diagnostic_scc_indices.capacity()),
+            (11, self.diagnostic_scc_nodes.len(), self.diagnostic_scc_nodes.capacity()),
+            (12, self.diagnostic_scc_offsets.len(), self.diagnostic_scc_offsets.capacity()),
+            (13, self.diagnostic_scc_pending_children.len(), self.diagnostic_scc_pending_children.capacity()),
+            (14, self.diagnostic_scc_worklist.len(), self.diagnostic_scc_worklist.capacity()),
+            (15, self.diagnostic_bucket_heads.len(), self.diagnostic_bucket_heads.capacity()),
+            (16, self.diagnostic_bucket_tails.len(), self.diagnostic_bucket_tails.capacity()),
+            (17, self.diagnostic_bucket_candidates.len(), self.diagnostic_bucket_candidates.capacity()),
+            (18, self.diagnostic_node_witnesses.len(), self.diagnostic_node_witnesses.capacity()),
+            (19, self.errors.len(), self.errors.capacity()),
+            (20, self.reported_errors.len(), self.reported_errors.capacity()),
+        ] {
+            structured.observe(lane, requested, capacity);
+        }
+        for memo in self.typed_pairs.values_mut() {
+            if let TypedPairMemo::Value { children, .. } = memo {
+                children.activate_event_owner();
+            }
+        }
+        self.f5c_matrix_observer.as_mut().expect("matrix observer")
+            .structured_pair_events = Some(structured);
     }
 
     fn start_f5c_matrix_route_growth(&mut self) {
@@ -15406,6 +15785,30 @@ impl InferenceSession {
     }
     fn observe_f5c_matrix(&mut self, boundary: ResourceBoundary) {
         let Some(mut observer) = self.f5c_matrix_observer.take() else { return; };
+        if let Some(events) = observer.structured_pair_events.as_mut() {
+            events.sync([
+                (0, self.typed_pairs.len(), self.typed_pairs.capacity()),
+                (2, self.typed_worklist.len(), self.typed_worklist.capacity()),
+                (3, self.diagnostic_delta.len(), self.diagnostic_delta.capacity()),
+                (4, self.diagnostic_delta_indices.len(), self.diagnostic_delta_indices.capacity()),
+                (5, self.diagnostic_reverse_offsets.len(), self.diagnostic_reverse_offsets.capacity()),
+                (6, self.diagnostic_reverse_edges.len(), self.diagnostic_reverse_edges.capacity()),
+                (7, self.diagnostic_reverse_cursors.len(), self.diagnostic_reverse_cursors.capacity()),
+                (8, self.diagnostic_dfs_stack.len(), self.diagnostic_dfs_stack.capacity()),
+                (9, self.diagnostic_finish_order.len(), self.diagnostic_finish_order.capacity()),
+                (10, self.diagnostic_scc_indices.len(), self.diagnostic_scc_indices.capacity()),
+                (11, self.diagnostic_scc_nodes.len(), self.diagnostic_scc_nodes.capacity()),
+                (12, self.diagnostic_scc_offsets.len(), self.diagnostic_scc_offsets.capacity()),
+                (13, self.diagnostic_scc_pending_children.len(), self.diagnostic_scc_pending_children.capacity()),
+                (14, self.diagnostic_scc_worklist.len(), self.diagnostic_scc_worklist.capacity()),
+                (15, self.diagnostic_bucket_heads.len(), self.diagnostic_bucket_heads.capacity()),
+                (16, self.diagnostic_bucket_tails.len(), self.diagnostic_bucket_tails.capacity()),
+                (17, self.diagnostic_bucket_candidates.len(), self.diagnostic_bucket_candidates.capacity()),
+                (18, self.diagnostic_node_witnesses.len(), self.diagnostic_node_witnesses.capacity()),
+                (19, self.errors.len(), self.errors.capacity()),
+                (20, self.reported_errors.len(), self.reported_errors.capacity()),
+            ]);
+        }
         observer.boundary(boundary, &self.resource_ledger);
         let mut index = 0usize;
         macro_rules! vector {
@@ -15603,10 +16006,11 @@ impl InferenceSession {
                 + self.resource_ledger.generalization_walker_retained_bytes);
         assert_eq!(sum_family(observer.family_ends[6], observer.family_ends[7]),
             self.resource_ledger.instantiation_substitution_retained_bytes);
+        let streamed_family3 = f5c_draft_heap::structured_pair_event_totals();
         let owner_peaks = [
             self.execution_counters.bound_table_peak_bytes,
             self.resource_ledger.term_peak_bytes,
-            self.resource_ledger.structured_pair_family_peak_bytes,
+            streamed_family3.2,
             self.resource_ledger.component_expansion_memo_peak_bytes,
             self.resource_ledger.flat_finalizer_peak_bytes,
             self.resource_ledger.closed_normalization_index_peak_bytes,
@@ -15625,6 +16029,10 @@ impl InferenceSession {
                 .expect("matrix family capacity");
             start = observer.family_ends[family];
         }
+        assert_eq!((streamed_family3.0, streamed_family3.1),
+            (usize::try_from(observer.family_capacity[2]).expect("family-3 capacity"),
+                observer.family_retained[2]),
+            "family-3 owner events reconcile with current physical lanes");
         if boundary == ResourceBoundary::FinishOutput {
             let live = observer.live_events.as_ref().expect("live owner events");
             assert_eq!((live.capacity, live.retained),
@@ -15635,9 +16043,14 @@ impl InferenceSession {
                 "family-1 same-time owner peak reconciles to terminal observer");
             f5c_draft_heap::checkpoint_live_variable_events(live.capacity, live.retained);
             observer.family1_event_terminal = (live.capacity, live.retained, live.peak);
+            f5c_draft_heap::checkpoint_structured_pair_events(
+                streamed_family3.0, streamed_family3.1,
+            );
+            observer.family3_event_terminal = streamed_family3;
         }
-        assert_eq!(observer.family_peak[2],
-            self.resource_ledger.structured_pair_family_peak_bytes);
+        assert!(observer.family_peak[2] >=
+            self.resource_ledger.structured_pair_family_peak_bytes,
+            "family-3 event peak covers sampled structured-pair peaks");
         assert_eq!(self.resource_ledger.semantic_arena_retained_bytes,
             self.execution_counters.semantic_arena_retained_bytes);
         assert_eq!(self.resource_ledger.semantic_arena_peak_bytes,
@@ -21301,7 +21714,7 @@ mod tests {
                 upper: ValueEndpointKey::IntNegative,
             };
             let terminal_memo = |terminal, kind| TypedPairMemo::Value {
-                children: Vec::new(),
+                children: DiagnosticChildren::new(),
                 direct_witness: Some(DiagnosticWitness {
                     terminal,
                     kind,
@@ -21335,8 +21748,8 @@ mod tests {
                     },
                 ),
             );
-            let node_memo = |children| TypedPairMemo::Value {
-                children,
+            let node_memo = |children: Vec<DiagnosticEdge>| TypedPairMemo::Value {
+                children: children.into(),
                 direct_witness: None,
                 completion: DiagnosticCompletion::Pending,
             };
@@ -21421,7 +21834,7 @@ mod tests {
             upper: ValueEndpointKey::ValueRow(first_row),
         };
         let pending = |child, field| TypedPairMemo::Value {
-            children: vec![DiagnosticEdge { child, field }],
+            children: vec![DiagnosticEdge { child, field }].into(),
             direct_witness: None,
             completion: DiagnosticCompletion::Pending,
         };
@@ -21473,7 +21886,7 @@ mod tests {
         session.typed_pairs.insert(
             TypedPairKey::Value(key),
             TypedPairMemo::Value {
-                children: Vec::new(),
+                children: DiagnosticChildren::new(),
                 direct_witness: Some(witness),
                 completion: DiagnosticCompletion::Pending,
             },

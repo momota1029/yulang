@@ -1,10 +1,10 @@
 # Current task: complete authorized F5c implementation gates
 
-Updated: 2026-09-28. Branch: `yulang3`; do not modify frozen `main`.
+Updated: 2026-09-29. Branch: `yulang3`; do not modify frozen `main`.
 
 Resume handoff: [`2026-09-22 F5c scheme-closure handoff`](../notes/handoffs/2026-09-22-f5c-scheme-closure-handoff.md).
 
-### Latest continuation (2026-09-29): family-1 and family-6 owner events
+### Completed continuation (2026-09-29): family-1 and family-6 owner events
 
 The family-1 live-variable event ledger and family-6 streaming owner handoff
 are implemented and independently reviewed. The exact paths, diff units,
@@ -21,6 +21,34 @@ observer and family-6 call paths could not be split into a smaller verified
 commit from the current branch head, so this family-1/family-6 integration is
 one coherent checkpoint. The user asked for small coherent commits and prompt
 pushes; continue that cadence as each reviewable family slice closes.
+
+### Latest continuation (2026-09-29): family-3 structured-pair owner events
+
+Family-3 owner events now cover all 20 top-level session buffers plus each
+`TypedPairMemo::Value.children` buffer with its own ID. The sidecar is seeded
+after open, follows capacity growth and shape changes through admission,
+queue/diagnostic work, rollback and finish, and transfers the live `errors`
+buffer under its existing owner ID into `SolvedModule`. The replay checker
+reconciles the family-3 checkpoint, peak, release suffix, and sole terminal
+errors owner. Exact paths, findings, and checks are recorded in
+[`F5c family-3 structured-pair event checkpoint`](../notes/progress/f5c-family3-structured-pair-events-checkpoint-2026-09-29.md).
+
+Selected M2 with a `spec_auditor` and `compiler_referee`. Their blocking/major
+findings covered family-3 SHAPE/TRANSFER replay invariants, event reconciliation
+ordering, rollback queue shape, post-reserve owner events, and accidental
+aliasing of route-journal buffers; all were repaired and delta-reviewed clean.
+The six-buffer `FlatDraft` carrier and same-ID staged transfer remain the
+earlier independent checkpoint. The separate warning-only commit
+`41047141` gates four test-only helpers behind `cfg(test)`.
+
+Production and feature-enabled test configurations pass focused compile
+checks; the Python replay checker parses and `git diff --check` passes. No test
+was run. `cargo fmt --all -- --check` reports formatting differences across
+the repository; no broad formatting was applied. No matrix, preflight,
+benchmark, or scale row ran; measurement budget remains zero. The all-eight-
+family gate remains open. Next: audit the still-unclosed resource families and
+continue with the next bounded owner-event checkpoint; do not start a matrix
+run until event coverage and the fresh diagnostic plan are reviewed.
 
 ### Latest continuation (2026-09-28): user authorized autonomous completion and budget expansion
 
