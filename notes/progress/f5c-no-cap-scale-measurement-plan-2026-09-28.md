@@ -450,9 +450,13 @@ sidecar cannot identify the failing boundary or family. See
 The ZST correction changes the reported physical capacity only when slot size
 is zero. It leaves retained bytes and all family peak folds unchanged, so it
 does not explain this byte-peak assertion. The failing boundary is in the
-`IdentityAliases/U/32` case, but the generic assertion emits no family index,
-lane range, retained total, or owner peak. Add those values to the test-only
-assertion, then review and compile-check before retrying.
+`IdentityAliases/U/32` case, but the generic assertion emitted no family index,
+lane range, retained total, or owner peak. The assertion in
+`crates/yu-solver/src/lib.rs` now prints those values and the lane slice only on
+failure. A `spec_auditor` confirmed the invariant and control flow are
+unchanged. The focused test-target compile passed:
+
+- `RUSTC_WRAPPER= cargo check -p yu-solver --tests --features f5c_resource_probe`
 
 The next preflight allowance is one supervised process with a 60-second timeout
 and 10-second TERM-to-KILL grace, using the existing 8-GiB memory/disk floors

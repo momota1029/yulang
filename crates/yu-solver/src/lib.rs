@@ -16103,7 +16103,9 @@ impl InferenceSession {
             let retained = sum_family(start, observer.family_ends[family]);
             observer.family_retained[family] = retained;
             assert!(owner_peaks[family] >= retained,
-                "matrix owner family peak must cover current retained bytes");
+                "matrix owner family peak must cover current retained bytes: boundary={boundary:?} family={family} lanes={start}..{} owner_peak={} retained={} lane_values={:?}",
+                observer.family_ends[family], owner_peaks[family], retained,
+                &observer.current[start..observer.family_ends[family]]);
             observer.family_peak[family] = owner_peaks[family];
             observer.family_capacity[family] = observer.current[start..observer.family_ends[family]]
                 .iter().try_fold(0u128, |sum, lane| sum.checked_add(lane.actual_capacity as u128))

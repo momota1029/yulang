@@ -2,8 +2,10 @@
 
 Status: the second supervised preflight, after the ZST capacity correction,
 failed at the test-only family peak coverage assertion during its second
-fixture case. The exact family and values are not present in the panic output.
-No diagnostic or matrix process ran.
+fixture case. Its failure did not print the exact family and values. A
+panic-only diagnostic was added to that assertion, independently reviewed,
+and feature-enabled test-target compile-checked. No diagnostic or matrix
+process ran.
 
 ## Exact paths and diff boundary
 
@@ -13,7 +15,10 @@ No diagnostic or matrix process ran.
   calculations.
 - `crates/yu-solver/src/lib.rs:16093-16111`: maps eight owner peaks to family
   ranges and asserts that each peak covers current retained bytes. The current
-  panic is at line 16105, before more specific family reconciliations.
+  panic is at line 16105, before more specific family reconciliations. The
+  diagnostic-only follow-up keeps the predicate/control flow unchanged and
+  reports boundary, family, row range, owner peak, retained total, and lane
+  values.
 - `crates/yu-solver/src/tests/f5c_resource_probe.rs:17-19,2119-2135`: the
   preflight case order identifies the failing fixture as `IdentityAliases/U/32`.
 - `notes/progress/f5c-no-cap-scale-measurement-plan-2026-09-28.md`: records the
@@ -56,12 +61,16 @@ bytes at zero, and leaves all byte peaks unchanged. The audit's direct peak
 producers are the bound-table current peak, streamed owner-event peaks for
 families 2/3/4/6/8, the closed-type aggregate, and the source/walker joint peak.
 
-The next code delta is limited to enriching the existing feature-gated test
-assertion in `crates/yu-solver/src/lib.rs` with the boundary, family index,
-lane range, current retained total, and selected owner peak. After one narrow
-review and feature-enabled compile check, run one fresh supervised preflight
-retry. Repair the specific peak producer only after this diagnostic identifies
-the violated family; do not lower or remove the invariant.
+The contextual diagnostic in `crates/yu-solver/src/lib.rs` preserves the
+original assertion condition and accounting. A `spec_auditor` review found the
+message fields correct and no invariant or control-flow change. Focused checks
+passed:
+
+- `RUSTC_WRAPPER= cargo check -p yu-solver --tests --features f5c_resource_probe`
+- `git diff --check`
+
+Run one fresh supervised preflight retry to identify the violated family and
+peak producer; do not lower or remove the invariant.
 
 The new retry has a 60-second process timeout plus 10-second termination grace.
 Together with the first two attempts and planned 300-second diagnostic and

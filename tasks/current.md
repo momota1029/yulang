@@ -234,12 +234,12 @@ correction leaves retained-byte values unchanged, so it does not explain this
 assertion. Exact metrics, evidence paths, and bounded next step are in
 [`F5c owner-peak preflight failure checkpoint`](../notes/progress/f5c-preflight-owner-peak-failure-checkpoint-2026-09-29.md).
 
-Next, add boundary, family index, lane range, current retained bytes, and owner
-peak to the existing test-only assertion in `crates/yu-solver/src/lib.rs`.
-Then run its focused feature-enabled compile check and obtain a narrow review.
-After recording a fresh one-process allowance under the remaining 10-minute
-budget, rerun only the supervised preflight; diagnostic and matrix processes
-remain behind its success.
+The test-only assertion in `crates/yu-solver/src/lib.rs` now reports boundary,
+family, lane range, retained total, owner peak, and lane values on failure. A
+narrow spec review is clean and the feature-enabled test-target compile passes.
+Run the revised supervised preflight with fresh ID
+`20260929-owner-peak-retry-01`; diagnostic and matrix processes remain behind
+its success.
 
 ### Latest continuation (2026-09-28): user authorized autonomous completion and budget expansion
 
