@@ -2137,6 +2137,19 @@ fn f5c_resource_matrix_preflight() {
 
 #[cfg(feature = "f5c_resource_probe")]
 #[test]
+#[ignore = "isolated F5c guarded cycle D=32 K=32 preflight"]
+fn f5c_guarded_cycle_32_32_preflight() {
+    matrix_run(F5cMatrixCase {
+        family: F5cMatrixFamily::GuardedCycle,
+        dimension: 'D',
+        size: 32,
+        companion: Some(32),
+        emit: false,
+    });
+}
+
+#[cfg(feature = "f5c_resource_probe")]
+#[test]
 #[ignore = "approved F5c resource matrix case"]
 fn f5c_resource_matrix_case() {
     matrix_run(F5cMatrixCase::from_env());

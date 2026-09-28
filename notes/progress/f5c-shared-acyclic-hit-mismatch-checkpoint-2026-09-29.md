@@ -276,7 +276,7 @@ Focused verification passed in the implementation pass:
   staged kind 12.
 - `git diff --check`.
 
-The next command is exactly one supervised preflight, run ID
+The separately authorized supervised preflight ran once with run ID
 `20260929-raw-walker-coalescing-preflight-01`:
 
 ```sh
@@ -297,3 +297,97 @@ one invocation and at most 60 seconds plus that grace. It is measurement
 containment, not a language input or compiler-work cap. Do not start the
 corrected K=4,000 diagnostic, replay, or matrix rows until the result and event
 volume are reviewed.
+
+It compiled in 4.28 seconds, completed the first four D=32 rows, and then hit
+the 60-second wall limit while the guarded-cycle row was still producing
+events. The supervisor sent TERM/KILL; exit status was `-15` after 61.178
+seconds. No memory or disk floor was breached. The partial sidecar has
+282,443,776 bytes, 4,413,183 complete records, and 56 trailing bytes. Its
+operation totals are 987,547 CREATE, 1,936,673 SHAPE, 739,431 GROW, 664,966
+RELEASE, and 84,566 DECREASE. The process peaked at 666,099,712 bytes of group
+RSS; minimum `MemAvailable` was 30,472,093,696 bytes, minimum free disk was
+666,602,938,368 bytes, and the supervisor took 65 samples. The first four
+completed row summaries were:
+
+- `IndependentIdentities/D/32`: 23,256 events, 1,488,392 bytes.
+- `IdentityAliases/U/32`: 29,640 events, 1,896,968 bytes.
+- `SharedAcyclic/D/32/K=32`: 34,577 events, 2,212,936 bytes.
+- `IndependentAcyclic/D/32/K=32`: 308,239 events, 19,727,304 bytes.
+
+Preserved evidence:
+
+- `/tmp/f5c-preflight-20260929-raw-walker-coalescing-preflight-01.log`
+- `/tmp/f5c-preflight-20260929-raw-walker-coalescing-preflight-01.monitor.jsonl`
+- `/tmp/f5c-preflight-20260929-raw-walker-coalescing-preflight-01.summary.json`
+- `/tmp/f5c-preflight-20260929-raw-walker-coalescing-preflight-01.events`
+
+This timeout is not evidence of a semantic mismatch or resource-floor
+failure, and the partial stream is not a valid replay input. A fresh
+`performance_auditor` found that 1,936,673 SHAPE events remain in the partial
+stream, of which 1,932,317 are family-4 component-memo kinds 562, 567, 568, and
+569. Its single-path counterfactual after suppressing those events is about
+2,480,866 records / 158.8 MB, not a bound or completion estimate. Streaming
+observation showed the sidecar and RSS still rising at the timeout; the
+measured headroom is local evidence only.
+
+The `ComponentMemoEvents::observe` same-capacity SHAPE coalescing repair is now
+implemented in `crates/yu-solver/src/f5c_draft_heap.rs`. It preserves
+`requested <= capacity`, updates stored request/capacity on every observation,
+keeps strict GROW/DECREASE events and signed current/peak accounting, and leaves
+CREATE/release/identity intact. Post-write `spec_auditor` review is clean. The
+focused check passed:
+
+- `RUSTC_WRAPPER= cargo test -p yu-solver --lib --features f5c_resource_probe component_memo_ --offline -j 2 -- --test-threads=1` (2 passed).
+- `git diff --check -- crates/yu-solver/src/f5c_draft_heap.rs`.
+
+The spec review's minor replay-coverage note is closed by primary review:
+omitting same-capacity request-only records changes no physical current/peak
+transition, the shared observer code covers all 20 family-4 lanes, and the
+focused test exercises the strict decrease/growth/release sequence plus the
+latest in-memory request. The sampled request witness remains in the separate
+lane summary and is not reconstructed from every sidecar mutation.
+
+The source audit could prove the D=32/K=32 fixture's 2,048 uncacheable states,
+128 terms, and 128 seeded bounds, but it found no useful upper bound on
+path-expanded solver visits or owner-event output. F5's no-cap addendum leaves
+guarded-cycle total-work order open. This does not block one ordinary,
+supervised measurement aimed specifically at the confirmed family-4 emission
+delta. The performance review supports exactly one isolated D=32/K=32 run
+under a 120-second timeout plus 10-second TERM grace, the existing 8-GiB
+memory/disk floors, and one-second group monitoring. It does not support
+K=4,000 scaling or replay yet.
+
+An `architect` confirmed an ignored entrypoint can invoke the existing
+GuardedCycle D=32/K=32 case with `emit:false` inside the current §26/§34 gate;
+the approved `from_env` selector and matrix tuples must remain unchanged. The
+entrypoint has been added as `f5c_guarded_cycle_32_32_preflight` in
+`crates/yu-solver/src/tests/f5c_resource_probe.rs`; the focused test-target
+compile passed with
+`RUSTC_WRAPPER= cargo test -p yu-solver --lib --features f5c_resource_probe --no-run`.
+The post-write `spec_auditor` review is clean. Its exact tuple matches the
+existing preflight case and preserves the sidecar byte check and removal. The
+initial compile invocation without `RUSTC_WRAPPER=` failed before build because
+sccache could not start; the retry above passed.
+
+The primary authorizes this single isolated measurement (run ID
+`20260929-family4-coalescing-isolated-guarded-cycle-01`):
+
+```sh
+python3 tools/run_f5c_resource_process.py --timeout-seconds 120 \
+  --log /tmp/f5c-preflight-20260929-family4-coalescing-isolated-guarded-cycle-01.log \
+  --monitor /tmp/f5c-preflight-20260929-family4-coalescing-isolated-guarded-cycle-01.monitor.jsonl \
+  --summary /tmp/f5c-preflight-20260929-family4-coalescing-isolated-guarded-cycle-01.summary.json \
+  --sidecar /tmp/f5c-preflight-20260929-family4-coalescing-isolated-guarded-cycle-01.events \
+  -- /usr/bin/time -v cargo test -p yu-solver --lib \
+  --features f5c_resource_probe f5c_guarded_cycle_32_32_preflight \
+  --offline -j 2 -- --ignored --nocapture --test-threads=1
+```
+
+This is one invocation and 120 seconds plus its 10-second grace, within the
+ordinary measurement window and explicitly reviewed by the performance
+auditor. The preflight reports exact event count/checksum/bytes and removes the
+sidecar on completion. If it times out or crosses a floor, stop and preserve
+the partial artifact; do not increase the cap or launch K=4,000 work from this
+result. If it completes, review its counters and measured event reduction
+before any separate diagnostic or replay budget. The primary's approval relies
+on the user's standing autonomy authorization; no user prompt is needed.

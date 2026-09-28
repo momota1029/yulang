@@ -449,9 +449,7 @@ impl ComponentMemoEvents {
                 assert_eq!(*old_size, size);
                 let op = if capacity > *old_capacity { Some(event_sink::GROW) }
                     else if capacity < *old_capacity { Some(event_sink::DECREASE) }
-                    else if capacity == *old_capacity && requested != *old_requested {
-                        Some(event_sink::SHAPE)
-                    } else { None };
+                    else { None };
                 if let Some(op) = op {
                     event_sink::record(0, *id, op, kind, requested, capacity, size, 0);
                     let delta = if capacity >= *old_capacity {
@@ -1885,6 +1883,48 @@ mod tests {
     use super::*;
     use crate::{F5cNegative, F5cNegativeEffect, F5cPositive, F5cPositiveEffect};
     use std::cell::Cell;
+
+    #[cfg(feature = "f5c_resource_probe")]
+    #[test]
+    fn component_memo_request_changes_keep_capacity_events_and_current_state() {
+        let path = std::env::temp_dir().join(format!(
+            "f5c-memo-coalescing-{}-{:?}.bin", std::process::id(), std::thread::current().id()));
+        super::open_f5c_resource_events(&path).unwrap();
+        let mut owners = ComponentMemoEvents::default();
+        owners.observe(11, 0, 8, 4);
+        owners.observe(11, 3, 8, 4);
+        assert_eq!(owners.owners[11].unwrap().1, 3);
+        assert_eq!(super::component_memo_event_totals(), (8, 32, 32));
+        owners.observe(11, 2, 4, 4);
+        owners.observe(11, 3, 12, 4);
+        assert_eq!(owners.owners[11].unwrap().1, 3);
+        assert_eq!(super::component_memo_event_totals(), (12, 48, 48));
+        owners.release(11);
+        assert_eq!(super::component_memo_event_totals(), (0, 0, 48));
+        let (count, _) = super::close_f5c_resource_events().unwrap();
+        let bytes = std::fs::read(&path).unwrap();
+        std::fs::remove_file(path).unwrap();
+        let events: Vec<[u64; 8]> = bytes[8..].chunks_exact(64).map(|event| {
+            std::array::from_fn(|index| u64::from_le_bytes(
+                event[index * 8..(index + 1) * 8].try_into().unwrap()))
+        }).collect();
+        assert_eq!(count, 4);
+        assert_eq!(events.iter().map(|event| (event[2], event[4], event[5])).collect::<Vec<_>>(),
+            [(1, 0, 8), (7, 2, 4), (3, 3, 12), (5, 0, 0)]);
+        assert!(events.iter().all(|event| event[1] == events[0][1] && event[3] == 562));
+    }
+
+    #[cfg(feature = "f5c_resource_probe")]
+    #[test]
+    fn component_memo_rejects_request_above_capacity() {
+        let mut owners = ComponentMemoEvents::default();
+        owners.observe(11, 0, 8, 4);
+        let invalid = std::panic::catch_unwind(std::panic::AssertUnwindSafe(||
+            owners.observe(9, 9, 8, 4)));
+        assert!(invalid.is_err());
+        assert_eq!(owners.owners[9], None);
+        owners.release(11);
+    }
 
     #[test]
     fn physical_owner_registry_reuses_slots_after_drop() {

@@ -1,6 +1,6 @@
 # F5c no-cap §26/§34 scale measurement plan
 
-Status: The prior 39-process campaign stopped at the third failed preflight; no matrix row ran. The user has directed autonomous F5c completion and authorized expanding time and memory plans as needed. AllDrafts and guarded-cycle repairs remain unverified at corrected scale. The six-buffer `FlatDraft` family-6 carrier and same-ID staged transfer, all eight §34 family event/reconciliation slices, and the 261-row family-aware replay are separately checkpointed. The eighth preflight timed out during GuardedCycle with a partial 10.2-million-event sidecar. Raw-walker request-only event coalescing is now implemented and replay-witnessed; one fresh supervised D=32/K=32 preflight is authorized. Current details and the exact command are in the [`shared-acyclic preflight checkpoint`](f5c-shared-acyclic-hit-mismatch-checkpoint-2026-09-29.md). See the [`family-5 aggregate-peak checkpoint`](f5c-family5-closed-type-arena-aggregate-peak-checkpoint-2026-09-29.md), [`family-6 event checkpoint`](f5c-family6-closed-normalization-index-events-checkpoint-2026-09-29.md), and [`261-lane physical replay checkpoint`](f5c-family7-physical-lane-replay-checkpoint-2026-09-29.md).
+Status: The prior 39-process campaign stopped at the third failed preflight; no matrix row ran. The user has directed autonomous F5c completion and authorized expanding time and memory plans as needed. AllDrafts and guarded-cycle repairs remain unverified at corrected scale. The six-buffer `FlatDraft` family-6 carrier and same-ID staged transfer, all eight §34 family event/reconciliation slices, and the 261-row family-aware replay are separately checkpointed. The eighth preflight timed out during GuardedCycle with a partial 10.2-million-event sidecar. Raw-walker request-event coalescing is implemented and replay-witnessed; the first post-coalescing D=32/K=32 preflight timed out during GuardedCycle after its first four rows, without a resource-floor breach. Family-4 request-only SHAPEs are now coalesced, and one isolated D=32/K=32 run is authorized to measure that event reduction. Current details are in the [`shared-acyclic preflight checkpoint`](f5c-shared-acyclic-hit-mismatch-checkpoint-2026-09-29.md). See the [`family-5 aggregate-peak checkpoint`](f5c-family5-closed-type-arena-aggregate-peak-checkpoint-2026-09-29.md), [`family-6 event checkpoint`](f5c-family6-closed-normalization-index-events-checkpoint-2026-09-29.md), and [`261-lane physical replay checkpoint`](f5c-family7-physical-lane-replay-checkpoint-2026-09-29.md).
 Reviewed-by: spec_auditor, performance_auditor (matrix, formulas, safety, and budget deltas closed without unresolved findings)
 Observer-scope delta review: architect, spec_auditor, performance_auditor; no blocking or major findings
 Execution-extension delta review: spec_auditor clarified approval timing; performance_auditor supplied the one-process budget justification
@@ -557,9 +557,13 @@ their same-ID transfer were not changed. The focused synthetic replay witness
 passed, and the post-write spec review found no issue. Exact source paths,
 review scope, and implementation checks are in the shared-acyclic checkpoint.
 
-The `performance_auditor` recommends one new supervised D=32/K=32 preflight
-before allocating any diagnostic or replay budget. The primary has authorized
-that one invocation under the user's standing autonomy decision:
+The `performance_auditor` recommended one new supervised D=32/K=32 preflight
+before allocating any diagnostic or replay budget. The primary authorized that
+one invocation under the user's standing autonomy decision. It ran and timed
+out while producing the GuardedCycle events, after the first four rows
+completed. Its exact output and counters are recorded in the shared-acyclic
+checkpoint. The result is not a semantic mismatch and no host-resource floor
+was breached; a partial sidecar cannot be replayed.
 
 - Run ID: `20260929-raw-walker-coalescing-preflight-01`.
 - Timeout: 60 seconds, followed by the supervisor's 10-second TERM grace and
@@ -569,7 +573,30 @@ that one invocation under the user's standing autonomy decision:
 - Exact command and output paths: the shared-acyclic checkpoint.
 - Stop condition: do not run the corrected K=4,000 diagnostic, replay, or
   matrix until this result and its post-coalescing event volume receive fresh
-  review. The prior 10/600 campaign remains closed.
+  review. This authorized invocation is now consumed; no further process
+  budget has been set. The prior 10/600 campaign remains closed.
+
+The follow-up read-only `performance_auditor` review found that family-4
+request-only SHAPE events dominate the new partial stream: 1,932,317 of
+1,936,673 SHAPEs. The same-path counterfactual after coalescing is about
+2,480,866 records / 158.8 MB, not a bound or completion estimate. Source audit
+also confirmed there is no useful upper bound on guarded-cycle path-expanded
+visits or total owner events from its 2,048-state assertion. F5's addendum
+leaves that total-work order open.
+
+The family-4 request-only SHAPE suppression is implemented and spec-reviewed.
+An architect approved a single ignored entrypoint for the exact preflight
+`GuardedCycle/D=32/K=32` tuple with `emit:false`; the approved `from_env`
+selector and matrix tuples remain unchanged. A fresh performance review
+supports one isolated run at a 120-second timeout plus 10-second grace under
+the existing 8-GiB floors, with one-second process-group monitoring. The
+primary has authorized exactly this one invocation after the post-write spec
+review closed cleanly. See the shared-acyclic checkpoint for the exact command,
+run ID, and tests.
+
+This isolated measurement is only event-volume evidence for D=32/K=32. It does
+not establish a work order or authorize K=4,000 scaling, replay, or matrix rows.
+No other measurement process is currently authorized by this plan.
 
 The process timeout and host-resource floors contain measurement work. They do
 not reinstate deterministic compiler input-size or work limits.

@@ -31,13 +31,49 @@ rejected five malformed DECREASE traces, including kind 12. Focused Rust tests,
 feature-enabled test-target compilation, Python syntax compilation, and
 `git diff --check` passed in the implementation pass.
 
+### Follow-up slice (2026-09-29): family-4 SHAPE coalescing and isolated witness
+
+The timed-out trace contained 1,936,673 SHAPE events, with 1,932,317 in family-4
+component-memo kinds 562, 567, 568, and 569. In
+`crates/yu-solver/src/f5c_draft_heap.rs`, `ComponentMemoEvents::observe` now
+keeps every in-memory request update but omits same-capacity request-only
+SHAPEs; strict GROW/DECREASE, signed capacity totals, peak, and release remain.
+The two focused `component_memo_` tests pass. A post-write `spec_auditor` found
+the slice clean; its only minor coverage note is that these direct tests do not
+replay every family-4 lane through the Python checker.
+
+`crates/yu-solver/src/tests/f5c_resource_probe.rs` adds the ignored
+`f5c_guarded_cycle_32_32_preflight` entrypoint. It invokes the existing
+D=32/K=32 builder with `emit: false`, preserving preflight sidecar accounting;
+the approved environment selector and matrix tuples stay unchanged. The
+`architect` confirmed that this isolation is within F5 §§26/34. The focused
+feature-enabled test-target compile passed, and a post-write `spec_auditor`
+found the entrypoint clean. It preserves `from_env` and the approved scale
+tuple list.
+
+The compiler review confirmed that the fixture's 2,048 uncacheable states,
+128 terms, and 128 seeded bounds do not give a useful upper bound on
+path-expanded visits or event output; the addendum does not assert a total-work
+order for guarded-cycle. The performance audit supports one bounded isolated
+measurement to evaluate the reviewed family-4 event suppression. The primary
+authorizes exactly one supervised D=32/K=32 invocation: 120-second timeout,
+10-second TERM grace, 8-GiB memory/disk floors, one-second process-group
+sampling. Its unique run ID and exact command are recorded in the shared-
+acyclic checkpoint. This evidence cannot authorize the K=4,000 diagnostic or
+matrix rows.
+
 The separately checkpointed six-buffer FlatDraft carrier and same-ID transfer
-remain completed and unchanged. This current raw-walker slice has not yet run a
-new preflight. One new supervised D=32/K=32 preflight is now authorized by the
-primary under the user's standing budget expansion: 60-second command timeout,
-10-second TERM grace, 8-GiB `MemAvailable` and disk floors, and one invocation.
-Run it before any corrected K=4,000 diagnostic or replay; only use its result
-to set the next reviewed budget. The prior 10/600 campaign remains exhausted.
+remain completed and unchanged. The newly authorized supervised D=32/K=32
+preflight ran once, then timed out at its 60-second wall limit while processing
+GuardedCycle; the first four D=32 rows completed and no resource floor was
+breached. It left a 282,443,776-byte partial sidecar with 4,413,183 complete
+records and 56 trailing bytes. The 60-second whole-preflight process did not
+breach host floors. The partial event histogram and fresh reviews led to
+coalescing the dominant family-4 request-only SHAPEs and adding one isolated
+D=32/K=32 entrypoint without altering the approved matrix selector. After its
+focused spec review, one supervised isolated run is authorized at 120 seconds
+plus 10-second grace, under the same 8-GiB floors. The prior 10/600 campaign
+remains exhausted; no K=4,000 diagnostic or replay is authorized by this step.
 
 Resume handoff: [`2026-09-22 F5c scheme-closure handoff`](../notes/handoffs/2026-09-22-f5c-scheme-closure-handoff.md).
 
