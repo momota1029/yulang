@@ -262,10 +262,16 @@ this to both synthetic seed helpers updating the physical observer but not
 `F5cLiveEventLedger`. Both helpers now report reserve and insertion states on
 the correct value lanes. Post-write `spec_auditor` review found no duplicate
 owner events or formula changes, and the feature-enabled test-target compile
-passed. The performance auditor justified and the primary approved a single
-bounded extension to 9 invocations/600 seconds. Run the seventh and final
-preflight under ID
-`20260929-live-event-seed-retry-01`; diagnostics remain behind its success. See
+passed. The seventh preflight then passed shared and independent acyclic cases,
+but hit a test-only family-4 observer assertion when HashMap-reported capacity
+decreased after tombstone removal. The compiler and spec audits confirmed that
+family-4 same-owner decreases must update current totals while preserving the
+historical peak, and that `active_set` capacity snapshots must refresh after
+mutation. The earlier 9-invocation approval ended at this failed preflight.
+After implementing and reviewing this narrow observer repair, obtain a fresh
+performance review and primary approval for one additional preflight plus
+diagnostic/replay only on success (proposed total: 10 invocations/580.24
+seconds). Diagnostic and replay remain blocked. See
 [`F5c logical-term preflight failure checkpoint`](../notes/progress/f5c-preflight-logical-term-count-failure-checkpoint-2026-09-29.md).
 Also see
 [`F5c shared-acyclic hit-count preflight checkpoint`](../notes/progress/f5c-shared-acyclic-hit-mismatch-checkpoint-2026-09-29.md).

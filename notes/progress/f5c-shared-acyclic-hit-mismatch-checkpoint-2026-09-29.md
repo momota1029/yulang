@@ -1,13 +1,15 @@
 # F5c shared-acyclic hit-count preflight checkpoint
 
-Status: the sixth supervised preflight passed the shared-summary hit count,
-then found 96 fixture-seeded slots (656 bytes) absent from the independent
-family-1 event ledger at FinishOutput. Both seed helpers now report each
-successful reservation and insertion to `F5cLiveEventLedger`. Post-write
-`spec_auditor` review confirmed correct lanes, no duplicate owner events, and
-unchanged formulas; the feature-enabled test-target compile passed. The
-seventh and final preflight under the approved extension is next. Diagnostics
-remain blocked until it succeeds.
+Status: the sixth supervised preflight exposed a family-1 fixture-event gap;
+the seventh now passes shared acyclic and independent acyclic events, then
+fails in the guarded-cycle case at the test-only family-4 memo capacity
+observer. HashMap lane `.capacity()` can decrease after tombstone removals while
+its allocation and owner remain live. A `compiler_referee` and `spec_auditor`
+confirmed the observer must represent a same-owner capacity decrease and that
+`active_set`'s cached capacity must be refreshed after mutation. The narrow
+family-1 fix is reviewed and compiled. This seventh failure needs a revised
+bounded measurement plan before another supervised process; diagnostic and
+replay remain blocked.
 
 ## Failed attempt and evidence
 
@@ -58,6 +60,40 @@ Preserved evidence:
 
 ## Authority and current gate
 
+### Seventh preflight: family-4 capacity observation
+
+Run ID `20260929-live-event-seed-retry-01` exited 101 after 7.029 seconds. It
+emitted `IndependentIdentities/D/32`, `IdentityAliases/U/32`,
+`SharedAcyclic/D/32/K=32`, and `IndependentAcyclic/D/32/K=32`, then panicked in
+the guarded-cycle fixture at
+`crates/yu-solver/src/f5c_draft_heap.rs:453` with
+`memo buffers release before capacity shrinks`. The supervisor recorded peak
+process-group RSS 667,705,344 bytes, minimum `MemAvailable` 27,693,441,024
+bytes, sidecar high-water 17,776,640 bytes, minimum free disk 666,078,367,744
+bytes, and 11 monitor samples.
+
+Preserved evidence:
+
+- `/tmp/f5c-preflight-20260929-live-event-seed-retry-01.log`
+- `/tmp/f5c-preflight-20260929-live-event-seed-retry-01.monitor.jsonl`
+- `/tmp/f5c-preflight-20260929-live-event-seed-retry-01.summary.json`
+- `/tmp/f5c-preflight-20260929-live-event-seed-retry-01.events`
+
+The assertion is in the test-only `ComponentMemoEvents::observe`, not the
+compiler's inference path. It assumes each observed family-4 capacity remains
+monotone until release. The memo observes standard HashMap capacities for
+`roots`, `incidence_heads`, `active_rows`, and `active_conflicts`. HashMap
+capacity is usable slots; tombstone removals can lower the reported value
+without releasing the backing allocation. F5 §34 measures the container's
+reported `.capacity()` times slot size, so this is an in-place accounting
+transition under the existing contract. Preserve the owner ID and historical
+peak while applying the signed decrease to current family totals and replay.
+The adjacent `active_set` HashSet capacity is cached at reservation but its
+reported capacity can also change on insertion/removal; refresh that cache
+before physical memo observations. A fresh reviewer confirmed no design change
+is needed. The exact failing HashMap lane is not proven because the assertion
+does not include lane and old/new capacity.
+
 F5 foundation §34 in
 `notes/design/2026-09-21-f5-general-function-scheme-foundation-draft.md`
 defines `shared_acyclic(D,K)` as D roots entering one 2K-state cone, with 2K
@@ -100,7 +136,7 @@ The previous logical-term repair remains limited to reading
 `TermLaneState.lengths[3]` for before/after counts; its exact formulas and
 specification review are unaffected by this later assertion.
 
-The family-1 event mismatch was a fixture observer gap, not unaccounted
+The sixth preflight's family-1 event mismatch was a fixture observer gap, not unaccounted
 production capacity. `matrix_seed_value_bound` and `matrix_seed_value_edge`
 now report the touched value row after successful reserve and push to the
 independent `F5cLiveEventLedger`. The first observation captures capacity at
@@ -110,20 +146,23 @@ exact-bound slots total the observed 96-slot delta; `62*4 + 34*12 = 656`
 bytes matches exactly. Post-write spec review confirmed lane mapping, no
 duplicate owner events, and unchanged formulas. Both acyclic and guarded-cycle
 builders share these seed helpers. The feature-enabled test-target compile
-passed; the seventh supervised preflight remains to verify the repair.
+passed. The seventh preflight passed the earlier shared-hit and family-1
+reconciliation checks, then reached the family-4 HashMap capacity-decrease
+observer failure described above.
 
 ## Remaining measurement budget
 
-Six preflight invocations are complete and used 48.21 seconds combined. The
-`performance_auditor` provided written justification for one bounded extension
-above the ordinary eight-process limit: one more preflight, then the already
-reviewed diagnostic and replay only if that preflight succeeds. The primary
-approves this extension under `rules/performance.md`, capped at 9 total
-invocations and 600 seconds. Allocate a 45-second timeout plus 10-second grace
-to preflight, 300 seconds plus 10-second grace to diagnostic, and 150 seconds
-plus 10-second grace to replay. The maximum is 573.21 seconds. If this seventh
-preflight fails, stop the campaign and reassess; no eighth preflight is
-approved by this plan.
+Seven preflight invocations are complete and used 55.24 seconds combined. The
+previous performance review and primary approval covered 9 total invocations
+and 600 seconds, with diagnostic and replay conditional on the seventh
+preflight passing. Since that preflight found a new test-only observer defect,
+the previous approval does not cover another process. Before resuming, obtain a
+fresh performance review and primary approval for at most one additional
+45-second preflight, then the already-reviewed 300-second diagnostic and
+150-second replay only if it passes. With one 10-second termination grace for
+each process, the proposed total is 10 invocations and 580.24 seconds from
+campaign start. If the next preflight fails, stop and reassess; do not run
+diagnostic or replay. Keep all 36 matrix rows.
 
 The user authorized autonomous continuation and expanded time/memory budgets;
 no approval pause is needed for this scoped continuation.

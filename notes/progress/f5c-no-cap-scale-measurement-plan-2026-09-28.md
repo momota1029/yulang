@@ -498,21 +498,28 @@ seed helpers to the gap: their physical observer is updated, but
 `F5cLiveEventLedger` was not. Both helpers now report each successful
 reservation and insertion on the correct value lane. Post-write
 `spec_auditor` review confirmed lane mapping, no duplicate owner events, and
-unchanged formulas; the feature-enabled test-target compile passed. Keep
-diagnostics blocked until the seventh preflight succeeds. Exact evidence and
+unchanged formulas; the feature-enabled test-target compile passed. The seventh
+preflight passed shared and independent acyclic cases, then failed in the
+guarded-cycle case at the family-4 memo observer: a HashMap's reported
+`.capacity()` decreased after removals while its owner remained live. The
+family-4 observer/replay must fold a same-owner signed capacity decrease and
+retain its historical peak; the `active_set` cached capacity must also refresh
+after insertions/removals before observation. `compiler_referee` and
+`spec_auditor` confirmed this is a test-only accounting defect and the existing
+§34 reported-capacity metric governs, with no design change. Exact evidence and
 review scope are in
 [`F5c shared-acyclic hit-count preflight checkpoint`](f5c-shared-acyclic-hit-mismatch-checkpoint-2026-09-29.md).
 
-The six completed preflights used 16.06, 5.02, 6.03, 11.05, 5.03, and 5.02
-seconds (48.21 seconds combined). `performance_auditor` supplied written
-justification to extend the ordinary eight-process cap for one more preflight,
-followed only on success by the already-reviewed 300-second diagnostic and
-150-second replay. The primary approves this bounded extension under
-`rules/performance.md`: 9 total invocations, at most 600 seconds, 8-GiB memory
-and disk floors. With 45/300/150-second timeouts and one 10-second grace per
-process, the maximum is 573.21 seconds, leaving 26.79 seconds. If the seventh
-preflight fails, stop and reassess; the approval covers no eighth preflight.
-Keep all 36 matrix rows and derive their budget from diagnostic/replay evidence.
+The seven completed preflights used 55.24 seconds combined. The prior
+`performance_auditor` justification and primary approval covered 9 total
+invocations and 600 seconds, conditional on the seventh preflight succeeding
+before diagnostic/replay. Its failure means no further process may start under
+that approval. Request a fresh review/primary approval for at most one 45-second
+preflight, then the reviewed 300-second diagnostic and 150-second replay only
+on success. With one 10-second grace each, the proposed total is 10 invocations
+and 580.24 seconds from campaign start, within 600 seconds. Keep the 8-GiB
+memory/disk floors and all 36 matrix rows; if the next preflight fails, stop and
+reassess without diagnostic/replay.
 The user authorized autonomous continuation and budget expansion; no user
 approval pause is needed.
 
@@ -520,6 +527,6 @@ Exact next preflight command:
 
 ```bash
 set -euo pipefail
-RUN_ID=20260929-live-event-seed-retry-01
+RUN_ID=20260929-memo-capacity-decrease-retry-01
 python3 tools/run_f5c_resource_process.py --timeout-seconds 45 --log "/tmp/f5c-preflight-$RUN_ID.log" --monitor "/tmp/f5c-preflight-$RUN_ID.monitor.jsonl" --summary "/tmp/f5c-preflight-$RUN_ID.summary.json" --sidecar "/tmp/f5c-preflight-$RUN_ID.events" -- /usr/bin/time -v cargo test -p yu-solver --lib --features f5c_resource_probe f5c_resource_matrix_preflight --offline -j 2 -- --ignored --nocapture --test-threads=1
 ```
