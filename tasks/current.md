@@ -224,22 +224,24 @@ The revised one-process preflight retry was run after the repair. Its separate
 owner-peak invariant failure is the newer active gate recorded below; no
 diagnostic or matrix process has started.
 
-### Latest continuation (2026-09-29): preflight reached owner-peak invariant
+### Latest continuation (2026-09-29): IncomingRoute lacked a closed probe snapshot
 
-After the reviewed ZST correction, the next supervised preflight emitted the
-`IndependentIdentities/D/32` tuple and then failed at the generic owner-peak
-assertion during `IdentityAliases/U/32`. Its log has no boundary/family/peak
-values, and the panic left only an unflushed partial event sidecar. The ZST
-correction leaves retained-byte values unchanged, so it does not explain this
-assertion. Exact metrics, evidence paths, and bounded next step are in
-[`F5c owner-peak preflight failure checkpoint`](../notes/progress/f5c-preflight-owner-peak-failure-checkpoint-2026-09-29.md).
+The contextual assertion now identifies the violated row: `IncomingRoute`,
+family 4, lanes 65–100, with zero owner peak and 340 retained bytes. During
+incoming routing, `route_incoming_inner` temporarily moves the live
+`ClosedTypeFinalizationSession` out of `self`; the observer then skips all 36
+closed-lane updates and reuses old current-lane values, while its peak lookup
+sees no probe and returns zero. The `yu-types` same-time aggregate producer is
+valid. Exact call path, run metrics, and next ownership change are in
+[`F5c closed-probe snapshot failure checkpoint`](../notes/progress/f5c-preflight-owner-peak-failure-checkpoint-2026-09-29.md).
 
-The test-only assertion in `crates/yu-solver/src/lib.rs` now reports boundary,
-family, lane range, retained total, owner peak, and lane values on failure. A
-narrow spec review is clean and the feature-enabled test-target compile passes.
-Run the revised supervised preflight with fresh ID
-`20260929-owner-peak-retry-01`; diagnostic and matrix processes remain behind
-its success.
+Next, make a feature-gated stable probe snapshot available to the matrix
+observer only during that temporary route handoff, then clear it when the
+finalization session is restored. Preserve the authoritative aggregate peak;
+do not rebuild it from per-lane maxima. Verify the zero-owner/current-byte
+invariant and terminal family-5 reconciliation, review the narrow delta, then
+run a fresh supervised preflight. Diagnostic and matrix processes remain
+behind preflight success.
 
 ### Latest continuation (2026-09-28): user authorized autonomous completion and budget expansion
 

@@ -460,11 +460,11 @@ unchanged. The focused test-target compile passed:
 
 The next preflight allowance is one supervised process with a 60-second timeout
 and 10-second TERM-to-KILL grace, using the existing 8-GiB memory/disk floors
-and a fresh run ID `20260929-owner-peak-retry-01`. The earlier attempts used
-16.06 and 5.02 seconds without needing termination grace. Counting those, this
-retry plus the reviewed 300-second diagnostic and 150-second replay use at most
-five process invocations and 561.08 seconds (16.06 + 5.02 + 60 + 300 + 150,
-plus three 10-second graces), leaving 38.92 seconds within the ordinary
+and a fresh run ID `20260929-closed-probe-retry-01`. The first three attempts
+used 16.06, 5.02, and 6.03 seconds without termination grace. Counting those,
+this retry plus the reviewed 300-second diagnostic and 150-second replay use at
+most six process invocations and 567.11 seconds (16.06 + 5.02 + 6.03 + 60 +
+300 + 150 seconds, plus three 10-second graces), leaving 32.89 seconds within the ordinary
 8-process/10-minute budget. Do not run the diagnostic or replay unless this
 preflight succeeds. Keep all 36 matrix rows; derive their budget from the
 diagnostic/replay evidence. The user authorized autonomous continuation and
@@ -474,6 +474,6 @@ Exact next preflight command:
 
 ```bash
 set -euo pipefail
-RUN_ID=20260929-owner-peak-retry-01
+RUN_ID=20260929-closed-probe-retry-01
 python3 tools/run_f5c_resource_process.py --timeout-seconds 60 --log "/tmp/f5c-preflight-$RUN_ID.log" --monitor "/tmp/f5c-preflight-$RUN_ID.monitor.jsonl" --summary "/tmp/f5c-preflight-$RUN_ID.summary.json" --sidecar "/tmp/f5c-preflight-$RUN_ID.events" -- /usr/bin/time -v cargo test -p yu-solver --lib --features f5c_resource_probe f5c_resource_matrix_preflight --offline -j 2 -- --ignored --nocapture --test-threads=1
 ```

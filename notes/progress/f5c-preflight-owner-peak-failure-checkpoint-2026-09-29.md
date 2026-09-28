@@ -2,10 +2,10 @@
 
 Status: the second supervised preflight, after the ZST capacity correction,
 failed at the test-only family peak coverage assertion during its second
-fixture case. Its failure did not print the exact family and values. A
-panic-only diagnostic was added to that assertion, independently reviewed,
-and feature-enabled test-target compile-checked. No diagnostic or matrix
-process ran.
+fixture case. A panic-only diagnostic was added, independently reviewed, and
+feature-enabled test-target compile-checked. The third preflight identified a
+missing closed-probe snapshot during incoming routing. The code repair is the
+active gate; no diagnostic or matrix process ran.
 
 ## Exact paths and diff boundary
 
@@ -19,6 +19,13 @@ process ran.
   diagnostic-only follow-up keeps the predicate/control flow unchanged and
   reports boundary, family, row range, owner peak, retained total, and lane
   values.
+- `crates/yu-solver/src/lib.rs:14863-14960,15996-16011`: incoming routing
+  temporarily moves the live finalization session out of `self`; the observer
+  has no closed probe during that handoff and leaves its 36 current lane rows
+  unchanged.
+- `crates/yu-types/src/lib.rs:1038-1048,1618-1620,1677-1678`: the
+  authoritative same-time aggregate peak folds current retained bytes and is
+  updated at the inspected physical lane reconciliation points.
 - `crates/yu-solver/src/tests/f5c_resource_probe.rs:17-19,2119-2135`: the
   preflight case order identifies the failing fixture as `IdentityAliases/U/32`.
 - `notes/progress/f5c-no-cap-scale-measurement-plan-2026-09-28.md`: records the
@@ -51,30 +58,61 @@ The partial sidecar contains 3,450 complete persisted records. Because the
 buffered event writer did not flush on panic, it does not reveal the failing
 boundary, family, peak, or retained value.
 
+## Third preflight with contextual assertion
+
+Run ID `20260929-owner-peak-retry-01` exited 101 after 6.03 seconds. The added
+assertion identified `IncomingRoute`, family 4, rows 65–100, with `owner_peak=0`
+and `retained=340`. Its lane slice showed 36 current physical rows whose
+retained-byte sum is 340; the family peak came from `closed_probe.map_or(0, ..)`.
+The supervisor recorded peak process-group RSS 746,856,448 bytes, minimum
+`MemAvailable` 27,867,635,712 bytes, sidecar high-water 220,808 bytes, and
+minimum free disk 666,106,630,144 bytes.
+
+Preserved evidence:
+
+- `/tmp/f5c-preflight-20260929-owner-peak-retry-01.log`
+- `/tmp/f5c-preflight-20260929-owner-peak-retry-01.monitor.jsonl`
+- `/tmp/f5c-preflight-20260929-owner-peak-retry-01.summary.json`
+- `/tmp/f5c-preflight-20260929-owner-peak-retry-01.events`
+
 ## Cause assessment and next gate
 
-The failure's boundary is in `IdentityAliases/U/32`; the exact family remains
-unknown because the assertion emits no context. The read-only audit inspected
-the owner-family mapping and each peak producer. The ZST fix cannot explain this
-failure: it changes only zero-sized physical capacity, which keeps retained
-bytes at zero, and leaves all byte peaks unchanged. The audit's direct peak
-producers are the bound-table current peak, streamed owner-event peaks for
-families 2/3/4/6/8, the closed-type aggregate, and the source/walker joint peak.
+The failure occurred in the `IdentityAliases/U/32` fixture. The contextual
+assertion located it at `IncomingRoute` in family 4 (`closed_type_arena`): 36
+current rows sum to 340 bytes, but the selected owner peak is zero. The cause is
+the temporary ownership handoff in `route_incoming_inner`: it takes the live
+`ClosedTypeFinalizationSession` into a local, then invokes incoming-route
+sampling before restoring the session. At that instant both
+`self.finalization.as_ref()` and `self.f5c_matrix_finished_closed` are `None`.
+The observer skips the 36 closed-lane updates but leaves the prior `current`
+values in place; it then maps absent `closed_probe` to owner peak zero. The
+partial sidecar cannot identify this because it is not flushed on panic.
 
-The contextual diagnostic in `crates/yu-solver/src/lib.rs` preserves the
-original assertion condition and accounting. A `spec_auditor` review found the
-message fields correct and no invariant or control-flow change. Focused checks
-passed:
+The read-only audit checked the closed-type aggregate producer and its direct
+sampling sites; `yu-types` updates `aggregate_peak_bytes` from same-time current
+retained bytes. The ZST repair is unrelated: it leaves non-ZST retained bytes
+and all byte peaks unchanged.
 
-- `RUSTC_WRAPPER= cargo check -p yu-solver --tests --features f5c_resource_probe`
-- `git diff --check`
+The owning repair is to expose a feature-gated copy of
+`finalization.f5c_resource_probe()` to the observer only while that route
+handoff is active, clear it when the finalization session is restored, and
+include it in closed-probe selection. Preserve the existing aggregate peak;
+do not synthesize it from independent per-lane maxima or simply mask a missing
+probe with current bytes. Verify that every boundary with live closed lanes has
+a probe, all 36 retained bytes sum to `current_closed_retained_bytes`, and the
+aggregate peak covers current bytes and each lane's independent historical
+peak. The terminal event must still reconcile with the finish receipt and
+successful finalizer checkpoint witness.
 
-Run one fresh supervised preflight retry to identify the violated family and
-peak producer; do not lower or remove the invariant.
+The panic-context delta kept the original condition and accounting. One
+`spec_auditor` review was clean, and
+`RUSTC_WRAPPER= cargo check -p yu-solver --tests --features f5c_resource_probe`
+passed. The next repair gets its own narrow review and focused test-target
+compile, then one fresh supervised preflight.
 
 The new retry has a 60-second process timeout plus 10-second termination grace.
-Together with the first two attempts and planned 300-second diagnostic and
-150-second checker, the maximum is five measured invocations and 561.08 seconds
+Together with the first three attempts and planned 300-second diagnostic and
+150-second checker, the maximum is six measured invocations and 567.11 seconds
 including grace, within the ordinary 8-invocation/10-minute allowance. The
 user authorized autonomous continuation and expanded time/memory budgets; no
 approval pause is needed.
