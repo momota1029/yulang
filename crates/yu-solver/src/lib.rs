@@ -4415,6 +4415,7 @@ struct F5cMatrixObserver {
     family3_event_terminal: (usize, usize, usize),
     family2_event_terminal: (usize, usize, usize),
     family4_event_terminal: (usize, usize, usize),
+    family5_event_terminal: (usize, usize, usize),
     family8_event_terminal: (usize, usize, usize),
 }
 
@@ -4525,7 +4526,8 @@ impl F5cMatrixObserver {
             lane_count: 0, live_events: None, family1_event_terminal: (0, 0, 0),
             structured_pair_events: None, family3_event_terminal: (0, 0, 0),
             family2_event_terminal: (0, 0, 0),
-            family4_event_terminal: (0, 0, 0), family8_event_terminal: (0, 0, 0) }
+            family4_event_terminal: (0, 0, 0), family5_event_terminal: (0, 0, 0),
+            family8_event_terminal: (0, 0, 0) }
     }
     fn nested_request(&mut self, index: usize, old_capacity: usize, capacity: usize) {
         // Reservation is not an insertion: a later reservation may fail or roll back.
@@ -16086,6 +16088,7 @@ impl InferenceSession {
         let streamed_family3 = f5c_draft_heap::structured_pair_event_totals();
         let streamed_family2 = f5c_draft_heap::term_event_totals();
         let streamed_family4 = f5c_draft_heap::component_memo_event_totals();
+        let streamed_family5 = f5c_draft_heap::normalization_event_totals();
         let streamed_family8 = f5c_draft_heap::instantiation_event_totals();
         let owner_peaks = [
             self.execution_counters.bound_table_peak_bytes,
@@ -16093,7 +16096,7 @@ impl InferenceSession {
             streamed_family3.2,
             streamed_family4.2,
             self.resource_ledger.flat_finalizer_peak_bytes,
-            self.resource_ledger.closed_normalization_index_peak_bytes,
+            streamed_family5.2,
             self.resource_ledger.source_walker_peak_bytes,
             streamed_family8.2,
         ];
@@ -16125,6 +16128,12 @@ impl InferenceSession {
             "family-4 owner events reconcile with current physical lanes");
         assert!(streamed_family4.2 >= self.resource_ledger.component_expansion_memo_peak_bytes,
             "family-4 event peak covers sampled memo peak");
+        assert_eq!((streamed_family5.0, streamed_family5.1),
+            (usize::try_from(observer.family_capacity[5]).expect("family-5 capacity"),
+                observer.family_retained[5]),
+            "family-5 normalization events reconcile with current physical lanes");
+        assert!(streamed_family5.2 >= self.resource_ledger.closed_normalization_index_peak_bytes,
+            "family-5 event peak covers independent normalization peak");
         assert_eq!((streamed_family8.0, streamed_family8.1),
             (usize::try_from(observer.family_capacity[7]).expect("family-8 capacity"),
                 observer.family_retained[7]),
@@ -16150,6 +16159,9 @@ impl InferenceSession {
             assert_eq!((streamed_family4.0, streamed_family4.1), (0, 0));
             f5c_draft_heap::checkpoint_component_memo_events(0, 0);
             observer.family4_event_terminal = streamed_family4;
+            assert_eq!((streamed_family5.0, streamed_family5.1), (0, 0));
+            f5c_draft_heap::checkpoint_normalization_events(0, 0);
+            observer.family5_event_terminal = streamed_family5;
             assert_eq!((streamed_family8.0, streamed_family8.1), (0, 0));
             f5c_draft_heap::checkpoint_instantiation_events(0, 0);
             observer.family8_event_terminal = streamed_family8;

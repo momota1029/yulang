@@ -39,6 +39,8 @@ pub(super) enum PhysicalOwnerKind {
     TermLane(usize),
     #[cfg(all(test, feature = "f5c_resource_probe"))]
     InstantiationLane(usize),
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    NormalizationLane(usize),
 }
 
 #[cfg(all(test, feature = "f5c_resource_probe"))]
@@ -61,6 +63,7 @@ mod event_sink {
         static COMPONENT_MEMO_TOTALS: Cell<(usize, usize, usize)> = const { Cell::new((0, 0, 0)) };
         static TERM_TOTALS: Cell<(usize, usize, usize)> = const { Cell::new((0, 0, 0)) };
         static INSTANTIATION_TOTALS: Cell<(usize, usize, usize)> = const { Cell::new((0, 0, 0)) };
+        static NORMALIZATION_TOTALS: Cell<(usize, usize, usize)> = const { Cell::new((0, 0, 0)) };
     }
 
     pub(crate) fn open(path: &Path) -> std::io::Result<()> {
@@ -73,6 +76,7 @@ mod event_sink {
         COMPONENT_MEMO_TOTALS.with(|totals| totals.set((0, 0, 0)));
         TERM_TOTALS.with(|totals| totals.set((0, 0, 0)));
         INSTANTIATION_TOTALS.with(|totals| totals.set((0, 0, 0)));
+        NORMALIZATION_TOTALS.with(|totals| totals.set((0, 0, 0)));
         Ok(())
     }
 
@@ -155,6 +159,23 @@ mod event_sink {
             0, capacity, retained, 0);
     }
     pub(super) fn term_totals() -> (usize, usize, usize) { TERM_TOTALS.with(Cell::get) }
+    pub(super) fn normalization_totals() -> (usize, usize, usize) {
+        NORMALIZATION_TOTALS.with(Cell::get)
+    }
+    pub(super) fn adjust_normalization(capacity_delta: isize, bytes_delta: isize) {
+        NORMALIZATION_TOTALS.with(|cell| {
+            let (capacity, bytes, peak) = cell.get();
+            let capacity = capacity.checked_add_signed(capacity_delta)
+                .expect("normalization event capacity");
+            let bytes = bytes.checked_add_signed(bytes_delta)
+                .expect("normalization event bytes");
+            cell.set((capacity, bytes, peak.max(bytes)));
+        });
+    }
+    pub(super) fn checkpoint_normalization(capacity: usize, bytes: usize) {
+        record(0, 0, CHECKPOINT, PhysicalOwnerKind::NormalizationLane(0),
+            0, capacity, bytes, 0);
+    }
     pub(super) fn term_event(id: usize, op: u64, lane: usize, requested: usize,
         capacity: usize, size: usize) {
         if id == 0 { return; }
@@ -307,12 +328,77 @@ impl PhysicalOwnerKind {
             Self::ComponentMemoLane(index) => 551 + index as u64,
             Self::TermLane(index) => 571 + index as u64,
             Self::InstantiationLane(index) => 577 + index as u64,
+            Self::NormalizationLane(index) => 584 + index as u64,
         }
     }
 }
 
 #[cfg(all(test, feature = "f5c_resource_probe"))]
 pub(super) use event_sink::{close as close_f5c_resource_events, open as open_f5c_resource_events};
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+pub(super) fn normalization_event_totals() -> (usize, usize, usize) {
+    event_sink::normalization_totals()
+}
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+pub(super) fn checkpoint_normalization_events(capacity: usize, bytes: usize) {
+    event_sink::checkpoint_normalization(capacity, bytes);
+}
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub(super) struct NormalizationOwner {
+    id: usize,
+    component: usize,
+    lane: usize,
+    requested: usize,
+    capacity: usize,
+    slot_size: usize,
+}
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+impl NormalizationOwner {
+    pub(super) fn observe(&mut self, component: usize, lane: usize,
+        requested: usize, capacity: usize, slot_size: usize) {
+        if self.id == 0 {
+            self.id = event_sink::next_id();
+            self.component = component;
+            self.lane = lane;
+            self.slot_size = slot_size;
+            event_sink::record(component, self.id, event_sink::CREATE,
+                PhysicalOwnerKind::NormalizationLane(lane), 0, 0, slot_size, 0);
+        }
+        assert_eq!((self.component, self.lane, self.slot_size),
+            (component, lane, slot_size));
+        let operation = if capacity != self.capacity {
+            Some(event_sink::GROW)
+        } else if requested != self.requested {
+            Some(event_sink::SHAPE)
+        } else { None };
+        if let Some(operation) = operation {
+            event_sink::record(component, self.id, operation,
+                PhysicalOwnerKind::NormalizationLane(lane), requested, capacity, slot_size, 0);
+        }
+        if self.id != 0 && capacity != self.capacity {
+            let delta = capacity.checked_sub(self.capacity).expect("normalization capacity grows");
+            event_sink::adjust_normalization(delta as isize, (delta * slot_size) as isize);
+        }
+        self.requested = requested;
+        self.capacity = capacity;
+    }
+
+    pub(super) fn release(&mut self) {
+        if self.id == 0 { return; }
+        event_sink::record(self.component, self.id, event_sink::RELEASE,
+            PhysicalOwnerKind::NormalizationLane(self.lane), 0, 0, self.slot_size, 0);
+        event_sink::adjust_normalization(-(self.capacity as isize),
+            -((self.capacity * self.slot_size) as isize));
+        self.id = 0;
+        self.capacity = 0;
+        self.requested = 0;
+    }
+}
 
 #[cfg(all(test, feature = "f5c_resource_probe"))]
 pub(super) fn checkpoint_live_variable_events(capacity: usize, retained: usize) {
@@ -599,6 +685,7 @@ pub(super) struct FlatDraftOwner {
     requested: usize,
     peak_requested: usize,
     transferred: bool,
+    kind: PhysicalOwnerKind,
 }
 
 #[cfg(all(test, feature = "f5c_resource_probe"))]
@@ -608,11 +695,21 @@ impl FlatDraftOwner {
     }
 
     pub(super) fn new_with_component(component: usize, lane: usize, slot_size: usize) -> Self {
+        Self::new_with_kind(component, lane, slot_size, PhysicalOwnerKind::WalkerLane(lane))
+    }
+
+    pub(super) fn new_normalization(component: usize, lane: usize, slot_size: usize) -> Self {
+        Self::new_with_kind(component, lane, slot_size,
+            PhysicalOwnerKind::NormalizationLane(lane))
+    }
+
+    fn new_with_kind(component: usize, lane: usize, slot_size: usize,
+        kind: PhysicalOwnerKind) -> Self {
         let id = event_sink::next_id();
         event_sink::record(component, id, event_sink::CREATE,
-            PhysicalOwnerKind::WalkerLane(lane), 0, 0, slot_size, 0);
+            kind, 0, 0, slot_size, 0);
         Self { component, id, lane, capacity: 0, slot_size,
-            requested: 0, peak_requested: 0, transferred: false }
+            requested: 0, peak_requested: 0, transferred: false, kind }
     }
 
     pub(super) fn observe(&mut self, requested: usize, capacity: usize) {
@@ -625,8 +722,13 @@ impl FlatDraftOwner {
         };
         if let Some(operation) = operation {
             event_sink::record(self.component, self.id, operation,
-                PhysicalOwnerKind::WalkerLane(self.lane), requested, capacity,
+                self.kind, requested, capacity,
                 self.slot_size, 0);
+        }
+        if self.id != 0 && matches!(self.kind, PhysicalOwnerKind::NormalizationLane(_))
+            && capacity != self.capacity {
+            let delta = capacity.checked_sub(self.capacity).expect("normalization output grows");
+            event_sink::adjust_normalization(delta as isize, (delta * self.slot_size) as isize);
         }
         self.capacity = capacity;
         self.requested = requested;
@@ -639,7 +741,11 @@ impl Drop for FlatDraftOwner {
     fn drop(&mut self) {
         if !self.transferred {
             event_sink::record(self.component, self.id, event_sink::RELEASE,
-                PhysicalOwnerKind::WalkerLane(self.lane), 0, 0, self.slot_size, 0);
+                self.kind, 0, 0, self.slot_size, 0);
+            if self.id != 0 && matches!(self.kind, PhysicalOwnerKind::NormalizationLane(_)) {
+                event_sink::adjust_normalization(-(self.capacity as isize),
+                    -((self.capacity * self.slot_size) as isize));
+            }
         }
     }
 }
@@ -845,6 +951,10 @@ impl DraftHeapMeter {
                 .and_then(|current| current.checked_sub(bytes[index])?
                     .checked_add(owner.capacity)));
             owner.transferred = true;
+            if owner.id != 0 && matches!(owner.kind, PhysicalOwnerKind::NormalizationLane(_)) {
+                event_sink::adjust_normalization(-(owner.capacity as isize),
+                    -((owner.capacity * owner.slot_size) as isize));
+            }
             event_sink::record(owner.component, owner.id, event_sink::TRANSFER,
                 kind, requested[index], owner.capacity, owner.slot_size, kind.code());
             TrackedAllocation(AllocationToken { meter: self, bytes: bytes[index],

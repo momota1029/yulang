@@ -267,6 +267,17 @@ impl FlatDraft {
 
     #[cfg(all(test, feature = "f5c_resource_probe"))]
     pub(super) fn attach_owners_component(&mut self, component: usize, lanes: [usize; 6]) {
+        self.attach_owners_with_kind(component, lanes, false);
+    }
+
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    pub(super) fn attach_normalization_owners(&mut self, component: usize) {
+        self.attach_owners_with_kind(component, [21, 22, 23, 24, 25, 26], true);
+    }
+
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    fn attach_owners_with_kind(&mut self, component: usize, lanes: [usize; 6],
+        normalization: bool) {
         assert!(self.owners.is_none());
         let sizes = [
             std::mem::size_of::<PositiveNode>(),
@@ -279,7 +290,11 @@ impl FlatDraft {
         let capacities = self.capacities();
         let lengths = self.lengths();
         self.owners = Some(std::array::from_fn(|i| {
-            let mut owner = FlatDraftOwner::new_with_component(component, lanes[i], sizes[i]);
+            let mut owner = if normalization {
+                FlatDraftOwner::new_normalization(component, lanes[i], sizes[i])
+            } else {
+                FlatDraftOwner::new_with_component(component, lanes[i], sizes[i])
+            };
             owner.observe(lengths[i], capacities[i]);
             owner
         }));

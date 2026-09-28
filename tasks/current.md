@@ -118,6 +118,30 @@ vectors already owned by the generalizer, before implementing any additional
 normalization-lane events. Do not begin matrix work until all event coverage and
 the fresh diagnostic plan are reviewed.
 
+### Latest continuation (2026-09-29): §34 family-6 closed-normalization-index events
+
+The 13 base and 15 flat-index normalization lanes now stream same-time owner
+events. The six `FlatDraft` output buffers retain their IDs through the atomic
+normalization-to-staged transfer; the replay checker permits only those six
+cross-family transfers and verifies per-lane growth/current/peak, the family
+checkpoint, and terminal zero. Here `family5_event` and event kinds 584–611 are
+sidecar compatibility names for semantic §34 family 6; the older
+`family6_event` still names semantic family 7 `generalization_scratch`. Exact
+paths, findings, repair delta, checks, and runtime-verification limits are in
+[`F5c family-6 closed-normalization-index event checkpoint`](../notes/progress/f5c-family6-closed-normalization-index-events-checkpoint-2026-09-29.md).
+
+Selected M2 with `spec_auditor` and `regression_auditor`. Both reviewed the
+initial event topology and closed the later lane-18–20 release-order repair;
+the failure cleanup and same-ID transfer lifetimes also received delta review.
+Production and feature-enabled test-target compile checks pass, the Python
+checker parses, and `git diff --check` passes. No test, matrix, preflight,
+benchmark, or scale process ran; measurement budget remains zero. The event
+trace has compile-time and static-review evidence only. Semantic §34 family 5
+`closed_type_arena` is the sole remaining event-coverage gate. Its fixed-size
+cross-crate observation architecture is resolved; implementation and review
+remain next. Do not begin matrix work until family 5 and the fresh diagnostic
+plan have passed their required reviews.
+
 ### Latest continuation (2026-09-28): user authorized autonomous completion and budget expansion
 
 The user wants the complete F5c result and explicitly directed continuation

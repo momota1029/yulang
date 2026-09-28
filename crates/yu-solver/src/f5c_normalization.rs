@@ -144,6 +144,8 @@ pub(super) struct NormalizationStats {
     pub(super) source_index_joint_peak_bytes: usize,
     pub(super) index_capacity_growths: usize,
     pub(super) index_lanes: [NormalizationLaneStats; LANE_COUNT],
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    event_owners: [super::f5c_draft_heap::NormalizationOwner; LANE_COUNT],
     candidate_observer: Option<Box<FlatCandidateObserver>>,
     #[cfg(test)]
     pub(super) physical_lane_capacities: [usize; LANE_COUNT],
@@ -294,6 +296,8 @@ struct FlatCandidateObserver(FlatCandidateCapacity);
 struct FlatCandidateCapacity {
     work: super::f5c_generalization::F5cDraftWorkMeter,
     #[cfg(all(test, feature = "f5c_resource_probe"))]
+    index_family: bool,
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
     event_component: usize,
     base_memo_bytes: usize,
     base_walker_bytes: usize,
@@ -348,6 +352,8 @@ pub(super) struct FlatPhysicalIndexLedger {
     peak_bytes: usize,
     joint_peak_bytes: usize,
     joint_observations: usize,
+    #[cfg(feature = "f5c_resource_probe")]
+    event_owners: [super::f5c_draft_heap::NormalizationOwner; FLAT_CANDIDATE_LANE_COUNT],
 }
 
 #[cfg(test)]
@@ -368,12 +374,22 @@ impl FlatPhysicalIndexLedger {
     }
 
     fn handoff_member(&mut self) -> Result<(), SolveAvailabilityError> {
+        self.release_member_rebuild_scratch();
         self.finish_member_sample()?;
         self.member_output_lengths = [0; 6];
         self.clear(LANE_COUNT + 5..LANE_COUNT + 14)
     }
 
+    fn release_member_rebuild_scratch(&mut self) {
+        #[cfg(feature = "f5c_resource_probe")]
+        for lane in LANE_COUNT + 5..LANE_COUNT + 8 {
+            self.event_owners[lane].release();
+        }
+    }
+
     fn release_after_normalizer_drop(&mut self) -> Result<(), SolveAvailabilityError> {
+        #[cfg(feature = "f5c_resource_probe")]
+        for owner in &mut self.event_owners { owner.release(); }
         self.finish_member_sample()?;
         self.member_output_lengths = [0; 6];
         self.clear(0..FLAT_CANDIDATE_LANE_COUNT)
@@ -629,6 +645,10 @@ impl FlatCandidateObserver {
     fn release_collect_scratch(&mut self) -> Result<(), SolveAvailabilityError> {
         #[cfg(test)]
         self.0.physical_index.clear(LANE_COUNT..LANE_COUNT + 3)?;
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        for lane in LANE_COUNT..LANE_COUNT + 3 {
+            self.0.physical_index.event_owners[lane].release();
+        }
         for lane in LANE_COUNT..LANE_COUNT + 3 {
             self.0.capacities[lane] = 0;
         }
@@ -702,7 +722,15 @@ impl FlatCandidateObserver {
         capacity: usize,
         slot_size: usize,
         work: usize,
+        _length: usize,
     ) -> Result<(), SolveAvailabilityError> {
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        if self.0.index_family &&
+            (((LANE_COUNT..LANE_COUNT + 8).contains(&lane) && lane != LANE_COUNT + 3)
+                || lane == LANE_COUNT + 14) {
+            self.0.physical_index.event_owners[lane].observe(
+                self.0.event_component, lane, _length, capacity, slot_size);
+        }
         #[cfg(test)]
         self.0
             .physical_index
@@ -1004,11 +1032,24 @@ impl<'meter> Normalizer<'meter> {
                 }
             }
         }
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        {
+            let component = stats.candidate_observer.as_ref()
+                .map(|observer| observer.0.event_component)
+                .or_else(|| meter.map(DraftHeapMeter::event_component))
+                .unwrap_or(0);
+            if meter.is_some() || stats.candidate_observer.as_ref()
+                .is_some_and(|observer| observer.0.index_family) {
+                stats.event_owners[lane as usize].observe(component, lane as usize,
+                    items.len(), capacity, slot_size);
+            }
+        }
         #[cfg(test)]
         let observer_result = stats
             .candidate_observer
             .as_mut()
-            .map(|observer| observer.observe(lane as usize, capacity, slot_size, additional));
+            .map(|observer| observer.observe(lane as usize, capacity, slot_size,
+                additional, items.len()));
         #[cfg(test)]
         observer_result.transpose()?;
         if accounting_exhausted {
@@ -2537,9 +2578,7 @@ fn normalize_component_inner<'meter>(
     let (physical_lane_capacities, physical_lane_slot_sizes) = normalizer.physical_lane_snapshot();
     let mut stats = std::mem::take(&mut normalizer.stats);
     stats.source_bytes_at_start = source_bytes_at_start;
-    stats.source_index_joint_peak_bytes = source_meter
-        .end_normalization()
-        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+    let joint_peak = source_meter.end_normalization();
     #[cfg(test)]
     {
         stats.physical_lane_capacities = physical_lane_capacities;
@@ -2554,6 +2593,11 @@ fn normalize_component_inner<'meter>(
         lane.actual_capacity = 0;
         lane.retained_bytes = 0;
     }
+    drop(normalizer);
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    for owner in &mut stats.event_owners { owner.release(); }
+    stats.source_index_joint_peak_bytes =
+        joint_peak.ok_or(SolveAvailabilityError::IdentityExhausted)?;
     *observed_stats = stats;
     result
 }
@@ -2572,7 +2616,8 @@ fn reserve_flat_candidate<T>(
     }
     let result = items.try_reserve(additional);
     if let Some(observer) = observer.as_mut() {
-        observer.observe(lane, items.capacity(), std::mem::size_of::<T>(), additional)?;
+        observer.observe(lane, items.capacity(), std::mem::size_of::<T>(), additional,
+            items.len())?;
     }
     result.map_err(|_| SolveAvailabilityError::IdentityExhausted)
 }
@@ -2614,7 +2659,12 @@ pub(super) fn normalize_flat_metered(
     if fail_after_selection_work {
         memo.work_meter.set(usize::MAX);
     }
-    let (result, observer) = normalize_flat_inner(input, Some(observer));
+    #[allow(unused_mut)]
+    let (result, mut observer) = normalize_flat_inner(input, Some(observer));
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    if let Some(observer) = observer.as_mut() {
+        for owner in &mut observer.0.physical_index.event_owners { owner.release(); }
+    }
     complete_flat_candidate_observer(memo, observer, false)?;
     result
 }
@@ -2685,13 +2735,18 @@ pub(super) fn normalize_flat_batch_metered<'meter>(
             if (end - start - 1) % 2 != 0 {
                 return Err(SolveAvailabilityError::IdentityExhausted);
             }
-            let output = rebuild_flat_member_with_map(
+            let output_result = rebuild_flat_member_with_map(
                 &mut normalizer,
                 &roots[start..end],
                 q,
                 &mut mapped,
                 &mut touched,
-            )?;
+            );
+            #[cfg(test)]
+            if let Some(observer) = &mut normalizer.stats.candidate_observer {
+                observer.0.physical_index.release_member_rebuild_scratch();
+            }
+            let output = output_result?;
             #[cfg(test)]
             let old_member_bytes = physical_member_bytes(&staged[index].candidate.draft)?;
             memo.replace_flat_batch_member(
@@ -2731,7 +2786,11 @@ pub(super) fn normalize_flat_batch_metered<'meter>(
         Ok(FlatNormalizationStats::from(&normalizer.stats))
     })();
     let observer = normalizer.stats.candidate_observer.take();
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    let mut base_event_owners = std::mem::take(&mut normalizer.stats.event_owners);
     drop(normalizer);
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    for owner in &mut base_event_owners { owner.release(); }
     let observer = *observer.expect("batch normalizer retains its observer");
     #[cfg(test)]
     let mut observer = observer;
@@ -2824,6 +2883,8 @@ fn new_flat_candidate_observer(
     let _ = staged;
     Ok(FlatCandidateObserver(FlatCandidateCapacity {
         work: memo.work_meter.clone(),
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        index_family: staged.is_some(),
         #[cfg(all(test, feature = "f5c_resource_probe"))]
         event_component: source_meter.event_component(),
         base_memo_bytes: memo.retained_bytes()?,
@@ -2972,13 +3033,15 @@ fn normalize_flat_inner(
     let mut normalizer = Normalizer::new();
     normalizer.stats.candidate_observer = observer.map(Box::new);
     let result = normalize_flat_inner_work(input, &mut normalizer);
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    let mut base_event_owners = std::mem::take(&mut normalizer.stats.event_owners);
+    let observer = normalizer.stats.candidate_observer.take().map(|observer| *observer);
+    drop(normalizer);
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    for owner in &mut base_event_owners { owner.release(); }
     (
         result,
-        normalizer
-            .stats
-            .candidate_observer
-            .take()
-            .map(|observer| *observer),
+        observer,
     )
 }
 
@@ -3005,6 +3068,9 @@ fn collect_flat_member(
     let bad = SolveAvailabilityError::IdentityExhausted;
     let mut positives = Vec::new();
     let mut negatives = Vec::new();
+    let mut children = Vec::new();
+    // Keep every early return inside this scope so the event release follows Vec drop.
+    let result = (|| {
     reserve_flat_candidate(
         &mut positives,
         input.positive_nodes.len(),
@@ -3020,7 +3086,6 @@ fn collect_flat_member(
     positives.resize(input.positive_nodes.len(), SOURCE_UNSELECTED);
     negatives.resize(input.negative_nodes.len(), SOURCE_UNSELECTED);
     select_root_nodes(input, &mut positives, &mut negatives)?;
-    let mut children = Vec::new();
     let mut positive_source_count = 0usize;
     let mut negative_source_count = 0usize;
     for reference in &input.insertion_order {
@@ -3160,13 +3225,17 @@ fn collect_flat_member(
             RootLocation::Upper(0, index),
         )?;
     }
-    drop(positives);
-    drop(negatives);
-    drop(children);
-    if let Some(observer) = &mut normalizer.stats.candidate_observer {
-        observer.release_collect_scratch()?;
-    }
     Ok(())
+    })();
+    drop(children);
+    drop(negatives);
+    drop(positives);
+    let cleanup = if let Some(observer) = &mut normalizer.stats.candidate_observer {
+        observer.release_collect_scratch()
+    } else {
+        Ok(())
+    };
+    result.and(cleanup)
 }
 
 fn prepare_flat_representatives(normalizer: &mut Normalizer) -> Result<(), SolveAvailabilityError> {
@@ -3224,14 +3293,18 @@ fn rebuild_flat_member_with_map(
     };
     #[cfg(all(test, feature = "f5c_resource_probe"))]
     if let Some(observer) = normalizer.stats.candidate_observer.as_ref() {
-        output.attach_owners_component(observer.0.event_component, [
-            super::F5cWalkerLaneKind::NormalizedPositiveNodes as usize,
-            super::F5cWalkerLaneKind::NormalizedNegativeNodes as usize,
-            super::F5cWalkerLaneKind::NormalizedPositiveChildren as usize,
-            super::F5cWalkerLaneKind::NormalizedNegativeChildren as usize,
-            super::F5cWalkerLaneKind::NormalizedRecursiveBounds as usize,
-            super::F5cWalkerLaneKind::NormalizedInsertionOrder as usize,
-        ]);
+        if observer.0.index_family {
+            output.attach_normalization_owners(observer.0.event_component);
+        } else {
+            output.attach_owners_component(observer.0.event_component, [
+                super::F5cWalkerLaneKind::NormalizedPositiveNodes as usize,
+                super::F5cWalkerLaneKind::NormalizedNegativeNodes as usize,
+                super::F5cWalkerLaneKind::NormalizedPositiveChildren as usize,
+                super::F5cWalkerLaneKind::NormalizedNegativeChildren as usize,
+                super::F5cWalkerLaneKind::NormalizedRecursiveBounds as usize,
+                super::F5cWalkerLaneKind::NormalizedInsertionOrder as usize,
+            ]);
+        }
     }
     let mut work = Vec::new();
     let mut positive_scratch = Vec::new();
@@ -4348,15 +4421,15 @@ mod tests {
         let mut observer = new_flat_candidate_observer(&memo, &meter, None).unwrap();
         let first = LANE_COUNT + 8;
         let second = LANE_COUNT + 9;
-        observer.observe(first, 32, 1, 32).unwrap();
-        observer.observe(second, 4, 1, 4).unwrap();
+        observer.observe(first, 32, 1, 32, 0).unwrap();
+        observer.observe(second, 4, 1, 4, 0).unwrap();
         observer.0.capacities[first] = 0;
         observer.0.physical_index.capacities[first] = 0;
         observer.0.capacities[second] = 0;
         observer.0.physical_index.capacities[second] = 0;
         observer.0.refresh_peak().unwrap();
-        observer.observe(first, 2, 1, 2).unwrap();
-        observer.observe(second, 24, 1, 24).unwrap();
+        observer.observe(first, 2, 1, 2, 0).unwrap();
+        observer.observe(second, 24, 1, 24, 0).unwrap();
         observer.0.capacities[first] = 0;
         observer.0.physical_index.capacities[first] = 0;
         observer.0.capacities[second] = 0;
@@ -4387,6 +4460,8 @@ mod tests {
         stats.index_retained_bytes = items.capacity();
         stats.candidate_observer = Some(Box::new(FlatCandidateObserver(FlatCandidateCapacity {
             work: Default::default(),
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            index_family: false,
             #[cfg(all(test, feature = "f5c_resource_probe"))]
             event_component: 0,
             base_memo_bytes: 0,
@@ -4463,6 +4538,8 @@ mod tests {
             stats.candidate_observer =
                 Some(Box::new(FlatCandidateObserver(FlatCandidateCapacity {
                     work: Default::default(),
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    index_family: false,
                     #[cfg(all(test, feature = "f5c_resource_probe"))]
                     event_component: 0,
                     base_memo_bytes: 0,
