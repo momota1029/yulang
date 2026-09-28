@@ -430,28 +430,46 @@ ran after this failure. A retry was held until the capacity source was
 identified, repaired, reviewed, and recorded with a fresh run budget. The
 initial failure and next gate are recorded in [`F5c first preflight failure checkpoint`](f5c-first-preflight-failure-checkpoint-2026-09-29.md).
 
-The performance-auditor review had already closed the supervisor design and
-numeric thresholds. The root cause and reviewed repair are recorded in
+The root cause and reviewed ZST-capacity repair from the first attempt are in
 [`F5c first preflight failure checkpoint`](f5c-first-preflight-failure-checkpoint-2026-09-29.md).
-Retry only the preflight with a 60-second timeout and fresh run ID
-`20260929-zst-retry-01`; use `/tmp/f5c-preflight-20260929-zst-retry-01.log`,
-`.monitor.jsonl`, `.summary.json`, and `.events`. Keep the existing 8-GiB
-memory/disk thresholds and process-group supervisor. The retry adds one process
-and at most 70 seconds including its grace. Counting the first 16.06-second
-failed attempt, the retry plus the already-reviewed 300-second diagnostic and
-150-second replay fit within four process invocations and 556.06 seconds,
-including the three 10-second termination graces. If preflight succeeds, run
-the diagnostic and replay in order. Use their measured elapsed time, peak RSS,
-event count, and sidecar size to derive and review the 36-row matrix's
-individual timeout and total process budget. Keep all 36 required rows; the
-diagnostic does not substitute for them. The user has authorized expanding
-the overall time and memory plan, so no approval pause is needed when the
-later measurement budget is ready.
+The second supervised preflight used run ID `20260929-zst-retry-01` and failed
+in 5.02 seconds during `IdentityAliases/U/32`, after emitting the complete
+`IndependentIdentities/D/32` tuple. It panicked at
+`crates/yu-solver/src/lib.rs:16105`: `matrix owner family peak must cover
+current retained bytes`. The supervisor measured peak group RSS of
+618,283,008 bytes, minimum `MemAvailable` of 27,877,134,336 bytes, sidecar
+high-water 220,808 bytes, and minimum free disk of 666,033,414,144 bytes.
+Evidence is preserved at `/tmp/f5c-preflight-20260929-zst-retry-01.log`,
+`/tmp/f5c-preflight-20260929-zst-retry-01.monitor.jsonl`,
+`/tmp/f5c-preflight-20260929-zst-retry-01.summary.json`, and
+`/tmp/f5c-preflight-20260929-zst-retry-01.events`. The event file contains 3,450
+complete persisted records; the buffered writer did not flush on panic, so the
+sidecar cannot identify the failing boundary or family. See
+[`F5c owner-peak preflight failure checkpoint`](f5c-preflight-owner-peak-failure-checkpoint-2026-09-29.md).
 
-Exact retry command:
+The ZST correction changes the reported physical capacity only when slot size
+is zero. It leaves retained bytes and all family peak folds unchanged, so it
+does not explain this byte-peak assertion. The failing boundary is in the
+`IdentityAliases/U/32` case, but the generic assertion emits no family index,
+lane range, retained total, or owner peak. Add those values to the test-only
+assertion, then review and compile-check before retrying.
+
+The next preflight allowance is one supervised process with a 60-second timeout
+and 10-second TERM-to-KILL grace, using the existing 8-GiB memory/disk floors
+and a fresh run ID `20260929-owner-peak-retry-01`. The earlier attempts used
+16.06 and 5.02 seconds without needing termination grace. Counting those, this
+retry plus the reviewed 300-second diagnostic and 150-second replay use at most
+five process invocations and 561.08 seconds (16.06 + 5.02 + 60 + 300 + 150,
+plus three 10-second graces), leaving 38.92 seconds within the ordinary
+8-process/10-minute budget. Do not run the diagnostic or replay unless this
+preflight succeeds. Keep all 36 matrix rows; derive their budget from the
+diagnostic/replay evidence. The user authorized autonomous continuation and
+budget expansion, so no approval pause is needed.
+
+Exact next preflight command:
 
 ```bash
 set -euo pipefail
-RUN_ID=20260929-zst-retry-01
+RUN_ID=20260929-owner-peak-retry-01
 python3 tools/run_f5c_resource_process.py --timeout-seconds 60 --log "/tmp/f5c-preflight-$RUN_ID.log" --monitor "/tmp/f5c-preflight-$RUN_ID.monitor.jsonl" --summary "/tmp/f5c-preflight-$RUN_ID.summary.json" --sidecar "/tmp/f5c-preflight-$RUN_ID.events" -- /usr/bin/time -v cargo test -p yu-solver --lib --features f5c_resource_probe f5c_resource_matrix_preflight --offline -j 2 -- --ignored --nocapture --test-threads=1
 ```

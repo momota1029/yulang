@@ -220,9 +220,26 @@ The feature-gated `f5c_probe_shape` correction in `crates/yu-types/src/lib.rs`
 preserves requested length, reports zero physical capacity for zero-sized
 slots, and retains `Vec::capacity()` for non-ZST lanes. A narrow
 `spec_auditor` review is clean, and focused feature-enabled compile checks pass.
-The revised one-process preflight retry is recorded with a 60-second timeout
-and fresh run ID in the failure checkpoint. Run that retry next; diagnostic
-and matrix processes remain behind its successful completion.
+The revised one-process preflight retry was run after the repair. Its separate
+owner-peak invariant failure is the newer active gate recorded below; no
+diagnostic or matrix process has started.
+
+### Latest continuation (2026-09-29): preflight reached owner-peak invariant
+
+After the reviewed ZST correction, the next supervised preflight emitted the
+`IndependentIdentities/D/32` tuple and then failed at the generic owner-peak
+assertion during `IdentityAliases/U/32`. Its log has no boundary/family/peak
+values, and the panic left only an unflushed partial event sidecar. The ZST
+correction leaves retained-byte values unchanged, so it does not explain this
+assertion. Exact metrics, evidence paths, and bounded next step are in
+[`F5c owner-peak preflight failure checkpoint`](../notes/progress/f5c-preflight-owner-peak-failure-checkpoint-2026-09-29.md).
+
+Next, add boundary, family index, lane range, current retained bytes, and owner
+peak to the existing test-only assertion in `crates/yu-solver/src/lib.rs`.
+Then run its focused feature-enabled compile check and obtain a narrow review.
+After recording a fresh one-process allowance under the remaining 10-minute
+budget, rerun only the supervised preflight; diagnostic and matrix processes
+remain behind its success.
 
 ### Latest continuation (2026-09-28): user authorized autonomous completion and budget expansion
 
