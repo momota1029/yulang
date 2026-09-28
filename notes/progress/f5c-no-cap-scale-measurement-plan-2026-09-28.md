@@ -1,6 +1,6 @@
 # F5c no-cap §26/§34 scale measurement plan
 
-Status: The prior 39-process campaign stopped at the third failed preflight; no matrix row ran. The user has since directed autonomous F5c completion and authorized expanding time and memory plans as needed, so the old no-retry allowance does not constrain a fresh campaign. The AllDrafts and guarded-cycle repairs are statically reviewed but unverified. The six-buffer `FlatDraft` family-6 carrier and atomic same-ID staged transfer, all eight §34 family event/reconciliation slices, and the 261-row family-aware replay are implemented and independently reviewed in their checkpoints. The runtime fold remains unverified; no preflight, corrected diagnostic, or scale row has run after these repairs. See the [`family-5 aggregate-peak checkpoint`](f5c-family5-closed-type-arena-aggregate-peak-checkpoint-2026-09-29.md), [`family-6 event checkpoint`](f5c-family6-closed-normalization-index-events-checkpoint-2026-09-29.md), and [`261-lane physical replay checkpoint`](f5c-family7-physical-lane-replay-checkpoint-2026-09-29.md).
+Status: The prior 39-process campaign stopped at the third failed preflight; no matrix row ran. The user has since directed autonomous F5c completion and authorized expanding time and memory plans as needed. The AllDrafts and guarded-cycle repairs are statically reviewed but remain unverified at their corrected scale. The six-buffer `FlatDraft` family-6 carrier and atomic same-ID staged transfer, all eight §34 family event/reconciliation slices, and the 261-row family-aware replay are implemented and independently reviewed in their checkpoints. The eighth supervised preflight passed its first four D=32 rows, then timed out during GuardedCycle while producing a partial 10.2-million-event sidecar; no diagnostic or scale row followed. The exact run is recorded in the [`shared-acyclic preflight checkpoint`](f5c-shared-acyclic-hit-mismatch-checkpoint-2026-09-29.md). See the [`family-5 aggregate-peak checkpoint`](f5c-family5-closed-type-arena-aggregate-peak-checkpoint-2026-09-29.md), [`family-6 event checkpoint`](f5c-family6-closed-normalization-index-events-checkpoint-2026-09-29.md), and [`261-lane physical replay checkpoint`](f5c-family7-physical-lane-replay-checkpoint-2026-09-29.md).
 Reviewed-by: spec_auditor, performance_auditor (matrix, formulas, safety, and budget deltas closed without unresolved findings)
 Observer-scope delta review: architect, spec_auditor, performance_auditor; no blocking or major findings
 Execution-extension delta review: spec_auditor clarified approval timing; performance_auditor supplied the one-process budget justification
@@ -514,18 +514,31 @@ evidence and review scope are in
 The seven completed preflights used 55.24 seconds combined. A fresh
 `performance_auditor` justified one more 45-second preflight, followed only on
 success by the already-reviewed 300-second diagnostic and 150-second replay.
-The primary approves 10 total invocations and a 600-second aggregate campaign
-cap. With one 10-second grace per process, the maximum is 580.2388 seconds,
+The primary approved 10 total invocations and a 600-second aggregate campaign
+cap. With one 10-second grace per process, the maximum was 580.2388 seconds,
 leaving 19.7612 seconds for supervisor overhead. Keep the 8-GiB memory/disk
-floors and all 36 matrix rows. If the eighth preflight fails, stop without
-diagnostic/replay; the approval permits no ninth preflight.
+floors and all 36 matrix rows. The eighth preflight timed out after 46.16
+seconds and wrote a partial 654,172,160-byte event sidecar with 10,221,439
+complete records plus a 56-byte partial record; only its first four D=32 rows
+completed. The event histogram has 8,684,774 SHAPEs, led by raw-walker `Tasks`
+(3,972,821), `Path` (883,113), and `Values` (827,118); family-4 request-only
+SHAPEs total 1,402,369. `spec_auditor`, `compiler_referee`, and `architect`
+confirmed family-4 same-capacity SHAPE serialization can be coalesced while
+keeping in-memory requests and boundary/growth/decrease records exact. Fresh
+exact-conformance review also allows same-capacity SHAPE coalescing for raw
+walker kinds 32–129, provided each observation updates and validates its
+in-memory request, and lifecycle/transfer and sampled request state remain
+exact. These kinds are separate from six-buffer kinds 12–17 and their same-ID
+staged transfer. The performance audit attributes the stream volume to the
+test-only observer, not evidence of production allocation growth or solver
+visit cost. Linear scaling from K=32 to K=4,000 suggests 1.28 billion events /
+82 GB, but this is an inference, not an upper bound. The 10/600 approval is
+exhausted and covers no further process. Close per-observation validation and
+the sampled request-witness path, then establish post-coalescing event/replay
+cost before a fresh review; diagnostic/replay remain blocked.
 The user authorized autonomous continuation and budget expansion; no user
 approval pause is needed.
 
-Exact next preflight command:
-
-```bash
-set -euo pipefail
-RUN_ID=20260929-memo-capacity-decrease-retry-01
-python3 tools/run_f5c_resource_process.py --timeout-seconds 45 --log "/tmp/f5c-preflight-$RUN_ID.log" --monitor "/tmp/f5c-preflight-$RUN_ID.monitor.jsonl" --summary "/tmp/f5c-preflight-$RUN_ID.summary.json" --sidecar "/tmp/f5c-preflight-$RUN_ID.events" -- /usr/bin/time -v cargo test -p yu-solver --lib --features f5c_resource_probe f5c_resource_matrix_preflight --offline -j 2 -- --ignored --nocapture --test-threads=1
-```
+No next process command is approved under the current plan. The exact
+checkpoint, including partial-stream details and prior run logs, is in
+[`F5c shared-acyclic hit-count preflight checkpoint`](f5c-shared-acyclic-hit-mismatch-checkpoint-2026-09-29.md).

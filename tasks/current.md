@@ -270,14 +270,22 @@ historical peak, and that `active_set` capacity snapshots must refresh after
 mutation. Producer, replay, cache refreshes, and clear markers are repaired;
 post-write spec review, feature-enabled test-target compile, and Python syntax
 check pass. The earlier 9-invocation approval ended at this failed preflight.
-The performance auditor justified and the primary approves one additional
+The performance auditor justified and the primary approved one additional
 45-second preflight, followed by diagnostic/replay only on success: 10 total
 invocations, 600-second aggregate cap, 8-GiB floors, and TERM/KILL supervision.
-The maximum including grace is 580.2388 seconds, leaving 19.7612 seconds for
-supervisor overhead. After implementing and reviewing the narrow observer
-repair, run the eighth preflight under ID
-`20260929-memo-capacity-decrease-retry-01`; if it fails, stop without diagnostic
-or replay. Both remain blocked until success. See
+That eighth preflight, ID `20260929-memo-capacity-decrease-retry-01`, passed the
+first four D=32 rows then timed out with a partial 654 MB, 10.2-million-event
+sidecar. The histogram shows raw-walker request-shape events dominate;
+family-4-only coalescing would reduce about 1.4 million records.
+Fresh spec/architecture review permits coalescing same-capacity raw-walker
+SHAPEs for kinds 32–129 if each observation still updates and validates its
+in-memory request and lifecycle/transfer records stay exact. This is separate
+from the six-buffer kinds 12–17 and their same-ID staged transfer. The
+performance audit's linear K=32-to-4,000 scenario is 1.28 billion events / 82
+GB, but it is not an upper bound. Close per-observation validation, sampled
+request-witness reconciliation, and post-coalescing event/replay estimates
+before a fresh budget. The 10/600 approval is exhausted; diagnostic and replay
+remain blocked. See
 [`F5c logical-term preflight failure checkpoint`](../notes/progress/f5c-preflight-logical-term-count-failure-checkpoint-2026-09-29.md).
 Also see
 [`F5c shared-acyclic hit-count preflight checkpoint`](../notes/progress/f5c-shared-acyclic-hit-mismatch-checkpoint-2026-09-29.md).

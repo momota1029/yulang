@@ -1,16 +1,19 @@
 # F5c shared-acyclic hit-count preflight checkpoint
 
-Status: the sixth supervised preflight exposed a family-1 fixture-event gap;
-the seventh now passes shared acyclic and independent acyclic events, then
-fails in the guarded-cycle case at the test-only family-4 memo capacity
-observer. HashMap lane `.capacity()` can decrease after tombstone removals while
-its allocation and owner remain live. A `compiler_referee` and `spec_auditor`
-confirmed the observer must represent a same-owner capacity decrease and that
-`active_set`'s cached capacity must be refreshed after mutation. The event
-producer, offline replay, capacity snapshots, and clear marker now reflect that
-contract. Post-write spec review is clean, the focused test-target compile
-passed, and checker syntax passed. The extension review and primary approve one
-last preflight retry; diagnostic and replay remain blocked until it succeeds.
+Status: the family-1 seed-ledger and family-4 capacity-decrease observer fixes
+are reviewed, compiled, and pushed. The eighth supervised preflight passed the
+first four D=32 rows, then timed out while producing a 654 MB sidecar with over
+10 million complete events. No resource floor was breached. A fresh event-kind
+histogram shows that most records are raw-walker SHAPE events, while
+family-4-only coalescing would save about 1.4 million records. §26/§34 review
+allows omitting request-only family-4 sidecar records while retaining exact
+in-memory and boundary state. A fresh exact-conformance review also allows
+coalescing same-capacity raw-walker SHAPEs for owner kinds 32–129 if every
+observation still updates and validates its in-memory request, and all CREATE,
+GROW, RELEASE, TRANSFER, and boundary state remains exact. This does not touch
+the six-buffer kinds 12–17 or their same-ID staged transfer. The old 10/600
+budget is exhausted; a bounded campaign and the existing request-witness path
+still need closure.
 
 ## Failed attempt and evidence
 
@@ -60,6 +63,64 @@ Preserved evidence:
 - `/tmp/f5c-preflight-20260929-shared-acyclic-hit-retry-01.events`
 
 ## Authority and current gate
+
+### Eighth preflight: event-volume timeout
+
+Run ID `20260929-memo-capacity-decrease-retry-01` was terminated at the
+45-second wall timeout; the supervisor reports exit `-15` after 46.164
+seconds. It emitted the first four D=32 events (independent identities, aliases,
+shared acyclic, and independent acyclic), then continued in the guarded-cycle
+case without reaching its terminal event. The sidecar contained 10,221,439
+complete 64-byte records and a partial trailing record when the process was
+terminated; high-water size was 654,172,160 bytes. The supervisor recorded
+peak process-group RSS 773,201,920 bytes, minimum `MemAvailable`
+27,627,048,960 bytes, minimum free disk 665,381,261,312 bytes, and 50 monitor
+samples. The active 8-GiB memory/disk floors held.
+
+Preserved evidence:
+
+- `/tmp/f5c-preflight-20260929-memo-capacity-decrease-retry-01.log`
+- `/tmp/f5c-preflight-20260929-memo-capacity-decrease-retry-01.monitor.jsonl`
+- `/tmp/f5c-preflight-20260929-memo-capacity-decrease-retry-01.summary.json`
+- `/tmp/f5c-preflight-20260929-memo-capacity-decrease-retry-01.events`
+
+The timeout is not evidence of a compiler semantic mismatch or a memory/disk
+floor failure. However, the 10.2-million-event partial stream is not a valid
+replay input and exceeds the expected event size from earlier attempts. A
+`performance_auditor` requires a static bound on GuardedCycle event production
+and remaining fixtures, plus evidence that offline replay can process that
+volume, before justifying another retry. A streamed read-only histogram found
+10,221,439 complete records, 56 trailing bytes, and these operation totals:
+657,602 CREATE, 8,684,774 SHAPE, 435,753 GROW, and 443,310 RELEASE. The largest
+SHAPE kinds are `Tasks` (3,972,821), `Path` (883,113), and `Values` (827,118).
+Family-4 lanes 11, 16, 17, and 18 account for 1,402,369 request-only SHAPEs.
+The rest is mostly raw-walker owners. A fresh `spec_auditor`, `compiler_referee`,
+and `architect` confirmed that §34 does not require serializing every
+same-capacity family-4 requested-length change: in-memory lane state and exact
+boundary/GROW/DECREASE records preserve the contract. This observer optimization
+is within the current gate, but it only removes the family-4 portion. A separate
+fresh `spec_auditor` review found the same conformance for raw-walker kinds
+32–129; the architect review is conditional on validating `requested <=
+capacity` at every observation before suppressing SHAPE serialization. Keep the
+in-memory request current and preserve lifecycle/transfer records and sampled
+lane requests. These kinds are separate from FlatDraft kinds 12–17 and their
+same-ID staged transfer.
+
+The performance audit attributes the large stream to test-only observer output,
+not evidence of production allocation growth or extra solver visits. Linear
+scaling from K=32 to K=4,000 would suggest roughly 1.28 billion records / 82 GB,
+but this is an extrapolation scenario, not an upper bound; the authoritative
+GuardedCycle builder does not assert a total-work order. Establish the request
+witness/check path and the post-coalescing event scale before setting new
+preflight, diagnostic, or replay limits.
+
+The 10-invocation/600-second approval
+covered this eighth preflight followed by conditional diagnostic/replay; it
+covers no further process after the timeout. Assess whether same-capacity,
+request-only SHAPE records can be coalesced in the relevant remaining owner
+families without reopening the separately checkpointed carrier/transfer work.
+Do not run diagnostic/replay until a fresh static performance bound and
+approval close this gap.
 
 ### Seventh preflight: family-4 capacity observation
 
@@ -170,15 +231,17 @@ observer failure described above.
 
 ## Remaining measurement budget
 
-Seven preflight invocations are complete and used 55.24 seconds combined. A
-fresh `performance_auditor` justified one additional 45-second preflight,
-followed only on success by the already-reviewed 300-second diagnostic and
-150-second replay. The primary approves 10 total invocations and a 600-second
-campaign cap, preserving the 8-GiB memory/disk floors, process-group monitoring,
-and TERM/KILL grace. Including one 10-second grace per process, the maximum is
-580.2388 seconds, leaving 19.7612 seconds for supervisor overhead. The eighth
-preflight is the only retry allowed; if it fails, stop without diagnostic or
-replay. Keep all 36 matrix rows.
+Eight preflight invocations are complete and used 101.40 seconds combined. The
+performance review and primary approval allowed 10 total invocations and a
+600-second cap, conditional on this eighth preflight passing before diagnostic
+and replay. It timed out, so no further process is covered. Keep the 8-GiB
+floors, process-group monitoring, and all 36 matrix rows. Before resuming,
+apply and review the request-only SHAPE coalescing conditions above, establish
+the sampled request-witness path and expected event-count/replay-cost bounds,
+then obtain a fresh performance review and primary approval for a concrete
+bounded sequence. The linear K=32-to-4,000 event estimate is 1.28 billion
+records / 82 GB, but is not a static upper bound and does not justify another
+process by itself.
 
 The user authorized autonomous continuation and expanded time/memory budgets;
 no approval pause is needed for this scoped continuation.
