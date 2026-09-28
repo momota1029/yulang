@@ -250,10 +250,12 @@ test-target compile. The fifth supervised preflight passed its count, raw-state,
 and summary-admission checks, then failed the shared-summary-hit assertion
 (4,032 observed, 1,984 expected by §34). A `compiler_referee` is tracing the
 fixture request flow and found that mapping each use row onto its target creates
-self-routes that replay the seeded cone. The counter itself is consistent with
-the §34 formula. The remaining review is whether preserving original use rows
-keeps the D-root fixture exact. After that is closed and the narrow repair is
-reviewed, one supervised preflight remains under ID
+self-routes that replay the seeded cone. Follow-up static review confirms that
+retaining original use rows leaves only root-to-use edges, and `spec_auditor`
+confirmed the proposed helper correction preserves the shared, independent,
+and guarded-cycle fixture contracts. The counter itself is consistent with
+the §34 formula. Remove the alias, review the exact delta, and then use the one
+remaining supervised preflight under ID
 `20260929-shared-acyclic-hit-retry-01`; diagnostics and the matrix remain
 behind its success. See
 [`F5c logical-term preflight failure checkpoint`](../notes/progress/f5c-preflight-logical-term-count-failure-checkpoint-2026-09-29.md).

@@ -6,9 +6,12 @@ preflight again completed the first two fixtures but failed during
 hits is 1,984; the observer recorded 4,032. A `compiler_referee` traced the
 excess to the fixture assigning every use component its target root row. The
 resulting self-routes replay each seeded function bound, making each root
-traverse the cone twice. The remaining repair question is whether removing that
-alias leaves the source-ring use rows isolated from extra root paths. No
-expected value has changed. Diagnostic and matrix processes remain blocked.
+traverse the cone twice. Follow-up tracing confirms the original per-use rows
+are distinct and that the route edges do not lead back into seeded roots. A
+`spec_auditor` confirmed that removing the alias preserves the §34 shared and
+guarded-cycle fixture contracts. The narrow code repair is next; exact
+post-change fixture output remains to be verified. No expected value has
+changed. Diagnostic and matrix processes remain blocked.
 
 ## Failed attempt and evidence
 
@@ -51,10 +54,24 @@ per root. The measured `2K(2D-1) = 4,032` is consistent with that fixture path.
 The counter owner counts reused transitive incidences and is not implicated by
 the inspected path.
 
-The compiler audit's smallest proposed repair is to retain each internal use
-component's original row instead of overwriting it. Before writing, trace the
-resulting root-to-use constraints and confirm that the source-ring rows do not
-introduce extra qualifying root paths; then validate the fixture against §34.
+The compiler audit's smallest repair is to retain each internal use
+component's original row instead of overwriting it. `InferenceSession::try_new`
+assigns those collected rows unique dense ordinals before admission; the
+fixture later appends fresh definition-root rows. The batch freezes SCC
+membership independently of these mutable live ordinals. After removing the
+overwrite, each internal route adds an edge from a fresh root to an original
+use row: the solver records the root in the use row's direct-lower list and
+the use row in the root's direct-upper list. Positive generalization follows
+direct-lower/exact-lower edges, so this route cannot return to a fresh root or
+add a second cone request. The same direction leaves each guarded-cycle root
+with its one seeded rotation edge. Original source rows are not seeded roots,
+and all rows begin generic, so the inspected old-row graph adds neither a
+positive root traversal nor a non-generic closure seed.
+
+The pre-write `spec_auditor` confirmed that deleting only the use-row overwrite
+preserves the §34 shared acyclic cone, independent-cone case, and guarded-cycle
+rotations without changing expected formulas or output assertions. Apply the
+narrow fixture repair, then inspect the exact schemes and summary counters.
 Do not change the approved hit formula to fit the current fixture output.
 
 The previous logical-term repair remains limited to reading

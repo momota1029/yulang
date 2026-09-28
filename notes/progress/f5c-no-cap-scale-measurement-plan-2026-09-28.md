@@ -484,9 +484,13 @@ count: 4,032 observed against the §34 expectation 1,984 for D=32/K=32. A
 overwriting each use row with its target root row. Each SCC self-route then
 replays the root's seeded function bound, yielding `2K(2D-1)` hits. The
 counter path is consistent with §34; the fixture has the extra traversal.
-Validate that retaining the original use rows does not introduce other root
-paths, then repair the fixture without changing its expected formula. Keep
-diagnostics blocked. Exact evidence and residual review are in
+Follow-up trace confirms that original use rows are distinct from fresh roots,
+internal routing adds only root-to-use edges, and the positive generalizer
+cannot return through those edges. `spec_auditor` confirmed that removing the
+overwrite preserves the D-root shared/independent and guarded-cycle fixtures.
+Apply the narrow helper repair, then verify exact schemes and counters without
+changing formulas. Keep diagnostics blocked. Exact evidence and review scope
+are in
 [`F5c shared-acyclic hit-count preflight checkpoint`](f5c-shared-acyclic-hit-mismatch-checkpoint-2026-09-29.md).
 
 The next preflight allowance is one supervised process with a 45-second timeout
