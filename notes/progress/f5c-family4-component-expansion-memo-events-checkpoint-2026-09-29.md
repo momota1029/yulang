@@ -52,6 +52,12 @@ bounded independent review without a concrete finding in the family-4 contract,
 replay, or owner lifecycle. Runtime event replay, tests, and failure/drop
 execution remain unverified.
 
+The follow-up lane audit found that the replay's per-kind snapshot included
+family 6 but omitted family-4 kinds, so family-4 peak/max-capacity lane checks
+would read as zero. Commit `4924b7ae` includes kinds 551–570 in that snapshot; a
+focused `regression_auditor` delta review closed the fix. Family-6 owner details
+remain included.
+
 Compile-only checks passed:
 
 - `RUSTC_WRAPPER= cargo check -p yu-solver --offline -j 2`
