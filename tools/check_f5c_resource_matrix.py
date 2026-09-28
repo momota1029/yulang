@@ -206,7 +206,7 @@ def replay_f6_events(path, expected_count, expected_checksum):
                     if any(owner_kind == 0 for owner_kind, *_ in owners.values()):
                         raise ValueError(f"{path}: unclassified owner at family-6 checkpoint")
                     checkpoint_by_kind = {lane_kind: [*current, *lane_peak[lane_kind]]
-                        for lane_kind, current in lane_current.items() if family_of(lane_kind) == 6}
+                        for lane_kind, current in lane_current.items() if family_of(lane_kind) in (4, 6)}
                 continue
             if 1 in checkpoints and family_of(kind) == 1 and op != 5:
                 raise ValueError(f"{path}: family-1 mutation after checkpoint")
