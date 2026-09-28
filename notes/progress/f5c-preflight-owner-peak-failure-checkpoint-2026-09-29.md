@@ -2,10 +2,12 @@
 
 Status: the second supervised preflight, after the ZST capacity correction,
 failed at the test-only family peak coverage assertion during its second
-fixture case. A panic-only diagnostic was added, independently reviewed, and
-feature-enabled test-target compile-checked. The third preflight identified a
-missing closed-probe snapshot during incoming routing. The code repair is the
-active gate; no diagnostic or matrix process ran.
+fixture case. A panic-only diagnostic identified the third attempt's missing
+closed-probe snapshot during incoming routing. The test+feature-gated route
+handoff repair is implemented, specification/performance reviewed, and
+feature-enabled test-target compile-checked. Each active matrix boundary now
+requires one live, handoff, or finished probe, so no boundary can silently
+skip the 36 physical rows. No diagnostic or matrix process ran.
 
 ## Exact paths and diff boundary
 
@@ -22,7 +24,8 @@ active gate; no diagnostic or matrix process ran.
 - `crates/yu-solver/src/lib.rs:14863-14960,15996-16011`: incoming routing
   temporarily moves the live finalization session out of `self`; the observer
   has no closed probe during that handoff and leaves its 36 current lane rows
-  unchanged.
+  unchanged. The repair adds a temporary feature-gated snapshot field, captures
+  it at take, uses it for observer reconciliation, and clears it after restore.
 - `crates/yu-types/src/lib.rs:1038-1048,1618-1620,1677-1678`: the
   authoritative same-time aggregate peak folds current retained bytes and is
   updated at the inspected physical lane reconciliation points.
@@ -93,22 +96,35 @@ sampling sites; `yu-types` updates `aggregate_peak_bytes` from same-time current
 retained bytes. The ZST repair is unrelated: it leaves non-ZST retained bytes
 and all byte peaks unchanged.
 
-The owning repair is to expose a feature-gated copy of
-`finalization.f5c_resource_probe()` to the observer only while that route
-handoff is active, clear it when the finalization session is restored, and
-include it in closed-probe selection. Preserve the existing aggregate peak;
-do not synthesize it from independent per-lane maxima or simply mask a missing
-probe with current bytes. Verify that every boundary with live closed lanes has
-a probe, all 36 retained bytes sum to `current_closed_retained_bytes`, and the
-aggregate peak covers current bytes and each lane's independent historical
-peak. The terminal event must still reconcile with the finish receipt and
-successful finalizer checkpoint witness.
+The fix copies `finalization.f5c_resource_probe()` to a test+feature-gated
+field only while the route handoff is active. Observer selection preserves the
+authoritative `aggregate_peak_bytes`; it is not reconstructed from lane
+history. The field clears immediately after session restoration, including the
+injected reserve-error path. Every active matrix sample now requires a live,
+handoff, or finished probe, and reconciles all 36 rows; the prior silent
+no-probe skip is removed. The test-only current sum, per-family peak, and
+terminal receipt/checkpoint assertions remain active.
 
-The panic-context delta kept the original condition and accounting. One
-`spec_auditor` review was clean, and
-`RUSTC_WRAPPER= cargo check -p yu-solver --tests --features f5c_resource_probe`
-passed. The next repair gets its own narrow review and focused test-target
-compile, then one fresh supervised preflight.
+The route snapshot is 2,032 bytes on this 64-bit host and copies once for each
+incoming use route only in the probe build. The D=32/K=4,000 diagnostic has 32
+routes, or 65,024 copied bytes; seven preflight cases are bounded by 455,168
+bytes (about 0.44 MiB). `performance_auditor` judged this immaterial to the
+reviewed 300-second diagnostic and process limits, based on static call counts
+and structure; no timing experiment was run.
+
+Selected M1 with `spec_auditor` and `performance_auditor`; both reviews were
+clean for exact lane reconciliation and bounded snapshot cost. A follow-up
+`spec_auditor` delta review was also clean for the explicit required-probe
+assertion and removal of the skip branch. The final focused check passed after
+that addition:
+
+- `RUSTC_WRAPPER= cargo check -p yu-solver --tests --features f5c_resource_probe`
+
+Run the fresh supervised preflight next; it must prove that every boundary
+with live closed lanes has a probe, all 36 retained bytes sum to
+`current_closed_retained_bytes`, and the aggregate peak covers current bytes
+and each lane's independent historical peak. The terminal event must still
+reconcile with the finish receipt and successful finalizer checkpoint witness.
 
 The new retry has a 60-second process timeout plus 10-second termination grace.
 Together with the first three attempts and planned 300-second diagnostic and

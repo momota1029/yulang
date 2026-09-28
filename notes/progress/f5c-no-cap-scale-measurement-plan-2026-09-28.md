@@ -454,7 +454,15 @@ does not explain this byte-peak assertion. The failing boundary is in the
 lane range, retained total, or owner peak. The assertion in
 `crates/yu-solver/src/lib.rs` now prints those values and the lane slice only on
 failure. A `spec_auditor` confirmed the invariant and control flow are
-unchanged. The focused test-target compile passed:
+unchanged. The route-handoff snapshot fix carries the exact `yu-types` summary
+during `IncomingRoute`, then clears it on restore. Specification review
+confirmed 36-lane reconciliation and the terminal receipt, including the
+explicit requirement that every active matrix boundary has a closed probe;
+the former silent no-probe skip is gone. Performance review found the copy
+cost immaterial: 2,032 bytes per route, 32 routes (65,024 bytes) in the
+D=32/K=4,000 diagnostic, and at most 455,168 bytes (about 0.44 MiB) across
+seven preflight cases. The focused test-target compile passed after this final
+assertion change:
 
 - `RUSTC_WRAPPER= cargo check -p yu-solver --tests --features f5c_resource_probe`
 

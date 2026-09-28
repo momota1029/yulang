@@ -235,13 +235,13 @@ sees no probe and returns zero. The `yu-types` same-time aggregate producer is
 valid. Exact call path, run metrics, and next ownership change are in
 [`F5c closed-probe snapshot failure checkpoint`](../notes/progress/f5c-preflight-owner-peak-failure-checkpoint-2026-09-29.md).
 
-Next, make a feature-gated stable probe snapshot available to the matrix
-observer only during that temporary route handoff, then clear it when the
-finalization session is restored. Preserve the authoritative aggregate peak;
-do not rebuild it from per-lane maxima. Verify the zero-owner/current-byte
-invariant and terminal family-5 reconciliation, review the narrow delta, then
-run a fresh supervised preflight. Diagnostic and matrix processes remain
-behind preflight success.
+The feature+test-gated snapshot now follows the finalization session through
+that temporary route handoff and clears after restore. Every active matrix
+boundary requires one of the live, handoff, or finished probes and reconciles
+all 36 rows, so the former silent skip is removed. Spec/performance reviews
+and the focused test-target compile are clean. The retry budget and fresh run
+ID `20260929-closed-probe-retry-01` are recorded. Run the supervised preflight
+next; diagnostic and matrix processes remain behind its success.
 
 ### Latest continuation (2026-09-28): user authorized autonomous completion and budget expansion
 

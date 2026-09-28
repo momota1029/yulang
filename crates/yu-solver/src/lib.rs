@@ -7312,6 +7312,8 @@ struct InferenceSession {
     #[cfg(all(test, feature = "f5c_resource_probe"))]
     f5c_matrix_finished_closed: Option<yu_types::F5cResourceProbeSummary>,
     #[cfg(all(test, feature = "f5c_resource_probe"))]
+    f5c_matrix_route_handoff_closed: Option<yu_types::F5cResourceProbeSummary>,
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
     f5c_matrix_normalization: Option<(usize, fn(usize, usize) -> f5c_draft::FlatDraft)>,
     #[cfg(test)]
     ordering_observer: Option<OrderingObserver>,
@@ -9303,6 +9305,8 @@ impl InferenceSession {
             f5c_matrix_observer: None,
             #[cfg(all(test, feature = "f5c_resource_probe"))]
             f5c_matrix_finished_closed: None,
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            f5c_matrix_route_handoff_closed: None,
             #[cfg(all(test, feature = "f5c_resource_probe"))]
             f5c_matrix_normalization: None,
             #[cfg(test)]
@@ -14861,6 +14865,11 @@ impl InferenceSession {
             .clone();
         let value = self.batch.component_term_at(use_record.use_value_component);
         let finalization = self.finalization.take().expect("finalization remains live");
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        {
+            assert!(self.f5c_matrix_route_handoff_closed.is_none());
+            self.f5c_matrix_route_handoff_closed = Some(finalization.f5c_resource_probe());
+        }
         let mut scratch = std::mem::take(&mut self.instantiation_scratch);
         let mut result = (|| {
             let view = finalization
@@ -14943,7 +14952,7 @@ impl InferenceSession {
         scratch.clear();
         #[cfg(test)]
         if self.inject_no_growth_scratch_request_on_route_exit {
-            let grew = reserve_instantiation(
+            let request = reserve_instantiation(
                 &mut scratch.work,
                 1,
                 F5bCapacityLane::InstantiationWork,
@@ -14953,11 +14962,18 @@ impl InferenceSession {
                 &mut scratch.lane_requested,
                 &mut scratch.lane_growths,
                 &mut scratch.growth_sample_pending,
-            )?;
-            assert!(!grew, "warm work lane must service the final request");
+            );
+            match request {
+                Ok(grew) => assert!(!grew, "warm work lane must service the final request"),
+                Err(error) => result = Err(error),
+            }
         }
         self.instantiation_scratch = scratch;
         self.finalization = Some(finalization);
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        {
+            assert!(self.f5c_matrix_route_handoff_closed.take().is_some());
+        }
         if !self.incoming_route_event_sample_failed
             && self.instantiation_scratch.requested_slots != 0
         {
@@ -15995,20 +16011,22 @@ impl InferenceSession {
         observer.family_ends[3] = index;
         let closed_probe = self.finalization.as_ref()
             .map(|finalization| finalization.f5c_resource_probe())
-            .or(self.f5c_matrix_finished_closed);
-        if let Some(closed) = closed_probe {
-            let retained_bytes = closed.arena.iter().chain(&closed.scratch).chain(&closed.indexed)
-                .try_fold(0usize, |sum, lane| sum.checked_add(lane.retained_bytes))
-                .expect("matrix closed retained bytes");
-            assert_eq!(retained_bytes, self.current_closed_retained_bytes,
-                "matrix closed physical lanes reconcile with finalization receipt");
-            for lane in closed.arena.into_iter().chain(closed.scratch).chain(closed.indexed) {
-                observer.lane(boundary, index, lane.requested_slots, lane.actual_capacity,
-                    lane.slot_size, lane.retained_bytes, lane.peak_bytes,
-                    Some(lane.capacity_growths));
-                index += 1;
-            }
-        } else { index += 36; }
+            .or(self.f5c_matrix_route_handoff_closed)
+            .or(self.f5c_matrix_finished_closed)
+            .expect("matrix boundary requires a live, route-handoff, or finished closed probe");
+        let retained_bytes = closed_probe.arena.iter().chain(&closed_probe.scratch)
+            .chain(&closed_probe.indexed)
+            .try_fold(0usize, |sum, lane| sum.checked_add(lane.retained_bytes))
+            .expect("matrix closed retained bytes");
+        assert_eq!(retained_bytes, self.current_closed_retained_bytes,
+            "matrix closed physical lanes reconcile with finalization receipt");
+        for lane in closed_probe.arena.into_iter().chain(closed_probe.scratch)
+            .chain(closed_probe.indexed) {
+            observer.lane(boundary, index, lane.requested_slots, lane.actual_capacity,
+                lane.slot_size, lane.retained_bytes, lane.peak_bytes,
+                Some(lane.capacity_growths));
+            index += 1;
+        }
         observer.family_ends[4] = index;
         for lane in &self.resource_ledger.closed_normalization_index_lanes {
             observer.lane(boundary, index, lane.requested_slots, lane.actual_capacity,
@@ -16093,7 +16111,7 @@ impl InferenceSession {
             streamed_family2.2,
             streamed_family3.2,
             streamed_family4.2,
-            closed_probe.map_or(0, |closed| closed.aggregate_peak_bytes),
+            closed_probe.aggregate_peak_bytes,
             streamed_family5.2,
             self.resource_ledger.source_walker_peak_bytes,
             streamed_family8.2,
@@ -16141,11 +16159,10 @@ impl InferenceSession {
         assert!(streamed_family8.2 >= self.resource_ledger.instantiation_substitution_peak_bytes,
             "family-8 event peak covers sampled scratch peak");
         if boundary == ResourceBoundary::FinishOutput {
-            let closed = closed_probe.expect("finished closed probe at terminal boundary");
             let closed_capacity = usize::try_from(observer.family_capacity[4])
                 .expect("closed type capacity");
             let closed_event = (closed_capacity, observer.family_retained[4],
-                closed.aggregate_peak_bytes);
+                closed_probe.aggregate_peak_bytes);
             assert_eq!(closed_event.1, self.current_closed_retained_bytes,
                 "terminal closed arena reconciles with receipt");
             assert!(observer.current[65..101].iter()
