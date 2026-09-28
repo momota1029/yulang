@@ -144,6 +144,29 @@ The implementation needs the cross-call aggregate peak missing from the 36
 independent lane maxima. Do not begin matrix work until family 5 and the fresh
 diagnostic plan have passed their required reviews.
 
+### Latest continuation (2026-09-29): §34 family-5 closed-type aggregate peak
+
+Family 5 now keeps a feature-gated fixed cross-call high-water over the current
+36 physical lanes and folds its current capacity/retained bytes into the row.
+The existing finalizer checkpoint already supplies the same-time call-local
+peak; no duplicate call-peak field was added. At FinishOutput, 17 scratch and
+11 indexed lanes are zero while the permanent eight arena lanes transfer into
+the solved closed-type owner. The family-5 row reconciles to its finalization
+receipt and checkpoint witness. All eight §34 families now have static
+owner-event or reconciliation coverage; the all-family replay and diagnostic
+plan remain the next gate. Exact paths, review, and compile checks are in
+[`F5c family-5 aggregate-peak checkpoint`](../notes/progress/f5c-family5-closed-type-arena-aggregate-peak-checkpoint-2026-09-29.md).
+
+Selected M2 with `spec_auditor` and `regression_auditor`; both closed their
+scoped conformance and owner-lifecycle review without findings. Feature-enabled
+`yu-types`/`yu-solver` library and test-target compile checks pass; the Python
+checker parses and `git diff --check` passes. No test, matrix, preflight,
+benchmark, or scale process ran; measurement budget remains zero. The user has
+authorized autonomous F5c continuation and expanded time/memory plans without
+repeated approval pauses. The prior 39-process campaign stays closed; prepare
+and review a fresh corrected-workload budget, then proceed under that standing
+authorization with a bounded D=32,K=4,000 diagnostic and host-memory monitoring.
+
 ### Latest continuation (2026-09-28): user authorized autonomous completion and budget expansion
 
 The user wants the complete F5c result and explicitly directed continuation

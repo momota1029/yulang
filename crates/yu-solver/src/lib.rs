@@ -4415,6 +4415,7 @@ struct F5cMatrixObserver {
     family3_event_terminal: (usize, usize, usize),
     family2_event_terminal: (usize, usize, usize),
     family4_event_terminal: (usize, usize, usize),
+    closed_type_event_terminal: (usize, usize, usize),
     family5_event_terminal: (usize, usize, usize),
     family8_event_terminal: (usize, usize, usize),
 }
@@ -4526,7 +4527,8 @@ impl F5cMatrixObserver {
             lane_count: 0, live_events: None, family1_event_terminal: (0, 0, 0),
             structured_pair_events: None, family3_event_terminal: (0, 0, 0),
             family2_event_terminal: (0, 0, 0),
-            family4_event_terminal: (0, 0, 0), family5_event_terminal: (0, 0, 0),
+            family4_event_terminal: (0, 0, 0), closed_type_event_terminal: (0, 0, 0),
+            family5_event_terminal: (0, 0, 0),
             family8_event_terminal: (0, 0, 0) }
     }
     fn nested_request(&mut self, index: usize, old_capacity: usize, capacity: usize) {
@@ -15991,25 +15993,15 @@ impl InferenceSession {
             index += 1;
         }
         observer.family_ends[3] = index;
-        if let Some(finalization) = self.finalization.as_ref() {
-            let closed = finalization.f5c_resource_probe();
+        let closed_probe = self.finalization.as_ref()
+            .map(|finalization| finalization.f5c_resource_probe())
+            .or(self.f5c_matrix_finished_closed);
+        if let Some(closed) = closed_probe {
             let retained_bytes = closed.arena.iter().chain(&closed.scratch).chain(&closed.indexed)
                 .try_fold(0usize, |sum, lane| sum.checked_add(lane.retained_bytes))
                 .expect("matrix closed retained bytes");
             assert_eq!(retained_bytes, self.current_closed_retained_bytes,
                 "matrix closed physical lanes reconcile with finalization receipt");
-            for lane in closed.arena.into_iter().chain(closed.scratch).chain(closed.indexed) {
-                observer.lane(boundary, index, lane.requested_slots, lane.actual_capacity,
-                    lane.slot_size, lane.retained_bytes, lane.peak_bytes,
-                    Some(lane.capacity_growths));
-                index += 1;
-            }
-        } else if let Some(closed) = self.f5c_matrix_finished_closed {
-            let retained_bytes = closed.arena.iter().chain(&closed.scratch).chain(&closed.indexed)
-                .try_fold(0usize, |sum, lane| sum.checked_add(lane.retained_bytes))
-                .expect("matrix closed retained bytes");
-            assert_eq!(retained_bytes, self.current_closed_retained_bytes,
-                "matrix finished closed arena reconciles with receipt");
             for lane in closed.arena.into_iter().chain(closed.scratch).chain(closed.indexed) {
                 observer.lane(boundary, index, lane.requested_slots, lane.actual_capacity,
                     lane.slot_size, lane.retained_bytes, lane.peak_bytes,
@@ -16095,7 +16087,7 @@ impl InferenceSession {
             streamed_family2.2,
             streamed_family3.2,
             streamed_family4.2,
-            self.resource_ledger.flat_finalizer_peak_bytes,
+            closed_probe.map_or(0, |closed| closed.aggregate_peak_bytes),
             streamed_family5.2,
             self.resource_ledger.source_walker_peak_bytes,
             streamed_family8.2,
@@ -16141,6 +16133,22 @@ impl InferenceSession {
         assert!(streamed_family8.2 >= self.resource_ledger.instantiation_substitution_peak_bytes,
             "family-8 event peak covers sampled scratch peak");
         if boundary == ResourceBoundary::FinishOutput {
+            let closed = closed_probe.expect("finished closed probe at terminal boundary");
+            let closed_capacity = usize::try_from(observer.family_capacity[4])
+                .expect("closed type capacity");
+            let closed_event = (closed_capacity, observer.family_retained[4],
+                closed.aggregate_peak_bytes);
+            assert_eq!(closed_event.1, self.current_closed_retained_bytes,
+                "terminal closed arena reconciles with receipt");
+            assert!(observer.current[65..101].iter()
+                .all(|lane| closed_event.2 >= lane.peak_bytes),
+                "closed aggregate peak covers each physical lane peak");
+            assert!(observer.current[73..101].iter()
+                .all(|lane| lane.actual_capacity == 0 && lane.retained_bytes == 0),
+                "closed scratch and indexed lanes release before finish output");
+            assert!(closed_event.2 <= self.resource_ledger.flat_finalizer_peak_bytes,
+                "closed aggregate peak is bounded by successful finalizer checkpoints");
+            observer.closed_type_event_terminal = closed_event;
             f5c_draft_heap::checkpoint_term_events(streamed_family2.0, streamed_family2.1);
             observer.family2_event_terminal = streamed_family2;
             let live = observer.live_events.as_ref().expect("live owner events");

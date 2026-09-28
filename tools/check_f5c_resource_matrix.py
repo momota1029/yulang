@@ -66,7 +66,7 @@ SERIES.add(("GuardedCycle", "K", "8"))
 
 def parse_line(line, source):
     fields = dict(part.split("=", 1) for part in line[len(PREFIX):].split("\t"))
-    if set(fields) != {"family", "dimension", "size", "companion", "family_ends", "family_totals", "family1_event", "family2_event", "family3_event", "family4_event", "family5_event", "family5_growths", "family8_event", "family6_event", "semantic_retained", "semantic_peak", "session_retained", "session_peak", "lanes"}:
+    if set(fields) != {"family", "dimension", "size", "companion", "family_ends", "family_totals", "family1_event", "family2_event", "family3_event", "family4_event", "closed_type_event", "closed_type_checkpoint_peak", "family5_event", "family5_growths", "family8_event", "family6_event", "semantic_retained", "semantic_peak", "session_retained", "session_peak", "lanes"}:
         raise ValueError(f"{source}: unexpected or missing row fields")
     key = (fields["family"], fields["dimension"], fields["companion"])
     size = int(fields["size"])
@@ -78,6 +78,8 @@ def parse_line(line, source):
     family6_event = tuple(int(n) for n in fields["family6_event"].split(","))
     family3_event = tuple(int(n) for n in fields["family3_event"].split(","))
     family4_event = tuple(int(n) for n in fields["family4_event"].split(","))
+    closed_type_event = tuple(int(n) for n in fields["closed_type_event"].split(","))
+    closed_type_checkpoint_peak = int(fields["closed_type_checkpoint_peak"])
     family5_event = tuple(int(n) for n in fields["family5_event"].split(","))
     family5_growths = tuple(int(n) for n in fields["family5_growths"].split(","))
     family8_event = tuple(int(n) for n in fields["family8_event"].split(","))
@@ -93,6 +95,8 @@ def parse_line(line, source):
         raise ValueError(f"{source}: incomplete family-3 owner event witness")
     if len(family4_event) != 3 or min(family4_event) < 0:
         raise ValueError(f"{source}: incomplete family-4 owner event witness")
+    if len(closed_type_event) != 3 or min(closed_type_event) < 0 or closed_type_checkpoint_peak < 0:
+        raise ValueError(f"{source}: incomplete closed-type owner witness")
     if len(family5_event) != 3 or min(family5_event) < 0:
         raise ValueError(f"{source}: incomplete family-5 owner event witness")
     if len(family5_growths) != 28 or min(family5_growths) < 0:
@@ -122,6 +126,14 @@ def parse_line(line, source):
         if capacity != sum(lane[0] for lane in lanes[start:end]) or retained != sum(lane[2] for lane in lanes[start:end]) or peak < retained:
             raise ValueError(f"{source}: family reduction does not reconcile")
         start = end
+    closed_lanes = lanes[65:101]
+    if (closed_type_event != totals[4]
+            or closed_type_event[:2] != (sum(lane[0] for lane in closed_lanes),
+                                          sum(lane[2] for lane in closed_lanes))
+            or closed_type_event[2] < max(lane[4] for lane in closed_lanes)
+            or closed_type_event[2] > closed_type_checkpoint_peak
+            or any(lane[0] or lane[2] for lane in lanes[73:101])):
+        raise ValueError(f"{source}: closed-type aggregate owner witness differs from lanes or checkpoint")
     if family6_event[2] != totals[6][2]:
         raise ValueError(f"{source}: family-6 event and owner aggregate peaks differ")
     if family3_event != totals[2]:

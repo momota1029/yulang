@@ -1018,6 +1018,7 @@ pub struct F5cResourceProbeSummary {
     pub scratch: [F5cResourceProbeLane; 17],
     pub indexed: [F5cResourceProbeLane; 11],
     pub points_seen: u8,
+    pub aggregate_peak_bytes: usize,
 }
 
 #[cfg(feature = "f5c_resource_probe")]
@@ -1028,6 +1029,7 @@ impl Default for F5cResourceProbeSummary {
             scratch: [F5cResourceProbeLane::default(); 17],
             indexed: [F5cResourceProbeLane::default(); 11],
             points_seen: 0,
+            aggregate_peak_bytes: 0,
         }
     }
 }
@@ -1038,6 +1040,11 @@ impl F5cResourceProbeSummary {
         self.arena.iter().chain(&self.scratch).chain(&self.indexed)
             .try_fold(0usize, |sum, lane| sum.checked_add(lane.retained_bytes))
             .expect("probe retained bytes")
+    }
+    fn observe_aggregate_peak(&mut self) -> usize {
+        let current = self.retained_bytes();
+        self.aggregate_peak_bytes = self.aggregate_peak_bytes.max(current);
+        current
     }
     fn observe<const N: usize>(
         lanes: &mut [F5cResourceProbeLane; N],
@@ -1609,7 +1616,7 @@ impl<'tx> ClosedTypeFinalizer<'tx> {
                 {
                     self.sample_f5c_resource_probe(2);
                     self.resource_probe.indexed(temp.f5c_probe_shapes(), 2);
-                    assert_eq!(self.resource_probe.retained_bytes(), total);
+                    assert_eq!(self.resource_probe.observe_aggregate_peak(), total);
                 }
                 #[cfg(test)]
                 {
@@ -1667,7 +1674,7 @@ impl<'tx> ClosedTypeFinalizer<'tx> {
         #[cfg(feature = "f5c_resource_probe")]
         {
             self.sample_f5c_resource_probe(1);
-            assert_eq!(self.resource_probe.retained_bytes(), retained_bytes);
+            assert_eq!(self.resource_probe.observe_aggregate_peak(), retained_bytes);
         }
         #[cfg(test)]
         assert_eq!(
@@ -2502,6 +2509,7 @@ impl ClosedTypeFinalizationSession {
         if indexed_validated {
             // The builder's IndexedTemp has dropped before planning can reserve again.
             self.resource_probe.clear_indexed(3);
+            self.resource_probe.observe_aggregate_peak();
         }
         let result = match outcome {
             Err(payload) => {
@@ -2548,6 +2556,8 @@ impl ClosedTypeFinalizationSession {
         };
         #[cfg(feature = "f5c_resource_probe")]
         self.resource_probe.clear_indexed(4);
+        #[cfg(feature = "f5c_resource_probe")]
+        self.resource_probe.observe_aggregate_peak();
         let result = result.and_then(|scheme| {
             self.reconcile_capacity_state()?;
             let (retained_bytes_after, _arena_retained_bytes) = self
@@ -2591,6 +2601,7 @@ impl ClosedTypeFinalizationSession {
         {
             self.resource_probe.arena(self.arena.f5c_probe_shapes(), 4);
             self.resource_probe.scratch(self.scratch.f5c_probe_shapes(), 4);
+            self.resource_probe.observe_aggregate_peak();
         }
         result
     }
@@ -2619,7 +2630,7 @@ impl ClosedTypeFinalizationSession {
             self.resource_probe.arena(self.arena.f5c_probe_shapes(), 5);
             self.resource_probe.scratch(self.scratch.f5c_probe_shapes(), 5);
             self.resource_probe.clear_indexed(5);
-            assert_eq!(self.resource_probe.retained_bytes(), self.arena_retained_bytes);
+            assert_eq!(self.resource_probe.observe_aggregate_peak(), self.arena_retained_bytes);
         }
         Ok(ClosedTypeFinalizationOutput {
             arena: self.arena,
@@ -2660,7 +2671,7 @@ impl ClosedTypeFinalizationSession {
         {
             self.resource_probe.arena(self.arena.f5c_probe_shapes(), 3);
             self.resource_probe.scratch(self.scratch.f5c_probe_shapes(), 3);
-            assert_eq!(self.resource_probe.retained_bytes(), retained_bytes);
+            assert_eq!(self.resource_probe.observe_aggregate_peak(), retained_bytes);
         }
         #[cfg(test)]
         self.control
