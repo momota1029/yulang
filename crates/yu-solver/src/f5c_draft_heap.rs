@@ -33,6 +33,8 @@ pub(super) enum PhysicalOwnerKind {
     LiveVariableLane(usize),
     #[cfg(all(test, feature = "f5c_resource_probe"))]
     StructuredPairLane(usize),
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    ComponentMemoLane(usize),
 }
 
 #[cfg(all(test, feature = "f5c_resource_probe"))]
@@ -52,6 +54,7 @@ mod event_sink {
     thread_local! {
         static SINK: RefCell<Option<Sink>> = const { RefCell::new(None) };
         static STRUCTURED_PAIR_TOTALS: Cell<(usize, usize, usize)> = const { Cell::new((0, 0, 0)) };
+        static COMPONENT_MEMO_TOTALS: Cell<(usize, usize, usize)> = const { Cell::new((0, 0, 0)) };
     }
 
     pub(crate) fn open(path: &Path) -> std::io::Result<()> {
@@ -61,6 +64,7 @@ mod event_sink {
             writer, next_id: 1, count: 0, checksum: 0, failed: false,
         }));
         STRUCTURED_PAIR_TOTALS.with(|totals| totals.set((0, 0, 0)));
+        COMPONENT_MEMO_TOTALS.with(|totals| totals.set((0, 0, 0)));
         Ok(())
     }
 
@@ -124,6 +128,24 @@ mod event_sink {
         record(0, 0, CHECKPOINT, PhysicalOwnerKind::StructuredPairLane(0),
             0, capacity, retained, 0);
     }
+
+    pub(super) fn adjust_component_memo(capacity_delta: isize, retained_delta: isize) {
+        COMPONENT_MEMO_TOTALS.with(|cell| {
+            let (capacity, retained, peak) = cell.get();
+            let capacity = capacity.checked_add_signed(capacity_delta).expect("family-4 capacity");
+            let retained = retained.checked_add_signed(retained_delta).expect("family-4 bytes");
+            cell.set((capacity, retained, peak.max(retained)));
+        });
+    }
+
+    pub(super) fn component_memo_totals() -> (usize, usize, usize) {
+        COMPONENT_MEMO_TOTALS.with(Cell::get)
+    }
+
+    pub(super) fn checkpoint_component_memo(capacity: usize, retained: usize) {
+        record(0, 0, CHECKPOINT, PhysicalOwnerKind::ComponentMemoLane(0),
+            0, capacity, retained, 0);
+    }
 }
 
 #[cfg(all(test, feature = "f5c_resource_probe"))]
@@ -140,6 +162,7 @@ impl PhysicalOwnerKind {
             Self::WalkerLane(index) => 32 + index as u64,
             Self::LiveVariableLane(index) => 512 + index as u64,
             Self::StructuredPairLane(index) => 530 + index as u64,
+            Self::ComponentMemoLane(index) => 551 + index as u64,
         }
     }
 }
@@ -161,6 +184,70 @@ pub(super) fn structured_pair_event_totals() -> (usize, usize, usize) {
 #[cfg(all(test, feature = "f5c_resource_probe"))]
 pub(super) fn checkpoint_structured_pair_events(capacity: usize, retained: usize) {
     event_sink::checkpoint_structured_pair(capacity, retained);
+}
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+pub(super) fn component_memo_event_totals() -> (usize, usize, usize) {
+    event_sink::component_memo_totals()
+}
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+pub(super) fn checkpoint_component_memo_events(capacity: usize, retained: usize) {
+    event_sink::checkpoint_component_memo(capacity, retained);
+}
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+#[derive(Default)]
+pub(super) struct ComponentMemoEvents {
+    owners: [Option<(usize, usize, usize, usize)>; 20],
+}
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+impl ComponentMemoEvents {
+    pub(super) fn observe(&mut self, lane: usize, requested: usize, capacity: usize, size: usize) {
+        assert!(requested <= capacity && size > 0);
+        let kind = PhysicalOwnerKind::ComponentMemoLane(lane);
+        match &mut self.owners[lane] {
+            None => {
+                let id = event_sink::next_id();
+                event_sink::record(0, id, event_sink::CREATE, kind, requested, capacity, size, 0);
+                event_sink::adjust_component_memo(capacity as isize, (capacity * size) as isize);
+                self.owners[lane] = Some((id, requested, capacity, size));
+            }
+            Some((id, old_requested, old_capacity, old_size)) => {
+                assert_eq!(*old_size, size);
+                let op = if capacity > *old_capacity { Some(event_sink::GROW) }
+                    else if capacity == *old_capacity && requested != *old_requested {
+                        Some(event_sink::SHAPE)
+                    } else { None };
+                assert!(capacity >= *old_capacity, "memo buffers release before capacity shrinks");
+                if let Some(op) = op {
+                    event_sink::record(0, *id, op, kind, requested, capacity, size, 0);
+                    let delta = capacity - *old_capacity;
+                    event_sink::adjust_component_memo(delta as isize, (delta * size) as isize);
+                }
+                *old_requested = requested;
+                *old_capacity = capacity;
+            }
+        }
+    }
+
+    pub(super) fn release_all(&mut self) {
+        for lane in 0..20 { self.release(lane); }
+    }
+
+    pub(super) fn release(&mut self, lane: usize) {
+        if let Some((id, _, capacity, size)) = self.owners[lane].take() {
+            event_sink::record(0, id, event_sink::RELEASE,
+                PhysicalOwnerKind::ComponentMemoLane(lane), 0, 0, size, 0);
+            event_sink::adjust_component_memo(-(capacity as isize), -((capacity * size) as isize));
+        }
+    }
+}
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+impl Drop for ComponentMemoEvents {
+    fn drop(&mut self) { self.release_all(); }
 }
 
 /// One of the fixed family-3 owner buffers. The observer owns these records

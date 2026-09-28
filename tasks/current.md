@@ -54,6 +54,25 @@ bounded slice; details are in
 Do not start a matrix run until event coverage and the fresh diagnostic plan
 are reviewed.
 
+### Latest continuation (2026-09-29): family-4 component memo owner events
+
+§34 family 4 now streams all 20 `component_expansion_memo` lanes, including
+generalizer scratch, through actual growth and shape changes, clear, and drop.
+The family-4 event peak reconciles with the simultaneous memo peak; the row
+includes one terminal checkpoint and the checker requires zero live family-4
+capacity at EOF. Exact paths, review, compile checks, and the remaining boundary
+are recorded in
+[`F5c family-4 component memo event checkpoint`](../notes/progress/f5c-family4-component-expansion-memo-events-checkpoint-2026-09-29.md).
+
+Selected M2 with `spec_auditor` and `compiler_referee`; both found no concrete
+defect in the scoped contract or owner lifecycle. Production, feature-enabled
+test-target, and test-target-without-feature compile checks pass; the Python
+checker parses and `git diff --check` passes. No test, matrix, preflight,
+benchmark, or scale process ran; measurement budget remains zero. The all-eight-
+family gate remains open, with §34 families 2, 5, 6, and 8 still lacking event
+coverage. Continue with one of those bounded family slices; do not begin matrix
+work until all event coverage and the fresh diagnostic plan are reviewed.
+
 ### Latest continuation (2026-09-28): user authorized autonomous completion and budget expansion
 
 The user wants the complete F5c result and explicitly directed continuation

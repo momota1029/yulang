@@ -2169,6 +2169,8 @@ pub(super) struct F5cComponentExpansionMemo {
     pub(super) independent_index_requests: usize,
     #[cfg(test)]
     pub(super) independent_scratch_requests: usize,
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    pub(super) matrix_owner_events: crate::f5c_draft_heap::ComponentMemoEvents,
 }
 
 impl F5cComponentExpansionMemo {
@@ -2299,6 +2301,7 @@ impl F5cComponentExpansionMemo {
             for (index, lane) in self.matrix_lanes.iter_mut().enumerate() {
                 let capacity = capacities[index];
                 let bytes = capacity.checked_mul(sizes[index]).expect("matrix memo lane bytes");
+                self.matrix_owner_events.observe(index, lengths[index].min(capacity), capacity, sizes[index]);
                 if capacity > lane.actual_capacity { lane.growths += 1; }
                 if capacity < lane.actual_capacity ||
                     (lengths[index] == 0 && lane.requested_slots > 0) { lane.cleared = true; }
@@ -3800,6 +3803,8 @@ impl F5cComponentExpansionMemo {
 
     pub(super) fn begin_visit(&mut self) -> Result<(), SolveAvailabilityError> {
         self.work.clear();
+        #[cfg(test)]
+        self.observe_physical_memo();
         if self.visit_epoch == u32::MAX {
             self.work_meter.charge(self.visit_epochs.len())?;
             self.visit_epochs.fill(0);
@@ -3830,6 +3835,8 @@ impl F5cComponentExpansionMemo {
             reservation.map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
             self.visit_epochs[index] = self.visit_epoch;
             self.work.push(id);
+            #[cfg(test)]
+            self.observe_physical_memo();
         }
         Ok(())
     }
@@ -3854,6 +3861,8 @@ impl F5cComponentExpansionMemo {
         entering: bool,
     ) -> Result<(), SolveAvailabilityError> {
         self.conflict_journal.clear();
+        #[cfg(test)]
+        self.observe_physical_memo();
         let (journal_requested, journal_growth) = self.prepare_scratch_reserve(self.roots.len())?;
         #[cfg(test)]
         if self.fail_reserve_at == Some((F5cTestReserveFailure::ConflictJournal, self.roots.len()))
@@ -3884,6 +3893,8 @@ impl F5cComponentExpansionMemo {
         while !self.work.is_empty() {
             self.work_meter.charge(1)?;
             let id = self.work.pop().expect("nonempty memo work");
+            #[cfg(test)]
+            self.observe_physical_memo();
             let mut root_edge = *self
                 .root_heads
                 .get(id.0 as usize)
@@ -3911,6 +3922,8 @@ impl F5cComponentExpansionMemo {
                         self.work_meter.charge(1)?; // copied conflict-journal entry
                         *mark = self.root_edge_mark_epoch;
                         self.conflict_journal.push((edge.key, prior));
+                        #[cfg(test)]
+                        self.observe_physical_memo();
                     }
                 }
                 root_edge = edge.next;
@@ -3950,7 +3963,11 @@ impl F5cComponentExpansionMemo {
                 self.active_conflicts.insert(key, prior - 1);
             }
         }
+        #[cfg(test)]
+        self.observe_physical_memo();
         self.conflict_journal.clear();
+        #[cfg(test)]
+        self.observe_physical_memo();
         Ok(())
     }
 
@@ -3993,6 +4010,8 @@ impl F5cComponentExpansionMemo {
         }
         self.active_rows.insert(row, next);
         #[cfg(test)]
+        self.observe_physical_memo();
+        #[cfg(test)]
         if self.fail_observation_at == Some(F5cTestObservationFailure::Enter) {
             self.pending_observation_failure = true;
             self.fail_observation_at = None;
@@ -4016,6 +4035,8 @@ impl F5cComponentExpansionMemo {
             self.active_rows.insert(row, next);
         }
         #[cfg(test)]
+        self.observe_physical_memo();
+        #[cfg(test)]
         if self.fail_observation_at == Some(F5cTestObservationFailure::Leave) {
             self.pending_observation_failure = true;
             self.fail_observation_at = None;
@@ -4033,6 +4054,8 @@ impl F5cComponentExpansionMemo {
         while !self.work.is_empty() {
             self.work_meter.charge(1)?;
             let id = self.work.pop().expect("nonempty memo work");
+            #[cfg(test)]
+            self.observe_physical_memo();
             let mut root_edge = *self
                 .root_heads
                 .get(id.0 as usize)
@@ -4049,6 +4072,8 @@ impl F5cComponentExpansionMemo {
                     self.active_conflicts.remove(&edge.key);
                     self.root_edges[index].live = false;
                     self.root_undo.push(F5cRootUndo::Invalidate(index));
+                    #[cfg(test)]
+                    self.observe_physical_memo();
                 }
                 root_edge = edge.next;
             }
@@ -4208,6 +4233,8 @@ impl F5cComponentExpansionMemo {
         self.root_heads.push(None);
         self.visit_epochs.push(0);
         #[cfg(test)]
+        self.observe_physical_memo();
+        #[cfg(test)]
         self.work_meter.record_persistent_mutation();
         let add_parent =
             |this: &mut Self, child: F5cSummaryNodeId| -> Result<(), SolveAvailabilityError> {
@@ -4223,6 +4250,8 @@ impl F5cComponentExpansionMemo {
                     parent: id,
                     next,
                 });
+                #[cfg(test)]
+                this.observe_physical_memo();
                 Ok(())
             };
         match kind {
@@ -4254,6 +4283,8 @@ impl F5cComponentExpansionMemo {
             self.incidence_heads
                 .insert(row, Some(self.incidences.len()));
             self.incidences.push(F5cIncidenceEdge { node: id, next });
+            #[cfg(test)]
+            self.observe_physical_memo();
         }
         Ok(id)
     }
@@ -4311,6 +4342,8 @@ impl F5cComponentExpansionMemo {
         }
         self.work_meter.charge(ids.len())?;
         self.children.extend_from_slice(ids);
+        #[cfg(test)]
+        self.observe_physical_memo();
         Ok((start, len))
     }
 
@@ -4407,6 +4440,8 @@ impl F5cComponentExpansionMemo {
         self.root_heads[root.0 as usize] = Some(edge_index);
         self.roots.insert(key, root);
         self.root_undo.push(F5cRootUndo::Admit(edge_index));
+        #[cfg(test)]
+        self.observe_physical_memo();
         #[cfg(test)]
         self.work_meter.record_root_admission(self.root_undo.len());
         #[cfg(test)]
@@ -4617,6 +4652,7 @@ impl F5cComponentExpansionMemo {
         #[cfg(all(test, feature = "f5c_resource_probe"))]
         if self.matrix_active {
             self.matrix_generalizer_lengths = [0; 4];
+            self.matrix_owner_events.release_all();
             for lane in &mut self.matrix_lanes {
                 if lane.requested_slots > 0 || lane.actual_capacity > 0 { lane.cleared = true; }
                 lane.requested_slots = 0;
@@ -4693,6 +4729,8 @@ impl F5cComponentExpansionMemo {
         self.parent_heads.truncate(node_checkpoint);
         self.root_heads.truncate(node_checkpoint);
         self.visit_epochs.truncate(node_checkpoint);
+        #[cfg(test)]
+        self.observe_physical_memo();
         Ok(())
     }
 
@@ -4776,6 +4814,8 @@ impl F5cComponentExpansionMemo {
             }
         }
         self.root_undo.truncate(checkpoint);
+        #[cfg(test)]
+        self.observe_physical_memo();
         Ok(())
     }
 
@@ -4788,6 +4828,8 @@ impl F5cComponentExpansionMemo {
         self.visit_epoch = 0;
         self.root_edge_marks.fill(0);
         self.root_edge_mark_epoch = 0;
+        #[cfg(test)]
+        self.observe_physical_memo();
     }
 }
 
@@ -4856,6 +4898,7 @@ pub(super) enum F5cMaterializeTask {
 pub(super) struct F5cGeneralizer<'a, 'meter> {
     pub(super) session: &'a InferenceSession,
     pub(super) source_meter: &'meter DraftHeapMeter,
+    #[cfg(not(all(test, feature = "f5c_resource_probe")))]
     pub(super) memo: F5cComponentExpansionMemo,
     pub(super) flat_sink: F5cFlatWalkSink,
     #[cfg(all(test, feature = "f5c_resource_probe"))]
@@ -4902,6 +4945,9 @@ pub(super) struct F5cGeneralizer<'a, 'meter> {
     #[cfg(all(test, feature = "f5c_resource_probe"))]
     reentry_path_owners: Vec<RawWalkerOwner<'meter>>,
     pub(super) invalid_effects: bool,
+    // The memo's event owners release after the generalizer scratch buffers.
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    pub(super) memo: F5cComponentExpansionMemo,
 }
 
 #[cfg(all(test, feature = "f5c_resource_probe"))]
@@ -6390,7 +6436,7 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
             let reservation = self.frames.try_reserve(1);
             self.memo.generalizer_scratch_capacities[0] = self.frames.capacity();
             #[cfg(all(test, feature = "f5c_resource_probe"))]
-            if self.memo.matrix_active { self.memo.matrix_generalizer_lengths[0] = self.frames.len() + 1; }
+            if self.memo.matrix_active { self.memo.matrix_generalizer_lengths[0] = self.frames.len(); }
             #[cfg(test)]
             self.memo.observe_physical_memo();
             let committed =
@@ -6405,7 +6451,7 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
         let reservation = self.active.try_reserve(1);
         self.memo.generalizer_scratch_capacities[1] = self.active.capacity();
         #[cfg(all(test, feature = "f5c_resource_probe"))]
-        if self.memo.matrix_active { self.memo.matrix_generalizer_lengths[1] = self.active.len() + 1; }
+        if self.memo.matrix_active { self.memo.matrix_generalizer_lengths[1] = self.active.len(); }
         #[cfg(test)]
         self.memo.observe_physical_memo();
         let committed =
@@ -6420,7 +6466,7 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
         let reservation = self.active_set.try_reserve(1);
         self.memo.generalizer_scratch_capacities[2] = self.active_set.capacity();
         #[cfg(all(test, feature = "f5c_resource_probe"))]
-        if self.memo.matrix_active { self.memo.matrix_generalizer_lengths[2] = self.active_set.len() + 1; }
+        if self.memo.matrix_active { self.memo.matrix_generalizer_lengths[2] = self.active_set.len(); }
         #[cfg(test)]
         self.memo.observe_physical_memo();
         let committed =
@@ -7181,6 +7227,8 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
                             });
                             #[cfg(all(test, feature = "f5c_resource_probe"))]
                             if self.memo.matrix_active { self.memo.matrix_generalizer_lengths[0] = self.frames.len(); }
+                            #[cfg(test)]
+                            self.memo.observe_physical_memo();
                         }
                         self.mark(row, polarity)?;
                         let entered = self.memo.enter_active(row);
@@ -7193,6 +7241,8 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
                             self.memo.matrix_generalizer_lengths[1] = self.active.len();
                             self.memo.matrix_generalizer_lengths[2] = self.active_set.len();
                         }
+                        #[cfg(test)]
+                        self.memo.observe_physical_memo();
                         self.observe_walker_component()?;
                         let bounds = self
                             .session
@@ -7353,6 +7403,8 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
                             self.memo.matrix_generalizer_lengths[1] = self.active.len();
                             self.memo.matrix_generalizer_lengths[2] = self.active_set.len();
                         }
+                        #[cfg(test)]
+                        self.memo.observe_physical_memo();
                         self.observe_walker_component()?;
                         let value =
                             sink.finish_row(self, &mut values,
@@ -7574,6 +7626,8 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
                 self.memo.matrix_generalizer_lengths[1] = self.active.len();
                 self.memo.matrix_generalizer_lengths[2] = self.active_set.len();
             }
+            #[cfg(test)]
+            self.memo.observe_physical_memo();
             self.path.truncate(path_checkpoint);
             #[cfg(all(test, feature = "f5c_resource_probe"))]
             self.path_owner.observe(self.path.len(), self.path.capacity());
@@ -8758,7 +8812,12 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
         self.release_persistent_lanes();
         self.memo.generalizer_scratch_capacities = [0; 4];
         #[cfg(all(test, feature = "f5c_resource_probe"))]
-        if self.memo.matrix_active { self.memo.matrix_generalizer_lengths = [0; 4]; }
+        if self.memo.matrix_active {
+            self.memo.matrix_generalizer_lengths = [0; 4];
+            for lane in 16..20 { self.memo.matrix_owner_events.release(lane); }
+        }
+        #[cfg(test)]
+        self.memo.observe_physical_memo();
         self.shared_summary_hits = 0;
         self.uncacheable_states = 0;
         self.fatal_taint = false;
@@ -10602,7 +10661,12 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
         self.active_set = HashSet::new();
         self.memo.generalizer_scratch_capacities = [0; 4];
         #[cfg(all(test, feature = "f5c_resource_probe"))]
-        if self.memo.matrix_active { self.memo.matrix_generalizer_lengths = [0; 4]; }
+        if self.memo.matrix_active {
+            self.memo.matrix_generalizer_lengths = [0; 4];
+            for lane in 16..20 { self.memo.matrix_owner_events.release(lane); }
+        }
+        #[cfg(test)]
+        self.memo.observe_physical_memo();
         self.release_persistent_lanes();
         (
             result,
@@ -11316,7 +11380,7 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
             let reservation = raw_owner_order.try_reserve(1);
             self.memo.generalizer_scratch_capacities[3] = raw_owner_order.capacity();
             #[cfg(all(test, feature = "f5c_resource_probe"))]
-            if self.memo.matrix_active { self.memo.matrix_generalizer_lengths[3] = raw_owner_order.len() + 1; }
+            if self.memo.matrix_active { self.memo.matrix_generalizer_lengths[3] = raw_owner_order.len(); }
             #[cfg(test)]
             self.memo.observe_physical_memo();
             let committed = self.memo.commit_scratch_reserve(
@@ -11337,6 +11401,11 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
             }
             raw_recursive_bounds.insert(ordinal, (lower, upper));
             raw_owner_order.push(ordinal);
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            if self.memo.matrix_active {
+                self.memo.matrix_generalizer_lengths[3] = raw_owner_order.len();
+                self.memo.observe_physical_memo();
+            }
         }
         if self.invalid_effects {
             return Err(SolveAvailabilityError::IdentityExhausted);

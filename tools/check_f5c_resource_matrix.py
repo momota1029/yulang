@@ -66,7 +66,7 @@ SERIES.add(("GuardedCycle", "K", "8"))
 
 def parse_line(line, source):
     fields = dict(part.split("=", 1) for part in line[len(PREFIX):].split("\t"))
-    if set(fields) != {"family", "dimension", "size", "companion", "family_ends", "family_totals", "family1_event", "family3_event", "family6_event", "semantic_retained", "semantic_peak", "session_retained", "session_peak", "lanes"}:
+    if set(fields) != {"family", "dimension", "size", "companion", "family_ends", "family_totals", "family1_event", "family3_event", "family4_event", "family6_event", "semantic_retained", "semantic_peak", "session_retained", "session_peak", "lanes"}:
         raise ValueError(f"{source}: unexpected or missing row fields")
     key = (fields["family"], fields["dimension"], fields["companion"])
     size = int(fields["size"])
@@ -77,6 +77,7 @@ def parse_line(line, source):
                    for family in fields["family_totals"].split(";"))
     family6_event = tuple(int(n) for n in fields["family6_event"].split(","))
     family3_event = tuple(int(n) for n in fields["family3_event"].split(","))
+    family4_event = tuple(int(n) for n in fields["family4_event"].split(","))
     family1_event = tuple(int(n) for n in fields["family1_event"].split(","))
     if len(family1_event) != 3 or min(family1_event) < 0:
         raise ValueError(f"{source}: incomplete family-1 owner event witness")
@@ -84,6 +85,8 @@ def parse_line(line, source):
         raise ValueError(f"{source}: incomplete family-6 owner event witness")
     if len(family3_event) != 3 or min(family3_event) < 0:
         raise ValueError(f"{source}: incomplete family-3 owner event witness")
+    if len(family4_event) != 3 or min(family4_event) < 0:
+        raise ValueError(f"{source}: incomplete family-4 owner event witness")
     aggregate = tuple(int(fields[name]) for name in
                       ("semantic_retained", "semantic_peak", "session_retained", "session_peak"))
     if min(aggregate) < 0 or aggregate[1] < aggregate[0] or aggregate[3] < aggregate[2]:
@@ -111,9 +114,11 @@ def parse_line(line, source):
         raise ValueError(f"{source}: family-6 event and owner aggregate peaks differ")
     if family3_event != totals[2]:
         raise ValueError(f"{source}: family-3 event and owner aggregate differ")
+    if family4_event != totals[3]:
+        raise ValueError(f"{source}: family-4 event and owner aggregate differ")
     if family1_event != totals[0]:
         raise ValueError(f"{source}: family-1 event and owner aggregate differ")
-    return key, size, ends, totals, aggregate, lanes, family1_event, family3_event, family6_event
+    return key, size, ends, totals, aggregate, lanes, family1_event, family3_event, family4_event, family6_event
 
 
 def parse_owner(line, source):
@@ -143,8 +148,8 @@ def replay_f6_events(path, expected_count, expected_checksum):
     """Replay family-tagged owner events in file order with simultaneous lane peaks."""
     owners = {}
     last_id = 0
-    family_current = {1: [0, 0], 3: [0, 0], 6: [0, 0]}
-    family_peak = {1: 0, 3: 0, 6: 0}
+    family_current = {1: [0, 0], 3: [0, 0], 4: [0, 0], 6: [0, 0]}
+    family_peak = {1: 0, 3: 0, 4: 0, 6: 0}
     lane_current = {}
     lane_peak = {}
     checkpoints = {}
@@ -153,6 +158,8 @@ def replay_f6_events(path, expected_count, expected_checksum):
     count = checksum = 0
 
     def family_of(kind):
+        if 551 <= kind < 571:
+            return 4
         if 530 <= kind < 551:
             return 3
         if 512 <= kind < 530:
@@ -189,10 +196,10 @@ def replay_f6_events(path, expected_count, expected_checksum):
             checksum = (checksum + sum(EVENT.unpack(block))) & ((1 << 64) - 1)
             key = (component, owner_id)
             if op == 6:
-                family = 1 if kind == 512 else 3 if kind == 530 else 6 if kind == 0 else None
+                family = 1 if kind == 512 else 3 if kind == 530 else 4 if kind == 551 else 6 if kind == 0 else None
                 if family is None or owner_id or requested or target or (actual, size) != tuple(family_current[family]):
                     raise ValueError(f"{path}: invalid family checkpoint")
-                if family in (1, 3) and family in checkpoints:
+                if family in (1, 3, 4) and family in checkpoints:
                     raise ValueError(f"{path}: duplicate family-{family} checkpoint")
                 checkpoints[family] = (actual, size)
                 if family == 6:
@@ -205,6 +212,8 @@ def replay_f6_events(path, expected_count, expected_checksum):
                 raise ValueError(f"{path}: family-1 mutation after checkpoint")
             if 3 in checkpoints and family_of(kind) == 3 and op != 5 and not (op == 4 and kind == 549):
                 raise ValueError(f"{path}: family-3 mutation after checkpoint")
+            if 4 in checkpoints and family_of(kind) == 4:
+                raise ValueError(f"{path}: family-4 mutation after checkpoint")
             if op == 1:
                 if owner_id <= last_id:
                     raise ValueError(f"{path}: owner IDs are not strictly increasing")
@@ -225,7 +234,9 @@ def replay_f6_events(path, expected_count, expected_checksum):
                 elif op in (2, 3, 4):
                     if requested > actual or size == 0:
                         raise ValueError(f"{path}: invalid owner shape {key}")
-                    if op == 2 and family_of(old_kind) in (1, 3) and (kind != old_kind or size != old_size or
+                    if family_of(old_kind) == 4 and (op == 4 or kind != old_kind or size != old_size):
+                        raise ValueError(f"{path}: family-4 lane cannot transfer or change slot size")
+                    if op == 2 and family_of(old_kind) in (1, 3, 4) and (kind != old_kind or size != old_size or
                                     actual != old_actual or requested == old_requested):
                         raise ValueError(f"{path}: shape changes family-1/family-3 allocation or repeats shape {key}")
                     if op == 2 and target:
@@ -251,8 +262,10 @@ def replay_f6_events(path, expected_count, expected_checksum):
                     raise ValueError(f"{path}: unknown event operation {op}")
     if count != expected_count or checksum != expected_checksum:
         raise ValueError(f"{path}: event count/checksum mismatch")
-    if set(checkpoints) != {1, 3, 6} or any(any(family_current[family]) for family in (1, 6)):
+    if set(checkpoints) != {1, 3, 4, 6} or any(any(family_current[family]) for family in (1, 4, 6)):
         raise ValueError(f"{path}: missing terminal checkpoint or unreleased owner capacity")
+    if any(family_of(kind) == 4 for kind, *_ in owners.values()):
+        raise ValueError(f"{path}: family-4 owner survives EOF")
     family3_live = [
         (kind, requested, capacity, size)
         for (component, owner_id), (kind, requested, capacity, size) in owners.items()
@@ -267,6 +280,7 @@ def replay_f6_events(path, expected_count, expected_checksum):
         checkpoint_by_kind,
         (*checkpoints[1], family_peak[1]),
         (*checkpoints[3], family_peak[3]),
+        (*checkpoints[4], family_peak[4]),
     )
 
 
@@ -299,16 +313,23 @@ def main():
             raise ValueError(f"{path}: expected exactly one matrix row, found 0")
         if sidecar is None:
             raise ValueError(f"{path}: missing resource sidecar")
-        key, size, ends, totals, aggregate, lanes, family1_event, family3_event, family6_event = parse_line(record, path)
+        key, size, ends, totals, aggregate, lanes, family1_event, family3_event, family4_event, family6_event = parse_line(record, path)
         if (key, size) in rows:
             raise ValueError(f"{path}: duplicate matrix row {key} size {size}")
-        folded, by_kind, folded_family1, folded_family3 = replay_f6_events(sidecar, family6_event[4], family6_event[5])
+        folded, by_kind, folded_family1, folded_family3, folded_family4 = replay_f6_events(sidecar, family6_event[4], family6_event[5])
         if folded != family6_event[:3]:
             raise ValueError(f"{path}: family-6 event fold differs from matrix row")
         if folded_family1 != family1_event:
             raise ValueError(f"{path}: family-1 event fold differs from matrix row")
         if folded_family3 != family3_event:
             raise ValueError(f"{path}: family-3 event fold differs from matrix row")
+        if folded_family4 != family4_event:
+            raise ValueError(f"{path}: family-4 event fold differs from matrix row")
+        for lane, values in enumerate(lanes[45:65]):
+            kind_values = by_kind.get(551 + lane, [0, 0, 0, 0])
+            if (kind_values[0] != values[0] or kind_values[1] != values[2]
+                    or kind_values[2] < values[1] or kind_values[3] < values[4]):
+                raise ValueError(f"{path}: family-4 lane {lane} owner shape differs from matrix row")
         owner_aggregates[key, size] = by_kind
         rows[key, size] = ends, totals, aggregate, lanes
     expected = {(key, size) for key in SERIES for size in SIZES}
