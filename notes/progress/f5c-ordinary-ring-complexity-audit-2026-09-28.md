@@ -83,3 +83,47 @@ successful path; failure cleanup, arbitrary source shapes, and F5e remain
 outside it. The completed §15 source-ring capture budget is exhausted; any
 new measurement requires a fresh reviewed plan and budget. No code, tests,
 builds, or measurements were run for this proof.
+
+## Source-owner phase-cost audit
+
+Date: 2026-09-28. Read-only architecture audit of the current
+`r_candidates`, `build_inner_work`, and `rank_all` implementations; no code or
+test changes.
+
+For `r_candidates`, let `r` be the initial eligible owner count. Candidate
+masks only shrink, so the loop runs for at most `r+1` rounds. In round `j`,
+write `c_j` for surviving candidates, `a_j` for the capacity scanned by the
+candidate hash sets, `B_j` for bound replay and guard visits, `H_j` for
+examined trace hops, `P_j` for predicate replay/analysis visits, and `E_j` for
+reachable-owner/bound/reference traversal. The expected hash-time ledger is
+
+`O(r + Σ_j(c_j + a_j + B_j + H_j + P_j + E_j))`.
+
+Keep each term per mask and round. In particular, the two `retain` operations
+scan hash-set capacity, not only length, and mask-dependent replay cannot be
+collapsed into one pass over the compact graph. Trace survival examines each
+visited hop once.
+
+`build_inner_work` adds predicate expansion; positive and negative expansion,
+materialization, and incidence visits for each distinct reentry owner; trace
+indexing; raw-root/order scans; the full `r_candidates` ledger; post-R replay
+and retained-occurrence traversal; and substitution over each selected
+predicate and recursive bound. The `non_generic_closure_work` rebuilds
+session adjacency per member, costing `O(V + E + T)` for session-bound rows,
+visited endpoints/adjacency, and term-row visits, followed by linear
+reachability. This is an `O(N²)` contribution over an `N`-member ring.
+
+For `D` selected DAG nodes, `W` descriptor words, and `C_norm` actual
+descriptor-word comparisons, batch `rank_all` groups by height and radix
+preorders in `O(D+W)`, while prescribed child/height-group merges and adjacent
+equality checks cost `O(C_norm)`. Its source-level bound is `O(D+W+C_norm)`;
+the comparator scans descriptor words, so comparison count alone needs a
+descriptor-width bound. The exact ordinary ring has one R candidate, at most
+two rounds, at most two `Θ(N)` traces, fixed-width selected descriptors and
+`D=O(N²)`, yielding `O(N² log N)` under expected constant-time hashing. No
+concrete asymptotic blocker was found for that exact successful recipe.
+
+The proof does not extend to arbitrary path-sensitive contexts. Their trace
+multiplicity and repeated mask-dependent replay remain explicit work terms,
+and the no-cap addendum makes no universal compressed-source polynomial
+claim.
