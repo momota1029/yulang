@@ -52,8 +52,11 @@ its private 36 closed-finalizer physical lanes; `yu-solver` forwards it only
 for these measurement commands. Architect, spec, and performance reviews
 closed without blocking or major findings. Default builds compile no observer
 code, and the feature does not exercise the terminal-capacity seam. The
-performance auditor supplied a written justification for the required larger
-budget.
+closed-type observer's fixed 36-lane arrays and terminal receipt reconciliation
+now have a separate verified checkpoint in
+[`F5c yu-types probe checkpoint`](../notes/progress/f5c-yu-types-probe-checkpoint-2026-09-28.md).
+The performance auditor supplied a written justification for the required
+larger budget.
 
 The user approved the original 37-process campaign, a reviewed extension to 38
 processes, and then a reviewed extension to 39 processes / 45 nominal minutes.

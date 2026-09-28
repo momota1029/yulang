@@ -170,6 +170,22 @@ struct IndexedTemp<'tx> {
 }
 
 impl IndexedTemp<'_> {
+    #[cfg(feature = "f5c_resource_probe")]
+    fn f5c_probe_shapes(&self) -> [(usize, usize, usize); 11] {
+        [
+            f5c_probe_shape(&self.color),
+            f5c_probe_shape(&self.order),
+            f5c_probe_shape(&self.stack),
+            f5c_probe_shape(&self.roots),
+            f5c_probe_shape(&self.positive),
+            f5c_probe_shape(&self.negative),
+            f5c_probe_shape(&self.quantifiers),
+            f5c_probe_shape(&self.recursive_binders),
+            f5c_probe_shape(&self.positive_children),
+            f5c_probe_shape(&self.negative_children),
+            f5c_probe_shape(&self.bounds),
+        ]
+    }
     #[cfg(test)]
     fn lane_bytes(&self) -> [usize; 11] {
         fn bytes<T>(lane: &Vec<T>) -> usize {
@@ -724,6 +740,19 @@ pub struct ClosedTypeArena {
     recursive_bounds: Vec<ClosedRecursiveBound>,
 }
 impl ClosedTypeArena {
+    #[cfg(feature = "f5c_resource_probe")]
+    fn f5c_probe_shapes(&self) -> [(usize, usize, usize); 8] {
+        [
+            f5c_probe_shape(&self.positives),
+            f5c_probe_shape(&self.positive_children),
+            f5c_probe_shape(&self.negatives),
+            f5c_probe_shape(&self.negative_children),
+            f5c_probe_shape(&self.positive_effects),
+            f5c_probe_shape(&self.negative_effects),
+            f5c_probe_shape(&self.neutrals),
+            f5c_probe_shape(&self.recursive_bounds),
+        ]
+    }
     pub fn scheme_view<'a>(
         &'a self,
         scheme: &'a ClosedValueScheme,
@@ -948,6 +977,100 @@ impl PartialEq for ClosedTypeAccountingCheckpoint {
     }
 }
 impl Eq for ClosedTypeAccountingCheckpoint {}
+
+#[cfg(feature = "f5c_resource_probe")]
+#[doc(hidden)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct F5cResourceProbeLane {
+    pub requested_slots: usize,
+    pub actual_capacity: usize,
+    pub slot_size: usize,
+    pub retained_bytes: usize,
+    pub peak_bytes: usize,
+    pub capacity_growths: usize,
+    pub clear_or_transfer_point: u8,
+}
+
+#[cfg(feature = "f5c_resource_probe")]
+impl F5cResourceProbeLane {
+    fn observe(&mut self, requested: usize, capacity: usize, size: usize, point: u8) {
+        assert!(self.slot_size == 0 || self.slot_size == size);
+        let previous_requested = self.requested_slots;
+        self.requested_slots = requested;
+        self.slot_size = size;
+        if capacity > self.actual_capacity {
+            self.capacity_growths = self.capacity_growths.checked_add(1).expect("probe growths");
+        }
+        if capacity < self.actual_capacity || (requested == 0 && previous_requested > 0) {
+            self.clear_or_transfer_point = point;
+        }
+        self.actual_capacity = capacity;
+        self.retained_bytes = capacity.checked_mul(size).expect("probe lane bytes");
+        self.peak_bytes = self.peak_bytes.max(self.retained_bytes);
+    }
+}
+
+#[cfg(feature = "f5c_resource_probe")]
+#[doc(hidden)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct F5cResourceProbeSummary {
+    pub arena: [F5cResourceProbeLane; 8],
+    pub scratch: [F5cResourceProbeLane; 17],
+    pub indexed: [F5cResourceProbeLane; 11],
+    pub points_seen: u8,
+}
+
+#[cfg(feature = "f5c_resource_probe")]
+impl Default for F5cResourceProbeSummary {
+    fn default() -> Self {
+        Self {
+            arena: [F5cResourceProbeLane::default(); 8],
+            scratch: [F5cResourceProbeLane::default(); 17],
+            indexed: [F5cResourceProbeLane::default(); 11],
+            points_seen: 0,
+        }
+    }
+}
+
+#[cfg(feature = "f5c_resource_probe")]
+impl F5cResourceProbeSummary {
+    fn retained_bytes(&self) -> usize {
+        self.arena.iter().chain(&self.scratch).chain(&self.indexed)
+            .try_fold(0usize, |sum, lane| sum.checked_add(lane.retained_bytes))
+            .expect("probe retained bytes")
+    }
+    fn observe<const N: usize>(
+        lanes: &mut [F5cResourceProbeLane; N],
+        shapes: [(usize, usize, usize); N],
+        point: u8,
+    ) {
+        for (lane, (requested, capacity, size)) in lanes.iter_mut().zip(shapes) {
+            lane.observe(requested, capacity, size, point);
+        }
+    }
+    fn arena(&mut self, shapes: [(usize, usize, usize); 8], point: u8) {
+        self.points_seen |= 1 << point;
+        Self::observe(&mut self.arena, shapes, point);
+    }
+    fn scratch(&mut self, shapes: [(usize, usize, usize); 17], point: u8) {
+        self.points_seen |= 1 << point;
+        Self::observe(&mut self.scratch, shapes, point);
+    }
+    fn indexed(&mut self, shapes: [(usize, usize, usize); 11], point: u8) {
+        self.points_seen |= 1 << point;
+        Self::observe(&mut self.indexed, shapes, point);
+    }
+    fn clear_indexed(&mut self, point: u8) {
+        for lane in &mut self.indexed {
+            lane.observe(0, 0, lane.slot_size, point);
+        }
+    }
+}
+
+#[cfg(feature = "f5c_resource_probe")]
+fn f5c_probe_shape<T>(lane: &Vec<T>) -> (usize, usize, usize) {
+    (lane.len(), lane.capacity(), std::mem::size_of::<T>())
+}
 impl ClosedTypeAccountingCheckpoint {
     #[doc(hidden)]
     pub const fn retained_bytes_before(&self) -> usize {
@@ -980,11 +1103,18 @@ impl ClosedTypeAccountingCheckpoint {
 pub struct ClosedTypeFinalizationOutput {
     arena: ClosedTypeArena,
     receipt: ClosedTypeAccountingReceipt,
+    #[cfg(feature = "f5c_resource_probe")]
+    resource_probe: F5cResourceProbeSummary,
 }
 impl ClosedTypeFinalizationOutput {
     #[doc(hidden)]
     pub fn into_parts(self) -> (ClosedTypeArena, ClosedTypeAccountingReceipt) {
         (self.arena, self.receipt)
+    }
+    #[cfg(feature = "f5c_resource_probe")]
+    #[doc(hidden)]
+    pub fn f5c_resource_probe(&self) -> F5cResourceProbeSummary {
+        self.resource_probe
     }
 }
 
@@ -1158,6 +1288,28 @@ struct Scratch {
     failure: Option<ClosedTypeFinalizeError>,
 }
 impl Scratch {
+    #[cfg(feature = "f5c_resource_probe")]
+    fn f5c_probe_shapes(&self) -> [(usize, usize, usize); 17] {
+        [
+            f5c_probe_shape(&self.q),
+            f5c_probe_shape(&self.r),
+            f5c_probe_shape(&self.p),
+            f5c_probe_shape(&self.p_children),
+            f5c_probe_shape(&self.n),
+            f5c_probe_shape(&self.n_children),
+            f5c_probe_shape(&self.pe),
+            f5c_probe_shape(&self.ne),
+            f5c_probe_shape(&self.neutral),
+            f5c_probe_shape(&self.bounds),
+            f5c_probe_shape(&self.scheme_bounds),
+            f5c_probe_shape(&self.mapped_p),
+            f5c_probe_shape(&self.mapped_p_children),
+            f5c_probe_shape(&self.mapped_n),
+            f5c_probe_shape(&self.mapped_n_children),
+            f5c_probe_shape(&self.mapped_neutral),
+            f5c_probe_shape(&self.mapped_bounds),
+        ]
+    }
     fn clear(&mut self) {
         self.q.clear();
         self.r.clear();
@@ -1408,7 +1560,7 @@ impl FinalizationTestControl {
 /// ```
 #[doc(hidden)]
 pub struct ClosedTypeFinalizer<'tx> {
-    #[cfg(test)]
+    #[cfg(any(test, feature = "f5c_resource_probe"))]
     arena: &'tx ClosedTypeArena,
     scratch: &'tx mut Scratch,
     retained_bytes: &'tx mut usize,
@@ -1419,9 +1571,16 @@ pub struct ClosedTypeFinalizer<'tx> {
     failure_epoch: &'tx mut u64,
     #[cfg(test)]
     control: &'tx mut FinalizationTestControl,
+    #[cfg(feature = "f5c_resource_probe")]
+    resource_probe: &'tx mut F5cResourceProbeSummary,
     marker: PhantomData<Rc<()>>,
 }
 impl<'tx> ClosedTypeFinalizer<'tx> {
+    #[cfg(feature = "f5c_resource_probe")]
+    fn sample_f5c_resource_probe(&mut self, point: u8) {
+        self.resource_probe.arena(self.arena.f5c_probe_shapes(), point);
+        self.resource_probe.scratch(self.scratch.f5c_probe_shapes(), point);
+    }
     #[cfg(test)]
     fn snapshot_physical_lanes(&mut self, indexed: [usize; 11]) -> usize {
         let snapshot = PhysicalLaneSnapshot {
@@ -1446,6 +1605,12 @@ impl<'tx> ClosedTypeFinalizer<'tx> {
         });
         match bytes {
             Ok((indexed, total)) => {
+                #[cfg(feature = "f5c_resource_probe")]
+                {
+                    self.sample_f5c_resource_probe(2);
+                    self.resource_probe.indexed(temp.f5c_probe_shapes(), 2);
+                    assert_eq!(self.resource_probe.retained_bytes(), total);
+                }
                 #[cfg(test)]
                 {
                     let lanes = temp.lane_bytes();
@@ -1499,6 +1664,11 @@ impl<'tx> ClosedTypeFinalizer<'tx> {
             }
         };
         *self.peak_bytes = (*self.peak_bytes).max(retained_bytes);
+        #[cfg(feature = "f5c_resource_probe")]
+        {
+            self.sample_f5c_resource_probe(1);
+            assert_eq!(self.resource_probe.retained_bytes(), retained_bytes);
+        }
         #[cfg(test)]
         assert_eq!(
             self.snapshot_physical_lanes(self.control.indexed_lane_bytes),
@@ -2064,6 +2234,8 @@ pub struct ClosedTypeFinalizationSession {
     failure_epoch: u64,
     #[cfg(test)]
     control: FinalizationTestControl,
+    #[cfg(feature = "f5c_resource_probe")]
+    resource_probe: F5cResourceProbeSummary,
     marker: PhantomData<Rc<()>>,
 }
 /// The byte totals are valid only while every observed capacity sum fits.
@@ -2259,6 +2431,8 @@ impl ClosedTypeFinalizationSession {
             failure_epoch: 0,
             #[cfg(test)]
             control: FinalizationTestControl::default(),
+            #[cfg(feature = "f5c_resource_probe")]
+            resource_probe: F5cResourceProbeSummary::default(),
             marker: PhantomData,
         })
     }
@@ -2306,7 +2480,7 @@ impl ClosedTypeFinalizationSession {
         self.scratch.clear();
         let outcome = {
             let mut finalizer = ClosedTypeFinalizer {
-                #[cfg(test)]
+                #[cfg(any(test, feature = "f5c_resource_probe"))]
                 arena: &self.arena,
                 scratch: &mut self.scratch,
                 retained_bytes: &mut self.retained_bytes,
@@ -2317,11 +2491,18 @@ impl ClosedTypeFinalizationSession {
                 failure_epoch: &mut self.failure_epoch,
                 #[cfg(test)]
                 control: &mut self.control,
+                #[cfg(feature = "f5c_resource_probe")]
+                resource_probe: &mut self.resource_probe,
                 marker: PhantomData,
             };
             catch_unwind(AssertUnwindSafe(|| build(&mut finalizer)))
         };
         self.indexed_live_bytes = 0;
+        #[cfg(feature = "f5c_resource_probe")]
+        if indexed_validated {
+            // The builder's IndexedTemp has dropped before planning can reserve again.
+            self.resource_probe.clear_indexed(3);
+        }
         let result = match outcome {
             Err(payload) => {
                 #[cfg(test)]
@@ -2365,6 +2546,8 @@ impl ClosedTypeFinalizationSession {
                 }
             }
         };
+        #[cfg(feature = "f5c_resource_probe")]
+        self.resource_probe.clear_indexed(4);
         let result = result.and_then(|scheme| {
             self.reconcile_capacity_state()?;
             let (retained_bytes_after, _arena_retained_bytes) = self
@@ -2404,7 +2587,17 @@ impl ClosedTypeFinalizationSession {
             }
         }
         self.scratch.clear();
+        #[cfg(feature = "f5c_resource_probe")]
+        {
+            self.resource_probe.arena(self.arena.f5c_probe_shapes(), 4);
+            self.resource_probe.scratch(self.scratch.f5c_probe_shapes(), 4);
+        }
         result
+    }
+    #[cfg(feature = "f5c_resource_probe")]
+    #[doc(hidden)]
+    pub fn f5c_resource_probe(&self) -> F5cResourceProbeSummary {
+        self.resource_probe
     }
     #[doc(hidden)]
     pub fn scheme_view<'a>(
@@ -2414,17 +2607,28 @@ impl ClosedTypeFinalizationSession {
         self.arena.scheme_view(scheme)
     }
     #[doc(hidden)]
-    pub fn finish(self) -> Result<ClosedTypeFinalizationOutput, ClosedTypeFinalizeError> {
+    #[cfg_attr(not(feature = "f5c_resource_probe"), allow(unused_mut))]
+    pub fn finish(mut self) -> Result<ClosedTypeFinalizationOutput, ClosedTypeFinalizeError> {
         let AccountingState::Valid = self.accounting else {
             return Err(ClosedTypeFinalizeError::IdentityExhausted);
         };
         debug_assert!(self.arena_retained_bytes <= self.retained_bytes);
+        #[cfg(feature = "f5c_resource_probe")]
+        {
+            drop(std::mem::take(&mut self.scratch));
+            self.resource_probe.arena(self.arena.f5c_probe_shapes(), 5);
+            self.resource_probe.scratch(self.scratch.f5c_probe_shapes(), 5);
+            self.resource_probe.clear_indexed(5);
+            assert_eq!(self.resource_probe.retained_bytes(), self.arena_retained_bytes);
+        }
         Ok(ClosedTypeFinalizationOutput {
             arena: self.arena,
             receipt: ClosedTypeAccountingReceipt {
                 retained_bytes_before_finish: self.retained_bytes,
                 retained_bytes_after_finish: self.arena_retained_bytes,
             },
+            #[cfg(feature = "f5c_resource_probe")]
+            resource_probe: self.resource_probe,
         })
     }
     fn valid_accounting(&self) -> Option<(usize, usize)> {
@@ -2452,6 +2656,12 @@ impl ClosedTypeFinalizationSession {
         self.retained_bytes = retained_bytes;
         self.arena_retained_bytes = arena_retained_bytes;
         self.peak_bytes = self.peak_bytes.max(retained_bytes);
+        #[cfg(feature = "f5c_resource_probe")]
+        {
+            self.resource_probe.arena(self.arena.f5c_probe_shapes(), 3);
+            self.resource_probe.scratch(self.scratch.f5c_probe_shapes(), 3);
+            assert_eq!(self.resource_probe.retained_bytes(), retained_bytes);
+        }
         #[cfg(test)]
         self.control
             .physical_lane_snapshots
@@ -3321,6 +3531,33 @@ fn alpha_neutral(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(feature = "f5c_resource_probe")]
+    #[test]
+    fn indexed_probe_clears_temporary_current_before_commit_reserve() {
+        let nodes = [IndexedPositiveNode::Int];
+        let input = IndexedSchemeRef {
+            quantifier_count: 0,
+            predicate: IndexedPositiveNodeId(0),
+            positive_nodes: &nodes,
+            negative_nodes: &[],
+            positive_children: &[],
+            negative_children: &[],
+            recursive_bounds: &[],
+        };
+        let mut session = ClosedTypeFinalizationSession::try_new().unwrap();
+        session.finalize_indexed_scheme(input).unwrap();
+        let probe = session.f5c_resource_probe();
+        assert!(probe.indexed.iter().any(|lane| lane.peak_bytes > 0));
+        assert!(probe.indexed.iter().all(|lane| lane.retained_bytes == 0));
+        let output = session.finish().unwrap();
+        let terminal = output.f5c_resource_probe();
+        let (_, receipt) = output.into_parts();
+        assert_eq!(terminal.retained_bytes(), receipt.retained_bytes_after_finish());
+        assert!(terminal.scratch.iter().all(|lane| lane.retained_bytes == 0));
+        assert!(terminal.indexed.iter().all(|lane| lane.retained_bytes == 0));
+        assert!(terminal.scratch.iter().any(|lane| lane.peak_bytes > 0));
+    }
 
     #[test]
     fn indexed_shallow_parity_and_invalid_epoch() {
