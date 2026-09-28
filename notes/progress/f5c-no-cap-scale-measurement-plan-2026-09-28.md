@@ -3,6 +3,8 @@
 Status: Reviewed; measurement campaign approved; execution pending successful preflight
 Reviewed-by: spec_auditor, performance_auditor (matrix, formulas, safety, and budget deltas closed without unresolved findings)
 Observer-scope delta review: architect, spec_auditor, performance_auditor; no blocking or major findings
+Normalization-counter delta review: spec_auditor; aligned the builder oracle
+with §36's descriptor ranking and actual-operation counters
 Approved-by: user
 Approved-at: 2026-09-28
 Decision scope: deterministic logical-counter and per-lane capacity evidence for the approved no-numeric-cap F5c policy, including a narrowly gated yu-types observation feature needed to report its private physical lanes
@@ -101,10 +103,13 @@ the physical record:
   shared summary hits are zero.
 - `guarded_cycle(D,K)`: recursive binder writes are `D`; cyclic-cone summary
   admissions are zero; uncacheable states are `2DK`.
-- `normalization(D,K)`: normalized-key writes and hash admissions are
-  `D(K+1)`; descriptor comparisons equal the independent prescribed
-  mergesort-comparison oracle built from integer keys; normalization performs
-  no recursive comparisons.
+- `normalization(D,K)`: normalized-key writes are `D(K+1)`; §36 descriptor
+  ranking performs zero hash probes/admissions/duplicates. The independent
+  integer-descriptor oracle predicts the two remaining counters separately:
+  child comparisons count child stable-mergesort comparator calls plus adjacent
+  dedup checks, while word comparisons count descriptor-word comparisons across
+  ranking and child-member operations. Normalization performs no recursive
+  comparisons.
 - `arena_factor(M,U)`: instantiation visits are `5U`, fresh values are `U`,
   substitution peak is one slot, and those three observations are independent
   of `M`.

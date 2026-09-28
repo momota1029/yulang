@@ -43,6 +43,18 @@ certify arbitrary path-sensitive contexts or the entire F5c input space.
 Production cutover remains a separate gate. No source-ring measurement is
 authorized under the exhausted §15 plan.
 
+The normalization builder's counter formula received a targeted §34/§36
+specification review. §36 supersedes the old hash-admission expectation:
+`normalization(D,K)` retains `D(K+1)` key writes, expects zero hash probes,
+admissions, and duplicates, and uses separate independent oracles for child
+comparator calls (including dedup checks) and descriptor-word comparisons.
+The approved plan now records that exact contract. Its staged-draft injection
+point, if needed, must remain test-only and pass through the existing
+normalizer and indexed finalizer. No build or measurement has run.
+A read-only architecture delta is checking the exact scheme-valid normalization
+fixture shape and the smallest test-only injection point before that builder
+continues.
+
 ### Completed continuation (2026-09-28): no-cap resource-policy design approved
 
 The user selected removal of F5c numeric input-size and charged-work caps, no
