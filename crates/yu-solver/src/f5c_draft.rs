@@ -334,6 +334,7 @@ impl FlatDraft {
         Ok(())
     }
 
+    #[cfg(test)]
     pub(super) fn positive_child(
         &mut self,
         child: PositiveId,
@@ -354,6 +355,7 @@ impl FlatDraft {
         Ok(())
     }
 
+    #[cfg(test)]
     pub(super) fn negative_child(
         &mut self,
         child: NegativeId,

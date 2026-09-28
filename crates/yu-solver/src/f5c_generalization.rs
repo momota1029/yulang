@@ -6863,6 +6863,7 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
         self.record_reentry(ordinal, polarity)
     }
 
+    #[cfg(test)]
     pub(super) fn structural_equal<'b>(
         &mut self,
         first: F5cCompareTask<'b, 'meter>,
@@ -9443,6 +9444,7 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
         )
     }
 
+    #[cfg(test)]
     pub(super) fn flat_raw_forest_incidences_for_test(
         memo: &mut F5cComponentExpansionMemo,
         draft: &f5c_draft::FlatDraft,
