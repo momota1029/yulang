@@ -209,6 +209,11 @@ impl<'meter> RawWalkerOwner<'meter> {
         self.requested = requested;
     }
 
+    pub(super) fn assert_shape(&self, requested: usize, capacity: usize) {
+        assert_eq!(self.requested, requested);
+        assert_eq!(self.capacity, capacity);
+    }
+
     fn transfer(&mut self, kind: PhysicalOwnerKind, requested: usize) -> usize {
         assert!(!self.transferred);
         self.transferred = true;

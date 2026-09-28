@@ -460,8 +460,21 @@ impl<'memo, 'tree, 'meter> Walker<'memo, 'tree, 'meter> {
         value: &'tree F5cPositive<'meter>,
         ordered: &mut Vec<u32>,
         seen: &mut HashSet<u32>,
+        #[cfg(all(test, feature = "f5c_resource_probe"))] owners: &mut (
+            super::f5c_draft_heap::RawWalkerOwner<'_>,
+            super::f5c_draft_heap::RawWalkerOwner<'_>,
+        ),
+        #[cfg(all(test, feature = "f5c_resource_probe"))] request_bases: [usize; 2],
     ) -> Result<(), SolveAvailabilityError> {
-        self.occurrences_checked(Task::Positive(value, false), ordered, seen)
+        self.occurrences_checked(
+            Task::Positive(value, false),
+            ordered,
+            seen,
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            owners,
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            request_bases,
+        )
     }
 
     pub(super) fn occurrences_negative_checked(
@@ -469,8 +482,21 @@ impl<'memo, 'tree, 'meter> Walker<'memo, 'tree, 'meter> {
         value: &'tree F5cNegative<'meter>,
         ordered: &mut Vec<u32>,
         seen: &mut HashSet<u32>,
+        #[cfg(all(test, feature = "f5c_resource_probe"))] owners: &mut (
+            super::f5c_draft_heap::RawWalkerOwner<'_>,
+            super::f5c_draft_heap::RawWalkerOwner<'_>,
+        ),
+        #[cfg(all(test, feature = "f5c_resource_probe"))] request_bases: [usize; 2],
     ) -> Result<(), SolveAvailabilityError> {
-        self.occurrences_checked(Task::Negative(value, false), ordered, seen)
+        self.occurrences_checked(
+            Task::Negative(value, false),
+            ordered,
+            seen,
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            owners,
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            request_bases,
+        )
     }
 
     fn occurrences_checked(
@@ -478,6 +504,11 @@ impl<'memo, 'tree, 'meter> Walker<'memo, 'tree, 'meter> {
         first: Task<'tree, 'meter>,
         ordered: &mut Vec<u32>,
         seen: &mut HashSet<u32>,
+        #[cfg(all(test, feature = "f5c_resource_probe"))] owners: &mut (
+            super::f5c_draft_heap::RawWalkerOwner<'_>,
+            super::f5c_draft_heap::RawWalkerOwner<'_>,
+        ),
+        #[cfg(all(test, feature = "f5c_resource_probe"))] request_bases: [usize; 2],
     ) -> Result<(), SolveAvailabilityError> {
         let source_meter = self.source_meter;
         self.walk(first, None, None, |event, memo| {
@@ -485,8 +516,10 @@ impl<'memo, 'tree, 'meter> Walker<'memo, 'tree, 'meter> {
                 && !seen.contains(&owner)
             {
                 let bytes = memo.retained_bytes()?;
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                let prior_seen_capacity = seen.capacity();
                 if let Some(meter) = source_meter {
-                    memo.walker_resources.with_source(
+                    let seen_result = memo.walker_resources.with_source(
                         meter,
                         bytes,
                         F5cWalkerLaneKind::PostROccurrenceSeen,
@@ -497,22 +530,118 @@ impl<'memo, 'tree, 'meter> Walker<'memo, 'tree, 'meter> {
                                 bytes,
                             )
                         },
-                    )?;
-                    memo.reserve_walker_with_source(
+                    );
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    {
+                        owners.1.observe(seen.len(), seen.capacity());
+                        super::f5c_generalization::assert_occurrence_observation(
+                            memo,
+                            &owners.1,
+                            F5cWalkerLaneKind::PostROccurrenceSeen,
+                            seen.len(),
+                            seen.capacity(),
+                            false,
+                            seen_result.is_ok(),
+                            prior_seen_capacity,
+                            request_bases[1],
+                        );
+                    }
+                    seen_result?;
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    let prior_order_capacity = ordered.capacity();
+                    let result = memo.reserve_walker_with_source(
                         ordered,
                         F5cWalkerLaneKind::PostROccurrenceOrder,
                         meter,
-                    )?;
+                    );
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    {
+                        owners.0.observe(ordered.len(), ordered.capacity());
+                        super::f5c_generalization::assert_occurrence_observation(
+                            memo,
+                            &owners.0,
+                            F5cWalkerLaneKind::PostROccurrenceOrder,
+                            ordered.len(),
+                            ordered.capacity(),
+                            false,
+                            result.is_ok(),
+                            prior_order_capacity,
+                            request_bases[0],
+                        );
+                    }
+                    result?;
                 } else {
-                    memo.walker_resources.reserve_generalizer_set(
+                    let seen_result = memo.walker_resources.reserve_generalizer_set(
                         seen,
                         F5cWalkerLaneKind::PostROccurrenceSeen,
                         bytes,
-                    )?;
-                    memo.reserve_walker(ordered, F5cWalkerLaneKind::PostROccurrenceOrder)?;
+                    );
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    {
+                        owners.1.observe(seen.len(), seen.capacity());
+                        super::f5c_generalization::assert_occurrence_observation(
+                            memo,
+                            &owners.1,
+                            F5cWalkerLaneKind::PostROccurrenceSeen,
+                            seen.len(),
+                            seen.capacity(),
+                            false,
+                            seen_result.is_ok(),
+                            prior_seen_capacity,
+                            request_bases[1],
+                        );
+                    }
+                    seen_result?;
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    let prior_order_capacity = ordered.capacity();
+                    let result =
+                        memo.reserve_walker(ordered, F5cWalkerLaneKind::PostROccurrenceOrder);
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    {
+                        owners.0.observe(ordered.len(), ordered.capacity());
+                        super::f5c_generalization::assert_occurrence_observation(
+                            memo,
+                            &owners.0,
+                            F5cWalkerLaneKind::PostROccurrenceOrder,
+                            ordered.len(),
+                            ordered.capacity(),
+                            false,
+                            result.is_ok(),
+                            prior_order_capacity,
+                            request_bases[0],
+                        );
+                    }
+                    result?;
                 }
                 seen.insert(owner);
                 ordered.push(owner);
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                {
+                    owners.0.observe(ordered.len(), ordered.capacity());
+                    owners.1.observe(seen.len(), seen.capacity());
+                    super::f5c_generalization::assert_occurrence_observation(
+                        memo,
+                        &owners.0,
+                        F5cWalkerLaneKind::PostROccurrenceOrder,
+                        ordered.len(),
+                        ordered.capacity(),
+                        true,
+                        true,
+                        ordered.capacity(),
+                        request_bases[0],
+                    );
+                    super::f5c_generalization::assert_occurrence_observation(
+                        memo,
+                        &owners.1,
+                        F5cWalkerLaneKind::PostROccurrenceSeen,
+                        seen.len(),
+                        seen.capacity(),
+                        true,
+                        true,
+                        seen.capacity(),
+                        request_bases[1],
+                    );
+                }
             }
             Ok(true)
         })
@@ -747,13 +876,16 @@ impl<'memo, 'tree, 'meter> Walker<'memo, 'tree, 'meter> {
             &mut F5cComponentExpansionMemo,
             &mut Vec<u32>,
             &mut HashSet<u32>,
+            bool,
         ) -> Result<(), SolveAvailabilityError>,
     ) -> Result<(), SolveAvailabilityError> {
         self.flat_events_checked(draft, root, |owner, _, _, memo| {
             if !seen.contains(&owner) {
-                reserve(memo, ordered, seen)?;
+                reserve(memo, ordered, seen, false)?;
                 seen.insert(owner);
                 ordered.push(owner);
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                reserve(memo, ordered, seen, true)?;
             }
             Ok(true)
         })

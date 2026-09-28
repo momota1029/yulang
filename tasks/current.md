@@ -11,9 +11,11 @@ without repeated approval pauses. Measurement time and host-memory budgets may
 be expanded as needed. The previously failed 39-process campaign remains
 closed; its rows still have no valid preflight. Any new run must use the
 corrected K=4,000 guarded-cycle series and independently reviewed streaming
-physical-event evidence. The raw walker owner lifecycle is already checkpointed;
-occurrence lanes 55/56 remain uncommitted. A read-only audit now maps their
-narrow patch plus missing family-1 and family-3 event owners in
+physical-event evidence. The raw walker owner lifecycle is already checkpointed.
+A separate four-file occurrence-lane checkpoint now verifies lanes 55/56; its
+exact paths, independent review, and focused checks are recorded in
+[`F5c occurrence lane 55/56 checkpoint`](../notes/progress/f5c-occurrence-lanes-55-56-checkpoint-2026-09-28.md).
+A read-only audit maps the remaining family-1 and family-3 event owners in
 [`F5c streaming owner event coverage map`](../notes/progress/f5c-streaming-owner-gap-map-2026-09-28.md).
 No preflight or scale row has run after the earlier failures.
 
@@ -21,10 +23,10 @@ The six-buffer `FlatDraft` carrier and atomic same-ID staged-transfer core are
 checkpointed in [`F5c FlatDraft owner carrier checkpoint`](../notes/progress/f5c-flatdraft-owner-carrier-checkpoint-2026-09-28.md).
 The checkpoint's exact paths, diff units, independent reviews, and isolated
 worktree checks are recorded there. Replay, sink, materialization,
-recursive-bound selection, normalization, the lane-55/56 event repairs, and
-the rest of family-6/all-family event coverage remain outside this checkpoint
-and open for their own reviewable slices. No matrix, preflight, or scale run
-followed; the all-eight-family fold remains open.
+recursive-bound selection, normalization, and the rest of family-6/all-family
+event coverage remain outside this checkpoint and open for their own reviewable
+slices. No matrix, preflight, or scale run followed; the all-eight-family fold
+remains open.
 
 The source-owner complexity audit now spells out `r_candidates`' at-most
 `r+1` shrinking-mask rounds, including per-round candidate-capacity scans,
@@ -100,13 +102,12 @@ the exact owner IDs, sink-open snapshots, nested-buffer releases, and
 terminal-live-owner requirements are in the linked map.
 
 The user has explicitly authorized continuing without further approval pauses,
-including extending time and memory budgets as the work requires. Next: rebuild
-lane 55/56 as an isolated two-file patch against HEAD, verify and checkpoint it,
-then fill the family-1 and family-3 owner events and family-aware replay before
-revising the monitored K=4,000 diagnostic plan. The closed 39-process campaign
-remains stopped; any new run uses the fresh reviewed plan. The observer remains
-feature-gated, the 64-row capture stays unused, and the prior §15 plans remain
-exhausted.
+including extending time and memory budgets as the work requires. Next: implement
+family-1 live-variable owner events from the coverage map, then family-3
+structured-pair events and family-aware replay before revising the monitored
+K=4,000 diagnostic plan. The closed 39-process campaign remains stopped; any new
+run uses the fresh reviewed plan. The observer remains feature-gated, the
+64-row capture stays unused, and the prior §15 plans remain exhausted.
 
 The ordinary Function-ring source proof is closed for the exact successful
 recipe. The audit at
