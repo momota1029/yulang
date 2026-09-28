@@ -12,6 +12,13 @@ That record names the exact diff units, independent reviews, and isolated
 worktree checks. Later family-6 owner hooks, the all-family event fold, and
 scale measurements remain open.
 
+### Checkpoint (2026-09-28): raw walker owner event lifecycle
+
+The feature-gated raw-owner lifecycle primitive is reviewed and verified in
+[`F5c raw walker owner checkpoint`](../notes/progress/f5c-raw-walker-owner-checkpoint-2026-09-28.md).
+Occurrence-lane wiring and the remaining family-6/all-family event coverage
+remain open.
+
 ### Latest continuation (2026-09-28): no-cap scale plan and observer scope reviewed
 
 The fresh §26/§34 plan is

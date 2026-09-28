@@ -173,6 +173,62 @@ impl Drop for FlatDraftOwner {
 }
 
 #[cfg(all(test, feature = "f5c_resource_probe"))]
+pub(super) struct RawWalkerOwner<'meter> {
+    meter: &'meter DraftHeapMeter,
+    id: usize,
+    lane: usize,
+    capacity: usize,
+    slot_size: usize,
+    requested: usize,
+    transferred: bool,
+}
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+impl<'meter> RawWalkerOwner<'meter> {
+    pub(super) fn new(meter: &'meter DraftHeapMeter, lane: usize, slot_size: usize) -> Self {
+        let id = event_sink::next_id();
+        event_sink::record(meter.0.event_component.get(), id, event_sink::CREATE,
+            PhysicalOwnerKind::WalkerLane(lane), 0, 0, slot_size, 0);
+        Self { meter, id, lane, capacity: 0, slot_size,
+            requested: 0, transferred: false }
+    }
+
+    pub(super) fn observe(&mut self, requested: usize, capacity: usize) {
+        let operation = if capacity != self.capacity {
+            Some(event_sink::GROW)
+        } else if requested != self.requested {
+            Some(event_sink::SHAPE)
+        } else {
+            None
+        };
+        if let Some(operation) = operation {
+            event_sink::record(self.meter.0.event_component.get(), self.id, operation,
+                PhysicalOwnerKind::WalkerLane(self.lane), requested, capacity, self.slot_size, 0);
+        }
+        self.capacity = capacity;
+        self.requested = requested;
+    }
+
+    fn transfer(&mut self, kind: PhysicalOwnerKind, requested: usize) -> usize {
+        assert!(!self.transferred);
+        self.transferred = true;
+        event_sink::record(self.meter.0.event_component.get(), self.id, event_sink::TRANSFER,
+            kind, requested, self.capacity, self.slot_size, kind.code());
+        self.id
+    }
+}
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+impl Drop for RawWalkerOwner<'_> {
+    fn drop(&mut self) {
+        if !self.transferred {
+            event_sink::record(self.meter.0.event_component.get(), self.id, event_sink::RELEASE,
+                PhysicalOwnerKind::WalkerLane(self.lane), 0, 0, self.slot_size, 0);
+        }
+    }
+}
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
 #[derive(Clone, Copy, Debug)]
 struct PhysicalOwnerHandle { slot: usize, id: usize }
 
@@ -867,15 +923,54 @@ impl<'meter, T> TrackedVec<'meter, T> {
         meter: &'meter DraftHeapMeter,
         values: Vec<T>,
     ) -> Result<Self, (Vec<T>, ())> {
+        Self::try_adopt_raw_from_walker_with_kind(
+            meter, values, PhysicalOwnerKind::Unclassified,
+        )
+    }
+
+    pub(super) fn try_adopt_raw_from_walker_with_kind(
+        meter: &'meter DraftHeapMeter,
+        values: Vec<T>,
+        kind: PhysicalOwnerKind,
+    ) -> Result<Self, (Vec<T>, ())> {
         let mut owned = Self {
             values: Some(values),
-            token: AllocationToken::new(meter, 0),
+            token: AllocationToken::new_with_kind(meter, 0, kind),
         };
         match owned
             .token
             .reconcile_with_component_sample::<T>(owned.capacity(), false)
         {
-            Ok(()) => Ok(owned),
+            Ok(()) => {
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                {
+                    let handle = owned.token.physical_owner;
+                    meter.physical_owner_requested(handle, owned.len());
+                    meter.physical_owner_transfer(handle);
+                }
+                Ok(owned)
+            },
+            Err(()) => Err((owned.values.take().unwrap(), ())),
+        }
+    }
+
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    pub(super) fn try_adopt_raw_from_walker_with_owner(
+        meter: &'meter DraftHeapMeter, values: Vec<T>, kind: PhysicalOwnerKind,
+        mut raw_owner: RawWalkerOwner<'meter>,
+    ) -> Result<Self, (Vec<T>, ())> {
+        assert_eq!(raw_owner.capacity, values.capacity());
+        let mut owned = Self { values: Some(values),
+            token: AllocationToken::new_with_existing_owner(meter, kind, raw_owner.id) };
+        match owned.token.reconcile_with_component_sample::<T>(owned.capacity(), false) {
+            Ok(()) => {
+                raw_owner.transfer(kind, owned.len());
+                meter.0.physical_owners.borrow_mut()
+                    [owned.token.physical_owner.slot].as_mut()
+                    .expect("adopted physical owner").adopting = false;
+                meter.physical_owner_requested(owned.token.physical_owner, owned.len());
+                Ok(owned)
+            }
             Err(()) => Err((owned.values.take().unwrap(), ())),
         }
     }
@@ -912,18 +1007,27 @@ impl<'meter, T> TrackedVec<'meter, T> {
             "tracked batch capacity exhausted"
         );
         self.values.as_mut().unwrap().push(value);
+        #[cfg(test)]
+        self.token.meter.physical_owner_requested(self.token.physical_owner, self.len());
     }
 
     pub(super) fn pop(&mut self) -> Option<T> {
-        self.values.as_mut().unwrap().pop()
+        let value = self.values.as_mut().unwrap().pop();
+        #[cfg(test)]
+        self.token.meter.physical_owner_requested(self.token.physical_owner, self.len());
+        value
     }
 
     pub(super) fn clear(&mut self) {
         self.values.as_mut().unwrap().clear();
+        #[cfg(test)]
+        self.token.meter.physical_owner_requested(self.token.physical_owner, 0);
     }
 
     pub(super) fn truncate(&mut self, len: usize) {
         self.values.as_mut().unwrap().truncate(len);
+        #[cfg(test)]
+        self.token.meter.physical_owner_requested(self.token.physical_owner, self.len());
     }
 
     #[cfg(test)]
@@ -964,6 +1068,8 @@ impl<'meter, T> TrackedVec<'meter, T> {
     pub(super) fn try_push(&mut self, value: T) -> Result<(), ()> {
         self.try_reserve(1)?;
         self.values.as_mut().unwrap().push(value);
+        #[cfg(test)]
+        self.token.meter.physical_owner_requested(self.token.physical_owner, self.len());
         Ok(())
     }
 
@@ -1586,5 +1692,72 @@ mod tests {
         drop(one);
         assert!(dropped.get());
         assert_eq!(meter.current_bytes(), Some(0));
+    }
+
+    #[cfg(feature = "f5c_resource_probe")]
+    #[test]
+    fn raw_walker_owner_keeps_identity_across_adoption_and_failure() {
+        let path = std::env::temp_dir().join(format!(
+            "f5c-raw-owner-{}-{:?}.bin", std::process::id(), std::thread::current().id()));
+        super::open_f5c_resource_events(&path).unwrap();
+        let meter = DraftHeapMeter::default();
+        let mut raw = Vec::<u64>::with_capacity(4);
+        raw.push(7);
+        let mut owner = super::RawWalkerOwner::new(&meter, 7, std::mem::size_of::<u64>());
+        owner.observe(raw.len(), raw.capacity());
+        let adopted = TrackedVec::try_adopt_raw_from_walker_with_owner(
+            &meter, raw, PhysicalOwnerKind::UnionChildren, owner).unwrap();
+        drop(adopted);
+        let mut raw = Vec::<u64>::with_capacity(2);
+        raw.push(8);
+        let mut owner = super::RawWalkerOwner::new(&meter, 7, std::mem::size_of::<u64>());
+        owner.observe(raw.len(), raw.capacity());
+        meter.0.current.set(None);
+        let (raw, ()) = TrackedVec::try_adopt_raw_from_walker_with_owner(
+            &meter, raw, PhysicalOwnerKind::UnionChildren, owner).err().unwrap();
+        drop(raw);
+        let (count, _) = super::close_f5c_resource_events().unwrap();
+        let bytes = std::fs::read(&path).unwrap();
+        std::fs::remove_file(path).unwrap();
+        assert_eq!(count, 7);
+        let words: Vec<[u64; 8]> = bytes[8..].chunks_exact(64).map(|event| {
+            std::array::from_fn(|index| u64::from_le_bytes(
+                event[index * 8..(index + 1) * 8].try_into().unwrap()))
+        }).collect();
+        assert_eq!(words.iter().map(|event| event[2]).collect::<Vec<_>>(),
+            [1, 3, 4, 5, 1, 3, 5]);
+        assert_eq!(words[0][1], words[3][1]);
+        assert!(words[4][1] > words[0][1]);
+    }
+
+    #[cfg(feature = "f5c_resource_probe")]
+    #[test]
+    fn raw_walker_owner_shapes_use_actual_lengths_after_failed_reserve() {
+        let path = std::env::temp_dir().join(format!(
+            "f5c-raw-shape-{}-{:?}.bin", std::process::id(), std::thread::current().id()));
+        super::open_f5c_resource_events(&path).unwrap();
+        let meter = DraftHeapMeter::default();
+        let mut raw = Vec::<u64>::with_capacity(2);
+        let mut owner = super::RawWalkerOwner::new(&meter, 7, std::mem::size_of::<u64>());
+        owner.observe(raw.len(), raw.capacity());
+        raw.push(7);
+        owner.observe(raw.len(), raw.capacity());
+        assert!(raw.try_reserve(usize::MAX).is_err());
+        owner.observe(raw.len(), raw.capacity());
+        raw.pop();
+        owner.observe(raw.len(), raw.capacity());
+        drop(raw);
+        drop(owner);
+        let (count, _) = super::close_f5c_resource_events().unwrap();
+        let bytes = std::fs::read(&path).unwrap();
+        std::fs::remove_file(path).unwrap();
+        let words: Vec<[u64; 8]> = bytes[8..].chunks_exact(64).map(|event| {
+            std::array::from_fn(|index| u64::from_le_bytes(
+                event[index * 8..(index + 1) * 8].try_into().unwrap()))
+        }).collect();
+        assert_eq!(count, 5);
+        assert_eq!(words.iter().map(|event| (event[2], event[4])).collect::<Vec<_>>(),
+            [(1, 0), (3, 0), (2, 1), (2, 0), (5, 0)]);
+        assert!(words.iter().all(|event| event[1] == words[0][1]));
     }
 }
