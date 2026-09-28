@@ -152,17 +152,15 @@ observer failure described above.
 
 ## Remaining measurement budget
 
-Seven preflight invocations are complete and used 55.24 seconds combined. The
-previous performance review and primary approval covered 9 total invocations
-and 600 seconds, with diagnostic and replay conditional on the seventh
-preflight passing. Since that preflight found a new test-only observer defect,
-the previous approval does not cover another process. Before resuming, obtain a
-fresh performance review and primary approval for at most one additional
-45-second preflight, then the already-reviewed 300-second diagnostic and
-150-second replay only if it passes. With one 10-second termination grace for
-each process, the proposed total is 10 invocations and 580.24 seconds from
-campaign start. If the next preflight fails, stop and reassess; do not run
-diagnostic or replay. Keep all 36 matrix rows.
+Seven preflight invocations are complete and used 55.24 seconds combined. A
+fresh `performance_auditor` justified one additional 45-second preflight,
+followed only on success by the already-reviewed 300-second diagnostic and
+150-second replay. The primary approves 10 total invocations and a 600-second
+campaign cap, preserving the 8-GiB memory/disk floors, process-group monitoring,
+and TERM/KILL grace. Including one 10-second grace per process, the maximum is
+580.2388 seconds, leaving 19.7612 seconds for supervisor overhead. The eighth
+preflight is the only retry allowed; if it fails, stop without diagnostic or
+replay. Keep all 36 matrix rows.
 
 The user authorized autonomous continuation and expanded time/memory budgets;
 no approval pause is needed for this scoped continuation.

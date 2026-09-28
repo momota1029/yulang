@@ -268,10 +268,14 @@ decreased after tombstone removal. The compiler and spec audits confirmed that
 family-4 same-owner decreases must update current totals while preserving the
 historical peak, and that `active_set` capacity snapshots must refresh after
 mutation. The earlier 9-invocation approval ended at this failed preflight.
-After implementing and reviewing this narrow observer repair, obtain a fresh
-performance review and primary approval for one additional preflight plus
-diagnostic/replay only on success (proposed total: 10 invocations/580.24
-seconds). Diagnostic and replay remain blocked. See
+The performance auditor has justified and the primary approves one additional
+45-second preflight, followed by diagnostic/replay only on success: 10 total
+invocations, 600-second aggregate cap, 8-GiB floors, and TERM/KILL supervision.
+The maximum including grace is 580.2388 seconds, leaving 19.7612 seconds for
+supervisor overhead. After implementing and reviewing the narrow observer
+repair, run the eighth preflight under ID
+`20260929-memo-capacity-decrease-retry-01`; if it fails, stop without diagnostic
+or replay. Both remain blocked until success. See
 [`F5c logical-term preflight failure checkpoint`](../notes/progress/f5c-preflight-logical-term-count-failure-checkpoint-2026-09-29.md).
 Also see
 [`F5c shared-acyclic hit-count preflight checkpoint`](../notes/progress/f5c-shared-acyclic-hit-mismatch-checkpoint-2026-09-29.md).

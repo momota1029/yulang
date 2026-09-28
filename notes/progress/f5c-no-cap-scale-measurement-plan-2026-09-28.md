@@ -510,16 +510,14 @@ after insertions/removals before observation. `compiler_referee` and
 review scope are in
 [`F5c shared-acyclic hit-count preflight checkpoint`](f5c-shared-acyclic-hit-mismatch-checkpoint-2026-09-29.md).
 
-The seven completed preflights used 55.24 seconds combined. The prior
-`performance_auditor` justification and primary approval covered 9 total
-invocations and 600 seconds, conditional on the seventh preflight succeeding
-before diagnostic/replay. Its failure means no further process may start under
-that approval. Request a fresh review/primary approval for at most one 45-second
-preflight, then the reviewed 300-second diagnostic and 150-second replay only
-on success. With one 10-second grace each, the proposed total is 10 invocations
-and 580.24 seconds from campaign start, within 600 seconds. Keep the 8-GiB
-memory/disk floors and all 36 matrix rows; if the next preflight fails, stop and
-reassess without diagnostic/replay.
+The seven completed preflights used 55.24 seconds combined. A fresh
+`performance_auditor` justified one more 45-second preflight, followed only on
+success by the already-reviewed 300-second diagnostic and 150-second replay.
+The primary approves 10 total invocations and a 600-second aggregate campaign
+cap. With one 10-second grace per process, the maximum is 580.2388 seconds,
+leaving 19.7612 seconds for supervisor overhead. Keep the 8-GiB memory/disk
+floors and all 36 matrix rows. If the eighth preflight fails, stop without
+diagnostic/replay; the approval permits no ninth preflight.
 The user authorized autonomous continuation and budget expansion; no user
 approval pause is needed.
 
