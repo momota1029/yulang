@@ -6,10 +6,11 @@ fails in the guarded-cycle case at the test-only family-4 memo capacity
 observer. HashMap lane `.capacity()` can decrease after tombstone removals while
 its allocation and owner remain live. A `compiler_referee` and `spec_auditor`
 confirmed the observer must represent a same-owner capacity decrease and that
-`active_set`'s cached capacity must be refreshed after mutation. The narrow
-family-1 fix is reviewed and compiled. This seventh failure needs a revised
-bounded measurement plan before another supervised process; diagnostic and
-replay remain blocked.
+`active_set`'s cached capacity must be refreshed after mutation. The event
+producer, offline replay, capacity snapshots, and clear marker now reflect that
+contract. Post-write spec review is clean, the focused test-target compile
+passed, and checker syntax passed. The extension review and primary approve one
+last preflight retry; diagnostic and replay remain blocked until it succeeds.
 
 ## Failed attempt and evidence
 
@@ -93,6 +94,23 @@ reported capacity can also change on insertion/removal; refresh that cache
 before physical memo observations. A fresh reviewer confirmed no design change
 is needed. The exact failing HashMap lane is not proven because the assertion
 does not include lane and old/new capacity.
+
+The repair emits event operation `DECREASE` for a lower reported capacity,
+keeping the owner ID, lane, and slot size; it applies the signed change to
+current totals while preserving peaks and growth counts. The offline checker
+accepts that operation only for family 4 with the same owner shape and a
+strictly lower capacity. `active_set` capacity is refreshed after insertions,
+normal removals, and rollback removals before memo observations. Tombstone-only
+decreases do not set the clear marker; a logical transition to empty and the
+existing explicit release/reset paths retain their markers. The post-write
+`spec_auditor` review is clean. Verification passed:
+
+- `RUSTC_WRAPPER= cargo check -p yu-solver --tests --features f5c_resource_probe`
+- Python `ast.parse` syntax check for `tools/check_f5c_resource_matrix.py`
+
+Run the eighth supervised preflight with ID
+`20260929-memo-capacity-decrease-retry-01`; diagnostics remain blocked until it
+passes.
 
 F5 foundation §34 in
 `notes/design/2026-09-21-f5-general-function-scheme-foundation-draft.md`

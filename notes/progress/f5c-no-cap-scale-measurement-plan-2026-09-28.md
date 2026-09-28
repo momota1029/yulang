@@ -502,12 +502,13 @@ unchanged formulas; the feature-enabled test-target compile passed. The seventh
 preflight passed shared and independent acyclic cases, then failed in the
 guarded-cycle case at the family-4 memo observer: a HashMap's reported
 `.capacity()` decreased after removals while its owner remained live. The
-family-4 observer/replay must fold a same-owner signed capacity decrease and
-retain its historical peak; the `active_set` cached capacity must also refresh
-after insertions/removals before observation. `compiler_referee` and
-`spec_auditor` confirmed this is a test-only accounting defect and the existing
-§34 reported-capacity metric governs, with no design change. Exact evidence and
-review scope are in
+family-4 event producer and replay now fold a same-owner signed capacity
+decrease and retain its historical peak; the `active_set` cached capacity is
+refreshed after insertions/removals before observation. `compiler_referee` and
+pre/post-write `spec_auditor` reviews confirmed this is a test-only accounting
+defect and the existing §34 reported-capacity metric governs, with no design
+change. Focused test-target compilation and checker syntax checks passed. Exact
+evidence and review scope are in
 [`F5c shared-acyclic hit-count preflight checkpoint`](f5c-shared-acyclic-hit-mismatch-checkpoint-2026-09-29.md).
 
 The seven completed preflights used 55.24 seconds combined. A fresh

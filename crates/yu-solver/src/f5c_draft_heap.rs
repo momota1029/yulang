@@ -55,6 +55,7 @@ mod event_sink {
     pub(super) const TRANSFER: u64 = 4;
     pub(super) const RELEASE: u64 = 5;
     pub(super) const CHECKPOINT: u64 = 6;
+    pub(super) const DECREASE: u64 = 7;
 
     struct Sink { writer: BufWriter<File>, next_id: u64, count: u64, checksum: u64, failed: bool }
     thread_local! {
@@ -447,14 +448,20 @@ impl ComponentMemoEvents {
             Some((id, old_requested, old_capacity, old_size)) => {
                 assert_eq!(*old_size, size);
                 let op = if capacity > *old_capacity { Some(event_sink::GROW) }
+                    else if capacity < *old_capacity { Some(event_sink::DECREASE) }
                     else if capacity == *old_capacity && requested != *old_requested {
                         Some(event_sink::SHAPE)
                     } else { None };
-                assert!(capacity >= *old_capacity, "memo buffers release before capacity shrinks");
                 if let Some(op) = op {
                     event_sink::record(0, *id, op, kind, requested, capacity, size, 0);
-                    let delta = capacity - *old_capacity;
-                    event_sink::adjust_component_memo(delta as isize, (delta * size) as isize);
+                    let delta = if capacity >= *old_capacity {
+                        isize::try_from(capacity - *old_capacity).expect("family-4 capacity delta")
+                    } else {
+                        -isize::try_from(*old_capacity - capacity).expect("family-4 capacity delta")
+                    };
+                    let bytes_delta = delta.checked_mul(isize::try_from(size).expect("family-4 slot size"))
+                        .expect("family-4 bytes delta");
+                    event_sink::adjust_component_memo(delta, bytes_delta);
                 }
                 *old_requested = requested;
                 *old_capacity = capacity;

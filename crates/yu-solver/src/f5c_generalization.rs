@@ -2303,8 +2303,7 @@ impl F5cComponentExpansionMemo {
                 let bytes = capacity.checked_mul(sizes[index]).expect("matrix memo lane bytes");
                 self.matrix_owner_events.observe(index, lengths[index].min(capacity), capacity, sizes[index]);
                 if capacity > lane.actual_capacity { lane.growths += 1; }
-                if capacity < lane.actual_capacity ||
-                    (lengths[index] == 0 && lane.requested_slots > 0) { lane.cleared = true; }
+                if lengths[index] == 0 && lane.requested_slots > 0 { lane.cleared = true; }
                 lane.requested_slots = lengths[index];
                 lane.actual_capacity = capacity;
                 lane.slot_size = sizes[index];
@@ -7236,6 +7235,7 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
                         entered?;
                         self.active.push((row, polarity, self.path.len()));
                         self.active_set.insert((row, polarity));
+                        self.memo.generalizer_scratch_capacities[2] = self.active_set.capacity();
                         #[cfg(all(test, feature = "f5c_resource_probe"))]
                         if self.memo.matrix_active {
                             self.memo.matrix_generalizer_lengths[1] = self.active.len();
@@ -7398,6 +7398,7 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
                         left?;
                         self.active.pop();
                         self.active_set.remove(&(row, polarity));
+                        self.memo.generalizer_scratch_capacities[2] = self.active_set.capacity();
                         #[cfg(all(test, feature = "f5c_resource_probe"))]
                         if self.memo.matrix_active {
                             self.memo.matrix_generalizer_lengths[1] = self.active.len();
@@ -7614,6 +7615,7 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
             while self.active.len() > active_checkpoint {
                 if let Some((row, polarity, _)) = self.active.pop() {
                     self.active_set.remove(&(row, polarity));
+                    self.memo.generalizer_scratch_capacities[2] = self.active_set.capacity();
                 }
             }
             if !self.in_component {

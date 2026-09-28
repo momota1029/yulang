@@ -341,7 +341,7 @@ def replay_f6_events(path, expected_count, expected_checksum):
                         raise ValueError(f"{path}: release retains owner {key}")
                     del owners[key]
                     adjust(old_kind, -old_actual, -old_actual * old_size)
-                elif op in (2, 3, 4):
+                elif op in (2, 3, 4, 7):
                     if requested > actual or size == 0:
                         raise ValueError(f"{path}: invalid owner shape {key}")
                     check_admitted_owner(kind, requested, actual, size)
@@ -355,6 +355,9 @@ def replay_f6_events(path, expected_count, expected_checksum):
                     if op == 3 and (kind != old_kind or size != old_size or
                                     actual <= old_actual):
                         raise ValueError(f"{path}: growth changes owner shape {key}")
+                    if op == 7 and (family_of(old_kind) != 4 or kind != old_kind or
+                                    size != old_size or actual >= old_actual or target):
+                        raise ValueError(f"{path}: invalid family-4 capacity decrease {key}")
                     if op == 3 and family_of(kind) == 5:
                         normalization_growth[kind] = normalization_growth.get(kind, 0) + 1
                     if op == 4 and target != kind:
