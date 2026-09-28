@@ -87,6 +87,10 @@ impl F5cFlatWalkSink {
         draft: &mut FlatDraft,
         roots: &[FlatWalkValue],
         outputs: &mut Vec<NodeRef>,
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        mut outputs_owner: Option<&mut RawWalkerOwner<'_>>,
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        source_meter: Option<&DraftHeapMeter>,
         mut mark: impl FnMut(
             &mut F5cWalkerResources,
             usize,
@@ -104,6 +108,14 @@ impl F5cFlatWalkSink {
             draft.structural_census()?.1,
         );
         let output_checkpoint = outputs.len();
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        let mut tasks_owner = source_meter.map(|meter| RawWalkerOwner::new(meter,
+            F5cWalkerLaneKind::FlatSourceMaterializeTasks as usize,
+            F5cWalkerLaneKind::FlatSourceMaterializeTasks.slot_size()));
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        let mut values_owner = source_meter.map(|meter| RawWalkerOwner::new(meter,
+            F5cWalkerLaneKind::FlatSourceMaterializeValues as usize,
+            F5cWalkerLaneKind::FlatSourceMaterializeValues.slot_size()));
         let mut tasks = Vec::new();
         let mut values: Vec<NodeRef> = Vec::new();
         let result = (|| {
@@ -111,26 +123,95 @@ impl F5cFlatWalkSink {
             checked_output_root_count(outputs.len(), roots.len())?;
             macro_rules! reserve {
                 ($buffer:expr, $lane:expr, $count:expr) => {{
+                    let count = $count;
                     let bytes = memo.retained_bytes()?;
-                    memo.walker_resources
-                        .reserve($buffer, $lane, $count, bytes)?;
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    let old_capacity = ($buffer).capacity();
+                    let reservation = memo.walker_resources
+                        .reserve($buffer, $lane, count, bytes);
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    {
+                        let lane = $lane as usize;
+                        let index = match lane {
+                            x if x == F5cWalkerLaneKind::DraftPositiveNodes as usize => 0,
+                            x if x == F5cWalkerLaneKind::DraftNegativeNodes as usize => 1,
+                            x if x == F5cWalkerLaneKind::DraftPositiveChildren as usize => 2,
+                            x if x == F5cWalkerLaneKind::DraftNegativeChildren as usize => 3,
+                            x if x == F5cWalkerLaneKind::DraftRecursiveBounds as usize => 4,
+                            _ => 5,
+                        };
+                        let requested = match index {
+                            0 => draft.positive_nodes.len(), 1 => draft.negative_nodes.len(),
+                            2 => draft.positive_children.len(), 3 => draft.negative_children.len(),
+                            4 => draft.recursive_bounds.len(), _ => draft.insertion_order.len(),
+                        }.saturating_add(count);
+                        draft.observe_owner(index, requested);
+                    }
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    memo.observe_walker_capacity_change_with_source(
+                        source_meter, old_capacity, ($buffer).capacity())?;
+                    reservation?;
+                }};
+            }
+            macro_rules! reserve_output {
+                ($count:expr) => {{
+                    let count = $count;
+                    let bytes = memo.retained_bytes()?;
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    let old_capacity = outputs.capacity();
+                    let reservation = memo.walker_resources.reserve(
+                        outputs, F5cWalkerLaneKind::FlatSourceMaterializeRoots, count, bytes);
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    if let Some(owner) = outputs_owner.as_deref_mut() {
+                        owner.observe(outputs.len(), outputs.capacity());
+                    }
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    memo.observe_walker_capacity_change_with_source(
+                        source_meter, old_capacity, outputs.capacity())?;
+                    reservation?;
                 }};
             }
             macro_rules! task {
                 ($task:expr) => {{
                     memo.work_meter.charge(1)?;
-                    reserve!(&mut tasks, F5cWalkerLaneKind::FlatSourceMaterializeTasks, 1);
+                    let bytes = memo.retained_bytes()?;
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    let old_capacity = tasks.capacity();
+                    let reservation = memo.walker_resources.reserve(
+                        &mut tasks, F5cWalkerLaneKind::FlatSourceMaterializeTasks, 1, bytes);
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    if let Some(owner) = tasks_owner.as_mut() {
+                        owner.observe(tasks.len(), tasks.capacity());
+                    }
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    memo.observe_walker_capacity_change_with_source(
+                        source_meter, old_capacity, tasks.capacity())?;
+                    reservation?;
                     tasks.push($task);
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    if let Some(owner) = tasks_owner.as_mut() {
+                        owner.observe(tasks.len(), tasks.capacity());
+                    }
                 }};
             }
             macro_rules! value {
                 ($value:expr) => {{
-                    reserve!(
-                        &mut values,
-                        F5cWalkerLaneKind::FlatSourceMaterializeValues,
-                        1
-                    );
+                    let bytes = memo.retained_bytes()?;
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    let old_capacity = values.capacity();
+                    let reservation = memo.walker_resources.reserve(
+                        &mut values, F5cWalkerLaneKind::FlatSourceMaterializeValues, 1, bytes);
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    if let Some(owner) = values_owner.as_mut() {
+                        owner.observe(values.len(), values.capacity());
+                    }
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    memo.observe_walker_capacity_change_with_source(
+                        source_meter, old_capacity, values.capacity())?;
+                    reservation?;
                     values.push($value);
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    if let Some(owner) = values_owner.as_mut() { owner.observe(values.len(), values.capacity()); }
                 }};
             }
             macro_rules! positive {
@@ -169,34 +250,52 @@ impl F5cFlatWalkSink {
                     value!(NodeRef::Negative(draft.negative(node)?));
                 }};
             }
+            macro_rules! pop_value {
+                () => {{
+                    let value = values.pop().ok_or(bad)?;
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    if let Some(owner) = values_owner.as_mut() { owner.observe(values.len(), values.capacity()); }
+                    value
+                }};
+            }
             // Account for an already-reserved output vector, including an empty
             // root batch where the append path would otherwise never observe it.
-            reserve!(outputs, F5cWalkerLaneKind::FlatSourceMaterializeRoots, 0);
+            reserve_output!(0);
             for root in roots {
                 match root.reference {
                     FlatWalkRef::Positive(PositiveRef::Shared(id)) => {
-                        reserve!(outputs, F5cWalkerLaneKind::FlatSourceMaterializeRoots, 1);
+                        reserve_output!(1);
                         outputs.push(materialize_summary_flat_checked(
                             memo,
+                            #[cfg(all(test, feature = "f5c_resource_probe"))]
+                            source_meter,
                             draft,
                             id,
                             Polarity::Positive,
                             &mut mark,
                         )?);
+                        #[cfg(all(test, feature = "f5c_resource_probe"))]
+                        if let Some(owner) = outputs_owner.as_deref_mut() { owner.observe(outputs.len(), outputs.capacity()); }
                     }
                     FlatWalkRef::Negative(NegativeRef::Shared(id)) => {
-                        reserve!(outputs, F5cWalkerLaneKind::FlatSourceMaterializeRoots, 1);
+                        reserve_output!(1);
                         outputs.push(materialize_summary_flat_checked(
                             memo,
+                            #[cfg(all(test, feature = "f5c_resource_probe"))]
+                            source_meter,
                             draft,
                             id,
                             Polarity::Negative,
                             &mut mark,
                         )?);
+                        #[cfg(all(test, feature = "f5c_resource_probe"))]
+                        if let Some(owner) = outputs_owner.as_deref_mut() { owner.observe(outputs.len(), outputs.capacity()); }
                     }
                     reference => {
                         task!(SourceMaterializeTask::Enter(reference));
                         while let Some(task) = tasks.pop() {
+                            #[cfg(all(test, feature = "f5c_resource_probe"))]
+                            if let Some(owner) = tasks_owner.as_mut() { owner.observe(tasks.len(), tasks.capacity()); }
                             memo.work_meter.charge(1)?;
                             match task {
                                 SourceMaterializeTask::Enter(FlatWalkRef::Positive(
@@ -204,6 +303,8 @@ impl F5cFlatWalkSink {
                                 )) => {
                                     value!(materialize_summary_flat_checked(
                                         memo,
+                                        #[cfg(all(test, feature = "f5c_resource_probe"))]
+                                        source_meter,
                                         draft,
                                         id,
                                         Polarity::Positive,
@@ -215,6 +316,8 @@ impl F5cFlatWalkSink {
                                 )) => {
                                     value!(materialize_summary_flat_checked(
                                         memo,
+                                        #[cfg(all(test, feature = "f5c_resource_probe"))]
+                                        source_meter,
                                         draft,
                                         id,
                                         Polarity::Negative,
@@ -320,7 +423,12 @@ impl F5cFlatWalkSink {
                                         count
                                     );
                                     memo.work_meter.charge(count)?;
-                                    for item in values.drain(start..) {
+                                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                                    let capacity = values.capacity();
+                                    let drained = values.drain(start..);
+                                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                                    if let Some(owner) = values_owner.as_mut() { owner.observe(start, capacity); }
+                                    for item in drained {
                                         let NodeRef::Positive(id) = item else {
                                             return Err(bad);
                                         };
@@ -344,7 +452,12 @@ impl F5cFlatWalkSink {
                                         count
                                     );
                                     memo.work_meter.charge(count)?;
-                                    for item in values.drain(start..) {
+                                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                                    let capacity = values.capacity();
+                                    let drained = values.drain(start..);
+                                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                                    if let Some(owner) = values_owner.as_mut() { owner.observe(start, capacity); }
+                                    for item in drained {
                                         let NodeRef::Negative(id) = item else {
                                             return Err(bad);
                                         };
@@ -353,20 +466,20 @@ impl F5cFlatWalkSink {
                                     negative!(DraftNegativeNode::Intersection(span));
                                 }
                                 SourceMaterializeTask::PositiveFunction => {
-                                    let NodeRef::Positive(result) = values.pop().ok_or(bad)? else {
+                                    let NodeRef::Positive(result) = pop_value!() else {
                                         return Err(bad);
                                     };
-                                    let NodeRef::Negative(argument) = values.pop().ok_or(bad)?
+                                    let NodeRef::Negative(argument) = pop_value!()
                                     else {
                                         return Err(bad);
                                     };
                                     positive!(DraftPositiveNode::Function { argument, result });
                                 }
                                 SourceMaterializeTask::NegativeFunction => {
-                                    let NodeRef::Negative(result) = values.pop().ok_or(bad)? else {
+                                    let NodeRef::Negative(result) = pop_value!() else {
                                         return Err(bad);
                                     };
-                                    let NodeRef::Positive(argument) = values.pop().ok_or(bad)?
+                                    let NodeRef::Positive(argument) = pop_value!()
                                     else {
                                         return Err(bad);
                                     };
@@ -377,27 +490,51 @@ impl F5cFlatWalkSink {
                         if values.len() != 1 {
                             return Err(bad);
                         }
-                        reserve!(outputs, F5cWalkerLaneKind::FlatSourceMaterializeRoots, 1);
-                        outputs.push(values.pop().ok_or(bad)?);
+                        reserve_output!(1);
+                        outputs.push(pop_value!());
+                        #[cfg(all(test, feature = "f5c_resource_probe"))]
+                        if let Some(owner) = outputs_owner.as_deref_mut() { owner.observe(outputs.len(), outputs.capacity()); }
                     }
                 }
             }
             Ok(())
         })();
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        let had_scratch_capacity = tasks.capacity() != 0 || values.capacity() != 0;
+        drop(tasks);
+        drop(values);
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        {
+            drop(tasks_owner);
+            drop(values_owner);
+        }
         memo.walker_resources
             .release(F5cWalkerLaneKind::FlatSourceMaterializeTasks);
         memo.walker_resources
             .release(F5cWalkerLaneKind::FlatSourceMaterializeValues);
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        let release_sample = if had_scratch_capacity {
+            source_meter.map(|meter| memo.observe_walker_with_source(meter))
+                .transpose().map(|_| ())
+        } else {
+            Ok(())
+        };
         if result.is_err() {
             outputs.truncate(output_checkpoint);
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            if let Some(owner) = outputs_owner.as_deref_mut() { owner.observe(outputs.len(), outputs.capacity()); }
             draft.positive_nodes.truncate(checkpoint.0);
             draft.negative_nodes.truncate(checkpoint.1);
             draft.positive_children.truncate(checkpoint.2);
             draft.negative_children.truncate(checkpoint.3);
             draft.recursive_bounds.truncate(checkpoint.4);
             draft.insertion_order.truncate(checkpoint.5);
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            draft.sync_owners();
             draft.restore_structural_census(checkpoint.6);
         }
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        release_sample?;
         result
     }
 
@@ -411,6 +548,149 @@ impl F5cFlatWalkSink {
 #[cfg(test)]
 mod materialization_tests {
     use super::*;
+
+    #[cfg(feature = "f5c_resource_probe")]
+    #[test]
+    fn local_materialization_scratch_events_use_run_component() {
+        let path = std::env::temp_dir().join(format!(
+            "f5c-local-materialize-{}-{:?}.bin",
+            std::process::id(), std::thread::current().id()));
+        crate::f5c_draft_heap::open_f5c_resource_events(&path).unwrap();
+        let meter = DraftHeapMeter::default();
+        meter.set_event_component(19);
+        let mut sink = F5cFlatWalkSink::default();
+        let mut memo = F5cComponentExpansionMemo::default();
+        let node = sink.arena.positive(PositiveNode::Int, None,
+            &mut memo.walker_resources, &memo.work_meter, 0).unwrap();
+        let root = FlatWalkValue {
+            reference: FlatWalkRef::Positive(node), cacheable: true,
+        };
+        let mut draft = FlatDraft::default();
+        let mut outputs = Vec::new();
+        sink.materialize_roots(&mut memo, &mut draft, &[root], &mut outputs,
+            None, Some(&meter), |_, _, _, _| Ok(())).unwrap();
+        drop(outputs);
+        sink.release_materialized_roots(&mut memo);
+        crate::f5c_draft_heap::close_f5c_resource_events().unwrap();
+        let bytes = std::fs::read(&path).unwrap();
+        std::fs::remove_file(path).unwrap();
+        let events: Vec<[u64; 8]> = bytes[8..].chunks_exact(64).map(|event| {
+            std::array::from_fn(|index| u64::from_le_bytes(
+                event[index * 8..(index + 1) * 8].try_into().unwrap()))
+        }).collect();
+        for lane in [F5cWalkerLaneKind::FlatSourceMaterializeTasks,
+            F5cWalkerLaneKind::FlatSourceMaterializeValues]
+        {
+            let lane_events: Vec<_> = events.iter()
+                .filter(|event| event[3] == 32 + lane as u64).collect();
+            assert!(!lane_events.is_empty());
+            assert!(lane_events.iter().all(|event| event[0] == 19));
+            assert_eq!(lane_events.first().unwrap()[2], 1);
+            assert_eq!(lane_events.last().unwrap()[2], 5);
+            assert!(lane_events.iter().any(|event| event[2] == 3));
+            assert!(lane_events.iter().any(|event| event[2] == 2));
+        }
+    }
+
+    #[cfg(feature = "f5c_resource_probe")]
+    #[test]
+    fn output_owner_records_each_growth_and_releases_after_drop() {
+        let path = std::env::temp_dir().join(format!(
+            "f5c-materialize-output-{}-{:?}.bin",
+            std::process::id(), std::thread::current().id()));
+        crate::f5c_draft_heap::open_f5c_resource_events(&path).unwrap();
+        let meter = DraftHeapMeter::default();
+        meter.set_event_component(19);
+        let sink = F5cFlatWalkSink::default();
+        let mut memo = F5cComponentExpansionMemo::default();
+        let shared = memo.push_node(F5cSummaryNodeKind::PositiveInt, None).unwrap();
+        let root = FlatWalkValue {
+            reference: FlatWalkRef::Positive(PositiveRef::Shared(shared)),
+            cacheable: true,
+        };
+        let mut draft = FlatDraft::default();
+        let mut owner = RawWalkerOwner::new(&meter,
+            F5cWalkerLaneKind::FlatSourceMaterializeRoots as usize,
+            F5cWalkerLaneKind::FlatSourceMaterializeRoots.slot_size());
+        let mut outputs = Vec::new();
+        sink.materialize_roots(&mut memo, &mut draft, &[root; 5], &mut outputs,
+            Some(&mut owner), Some(&meter), |_, _, _, _| Ok(())).unwrap();
+        assert_eq!(outputs.len(), 5);
+        drop(outputs);
+        drop(owner);
+        sink.release_materialized_roots(&mut memo);
+        let _ = crate::f5c_draft_heap::close_f5c_resource_events().unwrap();
+        let bytes = std::fs::read(&path).unwrap();
+        std::fs::remove_file(path).unwrap();
+        let role = 32 + F5cWalkerLaneKind::FlatSourceMaterializeRoots as u64;
+        let all_events: Vec<[u64; 8]> = bytes[8..].chunks_exact(64).map(|event| {
+            std::array::from_fn(|index| u64::from_le_bytes(
+                event[index * 8..(index + 1) * 8].try_into().unwrap()))
+        }).collect();
+        let events: Vec<_> = all_events.iter().filter(|event| event[3] == role).collect();
+        assert_eq!(events.iter().filter(|event| event[2] != 2)
+            .map(|event| event[2]).collect::<Vec<_>>(), [1, 3, 3, 5]);
+        assert!(events.iter().all(|event| event[1] == events[0][1]));
+        assert!(events.iter().filter(|event| event[2] == 3).map(|event| event[5])
+            .collect::<Vec<_>>().windows(2).all(|pair| pair[1] > pair[0]));
+        for lane in [F5cWalkerLaneKind::FlatMaterializeTasks,
+            F5cWalkerLaneKind::FlatMaterializeValues]
+        {
+            let lane_events: Vec<_> = all_events.iter()
+                .filter(|event| event[3] == 32 + lane as u64).collect();
+            assert!(!lane_events.is_empty());
+            assert!(lane_events.iter().all(|event| event[0] == 19));
+            assert_eq!(lane_events.first().unwrap()[2], 1);
+            assert_eq!(lane_events.last().unwrap()[2], 5);
+        }
+    }
+
+    #[cfg(feature = "f5c_resource_probe")]
+    #[test]
+    fn output_owner_releases_capacity_after_failed_batch() {
+        let path = std::env::temp_dir().join(format!(
+            "f5c-materialize-failure-{}-{:?}.bin",
+            std::process::id(), std::thread::current().id()));
+        crate::f5c_draft_heap::open_f5c_resource_events(&path).unwrap();
+        let meter = DraftHeapMeter::default();
+        let sink = F5cFlatWalkSink::default();
+        let mut memo = F5cComponentExpansionMemo::default();
+        let shared = memo.push_node(
+            F5cSummaryNodeKind::PositiveInt, Some((7, Polarity::Positive))).unwrap();
+        let root = FlatWalkValue {
+            reference: FlatWalkRef::Positive(PositiveRef::Shared(shared)),
+            cacheable: true,
+        };
+        let mut draft = FlatDraft::default();
+        let mut owner = RawWalkerOwner::new(&meter,
+            F5cWalkerLaneKind::FlatSourceMaterializeRoots as usize,
+            F5cWalkerLaneKind::FlatSourceMaterializeRoots.slot_size());
+        let mut outputs = Vec::new();
+        let mut marks = 0;
+        let result = sink.materialize_roots(&mut memo, &mut draft, &[root; 5],
+            &mut outputs, Some(&mut owner), Some(&meter), |_, _, _, _| {
+                marks += 1;
+                if marks == 5 { Err(SolveAvailabilityError::IdentityExhausted) }
+                else { Ok(()) }
+            });
+        assert_eq!(result, Err(SolveAvailabilityError::IdentityExhausted));
+        assert!(outputs.is_empty());
+        drop(outputs);
+        drop(owner);
+        sink.release_materialized_roots(&mut memo);
+        let _ = crate::f5c_draft_heap::close_f5c_resource_events().unwrap();
+        let bytes = std::fs::read(&path).unwrap();
+        std::fs::remove_file(path).unwrap();
+        let role = 32 + F5cWalkerLaneKind::FlatSourceMaterializeRoots as u64;
+        let events: Vec<[u64; 8]> = bytes[8..].chunks_exact(64).map(|event| {
+            std::array::from_fn(|index| u64::from_le_bytes(
+                event[index * 8..(index + 1) * 8].try_into().unwrap()))
+        }).filter(|event| event[3] == role).collect();
+        assert_eq!(events.iter().map(|event| event[2]).collect::<Vec<_>>(),
+            [1, 3, 3, 5]);
+        assert!(events.iter().all(|event| event[1] == events[0][1]));
+        assert!(events[1][5] > 0);
+    }
 
     #[test]
     fn output_root_count_rejects_unrepresentable_sum() {
@@ -445,6 +725,8 @@ mod materialization_tests {
             .arena
             .positive(
                 PositiveNode::Bottom,
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                None,
                 &mut memo.walker_resources,
                 &memo.work_meter,
                 memo_bytes,
@@ -458,6 +740,10 @@ mod materialization_tests {
                     local,
                     PositiveRef::Shared(shared),
                 ],
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                None,
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                None,
                 &mut memo.walker_resources,
                 &memo.work_meter,
                 memo_bytes,
@@ -476,6 +762,10 @@ mod materialization_tests {
                 &mut draft,
                 &[root, root],
                 &mut outputs,
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                None,
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                None,
                 |_, _, row, p| {
                     marks.push((row, p));
                     if marks.len() == 4 {
@@ -495,6 +785,10 @@ mod materialization_tests {
             &mut draft,
             &[root, root],
             &mut outputs,
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            None,
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            None,
             |_, _, row, p| {
                 marks.push((row, p));
                 Ok(())
@@ -531,16 +825,28 @@ mod materialization_tests {
         let resources = &mut memo.walker_resources;
         let p = sink
             .arena
-            .positive(PositiveNode::Int, resources, meter, 0)
+            .positive(PositiveNode::Int,
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                None, resources, meter, 0)
             .unwrap();
         let n = sink
             .arena
-            .negative(NegativeNode::Top, resources, meter, 0)
+            .negative(NegativeNode::Top,
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                None, resources, meter, 0)
             .unwrap();
-        let p = sink.arena.union(&[p, p], resources, meter, 0).unwrap();
+        let p = sink.arena.union(&[p, p],
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                None,
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                None, resources, meter, 0).unwrap();
         let n = sink
             .arena
-            .intersection(&[n, n], resources, meter, 0)
+            .intersection(&[n, n],
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                None,
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                None, resources, meter, 0)
             .unwrap();
         let pf = sink
             .arena
@@ -551,6 +857,8 @@ mod materialization_tests {
                     result_effect: F5cPositiveEffect::Bottom,
                     result: p,
                 },
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                None,
                 resources,
                 meter,
                 0,
@@ -565,6 +873,8 @@ mod materialization_tests {
                     result_effect: F5cNegativeEffect::Empty,
                     result: n,
                 },
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                None,
                 resources,
                 meter,
                 0,
@@ -583,9 +893,19 @@ mod materialization_tests {
         ];
         let mut draft = FlatDraft::default();
         let mut outputs = Vec::new();
-        sink.materialize_roots(&mut memo, &mut draft, &roots, &mut outputs, |_, _, _, _| {
-            Ok(())
-        })
+        sink.materialize_roots(
+            &mut memo,
+            &mut draft,
+            &roots,
+            &mut outputs,
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            None,
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            None,
+            |_, _, _, _| {
+                Ok(())
+            },
+        )
         .unwrap();
         assert!(sink.arena.checkpoint() == source_checkpoint);
         let NodeRef::Positive(pid) = outputs[0] else {
@@ -637,6 +957,10 @@ mod materialization_tests {
             &mut draft,
             &[],
             &mut outputs,
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            None,
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            None,
             |_, _, _, _| Ok(()),
         )
         .unwrap();
@@ -696,6 +1020,8 @@ impl F5cFlatWalkSink {
         let memo_bytes = generalizer.memo.retained_bytes()?;
         let reference = self.arena.positive(
             node,
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            Some(&mut generalizer.source_arena_owners[0]),
             &mut generalizer.memo.walker_resources,
             &generalizer.memo.work_meter,
             memo_bytes,
@@ -715,6 +1041,8 @@ impl F5cFlatWalkSink {
         let memo_bytes = generalizer.memo.retained_bytes()?;
         let reference = self.arena.negative(
             node,
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            Some(&mut generalizer.source_arena_owners[1]),
             &mut generalizer.memo.walker_resources,
             &generalizer.memo.work_meter,
             memo_bytes,
@@ -730,19 +1058,35 @@ impl F5cFlatWalkSink {
         generalizer: &mut F5cGeneralizer<'_, '_>,
         first: CompareTask,
         tasks: &mut Vec<CompareTask>,
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        owner: &mut RawWalkerOwner<'_>,
     ) -> Result<bool, SolveAvailabilityError> {
         tasks.clear();
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        owner.observe(tasks.len(), tasks.capacity());
         macro_rules! push {
             ($task:expr) => {{
                 generalizer.memo.work_meter.charge(1)?;
-                generalizer
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                let old_capacity = tasks.capacity();
+                let reservation = generalizer
                     .memo
-                    .reserve_walker(tasks, F5cWalkerLaneKind::FlatComparison)?;
+                    .reserve_walker(tasks, F5cWalkerLaneKind::FlatComparison);
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                owner.observe(tasks.len(), tasks.capacity());
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                generalizer.memo.observe_walker_capacity_change_with_source(
+                    Some(generalizer.source_meter), old_capacity, tasks.capacity())?;
+                reservation?;
                 tasks.push($task);
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                owner.observe(tasks.len(), tasks.capacity());
             }};
         }
         push!(first);
         while let Some(task) = tasks.pop() {
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            owner.observe(tasks.len(), tasks.capacity());
             generalizer.memo.work_meter.charge(1)?;
             match task {
                 CompareTask::Positive(left, right) => match (left, right) {
@@ -874,24 +1218,60 @@ impl F5cFlatWalkSink {
         row: u32,
         polarity: Polarity,
     ) -> Result<F5cSummaryNodeId, SolveAvailabilityError> {
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        let mut tasks_owner = RawWalkerOwner::new(generalizer.source_meter,
+            F5cWalkerLaneKind::FlatPromotionTasks as usize,
+            F5cWalkerLaneKind::FlatPromotionTasks.slot_size());
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        let mut ids_owner = RawWalkerOwner::new(generalizer.source_meter,
+            F5cWalkerLaneKind::FlatPromotionIds as usize,
+            F5cWalkerLaneKind::FlatPromotionIds.slot_size());
         let mut tasks = Vec::new();
         let mut ids = Vec::new();
         macro_rules! push_task {
             ($task:expr) => {{
                 generalizer.memo.work_meter.charge(1)?;
-                generalizer
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                let old_capacity = tasks.capacity();
+                let reservation = generalizer
                     .memo
-                    .reserve_walker(&mut tasks, F5cWalkerLaneKind::FlatPromotionTasks)?;
+                    .reserve_walker(&mut tasks, F5cWalkerLaneKind::FlatPromotionTasks);
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                tasks_owner.observe(tasks.len(), tasks.capacity());
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                generalizer.memo.observe_walker_capacity_change_with_source(
+                    Some(generalizer.source_meter), old_capacity, tasks.capacity())?;
+                reservation?;
                 tasks.push($task);
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                tasks_owner.observe(tasks.len(), tasks.capacity());
             }};
         }
         macro_rules! push_id {
             ($id:expr) => {{
                 generalizer.memo.work_meter.charge(1)?;
-                generalizer
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                let old_capacity = ids.capacity();
+                let reservation = generalizer
                     .memo
-                    .reserve_walker(&mut ids, F5cWalkerLaneKind::FlatPromotionIds)?;
+                    .reserve_walker(&mut ids, F5cWalkerLaneKind::FlatPromotionIds);
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                ids_owner.observe(ids.len(), ids.capacity());
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                generalizer.memo.observe_walker_capacity_change_with_source(
+                    Some(generalizer.source_meter), old_capacity, ids.capacity())?;
+                reservation?;
                 ids.push($id);
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                ids_owner.observe(ids.len(), ids.capacity());
+            }};
+        }
+        macro_rules! pop_id {
+            () => {{
+                let value = ids.pop().ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                ids_owner.observe(ids.len(), ids.capacity());
+                value
             }};
         }
         let incidence = Some((row, polarity));
@@ -901,6 +1281,8 @@ impl F5cFlatWalkSink {
                 FlatWalkRef::Negative(reference) => PromotionTask::Negative(reference, incidence),
             });
             while let Some(task) = tasks.pop() {
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                tasks_owner.observe(tasks.len(), tasks.capacity());
                 generalizer.memo.work_meter.charge(1)?;
                 match task {
                     PromotionTask::Positive(PositiveRef::Shared(id), incidence) => {
@@ -1028,6 +1410,8 @@ impl F5cFlatWalkSink {
                     PromotionTask::PositiveUnion(start, incidence) => {
                         let (child_start, len) = generalizer.memo.push_children(&ids[start..])?;
                         ids.truncate(start);
+                        #[cfg(all(test, feature = "f5c_resource_probe"))]
+                        ids_owner.observe(ids.len(), ids.capacity());
                         push_id!(generalizer.memo.push_node(
                             F5cSummaryNodeKind::PositiveUnion {
                                 start: child_start,
@@ -1039,6 +1423,8 @@ impl F5cFlatWalkSink {
                     PromotionTask::NegativeIntersection(start, incidence) => {
                         let (child_start, len) = generalizer.memo.push_children(&ids[start..])?;
                         ids.truncate(start);
+                        #[cfg(all(test, feature = "f5c_resource_probe"))]
+                        ids_owner.observe(ids.len(), ids.capacity());
                         push_id!(generalizer.memo.push_node(
                             F5cSummaryNodeKind::NegativeIntersection {
                                 start: child_start,
@@ -1048,18 +1434,18 @@ impl F5cFlatWalkSink {
                         )?);
                     }
                     PromotionTask::PositiveFunction(incidence) => {
-                        let result = ids.pop().ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                        let result = pop_id!();
                         let argument =
-                            ids.pop().ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                            pop_id!();
                         push_id!(generalizer.memo.push_node(
                             F5cSummaryNodeKind::PositiveFunction { argument, result },
                             incidence
                         )?);
                     }
                     PromotionTask::NegativeFunction(incidence) => {
-                        let result = ids.pop().ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                        let result = pop_id!();
                         let argument =
-                            ids.pop().ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                            pop_id!();
                         push_id!(generalizer.memo.push_node(
                             F5cSummaryNodeKind::NegativeFunction { argument, result },
                             incidence
@@ -1070,7 +1456,10 @@ impl F5cFlatWalkSink {
             if ids.len() != 1 {
                 return Err(SolveAvailabilityError::IdentityExhausted);
             }
-            ids.pop().ok_or(SolveAvailabilityError::IdentityExhausted)
+            let result = ids.pop().ok_or(SolveAvailabilityError::IdentityExhausted);
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            ids_owner.observe(ids.len(), ids.capacity());
+            result
         })();
         // Memo nodes may grow while both promotion work lanes are still live.
         let observation = generalizer.memo.observe_walker();
@@ -1078,8 +1467,15 @@ impl F5cFlatWalkSink {
         {
             self.record_promotion_observation(generalizer, &tasks, &ids);
         }
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        let had_capacity = tasks.capacity() != 0 || ids.capacity() != 0;
         drop(tasks);
         drop(ids);
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        {
+            drop(tasks_owner);
+            drop(ids_owner);
+        }
         generalizer
             .memo
             .walker_resources
@@ -1088,6 +1484,10 @@ impl F5cFlatWalkSink {
             .memo
             .walker_resources
             .release(F5cWalkerLaneKind::FlatPromotionIds);
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        if had_capacity {
+            generalizer.memo.observe_walker_with_source(generalizer.source_meter)?;
+        }
         match result {
             Ok(id) => observation.map(|()| id),
             Err(error) => Err(error),
@@ -1197,6 +1597,8 @@ impl<'meter> F5cWalkSink<'meter> for F5cFlatWalkSink {
         &mut self,
         generalizer: &mut F5cGeneralizer<'_, 'meter>,
         values: &mut Vec<Self::Value>,
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        values_owner: &mut RawWalkerOwner<'meter>,
         start: usize,
         row: u32,
         polarity: Polarity,
@@ -1204,11 +1606,24 @@ impl<'meter> F5cWalkSink<'meter> for F5cFlatWalkSink {
     ) -> Result<Self::Value, SolveAvailabilityError> {
         let result = match polarity {
             Polarity::Positive => {
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                let mut parts_owner = RawWalkerOwner::new(generalizer.source_meter,
+                    F5cWalkerLaneKind::FlatPositiveParts as usize,
+                    F5cWalkerLaneKind::FlatPositiveParts.slot_size());
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                let mut comparisons_owner = RawWalkerOwner::new(generalizer.source_meter,
+                    F5cWalkerLaneKind::FlatComparison as usize,
+                    F5cWalkerLaneKind::FlatComparison.slot_size());
                 let mut parts = Vec::new();
                 let mut comparisons = Vec::new();
                 let mut cacheable = true;
                 let result = (|| {
-                    for child in values.drain(start..) {
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    let capacity = values.capacity();
+                    let drained = values.drain(start..);
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    values_owner.observe(start, capacity);
+                    for child in drained {
                         let FlatWalkRef::Positive(reference) = child.reference else {
                             return Err(SolveAvailabilityError::IdentityExhausted);
                         };
@@ -1219,6 +1634,8 @@ impl<'meter> F5cWalkSink<'meter> for F5cFlatWalkSink {
                                 generalizer,
                                 CompareTask::Positive(previous, reference),
                                 &mut comparisons,
+                                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                                &mut comparisons_owner,
                             )?;
                             if equal {
                                 duplicate = true;
@@ -1227,10 +1644,20 @@ impl<'meter> F5cWalkSink<'meter> for F5cFlatWalkSink {
                         }
                         if !duplicate {
                             cacheable &= child.cacheable;
-                            generalizer
+                            #[cfg(all(test, feature = "f5c_resource_probe"))]
+                            let old_capacity = parts.capacity();
+                            let reservation = generalizer
                                 .memo
-                                .reserve_walker(&mut parts, F5cWalkerLaneKind::FlatPositiveParts)?;
+                                .reserve_walker(&mut parts, F5cWalkerLaneKind::FlatPositiveParts);
+                            #[cfg(all(test, feature = "f5c_resource_probe"))]
+                            parts_owner.observe(parts.len(), parts.capacity());
+                            #[cfg(all(test, feature = "f5c_resource_probe"))]
+                            generalizer.memo.observe_walker_capacity_change_with_source(
+                                Some(generalizer.source_meter), old_capacity, parts.capacity())?;
+                            reservation?;
                             parts.push(reference);
+                            #[cfg(all(test, feature = "f5c_resource_probe"))]
+                            parts_owner.observe(parts.len(), parts.capacity());
                         }
                     }
                     let nonempty = !parts.is_empty();
@@ -1243,8 +1670,15 @@ impl<'meter> F5cWalkSink<'meter> for F5cFlatWalkSink {
                         }),
                         _ => {
                             let memo_bytes = generalizer.memo.retained_bytes()?;
+                            #[cfg(all(test, feature = "f5c_resource_probe"))]
+                            let (node_owners, child_owners) =
+                                generalizer.source_arena_owners.split_at_mut(2);
                             let reference = self.arena.union(
                                 &parts,
+                                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                                Some(&mut node_owners[0]),
+                                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                                Some(&mut child_owners[0]),
                                 &mut generalizer.memo.walker_resources,
                                 &generalizer.memo.work_meter,
                                 memo_bytes,
@@ -1256,8 +1690,15 @@ impl<'meter> F5cWalkSink<'meter> for F5cFlatWalkSink {
                         }
                     }
                 })();
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                let had_capacity = comparisons.capacity() != 0 || parts.capacity() != 0;
                 drop(comparisons);
                 drop(parts);
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                {
+                    drop(comparisons_owner);
+                    drop(parts_owner);
+                }
                 generalizer
                     .memo
                     .walker_resources
@@ -1266,14 +1707,31 @@ impl<'meter> F5cWalkSink<'meter> for F5cFlatWalkSink {
                     .memo
                     .walker_resources
                     .release(F5cWalkerLaneKind::FlatPositiveParts);
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                if had_capacity {
+                    generalizer.memo.observe_walker_with_source(generalizer.source_meter)?;
+                }
                 result
             }
             Polarity::Negative => {
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                let mut parts_owner = RawWalkerOwner::new(generalizer.source_meter,
+                    F5cWalkerLaneKind::FlatNegativeParts as usize,
+                    F5cWalkerLaneKind::FlatNegativeParts.slot_size());
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                let mut comparisons_owner = RawWalkerOwner::new(generalizer.source_meter,
+                    F5cWalkerLaneKind::FlatComparison as usize,
+                    F5cWalkerLaneKind::FlatComparison.slot_size());
                 let mut parts = Vec::new();
                 let mut comparisons = Vec::new();
                 let mut cacheable = true;
                 let result = (|| {
-                    for child in values.drain(start..) {
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    let capacity = values.capacity();
+                    let drained = values.drain(start..);
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    values_owner.observe(start, capacity);
+                    for child in drained {
                         let FlatWalkRef::Negative(reference) = child.reference else {
                             return Err(SolveAvailabilityError::IdentityExhausted);
                         };
@@ -1284,6 +1742,8 @@ impl<'meter> F5cWalkSink<'meter> for F5cFlatWalkSink {
                                 generalizer,
                                 CompareTask::Negative(previous, reference),
                                 &mut comparisons,
+                                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                                &mut comparisons_owner,
                             )?;
                             if equal {
                                 duplicate = true;
@@ -1292,10 +1752,20 @@ impl<'meter> F5cWalkSink<'meter> for F5cFlatWalkSink {
                         }
                         if !duplicate {
                             cacheable &= child.cacheable;
-                            generalizer
+                            #[cfg(all(test, feature = "f5c_resource_probe"))]
+                            let old_capacity = parts.capacity();
+                            let reservation = generalizer
                                 .memo
-                                .reserve_walker(&mut parts, F5cWalkerLaneKind::FlatNegativeParts)?;
+                                .reserve_walker(&mut parts, F5cWalkerLaneKind::FlatNegativeParts);
+                            #[cfg(all(test, feature = "f5c_resource_probe"))]
+                            parts_owner.observe(parts.len(), parts.capacity());
+                            #[cfg(all(test, feature = "f5c_resource_probe"))]
+                            generalizer.memo.observe_walker_capacity_change_with_source(
+                                Some(generalizer.source_meter), old_capacity, parts.capacity())?;
+                            reservation?;
                             parts.push(reference);
+                            #[cfg(all(test, feature = "f5c_resource_probe"))]
+                            parts_owner.observe(parts.len(), parts.capacity());
                         }
                     }
                     let nonempty = !parts.is_empty();
@@ -1307,8 +1777,15 @@ impl<'meter> F5cWalkSink<'meter> for F5cFlatWalkSink {
                         }),
                         _ => {
                             let memo_bytes = generalizer.memo.retained_bytes()?;
+                            #[cfg(all(test, feature = "f5c_resource_probe"))]
+                            let (node_owners, child_owners) =
+                                generalizer.source_arena_owners.split_at_mut(2);
                             let reference = self.arena.intersection(
                                 &parts,
+                                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                                Some(&mut node_owners[1]),
+                                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                                Some(&mut child_owners[1]),
                                 &mut generalizer.memo.walker_resources,
                                 &generalizer.memo.work_meter,
                                 memo_bytes,
@@ -1320,8 +1797,15 @@ impl<'meter> F5cWalkSink<'meter> for F5cFlatWalkSink {
                         }
                     }
                 })();
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                let had_capacity = comparisons.capacity() != 0 || parts.capacity() != 0;
                 drop(comparisons);
                 drop(parts);
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                {
+                    drop(comparisons_owner);
+                    drop(parts_owner);
+                }
                 generalizer
                     .memo
                     .walker_resources
@@ -1330,6 +1814,10 @@ impl<'meter> F5cWalkSink<'meter> for F5cFlatWalkSink {
                     .memo
                     .walker_resources
                     .release(F5cWalkerLaneKind::FlatNegativeParts);
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                if had_capacity {
+                    generalizer.memo.observe_walker_with_source(generalizer.source_meter)?;
+                }
                 result
             }
         };

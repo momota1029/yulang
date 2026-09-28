@@ -3,6 +3,8 @@ use super::{
     ConstraintStore, DraftHeapMeter, F5cComponentExpansionMemo, F5cNegative, F5cPositive,
     F5cWalkerLaneKind, Polarity, SolveAvailabilityError, Term, TermView,
 };
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+use super::f5c_draft_heap::RawWalkerOwner;
 use std::collections::HashSet;
 
 pub(super) enum Task<'tree, 'meter> {
@@ -25,6 +27,8 @@ pub(super) struct Walker<'memo, 'tree, 'meter> {
     pub(super) memo: &'memo mut F5cComponentExpansionMemo,
     source_meter: Option<&'memo DraftHeapMeter>,
     tasks: Vec<Task<'tree, 'meter>>,
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    tasks_owner: Option<RawWalkerOwner<'memo>>,
 }
 
 impl<'memo, 'tree, 'meter> Walker<'memo, 'tree, 'meter> {
@@ -33,6 +37,8 @@ impl<'memo, 'tree, 'meter> Walker<'memo, 'tree, 'meter> {
             memo,
             source_meter: None,
             tasks: Vec::new(),
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            tasks_owner: None,
         }
     }
 
@@ -44,22 +50,55 @@ impl<'memo, 'tree, 'meter> Walker<'memo, 'tree, 'meter> {
             memo,
             source_meter: Some(source_meter),
             tasks: Vec::new(),
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            tasks_owner: Some(RawWalkerOwner::new(source_meter,
+                F5cWalkerLaneKind::AnalysisTasks as usize,
+                F5cWalkerLaneKind::AnalysisTasks.slot_size())),
+        }
+    }
+
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    pub(super) fn new_with_probe_meter(
+        memo: &'memo mut F5cComponentExpansionMemo,
+        meter: &'memo DraftHeapMeter,
+    ) -> Self {
+        Self {
+            memo,
+            source_meter: None,
+            tasks: Vec::new(),
+            tasks_owner: Some(RawWalkerOwner::new(meter,
+                F5cWalkerLaneKind::AnalysisTasks as usize,
+                F5cWalkerLaneKind::AnalysisTasks.slot_size())),
         }
     }
 
     fn push(&mut self, task: Task<'tree, 'meter>) -> Result<(), SolveAvailabilityError> {
         self.memo.work_meter.charge(1)?; // scheduled analysis task
         if let Some(source_meter) = self.source_meter {
-            self.memo.reserve_walker_with_source(
+            let reservation = self.memo.reserve_walker_with_source(
                 &mut self.tasks,
                 F5cWalkerLaneKind::AnalysisTasks,
                 source_meter,
-            )?;
+            );
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            if let Some(owner) = self.tasks_owner.as_mut() {
+                owner.observe(self.tasks.len(), self.tasks.capacity());
+            }
+            reservation?;
         } else {
-            self.memo
-                .reserve_walker(&mut self.tasks, F5cWalkerLaneKind::AnalysisTasks)?;
+            let reservation = self.memo
+                .reserve_walker(&mut self.tasks, F5cWalkerLaneKind::AnalysisTasks);
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            if let Some(owner) = self.tasks_owner.as_mut() {
+                owner.observe(self.tasks.len(), self.tasks.capacity());
+            }
+            reservation?;
         }
         self.tasks.push(task);
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        if let Some(owner) = self.tasks_owner.as_mut() {
+            owner.observe(self.tasks.len(), self.tasks.capacity());
+        }
         Ok(())
     }
 
@@ -74,11 +113,19 @@ impl<'memo, 'tree, 'meter> Walker<'memo, 'tree, 'meter> {
         ) -> Result<bool, SolveAvailabilityError>,
     ) -> Result<(), SolveAvailabilityError> {
         self.tasks.clear();
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        if let Some(owner) = self.tasks_owner.as_mut() {
+            owner.observe(self.tasks.len(), self.tasks.capacity());
+        }
         let result = (|| {
             self.push(first)?;
             while !self.tasks.is_empty() {
                 self.memo.work_meter.charge(1)?; // visited source node or Term
                 let task = self.tasks.pop().expect("nonempty analysis tasks");
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                if let Some(owner) = self.tasks_owner.as_mut() {
+                    owner.observe(self.tasks.len(), self.tasks.capacity());
+                }
                 match task {
                     Task::Positive(value, guarded) => match value {
                         F5cPositive::Variable(owner) => {
@@ -248,6 +295,10 @@ impl<'memo, 'tree, 'meter> Walker<'memo, 'tree, 'meter> {
             Ok(())
         })();
         self.tasks.clear();
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        if let Some(owner) = self.tasks_owner.as_mut() {
+            owner.observe(self.tasks.len(), self.tasks.capacity());
+        }
         result
     }
 
@@ -373,6 +424,10 @@ impl<'memo, 'tree, 'meter> Walker<'memo, 'tree, 'meter> {
         value: &'tree F5cPositive<'meter>,
         positive: &mut HashSet<u32>,
         negative: &mut HashSet<u32>,
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        mut positive_owner: Option<&mut RawWalkerOwner<'meter>>,
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        mut negative_owner: Option<&mut RawWalkerOwner<'meter>>,
     ) -> Result<(), SolveAvailabilityError> {
         let source_meter = self.source_meter;
         self.walk(Task::Positive(value, false), None, None, |event, memo| {
@@ -380,20 +435,30 @@ impl<'memo, 'tree, 'meter> Walker<'memo, 'tree, 'meter> {
                 if let Event::Value(owner, polarity, _) = event {
                     match polarity {
                         Polarity::Positive => {
-                            memo.insert_physical_set_observed(
+                            let insertion = memo.insert_physical_set_observed(
                                 positive,
                                 owner,
                                 F5cWalkerLaneKind::RawPositiveIncidences,
                                 source_meter,
-                            )?;
+                            );
+                            #[cfg(all(test, feature = "f5c_resource_probe"))]
+                            if let Some(token) = positive_owner.as_deref_mut() {
+                                token.observe(positive.len(), positive.capacity());
+                            }
+                            insertion?;
                         }
                         Polarity::Negative => {
-                            memo.insert_physical_set_observed(
+                            let insertion = memo.insert_physical_set_observed(
                                 negative,
                                 owner,
                                 F5cWalkerLaneKind::RawNegativeIncidences,
                                 source_meter,
-                            )?;
+                            );
+                            #[cfg(all(test, feature = "f5c_resource_probe"))]
+                            if let Some(token) = negative_owner.as_deref_mut() {
+                                token.observe(negative.len(), negative.capacity());
+                            }
+                            insertion?;
                         }
                     }
                 }
@@ -407,6 +472,10 @@ impl<'memo, 'tree, 'meter> Walker<'memo, 'tree, 'meter> {
         value: &'tree F5cNegative<'meter>,
         positive: &mut HashSet<u32>,
         negative: &mut HashSet<u32>,
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        mut positive_owner: Option<&mut RawWalkerOwner<'meter>>,
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        mut negative_owner: Option<&mut RawWalkerOwner<'meter>>,
     ) -> Result<(), SolveAvailabilityError> {
         let source_meter = self.source_meter;
         self.walk(Task::Negative(value, false), None, None, |event, memo| {
@@ -414,20 +483,30 @@ impl<'memo, 'tree, 'meter> Walker<'memo, 'tree, 'meter> {
                 if let Event::Value(owner, polarity, _) = event {
                     match polarity {
                         Polarity::Positive => {
-                            memo.insert_physical_set_observed(
+                            let insertion = memo.insert_physical_set_observed(
                                 positive,
                                 owner,
                                 F5cWalkerLaneKind::RawPositiveIncidences,
                                 source_meter,
-                            )?;
+                            );
+                            #[cfg(all(test, feature = "f5c_resource_probe"))]
+                            if let Some(token) = positive_owner.as_deref_mut() {
+                                token.observe(positive.len(), positive.capacity());
+                            }
+                            insertion?;
                         }
                         Polarity::Negative => {
-                            memo.insert_physical_set_observed(
+                            let insertion = memo.insert_physical_set_observed(
                                 negative,
                                 owner,
                                 F5cWalkerLaneKind::RawNegativeIncidences,
                                 source_meter,
-                            )?;
+                            );
+                            #[cfg(all(test, feature = "f5c_resource_probe"))]
+                            if let Some(token) = negative_owner.as_deref_mut() {
+                                token.observe(negative.len(), negative.capacity());
+                            }
+                            insertion?;
                         }
                     }
                 }
@@ -460,21 +539,16 @@ impl<'memo, 'tree, 'meter> Walker<'memo, 'tree, 'meter> {
         value: &'tree F5cPositive<'meter>,
         ordered: &mut Vec<u32>,
         seen: &mut HashSet<u32>,
-        #[cfg(all(test, feature = "f5c_resource_probe"))] owners: &mut (
-            super::f5c_draft_heap::RawWalkerOwner<'_>,
-            super::f5c_draft_heap::RawWalkerOwner<'_>,
-        ),
-        #[cfg(all(test, feature = "f5c_resource_probe"))] request_bases: [usize; 2],
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        ordered_owner: Option<&mut RawWalkerOwner<'_>>,
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        seen_owner: Option<&mut RawWalkerOwner<'_>>,
     ) -> Result<(), SolveAvailabilityError> {
-        self.occurrences_checked(
-            Task::Positive(value, false),
-            ordered,
-            seen,
+        self.occurrences_checked(Task::Positive(value, false), ordered, seen,
             #[cfg(all(test, feature = "f5c_resource_probe"))]
-            owners,
+            ordered_owner,
             #[cfg(all(test, feature = "f5c_resource_probe"))]
-            request_bases,
-        )
+            seen_owner)
     }
 
     pub(super) fn occurrences_negative_checked(
@@ -482,21 +556,16 @@ impl<'memo, 'tree, 'meter> Walker<'memo, 'tree, 'meter> {
         value: &'tree F5cNegative<'meter>,
         ordered: &mut Vec<u32>,
         seen: &mut HashSet<u32>,
-        #[cfg(all(test, feature = "f5c_resource_probe"))] owners: &mut (
-            super::f5c_draft_heap::RawWalkerOwner<'_>,
-            super::f5c_draft_heap::RawWalkerOwner<'_>,
-        ),
-        #[cfg(all(test, feature = "f5c_resource_probe"))] request_bases: [usize; 2],
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        ordered_owner: Option<&mut RawWalkerOwner<'_>>,
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        seen_owner: Option<&mut RawWalkerOwner<'_>>,
     ) -> Result<(), SolveAvailabilityError> {
-        self.occurrences_checked(
-            Task::Negative(value, false),
-            ordered,
-            seen,
+        self.occurrences_checked(Task::Negative(value, false), ordered, seen,
             #[cfg(all(test, feature = "f5c_resource_probe"))]
-            owners,
+            ordered_owner,
             #[cfg(all(test, feature = "f5c_resource_probe"))]
-            request_bases,
-        )
+            seen_owner)
     }
 
     fn occurrences_checked(
@@ -504,11 +573,10 @@ impl<'memo, 'tree, 'meter> Walker<'memo, 'tree, 'meter> {
         first: Task<'tree, 'meter>,
         ordered: &mut Vec<u32>,
         seen: &mut HashSet<u32>,
-        #[cfg(all(test, feature = "f5c_resource_probe"))] owners: &mut (
-            super::f5c_draft_heap::RawWalkerOwner<'_>,
-            super::f5c_draft_heap::RawWalkerOwner<'_>,
-        ),
-        #[cfg(all(test, feature = "f5c_resource_probe"))] request_bases: [usize; 2],
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        mut ordered_owner: Option<&mut RawWalkerOwner<'_>>,
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        mut seen_owner: Option<&mut RawWalkerOwner<'_>>,
     ) -> Result<(), SolveAvailabilityError> {
         let source_meter = self.source_meter;
         self.walk(first, None, None, |event, memo| {
@@ -516,10 +584,8 @@ impl<'memo, 'tree, 'meter> Walker<'memo, 'tree, 'meter> {
                 && !seen.contains(&owner)
             {
                 let bytes = memo.retained_bytes()?;
-                #[cfg(all(test, feature = "f5c_resource_probe"))]
-                let prior_seen_capacity = seen.capacity();
                 if let Some(meter) = source_meter {
-                    let seen_result = memo.walker_resources.with_source(
+                    let set_reservation = memo.walker_resources.with_source(
                         meter,
                         bytes,
                         F5cWalkerLaneKind::PostROccurrenceSeen,
@@ -532,115 +598,38 @@ impl<'memo, 'tree, 'meter> Walker<'memo, 'tree, 'meter> {
                         },
                     );
                     #[cfg(all(test, feature = "f5c_resource_probe"))]
-                    {
-                        owners.1.observe(seen.len(), seen.capacity());
-                        super::f5c_generalization::assert_occurrence_observation(
-                            memo,
-                            &owners.1,
-                            F5cWalkerLaneKind::PostROccurrenceSeen,
-                            seen.len(),
-                            seen.capacity(),
-                            false,
-                            seen_result.is_ok(),
-                            prior_seen_capacity,
-                            request_bases[1],
-                        );
+                    if let Some(owner) = seen_owner.as_deref_mut() {
+                        owner.observe(seen.len(), seen.capacity());
                     }
-                    seen_result?;
-                    #[cfg(all(test, feature = "f5c_resource_probe"))]
-                    let prior_order_capacity = ordered.capacity();
-                    let result = memo.reserve_walker_with_source(
+                    set_reservation?;
+                    let ordered_reservation = memo.reserve_walker_with_source(
                         ordered,
                         F5cWalkerLaneKind::PostROccurrenceOrder,
                         meter,
                     );
                     #[cfg(all(test, feature = "f5c_resource_probe"))]
-                    {
-                        owners.0.observe(ordered.len(), ordered.capacity());
-                        super::f5c_generalization::assert_occurrence_observation(
-                            memo,
-                            &owners.0,
-                            F5cWalkerLaneKind::PostROccurrenceOrder,
-                            ordered.len(),
-                            ordered.capacity(),
-                            false,
-                            result.is_ok(),
-                            prior_order_capacity,
-                            request_bases[0],
-                        );
+                    if let Some(owner) = ordered_owner.as_deref_mut() {
+                        owner.observe(ordered.len(), ordered.capacity());
                     }
-                    result?;
+                    ordered_reservation?;
                 } else {
-                    let seen_result = memo.walker_resources.reserve_generalizer_set(
+                    memo.walker_resources.reserve_generalizer_set(
                         seen,
                         F5cWalkerLaneKind::PostROccurrenceSeen,
                         bytes,
-                    );
-                    #[cfg(all(test, feature = "f5c_resource_probe"))]
-                    {
-                        owners.1.observe(seen.len(), seen.capacity());
-                        super::f5c_generalization::assert_occurrence_observation(
-                            memo,
-                            &owners.1,
-                            F5cWalkerLaneKind::PostROccurrenceSeen,
-                            seen.len(),
-                            seen.capacity(),
-                            false,
-                            seen_result.is_ok(),
-                            prior_seen_capacity,
-                            request_bases[1],
-                        );
-                    }
-                    seen_result?;
-                    #[cfg(all(test, feature = "f5c_resource_probe"))]
-                    let prior_order_capacity = ordered.capacity();
-                    let result =
-                        memo.reserve_walker(ordered, F5cWalkerLaneKind::PostROccurrenceOrder);
-                    #[cfg(all(test, feature = "f5c_resource_probe"))]
-                    {
-                        owners.0.observe(ordered.len(), ordered.capacity());
-                        super::f5c_generalization::assert_occurrence_observation(
-                            memo,
-                            &owners.0,
-                            F5cWalkerLaneKind::PostROccurrenceOrder,
-                            ordered.len(),
-                            ordered.capacity(),
-                            false,
-                            result.is_ok(),
-                            prior_order_capacity,
-                            request_bases[0],
-                        );
-                    }
-                    result?;
+                    )?;
+                    memo.reserve_walker(ordered, F5cWalkerLaneKind::PostROccurrenceOrder)?;
                 }
                 seen.insert(owner);
                 ordered.push(owner);
                 #[cfg(all(test, feature = "f5c_resource_probe"))]
                 {
-                    owners.0.observe(ordered.len(), ordered.capacity());
-                    owners.1.observe(seen.len(), seen.capacity());
-                    super::f5c_generalization::assert_occurrence_observation(
-                        memo,
-                        &owners.0,
-                        F5cWalkerLaneKind::PostROccurrenceOrder,
-                        ordered.len(),
-                        ordered.capacity(),
-                        true,
-                        true,
-                        ordered.capacity(),
-                        request_bases[0],
-                    );
-                    super::f5c_generalization::assert_occurrence_observation(
-                        memo,
-                        &owners.1,
-                        F5cWalkerLaneKind::PostROccurrenceSeen,
-                        seen.len(),
-                        seen.capacity(),
-                        true,
-                        true,
-                        seen.capacity(),
-                        request_bases[1],
-                    );
+                    if let Some(owner) = seen_owner.as_deref_mut() {
+                        owner.observe(seen.len(), seen.capacity());
+                    }
+                    if let Some(owner) = ordered_owner.as_deref_mut() {
+                        owner.observe(ordered.len(), ordered.capacity());
+                    }
                 }
             }
             Ok(true)
@@ -828,22 +817,36 @@ impl<'memo, 'tree, 'meter> Walker<'memo, 'tree, 'meter> {
         root: NodeRef,
         positive: &mut HashSet<u32>,
         negative: &mut HashSet<u32>,
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        mut positive_owner: Option<&mut RawWalkerOwner<'meter>>,
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        mut negative_owner: Option<&mut RawWalkerOwner<'meter>>,
     ) -> Result<(), SolveAvailabilityError> {
         self.flat_events_checked(draft, root, |owner, polarity, _, memo| {
             match polarity {
                 Polarity::Positive => {
-                    memo.insert_physical_set(
+                    let insertion = memo.insert_physical_set(
                         positive,
                         owner,
                         F5cWalkerLaneKind::RawPositiveIncidences,
-                    )?;
+                    );
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    if let Some(token) = positive_owner.as_deref_mut() {
+                        token.observe(positive.len(), positive.capacity());
+                    }
+                    insertion?;
                 }
                 Polarity::Negative => {
-                    memo.insert_physical_set(
+                    let insertion = memo.insert_physical_set(
                         negative,
                         owner,
                         F5cWalkerLaneKind::RawNegativeIncidences,
-                    )?;
+                    );
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    if let Some(token) = negative_owner.as_deref_mut() {
+                        token.observe(negative.len(), negative.capacity());
+                    }
+                    insertion?;
                 }
             }
             Ok(true)
@@ -884,7 +887,6 @@ impl<'memo, 'tree, 'meter> Walker<'memo, 'tree, 'meter> {
                 reserve(memo, ordered, seen, false)?;
                 seen.insert(owner);
                 ordered.push(owner);
-                #[cfg(all(test, feature = "f5c_resource_probe"))]
                 reserve(memo, ordered, seen, true)?;
             }
             Ok(true)
@@ -894,6 +896,11 @@ impl<'memo, 'tree, 'meter> Walker<'memo, 'tree, 'meter> {
 
 impl Drop for Walker<'_, '_, '_> {
     fn drop(&mut self) {
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        {
+            self.tasks = Vec::new();
+            drop(self.tasks_owner.take());
+        }
         if let Some(source_meter) = self.source_meter {
             let _ = self
                 .memo

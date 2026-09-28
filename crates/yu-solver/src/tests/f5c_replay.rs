@@ -307,6 +307,8 @@ fn f5c_flat_replay_matches_boxed_polarity_and_occurrence_order() {
     assert_eq!(
         crate::f5c_replay::replay_flat(
             &mut memo,
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            None,
             &source,
             NodeRef::Positive(p4),
             &mut output,
@@ -352,6 +354,8 @@ fn f5c_flat_replay_matches_boxed_polarity_and_occurrence_order() {
     assert_eq!(
         crate::f5c_replay::replay_flat(
             &mut memo,
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            None,
             &source,
             NodeRef::Negative(n5),
             &mut output,
@@ -394,7 +398,9 @@ fn f5c_flat_replay_matches_boxed_polarity_and_occurrence_order() {
         &output.negative_children[2..],
         &[NegativeId(4), NegativeId(6)]
     );
-    crate::f5c_replay::release_flat_output(&mut memo, output);
+    crate::f5c_replay::release_flat_output(&mut memo, output,
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        None);
 }
 
 #[test]
@@ -427,6 +433,8 @@ fn f5c_flat_replay_preserves_repeated_edge_occurrences() {
     let mut output = FlatDraft::default();
     let replayed = crate::f5c_replay::replay_flat(
         &mut memo,
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        None,
         &source,
         NodeRef::Positive(root),
         &mut output,
@@ -450,7 +458,9 @@ fn f5c_flat_replay_preserves_repeated_edge_occurrences() {
         vec![F5cPositive::Int, F5cPositive::Int],
     ));
     assert_eq!(expanded, expected);
-    crate::f5c_replay::release_flat_output(&mut memo, output);
+    crate::f5c_replay::release_flat_output(&mut memo, output,
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        None);
 }
 
 #[test]
@@ -511,6 +521,8 @@ fn f5c_flat_replay_restores_output_after_a_late_cycle() {
     let mut memo = F5cComponentExpansionMemo::default();
     let result = crate::f5c_replay::replay_flat(
         &mut memo,
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        None,
         &source,
         NodeRef::Positive(root),
         &mut output,
@@ -532,7 +544,9 @@ fn f5c_flat_replay_restores_output_after_a_late_cycle() {
         ),
         before
     );
-    crate::f5c_replay::release_flat_output(&mut memo, output);
+    crate::f5c_replay::release_flat_output(&mut memo, output,
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        None);
 }
 
 #[test]
@@ -558,6 +572,8 @@ fn f5c_flat_replay_handles_deep_drafts_on_a_small_stack() {
             let mut output = FlatDraft::default();
             let replayed = crate::f5c_replay::replay_flat(
                 &mut memo,
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                None,
                 &source,
                 NodeRef::Positive(root),
                 &mut output,
@@ -596,7 +612,9 @@ fn f5c_flat_replay_handles_deep_drafts_on_a_small_stack() {
                     0
                 );
             }
-            crate::f5c_replay::release_flat_output(&mut memo, output);
+            crate::f5c_replay::release_flat_output(&mut memo, output,
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                None);
         })
         .unwrap();
     worker.join().unwrap();

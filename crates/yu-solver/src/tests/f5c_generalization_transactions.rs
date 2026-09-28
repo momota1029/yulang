@@ -619,9 +619,50 @@ fn f5c_boxed_reentry_second_lane_failure_rolls_back_and_retries() {
     let mut memo = F5cComponentExpansionMemo::default();
     let before = persistent_memo_state!(memo);
     memo.fail_reserve_at = Some((F5cTestReserveFailure::BoxedReentryIndices, 0));
+    #[cfg(feature = "f5c_resource_probe")]
+    let event_path = std::env::temp_dir().join(format!(
+        "f5c-boxed-reentry-failure-{}-{:?}.bin", std::process::id(),
+        std::thread::current().id()));
+    #[cfg(feature = "f5c_resource_probe")]
+    crate::f5c_draft_heap::open_f5c_resource_events(&event_path).unwrap();
     let (failed, memo, _, _) =
         F5cGeneralizer::with_memo(&session, &test_source_meter, memo, 0).build_component(root);
     assert_eq!(failed, Err(SolveAvailabilityError::IdentityExhausted));
+    #[cfg(feature = "f5c_resource_probe")]
+    {
+        crate::f5c_draft_heap::close_f5c_resource_events().unwrap();
+        let bytes = std::fs::read(&event_path).unwrap();
+        std::fs::remove_file(event_path).unwrap();
+        let events: Vec<[u64; 8]> = bytes[8..].chunks_exact(64).map(|event| {
+            std::array::from_fn(|index| u64::from_le_bytes(
+                event[index * 8..(index + 1) * 8].try_into().unwrap()))
+        }).collect();
+        let kind = 32 + F5cWalkerLaneKind::BoxedReentryIndices as u64;
+        let index_events: Vec<_> = events.iter().filter(|event| event[3] == kind).collect();
+        assert!(index_events.iter().any(|event| event[2] == 3 && event[5] > 0));
+        assert_eq!(index_events.last().unwrap()[2], 5);
+        assert_eq!(index_events.iter().filter(|event| event[2] == 5).count(), 1);
+        assert!(index_events.iter().all(|event| event[1] == index_events[0][1]));
+
+        // The real Vec<usize> cannot expose its deallocation callback. Mirror
+        // its local declaration order with a droppable element and owner.
+        struct DropProbe<'a>(&'a std::cell::Cell<bool>);
+        impl Drop for DropProbe<'_> {
+            fn drop(&mut self) { self.0.set(true); }
+        }
+        struct ReleaseProbe<'a>(&'a std::cell::Cell<bool>);
+        impl Drop for ReleaseProbe<'_> {
+            fn drop(&mut self) { assert!(self.0.get(), "buffer elements outlive owner"); }
+        }
+        let dropped = std::cell::Cell::new(false);
+        {
+            let _raw_owner = ReleaseProbe(&dropped);
+            let mut indices = Vec::new();
+            indices.push(DropProbe(&dropped));
+            assert_eq!(indices.len(), 1);
+        }
+        assert!(dropped.get());
+    }
     assert_eq!(persistent_memo_state!(memo), before);
     assert_generalizer_physical_lanes_idle(&memo);
     for kind in [

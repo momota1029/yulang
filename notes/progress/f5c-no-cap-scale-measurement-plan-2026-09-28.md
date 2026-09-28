@@ -1,15 +1,96 @@
 # F5c no-cap §26/§34 scale measurement plan
 
-Status: Reviewed; measurement campaign approved; execution pending successful preflight
+Status: The prior 39-process campaign stopped at the third failed preflight; no matrix row ran. The user has since directed autonomous F5c completion and authorized expanding time and memory plans as needed, so the old no-retry allowance does not constrain a fresh campaign. The AllDrafts and guarded-cycle repairs are statically reviewed but unverified. The six-buffer `FlatDraft` family-6 carrier and atomic same-ID staged transfer are implemented and independently reviewed; family-1 live-variable and family-6 streaming owner events are also implemented and independently reviewed in the current checkpoint. Family-3 and the remaining all-eight-family event gate remain open; no preflight or scale row has run.
 Reviewed-by: spec_auditor, performance_auditor (matrix, formulas, safety, and budget deltas closed without unresolved findings)
 Observer-scope delta review: architect, spec_auditor, performance_auditor; no blocking or major findings
+Execution-extension delta review: spec_auditor clarified approval timing; performance_auditor supplied the one-process budget justification
+Lane-capacity observer delta review: spec_auditor and performance_auditor closed the slot-size witness repair
+Final-preflight extension delta review: spec_auditor confirmed the approval gate; performance_auditor justified one 60-second process and confirmed budget wording
+Guarded-cycle authority delta review: architect and spec_auditor found D>K cases violate the distinct-rotation constructor in F5 §34
+Corrected-workload performance delta review: performance_auditor found the K=4,000 D series raises uncacheable states to 8M/16M/32M and current row timeouts do not establish feasibility
+Third-preflight observer root-cause review: compiler_referee traced the 48-byte mismatch to precommit AllDrafts sampling before actual memo clear
+Observer and fixture repair spec delta: spec_auditor found no blocking or major issue
+Family peak resource delta: same-time owner aggregates are required; family-1 and family-6 event integration is implemented and reviewed, with family-3 and the remaining families open
 Normalization-counter delta review: spec_auditor; aligned the builder oracle
 with §36's descriptor ranking and actual-operation counters
 Approved-by: user
 Approved-at: 2026-09-28
 Decision scope: deterministic logical-counter and per-lane capacity evidence for the approved no-numeric-cap F5c policy, including a narrowly gated yu-types observation feature needed to report its private physical lanes
 Authority: `notes/design/2026-09-21-f5-general-function-scheme-foundation-draft.md` §§26, 34, 36; `notes/design/2026-09-22-f5b-terminal-finish-evidence-boundary-addendum.md`; `notes/design/2026-09-28-f5c-no-numeric-resource-caps-addendum.md` §§3–4; `rules/performance.md`; existing closed capture plans dated 2026-09-27 and 2026-09-28
-No probe, measurement, or test for this plan has run.
+One authorized preflight command ran on 2026-09-28. It exited 101 during compilation after 6.74 seconds, before the ignored test started; none of the seven builders ran and no matrix row was emitted. The captured log is `/tmp/f5c-resource-matrix-preflight-20260928.IgVQld/command.log`. The run used rustc 1.95.0 and Cargo 1.95.0; sampled `MemAvailable` stayed above 28 GiB, and `/usr/bin/time -v` reported 602,316 KiB maximum RSS.
+
+The compile errors were a missing `Debug` implementation for the test-only
+observer field and two calls from `yu-solver` to a private `yu-types` summary
+method. A minimal repair replaced those calls with a checked fold over the
+summary's public fixed lanes and added a `Debug` implementation that reports
+only the lane count. Independent specification and performance delta reviews
+found no material issue. The repair has not been compiled or tested.
+
+The user approved the 38-process / 44-minute campaign extension on 2026-09-28.
+Its renewed preflight ran, compiled, and started the test, then exited 101
+after 12.67 seconds at the per-lane retained-byte reconciliation
+(`retained_bytes=10240`, `actual_capacity * slot_size=0`). The captured log is
+`/tmp/f5c-resource-matrix-renewed-preflight-20260928.LtvNks/command.log`.
+`MemAvailable` stayed above 27 GiB and `/usr/bin/time -v` reported 851,768 KiB
+maximum RSS. No matrix row ran.
+
+The observer was deriving slot size from each independent lane's recorded
+`peak_bytes / peak_capacity`. Static review found that the term,
+instantiation, and three source lanes did not retain peak capacity; recursive
+bounds also needed their simultaneous reserve-event peak. Those lanes and
+events now retain the required witnesses. Independent spec and performance
+delta reviews found the repair exact and bounded. It has not been compiled or
+tested.
+
+The user then approved one more 60-second preflight, bringing the campaign
+maximum to 39 process invocations and 45 nominal timeout minutes, with the
+36-row matrix conditional on a passing, reviewed preflight. That third
+preflight compiled and ran for 6 seconds wall time, then failed at
+`InferenceSession::observe_f5c_matrix` (`lib.rs:15251`): the component-memo
+lane observer reported 48 retained bytes while the independent ledger reported
+0. The log is
+`/tmp/f5c-resource-matrix-final-preflight-20260928.opHAdw/command.log`.
+Maximum RSS was 752,724 KiB; minimum sampled `MemAvailable` was 29,018,308 KiB.
+No matrix row ran. The approved campaign's preflight gate failed, so no row is
+authorized under that campaign and the no-retry condition is in force.
+
+Read-only root-cause review found a capture-timing bug: the flat path samples
+AllDrafts while the memo's physical lanes are still live, after the public
+counter and independent ledger have been set to zero, but before transaction
+commit and `memo.clear()`. The 48-byte mismatch is therefore observer timing,
+not evidence of a wrong lane formula or production retained-byte counter. The
+ownership-correct repair is to sample after commit and actual memo clear,
+recording zero current bytes while preserving prior peak and growth data;
+failure rollback remains accounted on its existing branch. No process has run
+after this review.
+
+An independent authority audit found a separate plan defect. F5 §34 defines
+`guarded_cycle(D,K)` as D roots entering distinct rotations of one K-Function
+cycle, requiring `D <= K`; the prior D series fixed K=8 for D=1,000/2,000/4,000
+and therefore repeated positions. Keep the dimension values and vary only K:
+use K=4,000 as the D-series companion, and retain D=8 as the K-series
+companion. This makes the required uncacheable-state counts 8M/16M/32M, which
+is 500 times the old D-series counts. The performance audit found the old
+30/60/120-second row timeouts do not establish feasibility for the corrected
+workload; source analysis cannot derive reliable completion time or peak bytes.
+An implementation delta now samples AllDrafts only after batch commit and
+actual memo clear; the observer, public current counters, and independent ledger
+then report zero current bytes while retaining prior lane peaks/growths. The
+guarded-cycle fixture now asserts D<=K and maps each root to a distinct
+`cycle[index]`. Static spec review is clean; no post-repair command has run.
+
+A further performance audit found that `family_peak` currently uses only the
+maximum sum of current lane bytes at named boundary snapshots. This can miss
+same-time growth-event peaks for the memo, closed finalizer scratch/indexed
+lanes, and closed normalization index. Generalization scratch has no single
+same-time eight-family peak source. Per-lane historical maxima cannot be summed
+because their peaks may not overlap. An ownership-level event reconciliation
+is required for every family before the output can claim high-water peaks.
+Before any diagnostic, finish and review this family-by-family accounting, add
+a dedicated corrected-K diagnostic (the performance review recommends
+D=32,K=4,000; 256,000 uncacheable states), and review its process/time and
+host-memory protocol. The old approvals do not cover the changed tuples or
+additional process.
 
 ## Purpose and exclusions
 
@@ -54,7 +135,7 @@ Allocate solver observer storage before the measured solve, update both
 observers without per-event allocation, and disable the flat path's growing
 `boundary_order` history for matrix runs. Do not use
 `F5cCandidateCapture`'s 64-row log. This measurement-only feature does not
-change the approved 37-process campaign or enable production cutover.
+change the seven-builder, 12-series matrix or enable production cutover.
 
 ## Authority mapping and exact run matrix
 
@@ -68,9 +149,11 @@ separate §34 families.
 F5 §34 says to vary D, K, M, or U one named dimension at a time at 1k/2k/4k.
 For each two-parameter builder, this plan measures both named dimensions in
 separate isolated processes. The companion dimension stays fixed at 8 for
-graph/normalization builders and 1,000 for the arena-factorization builder.
-No companion dimension changes within a series. Thus the full matrix contains
-12 one-dimension series and 36 independent measured processes.
+acyclic and normalization builders and 1,000 for the arena-factorization
+builder. For `guarded_cycle`, the D series fixes K=4,000 to satisfy the
+distinct-rotation requirement, and the K series fixes D=8. No companion
+dimension changes within a series. Thus the full matrix contains 12
+one-dimension series and 36 independent measured processes.
 
 | §34 builder / §26 family | Dimension series | Fixed companion | Required cases |
 | --- | --- | --- | --- |
@@ -78,7 +161,7 @@ No companion dimension changes within a series. Thus the full matrix contains
 | `identity_aliases(U)` / alias-use | `U` | one identity | `U = 1,000; 2,000; 4,000` |
 | `shared_acyclic(D,K)` / shared-graph | `D`; `K` | `K=8`; `D=8` | each varied dimension = `1,000; 2,000; 4,000` |
 | `independent_acyclic(D,K)` | `D`; `K` | `K=8`; `D=8` | each varied dimension = `1,000; 2,000; 4,000` |
-| `guarded_cycle(D,K)` | `D`; `K` | `K=8`; `D=8` | each varied dimension = `1,000; 2,000; 4,000` |
+| `guarded_cycle(D,K)` | `D`; `K` | `K=4,000`; `D=8` | each varied dimension = `1,000; 2,000; 4,000` |
 | `normalization(D,K)` | `D`; `K` | `K=8`; `D=8` | each varied dimension = `1,000; 2,000; 4,000` |
 | `arena_factor(M,U)` / arena-factorization | `M`; `U` | `U=1,000`; `M=1,000` | each varied dimension = `1,000; 2,000; 4,000` |
 
@@ -102,7 +185,9 @@ the physical record:
 - `independent_acyclic(D,K)`: raw states and summary admissions are `2DK`;
   shared summary hits are zero.
 - `guarded_cycle(D,K)`: recursive binder writes are `D`; cyclic-cone summary
-  admissions are zero; uncacheable states are `2DK`.
+  admissions are zero; uncacheable states are `2DK`. Assert `D <= K` and
+  injective root-to-cycle-rotation assignment, as required by the §34
+  constructor.
 - `normalization(D,K)`: normalized-key writes are `D(K+1)`; §36 descriptor
   ranking performs zero hash probes/admissions/duplicates. The independent
   integer-descriptor oracle predicts the two remaining counters separately:
@@ -184,8 +269,9 @@ must validate the environment tuple against the 1k/2k/4k table above,
 including the literal `none` companion for the first two rows, and reject
 unknown/missing values.
 
-Command template for one matrix row (`TIMEOUT` is 30, 60, or 120 seconds for
-sizes 1,000, 2,000, or 4,000 respectively):
+Historical command template for one matrix row (the previous 30/60/120-second
+timeouts are **not execution authority** and are not established for the
+corrected `guarded_cycle` D series):
 
 ```text
 timeout --signal=TERM --kill-after=10s TIMEOUT /usr/bin/time -v env RUSTC_WRAPPER= F5C_RESOURCE_MATRIX_FAMILY=FAMILY F5C_RESOURCE_MATRIX_DIMENSION=DIMENSION F5C_RESOURCE_MATRIX_SIZE=SIZE F5C_RESOURCE_MATRIX_COMPANION=COMPANION cargo test -p yu-solver --lib --features f5c_resource_probe f5c_resource_matrix_case --offline -j 2 -- --ignored --nocapture --test-threads=1
@@ -195,23 +281,28 @@ Set `COMPANION=none` for `independent_identities` and `identity_aliases`; use
 the numeric fixed companion shown in the table for every other row. A
 successful, reviewed preflight result is required before the matrix runs.
 
-Run the preflight and matrix processes strictly serially and isolated. After
-the preflight, run one process for each of the 36 tuples in the table, with no
-retry or extra dimension. The preflight budget is 1 process/60 seconds; the
-matrix has 36 processes/42 minutes nominal timeout sum. The complete campaign
-is 37 processes/43 minutes nominal. Harness startup is inside each timeout;
-because the first timeout stops the campaign, at most one additional 10-second
-kill grace applies. This one complete campaign exceeds both the
-ordinary 8-process/10-minute budget and the distinct 16-process/20-minute
-user-approval threshold in `rules/performance.md`. Before the preflight or any
-matrix run, record independent spec/performance plan review, written
-performance-auditor justification, primary approval, and explicit user
-approval for the full 37-process/43-minute nominal campaign. The user approved
-the full campaign on 2026-09-28. That approval authorizes the
-1-process/60-second preflight first and conditionally authorizes the remaining
-36-process/42-minute matrix only after the preflight passes and its result is
-reviewed. Approval of the no-cap design alone did not approve this experiment
-budget.
+The original 37-process campaign, its 38-process extension, and the approved
+39-process extension have all stopped at preflight; the last preflight failed
+as recorded above. The conditional 36 matrix rows did not run. Those
+campaign-specific approvals authorize no further process. The user's standing
+autonomous-completion instruction authorizes the work to continue and budgets
+to expand without another approval pause. First finish and review the
+AllDrafts/memo-clear observation, injective guarded-cycle fixture, and all-
+family owner-event gate; then write and independently review a new diagnostic
+plan at the corrected K=4,000 companion, with memory monitoring, an exact
+process/time budget, and stop conditions. Run it under the user's existing
+authorization after those gates close. Do not reuse the historical timeout
+template or process budget without that review.
+
+Harness startup is inside each timeout; any timeout stops the campaign, with
+at most one additional 10-second kill grace. The original 37-process campaign
+exceeded both the ordinary 8-process/10-minute budget and the distinct
+16-process/20-minute approval threshold in `rules/performance.md`; each revised
+process budget still needs recorded spec/performance review, written
+performance-auditor justification, and primary approval. The user's standing
+autonomous-completion authorization covers execution after those review gates;
+do not request a second approval. Approval of the no-cap design alone did not
+approve the original experiment budget.
 
 Written performance-auditor justification (2026-09-28): F5 §§26/34 require
 dimension-specific exact-counter and physical-lane evidence at three sizes;
@@ -219,9 +310,17 @@ single-size or aggregated runs cannot establish the prescribed adjacent
 ratios or expose work multiplication as each named dimension grows. The
 exhausted §15 captures do not contain these seven builders. This campaign
 collects deterministic counts and capacity observations only, with no timing
-repetitions. The primary approves the full campaign conditionally on explicit
-user approval; the approval was given on 2026-09-28. No process is authorized
-before the test-only harness is implemented and reviewed.
+repetitions. The primary approved the original campaign conditionally on
+explicit user approval, which was given on 2026-09-28. The test-only harness
+was implemented and reviewed before the first authorized preflight.
+
+Written performance-auditor justification for the final preflight extension
+(2026-09-28): the second preflight reached the test but failed on a missing
+per-lane slot-size witness. One further 60-second preflight was reviewed as the
+smallest executable check of its static repair; the user approved it. That
+process ran and failed on the distinct precommit AllDrafts capture-timing bug.
+The no-retry condition closed that campaign. It does not justify a retry of
+the new repair or the materially larger corrected guarded-cycle workload.
 
 Prior whole-process maxima were 556,296 KiB for the §15 scale capture and
 647,412 KiB for the failure capture, including build. At plan preparation,

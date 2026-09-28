@@ -6,11 +6,13 @@ use super::f5c_generalization::{F5cBulkDrainSite, record_bulk_drain_boundary};
 use super::{
     DraftHeapMeter, F5cComponentExpansionMemo, F5cGeneralizer, F5cNegative, F5cNegativeEffect,
     F5cPositive, F5cPositiveEffect, F5cSummaryNodeId, F5cWalkValue, F5cWalkerLaneKind, Polarity,
-    SolveAvailabilityError, TrackedOne, TrackedVec,
+    PhysicalOwnerKind, SolveAvailabilityError, TrackedOne, TrackedVec,
 };
 #[cfg(test)]
 use super::{test_tracked, test_tracked_one};
 use std::collections::HashMap;
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+use super::f5c_draft_heap::RawWalkerOwner;
 
 #[derive(Clone, Copy)]
 pub(super) enum FlatTask {
@@ -264,6 +266,8 @@ pub(super) fn materialize_summary_flat(
         draft.negative_children.truncate(checkpoint.3);
         draft.recursive_bounds.truncate(checkpoint.4);
         draft.insertion_order.truncate(checkpoint.5);
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        draft.sync_owners();
         draft.restore_structural_census(checkpoint.6);
     }
     result
@@ -273,6 +277,8 @@ pub(super) fn materialize_summary_flat(
 #[allow(dead_code)]
 pub(super) fn materialize_summary_flat_checked(
     memo: &mut F5cComponentExpansionMemo,
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    probe_meter: Option<&DraftHeapMeter>,
     draft: &mut FlatDraft,
     root: F5cSummaryNodeId,
     polarity: Polarity,
@@ -293,6 +299,30 @@ pub(super) fn materialize_summary_flat_checked(
         draft.insertion_order.len(),
         draft.structural_census()?.1,
     );
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    let mut tasks_owner = probe_meter.map(|meter| RawWalkerOwner::new(meter,
+        F5cWalkerLaneKind::FlatMaterializeTasks as usize,
+        F5cWalkerLaneKind::FlatMaterializeTasks.slot_size()));
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    let mut values_owner = probe_meter.map(|meter| RawWalkerOwner::new(meter,
+        F5cWalkerLaneKind::FlatMaterializeValues as usize,
+        F5cWalkerLaneKind::FlatMaterializeValues.slot_size()));
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    macro_rules! observe_tasks {
+        ($requested:expr, $capacity:expr) => {
+            if let Some(owner) = tasks_owner.as_mut() {
+                owner.observe($requested, $capacity);
+            }
+        };
+    }
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    macro_rules! observe_values {
+        ($requested:expr, $capacity:expr) => {
+            if let Some(owner) = values_owner.as_mut() {
+                owner.observe($requested, $capacity);
+            }
+        };
+    }
     let mut tasks = Vec::new();
     let mut values: Vec<NodeRef> = Vec::new();
     let result = (|| {
@@ -301,7 +331,37 @@ pub(super) fn materialize_summary_flat_checked(
             ($buffer:expr, $lane:expr, $n:expr) => {{
                 let n = $n;
                 let bytes = memo.retained_bytes()?;
-                memo.walker_resources.reserve($buffer, $lane, n, bytes)?;
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                let old_capacity = ($buffer).capacity();
+                let reservation = memo.walker_resources.reserve($buffer, $lane, n, bytes);
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                {
+                    if $lane as usize == F5cWalkerLaneKind::FlatMaterializeTasks as usize {
+                        observe_tasks!(tasks.len(), tasks.capacity());
+                    } else if $lane as usize == F5cWalkerLaneKind::FlatMaterializeValues as usize {
+                        observe_values!(values.len(), values.capacity());
+                    } else {
+                        let lane = $lane as usize;
+                        let index = match lane {
+                            x if x == F5cWalkerLaneKind::DraftPositiveNodes as usize => 0,
+                            x if x == F5cWalkerLaneKind::DraftNegativeNodes as usize => 1,
+                            x if x == F5cWalkerLaneKind::DraftPositiveChildren as usize => 2,
+                            x if x == F5cWalkerLaneKind::DraftNegativeChildren as usize => 3,
+                            x if x == F5cWalkerLaneKind::DraftRecursiveBounds as usize => 4,
+                            _ => 5,
+                        };
+                        let requested = match index {
+                            0 => draft.positive_nodes.len(), 1 => draft.negative_nodes.len(),
+                            2 => draft.positive_children.len(), 3 => draft.negative_children.len(),
+                            4 => draft.recursive_bounds.len(), _ => draft.insertion_order.len(),
+                        }.saturating_add(n);
+                        draft.observe_owner(index, requested);
+                    }
+                }
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                memo.observe_walker_capacity_change_with_source(
+                    probe_meter, old_capacity, ($buffer).capacity())?;
+                reservation?;
             }};
         }
         macro_rules! task {
@@ -309,16 +369,36 @@ pub(super) fn materialize_summary_flat_checked(
                 memo.work_meter.charge(1)?;
                 reserve!(&mut tasks, F5cWalkerLaneKind::FlatMaterializeTasks, 1);
                 tasks.push($value);
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                observe_tasks!(tasks.len(), tasks.capacity());
             }};
         }
         macro_rules! value {
             ($value:expr) => {{
                 reserve!(&mut values, F5cWalkerLaneKind::FlatMaterializeValues, 1);
                 values.push($value);
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                observe_values!(values.len(), values.capacity());
+            }};
+        }
+        macro_rules! pop_task {
+            () => {{
+                let popped = tasks.pop();
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                observe_tasks!(tasks.len(), tasks.capacity());
+                popped
+            }};
+        }
+        macro_rules! pop_value {
+            () => {{
+                let popped = values.pop();
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                observe_values!(values.len(), values.capacity());
+                popped
             }};
         }
         task!(FlatTask::Enter(root, polarity));
-        while let Some(task) = tasks.pop() {
+        while let Some(task) = pop_task!() {
             memo.work_meter.charge(1)?;
             match task {
                 FlatTask::Enter(id, expected) => {
@@ -516,7 +596,12 @@ pub(super) fn materialize_summary_flat_checked(
                         count,
                     );
                     memo.work_meter.charge(count)?;
-                    for item in values.drain(start..) {
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    let values_capacity = values.capacity();
+                    let drained = values.drain(start..);
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    observe_values!(start, values_capacity);
+                    for item in drained {
                         let NodeRef::Positive(child) = item else {
                             return Err(bad);
                         };
@@ -559,7 +644,12 @@ pub(super) fn materialize_summary_flat_checked(
                         count,
                     );
                     memo.work_meter.charge(count)?;
-                    for item in values.drain(start..) {
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    let values_capacity = values.capacity();
+                    let drained = values.drain(start..);
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    observe_values!(start, values_capacity);
+                    for item in drained {
                         let NodeRef::Negative(child) = item else {
                             return Err(bad);
                         };
@@ -582,10 +672,10 @@ pub(super) fn materialize_summary_flat_checked(
                     ));
                 }
                 FlatTask::PositiveFunction => {
-                    let NodeRef::Positive(result) = values.pop().ok_or(bad)? else {
+                    let NodeRef::Positive(result) = pop_value!().ok_or(bad)? else {
                         return Err(bad);
                     };
-                    let NodeRef::Negative(argument) = values.pop().ok_or(bad)? else {
+                    let NodeRef::Negative(argument) = pop_value!().ok_or(bad)? else {
                         return Err(bad);
                     };
                     draft.admit_positive_node(PositiveNode::Function { argument, result })?;
@@ -605,10 +695,10 @@ pub(super) fn materialize_summary_flat_checked(
                     ));
                 }
                 FlatTask::NegativeFunction => {
-                    let NodeRef::Negative(result) = values.pop().ok_or(bad)? else {
+                    let NodeRef::Negative(result) = pop_value!().ok_or(bad)? else {
                         return Err(bad);
                     };
-                    let NodeRef::Positive(argument) = values.pop().ok_or(bad)? else {
+                    let NodeRef::Positive(argument) = pop_value!().ok_or(bad)? else {
                         return Err(bad);
                     };
                     draft.admit_negative_node(NegativeNode::Function { argument, result })?;
@@ -664,12 +754,28 @@ pub(super) fn materialize_summary_flat_checked(
         if values.len() != 1 {
             return Err(bad);
         }
-        values.pop().ok_or(bad)
+        pop_value!().ok_or(bad)
     })();
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    let had_scratch_capacity = tasks.capacity() != 0 || values.capacity() != 0;
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    {
+        drop(tasks);
+        drop(values);
+        drop(tasks_owner);
+        drop(values_owner);
+    }
     memo.walker_resources
         .release(F5cWalkerLaneKind::FlatMaterializeTasks);
     memo.walker_resources
         .release(F5cWalkerLaneKind::FlatMaterializeValues);
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    let sample = if had_scratch_capacity {
+        probe_meter.map(|meter| memo.observe_walker_with_source(meter))
+            .transpose().map(|_| ())
+    } else {
+        Ok(())
+    };
     if result.is_err() {
         draft.positive_nodes.truncate(checkpoint.0);
         draft.negative_nodes.truncate(checkpoint.1);
@@ -677,8 +783,12 @@ pub(super) fn materialize_summary_flat_checked(
         draft.negative_children.truncate(checkpoint.3);
         draft.recursive_bounds.truncate(checkpoint.4);
         draft.insertion_order.truncate(checkpoint.5);
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        draft.sync_owners();
         draft.restore_structural_census(checkpoint.6);
     }
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    sample?;
     result
 }
 
@@ -707,28 +817,63 @@ pub(super) fn materialize_iterative<'meter>(
         Polarity,
     ) -> Result<F5cWalkValue<'meter>, SolveAvailabilityError>,
 ) -> Result<F5cWalkValue<'meter>, SolveAvailabilityError> {
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    let mut tasks_owner = RawWalkerOwner::new(source_meter,
+        F5cWalkerLaneKind::DraftMaterializeTasks as usize,
+        F5cWalkerLaneKind::DraftMaterializeTasks.slot_size());
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    let mut values_owner = RawWalkerOwner::new(source_meter,
+        F5cWalkerLaneKind::DraftMaterializeValues as usize,
+        F5cWalkerLaneKind::DraftMaterializeValues.slot_size());
     let mut tasks = Vec::new();
     let mut values = Vec::new();
     macro_rules! push_task {
         ($task:expr) => {{
             memo.work_meter.charge(1)?; // scheduled draft-materialization task
-            memo.reserve_walker_with_source(
+            let reservation = memo.reserve_walker_with_source(
                 &mut tasks,
                 F5cWalkerLaneKind::DraftMaterializeTasks,
                 source_meter,
-            )?;
+            );
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            tasks_owner.observe(tasks.len(), tasks.capacity());
+            reservation?;
             tasks.push($task);
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            tasks_owner.observe(tasks.len(), tasks.capacity());
         }};
     }
     macro_rules! push_value {
         ($value:expr) => {{
             memo.work_meter.charge(1)?; // emitted boxed value
-            memo.reserve_walker_with_source(
+            let reservation = memo.reserve_walker_with_source(
                 &mut values,
                 F5cWalkerLaneKind::DraftMaterializeValues,
                 source_meter,
-            )?;
+            );
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            values_owner.observe(values.len(), values.capacity());
+            reservation?;
             values.push($value);
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            values_owner.observe(values.len(), values.capacity());
+        }};
+    }
+
+    macro_rules! pop_task {
+        () => {{
+            let popped = tasks.pop();
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            tasks_owner.observe(tasks.len(), tasks.capacity());
+            popped
+        }};
+    }
+    macro_rules! pop_value {
+        () => {{
+            let popped = values.pop();
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            values_owner.observe(values.len(), values.capacity());
+            popped
         }};
     }
 
@@ -736,7 +881,7 @@ pub(super) fn materialize_iterative<'meter>(
         push_task!(first);
         while !tasks.is_empty() {
             memo.work_meter.charge(1)?; // visited source or finish task
-            let task = tasks.pop().expect("nonempty materialization tasks");
+            let task = pop_task!().expect("nonempty materialization tasks");
             match task {
                 Task::Positive(value) => match value {
                     F5cPositive::Shared(id) => {
@@ -809,13 +954,19 @@ pub(super) fn materialize_iterative<'meter>(
                         &memo.work_meter,
                         count,
                     );
-                    let mut children = TrackedVec::new(source_meter);
+                    let mut children = TrackedVec::new_with_kind(
+                        source_meter, PhysicalOwnerKind::UnionChildren);
                     memo.work_meter.charge(count)?;
                     memo.observe_component_external(source_meter)?;
                     children
                         .try_reserve_exact(count)
                         .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
-                    for value in values.drain(start..) {
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    let values_capacity = values.capacity();
+                    let drained = values.drain(start..);
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    values_owner.observe(start, values_capacity);
+                    for value in drained {
                         let F5cWalkValue::Positive(value, _) = value else {
                             return Err(SolveAvailabilityError::IdentityExhausted);
                         };
@@ -836,13 +987,19 @@ pub(super) fn materialize_iterative<'meter>(
                         &memo.work_meter,
                         count,
                     );
-                    let mut children = TrackedVec::new(source_meter);
+                    let mut children = TrackedVec::new_with_kind(
+                        source_meter, PhysicalOwnerKind::IntersectionChildren);
                     memo.work_meter.charge(count)?;
                     memo.observe_component_external(source_meter)?;
                     children
                         .try_reserve_exact(count)
                         .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
-                    for value in values.drain(start..) {
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    let values_capacity = values.capacity();
+                    let drained = values.drain(start..);
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    values_owner.observe(start, values_capacity);
+                    for value in drained {
                         let F5cWalkValue::Negative(value, _) = value else {
                             return Err(SolveAvailabilityError::IdentityExhausted);
                         };
@@ -857,25 +1014,25 @@ pub(super) fn materialize_iterative<'meter>(
                     argument_effect,
                     result_effect,
                 } => {
-                    let F5cWalkValue::Positive(result, _) = values
-                        .pop()
+                    let F5cWalkValue::Positive(result, _) = pop_value!()
                         .ok_or(SolveAvailabilityError::IdentityExhausted)?
                     else {
                         return Err(SolveAvailabilityError::IdentityExhausted);
                     };
-                    let F5cWalkValue::Negative(argument, _) = values
-                        .pop()
+                    let F5cWalkValue::Negative(argument, _) = pop_value!()
                         .ok_or(SolveAvailabilityError::IdentityExhausted)?
                     else {
                         return Err(SolveAvailabilityError::IdentityExhausted);
                     };
                     push_value!(F5cWalkValue::Positive(
                         F5cPositive::Function {
-                            argument: TrackedOne::try_new(source_meter, argument)
+                            argument: TrackedOne::try_new_with_kind(source_meter, argument,
+                                PhysicalOwnerKind::PositiveFunctionArgument)
                                 .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
                             argument_effect,
                             result_effect,
-                            result: TrackedOne::try_new(source_meter, result)
+                            result: TrackedOne::try_new_with_kind(source_meter, result,
+                                PhysicalOwnerKind::PositiveFunctionResult)
                                 .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
                         },
                         true,
@@ -885,25 +1042,25 @@ pub(super) fn materialize_iterative<'meter>(
                     argument_effect,
                     result_effect,
                 } => {
-                    let F5cWalkValue::Negative(result, _) = values
-                        .pop()
+                    let F5cWalkValue::Negative(result, _) = pop_value!()
                         .ok_or(SolveAvailabilityError::IdentityExhausted)?
                     else {
                         return Err(SolveAvailabilityError::IdentityExhausted);
                     };
-                    let F5cWalkValue::Positive(argument, _) = values
-                        .pop()
+                    let F5cWalkValue::Positive(argument, _) = pop_value!()
                         .ok_or(SolveAvailabilityError::IdentityExhausted)?
                     else {
                         return Err(SolveAvailabilityError::IdentityExhausted);
                     };
                     push_value!(F5cWalkValue::Negative(
                         F5cNegative::Function {
-                            argument: TrackedOne::try_new(source_meter, argument)
+                            argument: TrackedOne::try_new_with_kind(source_meter, argument,
+                                PhysicalOwnerKind::NegativeFunctionArgument)
                                 .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
                             argument_effect,
                             result_effect,
-                            result: TrackedOne::try_new(source_meter, result)
+                            result: TrackedOne::try_new_with_kind(source_meter, result,
+                                PhysicalOwnerKind::NegativeFunctionResult)
                                 .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
                         },
                         true,
@@ -914,8 +1071,7 @@ pub(super) fn materialize_iterative<'meter>(
         if values.len() != 1 {
             return Err(SolveAvailabilityError::IdentityExhausted);
         }
-        values
-            .pop()
+        pop_value!()
             .ok_or(SolveAvailabilityError::IdentityExhausted)
     })();
     memo.release_walker_with_source(F5cWalkerLaneKind::DraftMaterializeTasks, source_meter)?;
@@ -1385,7 +1541,9 @@ mod flat_tests {
             let mut draft = FlatDraft::default();
             let root = F5cSummaryNodeId(1);
             let run = |memo: &mut F5cComponentExpansionMemo, draft: &mut FlatDraft| {
-                materialize_summary_flat_checked(memo, draft, root, polarity, |_, _, _, _| Ok(()))
+                materialize_summary_flat_checked(memo,
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    None, draft, root, polarity, |_, _, _, _| Ok(()))
             };
             run(&mut memo, &mut draft).unwrap();
             let (site, before_drain, count) =
@@ -1446,6 +1604,8 @@ mod flat_tests {
         assert!(
             materialize_summary_flat_checked(
                 &mut memo,
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                None,
                 &mut flat,
                 F5cSummaryNodeId(1),
                 Polarity::Positive,
@@ -1512,6 +1672,8 @@ mod flat_tests {
         let mut positive_marks = Vec::new();
         let positive = materialize_summary_flat_checked(
             &mut memo,
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            None,
             &mut flat,
             ids[4],
             Polarity::Positive,
@@ -1524,6 +1686,8 @@ mod flat_tests {
         let mut negative_marks = Vec::new();
         let negative = materialize_summary_flat_checked(
             &mut memo,
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            None,
             &mut flat,
             ids[5],
             Polarity::Negative,
@@ -1629,6 +1793,8 @@ mod flat_tests {
         let mut marks = Vec::new();
         let NodeRef::Positive(root) = materialize_summary_flat_checked(
             &mut memo,
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            None,
             &mut flat,
             union,
             Polarity::Positive,
@@ -1666,6 +1832,8 @@ mod flat_tests {
         let mut failed_after_inner_union = false;
         let err = materialize_summary_flat_checked(
             &mut memo,
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            None,
             &mut flat,
             outer,
             Polarity::Positive,
@@ -2247,6 +2415,8 @@ mod flat_tests {
         let mut flat_memo = F5cComponentExpansionMemo::default();
         let NodeRef::Positive(flat_predicate) = crate::f5c_replay::replay_flat(
             &mut flat_memo,
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            None,
             &source,
             NodeRef::Positive(predicate),
             &mut flat,
@@ -2285,6 +2455,8 @@ mod flat_tests {
         assert_ne!(intersection_children[0], intersection_children[3]);
         let NodeRef::Positive(flat_lower) = crate::f5c_replay::replay_flat(
             &mut flat_memo,
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            None,
             &source,
             NodeRef::Positive(lower),
             &mut flat,
@@ -2297,6 +2469,8 @@ mod flat_tests {
         };
         let NodeRef::Negative(flat_upper) = crate::f5c_replay::replay_flat(
             &mut flat_memo,
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            None,
             &source,
             NodeRef::Negative(upper),
             &mut flat,
@@ -2495,6 +2669,8 @@ mod flat_tests {
             flat_stats,
             crate::f5c_normalization::FlatNormalizationStats::from(&boxed_stats)
         );
-        crate::f5c_replay::release_flat_output(&mut flat_memo, flat);
+        crate::f5c_replay::release_flat_output(&mut flat_memo, flat,
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            None);
     }
 }

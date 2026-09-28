@@ -157,6 +157,8 @@ impl FlatSourceArena {
     pub(super) fn positive(
         &mut self,
         node: PositiveNode,
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        mut owner: Option<&mut RawWalkerOwner<'_>>,
         resources: &mut F5cWalkerResources,
         meter: &F5cDraftWorkMeter,
         memo_bytes: usize,
@@ -173,14 +175,23 @@ impl FlatSourceArena {
                 0
             },
         )?;
-        resources.reserve(
+        let reservation = resources.reserve(
             &mut self.positive_nodes,
             F5cWalkerLaneKind::SourcePositiveNodes,
             1,
             memo_bytes,
-        )?;
+        );
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        if let Some(owner) = owner.as_deref_mut() {
+            owner.observe(self.positive_nodes.len(), self.positive_nodes.capacity());
+        }
+        reservation?;
         meter.charge(1)?;
         self.positive_nodes.push(node);
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        if let Some(owner) = owner.as_deref_mut() {
+            owner.observe(self.positive_nodes.len(), self.positive_nodes.capacity());
+        }
         self.structural_incidences = incidences;
         Ok(PositiveRef::Local(id))
     }
@@ -188,6 +199,8 @@ impl FlatSourceArena {
     pub(super) fn negative(
         &mut self,
         node: NegativeNode,
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        mut owner: Option<&mut RawWalkerOwner<'_>>,
         resources: &mut F5cWalkerResources,
         meter: &F5cDraftWorkMeter,
         memo_bytes: usize,
@@ -204,14 +217,23 @@ impl FlatSourceArena {
                 0
             },
         )?;
-        resources.reserve(
+        let reservation = resources.reserve(
             &mut self.negative_nodes,
             F5cWalkerLaneKind::SourceNegativeNodes,
             1,
             memo_bytes,
-        )?;
+        );
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        if let Some(owner) = owner.as_deref_mut() {
+            owner.observe(self.negative_nodes.len(), self.negative_nodes.capacity());
+        }
+        reservation?;
         meter.charge(1)?;
         self.negative_nodes.push(node);
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        if let Some(owner) = owner.as_deref_mut() {
+            owner.observe(self.negative_nodes.len(), self.negative_nodes.capacity());
+        }
         self.structural_incidences = incidences;
         Ok(NegativeRef::Local(id))
     }
@@ -219,6 +241,10 @@ impl FlatSourceArena {
     pub(super) fn union(
         &mut self,
         children: &[PositiveRef],
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        mut node_owner: Option<&mut RawWalkerOwner<'_>>,
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        mut child_owner: Option<&mut RawWalkerOwner<'_>>,
         resources: &mut F5cWalkerResources,
         meter: &F5cDraftWorkMeter,
         memo_bytes: usize,
@@ -226,18 +252,29 @@ impl FlatSourceArena {
         let id = self.positive_id()?;
         let span = ChildSpan::checked(self.positive_children.len(), children.len())?;
         let incidences = checked_incidences(self.structural_incidences, children.len())?;
-        resources.reserve(
+        let node_reservation = resources.reserve(
             &mut self.positive_nodes,
             F5cWalkerLaneKind::SourcePositiveNodes,
             1,
             memo_bytes,
-        )?;
-        resources.reserve(
+        );
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        if let Some(owner) = node_owner.as_deref_mut() {
+            owner.observe(self.positive_nodes.len(), self.positive_nodes.capacity());
+        }
+        node_reservation?;
+        let child_reservation = resources.reserve(
             &mut self.positive_children,
             F5cWalkerLaneKind::SourcePositiveChildren,
             children.len(),
             memo_bytes,
-        )?;
+        );
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        if let Some(owner) = child_owner.as_deref_mut() {
+            owner.observe(self.positive_children.len(),
+                self.positive_children.capacity());
+        }
+        child_reservation?;
         meter.charge(
             children
                 .len()
@@ -245,7 +282,15 @@ impl FlatSourceArena {
                 .ok_or(SolveAvailabilityError::IdentityExhausted)?,
         )?;
         self.positive_children.extend_from_slice(children);
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        if let Some(owner) = child_owner.as_deref_mut() {
+            owner.observe(self.positive_children.len(), self.positive_children.capacity());
+        }
         self.positive_nodes.push(PositiveNode::Union(span));
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        if let Some(owner) = node_owner.as_deref_mut() {
+            owner.observe(self.positive_nodes.len(), self.positive_nodes.capacity());
+        }
         self.structural_incidences = incidences;
         Ok(PositiveRef::Local(id))
     }
@@ -253,6 +298,10 @@ impl FlatSourceArena {
     pub(super) fn intersection(
         &mut self,
         children: &[NegativeRef],
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        mut node_owner: Option<&mut RawWalkerOwner<'_>>,
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        mut child_owner: Option<&mut RawWalkerOwner<'_>>,
         resources: &mut F5cWalkerResources,
         meter: &F5cDraftWorkMeter,
         memo_bytes: usize,
@@ -260,18 +309,29 @@ impl FlatSourceArena {
         let id = self.negative_id()?;
         let span = ChildSpan::checked(self.negative_children.len(), children.len())?;
         let incidences = checked_incidences(self.structural_incidences, children.len())?;
-        resources.reserve(
+        let node_reservation = resources.reserve(
             &mut self.negative_nodes,
             F5cWalkerLaneKind::SourceNegativeNodes,
             1,
             memo_bytes,
-        )?;
-        resources.reserve(
+        );
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        if let Some(owner) = node_owner.as_deref_mut() {
+            owner.observe(self.negative_nodes.len(), self.negative_nodes.capacity());
+        }
+        node_reservation?;
+        let child_reservation = resources.reserve(
             &mut self.negative_children,
             F5cWalkerLaneKind::SourceNegativeChildren,
             children.len(),
             memo_bytes,
-        )?;
+        );
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        if let Some(owner) = child_owner.as_deref_mut() {
+            owner.observe(self.negative_children.len(),
+                self.negative_children.capacity());
+        }
+        child_reservation?;
         meter.charge(
             children
                 .len()
@@ -279,7 +339,15 @@ impl FlatSourceArena {
                 .ok_or(SolveAvailabilityError::IdentityExhausted)?,
         )?;
         self.negative_children.extend_from_slice(children);
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        if let Some(owner) = child_owner.as_deref_mut() {
+            owner.observe(self.negative_children.len(), self.negative_children.capacity());
+        }
         self.negative_nodes.push(NegativeNode::Intersection(span));
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        if let Some(owner) = node_owner.as_deref_mut() {
+            owner.observe(self.negative_nodes.len(), self.negative_nodes.capacity());
+        }
         self.structural_incidences = incidences;
         Ok(NegativeRef::Local(id))
     }
@@ -321,18 +389,30 @@ mod tests {
         let mut resources = F5cWalkerResources::default();
         let meter = F5cDraftWorkMeter::default();
         let positive = arena
-            .positive(PositiveNode::Int, &mut resources, &meter, 0)
+            .positive(PositiveNode::Int,
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                None, &mut resources, &meter, 0)
             .unwrap();
         let negative = arena
-            .negative(NegativeNode::Top, &mut resources, &meter, 0)
+            .negative(NegativeNode::Top,
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                None, &mut resources, &meter, 0)
             .unwrap();
         let shared_positive = PositiveRef::Shared(F5cSummaryNodeId(7));
         let shared_negative = NegativeRef::Shared(F5cSummaryNodeId(8));
         let union = arena
-            .union(&[shared_positive, positive], &mut resources, &meter, 0)
+            .union(&[shared_positive, positive],
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                None,
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                None, &mut resources, &meter, 0)
             .unwrap();
         let intersection = arena
-            .intersection(&[negative, shared_negative], &mut resources, &meter, 0)
+            .intersection(&[negative, shared_negative],
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                None,
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                None, &mut resources, &meter, 0)
             .unwrap();
         let positive_function = arena
             .positive(
@@ -342,6 +422,8 @@ mod tests {
                     result_effect: F5cPositiveEffect::Bottom,
                     result: union,
                 },
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                None,
                 &mut resources,
                 &meter,
                 0,
@@ -355,6 +437,8 @@ mod tests {
                     result_effect: F5cNegativeEffect::Empty,
                     result: intersection,
                 },
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                None,
                 &mut resources,
                 &meter,
                 0,
@@ -382,10 +466,18 @@ mod tests {
         let positive = PositiveRef::Shared(F5cSummaryNodeId(1));
         let negative = NegativeRef::Shared(F5cSummaryNodeId(2));
         arena
-            .union(&[positive, positive], &mut resources, &meter, 0)
+            .union(&[positive, positive],
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                None,
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                None, &mut resources, &meter, 0)
             .unwrap();
         arena
-            .intersection(&[negative, negative], &mut resources, &meter, 0)
+            .intersection(&[negative, negative],
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                None,
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                None, &mut resources, &meter, 0)
             .unwrap();
         assert_eq!(arena.structural_incidences, 4);
     }
@@ -398,7 +490,11 @@ mod tests {
         arena.structural_incidences = usize::MAX;
         let positive = PositiveRef::Shared(F5cSummaryNodeId(1));
         assert!(matches!(
-            arena.union(&[positive], &mut resources, &meter, 0),
+            arena.union(&[positive],
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                None,
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                None, &mut resources, &meter, 0),
             Err(SolveAvailabilityError::IdentityExhausted)
         ));
         assert!(matches!(
@@ -409,6 +505,8 @@ mod tests {
                     result_effect: F5cPositiveEffect::Bottom,
                     result: positive,
                 },
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                None,
                 &mut resources,
                 &meter,
                 0,
@@ -434,6 +532,10 @@ mod tests {
             arena
                 .union(
                     &[PositiveRef::Shared(F5cSummaryNodeId(1))],
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                None,
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                None,
                     &mut resources,
                     &meter,
                     19
@@ -460,14 +562,26 @@ mod tests {
         let meter = F5cDraftWorkMeter::default();
         let checkpoint = arena.checkpoint();
         let positive = arena
-            .positive(PositiveNode::Bottom, &mut resources, &meter, 0)
+            .positive(PositiveNode::Bottom,
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                None, &mut resources, &meter, 0)
             .unwrap();
         let negative = arena
-            .negative(NegativeNode::Bottom, &mut resources, &meter, 0)
+            .negative(NegativeNode::Bottom,
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                None, &mut resources, &meter, 0)
             .unwrap();
-        arena.union(&[positive], &mut resources, &meter, 0).unwrap();
+        arena.union(&[positive],
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                None,
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                None, &mut resources, &meter, 0).unwrap();
         arena
-            .intersection(&[negative], &mut resources, &meter, 0)
+            .intersection(&[negative],
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                None,
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                None, &mut resources, &meter, 0)
             .unwrap();
         assert_eq!(arena.structural_incidences, 2);
         arena.rollback(checkpoint);
@@ -489,6 +603,10 @@ mod tests {
             arena
                 .union(
                     &[PositiveRef::Shared(F5cSummaryNodeId(1))],
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                None,
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                None,
                     &mut resources,
                     &meter,
                     0,

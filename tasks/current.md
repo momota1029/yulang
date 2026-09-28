@@ -4,6 +4,24 @@ Updated: 2026-09-28. Branch: `yulang3`; do not modify frozen `main`.
 
 Resume handoff: [`2026-09-22 F5c scheme-closure handoff`](../notes/handoffs/2026-09-22-f5c-scheme-closure-handoff.md).
 
+### Latest continuation (2026-09-29): family-1 and family-6 owner events
+
+The family-1 live-variable event ledger and family-6 streaming owner handoff
+are implemented and independently reviewed. The exact paths, diff units,
+findings, focused checks, and remaining limits are recorded in
+[`F5c family-1 and family-6 event checkpoint`](../notes/progress/f5c-family1-family6-events-checkpoint-2026-09-29.md).
+The initial family-6 audit found same-time double counting during adoption
+and release-before-buffer-drop error paths; both were fixed and delta-reviewed.
+The family-aware checker now folds families 1 and 6, including repeated
+family-6 checkpoints and the family-1 terminal release suffix.
+
+No matrix, preflight, benchmark, or scale process ran. The all-eight-family
+gate remains open; family 3 structured-pair events are next. The shared event
+observer and family-6 call paths could not be split into a smaller verified
+commit from the current branch head, so this family-1/family-6 integration is
+one coherent checkpoint. The user asked for small coherent commits and prompt
+pushes; continue that cadence as each reviewable family slice closes.
+
 ### Latest continuation (2026-09-28): user authorized autonomous completion and budget expansion
 
 The user wants the complete F5c result and explicitly directed continuation
@@ -104,13 +122,14 @@ live-variable and structured-pair lifetimes and the missing occurrence events;
 the exact owner IDs, sink-open snapshots, nested-buffer releases, and
 terminal-live-owner requirements are in the linked map.
 
-The user has explicitly authorized continuing without further approval pauses,
-including extending time and memory budgets as the work requires. Next: implement
-family-1 live-variable owner events from the coverage map, then family-3
-structured-pair events and family-aware replay before revising the monitored
-K=4,000 diagnostic plan. The closed 39-process campaign remains stopped; any new
-run uses the fresh reviewed plan. The observer remains feature-gated, the
-64-row capture stays unused, and the prior §15 plans remain exhausted.
+At that checkpoint the next steps were family-1 live-variable owner events,
+then family-3 structured-pair events and family-aware replay. Family 1 and the
+shared family-6 event integration are now complete for the verified slice in
+the latest continuation above; family 3 remains next. The closed 39-process
+campaign remains stopped, the 64-row capture stays unused, and the prior §15
+plans remain exhausted. Any diagnostic or matrix work follows the corrected,
+reviewed plan and the user's standing instruction to continue without repeated
+approval pauses.
 
 The ordinary Function-ring source proof is closed for the exact successful
 recipe. The audit at

@@ -1,5 +1,186 @@
 use super::*;
-use super::f5c_draft_heap::PhysicalOwnerKind;
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+pub(super) struct ObservedWalkerSet<'meter, T> {
+    // Rust drops fields in declaration order, so the allocation goes away
+    // before its physical-owner release event is written.
+    values: HashSet<T>,
+    owner: Option<RawWalkerOwner<'meter>>,
+}
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+impl<'meter, T: Eq + std::hash::Hash> ObservedWalkerSet<'meter, T> {
+    fn new(meter: &'meter DraftHeapMeter, kind: F5cWalkerLaneKind) -> Self {
+        Self { values: HashSet::new(),
+            owner: Some(RawWalkerOwner::new(meter, kind as usize, kind.slot_size())) }
+    }
+
+    fn new_optional(meter: Option<&'meter DraftHeapMeter>, kind: F5cWalkerLaneKind) -> Self {
+        Self { values: HashSet::new(),
+            owner: meter.map(|meter| RawWalkerOwner::new(meter, kind as usize, kind.slot_size())) }
+    }
+
+    fn observe_capacity(&mut self, _requested: usize) {
+        if let Some(owner) = self.owner.as_mut() {
+            owner.observe(self.values.len(), self.values.capacity());
+        }
+    }
+
+    fn insert(&mut self, value: T) -> bool {
+        let inserted = self.values.insert(value);
+        self.observe_capacity(0);
+        inserted
+    }
+
+    fn clear(&mut self) {
+        self.values.clear();
+        self.observe_capacity(0);
+    }
+
+    fn retain(&mut self, f: impl FnMut(&T) -> bool) {
+        self.values.retain(f);
+        self.observe_capacity(0);
+    }
+
+}
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+impl<T> std::ops::Deref for ObservedWalkerSet<'_, T> {
+    type Target = HashSet<T>;
+    fn deref(&self) -> &Self::Target { &self.values }
+}
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+impl<T> std::ops::DerefMut for ObservedWalkerSet<'_, T> {
+    fn deref_mut(&mut self) -> &mut Self::Target { &mut self.values }
+}
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+impl<T: std::fmt::Debug> std::fmt::Debug for ObservedWalkerSet<'_, T> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.values.fmt(formatter)
+    }
+}
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+impl<T: Eq + std::hash::Hash> PartialEq<HashSet<T>> for ObservedWalkerSet<'_, T> {
+    fn eq(&self, other: &HashSet<T>) -> bool { self.values == *other }
+}
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+impl<T: Eq + std::hash::Hash> PartialEq<ObservedWalkerSet<'_, T>> for HashSet<T> {
+    fn eq(&self, other: &ObservedWalkerSet<'_, T>) -> bool { *self == other.values }
+}
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+impl<T: Eq + std::hash::Hash> PartialEq for ObservedWalkerSet<'_, T> {
+    fn eq(&self, other: &Self) -> bool { self.values == other.values }
+}
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+impl<T: Eq + std::hash::Hash> Eq for ObservedWalkerSet<'_, T> {}
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+impl<'a, T> IntoIterator for &'a ObservedWalkerSet<'_, T> {
+    type Item = &'a T;
+    type IntoIter = std::collections::hash_set::Iter<'a, T>;
+    fn into_iter(self) -> Self::IntoIter { self.values.iter() }
+}
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+type F5cObservedSet<'meter> = ObservedWalkerSet<'meter, u32>;
+#[cfg(not(all(test, feature = "f5c_resource_probe")))]
+type F5cObservedSet<'meter> = HashSet<u32>;
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+type F5cRawIncidenceSet<'meter> = ObservedWalkerSet<'meter, u32>;
+#[cfg(not(all(test, feature = "f5c_resource_probe")))]
+type F5cRawIncidenceSet<'meter> = HashSet<u32>;
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+pub(super) struct ObservedWalkerMap<'meter, K, V> {
+    values: HashMap<K, V>,
+    owner: Option<RawWalkerOwner<'meter>>,
+}
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+impl<'meter, K: Eq + std::hash::Hash, V> ObservedWalkerMap<'meter, K, V> {
+    fn new(meter: &'meter DraftHeapMeter, kind: F5cWalkerLaneKind) -> Self {
+        Self::new_optional(Some(meter), kind)
+    }
+
+    fn new_optional(meter: Option<&'meter DraftHeapMeter>, kind: F5cWalkerLaneKind) -> Self {
+        Self { values: HashMap::new(), owner: meter.map(|meter|
+            RawWalkerOwner::new(meter, kind as usize, kind.slot_size())) }
+    }
+
+    fn from_values(meter: Option<&'meter DraftHeapMeter>, kind: F5cWalkerLaneKind,
+        values: HashMap<K, V>) -> Self {
+        let mut result = Self { values, owner: meter.map(|meter|
+            RawWalkerOwner::new(meter, kind as usize, kind.slot_size())) };
+        result.observe_capacity(result.values.len());
+        result
+    }
+
+    fn observe_capacity(&mut self, _requested: usize) {
+        if let Some(owner) = self.owner.as_mut() {
+            owner.observe(self.values.len(), self.values.capacity());
+        }
+    }
+
+    fn insert(&mut self, key: K, value: V) -> Option<V> {
+        let old = self.values.insert(key, value);
+        self.observe_capacity(0);
+        old
+    }
+}
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+impl<K, V> std::ops::Deref for ObservedWalkerMap<'_, K, V> {
+    type Target = HashMap<K, V>;
+    fn deref(&self) -> &Self::Target { &self.values }
+}
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+impl<K, V> std::ops::DerefMut for ObservedWalkerMap<'_, K, V> {
+    fn deref_mut(&mut self) -> &mut Self::Target { &mut self.values }
+}
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+impl<K: std::fmt::Debug, V: std::fmt::Debug> std::fmt::Debug
+    for ObservedWalkerMap<'_, K, V> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.values.fmt(formatter)
+    }
+}
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+impl<K: Eq + std::hash::Hash, V: PartialEq> PartialEq<HashMap<K, V>>
+    for ObservedWalkerMap<'_, K, V> {
+    fn eq(&self, other: &HashMap<K, V>) -> bool { self.values == *other }
+}
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+impl<K: Eq + std::hash::Hash, V: PartialEq> PartialEq
+    for ObservedWalkerMap<'_, K, V> {
+    fn eq(&self, other: &Self) -> bool { self.values == other.values }
+}
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+impl<K: Eq + std::hash::Hash, V: Eq> Eq for ObservedWalkerMap<'_, K, V> {}
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+struct ObservedReentryMap<'meter> {
+    values: HashMap<u32, Vec<usize>>,
+    _map_owner: RawWalkerOwner<'meter>,
+    _index_owners: HashMap<u32, RawWalkerOwner<'meter>>,
+}
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+impl std::ops::Deref for ObservedReentryMap<'_> {
+    type Target = HashMap<u32, Vec<usize>>;
+    fn deref(&self) -> &Self::Target { &self.values }
+}
 
 fn classify_staged_buffers(
     allocations: &mut [TrackedAllocation<'_>; 6],
@@ -27,8 +208,6 @@ fn claim_flat_draft_batch<'meter>(
     capacities: [usize; 6],
     sizes: [usize; 6],
 ) -> Result<[TrackedAllocation<'meter>; 6], ()> {
-    #[cfg(all(test, feature = "f5c_resource_probe"))]
-    draft.sync_owners();
     let requested = staged_requested(draft);
     #[cfg(all(test, feature = "f5c_resource_probe"))]
     if let Some(owners) = draft.owners.as_mut() {
@@ -50,6 +229,7 @@ pub(super) struct PhysicalJoint {
     pub(super) source_nested_bytes: u128,
     pub(super) staged_source_current: u128,
     pub(super) peak: u128,
+    pub(super) source_walker_peak: u128,
     pub(super) aggregate_overflow: bool,
 }
 
@@ -95,6 +275,7 @@ impl Default for PhysicalJoint {
             source_nested_bytes: 0,
             staged_source_current: 0,
             peak: 0,
+            source_walker_peak: 0,
             aggregate_overflow: false,
         }
     }
@@ -125,6 +306,16 @@ impl PhysicalJoint {
     }
 
     fn pair(&mut self) {
+        let Some(source_walker) = self.source_current
+            .checked_add(self.staged_source_current)
+            .and_then(|sum| sum.checked_add(self.walker_current))
+        else {
+            self.aggregate_overflow = true;
+            self.source_walker_peak = u128::MAX;
+            self.peak = u128::MAX;
+            return;
+        };
+        self.source_walker_peak = self.source_walker_peak.max(source_walker);
         let Some(total) = self
             .source_current
             .checked_add(self.staged_source_current)
@@ -503,6 +694,18 @@ pub(super) struct F5cMemoLane {
     pub(super) requested_slots: usize,
     pub(super) peak_bytes: usize,
     pub(super) capacity_growths: usize,
+}
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+#[derive(Clone, Copy, Default)]
+pub(super) struct F5cMatrixMemoLane {
+    pub(super) requested_slots: usize,
+    pub(super) actual_capacity: usize,
+    pub(super) slot_size: usize,
+    pub(super) retained_bytes: usize,
+    pub(super) peak_bytes: usize,
+    pub(super) growths: usize,
+    pub(super) cleared: bool,
 }
 
 #[derive(Clone, Copy)]
@@ -1779,6 +1982,14 @@ impl F5cWalkerResources {
             .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
         #[cfg(test)]
         {
+            #[cfg(feature = "f5c_resource_probe")]
+            source_meter.observe_family6_walker(
+                usize::try_from(self.physical_joint.walker_current)
+                    .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
+                self.physical_joint.walker_capacities.iter().try_fold(0usize,
+                    |sum, capacity| sum.checked_add(usize::try_from(*capacity).ok()?))
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)?,
+            );
             let physical = usize::try_from(
                 self.physical_joint
                     .memo_current
@@ -1869,6 +2080,18 @@ pub(super) struct F5cComponentExpansionMemo {
     pub(super) scratch_lane: F5cMemoLane,
     pub(super) walker_resources: F5cWalkerResources,
     pub(super) generalizer_scratch_capacities: [usize; 4],
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    pub(super) matrix_active: bool,
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    pub(super) matrix_lanes: [F5cMatrixMemoLane; 20],
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    pub(super) matrix_generalizer_lengths: [usize; 4],
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    pub(super) matrix_peak_bytes: usize,
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    pub(super) matrix_group_peak_bytes: [usize; 5],
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    pub(super) matrix_group_peak_capacity: [usize; 5],
     pub(super) simultaneous_peak_bytes: usize,
     pub(super) observed_source_bytes: Option<usize>,
     pub(super) simultaneous_source_memo_peak_bytes: usize,
@@ -1897,14 +2120,27 @@ pub(super) struct F5cComponentExpansionMemo {
     pub(super) source_owner_current: u128,
     #[cfg(test)]
     pub(super) transfer_raw_staged_samples: Vec<(u128, u128, u128)>,
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    pub(super) matrix_transfer_raw_staged: Option<(u128, u128, u128)>,
     #[cfg(test)]
     pub(super) transfer_physical_samples: Vec<(u128, u128, u128, u128, u128)>,
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    pub(super) matrix_transfer_physical: Option<(u128, u128, u128, u128, u128)>,
     #[cfg(test)]
     pub(super) transfer_live_capacity_samples: Vec<([u128; 4], [usize; 20], [usize; 98], usize)>,
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    pub(super) matrix_transfer_live_capacity: Option<([u128; 4], [usize; 20], [usize; 98], usize)>,
     #[cfg(test)]
     pub(super) transfer_raw_capacity_samples: Vec<[usize; 9]>,
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    pub(super) matrix_transfer_raw_capacity: Option<[usize; 9]>,
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    pub(super) matrix_transfer_count: usize,
     #[cfg(test)]
     pub(super) flat_candidate_physical_peaks: Vec<f5c_normalization::FlatCandidatePhysicalPeak>,
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    pub(super) matrix_flat_candidate_peaks:
+        [Option<f5c_normalization::FlatCandidatePhysicalPeak>; 2],
     #[cfg(test)]
     pub(super) recursive_bound_reserves: Vec<(usize, usize, usize)>,
     #[cfg(test)]
@@ -1936,6 +2172,12 @@ pub(super) struct F5cComponentExpansionMemo {
 }
 
 impl F5cComponentExpansionMemo {
+    #[cfg(test)]
+    fn record_post_r_sample(&mut self, sample: (F5cWalkerLaneKind, usize, usize)) {
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        if self.matrix_active { return; }
+        self.post_r_temporary_live_samples.push(sample);
+    }
     #[cfg(test)]
     pub(super) fn live_capacity_snapshot(&self) -> [usize; 20] {
         [
@@ -1995,7 +2237,7 @@ impl F5cComponentExpansionMemo {
     }
 
     #[cfg(test)]
-    fn observe_physical_memo(&mut self) {
+    pub(super) fn observe_physical_memo(&mut self) {
         let capacities = [
             self.roots.capacity(),
             self.nodes.capacity(),
@@ -2040,6 +2282,46 @@ impl F5cComponentExpansionMemo {
             std::mem::size_of::<(u32, Polarity)>(),
             std::mem::size_of::<u32>(),
         ];
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        if self.matrix_active {
+            let lengths = [
+                self.roots.len(), self.nodes.len(), self.children.len(),
+                self.parent_heads.len(), self.reverse_parents.len(),
+                self.incidence_heads.len(), self.incidences.len(),
+                self.root_heads.len(), self.root_edges.len(),
+                self.root_edge_marks.len(), self.root_undo.len(),
+                self.active_rows.len(), self.active_conflicts.len(), self.work.len(),
+                self.conflict_journal.len(), self.visit_epochs.len(),
+                self.matrix_generalizer_lengths[0], self.matrix_generalizer_lengths[1],
+                self.matrix_generalizer_lengths[2], self.matrix_generalizer_lengths[3],
+            ];
+            let mut total = 0usize;
+            for (index, lane) in self.matrix_lanes.iter_mut().enumerate() {
+                let capacity = capacities[index];
+                let bytes = capacity.checked_mul(sizes[index]).expect("matrix memo lane bytes");
+                if capacity > lane.actual_capacity { lane.growths += 1; }
+                if capacity < lane.actual_capacity ||
+                    (lengths[index] == 0 && lane.requested_slots > 0) { lane.cleared = true; }
+                lane.requested_slots = lengths[index];
+                lane.actual_capacity = capacity;
+                lane.slot_size = sizes[index];
+                lane.retained_bytes = bytes;
+                lane.peak_bytes = lane.peak_bytes.max(bytes);
+                total = total.checked_add(bytes).expect("matrix memo bytes");
+            }
+            self.matrix_peak_bytes = self.matrix_peak_bytes.max(total);
+            for (group, range) in [0..1, 1..2, 2..3, 3..11, 11..20].into_iter().enumerate() {
+                let capacity = capacities[range.clone()].iter().try_fold(0usize,
+                    |sum, value| sum.checked_add(*value)).expect("matrix group capacity");
+                let bytes = capacities[range.clone()].iter().zip(&sizes[range])
+                    .try_fold(0usize, |sum, (capacity, size)|
+                        capacity.checked_mul(*size).and_then(|value| sum.checked_add(value)))
+                    .expect("matrix group bytes");
+                self.matrix_group_peak_capacity[group] =
+                    self.matrix_group_peak_capacity[group].max(capacity);
+                self.matrix_group_peak_bytes[group] = self.matrix_group_peak_bytes[group].max(bytes);
+            }
+        }
         self.walker_resources.physical_joint.memo_current = PhysicalJoint::sum_products(
             capacities
                 .into_iter()
@@ -2175,6 +2457,14 @@ impl F5cComponentExpansionMemo {
         #[cfg(test)]
         {
             let joint = &self.walker_resources.physical_joint;
+            #[cfg(feature = "f5c_resource_probe")]
+            source_meter.observe_family6_walker(
+                usize::try_from(joint.walker_current)
+                    .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
+                joint.walker_capacities.iter().try_fold(0usize,
+                    |sum, capacity| sum.checked_add(usize::try_from(*capacity).ok()?))
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)?,
+            );
             let physical_external = usize::try_from(
                 joint
                     .memo_current
@@ -2577,6 +2867,19 @@ impl F5cComponentExpansionMemo {
         result
     }
 
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    pub(super) fn observe_walker_capacity_change_with_source(
+        &mut self,
+        source_meter: Option<&DraftHeapMeter>,
+        old_capacity: usize,
+        new_capacity: usize,
+    ) -> Result<(), SolveAvailabilityError> {
+        if old_capacity != new_capacity && let Some(source_meter) = source_meter {
+            self.observe_walker_with_source(source_meter)?;
+        }
+        Ok(())
+    }
+
     fn prepare_index_reserve(
         &self,
         requested: usize,
@@ -2727,7 +3030,12 @@ impl F5cComponentExpansionMemo {
         self.simultaneous_source_memo_peak_bytes =
             self.simultaneous_source_memo_peak_bytes.max(joint);
         #[cfg(test)]
-        self.capacity_samples.push([
+        {
+        #[cfg(feature = "f5c_resource_probe")]
+        let record_capacity_history = !self.matrix_active;
+        #[cfg(not(feature = "f5c_resource_probe"))]
+        let record_capacity_history = true;
+        if record_capacity_history { self.capacity_samples.push([
             self.roots.capacity(),
             self.nodes.capacity(),
             self.children.capacity(),
@@ -2748,7 +3056,8 @@ impl F5cComponentExpansionMemo {
             self.generalizer_scratch_capacities[1],
             self.generalizer_scratch_capacities[2],
             self.generalizer_scratch_capacities[3],
-        ]);
+        ]); }
+        }
         Ok(())
     }
 
@@ -2799,6 +3108,14 @@ impl F5cComponentExpansionMemo {
         first: F5cSummaryTask<'_, '_>,
         source_meter: Option<&DraftHeapMeter>,
     ) -> Result<F5cSummaryNodeId, SolveAvailabilityError> {
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        let mut tasks_owner = source_meter.map(|meter| RawWalkerOwner::new(
+            meter, F5cWalkerLaneKind::SummaryTasks as usize,
+            F5cWalkerLaneKind::SummaryTasks.slot_size()));
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        let mut ids_owner = source_meter.map(|meter| RawWalkerOwner::new(
+            meter, F5cWalkerLaneKind::SummaryIds as usize,
+            F5cWalkerLaneKind::SummaryIds.slot_size()));
         let mut tasks = Vec::new();
         let mut ids = Vec::<F5cSummaryNodeId>::new();
         macro_rules! push_task {
@@ -2807,6 +3124,8 @@ impl F5cComponentExpansionMemo {
                 self.work_meter.charge(1)?;
                 let prior_capacity = tasks.capacity();
                 let reservation = self.reserve_walker(&mut tasks, F5cWalkerLaneKind::SummaryTasks);
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                if let Some(owner) = tasks_owner.as_mut() { owner.observe(tasks.len(), tasks.capacity()); }
                 if tasks.capacity() != prior_capacity {
                     if let Some(meter) = source_meter {
                         self.observe_component_external(meter)?;
@@ -2814,6 +3133,8 @@ impl F5cComponentExpansionMemo {
                 }
                 reservation?;
                 tasks.push(value);
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                if let Some(owner) = tasks_owner.as_mut() { owner.observe(tasks.len(), tasks.capacity()); }
             }};
         }
         macro_rules! push_id {
@@ -2828,6 +3149,8 @@ impl F5cComponentExpansionMemo {
                 self.observe_walker()?;
                 let prior_capacity = ids.capacity();
                 let reservation = self.reserve_walker(&mut ids, F5cWalkerLaneKind::SummaryIds);
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                if let Some(owner) = ids_owner.as_mut() { owner.observe(ids.len(), ids.capacity()); }
                 if ids.capacity() != prior_capacity {
                     if let Some(meter) = source_meter {
                         self.observe_component_external(meter)?;
@@ -2835,6 +3158,8 @@ impl F5cComponentExpansionMemo {
                 }
                 reservation?;
                 ids.push(value);
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                if let Some(owner) = ids_owner.as_mut() { owner.observe(ids.len(), ids.capacity()); }
             }};
         }
         macro_rules! push_children {
@@ -2846,11 +3171,21 @@ impl F5cComponentExpansionMemo {
                 reservation?
             }};
         }
+        macro_rules! pop_id {
+            () => {{
+                let value = ids.pop().ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                if let Some(owner) = ids_owner.as_mut() { owner.observe(ids.len(), ids.capacity()); }
+                value
+            }};
+        }
         let result = (|| {
             push_task!(first);
             while !tasks.is_empty() {
                 self.work_meter.charge(1)?;
                 let task = tasks.pop().expect("nonempty summary tasks");
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                if let Some(owner) = tasks_owner.as_mut() { owner.observe(tasks.len(), tasks.capacity()); }
                 match task {
                     F5cSummaryTask::Positive(value, incidence) => match value {
                         F5cPositive::Bottom => {
@@ -2940,6 +3275,8 @@ impl F5cComponentExpansionMemo {
                     F5cSummaryTask::PositiveUnion(start, incidence) => {
                         let (child_start, len) = push_children!(&ids[start..]);
                         ids.truncate(start);
+                        #[cfg(all(test, feature = "f5c_resource_probe"))]
+                        if let Some(owner) = ids_owner.as_mut() { owner.observe(ids.len(), ids.capacity()); }
                         push_id!(self.push_node(
                             F5cSummaryNodeKind::PositiveUnion {
                                 start: child_start,
@@ -2951,6 +3288,8 @@ impl F5cComponentExpansionMemo {
                     F5cSummaryTask::NegativeIntersection(start, incidence) => {
                         let (child_start, len) = push_children!(&ids[start..]);
                         ids.truncate(start);
+                        #[cfg(all(test, feature = "f5c_resource_probe"))]
+                        if let Some(owner) = ids_owner.as_mut() { owner.observe(ids.len(), ids.capacity()); }
                         push_id!(self.push_node(
                             F5cSummaryNodeKind::NegativeIntersection {
                                 start: child_start,
@@ -2960,18 +3299,18 @@ impl F5cComponentExpansionMemo {
                         )?);
                     }
                     F5cSummaryTask::PositiveFunction(incidence) => {
-                        let result = ids.pop().ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                        let result = pop_id!();
                         let argument =
-                            ids.pop().ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                            pop_id!();
                         push_id!(self.push_node(
                             F5cSummaryNodeKind::PositiveFunction { argument, result },
                             incidence
                         )?);
                     }
                     F5cSummaryTask::NegativeFunction(incidence) => {
-                        let result = ids.pop().ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                        let result = pop_id!();
                         let argument =
-                            ids.pop().ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                            pop_id!();
                         push_id!(self.push_node(
                             F5cSummaryNodeKind::NegativeFunction { argument, result },
                             incidence
@@ -2982,7 +3321,10 @@ impl F5cComponentExpansionMemo {
             if ids.len() != 1 {
                 return Err(SolveAvailabilityError::IdentityExhausted);
             }
-            ids.pop().ok_or(SolveAvailabilityError::IdentityExhausted)
+            let result = ids.pop().ok_or(SolveAvailabilityError::IdentityExhausted);
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            if let Some(owner) = ids_owner.as_mut() { owner.observe(ids.len(), ids.capacity()); }
+            result
         })();
         self.walker_resources
             .release(F5cWalkerLaneKind::SummaryTasks);
@@ -3059,30 +3401,56 @@ impl F5cComponentExpansionMemo {
         first: F5cMaterializeTask,
         mark: &mut impl FnMut(u32, Polarity) -> Result<(), SolveAvailabilityError>,
     ) -> Result<F5cWalkValue<'meter>, SolveAvailabilityError> {
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        let mut tasks_owner = RawWalkerOwner::new(source_meter,
+            F5cWalkerLaneKind::MaterializeTasks as usize,
+            F5cWalkerLaneKind::MaterializeTasks.slot_size());
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        let mut values_owner = RawWalkerOwner::new(source_meter,
+            F5cWalkerLaneKind::MaterializeValues as usize,
+            F5cWalkerLaneKind::MaterializeValues.slot_size());
         let mut tasks = Vec::new();
         let mut values = Vec::new();
         macro_rules! push_task {
             ($task:expr) => {{
                 let task = $task;
                 self.work_meter.charge(1)?; // scheduled task
-                self.reserve_walker_with_source(
+                let reservation = self.reserve_walker_with_source(
                     &mut tasks,
                     F5cWalkerLaneKind::MaterializeTasks,
                     source_meter,
-                )?;
+                );
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                tasks_owner.observe(tasks.len(), tasks.capacity());
+                reservation?;
                 tasks.push(task);
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                tasks_owner.observe(tasks.len(), tasks.capacity());
             }};
         }
         macro_rules! push_value {
             ($value:expr) => {{
                 self.work_meter.charge(1)?; // emitted value
                 let value = $value;
-                self.reserve_walker_with_source(
+                let reservation = self.reserve_walker_with_source(
                     &mut values,
                     F5cWalkerLaneKind::MaterializeValues,
                     source_meter,
-                )?;
+                );
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                values_owner.observe(values.len(), values.capacity());
+                reservation?;
                 values.push(value);
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                values_owner.observe(values.len(), values.capacity());
+            }};
+        }
+        macro_rules! pop_value {
+            () => {{
+                let value = values.pop().ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                values_owner.observe(values.len(), values.capacity());
+                value
             }};
         }
         let result = (|| {
@@ -3090,6 +3458,8 @@ impl F5cComponentExpansionMemo {
             while !tasks.is_empty() {
                 self.work_meter.charge(1)?; // popped task
                 let task = tasks.pop().expect("nonempty materialization tasks");
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                tasks_owner.observe(tasks.len(), tasks.capacity());
                 match task {
                     F5cMaterializeTask::Positive(id) | F5cMaterializeTask::Negative(id) => {
                         let node = self.node(id)?;
@@ -3195,6 +3565,10 @@ impl F5cComponentExpansionMemo {
                     F5cMaterializeTask::PositiveUnion(start) => {
                         // The finish task follows only positive child tasks; each child
                         // leaves one value, so this suffix is exactly their results.
+                        #[cfg(all(test, feature = "f5c_resource_probe"))]
+                        let mut raw_owner = RawWalkerOwner::new(source_meter,
+                            F5cWalkerLaneKind::PositiveParts as usize,
+                            std::mem::size_of::<F5cPositive>());
                         let mut parts = Vec::new();
                         let count = values
                             .len()
@@ -3207,23 +3581,42 @@ impl F5cComponentExpansionMemo {
                             count,
                         );
                         self.work_meter.charge(count)?;
-                        for child in values.drain(start..) {
+                        #[cfg(all(test, feature = "f5c_resource_probe"))]
+                        let capacity = values.capacity();
+                        let drained = values.drain(start..);
+                        #[cfg(all(test, feature = "f5c_resource_probe"))]
+                        values_owner.observe(start, capacity);
+                        for child in drained {
                             let F5cWalkValue::Positive(value, _) = child else {
                                 return Err(SolveAvailabilityError::IdentityExhausted);
                             };
-                            self.reserve_walker_with_source(
+                            let reservation = self.reserve_walker_with_source(
                                 &mut parts,
                                 F5cWalkerLaneKind::PositiveParts,
                                 source_meter,
-                            )?;
+                            );
+                            #[cfg(all(test, feature = "f5c_resource_probe"))]
+                            raw_owner.observe(parts.len(), parts.capacity());
+                            reservation?;
                             parts.push(value);
+                            #[cfg(all(test, feature = "f5c_resource_probe"))]
+                            raw_owner.observe(parts.len(), parts.capacity());
                         }
                         self.observe_component_external(source_meter)?;
-                        let parts = match TrackedVec::try_adopt_raw_from_walker(source_meter, parts)
-                        {
+                        #[cfg(all(test, feature = "f5c_resource_probe"))]
+                        let adopted = TrackedVec::try_adopt_raw_from_walker_with_owner(
+                            source_meter, parts, PhysicalOwnerKind::UnionChildren, raw_owner);
+                        #[cfg(not(all(test, feature = "f5c_resource_probe")))]
+                        let adopted = TrackedVec::try_adopt_raw_from_walker_with_kind(
+                            source_meter, parts, PhysicalOwnerKind::UnionChildren);
+                        let parts = match adopted {
                             Ok(parts) => parts,
-                            Err((parts, ())) => {
+                            Err((parts, raw_owner)) => {
                                 drop(parts);
+                                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                                drop(raw_owner);
+                                #[cfg(not(all(test, feature = "f5c_resource_probe")))]
+                                let _ = raw_owner;
                                 self.release_walker_with_source(
                                     F5cWalkerLaneKind::PositiveParts,
                                     source_meter,
@@ -3252,6 +3645,10 @@ impl F5cComponentExpansionMemo {
                     F5cMaterializeTask::NegativeIntersection(start) => {
                         // The finish task follows only negative child tasks; each child
                         // leaves one value, so this suffix is exactly their results.
+                        #[cfg(all(test, feature = "f5c_resource_probe"))]
+                        let mut raw_owner = RawWalkerOwner::new(source_meter,
+                            F5cWalkerLaneKind::NegativeParts as usize,
+                            std::mem::size_of::<F5cNegative>());
                         let mut parts = Vec::new();
                         let count = values
                             .len()
@@ -3264,23 +3661,42 @@ impl F5cComponentExpansionMemo {
                             count,
                         );
                         self.work_meter.charge(count)?;
-                        for child in values.drain(start..) {
+                        #[cfg(all(test, feature = "f5c_resource_probe"))]
+                        let capacity = values.capacity();
+                        let drained = values.drain(start..);
+                        #[cfg(all(test, feature = "f5c_resource_probe"))]
+                        values_owner.observe(start, capacity);
+                        for child in drained {
                             let F5cWalkValue::Negative(value, _) = child else {
                                 return Err(SolveAvailabilityError::IdentityExhausted);
                             };
-                            self.reserve_walker_with_source(
+                            let reservation = self.reserve_walker_with_source(
                                 &mut parts,
                                 F5cWalkerLaneKind::NegativeParts,
                                 source_meter,
-                            )?;
+                            );
+                            #[cfg(all(test, feature = "f5c_resource_probe"))]
+                            raw_owner.observe(parts.len(), parts.capacity());
+                            reservation?;
                             parts.push(value);
+                            #[cfg(all(test, feature = "f5c_resource_probe"))]
+                            raw_owner.observe(parts.len(), parts.capacity());
                         }
                         self.observe_component_external(source_meter)?;
-                        let parts = match TrackedVec::try_adopt_raw_from_walker(source_meter, parts)
-                        {
+                        #[cfg(all(test, feature = "f5c_resource_probe"))]
+                        let adopted = TrackedVec::try_adopt_raw_from_walker_with_owner(
+                            source_meter, parts, PhysicalOwnerKind::IntersectionChildren, raw_owner);
+                        #[cfg(not(all(test, feature = "f5c_resource_probe")))]
+                        let adopted = TrackedVec::try_adopt_raw_from_walker_with_kind(
+                            source_meter, parts, PhysicalOwnerKind::IntersectionChildren);
+                        let parts = match adopted {
                             Ok(parts) => parts,
-                            Err((parts, ())) => {
+                            Err((parts, raw_owner)) => {
                                 drop(parts);
+                                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                                drop(raw_owner);
+                                #[cfg(not(all(test, feature = "f5c_resource_probe")))]
+                                let _ = raw_owner;
                                 self.release_walker_with_source(
                                     F5cWalkerLaneKind::NegativeParts,
                                     source_meter,
@@ -3310,50 +3726,46 @@ impl F5cComponentExpansionMemo {
                         ));
                     }
                     F5cMaterializeTask::PositiveFunction => {
-                        let F5cWalkValue::Positive(result, _) = values
-                            .pop()
-                            .ok_or(SolveAvailabilityError::IdentityExhausted)?
+                        let F5cWalkValue::Positive(result, _) = pop_value!()
                         else {
                             return Err(SolveAvailabilityError::IdentityExhausted);
                         };
-                        let F5cWalkValue::Negative(argument, _) = values
-                            .pop()
-                            .ok_or(SolveAvailabilityError::IdentityExhausted)?
+                        let F5cWalkValue::Negative(argument, _) = pop_value!()
                         else {
                             return Err(SolveAvailabilityError::IdentityExhausted);
                         };
                         push_value!(F5cWalkValue::Positive(
                             F5cPositive::Function {
-                                argument: TrackedOne::try_new(source_meter, argument)
+                                argument: TrackedOne::try_new_with_kind(source_meter, argument,
+                                    PhysicalOwnerKind::PositiveFunctionArgument)
                                     .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
                                 argument_effect: F5cNegativeEffect::Empty,
                                 result_effect: F5cPositiveEffect::Bottom,
-                                result: TrackedOne::try_new(source_meter, result)
+                                result: TrackedOne::try_new_with_kind(source_meter, result,
+                                    PhysicalOwnerKind::PositiveFunctionResult)
                                     .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
                             },
                             true
                         ));
                     }
                     F5cMaterializeTask::NegativeFunction => {
-                        let F5cWalkValue::Negative(result, _) = values
-                            .pop()
-                            .ok_or(SolveAvailabilityError::IdentityExhausted)?
+                        let F5cWalkValue::Negative(result, _) = pop_value!()
                         else {
                             return Err(SolveAvailabilityError::IdentityExhausted);
                         };
-                        let F5cWalkValue::Positive(argument, _) = values
-                            .pop()
-                            .ok_or(SolveAvailabilityError::IdentityExhausted)?
+                        let F5cWalkValue::Positive(argument, _) = pop_value!()
                         else {
                             return Err(SolveAvailabilityError::IdentityExhausted);
                         };
                         push_value!(F5cWalkValue::Negative(
                             F5cNegative::Function {
-                                argument: TrackedOne::try_new(source_meter, argument)
+                                argument: TrackedOne::try_new_with_kind(source_meter, argument,
+                                    PhysicalOwnerKind::NegativeFunctionArgument)
                                     .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
                                 argument_effect: F5cPositiveEffect::Bottom,
                                 result_effect: F5cNegativeEffect::Empty,
-                                result: TrackedOne::try_new(source_meter, result)
+                                result: TrackedOne::try_new_with_kind(source_meter, result,
+                                    PhysicalOwnerKind::NegativeFunctionResult)
                                     .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
                             },
                             true
@@ -3364,9 +3776,10 @@ impl F5cComponentExpansionMemo {
             if values.len() != 1 {
                 return Err(SolveAvailabilityError::IdentityExhausted);
             }
-            values
-                .pop()
-                .ok_or(SolveAvailabilityError::IdentityExhausted)
+            let result = values.pop().ok_or(SolveAvailabilityError::IdentityExhausted);
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            values_owner.observe(values.len(), values.capacity());
+            result
         })();
         self.release_walker_with_source(F5cWalkerLaneKind::MaterializeTasks, source_meter)?;
         self.release_walker_with_source(F5cWalkerLaneKind::MaterializeValues, source_meter)?;
@@ -4196,10 +4609,21 @@ impl F5cComponentExpansionMemo {
             joint.source_nested_bytes = prior_joint.source_nested_bytes;
             joint.staged_source_current = prior_joint.staged_source_current;
             joint.peak = prior_joint.peak;
+            joint.source_walker_peak = prior_joint.source_walker_peak;
             joint.aggregate_overflow = prior_joint.aggregate_overflow;
             joint.source_event();
         }
         self.generalizer_scratch_capacities = [0; 4];
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        if self.matrix_active {
+            self.matrix_generalizer_lengths = [0; 4];
+            for lane in &mut self.matrix_lanes {
+                if lane.requested_slots > 0 || lane.actual_capacity > 0 { lane.cleared = true; }
+                lane.requested_slots = 0;
+                lane.actual_capacity = 0;
+                lane.retained_bytes = 0;
+            }
+        }
         self.simultaneous_peak_bytes = 0;
         #[cfg(test)]
         self.capacity_samples.clear();
@@ -4434,6 +4858,8 @@ pub(super) struct F5cGeneralizer<'a, 'meter> {
     pub(super) source_meter: &'meter DraftHeapMeter,
     pub(super) memo: F5cComponentExpansionMemo,
     pub(super) flat_sink: F5cFlatWalkSink,
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    source_arena_owners: [RawWalkerOwner<'meter>; 4],
     raw_forest_live: bool,
     normalized_candidate_live: bool,
     raw_forest_rollback_failed: bool,
@@ -4441,8 +4867,14 @@ pub(super) struct F5cGeneralizer<'a, 'meter> {
     pub(super) frames: Vec<F5cExpansionFrame>,
     pub(super) shared_summary_hits: usize,
     pub(super) uncacheable_states: usize,
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    uncacheable_seen: ObservedWalkerSet<'meter, F5cExpansionKey>,
+    #[cfg(not(all(test, feature = "f5c_resource_probe")))]
     uncacheable_seen: HashSet<F5cExpansionKey>,
     fatal_taint: bool,
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    pub(super) provisional_recursive_rows: ObservedWalkerSet<'meter, u32>,
+    #[cfg(not(all(test, feature = "f5c_resource_probe")))]
     pub(super) provisional_recursive_rows: HashSet<u32>,
     node_checkpoint: usize,
     child_checkpoint: usize,
@@ -4455,19 +4887,49 @@ pub(super) struct F5cGeneralizer<'a, 'meter> {
     #[cfg(test)]
     pub(super) assert_admission_invariant: bool,
     pub(super) path: Vec<F5cTraceHop>,
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    path_owner: RawWalkerOwner<'meter>,
     pub(super) order: Vec<u32>,
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    order_owner: RawWalkerOwner<'meter>,
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    pub(super) order_seen: ObservedWalkerSet<'meter, u32>,
+    #[cfg(not(all(test, feature = "f5c_resource_probe")))]
     pub(super) order_seen: HashSet<u32>,
     pub(super) reentries: Vec<F5cGuardedTrace>,
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    reentries_owner: RawWalkerOwner<'meter>,
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    reentry_path_owners: Vec<RawWalkerOwner<'meter>>,
     pub(super) invalid_effects: bool,
 }
 
-pub(super) struct F5cRawForest {
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+pub(super) struct F5cRawForest<'meter> {
+    pub(super) draft: f5c_draft::FlatDraft,
+    pub(super) raw_owner_order: Vec<u32>,
+    #[allow(dead_code)] // The owner releases after raw_owner_order drops.
+    raw_owner_order_owner: RawWalkerOwner<'meter>,
+    pub(super) raw_bounds: HashMap<u32, (f5c_draft::PositiveId, f5c_draft::NegativeId)>,
+    #[allow(dead_code)] // The owner releases after raw_bounds drops.
+    raw_bounds_owner: RawWalkerOwner<'meter>,
+    #[cfg(test)]
+    pub(super) callback_trace: Vec<(u32, Polarity)>,
+    #[allow(dead_code)] // The owner releases after callback_trace drops.
+    callback_trace_owner: RawWalkerOwner<'meter>,
+}
+
+#[cfg(not(all(test, feature = "f5c_resource_probe")))]
+pub(super) struct F5cRawForestInner {
     pub(super) draft: f5c_draft::FlatDraft,
     pub(super) raw_owner_order: Vec<u32>,
     pub(super) raw_bounds: HashMap<u32, (f5c_draft::PositiveId, f5c_draft::NegativeId)>,
     #[cfg(test)]
     pub(super) callback_trace: Vec<(u32, Polarity)>,
 }
+
+#[cfg(not(all(test, feature = "f5c_resource_probe")))]
+pub(super) type F5cRawForest<'meter> = F5cRawForestInner;
 
 #[allow(dead_code)] // The private candidate entrypoint is intentionally unselected.
 pub(super) struct F5cNormalizedCandidate {
@@ -4594,47 +5056,15 @@ impl F5cComponentExpansionMemo {
     }
 }
 
-struct F5cOccurrenceOrder<'a> {
-    values: Vec<u32>,
-    #[cfg(all(test, feature = "f5c_resource_probe"))]
-    _owner: f5c_draft_heap::RawWalkerOwner<'a>,
-    #[cfg(not(all(test, feature = "f5c_resource_probe")))]
-    _lifetime: std::marker::PhantomData<&'a ()>,
-}
-
-#[cfg(all(test, feature = "f5c_resource_probe"))]
-pub(super) fn assert_occurrence_observation(
-    memo: &F5cComponentExpansionMemo,
-    owner: &f5c_draft_heap::RawWalkerOwner<'_>,
-    kind: F5cWalkerLaneKind,
-    live_len: usize,
-    capacity: usize,
-    after_insert: bool,
-    reserve_succeeded: bool,
-    prior_capacity: usize,
-    request_base: usize,
-) {
-    owner.assert_shape(live_len, capacity);
-    let lane = &memo.walker_resources.lanes[kind as usize];
-    let independent = &memo.walker_resources.independent_lanes[kind as usize];
-    assert_eq!(lane.actual_capacity, capacity);
-    assert_eq!(independent.actual_capacity, capacity);
-    if !reserve_succeeded && lane.requested_slots == usize::MAX {
-        assert_eq!(capacity, prior_capacity);
-    } else {
-        let requested = request_base + live_len + usize::from(!after_insert);
-        assert_eq!(lane.requested_slots, requested);
-        assert_eq!(independent.requested_slots, requested);
-    }
-    let bytes = capacity * kind.slot_size();
-    assert!(lane.peak_bytes >= bytes);
-    assert!(independent.peak_bytes >= bytes);
-    assert!(independent.peak_capacity >= capacity);
-}
-
 trait F5cRCandidateSource<'meter> {
     type ReplayedBound;
     type ReplayedPredicate;
+
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    fn f5c_probe_meter(&self) -> Option<&'meter DraftHeapMeter>;
+
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    fn f5c_retained_bound_lane(&self) -> F5cWalkerLaneKind;
 
     fn new_retained_bounds(&self, candidate_count: usize) -> HashMap<u32, Self::ReplayedBound>;
 
@@ -4719,23 +5149,42 @@ trait F5cRCandidateSource<'meter> {
 
     fn release_post_r_lane(&self, memo: &mut F5cComponentExpansionMemo, kind: F5cWalkerLaneKind);
 
-    fn retained_occurrences<'a>(
-        &'a self,
+    fn retained_occurrences(
+        &self,
         memo: &mut F5cComponentExpansionMemo,
         predicate: &Self::ReplayedPredicate,
         owners: &[u32],
         bounds: &HashMap<u32, Self::ReplayedBound>,
-    ) -> Result<F5cOccurrenceOrder<'a>, SolveAvailabilityError>;
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        owner: Option<&mut RawWalkerOwner<'_>>,
+    ) -> Result<Vec<u32>, SolveAvailabilityError>;
 }
 
-pub(super) struct F5cPostRSelection<B, P> {
+pub(super) struct F5cPostRSelection<'meter, B, P> {
     #[cfg_attr(not(test), allow(dead_code))]
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    pub(super) retained_bounds: ObservedWalkerMap<'meter, u32, B>,
+    #[cfg_attr(not(test), allow(dead_code))]
+    #[cfg(not(all(test, feature = "f5c_resource_probe")))]
     pub(super) retained_bounds: HashMap<u32, B>,
     #[cfg_attr(not(test), allow(dead_code))]
     pub(super) retained_predicate: P,
     pub(super) recursive_owners: Vec<u32>,
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    recursive_owners_owner: Option<RawWalkerOwner<'meter>>,
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    pub(super) recursive_set: ObservedWalkerSet<'meter, u32>,
+    #[cfg(not(all(test, feature = "f5c_resource_probe")))]
     pub(super) recursive_set: HashSet<u32>,
+    #[cfg(not(all(test, feature = "f5c_resource_probe")))]
+    lifetime: std::marker::PhantomData<&'meter ()>,
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    pub(super) q: ObservedWalkerMap<'meter, u32, u32>,
+    #[cfg(not(all(test, feature = "f5c_resource_probe")))]
     pub(super) q: HashMap<u32, u32>,
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    pub(super) r: ObservedWalkerMap<'meter, u32, u32>,
+    #[cfg(not(all(test, feature = "f5c_resource_probe")))]
     pub(super) r: HashMap<u32, u32>,
 }
 
@@ -4748,6 +5197,16 @@ struct F5cBoxedRCandidateSource<'a, 'meter> {
 impl<'meter> F5cRCandidateSource<'meter> for F5cBoxedRCandidateSource<'_, 'meter> {
     type ReplayedBound = (F5cPositive<'meter>, F5cNegative<'meter>);
     type ReplayedPredicate = F5cPositive<'meter>;
+
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    fn f5c_probe_meter(&self) -> Option<&'meter DraftHeapMeter> {
+        Some(self.source_meter)
+    }
+
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    fn f5c_retained_bound_lane(&self) -> F5cWalkerLaneKind {
+        F5cWalkerLaneKind::BoxedRetainedOwnerBounds
+    }
 
     fn new_retained_bounds(&self, _candidate_count: usize) -> HashMap<u32, Self::ReplayedBound> {
         HashMap::new()
@@ -4950,76 +5409,48 @@ impl<'meter> F5cRCandidateSource<'meter> for F5cBoxedRCandidateSource<'_, 'meter
         let _ = memo.observe_component_external(self.source_meter);
     }
 
-    fn retained_occurrences<'a>(
-        &'a self,
+    fn retained_occurrences(
+        &self,
         memo: &mut F5cComponentExpansionMemo,
         predicate: &Self::ReplayedPredicate,
         owners: &[u32],
         bounds: &HashMap<u32, Self::ReplayedBound>,
-    ) -> Result<F5cOccurrenceOrder<'a>, SolveAvailabilityError> {
         #[cfg(all(test, feature = "f5c_resource_probe"))]
-        let occurrence_request_bases = [
-            memo.walker_resources.independent_lanes
-                [F5cWalkerLaneKind::PostROccurrenceOrder as usize]
-                .requested_slots,
-            memo.walker_resources.independent_lanes
-                [F5cWalkerLaneKind::PostROccurrenceSeen as usize]
-                .requested_slots,
-        ];
+        mut ordered_owner: Option<&mut RawWalkerOwner<'_>>,
+    ) -> Result<Vec<u32>, SolveAvailabilityError> {
         let mut ordered = Vec::new();
-        let mut seen = HashSet::new();
         #[cfg(all(test, feature = "f5c_resource_probe"))]
-        let mut occurrence_owners = (
-            f5c_draft_heap::RawWalkerOwner::new(
-                self.source_meter,
-                F5cWalkerLaneKind::PostROccurrenceOrder as usize,
-                F5cWalkerLaneKind::PostROccurrenceOrder.slot_size(),
-            ),
-            f5c_draft_heap::RawWalkerOwner::new(
-                self.source_meter,
-                F5cWalkerLaneKind::PostROccurrenceSeen as usize,
-                F5cWalkerLaneKind::PostROccurrenceSeen.slot_size(),
-            ),
-        );
+        let mut seen_owner = RawWalkerOwner::new(self.source_meter,
+            F5cWalkerLaneKind::PostROccurrenceSeen as usize,
+            F5cWalkerLaneKind::PostROccurrenceSeen.slot_size());
+        let mut seen = HashSet::new();
         let mut walker = f5c_tree_analysis::Walker::new_with_source(memo, self.source_meter);
         let result = (|| {
-            walker.occurrences_positive_checked(
-                predicate,
-                &mut ordered,
-                &mut seen,
+            walker.occurrences_positive_checked(predicate, &mut ordered, &mut seen,
                 #[cfg(all(test, feature = "f5c_resource_probe"))]
-                &mut occurrence_owners,
+                ordered_owner.as_deref_mut(),
                 #[cfg(all(test, feature = "f5c_resource_probe"))]
-                occurrence_request_bases,
-            )?;
+                Some(&mut seen_owner))?;
             for owner in owners {
                 walker.memo.work_meter.charge(1)?;
                 let (lower, upper) = bounds
                     .get(owner)
                     .ok_or(SolveAvailabilityError::IdentityExhausted)?;
-                walker.occurrences_positive_checked(
-                    lower,
-                    &mut ordered,
-                    &mut seen,
+                walker.occurrences_positive_checked(lower, &mut ordered, &mut seen,
                     #[cfg(all(test, feature = "f5c_resource_probe"))]
-                    &mut occurrence_owners,
+                    ordered_owner.as_deref_mut(),
                     #[cfg(all(test, feature = "f5c_resource_probe"))]
-                    occurrence_request_bases,
-                )?;
-                walker.occurrences_negative_checked(
-                    upper,
-                    &mut ordered,
-                    &mut seen,
+                    Some(&mut seen_owner))?;
+                walker.occurrences_negative_checked(upper, &mut ordered, &mut seen,
                     #[cfg(all(test, feature = "f5c_resource_probe"))]
-                    &mut occurrence_owners,
+                    ordered_owner.as_deref_mut(),
                     #[cfg(all(test, feature = "f5c_resource_probe"))]
-                    occurrence_request_bases,
-                )?;
+                    Some(&mut seen_owner))?;
             }
             Ok(())
         })();
         #[cfg(test)]
-        walker.memo.post_r_temporary_live_samples.push((
+        walker.memo.record_post_r_sample((
             F5cWalkerLaneKind::PostROccurrenceSeen,
             seen.capacity(),
             walker.memo.walker_resources.lanes[F5cWalkerLaneKind::PostROccurrenceSeen as usize]
@@ -5027,23 +5458,15 @@ impl<'meter> F5cRCandidateSource<'meter> for F5cBoxedRCandidateSource<'_, 'meter
         ));
         drop(seen);
         #[cfg(all(test, feature = "f5c_resource_probe"))]
-        drop(occurrence_owners.1);
+        drop(seen_owner);
         walker
             .memo
             .walker_resources
             .release(F5cWalkerLaneKind::PostROccurrenceSeen);
         match result {
-            Ok(()) => Ok(F5cOccurrenceOrder {
-                values: ordered,
-                #[cfg(all(test, feature = "f5c_resource_probe"))]
-                _owner: occurrence_owners.0,
-                #[cfg(not(all(test, feature = "f5c_resource_probe")))]
-                _lifetime: std::marker::PhantomData,
-            }),
+            Ok(()) => Ok(ordered),
             Err(error) => {
                 drop(ordered);
-                #[cfg(all(test, feature = "f5c_resource_probe"))]
-                drop(occurrence_owners.0);
                 walker
                     .memo
                     .walker_resources
@@ -5054,17 +5477,29 @@ impl<'meter> F5cRCandidateSource<'meter> for F5cBoxedRCandidateSource<'_, 'meter
     }
 }
 
-struct F5cFlatRCandidateSource<'a> {
+struct F5cFlatRCandidateSource<'a, 'meter> {
     source: &'a f5c_draft::FlatDraft,
     output: f5c_draft::FlatDraft,
     bounds: &'a HashMap<u32, (f5c_draft::PositiveId, f5c_draft::NegativeId)>,
     #[cfg(all(test, feature = "f5c_resource_probe"))]
-    source_meter: &'a DraftHeapMeter,
+    probe_meter: Option<&'meter DraftHeapMeter>,
+    #[cfg(not(all(test, feature = "f5c_resource_probe")))]
+    _meter: std::marker::PhantomData<&'meter ()>,
 }
 
-impl<'meter> F5cRCandidateSource<'meter> for F5cFlatRCandidateSource<'_> {
+impl<'a, 'meter> F5cRCandidateSource<'meter> for F5cFlatRCandidateSource<'a, 'meter> {
     type ReplayedBound = (f5c_draft::PositiveId, f5c_draft::NegativeId);
     type ReplayedPredicate = f5c_draft::PositiveId;
+
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    fn f5c_probe_meter(&self) -> Option<&'meter DraftHeapMeter> {
+        self.probe_meter
+    }
+
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    fn f5c_retained_bound_lane(&self) -> F5cWalkerLaneKind {
+        F5cWalkerLaneKind::RetainedOwnerBounds
+    }
 
     fn new_retained_bounds(&self, _candidate_count: usize) -> HashMap<u32, Self::ReplayedBound> {
         HashMap::new()
@@ -5084,6 +5519,8 @@ impl<'meter> F5cRCandidateSource<'meter> for F5cFlatRCandidateSource<'_> {
         };
         let NodeRef::Positive(lower) = f5c_replay::replay_flat(
             memo,
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            self.probe_meter,
             self.source,
             NodeRef::Positive(*lower),
             &mut self.output,
@@ -5096,6 +5533,8 @@ impl<'meter> F5cRCandidateSource<'meter> for F5cFlatRCandidateSource<'_> {
         };
         let NodeRef::Negative(upper) = f5c_replay::replay_flat(
             memo,
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            self.probe_meter,
             self.source,
             NodeRef::Negative(*upper),
             &mut self.output,
@@ -5115,7 +5554,15 @@ impl<'meter> F5cRCandidateSource<'meter> for F5cFlatRCandidateSource<'_> {
         owner: u32,
         bound: &Self::ReplayedBound,
     ) -> Result<bool, SolveAvailabilityError> {
-        f5c_tree_analysis::Walker::new(memo).flat_guarded_bound_survives(
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        let mut walker = if let Some(meter) = self.probe_meter {
+            f5c_tree_analysis::Walker::new_with_probe_meter(memo, meter)
+        } else {
+            f5c_tree_analysis::Walker::new(memo)
+        };
+        #[cfg(not(all(test, feature = "f5c_resource_probe")))]
+        let mut walker = f5c_tree_analysis::Walker::new(memo);
+        walker.flat_guarded_bound_survives(
             &self.output,
             owner,
             bound.0,
@@ -5137,6 +5584,8 @@ impl<'meter> F5cRCandidateSource<'meter> for F5cFlatRCandidateSource<'_> {
             .ok_or(SolveAvailabilityError::IdentityExhausted)?;
         let NodeRef::Positive(predicate) = f5c_replay::replay_flat(
             memo,
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            self.probe_meter,
             self.source,
             NodeRef::Positive(predicate),
             &mut self.output,
@@ -5205,6 +5654,8 @@ impl<'meter> F5cRCandidateSource<'meter> for F5cFlatRCandidateSource<'_> {
         self.output.positive_children.clear();
         self.output.negative_children.clear();
         self.output.insertion_order.clear();
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        self.output.sync_owners();
     }
 
     fn reserve_retained_bound(
@@ -5262,38 +5713,29 @@ impl<'meter> F5cRCandidateSource<'meter> for F5cFlatRCandidateSource<'_> {
         memo.walker_resources.release(kind);
     }
 
-    fn retained_occurrences<'a>(
-        &'a self,
+    fn retained_occurrences(
+        &self,
         memo: &mut F5cComponentExpansionMemo,
         predicate: &Self::ReplayedPredicate,
         owners: &[u32],
         bounds: &HashMap<u32, Self::ReplayedBound>,
-    ) -> Result<F5cOccurrenceOrder<'a>, SolveAvailabilityError> {
-        use f5c_draft::NodeRef;
         #[cfg(all(test, feature = "f5c_resource_probe"))]
-        let occurrence_request_bases = [
-            memo.walker_resources.independent_lanes
-                [F5cWalkerLaneKind::PostROccurrenceOrder as usize]
-                .requested_slots,
-            memo.walker_resources.independent_lanes
-                [F5cWalkerLaneKind::PostROccurrenceSeen as usize]
-                .requested_slots,
-        ];
+        mut owner: Option<&mut RawWalkerOwner<'_>>,
+    ) -> Result<Vec<u32>, SolveAvailabilityError> {
+        use f5c_draft::NodeRef;
         let mut ordered = Vec::new();
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        let mut seen_owner = self.probe_meter.map(|meter| RawWalkerOwner::new(meter,
+            F5cWalkerLaneKind::PostROccurrenceSeen as usize,
+            F5cWalkerLaneKind::PostROccurrenceSeen.slot_size()));
         let mut seen = HashSet::new();
         #[cfg(all(test, feature = "f5c_resource_probe"))]
-        let mut occurrence_owners = (
-            f5c_draft_heap::RawWalkerOwner::new(
-                self.source_meter,
-                F5cWalkerLaneKind::PostROccurrenceOrder as usize,
-                F5cWalkerLaneKind::PostROccurrenceOrder.slot_size(),
-            ),
-            f5c_draft_heap::RawWalkerOwner::new(
-                self.source_meter,
-                F5cWalkerLaneKind::PostROccurrenceSeen as usize,
-                F5cWalkerLaneKind::PostROccurrenceSeen.slot_size(),
-            ),
-        );
+        let mut walker = if let Some(meter) = self.probe_meter {
+            f5c_tree_analysis::Walker::new_with_probe_meter(memo, meter)
+        } else {
+            f5c_tree_analysis::Walker::new(memo)
+        };
+        #[cfg(not(all(test, feature = "f5c_resource_probe")))]
         let mut walker = f5c_tree_analysis::Walker::new(memo);
         let mut visit = |walker: &mut f5c_tree_analysis::Walker<'_, '_, '_>, root| {
             walker.flat_occurrences_checked(
@@ -5301,85 +5743,37 @@ impl<'meter> F5cRCandidateSource<'meter> for F5cFlatRCandidateSource<'_> {
                 root,
                 &mut ordered,
                 &mut seen,
-                |memo, ordered, seen, inserted| {
-                    if inserted {
+                |memo, ordered, seen, after_insert| {
+                    if after_insert {
                         #[cfg(all(test, feature = "f5c_resource_probe"))]
                         {
-                            occurrence_owners
-                                .0
-                                .observe(ordered.len(), ordered.capacity());
-                            occurrence_owners.1.observe(seen.len(), seen.capacity());
-                            assert_occurrence_observation(
-                                memo,
-                                &occurrence_owners.0,
-                                F5cWalkerLaneKind::PostROccurrenceOrder,
-                                ordered.len(),
-                                ordered.capacity(),
-                                true,
-                                true,
-                                ordered.capacity(),
-                                occurrence_request_bases[0],
-                            );
-                            assert_occurrence_observation(
-                                memo,
-                                &occurrence_owners.1,
-                                F5cWalkerLaneKind::PostROccurrenceSeen,
-                                seen.len(),
-                                seen.capacity(),
-                                true,
-                                true,
-                                seen.capacity(),
-                                occurrence_request_bases[1],
-                            );
+                            if let Some(owner) = seen_owner.as_mut() {
+                                owner.observe(seen.len(), seen.capacity());
+                            }
+                            if let Some(owner) = owner.as_deref_mut() {
+                                owner.observe(ordered.len(), ordered.capacity());
+                            }
                         }
                         return Ok(());
                     }
                     let bytes = memo.retained_bytes()?;
-                    #[cfg(all(test, feature = "f5c_resource_probe"))]
-                    let prior_seen_capacity = seen.capacity();
-                    let seen_result = memo.walker_resources.reserve_post_r_set(
+                    let set_reservation = memo.walker_resources.reserve_post_r_set(
                         seen,
                         F5cWalkerLaneKind::PostROccurrenceSeen,
                         bytes,
                     );
                     #[cfg(all(test, feature = "f5c_resource_probe"))]
-                    {
-                        occurrence_owners.1.observe(seen.len(), seen.capacity());
-                        assert_occurrence_observation(
-                            memo,
-                            &occurrence_owners.1,
-                            F5cWalkerLaneKind::PostROccurrenceSeen,
-                            seen.len(),
-                            seen.capacity(),
-                            false,
-                            seen_result.is_ok(),
-                            prior_seen_capacity,
-                            occurrence_request_bases[1],
-                        );
+                    if let Some(owner) = seen_owner.as_mut() {
+                        owner.observe(seen.len(), seen.capacity());
                     }
-                    seen_result?;
+                    set_reservation?;
+                    let reservation = memo.reserve_walker(
+                        ordered, F5cWalkerLaneKind::PostROccurrenceOrder);
                     #[cfg(all(test, feature = "f5c_resource_probe"))]
-                    let prior_order_capacity = ordered.capacity();
-                    let result =
-                        memo.reserve_walker(ordered, F5cWalkerLaneKind::PostROccurrenceOrder);
-                    #[cfg(all(test, feature = "f5c_resource_probe"))]
-                    {
-                        occurrence_owners
-                            .0
-                            .observe(ordered.len(), ordered.capacity());
-                        assert_occurrence_observation(
-                            memo,
-                            &occurrence_owners.0,
-                            F5cWalkerLaneKind::PostROccurrenceOrder,
-                            ordered.len(),
-                            ordered.capacity(),
-                            false,
-                            result.is_ok(),
-                            prior_order_capacity,
-                            occurrence_request_bases[0],
-                        );
+                    if let Some(owner) = owner.as_deref_mut() {
+                        owner.observe(ordered.len(), ordered.capacity());
                     }
-                    result
+                    reservation
                 },
             )
         };
@@ -5396,7 +5790,7 @@ impl<'meter> F5cRCandidateSource<'meter> for F5cFlatRCandidateSource<'_> {
             Ok(())
         })();
         #[cfg(test)]
-        walker.memo.post_r_temporary_live_samples.push((
+        walker.memo.record_post_r_sample((
             F5cWalkerLaneKind::PostROccurrenceSeen,
             seen.capacity(),
             walker.memo.walker_resources.lanes[F5cWalkerLaneKind::PostROccurrenceSeen as usize]
@@ -5404,23 +5798,15 @@ impl<'meter> F5cRCandidateSource<'meter> for F5cFlatRCandidateSource<'_> {
         ));
         drop(seen);
         #[cfg(all(test, feature = "f5c_resource_probe"))]
-        drop(occurrence_owners.1);
+        drop(seen_owner);
         walker
             .memo
             .walker_resources
             .release(F5cWalkerLaneKind::PostROccurrenceSeen);
         match result {
-            Ok(()) => Ok(F5cOccurrenceOrder {
-                values: ordered,
-                #[cfg(all(test, feature = "f5c_resource_probe"))]
-                _owner: occurrence_owners.0,
-                #[cfg(not(all(test, feature = "f5c_resource_probe")))]
-                _lifetime: std::marker::PhantomData,
-            }),
+            Ok(()) => Ok(ordered),
             Err(error) => {
                 drop(ordered);
-                #[cfg(all(test, feature = "f5c_resource_probe"))]
-                drop(occurrence_owners.0);
                 walker
                     .memo
                     .walker_resources
@@ -5465,6 +5851,8 @@ trait F5cWalkSink<'meter> {
         &mut self,
         generalizer: &mut F5cGeneralizer<'_, 'meter>,
         values: &mut Vec<Self::Value>,
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        values_owner: &mut RawWalkerOwner<'meter>,
         start: usize,
         row: u32,
         polarity: Polarity,
@@ -5550,6 +5938,8 @@ impl<'meter> F5cWalkSink<'meter> for F5cBoxedWalkSink {
         &mut self,
         generalizer: &mut F5cGeneralizer<'_, 'meter>,
         values: &mut Vec<Self::Value>,
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        values_owner: &mut RawWalkerOwner<'meter>,
         values_start: usize,
         row: u32,
         polarity: Polarity,
@@ -5557,20 +5947,35 @@ impl<'meter> F5cWalkSink<'meter> for F5cBoxedWalkSink {
     ) -> Result<Self::Value, SolveAvailabilityError> {
         let value = match polarity {
             Polarity::Positive => {
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                let mut raw_owner = RawWalkerOwner::new(generalizer.source_meter,
+                    F5cWalkerLaneKind::PositiveParts as usize,
+                    std::mem::size_of::<F5cPositive>());
                 let mut parts = Vec::new();
                 let mut cacheable = true;
-                for child in values.drain(values_start..) {
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                let capacity = values.capacity();
+                let drained = values.drain(values_start..);
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                values_owner.observe(values_start, capacity);
+                for child in drained {
                     let F5cWalkValue::Positive(value, child_cacheable) = child else {
                         return Err(SolveAvailabilityError::IdentityExhausted);
                     };
                     let duplicate = {
+                        #[cfg(all(test, feature = "f5c_resource_probe"))]
+                        let mut comparisons_owner = RawWalkerOwner::new(generalizer.source_meter,
+                            F5cWalkerLaneKind::Comparison as usize,
+                            F5cWalkerLaneKind::Comparison.slot_size());
                         let mut comparisons = Vec::new();
                         let mut duplicate = false;
                         for previous in &parts {
                             generalizer.memo.work_meter.charge(1)?;
-                            if generalizer.structural_equal(
+                            if generalizer.structural_equal_with_owner(
                                 F5cCompareTask::Positive(previous, &value),
                                 &mut comparisons,
+                                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                                Some(&mut comparisons_owner),
                             )? {
                                 duplicate = true;
                                 break;
@@ -5584,12 +5989,17 @@ impl<'meter> F5cWalkSink<'meter> for F5cBoxedWalkSink {
                     };
                     if !duplicate {
                         cacheable &= child_cacheable;
-                        generalizer.memo.reserve_walker_with_source(
+                        let reservation = generalizer.memo.reserve_walker_with_source(
                             &mut parts,
                             F5cWalkerLaneKind::PositiveParts,
                             generalizer.source_meter,
-                        )?;
+                        );
+                        #[cfg(all(test, feature = "f5c_resource_probe"))]
+                        raw_owner.observe(parts.len(), parts.capacity());
+                        reservation?;
                         parts.push(value);
+                        #[cfg(all(test, feature = "f5c_resource_probe"))]
+                        raw_owner.observe(parts.len(), parts.capacity());
                     }
                 }
                 let nonempty = !parts.is_empty();
@@ -5597,6 +6007,8 @@ impl<'meter> F5cWalkSink<'meter> for F5cBoxedWalkSink {
                     match parts.len() {
                         0 => {
                             drop(parts);
+                            #[cfg(all(test, feature = "f5c_resource_probe"))]
+                            drop(raw_owner);
                             generalizer.memo.release_walker_with_source(
                                 F5cWalkerLaneKind::PositiveParts,
                                 generalizer.source_meter,
@@ -5610,6 +6022,8 @@ impl<'meter> F5cWalkSink<'meter> for F5cBoxedWalkSink {
                         1 => {
                             let value = parts.pop().expect("one lower member");
                             drop(parts);
+                            #[cfg(all(test, feature = "f5c_resource_probe"))]
+                            drop(raw_owner);
                             generalizer.memo.release_walker_with_source(
                                 F5cWalkerLaneKind::PositiveParts,
                                 generalizer.source_meter,
@@ -5620,13 +6034,22 @@ impl<'meter> F5cWalkSink<'meter> for F5cBoxedWalkSink {
                             generalizer
                                 .memo
                                 .observe_component_external(generalizer.source_meter)?;
-                            let parts = match TrackedVec::try_adopt_raw_from_walker(
-                                generalizer.source_meter,
-                                parts,
-                            ) {
+                            #[cfg(all(test, feature = "f5c_resource_probe"))]
+                            let adopted = TrackedVec::try_adopt_raw_from_walker_with_owner(
+                                generalizer.source_meter, parts,
+                                PhysicalOwnerKind::UnionChildren, raw_owner);
+                            #[cfg(not(all(test, feature = "f5c_resource_probe")))]
+                            let adopted = TrackedVec::try_adopt_raw_from_walker_with_kind(
+                                generalizer.source_meter, parts,
+                                PhysicalOwnerKind::UnionChildren);
+                            let parts = match adopted {
                                 Ok(parts) => parts,
-                                Err((parts, ())) => {
+                                Err((parts, raw_owner)) => {
                                     drop(parts);
+                                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                                    drop(raw_owner);
+                                    #[cfg(not(all(test, feature = "f5c_resource_probe")))]
+                                    let _ = raw_owner;
                                     generalizer.memo.release_walker_with_source(
                                         F5cWalkerLaneKind::PositiveParts,
                                         generalizer.source_meter,
@@ -5658,20 +6081,35 @@ impl<'meter> F5cWalkSink<'meter> for F5cBoxedWalkSink {
                 value
             }
             Polarity::Negative => {
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                let mut raw_owner = RawWalkerOwner::new(generalizer.source_meter,
+                    F5cWalkerLaneKind::NegativeParts as usize,
+                    std::mem::size_of::<F5cNegative>());
                 let mut parts = Vec::new();
                 let mut cacheable = true;
-                for child in values.drain(values_start..) {
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                let capacity = values.capacity();
+                let drained = values.drain(values_start..);
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                values_owner.observe(values_start, capacity);
+                for child in drained {
                     let F5cWalkValue::Negative(value, child_cacheable) = child else {
                         return Err(SolveAvailabilityError::IdentityExhausted);
                     };
                     let duplicate = {
+                        #[cfg(all(test, feature = "f5c_resource_probe"))]
+                        let mut comparisons_owner = RawWalkerOwner::new(generalizer.source_meter,
+                            F5cWalkerLaneKind::Comparison as usize,
+                            F5cWalkerLaneKind::Comparison.slot_size());
                         let mut comparisons = Vec::new();
                         let mut duplicate = false;
                         for previous in &parts {
                             generalizer.memo.work_meter.charge(1)?;
-                            if generalizer.structural_equal(
+                            if generalizer.structural_equal_with_owner(
                                 F5cCompareTask::Negative(previous, &value),
                                 &mut comparisons,
+                                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                                Some(&mut comparisons_owner),
                             )? {
                                 duplicate = true;
                                 break;
@@ -5685,12 +6123,17 @@ impl<'meter> F5cWalkSink<'meter> for F5cBoxedWalkSink {
                     };
                     if !duplicate {
                         cacheable &= child_cacheable;
-                        generalizer.memo.reserve_walker_with_source(
+                        let reservation = generalizer.memo.reserve_walker_with_source(
                             &mut parts,
                             F5cWalkerLaneKind::NegativeParts,
                             generalizer.source_meter,
-                        )?;
+                        );
+                        #[cfg(all(test, feature = "f5c_resource_probe"))]
+                        raw_owner.observe(parts.len(), parts.capacity());
+                        reservation?;
                         parts.push(value);
+                        #[cfg(all(test, feature = "f5c_resource_probe"))]
+                        raw_owner.observe(parts.len(), parts.capacity());
                     }
                 }
                 let nonempty = !parts.is_empty();
@@ -5698,6 +6141,8 @@ impl<'meter> F5cWalkSink<'meter> for F5cBoxedWalkSink {
                     match parts.len() {
                         0 => {
                             drop(parts);
+                            #[cfg(all(test, feature = "f5c_resource_probe"))]
+                            drop(raw_owner);
                             generalizer.memo.release_walker_with_source(
                                 F5cWalkerLaneKind::NegativeParts,
                                 generalizer.source_meter,
@@ -5707,6 +6152,8 @@ impl<'meter> F5cWalkSink<'meter> for F5cBoxedWalkSink {
                         1 => {
                             let value = parts.pop().expect("one upper member");
                             drop(parts);
+                            #[cfg(all(test, feature = "f5c_resource_probe"))]
+                            drop(raw_owner);
                             generalizer.memo.release_walker_with_source(
                                 F5cWalkerLaneKind::NegativeParts,
                                 generalizer.source_meter,
@@ -5717,13 +6164,22 @@ impl<'meter> F5cWalkSink<'meter> for F5cBoxedWalkSink {
                             generalizer
                                 .memo
                                 .observe_component_external(generalizer.source_meter)?;
-                            let parts = match TrackedVec::try_adopt_raw_from_walker(
-                                generalizer.source_meter,
-                                parts,
-                            ) {
+                            #[cfg(all(test, feature = "f5c_resource_probe"))]
+                            let adopted = TrackedVec::try_adopt_raw_from_walker_with_owner(
+                                generalizer.source_meter, parts,
+                                PhysicalOwnerKind::IntersectionChildren, raw_owner);
+                            #[cfg(not(all(test, feature = "f5c_resource_probe")))]
+                            let adopted = TrackedVec::try_adopt_raw_from_walker_with_kind(
+                                generalizer.source_meter, parts,
+                                PhysicalOwnerKind::IntersectionChildren);
+                            let parts = match adopted {
                                 Ok(parts) => parts,
-                                Err((parts, ())) => {
+                                Err((parts, raw_owner)) => {
                                     drop(parts);
+                                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                                    drop(raw_owner);
+                                    #[cfg(not(all(test, feature = "f5c_resource_probe")))]
+                                    let _ = raw_owner;
                                     generalizer.memo.release_walker_with_source(
                                         F5cWalkerLaneKind::NegativeParts,
                                         generalizer.source_meter,
@@ -5776,11 +6232,13 @@ impl<'meter> F5cWalkSink<'meter> for F5cBoxedWalkSink {
                 F5cWalkValue::Positive(result, result_cacheable),
             ) => F5cWalkValue::Positive(
                 F5cPositive::Function {
-                    argument: TrackedOne::try_new(_generalizer.source_meter, argument)
+                    argument: TrackedOne::try_new_with_kind(_generalizer.source_meter, argument,
+                        PhysicalOwnerKind::PositiveFunctionArgument)
                         .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
                     argument_effect: F5cNegativeEffect::Empty,
                     result_effect: F5cPositiveEffect::Bottom,
-                    result: TrackedOne::try_new(_generalizer.source_meter, result)
+                    result: TrackedOne::try_new_with_kind(_generalizer.source_meter, result,
+                        PhysicalOwnerKind::PositiveFunctionResult)
                         .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
                 },
                 argument_cacheable && result_cacheable,
@@ -5791,11 +6249,13 @@ impl<'meter> F5cWalkSink<'meter> for F5cBoxedWalkSink {
                 F5cWalkValue::Negative(result, result_cacheable),
             ) => F5cWalkValue::Negative(
                 F5cNegative::Function {
-                    argument: TrackedOne::try_new(_generalizer.source_meter, argument)
+                    argument: TrackedOne::try_new_with_kind(_generalizer.source_meter, argument,
+                        PhysicalOwnerKind::NegativeFunctionArgument)
                         .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
                     argument_effect: F5cPositiveEffect::Bottom,
                     result_effect: F5cNegativeEffect::Empty,
-                    result: TrackedOne::try_new(_generalizer.source_meter, result)
+                    result: TrackedOne::try_new_with_kind(_generalizer.source_meter, result,
+                        PhysicalOwnerKind::NegativeFunctionResult)
                         .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
                 },
                 argument_cacheable && result_cacheable,
@@ -5868,12 +6328,33 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
     }
 
     fn release_persistent_lanes(&mut self) {
-        self.uncacheable_seen = HashSet::new();
-        self.provisional_recursive_rows = HashSet::new();
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        { self.uncacheable_seen = ObservedWalkerSet::new(self.source_meter,
+            F5cWalkerLaneKind::UncacheableSeen);
+          self.provisional_recursive_rows = ObservedWalkerSet::new(self.source_meter,
+            F5cWalkerLaneKind::ProvisionalRecursiveRows); }
+        #[cfg(not(all(test, feature = "f5c_resource_probe")))]
+        { self.uncacheable_seen = HashSet::new();
+          self.provisional_recursive_rows = HashSet::new(); }
         self.path = Vec::new();
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        { self.path_owner = RawWalkerOwner::new(self.source_meter,
+            F5cWalkerLaneKind::Path as usize, F5cWalkerLaneKind::Path.slot_size()); }
         self.order = Vec::new();
-        self.order_seen = HashSet::new();
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        { self.order_owner = RawWalkerOwner::new(self.source_meter,
+            F5cWalkerLaneKind::Order as usize, F5cWalkerLaneKind::Order.slot_size()); }
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        { self.order_seen = ObservedWalkerSet::new(self.source_meter,
+            F5cWalkerLaneKind::OrderSeen); }
+        #[cfg(not(all(test, feature = "f5c_resource_probe")))]
+        { self.order_seen = HashSet::new(); }
         self.reentries = Vec::new();
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        { self.reentries_owner = RawWalkerOwner::new(self.source_meter,
+            F5cWalkerLaneKind::Reentries as usize, F5cWalkerLaneKind::Reentries.slot_size()); }
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        self.reentry_path_owners.clear();
         for kind in [
             F5cWalkerLaneKind::UncacheableSeen,
             F5cWalkerLaneKind::ProvisionalRecursiveRows,
@@ -5908,6 +6389,8 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
             let old = self.frames.capacity();
             let reservation = self.frames.try_reserve(1);
             self.memo.generalizer_scratch_capacities[0] = self.frames.capacity();
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            if self.memo.matrix_active { self.memo.matrix_generalizer_lengths[0] = self.frames.len() + 1; }
             #[cfg(test)]
             self.memo.observe_physical_memo();
             let committed =
@@ -5921,6 +6404,8 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
         let old = self.active.capacity();
         let reservation = self.active.try_reserve(1);
         self.memo.generalizer_scratch_capacities[1] = self.active.capacity();
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        if self.memo.matrix_active { self.memo.matrix_generalizer_lengths[1] = self.active.len() + 1; }
         #[cfg(test)]
         self.memo.observe_physical_memo();
         let committed =
@@ -5934,6 +6419,8 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
         let old = self.active_set.capacity();
         let reservation = self.active_set.try_reserve(1);
         self.memo.generalizer_scratch_capacities[2] = self.active_set.capacity();
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        if self.memo.matrix_active { self.memo.matrix_generalizer_lengths[2] = self.active_set.len() + 1; }
         #[cfg(test)]
         self.memo.observe_physical_memo();
         let committed =
@@ -5958,6 +6445,16 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
         )
     }
 
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    fn new_source_arena_owners(meter: &'meter DraftHeapMeter) -> [RawWalkerOwner<'meter>; 4] {
+        [
+            F5cWalkerLaneKind::SourcePositiveNodes,
+            F5cWalkerLaneKind::SourceNegativeNodes,
+            F5cWalkerLaneKind::SourcePositiveChildren,
+            F5cWalkerLaneKind::SourceNegativeChildren,
+        ].map(|lane| RawWalkerOwner::new(meter, lane as usize, lane.slot_size()))
+    }
+
     pub(super) fn with_memo(
         session: &'a InferenceSession,
         source_meter: &'meter DraftHeapMeter,
@@ -5979,15 +6476,34 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
             source_meter,
             memo,
             flat_sink: F5cFlatWalkSink::default(),
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            source_arena_owners: Self::new_source_arena_owners(source_meter),
             raw_forest_live: false,
             normalized_candidate_live: false,
             raw_forest_rollback_failed: false,
             frozen_bound_epoch,
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            path_owner: RawWalkerOwner::new(source_meter, F5cWalkerLaneKind::Path as usize,
+                F5cWalkerLaneKind::Path.slot_size()),
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            order_owner: RawWalkerOwner::new(source_meter, F5cWalkerLaneKind::Order as usize,
+                F5cWalkerLaneKind::Order.slot_size()),
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            reentries_owner: RawWalkerOwner::new(source_meter, F5cWalkerLaneKind::Reentries as usize,
+                F5cWalkerLaneKind::Reentries.slot_size()),
             frames: Vec::new(),
             shared_summary_hits: 0,
             uncacheable_states: 0,
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            uncacheable_seen: ObservedWalkerSet::new(source_meter,
+                F5cWalkerLaneKind::UncacheableSeen),
+            #[cfg(not(all(test, feature = "f5c_resource_probe")))]
             uncacheable_seen: HashSet::new(),
             fatal_taint: false,
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            provisional_recursive_rows: ObservedWalkerSet::new(source_meter,
+                F5cWalkerLaneKind::ProvisionalRecursiveRows),
+            #[cfg(not(all(test, feature = "f5c_resource_probe")))]
             provisional_recursive_rows: HashSet::new(),
             node_checkpoint,
             child_checkpoint,
@@ -6001,8 +6517,14 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
             assert_admission_invariant: false,
             path: Vec::new(),
             order: Vec::new(),
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            order_seen: ObservedWalkerSet::new(source_meter,
+                F5cWalkerLaneKind::OrderSeen),
+            #[cfg(not(all(test, feature = "f5c_resource_probe")))]
             order_seen: HashSet::new(),
             reentries: Vec::new(),
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            reentry_path_owners: Vec::new(),
             invalid_effects: false,
         }
     }
@@ -6014,7 +6536,7 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
         if !self.order_seen.contains(&ordinal) {
             self.memo.work_meter.charge(2)?;
             let memo_bytes = self.memo.retained_bytes()?;
-            self.memo.walker_resources.with_source(
+            let reservation = self.memo.walker_resources.with_source(
                 self.source_meter,
                 memo_bytes,
                 F5cWalkerLaneKind::OrderSeen,
@@ -6025,7 +6547,10 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
                         memo_bytes,
                     )
                 },
-            )?;
+            );
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            self.order_seen.observe_capacity(self.order_seen.len() + 1);
+            reservation?;
             #[cfg(test)]
             if self.memo.fail_reserve_at
                 == Some((F5cTestReserveFailure::OrderAfterSeen, self.order.len()))
@@ -6033,13 +6558,18 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
                 self.memo.fail_reserve_at = None;
                 return Err(SolveAvailabilityError::IdentityExhausted);
             }
-            self.memo.reserve_walker_with_source(
+            let reservation = self.memo.reserve_walker_with_source(
                 &mut self.order,
                 F5cWalkerLaneKind::Order,
                 self.source_meter,
-            )?;
+            );
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            self.order_owner.observe(self.order.len(), self.order.capacity());
+            reservation?;
             self.order_seen.insert(ordinal);
             self.order.push(ordinal);
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            self.order_owner.observe(self.order.len(), self.order.capacity());
         }
         if self.provisional_recursive_rows.contains(&ordinal)
             || self
@@ -6119,7 +6649,7 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
                 .checked_add(1)
                 .ok_or(SolveAvailabilityError::IdentityExhausted)?;
             let memo_bytes = self.memo.retained_bytes()?;
-            self.memo.walker_resources.with_source(
+            let reservation = self.memo.walker_resources.with_source(
                 self.source_meter,
                 memo_bytes,
                 F5cWalkerLaneKind::UncacheableSeen,
@@ -6130,7 +6660,10 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
                         memo_bytes,
                     )
                 },
-            )?;
+            );
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            self.uncacheable_seen.observe_capacity(self.uncacheable_seen.len() + 1);
+            reservation?;
             self.uncacheable_seen.insert(key);
             self.uncacheable_states = count;
         }
@@ -6193,7 +6726,7 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
     ) -> Result<(), SolveAvailabilityError> {
         if !self.provisional_recursive_rows.contains(&ordinal) {
             let memo_bytes = self.memo.retained_bytes()?;
-            self.memo.walker_resources.with_source(
+            let reservation = self.memo.walker_resources.with_source(
                 self.source_meter,
                 memo_bytes,
                 F5cWalkerLaneKind::ProvisionalRecursiveRows,
@@ -6204,7 +6737,11 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
                         memo_bytes,
                     )
                 },
-            )?;
+            );
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            self.provisional_recursive_rows.observe_capacity(
+                self.provisional_recursive_rows.len() + 1);
+            reservation?;
             self.provisional_recursive_rows.insert(ordinal);
             let invalidated = self.memo.invalidate_row(ordinal);
             self.memo.observe_component_external(self.source_meter)?;
@@ -6222,6 +6759,10 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
             return Ok(());
         };
         self.memo.work_meter.charge(self.path.len() - path_start)?;
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        let mut raw_owner = RawWalkerOwner::new(self.source_meter,
+            F5cWalkerLaneKind::ReentryPaths as usize,
+            std::mem::size_of::<F5cTraceHop>());
         let mut path = Vec::new();
         let copied = self.path.len() - path_start;
         let memo_bytes = self.memo.retained_bytes()?;
@@ -6234,6 +6775,8 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
             F5cWalkerLaneKind::ReentryPaths,
             |walker| walker.reserve_reentry_path(&mut path, copied, memo_bytes),
         );
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        raw_owner.observe(path.len(), path.capacity());
         if let Err(error) = reservation {
             let capacity = path.capacity();
             drop(path);
@@ -6261,6 +6804,8 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
             return Err(SolveAvailabilityError::IdentityExhausted);
         }
         path.extend_from_slice(&self.path[path_start..]);
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        raw_owner.observe(path.len(), path.capacity());
         let mut guarded = false;
         for hop in &path {
             if let Err(error) = self.memo.work_meter.charge(1) {
@@ -6276,11 +6821,14 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
             }
         }
         if guarded {
-            if let Err(error) = self.memo.reserve_walker_with_source(
+            let reservation = self.memo.reserve_walker_with_source(
                 &mut self.reentries,
                 F5cWalkerLaneKind::Reentries,
                 self.source_meter,
-            ) {
+            );
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            self.reentries_owner.observe(self.reentries.len(), self.reentries.capacity());
+            if let Err(error) = reservation {
                 let capacity = path.capacity();
                 drop(path);
                 self.memo
@@ -6293,6 +6841,10 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
                 reentry_polarity,
                 path,
             });
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            self.reentries_owner.observe(self.reentries.len(), self.reentries.capacity());
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            self.reentry_path_owners.push(raw_owner);
         } else {
             let capacity = path.capacity();
             drop(path);
@@ -6316,17 +6868,42 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
         first: F5cCompareTask<'b, 'meter>,
         stack: &mut Vec<F5cCompareTask<'b, 'meter>>,
     ) -> Result<bool, SolveAvailabilityError> {
+        self.structural_equal_with_owner(first, stack,
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            None)
+    }
+
+    fn structural_equal_with_owner<'b>(
+        &mut self,
+        first: F5cCompareTask<'b, 'meter>,
+        stack: &mut Vec<F5cCompareTask<'b, 'meter>>,
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        mut owner: Option<&mut RawWalkerOwner<'meter>>,
+    ) -> Result<bool, SolveAvailabilityError> {
+        macro_rules! reserve_comparison {
+            () => {{
+                let reservation = self.memo.reserve_walker_with_source(
+                    stack, F5cWalkerLaneKind::Comparison, self.source_meter);
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                if let Some(owner) = owner.as_deref_mut() {
+                    owner.observe(stack.len(), stack.capacity());
+                }
+                reservation?;
+            }};
+        }
         stack.clear();
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        if let Some(owner) = owner.as_deref_mut() { owner.observe(stack.len(), stack.capacity()); }
         self.memo.work_meter.charge(1)?;
-        self.memo.reserve_walker_with_source(
-            stack,
-            F5cWalkerLaneKind::Comparison,
-            self.source_meter,
-        )?;
+        reserve_comparison!();
         stack.push(first);
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        if let Some(owner) = owner.as_deref_mut() { owner.observe(stack.len(), stack.capacity()); }
         while !stack.is_empty() {
             self.memo.work_meter.charge(1)?;
             let pair = stack.pop().expect("nonempty comparison stack");
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            if let Some(owner) = owner.as_deref_mut() { owner.observe(stack.len(), stack.capacity()); }
             match pair {
                 F5cCompareTask::Positive(left, right) => match (left, right) {
                     (F5cPositive::Bottom, F5cPositive::Bottom)
@@ -6340,12 +6917,10 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
                         for (left, right) in a.iter().zip(b.iter()).rev() {
                             self.memo.work_meter.charge(1)?;
                             self.memo.work_meter.charge(1)?;
-                            self.memo.reserve_walker_with_source(
-                                stack,
-                                F5cWalkerLaneKind::Comparison,
-                                self.source_meter,
-                            )?;
+                            reserve_comparison!();
                             stack.push(F5cCompareTask::Positive(left, right));
+                        #[cfg(all(test, feature = "f5c_resource_probe"))]
+                        if let Some(owner) = owner.as_deref_mut() { owner.observe(stack.len(), stack.capacity()); }
                         }
                     }
                     (
@@ -6364,22 +6939,20 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
                     ) if ae == be && re == br => {
                         self.memo.work_meter.charge(2)?;
                         self.memo.work_meter.charge(1)?;
-                        self.memo.reserve_walker_with_source(
-                            stack,
-                            F5cWalkerLaneKind::Comparison,
-                            self.source_meter,
-                        )?;
+                        reserve_comparison!();
                         stack.push(F5cCompareTask::Positive(ar, b));
+                        #[cfg(all(test, feature = "f5c_resource_probe"))]
+                        if let Some(owner) = owner.as_deref_mut() { owner.observe(stack.len(), stack.capacity()); }
                         self.memo.work_meter.charge(1)?;
-                        self.memo.reserve_walker_with_source(
-                            stack,
-                            F5cWalkerLaneKind::Comparison,
-                            self.source_meter,
-                        )?;
+                        reserve_comparison!();
                         stack.push(F5cCompareTask::Negative(aa, ba));
+                        #[cfg(all(test, feature = "f5c_resource_probe"))]
+                        if let Some(owner) = owner.as_deref_mut() { owner.observe(stack.len(), stack.capacity()); }
                     }
                     _ => {
                         stack.clear();
+                        #[cfg(all(test, feature = "f5c_resource_probe"))]
+                        if let Some(owner) = owner.as_deref_mut() { owner.observe(stack.len(), stack.capacity()); }
                         return Ok(false);
                     }
                 },
@@ -6398,12 +6971,10 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
                         for (left, right) in a.iter().zip(b.iter()).rev() {
                             self.memo.work_meter.charge(1)?;
                             self.memo.work_meter.charge(1)?;
-                            self.memo.reserve_walker_with_source(
-                                stack,
-                                F5cWalkerLaneKind::Comparison,
-                                self.source_meter,
-                            )?;
+                            reserve_comparison!();
                             stack.push(F5cCompareTask::Negative(left, right));
+                        #[cfg(all(test, feature = "f5c_resource_probe"))]
+                        if let Some(owner) = owner.as_deref_mut() { owner.observe(stack.len(), stack.capacity()); }
                         }
                     }
                     (
@@ -6422,22 +6993,20 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
                     ) if ae == be && re == br => {
                         self.memo.work_meter.charge(2)?;
                         self.memo.work_meter.charge(1)?;
-                        self.memo.reserve_walker_with_source(
-                            stack,
-                            F5cWalkerLaneKind::Comparison,
-                            self.source_meter,
-                        )?;
+                        reserve_comparison!();
                         stack.push(F5cCompareTask::Negative(ar, b));
+                        #[cfg(all(test, feature = "f5c_resource_probe"))]
+                        if let Some(owner) = owner.as_deref_mut() { owner.observe(stack.len(), stack.capacity()); }
                         self.memo.work_meter.charge(1)?;
-                        self.memo.reserve_walker_with_source(
-                            stack,
-                            F5cWalkerLaneKind::Comparison,
-                            self.source_meter,
-                        )?;
+                        reserve_comparison!();
                         stack.push(F5cCompareTask::Positive(aa, ba));
+                        #[cfg(all(test, feature = "f5c_resource_probe"))]
+                        if let Some(owner) = owner.as_deref_mut() { owner.observe(stack.len(), stack.capacity()); }
                     }
                     _ => {
                         stack.clear();
+                        #[cfg(all(test, feature = "f5c_resource_probe"))]
+                        if let Some(owner) = owner.as_deref_mut() { owner.observe(stack.len(), stack.capacity()); }
                         return Ok(false);
                     }
                 },
@@ -6454,44 +7023,79 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
         let active_checkpoint = self.active.len();
         let frame_checkpoint = self.frames.len();
         let path_checkpoint = self.path.len();
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        let mut tasks_owner = RawWalkerOwner::new(self.source_meter,
+            F5cWalkerLaneKind::Tasks as usize, F5cWalkerLaneKind::Tasks.slot_size());
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        let mut values_owner = RawWalkerOwner::new(self.source_meter,
+            F5cWalkerLaneKind::Values as usize, std::mem::size_of::<S::Value>());
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        let mut direct_edges_owner = RawWalkerOwner::new(self.source_meter,
+            F5cWalkerLaneKind::DirectEdges as usize, F5cWalkerLaneKind::DirectEdges.slot_size());
         let mut tasks = Vec::new();
         let mut values = Vec::<S::Value>::new();
         let mut direct_edges = Vec::<(usize, u32)>::new();
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        let mut direct_targets = ObservedWalkerSet::new(self.source_meter, F5cWalkerLaneKind::DirectTargets);
+        #[cfg(not(all(test, feature = "f5c_resource_probe")))]
         let mut direct_targets = HashSet::<u32>::new();
         macro_rules! push_task {
             ($value:expr) => {{
                 let value = $value;
                 self.memo.work_meter.charge(1)?;
-                self.memo.reserve_walker_with_source(
+                let reservation = self.memo.reserve_walker_with_source(
                     &mut tasks,
                     F5cWalkerLaneKind::Tasks,
                     self.source_meter,
-                )?;
+                );
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                tasks_owner.observe(tasks.len(), tasks.capacity());
+                reservation?;
                 tasks.push(value);
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                tasks_owner.observe(tasks.len(), tasks.capacity());
             }};
         }
         macro_rules! push_value {
             ($value:expr) => {{
                 self.memo.work_meter.charge(1)?; // emitted walk value
                 let value = $value;
-                self.memo.reserve_walker_with_source(
+                let reservation = self.memo.reserve_walker_with_source(
                     &mut values,
                     F5cWalkerLaneKind::Values,
                     self.source_meter,
-                )?;
+                );
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                values_owner.observe(values.len(), values.capacity());
+                reservation?;
                 values.push(value);
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                values_owner.observe(values.len(), values.capacity());
             }};
         }
         macro_rules! push_direct {
             ($value:expr) => {{
                 let value = $value;
                 self.memo.work_meter.charge(1)?; // stored direct edge
-                self.memo.reserve_walker_with_source(
+                let reservation = self.memo.reserve_walker_with_source(
                     &mut direct_edges,
                     F5cWalkerLaneKind::DirectEdges,
                     self.source_meter,
-                )?;
+                );
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                direct_edges_owner.observe(direct_edges.len(), direct_edges.capacity());
+                reservation?;
                 direct_edges.push(value);
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                direct_edges_owner.observe(direct_edges.len(), direct_edges.capacity());
+            }};
+        }
+        macro_rules! pop_value {
+            () => {{
+                let value = values.pop().ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                values_owner.observe(values.len(), values.capacity());
+                value
             }};
         }
         let result = (|| {
@@ -6499,17 +7103,26 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
             while !tasks.is_empty() {
                 self.memo.work_meter.charge(1)?;
                 let task = tasks.pop().expect("nonempty generalization tasks");
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                tasks_owner.observe(tasks.len(), tasks.capacity());
                 match task {
                     F5cWalkTask::EnterPath(hop) => {
-                        self.memo.reserve_walker_with_source(
+                        let reservation = self.memo.reserve_walker_with_source(
                             &mut self.path,
                             F5cWalkerLaneKind::Path,
                             self.source_meter,
-                        )?;
+                        );
+                        #[cfg(all(test, feature = "f5c_resource_probe"))]
+                        self.path_owner.observe(self.path.len(), self.path.capacity());
+                        reservation?;
                         self.path.push(hop);
+                        #[cfg(all(test, feature = "f5c_resource_probe"))]
+                        self.path_owner.observe(self.path.len(), self.path.capacity());
                     }
                     F5cWalkTask::LeavePath => {
                         self.path.pop();
+                        #[cfg(all(test, feature = "f5c_resource_probe"))]
+                        self.path_owner.observe(self.path.len(), self.path.capacity());
                     }
                     F5cWalkTask::EnterRow {
                         row,
@@ -6565,6 +7178,8 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
                             self.frames.push(F5cExpansionFrame {
                                 tainted: self.fatal_taint || warm_conflict,
                             });
+                            #[cfg(all(test, feature = "f5c_resource_probe"))]
+                            if self.memo.matrix_active { self.memo.matrix_generalizer_lengths[0] = self.frames.len(); }
                         }
                         self.mark(row, polarity)?;
                         let entered = self.memo.enter_active(row);
@@ -6572,6 +7187,11 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
                         entered?;
                         self.active.push((row, polarity, self.path.len()));
                         self.active_set.insert((row, polarity));
+                        #[cfg(all(test, feature = "f5c_resource_probe"))]
+                        if self.memo.matrix_active {
+                            self.memo.matrix_generalizer_lengths[1] = self.active.len();
+                            self.memo.matrix_generalizer_lengths[2] = self.active_set.len();
+                        }
                         self.observe_walker_component()?;
                         let bounds = self
                             .session
@@ -6586,6 +7206,8 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
                             values_start: start,
                         });
                         direct_edges.clear();
+                        #[cfg(all(test, feature = "f5c_resource_probe"))]
+                        direct_edges_owner.observe(direct_edges.len(), direct_edges.capacity());
                         if !root {
                             direct_targets.clear();
                             let direct = match polarity {
@@ -6600,6 +7222,8 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
                                         .actual_capacity;
                                     let reservation =
                                         self.memo.reserve_walker_target(&mut direct_targets);
+                                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                                    direct_targets.observe_capacity(direct_targets.len() + 1);
                                     if self.memo.walker_resources.lanes
                                         [F5cWalkerLaneKind::DirectTargets as usize]
                                         .actual_capacity
@@ -6723,9 +7347,17 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
                         left?;
                         self.active.pop();
                         self.active_set.remove(&(row, polarity));
+                        #[cfg(all(test, feature = "f5c_resource_probe"))]
+                        if self.memo.matrix_active {
+                            self.memo.matrix_generalizer_lengths[1] = self.active.len();
+                            self.memo.matrix_generalizer_lengths[2] = self.active_set.len();
+                        }
                         self.observe_walker_component()?;
                         let value =
-                            sink.finish_row(self, &mut values, values_start, row, polarity, root)?;
+                            sink.finish_row(self, &mut values,
+                                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                                &mut values_owner,
+                                values_start, row, polarity, root)?;
                         if root {
                             push_value!(value);
                             continue;
@@ -6904,12 +7536,8 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
                         }
                     }
                     F5cWalkTask::ExitFunction { polarity } => {
-                        let result = values
-                            .pop()
-                            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
-                        let argument = values
-                            .pop()
-                            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                        let result = pop_value!();
+                        let argument = pop_value!();
                         push_value!(sink.function(self, polarity, argument, result)?);
                     }
                 }
@@ -6917,9 +7545,10 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
             if values.len() != 1 {
                 return Err(SolveAvailabilityError::IdentityExhausted);
             }
-            values
-                .pop()
-                .ok_or(SolveAvailabilityError::IdentityExhausted)
+            let result = values.pop().ok_or(SolveAvailabilityError::IdentityExhausted);
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            values_owner.observe(values.len(), values.capacity());
+            result
         })();
         let result = match result {
             Ok(value) => self.observe_walker_component().map(|()| value),
@@ -6938,7 +7567,15 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
                 self.memo.reset_active_scratch();
             }
             self.frames.truncate(frame_checkpoint);
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            if self.memo.matrix_active {
+                self.memo.matrix_generalizer_lengths[0] = self.frames.len();
+                self.memo.matrix_generalizer_lengths[1] = self.active.len();
+                self.memo.matrix_generalizer_lengths[2] = self.active_set.len();
+            }
             self.path.truncate(path_checkpoint);
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            self.path_owner.observe(self.path.len(), self.path.capacity());
             let _ = self.taint_active_states();
         }
         for kind in [
@@ -6986,7 +7623,7 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
         &mut self,
         root: u32,
         #[cfg(test)] fail_after_first_post_output: bool,
-    ) -> Result<(f5c_draft::FlatDraft, F5cRawForest), SolveAvailabilityError> {
+    ) -> Result<(f5c_draft::FlatDraft, F5cRawForest<'meter>), SolveAvailabilityError> {
         if self.normalized_candidate_live {
             return Err(SolveAvailabilityError::IdentityExhausted);
         }
@@ -6995,30 +7632,68 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
             #[cfg(test)]
             false,
         )?;
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        let mut positive_only = ObservedWalkerSet::new(self.source_meter,
+            F5cWalkerLaneKind::BoxedPositiveOnly);
+        #[cfg(not(all(test, feature = "f5c_resource_probe")))]
         let mut positive_only = HashSet::new();
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        let mut negative_only = ObservedWalkerSet::new(self.source_meter,
+            F5cWalkerLaneKind::BoxedNegativeOnly);
+        #[cfg(not(all(test, feature = "f5c_resource_probe")))]
         let mut negative_only = HashSet::new();
         let prepared = (|| {
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            let mut reentry_owners = HashMap::<u32, RawWalkerOwner<'_>>::new();
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            let mut boxed_map_owner = RawWalkerOwner::new(self.source_meter,
+                F5cWalkerLaneKind::BoxedReentriesByOwner as usize,
+                F5cWalkerLaneKind::BoxedReentriesByOwner.slot_size());
             let mut reentries_by_owner = HashMap::<u32, Vec<usize>>::new();
             for (index, trace) in self.reentries.iter().enumerate() {
                 self.memo.work_meter.charge(2)?;
                 let bytes = self.memo.retained_bytes()?;
                 if let Some(indices) = reentries_by_owner.get_mut(&trace.owner) {
-                    self.memo
+                    let reservation = self.memo
                         .walker_resources
-                        .reserve_boxed_indices(indices, bytes)?;
+                        .reserve_boxed_indices(indices, bytes);
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    reentry_owners.get_mut(&trace.owner).expect("raw reentry owner")
+                        .observe(indices.len(), indices.capacity());
+                    reservation?;
                     indices.push(index);
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    reentry_owners.get_mut(&trace.owner).expect("raw reentry owner")
+                        .observe(indices.len(), indices.capacity());
                 } else {
-                    self.memo.walker_resources.reserve_boxed_map(
+                    let reservation = self.memo.walker_resources.reserve_boxed_map(
                         &mut reentries_by_owner,
                         F5cWalkerLaneKind::BoxedReentriesByOwner,
                         bytes,
-                    )?;
+                    );
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    boxed_map_owner.observe(reentries_by_owner.len(),
+                        reentries_by_owner.capacity());
+                    reservation?;
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    let mut raw_owner = RawWalkerOwner::new(self.source_meter,
+                        F5cWalkerLaneKind::BoxedReentryIndices as usize,
+                        std::mem::size_of::<usize>());
                     let mut indices = Vec::new();
-                    self.memo
+                    let reservation = self.memo
                         .walker_resources
-                        .reserve_boxed_indices(&mut indices, bytes)?;
+                        .reserve_boxed_indices(&mut indices, bytes);
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    raw_owner.observe(indices.len(), indices.capacity());
+                    reservation?;
                     indices.push(index);
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    raw_owner.observe(indices.len(), indices.capacity());
                     reentries_by_owner.insert(trace.owner, indices);
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    boxed_map_owner.observe(reentries_by_owner.len(), reentries_by_owner.capacity());
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    reentry_owners.insert(trace.owner, raw_owner);
                 }
             }
             let non_generic = self.non_generic_closure()?;
@@ -7034,11 +7709,14 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
                 if eligible && positive.contains(&owner) && !negative.contains(&owner) {
                     self.memo.work_meter.charge(1)?;
                     let bytes = self.memo.retained_bytes()?;
-                    self.memo.walker_resources.reserve_generalizer_set(
+                    let reservation = self.memo.walker_resources.reserve_generalizer_set(
                         &mut positive_only,
                         F5cWalkerLaneKind::BoxedPositiveOnly,
                         bytes,
-                    )?;
+                    );
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    positive_only.observe_capacity(positive_only.len() + 1);
+                    reservation?;
                     positive_only.insert(owner);
                     #[cfg(test)]
                     if self.memo.fail_reserve_at
@@ -7051,14 +7729,22 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
                 if eligible && negative.contains(&owner) && !positive.contains(&owner) {
                     self.memo.work_meter.charge(1)?;
                     let bytes = self.memo.retained_bytes()?;
-                    self.memo.walker_resources.reserve_generalizer_set(
+                    let reservation = self.memo.walker_resources.reserve_generalizer_set(
                         &mut negative_only,
                         F5cWalkerLaneKind::BoxedNegativeOnly,
                         bytes,
-                    )?;
+                    );
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    negative_only.observe_capacity(negative_only.len() + 1);
+                    reservation?;
                     negative_only.insert(owner);
                 }
             }
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            let reentries_by_owner = ObservedReentryMap {
+                values: reentries_by_owner, _map_owner: boxed_map_owner,
+                _index_owners: reentry_owners,
+            };
             Ok::<_, SolveAvailabilityError>((reentries_by_owner, non_generic, positive, negative))
         })();
         let (reentries_by_owner, non_generic, positive, negative) = match prepared {
@@ -7123,6 +7809,15 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
             Err((error, forest)) => {
                 drop(reentries);
                 drop(order);
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                {
+                    self.reentries_owner = RawWalkerOwner::new(self.source_meter,
+                        F5cWalkerLaneKind::Reentries as usize,
+                        F5cWalkerLaneKind::Reentries.slot_size());
+                    self.order_owner = RawWalkerOwner::new(self.source_meter,
+                        F5cWalkerLaneKind::Order as usize,
+                        F5cWalkerLaneKind::Order.slot_size());
+                }
                 drop(reentries_by_owner);
                 drop(non_generic);
                 drop(positive);
@@ -7142,7 +7837,7 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
         root: u32,
         #[cfg(test)] fail_after_first_post_output: bool,
         #[cfg(test)] fail_during_normalization: bool,
-    ) -> Result<(F5cNormalizedCandidate, F5cRawForest), SolveAvailabilityError> {
+    ) -> Result<(F5cNormalizedCandidate, F5cRawForest<'meter>), SolveAvailabilityError> {
         if self.normalized_candidate_live {
             return Err(SolveAvailabilityError::IdentityExhausted);
         }
@@ -7151,30 +7846,68 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
             #[cfg(test)]
             false,
         )?;
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        let mut positive_only = ObservedWalkerSet::new(self.source_meter,
+            F5cWalkerLaneKind::BoxedPositiveOnly);
+        #[cfg(not(all(test, feature = "f5c_resource_probe")))]
         let mut positive_only = HashSet::new();
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        let mut negative_only = ObservedWalkerSet::new(self.source_meter,
+            F5cWalkerLaneKind::BoxedNegativeOnly);
+        #[cfg(not(all(test, feature = "f5c_resource_probe")))]
         let mut negative_only = HashSet::new();
         let prepared = (|| {
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            let mut reentry_owners = HashMap::<u32, RawWalkerOwner<'_>>::new();
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            let mut boxed_map_owner = RawWalkerOwner::new(self.source_meter,
+                F5cWalkerLaneKind::BoxedReentriesByOwner as usize,
+                F5cWalkerLaneKind::BoxedReentriesByOwner.slot_size());
             let mut reentries_by_owner = HashMap::<u32, Vec<usize>>::new();
             for (index, trace) in self.reentries.iter().enumerate() {
                 self.memo.work_meter.charge(2)?;
                 let bytes = self.memo.retained_bytes()?;
                 if let Some(indices) = reentries_by_owner.get_mut(&trace.owner) {
-                    self.memo
+                    let reservation = self.memo
                         .walker_resources
-                        .reserve_boxed_indices(indices, bytes)?;
+                        .reserve_boxed_indices(indices, bytes);
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    reentry_owners.get_mut(&trace.owner).expect("raw reentry owner")
+                        .observe(indices.len(), indices.capacity());
+                    reservation?;
                     indices.push(index);
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    reentry_owners.get_mut(&trace.owner).expect("raw reentry owner")
+                        .observe(indices.len(), indices.capacity());
                 } else {
-                    self.memo.walker_resources.reserve_boxed_map(
+                    let reservation = self.memo.walker_resources.reserve_boxed_map(
                         &mut reentries_by_owner,
                         F5cWalkerLaneKind::BoxedReentriesByOwner,
                         bytes,
-                    )?;
+                    );
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    boxed_map_owner.observe(reentries_by_owner.len(),
+                        reentries_by_owner.capacity());
+                    reservation?;
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    let mut raw_owner = RawWalkerOwner::new(self.source_meter,
+                        F5cWalkerLaneKind::BoxedReentryIndices as usize,
+                        std::mem::size_of::<usize>());
                     let mut indices = Vec::new();
-                    self.memo
+                    let reservation = self.memo
                         .walker_resources
-                        .reserve_boxed_indices(&mut indices, bytes)?;
+                        .reserve_boxed_indices(&mut indices, bytes);
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    raw_owner.observe(indices.len(), indices.capacity());
+                    reservation?;
                     indices.push(index);
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    raw_owner.observe(indices.len(), indices.capacity());
                     reentries_by_owner.insert(trace.owner, indices);
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    boxed_map_owner.observe(reentries_by_owner.len(), reentries_by_owner.capacity());
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    reentry_owners.insert(trace.owner, raw_owner);
                 }
             }
             let non_generic = self.non_generic_closure()?;
@@ -7190,11 +7923,14 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
                 if eligible && positive.contains(&owner) && !negative.contains(&owner) {
                     self.memo.work_meter.charge(1)?;
                     let bytes = self.memo.retained_bytes()?;
-                    self.memo.walker_resources.reserve_generalizer_set(
+                    let reservation = self.memo.walker_resources.reserve_generalizer_set(
                         &mut positive_only,
                         F5cWalkerLaneKind::BoxedPositiveOnly,
                         bytes,
-                    )?;
+                    );
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    positive_only.observe_capacity(positive_only.len() + 1);
+                    reservation?;
                     positive_only.insert(owner);
                     #[cfg(test)]
                     if self.memo.fail_reserve_at
@@ -7207,14 +7943,22 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
                 if eligible && negative.contains(&owner) && !positive.contains(&owner) {
                     self.memo.work_meter.charge(1)?;
                     let bytes = self.memo.retained_bytes()?;
-                    self.memo.walker_resources.reserve_generalizer_set(
+                    let reservation = self.memo.walker_resources.reserve_generalizer_set(
                         &mut negative_only,
                         F5cWalkerLaneKind::BoxedNegativeOnly,
                         bytes,
-                    )?;
+                    );
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    negative_only.observe_capacity(negative_only.len() + 1);
+                    reservation?;
                     negative_only.insert(owner);
                 }
             }
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            let reentries_by_owner = ObservedReentryMap {
+                values: reentries_by_owner, _map_owner: boxed_map_owner,
+                _index_owners: reentry_owners,
+            };
             Ok::<_, SolveAvailabilityError>((reentries_by_owner, non_generic, positive, negative))
         })();
         let (reentries_by_owner, non_generic, positive, negative) = match prepared {
@@ -7281,6 +8025,15 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
             Err((error, forest)) => {
                 drop(reentries);
                 drop(order);
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                {
+                    self.reentries_owner = RawWalkerOwner::new(self.source_meter,
+                        F5cWalkerLaneKind::Reentries as usize,
+                        F5cWalkerLaneKind::Reentries.slot_size());
+                    self.order_owner = RawWalkerOwner::new(self.source_meter,
+                        F5cWalkerLaneKind::Order as usize,
+                        F5cWalkerLaneKind::Order.slot_size());
+                }
                 drop(reentries_by_owner);
                 drop(non_generic);
                 drop(positive);
@@ -7388,7 +8141,7 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
     #[cfg(test)]
     fn record_transfer_raw_staged(
         &mut self,
-        forest: &F5cRawForest,
+        forest: &F5cRawForest<'meter>,
         staged: &TrackedVec<'meter, F5cStagedCandidate<'meter>>,
     ) {
         fn bytes<T>(capacity: usize) -> u128 {
@@ -7433,9 +8186,14 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
                 forest.callback_trace.capacity(),
             ),
         ];
-        self.memo
-            .transfer_raw_capacity_samples
-            .push(raw_lanes.map(|(_, capacity)| capacity));
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        if self.memo.matrix_active {
+            self.memo.matrix_transfer_raw_capacity = Some(raw_lanes.map(|(_, capacity)| capacity));
+        } else {
+            self.memo.transfer_raw_capacity_samples.push(raw_lanes.map(|(_, capacity)| capacity));
+        }
+        #[cfg(not(all(test, feature = "f5c_resource_probe")))]
+        self.memo.transfer_raw_capacity_samples.push(raw_lanes.map(|(_, capacity)| capacity));
         let raw_bytes: u128 = raw_lanes
             .into_iter()
             .map(|(kind, capacity)| {
@@ -7456,10 +8214,13 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
         let previous_staged = if staged.len() == 1 {
             None
         } else {
-            self.memo
-                .transfer_raw_staged_samples
-                .last()
-                .map(|sample| sample.1)
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            let matrix = self.memo.matrix_active
+                .then_some(self.memo.matrix_transfer_raw_staged)
+                .flatten().map(|sample| sample.1);
+            #[cfg(not(all(test, feature = "f5c_resource_probe")))]
+            let matrix = None;
+            matrix.or_else(|| self.memo.transfer_raw_staged_samples.last().map(|sample| sample.1))
         };
         let previous_staged = if let Some(previous_staged) = previous_staged {
             previous_staged
@@ -7495,14 +8256,14 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
             ])
             .map(|(capacity, size)| capacity * size as u128)
             .sum();
-        self.memo.transfer_physical_samples.push((
+        let physical = (
             raw_bytes,
             staged_bytes,
             physical_source,
             physical_memo,
             physical_walker,
-        ));
-        self.memo.transfer_live_capacity_samples.push((
+        );
+        let live = (
             joint.source_capacities,
             self.memo.live_capacity_snapshot(),
             self.memo
@@ -7510,10 +8271,24 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
                 .independent_lanes
                 .map(|lane| lane.actual_capacity),
             self.memo.walker_resources.value_slot_size,
-        ));
-        self.memo
-            .transfer_raw_staged_samples
-            .push((raw_bytes, staged_bytes, total));
+        );
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        if self.memo.matrix_active {
+            self.memo.matrix_transfer_physical = Some(physical);
+            self.memo.matrix_transfer_live_capacity = Some(live);
+            self.memo.matrix_transfer_raw_staged = Some((raw_bytes, staged_bytes, total));
+            self.memo.matrix_transfer_count += 1;
+        } else {
+            self.memo.transfer_physical_samples.push(physical);
+            self.memo.transfer_live_capacity_samples.push(live);
+            self.memo.transfer_raw_staged_samples.push((raw_bytes, staged_bytes, total));
+        }
+        #[cfg(not(all(test, feature = "f5c_resource_probe")))]
+        {
+            self.memo.transfer_physical_samples.push(physical);
+            self.memo.transfer_live_capacity_samples.push(live);
+            self.memo.transfer_raw_staged_samples.push((raw_bytes, staged_bytes, total));
+        }
     }
 
     fn release_flat_candidate_one_sided_lanes(&mut self) {
@@ -7556,7 +8331,7 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
     pub(super) fn build_raw_forest(
         &mut self,
         root: u32,
-    ) -> Result<F5cRawForest, SolveAvailabilityError> {
+    ) -> Result<F5cRawForest<'meter>, SolveAvailabilityError> {
         self.build_raw_forest_with_bound_reinsertion_for_test(root, false)
     }
 
@@ -7565,7 +8340,7 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
         &mut self,
         root: u32,
         reverse_bounds: bool,
-    ) -> Result<F5cRawForest, SolveAvailabilityError> {
+    ) -> Result<F5cRawForest<'meter>, SolveAvailabilityError> {
         self.build_raw_forest_inner(root, reverse_bounds)
     }
 
@@ -7573,16 +8348,40 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
         &mut self,
         root: u32,
         #[cfg(test)] reverse_bounds: bool,
-    ) -> Result<F5cRawForest, SolveAvailabilityError> {
+    ) -> Result<F5cRawForest<'meter>, SolveAvailabilityError> {
         if self.raw_forest_live || self.raw_forest_rollback_failed {
             return Err(SolveAvailabilityError::IdentityExhausted);
         }
         use f5c_draft::{NegativeId, NodeRef, PositiveId};
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        let mut raw_owner_order_owner = RawWalkerOwner::new(self.source_meter,
+            F5cWalkerLaneKind::RawOwnerOrder as usize,
+            F5cWalkerLaneKind::RawOwnerOrder.slot_size());
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        let mut roots_owner = RawWalkerOwner::new(self.source_meter,
+            F5cWalkerLaneKind::RawRoots as usize,
+            F5cWalkerLaneKind::RawRoots.slot_size());
         let mut raw_owner_order = Vec::new();
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        let mut raw_bounds_owner = RawWalkerOwner::new(self.source_meter,
+            F5cWalkerLaneKind::RawOwnerBounds as usize,
+            F5cWalkerLaneKind::RawOwnerBounds.slot_size());
         let mut raw_bounds = HashMap::<u32, (PositiveId, NegativeId)>::new();
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        let mut seen_owner = RawWalkerOwner::new(self.source_meter,
+            F5cWalkerLaneKind::RawOwnerSeen as usize,
+            F5cWalkerLaneKind::RawOwnerSeen.slot_size());
         let mut seen = HashSet::<u32>::new();
         let mut roots = Vec::<FlatWalkValue>::new();
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        let mut outputs_owner = RawWalkerOwner::new(self.source_meter,
+            F5cWalkerLaneKind::FlatSourceMaterializeRoots as usize,
+            F5cWalkerLaneKind::FlatSourceMaterializeRoots.slot_size());
         let mut outputs = Vec::<NodeRef>::new();
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        let mut callback_trace_owner = RawWalkerOwner::new(self.source_meter,
+            F5cWalkerLaneKind::RawCallbackTrace as usize,
+            F5cWalkerLaneKind::RawCallbackTrace.slot_size());
         #[cfg(test)]
         let mut callback_trace = Vec::<(u32, Polarity)>::new();
         let mut draft = f5c_draft::FlatDraft::default();
@@ -7603,13 +8402,18 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
             })?;
             checked_raw_root_append(roots.len(), 1)?;
             let bytes = self.memo.retained_bytes()?;
-            self.memo.walker_resources.reserve(
+            let reservation = self.memo.walker_resources.reserve(
                 &mut roots,
                 F5cWalkerLaneKind::RawRoots,
                 1,
                 bytes,
-            )?;
+            );
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            roots_owner.observe(roots.len(), roots.capacity());
+            reservation?;
             roots.push(predicate);
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            roots_owner.observe(roots.len(), roots.capacity());
             let mut next_owner = 0;
             while next_owner < self.reentries.len() {
                 self.memo.work_meter.charge(1)?;
@@ -7620,10 +8424,15 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
                     continue;
                 }
                 let bytes = self.memo.retained_bytes()?;
-                self.memo
+                let reservation = self.memo
                     .walker_resources
-                    .reserve_raw_set(&mut seen, bytes)?;
+                    .reserve_raw_set(&mut seen, bytes);
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                seen_owner.observe(seen.len(), seen.capacity());
+                reservation?;
                 seen.insert(owner);
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                seen_owner.observe(seen.len(), seen.capacity());
                 let bounds = self
                     .session
                     .bounds
@@ -7662,24 +8471,39 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
                 self.memo.work_meter.charge(2)?;
                 let lower_index = checked_raw_root_append(roots.len(), 2)?;
                 let bytes = self.memo.retained_bytes()?;
-                self.memo.walker_resources.reserve(
+                let order_reservation = self.memo.walker_resources.reserve(
                     &mut raw_owner_order,
                     F5cWalkerLaneKind::RawOwnerOrder,
                     1,
                     bytes,
-                )?;
-                self.memo.walker_resources.reserve(
+                );
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                raw_owner_order_owner.observe(raw_owner_order.len(), raw_owner_order.capacity());
+                order_reservation?;
+                let roots_reservation = self.memo.walker_resources.reserve(
                     &mut roots,
                     F5cWalkerLaneKind::RawRoots,
                     2,
                     bytes,
-                )?;
-                self.memo
+                );
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                roots_owner.observe(roots.len(), roots.capacity());
+                roots_reservation?;
+                let reservation = self.memo
                     .walker_resources
-                    .reserve_raw_map(&mut raw_bounds, bytes)?;
+                    .reserve_raw_map(&mut raw_bounds, bytes);
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                raw_bounds_owner.observe(raw_bounds.len(), raw_bounds.capacity());
+                reservation?;
                 roots.push(lower);
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                roots_owner.observe(roots.len(), roots.capacity());
                 roots.push(upper);
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                roots_owner.observe(roots.len(), roots.capacity());
                 raw_owner_order.push(owner);
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                raw_owner_order_owner.observe(raw_owner_order.len(), raw_owner_order.capacity());
                 // The indices are replaced with draft IDs after one ordered batch.
                 raw_bounds.insert(
                     owner,
@@ -7694,6 +8518,8 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
                         ),
                     ),
                 );
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                raw_bounds_owner.observe(raw_bounds.len(), raw_bounds.capacity());
             }
             if self.invalid_effects {
                 return Err(SolveAvailabilityError::IdentityExhausted);
@@ -7704,7 +8530,11 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
                     let bounds = raw_bounds
                         .remove(owner)
                         .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    raw_bounds_owner.observe(raw_bounds.len(), raw_bounds.capacity());
                     raw_bounds.insert(*owner, bounds);
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    raw_bounds_owner.observe(raw_bounds.len(), raw_bounds.capacity());
                 }
             }
             let memo = &mut self.memo;
@@ -7712,12 +8542,15 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
             #[cfg(test)]
             {
                 let bytes = memo.retained_bytes()?;
-                memo.walker_resources.reserve(
+                let reservation = memo.walker_resources.reserve(
                     &mut callback_trace,
                     F5cWalkerLaneKind::RawCallbackTrace,
                     0,
                     bytes,
-                )?;
+                );
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                callback_trace_owner.observe(callback_trace.len(), callback_trace.capacity());
+                reservation?;
                 memo.walker_resources.observe_memo(bytes)?;
             }
             sink.materialize_roots(
@@ -7725,19 +8558,28 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
                 &mut draft,
                 &roots,
                 &mut outputs,
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                Some(&mut outputs_owner),
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                Some(self.source_meter),
                 |#[allow(unused_variables)] resources,
                  #[allow(unused_variables)] memo_bytes,
                  #[allow(unused_variables)] row,
                  #[allow(unused_variables)] polarity| {
                     #[cfg(test)]
                     {
-                        resources.reserve(
+                        let reservation = resources.reserve(
                             &mut callback_trace,
                             F5cWalkerLaneKind::RawCallbackTrace,
                             1,
                             memo_bytes,
-                        )?;
+                        );
+                        #[cfg(all(test, feature = "f5c_resource_probe"))]
+                        callback_trace_owner.observe(callback_trace.len(), callback_trace.capacity());
+                        reservation?;
                         callback_trace.push((row, polarity));
+                        #[cfg(all(test, feature = "f5c_resource_probe"))]
+                        callback_trace_owner.observe(callback_trace.len(), callback_trace.capacity());
                     }
                     Ok(())
                 },
@@ -7758,16 +8600,32 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
                     return Err(SolveAvailabilityError::IdentityExhausted);
                 };
                 raw_bounds.insert(*owner, (lower, upper));
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                raw_bounds_owner.observe(raw_bounds.len(), raw_bounds.capacity());
             }
             Ok(())
         })();
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        let had_outputs_capacity = outputs.capacity() != 0;
         drop(outputs);
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        drop(outputs_owner);
         self.flat_sink.release_materialized_roots(&mut self.memo);
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        let result = if had_outputs_capacity {
+            self.memo.observe_walker_with_source(self.source_meter).and(result)
+        } else {
+            result
+        };
         drop(roots);
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        drop(roots_owner);
         self.memo
             .walker_resources
             .release(F5cWalkerLaneKind::RawRoots);
         drop(seen);
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        drop(seen_owner);
         self.memo
             .walker_resources
             .release(F5cWalkerLaneKind::RawOwnerSeen);
@@ -7784,9 +8642,15 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
                 self.memo.walker_resources.release(kind);
             }
             drop(raw_owner_order);
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            drop(raw_owner_order_owner);
             drop(raw_bounds);
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            drop(raw_bounds_owner);
             #[cfg(test)]
             drop(callback_trace);
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            drop(callback_trace_owner);
             self.memo
                 .walker_resources
                 .release(F5cWalkerLaneKind::RawOwnerOrder);
@@ -7800,6 +8664,11 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
             return Err(error);
         }
         drop(std::mem::take(&mut self.flat_sink.arena));
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        {
+            let fresh = Self::new_source_arena_owners(self.source_meter);
+            drop(std::mem::replace(&mut self.source_arena_owners, fresh));
+        }
         self.flat_sink.component_checkpoint = None;
         self.flat_sink.counter_checkpoint = None;
         for kind in [
@@ -7814,13 +8683,19 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
         Ok(F5cRawForest {
             draft,
             raw_owner_order,
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            raw_owner_order_owner,
             raw_bounds,
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            raw_bounds_owner,
             #[cfg(test)]
             callback_trace,
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            callback_trace_owner,
         })
     }
 
-    pub(super) fn release_raw_forest(&mut self, forest: F5cRawForest) {
+    pub(super) fn release_raw_forest(&mut self, forest: F5cRawForest<'meter>) {
         assert!(
             self.raw_forest_live,
             "one live raw forest owns the candidate output lanes"
@@ -7838,7 +8713,7 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
     }
 
     #[allow(dead_code)]
-    fn release_raw_forest_for_batch(&mut self, forest: F5cRawForest) {
+    fn release_raw_forest_for_batch(&mut self, forest: F5cRawForest<'meter>) {
         assert!(self.raw_forest_live);
         self.release_raw_forest_lanes(forest);
         self.reset_after_raw_forest();
@@ -7848,7 +8723,7 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
 
     pub(super) fn abort_raw_forest(
         &mut self,
-        forest: F5cRawForest,
+        forest: F5cRawForest<'meter>,
     ) -> Result<(), SolveAvailabilityError> {
         assert!(self.raw_forest_live);
         self.release_raw_forest_lanes(forest);
@@ -7857,7 +8732,7 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
         rollback
     }
 
-    fn release_raw_forest_lanes(&mut self, forest: F5cRawForest) {
+    fn release_raw_forest_lanes(&mut self, forest: F5cRawForest<'meter>) {
         drop(forest);
         for kind in [
             F5cWalkerLaneKind::RawOwnerOrder,
@@ -7881,6 +8756,8 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
         self.active_set = HashSet::new();
         self.release_persistent_lanes();
         self.memo.generalizer_scratch_capacities = [0; 4];
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        if self.memo.matrix_active { self.memo.matrix_generalizer_lengths = [0; 4]; }
         self.shared_summary_hits = 0;
         self.uncacheable_states = 0;
         self.fatal_taint = false;
@@ -7904,6 +8781,15 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
         let result = self.walk_with(first, sink);
         if result.is_err() {
             sink.arena.rollback(checkpoint);
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            for (owner, (len, capacity)) in self.source_arena_owners.iter_mut().zip([
+                (sink.arena.positive_nodes.len(), sink.arena.positive_nodes.capacity()),
+                (sink.arena.negative_nodes.len(), sink.arena.negative_nodes.capacity()),
+                (sink.arena.positive_children.len(), sink.arena.positive_children.capacity()),
+                (sink.arena.negative_children.len(), sink.arena.negative_children.capacity()),
+            ]) {
+                owner.observe(len, capacity);
+            }
             sink.component_checkpoint = None;
             sink.counter_checkpoint = None;
             (self.shared_summary_hits, self.uncacheable_states) = counter_checkpoint;
@@ -7915,6 +8801,15 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
     fn abort_flat_component(&mut self) -> Result<(), SolveAvailabilityError> {
         if let Some(checkpoint) = self.flat_sink.component_checkpoint.take() {
             self.flat_sink.arena.rollback(checkpoint);
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            for (owner, (len, capacity)) in self.source_arena_owners.iter_mut().zip([
+                (self.flat_sink.arena.positive_nodes.len(), self.flat_sink.arena.positive_nodes.capacity()),
+                (self.flat_sink.arena.negative_nodes.len(), self.flat_sink.arena.negative_nodes.capacity()),
+                (self.flat_sink.arena.positive_children.len(), self.flat_sink.arena.positive_children.capacity()),
+                (self.flat_sink.arena.negative_children.len(), self.flat_sink.arena.negative_children.capacity()),
+            ]) {
+                owner.observe(len, capacity);
+            }
         }
         if let Some(counters) = self.flat_sink.counter_checkpoint.take() {
             (self.shared_summary_hits, self.uncacheable_states) = counters;
@@ -8134,7 +9029,7 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
         f5c_normalization::normalize_negative(source_meter, value)
     }
 
-    pub(super) fn non_generic_closure(&mut self) -> Result<HashSet<u32>, SolveAvailabilityError> {
+    pub(super) fn non_generic_closure(&mut self) -> Result<F5cObservedSet<'meter>, SolveAvailabilityError> {
         let result = self.non_generic_closure_work();
         let mut release_error = None;
         for kind in [
@@ -8163,12 +9058,18 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
         result
     }
 
-    fn non_generic_closure_work(&mut self) -> Result<HashSet<u32>, SolveAvailabilityError> {
+    fn non_generic_closure_work(&mut self) -> Result<F5cObservedSet<'meter>, SolveAvailabilityError> {
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        let mut adjacency_owners = Vec::new();
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        let mut adjacency_owner = RawWalkerOwner::new(self.source_meter,
+            F5cWalkerLaneKind::ClosureAdjacency as usize,
+            F5cWalkerLaneKind::ClosureAdjacency.slot_size());
         let mut adjacency = Vec::new();
         let mut walker =
             f5c_tree_analysis::Walker::new_with_source(&mut self.memo, self.source_meter);
         let memo_bytes = walker.memo.retained_bytes()?;
-        walker.memo.walker_resources.with_source(
+        let reservation = walker.memo.walker_resources.with_source(
             self.source_meter,
             memo_bytes,
             F5cWalkerLaneKind::ClosureAdjacency,
@@ -8180,8 +9081,22 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
                     memo_bytes,
                 )
             },
-        )?;
+        );
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        adjacency_owner.observe(adjacency.len(), adjacency.capacity());
+        reservation?;
         adjacency.resize_with(self.session.bounds.len(), HashSet::new);
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        adjacency_owner.observe(adjacency.len(), adjacency.capacity());
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        adjacency_owners.extend((0..adjacency.len()).map(|_| RawWalkerOwner::new(
+            self.source_meter,
+            F5cWalkerLaneKind::ClosureNeighbors as usize,
+            F5cWalkerLaneKind::ClosureNeighbors.slot_size(),
+        )));
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        let mut connected = ObservedWalkerSet::new(self.source_meter, F5cWalkerLaneKind::ClosureConnected);
+        #[cfg(not(all(test, feature = "f5c_resource_probe")))]
         let mut connected = HashSet::new();
         for (owner, bounds) in self.session.bounds.iter().enumerate() {
             walker.memo.work_meter.charge(1)?; // scanned bounds owner
@@ -8198,12 +9113,12 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
                 .iter()
                 .chain(&bounds.direct_upper_rows)
             {
-                walker.memo.insert_physical_set_with_source(
-                    &mut connected,
-                    *row,
-                    F5cWalkerLaneKind::ClosureConnected,
-                    self.source_meter,
-                )?;
+                let reservation = walker.memo.insert_physical_set_with_source(
+                    &mut connected, *row, F5cWalkerLaneKind::ClosureConnected, self.source_meter,
+                );
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                connected.observe_capacity(connected.len() + 1);
+                reservation?;
             }
             for endpoint in bounds
                 .exact_non_variable_lowers
@@ -8213,21 +9128,24 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
                 walker.memo.work_meter.charge(1)?; // examined exact endpoint
                 match endpoint {
                     ValueEndpointKey::ValueRow(row) => {
-                        walker.memo.insert_physical_set_with_source(
-                            &mut connected,
-                            *row,
-                            F5cWalkerLaneKind::ClosureConnected,
-                            self.source_meter,
-                        )?;
+                        let reservation = walker.memo.insert_physical_set_with_source(
+                            &mut connected, *row, F5cWalkerLaneKind::ClosureConnected, self.source_meter,
+                        );
+                        #[cfg(all(test, feature = "f5c_resource_probe"))]
+                        connected.observe_capacity(connected.len() + 1);
+                        reservation?;
                     }
                     ValueEndpointKey::PositiveFunction(term)
                     | ValueEndpointKey::NegativeFunction(term) => {
-                        walker.term_rows_with_lane(
+                        let traversal = walker.term_rows_with_lane(
                             &self.session.store,
                             *term,
                             &mut connected,
                             Some(F5cWalkerLaneKind::ClosureConnected),
-                        )?;
+                        );
+                        #[cfg(all(test, feature = "f5c_resource_probe"))]
+                        connected.observe_capacity(connected.len());
+                        traversal?;
                     }
                     _ => {}
                 }
@@ -8235,49 +9153,67 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
             for &target in &connected {
                 walker.memo.work_meter.charge(1)?; // adjacency incidence
                 if let Some(neighbors) = adjacency.get_mut(owner as usize) {
-                    walker.memo.insert_physical_set_with_source(
-                        neighbors,
-                        target,
-                        F5cWalkerLaneKind::ClosureNeighbors,
-                        self.source_meter,
-                    )?;
+                    let reservation = walker.memo.insert_physical_set_with_source(
+                        neighbors, target, F5cWalkerLaneKind::ClosureNeighbors, self.source_meter,
+                    );
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    adjacency_owners[owner as usize].observe(neighbors.len(), neighbors.capacity());
+                    reservation?;
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    adjacency_owners[owner as usize].observe(neighbors.len(), neighbors.capacity());
                 }
                 if let Some(neighbors) = adjacency.get_mut(target as usize) {
-                    walker.memo.insert_physical_set_with_source(
-                        neighbors,
-                        owner,
-                        F5cWalkerLaneKind::ClosureNeighbors,
-                        self.source_meter,
-                    )?;
+                    let reservation = walker.memo.insert_physical_set_with_source(
+                        neighbors, owner, F5cWalkerLaneKind::ClosureNeighbors, self.source_meter,
+                    );
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    adjacency_owners[target as usize].observe(neighbors.len(), neighbors.capacity());
+                    reservation?;
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    adjacency_owners[target as usize].observe(neighbors.len(), neighbors.capacity());
                 }
             }
         }
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        let mut closure = ObservedWalkerSet::new(self.source_meter, F5cWalkerLaneKind::ClosureResult);
+        #[cfg(not(all(test, feature = "f5c_resource_probe")))]
         let mut closure = HashSet::new();
         for (ordinal, metadata) in self.session.value_metadata.iter().enumerate() {
             walker.memo.work_meter.charge(1)?; // metadata owner
             if metadata.non_generic {
                 walker.memo.work_meter.charge(1)?; // closure entry
-                walker.memo.insert_physical_set_with_source(
-                    &mut closure,
-                    ordinal as u32,
-                    F5cWalkerLaneKind::ClosureResult,
-                    self.source_meter,
-                )?;
+                let reservation = walker.memo.insert_physical_set_with_source(
+                    &mut closure, ordinal as u32, F5cWalkerLaneKind::ClosureResult, self.source_meter,
+                );
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                closure.observe_capacity(closure.len() + 1);
+                reservation?;
             }
         }
         walker.memo.work_meter.charge(closure.len())?; // copied frontier owners
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        let mut frontier_owner = RawWalkerOwner::new(self.source_meter,
+            F5cWalkerLaneKind::ClosureFrontier as usize,
+            F5cWalkerLaneKind::ClosureFrontier.slot_size());
         let mut frontier = Vec::new();
         for owner in &closure {
-            walker.memo.reserve_walker_with_source(
+            let reservation = walker.memo.reserve_walker_with_source(
                 &mut frontier,
                 F5cWalkerLaneKind::ClosureFrontier,
                 self.source_meter,
-            )?;
+            );
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            frontier_owner.observe(frontier.len(), frontier.capacity());
+            reservation?;
             frontier.push(*owner);
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            frontier_owner.observe(frontier.len(), frontier.capacity());
         }
         while !frontier.is_empty() {
             walker.memo.work_meter.charge(1)?; // closure frontier pop
             let owner = frontier.pop().expect("nonempty closure frontier");
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            frontier_owner.observe(frontier.len(), frontier.capacity());
             let Some(neighbors) = adjacency.get(owner as usize) else {
                 continue;
             };
@@ -8285,18 +9221,23 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
                 walker.memo.work_meter.charge(1)?; // examined adjacency neighbor
                 walker.memo.work_meter.charge(1)?; // possible closure and frontier entries
                 if !closure.contains(neighbor) {
-                    walker.memo.insert_physical_set_with_source(
-                        &mut closure,
-                        *neighbor,
-                        F5cWalkerLaneKind::ClosureResult,
-                        self.source_meter,
-                    )?;
-                    walker.memo.reserve_walker_with_source(
+                    let reservation = walker.memo.insert_physical_set_with_source(
+                        &mut closure, *neighbor, F5cWalkerLaneKind::ClosureResult, self.source_meter,
+                    );
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    closure.observe_capacity(closure.len() + 1);
+                    reservation?;
+                    let reservation = walker.memo.reserve_walker_with_source(
                         &mut frontier,
                         F5cWalkerLaneKind::ClosureFrontier,
                         self.source_meter,
-                    )?;
+                    );
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    frontier_owner.observe(frontier.len(), frontier.capacity());
+                    reservation?;
                     frontier.push(*neighbor);
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    frontier_owner.observe(frontier.len(), frontier.capacity());
                 }
             }
         }
@@ -8326,21 +9267,31 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
     }
 
     fn raw_forest_incidences<'tree>(
-        source_meter: Option<&DraftHeapMeter>,
+        source_meter: Option<&'meter DraftHeapMeter>,
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        probe_meter: Option<&'meter DraftHeapMeter>,
         memo: &mut F5cComponentExpansionMemo,
         raw_owner_order: &[u32],
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
         mut visit: impl FnMut(
             &mut f5c_tree_analysis::Walker<'_, 'tree, 'meter>,
-            Option<u32>,
-            &mut HashSet<u32>,
-            &mut HashSet<u32>,
+            Option<u32>, &mut HashSet<u32>, &mut HashSet<u32>,
+            Option<&mut RawWalkerOwner<'meter>>, Option<&mut RawWalkerOwner<'meter>>,
         ) -> Result<(), SolveAvailabilityError>,
-    ) -> Result<(HashSet<u32>, HashSet<u32>), SolveAvailabilityError>
+        #[cfg(not(all(test, feature = "f5c_resource_probe")))]
+        mut visit: impl FnMut(
+            &mut f5c_tree_analysis::Walker<'_, 'tree, 'meter>,
+            Option<u32>, &mut HashSet<u32>, &mut HashSet<u32>,
+        ) -> Result<(), SolveAvailabilityError>,
+    ) -> Result<(F5cRawIncidenceSet<'meter>, F5cRawIncidenceSet<'meter>), SolveAvailabilityError>
     where
         'meter: 'tree,
     {
         let result =
-            Self::raw_forest_incidences_work(source_meter, memo, raw_owner_order, &mut visit);
+            Self::raw_forest_incidences_work(source_meter,
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                probe_meter,
+                memo, raw_owner_order, &mut visit);
         if result.is_err() {
             memo.walker_resources
                 .release(F5cWalkerLaneKind::RawPositiveIncidences);
@@ -8354,30 +9305,78 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
     }
 
     fn raw_forest_incidences_work<'tree>(
-        source_meter: Option<&DraftHeapMeter>,
+        source_meter: Option<&'meter DraftHeapMeter>,
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        probe_meter: Option<&'meter DraftHeapMeter>,
         memo: &mut F5cComponentExpansionMemo,
         raw_owner_order: &[u32],
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
         visit: &mut impl FnMut(
             &mut f5c_tree_analysis::Walker<'_, 'tree, 'meter>,
-            Option<u32>,
-            &mut HashSet<u32>,
-            &mut HashSet<u32>,
+            Option<u32>, &mut HashSet<u32>, &mut HashSet<u32>,
+            Option<&mut RawWalkerOwner<'meter>>, Option<&mut RawWalkerOwner<'meter>>,
         ) -> Result<(), SolveAvailabilityError>,
-    ) -> Result<(HashSet<u32>, HashSet<u32>), SolveAvailabilityError>
+        #[cfg(not(all(test, feature = "f5c_resource_probe")))]
+        visit: &mut impl FnMut(
+            &mut f5c_tree_analysis::Walker<'_, 'tree, 'meter>,
+            Option<u32>, &mut HashSet<u32>, &mut HashSet<u32>,
+        ) -> Result<(), SolveAvailabilityError>,
+    ) -> Result<(F5cRawIncidenceSet<'meter>, F5cRawIncidenceSet<'meter>), SolveAvailabilityError>
     where
         'meter: 'tree,
     {
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        let mut positive = ObservedWalkerSet::new_optional(
+            source_meter.or(probe_meter), F5cWalkerLaneKind::RawPositiveIncidences);
+        #[cfg(not(all(test, feature = "f5c_resource_probe")))]
         let mut positive = HashSet::new();
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        let mut negative = ObservedWalkerSet::new_optional(
+            source_meter.or(probe_meter), F5cWalkerLaneKind::RawNegativeIncidences);
+        #[cfg(not(all(test, feature = "f5c_resource_probe")))]
         let mut negative = HashSet::new();
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        let mut walker = if let Some(meter) = source_meter {
+            f5c_tree_analysis::Walker::new_with_source(memo, meter)
+        } else if let Some(meter) = probe_meter {
+            f5c_tree_analysis::Walker::new_with_probe_meter(memo, meter)
+        } else {
+            f5c_tree_analysis::Walker::new(memo)
+        };
+        #[cfg(not(all(test, feature = "f5c_resource_probe")))]
         let mut walker = if let Some(meter) = source_meter {
             f5c_tree_analysis::Walker::new_with_source(memo, meter)
         } else {
             f5c_tree_analysis::Walker::new(memo)
         };
-        visit(&mut walker, None, &mut positive, &mut negative)?;
+        visit(&mut walker, None,
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            &mut positive.values,
+            #[cfg(not(all(test, feature = "f5c_resource_probe")))]
+            &mut positive,
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            &mut negative.values,
+            #[cfg(not(all(test, feature = "f5c_resource_probe")))]
+            &mut negative,
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            positive.owner.as_mut(),
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            negative.owner.as_mut())?;
         for &owner in raw_owner_order {
             walker.memo.work_meter.charge(1)?; // raw bound owner
-            visit(&mut walker, Some(owner), &mut positive, &mut negative)?;
+            visit(&mut walker, Some(owner),
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                &mut positive.values,
+                #[cfg(not(all(test, feature = "f5c_resource_probe")))]
+                &mut positive,
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                &mut negative.values,
+                #[cfg(not(all(test, feature = "f5c_resource_probe")))]
+                &mut negative,
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                positive.owner.as_mut(),
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                negative.owner.as_mut())?;
         }
         Ok((positive, negative))
     }
@@ -8389,32 +9388,54 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
         raw_owner_order: &[u32],
         raw_bounds: &HashMap<u32, (F5cPositive<'meter>, F5cNegative<'meter>)>,
     ) -> Result<(HashSet<u32>, HashSet<u32>), SolveAvailabilityError> {
-        Self::raw_forest_incidences(
+        let result = Self::raw_forest_incidences(
+            None,
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
             None,
             memo,
             raw_owner_order,
-            |walker, owner, positive, negative| {
+            |walker, owner, positive, negative,
+             #[cfg(all(test, feature = "f5c_resource_probe"))] mut positive_owner,
+             #[cfg(all(test, feature = "f5c_resource_probe"))] mut negative_owner| {
                 if let Some(owner) = owner {
                     let (lower, upper) = raw_bounds
                         .get(&owner)
                         .ok_or(SolveAvailabilityError::IdentityExhausted)?;
-                    walker.incidences_positive(lower, positive, negative)?;
-                    walker.incidences_negative(upper, positive, negative)
+                    walker.incidences_positive(lower, positive, negative,
+                        #[cfg(all(test, feature = "f5c_resource_probe"))]
+                        positive_owner.as_deref_mut(),
+                        #[cfg(all(test, feature = "f5c_resource_probe"))]
+                        negative_owner.as_deref_mut())?;
+                    walker.incidences_negative(upper, positive, negative,
+                        #[cfg(all(test, feature = "f5c_resource_probe"))]
+                        positive_owner.as_deref_mut(),
+                        #[cfg(all(test, feature = "f5c_resource_probe"))]
+                        negative_owner.as_deref_mut())
                 } else {
-                    walker.incidences_positive(predicate, positive, negative)
+                    walker.incidences_positive(predicate, positive, negative,
+                        #[cfg(all(test, feature = "f5c_resource_probe"))]
+                        positive_owner.as_deref_mut(),
+                        #[cfg(all(test, feature = "f5c_resource_probe"))]
+                        negative_owner.as_deref_mut())
                 }
             },
-        )
+        );
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        let result = result.map(|(mut positive, mut negative)|
+            (std::mem::take(&mut positive.values), std::mem::take(&mut negative.values)));
+        result
     }
 
     pub(super) fn flat_raw_forest_incidences(
         &mut self,
-        forest: &F5cRawForest,
-    ) -> Result<(HashSet<u32>, HashSet<u32>), SolveAvailabilityError> {
+        forest: &F5cRawForest<'meter>,
+    ) -> Result<(F5cRawIncidenceSet<'meter>, F5cRawIncidenceSet<'meter>), SolveAvailabilityError> {
         if !self.raw_forest_live {
             return Err(SolveAvailabilityError::IdentityExhausted);
         }
-        Self::flat_raw_forest_incidences_for_test(
+        Self::flat_raw_forest_incidences_with_meter(
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            Some(self.source_meter),
             &mut self.memo,
             &forest.draft,
             &forest.raw_owner_order,
@@ -8428,23 +9449,57 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
         raw_owner_order: &[u32],
         raw_bounds: &HashMap<u32, (f5c_draft::PositiveId, f5c_draft::NegativeId)>,
     ) -> Result<(HashSet<u32>, HashSet<u32>), SolveAvailabilityError> {
+        let result = Self::flat_raw_forest_incidences_with_meter(
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            None,
+            memo, draft, raw_owner_order, raw_bounds);
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        let result = result.map(|(mut positive, mut negative)|
+            (std::mem::take(&mut positive.values), std::mem::take(&mut negative.values)));
+        result
+    }
+
+    fn flat_raw_forest_incidences_with_meter(
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        source_meter: Option<&'meter DraftHeapMeter>,
+        memo: &mut F5cComponentExpansionMemo,
+        draft: &f5c_draft::FlatDraft,
+        raw_owner_order: &[u32],
+        raw_bounds: &HashMap<u32, (f5c_draft::PositiveId, f5c_draft::NegativeId)>,
+    ) -> Result<(F5cRawIncidenceSet<'meter>, F5cRawIncidenceSet<'meter>), SolveAvailabilityError> {
         use f5c_draft::NodeRef;
         Self::raw_forest_incidences(
             None,
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            source_meter,
             memo,
             raw_owner_order,
-            |walker, owner, positive, negative| {
+            |walker, owner, positive, negative,
+             #[cfg(all(test, feature = "f5c_resource_probe"))] mut positive_owner,
+             #[cfg(all(test, feature = "f5c_resource_probe"))] mut negative_owner| {
                 if let Some(owner) = owner {
                     let (lower, upper) = raw_bounds
                         .get(&owner)
                         .ok_or(SolveAvailabilityError::IdentityExhausted)?;
-                    walker.flat_incidences(draft, NodeRef::Positive(*lower), positive, negative)?;
-                    walker.flat_incidences(draft, NodeRef::Negative(*upper), positive, negative)
+                    walker.flat_incidences(draft, NodeRef::Positive(*lower), positive, negative,
+                        #[cfg(all(test, feature = "f5c_resource_probe"))]
+                        positive_owner.as_deref_mut(),
+                        #[cfg(all(test, feature = "f5c_resource_probe"))]
+                        negative_owner.as_deref_mut())?;
+                    walker.flat_incidences(draft, NodeRef::Negative(*upper), positive, negative,
+                        #[cfg(all(test, feature = "f5c_resource_probe"))]
+                        positive_owner.as_deref_mut(),
+                        #[cfg(all(test, feature = "f5c_resource_probe"))]
+                        negative_owner.as_deref_mut())
                 } else {
                     let predicate = draft
                         .predicate
                         .ok_or(SolveAvailabilityError::IdentityExhausted)?;
-                    walker.flat_incidences(draft, NodeRef::Positive(predicate), positive, negative)
+                    walker.flat_incidences(draft, NodeRef::Positive(predicate), positive, negative,
+                        #[cfg(all(test, feature = "f5c_resource_probe"))]
+                        positive_owner.as_deref_mut(),
+                        #[cfg(all(test, feature = "f5c_resource_probe"))]
+                        negative_owner.as_deref_mut())
                 }
             },
         )
@@ -8467,7 +9522,9 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
             output: f5c_draft::FlatDraft::default(),
             bounds,
             #[cfg(all(test, feature = "f5c_resource_probe"))]
-            source_meter: &source_meter,
+            probe_meter: None,
+            #[cfg(not(all(test, feature = "f5c_resource_probe")))]
+            _meter: std::marker::PhantomData,
         };
         let result = Self::r_candidates(
             &source_meter,
@@ -8479,20 +9536,24 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
             positive_only,
             negative_only,
         );
-        f5c_replay::release_flat_output(memo, source.output);
+        f5c_replay::release_flat_output(memo, source.output,
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            Some(&source_meter));
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        let result = result.map(|mut candidates| std::mem::take(&mut candidates.values));
         result
     }
 
     #[cfg(test)]
     pub(super) fn flat_r_with_raw_forest_for_test(
         &mut self,
-        forest: F5cRawForest,
+        forest: F5cRawForest<'meter>,
         reentries: &[F5cGuardedTrace],
         reentries_by_owner: &HashMap<u32, Vec<usize>>,
         eligible: impl Fn(u32) -> bool,
         positive_only: &HashSet<u32>,
         negative_only: &HashSet<u32>,
-    ) -> Result<(HashSet<u32>, F5cRawForest), SolveAvailabilityError> {
+    ) -> Result<(HashSet<u32>, F5cRawForest<'meter>), SolveAvailabilityError> {
         let result = Self::flat_r_candidates_for_test(
             &mut self.memo,
             &forest.draft,
@@ -8515,7 +9576,7 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
     #[cfg(test)]
     pub(super) fn flat_r_q_with_raw_forest_candidate_for_test(
         &mut self,
-        forest: F5cRawForest,
+        forest: F5cRawForest<'meter>,
         reentries: &[F5cGuardedTrace],
         reentries_by_owner: &HashMap<u32, Vec<usize>>,
         order: &[u32],
@@ -8527,12 +9588,12 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
         #[cfg(test)] fail_after_first_post_output: bool,
     ) -> Result<
         (
-            F5cPostRSelection<
+            F5cPostRSelection<'meter,
                 (f5c_draft::PositiveId, f5c_draft::NegativeId),
                 f5c_draft::PositiveId,
             >,
             f5c_draft::FlatDraft,
-            F5cRawForest,
+            F5cRawForest<'meter>,
         ),
         SolveAvailabilityError,
     > {
@@ -8559,7 +9620,7 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
 
     fn flat_r_q_with_raw_forest_candidate_inner(
         &mut self,
-        forest: F5cRawForest,
+        forest: F5cRawForest<'meter>,
         reentries: &[F5cGuardedTrace],
         reentries_by_owner: &HashMap<u32, Vec<usize>>,
         order: &[u32],
@@ -8571,24 +9632,39 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
         #[cfg(test)] fail_after_first_post_output: bool,
     ) -> Result<
         (
-            F5cPostRSelection<
+            F5cPostRSelection<'meter,
                 (f5c_draft::PositiveId, f5c_draft::NegativeId),
                 f5c_draft::PositiveId,
             >,
             f5c_draft::FlatDraft,
-            F5cRawForest,
+            F5cRawForest<'meter>,
         ),
-        (SolveAvailabilityError, F5cRawForest),
+        (SolveAvailabilityError, F5cRawForest<'meter>),
     > {
         if !self.raw_forest_live {
             return Err((SolveAvailabilityError::IdentityExhausted, forest));
         }
         let mut source = F5cFlatRCandidateSource {
             source: &forest.draft,
-            output: f5c_draft::FlatDraft::default(),
+            output: {
+                #[allow(unused_mut)]
+                let mut draft = f5c_draft::FlatDraft::default();
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                draft.attach_owners(self.source_meter, [
+                    F5cWalkerLaneKind::ReplayOutputPositiveNodes as usize,
+                    F5cWalkerLaneKind::ReplayOutputNegativeNodes as usize,
+                    F5cWalkerLaneKind::ReplayOutputPositiveChildren as usize,
+                    F5cWalkerLaneKind::ReplayOutputNegativeChildren as usize,
+                    F5cWalkerLaneKind::SelectedRecursiveBounds as usize,
+                    F5cWalkerLaneKind::ReplayOutputInsertionOrder as usize,
+                ]);
+                draft
+            },
             bounds: &forest.raw_bounds,
             #[cfg(all(test, feature = "f5c_resource_probe"))]
-            source_meter: self.source_meter,
+            probe_meter: Some(self.source_meter),
+            #[cfg(not(all(test, feature = "f5c_resource_probe")))]
+            _meter: std::marker::PhantomData,
         };
         let result = (|| {
             let candidates = Self::r_candidates(
@@ -8606,6 +9682,8 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
                 f5c_replay::inject_failure_after_flat_output();
             }
             let selection = Self::post_r_selection(
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                Some(self.source_meter),
                 &mut self.memo,
                 &mut source,
                 &candidates,
@@ -8628,7 +9706,9 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
         match result {
             Ok(selection) => Ok((selection, output, forest)),
             Err(error) => {
-                f5c_replay::release_flat_output(&mut self.memo, output);
+                f5c_replay::release_flat_output(&mut self.memo, output,
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    Some(self.source_meter));
                 release_flat_post_r_lanes(&mut self.memo);
                 Err((error, forest))
             }
@@ -8638,15 +9718,17 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
     #[cfg(test)]
     pub(super) fn release_flat_r_q_for_test(
         &mut self,
-        selection: F5cPostRSelection<
+        selection: F5cPostRSelection<'meter,
             (f5c_draft::PositiveId, f5c_draft::NegativeId),
             f5c_draft::PositiveId,
         >,
         output: f5c_draft::FlatDraft,
-        forest: F5cRawForest,
+        forest: F5cRawForest<'meter>,
     ) {
         drop(selection);
-        f5c_replay::release_flat_output(&mut self.memo, output);
+        f5c_replay::release_flat_output(&mut self.memo, output,
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            Some(self.source_meter));
         release_flat_post_r_lanes(&mut self.memo);
         self.release_raw_forest(forest);
     }
@@ -8654,12 +9736,12 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
     #[cfg(test)]
     pub(super) fn flat_finish_selected_candidate(
         &mut self,
-        selection: F5cPostRSelection<
+        selection: F5cPostRSelection<'meter,
             (f5c_draft::PositiveId, f5c_draft::NegativeId),
             f5c_draft::PositiveId,
         >,
         output: f5c_draft::FlatDraft,
-        forest: F5cRawForest,
+        forest: F5cRawForest<'meter>,
         positive_only: &HashSet<u32>,
         negative_only: &HashSet<u32>,
         #[cfg(test)] fail_during_normalization: bool,
@@ -8680,18 +9762,20 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
     #[allow(dead_code)]
     fn flat_finish_selected_raw_pending(
         &mut self,
-        selection: F5cPostRSelection<
+        selection: F5cPostRSelection<'meter,
             (f5c_draft::PositiveId, f5c_draft::NegativeId),
             f5c_draft::PositiveId,
         >,
         mut output: f5c_draft::FlatDraft,
-        forest: F5cRawForest,
+        forest: F5cRawForest<'meter>,
         positive_only: &HashSet<u32>,
         negative_only: &HashSet<u32>,
-    ) -> Result<(f5c_draft::FlatDraft, F5cRawForest), SolveAvailabilityError> {
+    ) -> Result<(f5c_draft::FlatDraft, F5cRawForest<'meter>), SolveAvailabilityError> {
         if self.normalized_candidate_live {
             drop(selection);
-            f5c_replay::release_flat_output(&mut self.memo, output);
+            f5c_replay::release_flat_output(&mut self.memo, output,
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                Some(self.source_meter));
             release_flat_post_r_lanes(&mut self.memo);
             self.abort_raw_forest(forest)?;
             return Err(SolveAvailabilityError::IdentityExhausted);
@@ -8700,7 +9784,15 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
             let q_count = u32::try_from(selection.q.len())
                 .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
             f5c_draft::checked_q_r_count(q_count, selection.recursive_owners.len())?;
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            let mut positive_eliminated = ObservedWalkerSet::new(self.source_meter,
+                F5cWalkerLaneKind::SelectedPositiveEliminated);
+            #[cfg(not(all(test, feature = "f5c_resource_probe")))]
             let mut positive_eliminated = HashSet::new();
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            let mut negative_eliminated = ObservedWalkerSet::new(self.source_meter,
+                F5cWalkerLaneKind::SelectedNegativeEliminated);
+            #[cfg(not(all(test, feature = "f5c_resource_probe")))]
             let mut negative_eliminated = HashSet::new();
             for &ordinal in &self.order {
                 self.memo.work_meter.charge(1)?;
@@ -8710,11 +9802,14 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
                 {
                     self.memo.work_meter.charge(1)?;
                     let bytes = self.memo.retained_bytes()?;
-                    self.memo.walker_resources.reserve_post_r_set(
+                    let reservation = self.memo.walker_resources.reserve_post_r_set(
                         &mut positive_eliminated,
                         F5cWalkerLaneKind::SelectedPositiveEliminated,
                         bytes,
-                    )?;
+                    );
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    positive_eliminated.observe_capacity(0);
+                    reservation?;
                     positive_eliminated.insert(ordinal);
                 }
             }
@@ -8726,11 +9821,14 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
                 {
                     self.memo.work_meter.charge(1)?;
                     let bytes = self.memo.retained_bytes()?;
-                    self.memo.walker_resources.reserve_post_r_set(
+                    let reservation = self.memo.walker_resources.reserve_post_r_set(
                         &mut negative_eliminated,
                         F5cWalkerLaneKind::SelectedNegativeEliminated,
                         bytes,
-                    )?;
+                    );
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    negative_eliminated.observe_capacity(0);
+                    reservation?;
                     negative_eliminated.insert(ordinal);
                 }
             }
@@ -8749,20 +9847,27 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
                     .ok_or(SolveAvailabilityError::IdentityExhausted)?;
                 self.memo.work_meter.charge(1)?;
                 let bytes = self.memo.retained_bytes()?;
-                self.memo.walker_resources.reserve(
+                let reservation = self.memo.walker_resources.reserve(
                     &mut output.recursive_bounds,
                     F5cWalkerLaneKind::SelectedRecursiveBounds,
                     1,
                     bytes,
-                )?;
+                );
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                output.observe_owner(4, output.recursive_bounds.len() + 1);
+                reservation?;
                 output.recursive_bounds.push(f5c_draft::RecursiveBound {
                     ordinal: binder,
                     lower,
                     upper,
                 });
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                output.observe_owner(4, 0);
             }
             f5c_binder_substitution::substitute_flat_metered(
                 &mut self.memo,
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                self.source_meter,
                 &mut output,
                 &selection.q,
                 &selection.r,
@@ -8782,7 +9887,9 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
         match result {
             Ok(()) => Ok((output, forest)),
             Err(error) => {
-                f5c_replay::release_flat_output(&mut self.memo, output);
+                f5c_replay::release_flat_output(&mut self.memo, output,
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    Some(self.source_meter));
                 self.memo
                     .walker_resources
                     .release(F5cWalkerLaneKind::SelectedRecursiveBounds);
@@ -8794,28 +9901,47 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
 
     fn flat_finish_selected_candidate_pending(
         &mut self,
-        selection: F5cPostRSelection<
+        selection: F5cPostRSelection<'meter,
             (f5c_draft::PositiveId, f5c_draft::NegativeId),
             f5c_draft::PositiveId,
         >,
         mut output: f5c_draft::FlatDraft,
-        forest: F5cRawForest,
+        forest: F5cRawForest<'meter>,
         positive_only: &HashSet<u32>,
         negative_only: &HashSet<u32>,
         #[cfg(test)] fail_during_normalization: bool,
-    ) -> Result<(F5cNormalizedCandidate, F5cRawForest), SolveAvailabilityError> {
+    ) -> Result<(F5cNormalizedCandidate, F5cRawForest<'meter>), SolveAvailabilityError> {
         if self.normalized_candidate_live {
             drop(selection);
-            f5c_replay::release_flat_output(&mut self.memo, output);
+            f5c_replay::release_flat_output(&mut self.memo, output,
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                Some(self.source_meter));
             release_flat_post_r_lanes(&mut self.memo);
             self.abort_raw_forest(forest)?;
             return Err(SolveAvailabilityError::IdentityExhausted);
+        }
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        let mut selected_bounds_owner = output.owners.is_none().then(||
+            RawWalkerOwner::new(self.source_meter,
+                F5cWalkerLaneKind::SelectedRecursiveBounds as usize,
+                F5cWalkerLaneKind::SelectedRecursiveBounds.slot_size()));
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        if let Some(owner) = selected_bounds_owner.as_mut() {
+            owner.observe(output.recursive_bounds.len(), output.recursive_bounds.capacity());
         }
         let result = (|| {
             let q_count = u32::try_from(selection.q.len())
                 .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
             f5c_draft::checked_q_r_count(q_count, selection.recursive_owners.len())?;
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            let mut positive_eliminated = ObservedWalkerSet::new(self.source_meter,
+                F5cWalkerLaneKind::SelectedPositiveEliminated);
+            #[cfg(not(all(test, feature = "f5c_resource_probe")))]
             let mut positive_eliminated = HashSet::new();
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            let mut negative_eliminated = ObservedWalkerSet::new(self.source_meter,
+                F5cWalkerLaneKind::SelectedNegativeEliminated);
+            #[cfg(not(all(test, feature = "f5c_resource_probe")))]
             let mut negative_eliminated = HashSet::new();
             for &ordinal in &self.order {
                 self.memo.work_meter.charge(1)?;
@@ -8825,11 +9951,14 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
                 {
                     self.memo.work_meter.charge(1)?;
                     let bytes = self.memo.retained_bytes()?;
-                    self.memo.walker_resources.reserve_post_r_set(
+                    let reservation = self.memo.walker_resources.reserve_post_r_set(
                         &mut positive_eliminated,
                         F5cWalkerLaneKind::SelectedPositiveEliminated,
                         bytes,
-                    )?;
+                    );
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    positive_eliminated.observe_capacity(0);
+                    reservation?;
                     positive_eliminated.insert(ordinal);
                 }
             }
@@ -8841,11 +9970,14 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
                 {
                     self.memo.work_meter.charge(1)?;
                     let bytes = self.memo.retained_bytes()?;
-                    self.memo.walker_resources.reserve_post_r_set(
+                    let reservation = self.memo.walker_resources.reserve_post_r_set(
                         &mut negative_eliminated,
                         F5cWalkerLaneKind::SelectedNegativeEliminated,
                         bytes,
-                    )?;
+                    );
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    negative_eliminated.observe_capacity(0);
+                    reservation?;
                     negative_eliminated.insert(ordinal);
                 }
             }
@@ -8864,20 +9996,38 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
                     .ok_or(SolveAvailabilityError::IdentityExhausted)?;
                 self.memo.work_meter.charge(1)?;
                 let bytes = self.memo.retained_bytes()?;
-                self.memo.walker_resources.reserve(
+                let reservation = self.memo.walker_resources.reserve(
                     &mut output.recursive_bounds,
                     F5cWalkerLaneKind::SelectedRecursiveBounds,
                     1,
                     bytes,
-                )?;
+                );
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                {
+                    output.observe_owner(4, output.recursive_bounds.len() + 1);
+                    if let Some(owner) = selected_bounds_owner.as_mut() {
+                        owner.observe(output.recursive_bounds.len(),
+                            output.recursive_bounds.capacity());
+                    }
+                }
+                reservation?;
                 output.recursive_bounds.push(f5c_draft::RecursiveBound {
                     ordinal: binder,
                     lower,
                     upper,
                 });
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                {
+                    output.observe_owner(4, 0);
+                    if let Some(owner) = selected_bounds_owner.as_mut() {
+                        owner.observe(output.recursive_bounds.len(), output.recursive_bounds.capacity());
+                    }
+                }
             }
             f5c_binder_substitution::substitute_flat_metered(
                 &mut self.memo,
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                self.source_meter,
                 &mut output,
                 &selection.q,
                 &selection.r,
@@ -8893,7 +10043,11 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
             )
         })();
         drop(selection);
-        f5c_replay::release_flat_output(&mut self.memo, output);
+        f5c_replay::release_flat_output(&mut self.memo, output,
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            Some(self.source_meter));
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        drop(selected_bounds_owner);
         release_flat_post_r_lanes(&mut self.memo);
         for lane in [
             F5cWalkerLaneKind::SelectedRecursiveBounds,
@@ -9120,7 +10274,7 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
     fn stage_flat_raw_candidate(
         &mut self,
         staged: &mut TrackedVec<'meter, F5cStagedCandidate<'meter>>,
-        draft: f5c_draft::FlatDraft,
+        mut draft: f5c_draft::FlatDraft,
     ) -> Result<(), SolveAvailabilityError> {
         let kinds = [
             F5cWalkerLaneKind::ReplayOutputPositiveNodes,
@@ -9168,14 +10322,16 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
                         .ok_or(SolveAvailabilityError::IdentityExhausted)?,
                 )
                 .ok_or(SolveAvailabilityError::IdentityExhausted)?;
-            self.source_meter
-                .claim_existing_batch(bytes, future_external)
+            claim_flat_draft_batch(self.source_meter, &mut draft, bytes,
+                future_external, capacities, kinds.map(F5cWalkerLaneKind::slot_size))
                 .map_err(|_| SolveAvailabilityError::IdentityExhausted)
         })();
         let allocations = match transfer {
             Ok(allocations) => allocations,
             Err(error) => {
-                f5c_replay::release_flat_output(&mut self.memo, draft);
+                f5c_replay::release_flat_output(&mut self.memo, draft,
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    Some(self.source_meter));
                 self.memo
                     .walker_resources
                     .release(F5cWalkerLaneKind::SelectedRecursiveBounds);
@@ -9260,7 +10416,7 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
         eligible: impl Fn(u32) -> bool,
         positive_only: &HashSet<u32>,
         negative_only: &HashSet<u32>,
-    ) -> Result<HashSet<u32>, SolveAvailabilityError> {
+    ) -> Result<F5cObservedSet<'meter>, SolveAvailabilityError> {
         let mut source = F5cBoxedRCandidateSource {
             source_meter,
             predicate,
@@ -9291,7 +10447,7 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
         positive_incidences: &HashSet<u32>,
         negative_incidences: &HashSet<u32>,
     ) -> Result<
-        F5cPostRSelection<(F5cPositive<'meter>, F5cNegative<'meter>), F5cPositive<'meter>>,
+        F5cPostRSelection<'meter, (F5cPositive<'meter>, F5cNegative<'meter>), F5cPositive<'meter>>,
         SolveAvailabilityError,
     > {
         let mut source = F5cBoxedRCandidateSource {
@@ -9300,6 +10456,8 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
             bounds,
         };
         Self::post_r_selection(
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            Some(source_meter),
             memo,
             &mut source,
             candidates,
@@ -9327,7 +10485,7 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
         negative_incidences: &HashSet<u32>,
     ) -> Result<
         (
-            F5cPostRSelection<
+            F5cPostRSelection<'meter,
                 (f5c_draft::PositiveId, f5c_draft::NegativeId),
                 f5c_draft::PositiveId,
             >,
@@ -9335,16 +10493,18 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
         ),
         SolveAvailabilityError,
     > {
-        #[cfg(all(test, feature = "f5c_resource_probe"))]
-        let source_meter = DraftHeapMeter::default();
         let mut source = F5cFlatRCandidateSource {
             source: draft,
             output: f5c_draft::FlatDraft::default(),
             bounds,
             #[cfg(all(test, feature = "f5c_resource_probe"))]
-            source_meter: &source_meter,
+            probe_meter: None,
+            #[cfg(not(all(test, feature = "f5c_resource_probe")))]
+            _meter: std::marker::PhantomData,
         };
         let result = Self::post_r_selection(
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            None,
             memo,
             &mut source,
             candidates,
@@ -9360,7 +10520,9 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
         match result {
             Ok(selection) => Ok((selection, source.output)),
             Err(error) => {
-                f5c_replay::release_flat_output(memo, source.output);
+                f5c_replay::release_flat_output(memo, source.output,
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    None);
                 release_flat_post_r_lanes(memo);
                 Err(error)
             }
@@ -9437,6 +10599,8 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
         self.active = Vec::new();
         self.active_set = HashSet::new();
         self.memo.generalizer_scratch_capacities = [0; 4];
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        if self.memo.matrix_active { self.memo.matrix_generalizer_lengths = [0; 4]; }
         self.release_persistent_lanes();
         (
             result,
@@ -9463,6 +10627,8 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
     }
 
     fn post_r_selection<S: F5cRCandidateSource<'meter>>(
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        source_meter: Option<&'meter DraftHeapMeter>,
         memo: &mut F5cComponentExpansionMemo,
         source: &mut S,
         candidates: &HashSet<u32>,
@@ -9474,9 +10640,11 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
         positive_only: &HashSet<u32>,
         negative_only: &HashSet<u32>,
         eligible: impl Fn(u32) -> bool,
-    ) -> Result<F5cPostRSelection<S::ReplayedBound, S::ReplayedPredicate>, SolveAvailabilityError>
+    ) -> Result<F5cPostRSelection<'meter, S::ReplayedBound, S::ReplayedPredicate>, SolveAvailabilityError>
     {
         let result = Self::post_r_selection_work(
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            source_meter,
             memo,
             source,
             candidates,
@@ -9509,6 +10677,8 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
     }
 
     fn post_r_selection_work<S: F5cRCandidateSource<'meter>>(
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        source_meter: Option<&'meter DraftHeapMeter>,
         memo: &mut F5cComponentExpansionMemo,
         source: &mut S,
         candidates: &HashSet<u32>,
@@ -9520,9 +10690,16 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
         positive_only: &HashSet<u32>,
         negative_only: &HashSet<u32>,
         eligible: impl Fn(u32) -> bool,
-    ) -> Result<F5cPostRSelection<S::ReplayedBound, S::ReplayedPredicate>, SolveAvailabilityError>
+    ) -> Result<F5cPostRSelection<'meter, S::ReplayedBound, S::ReplayedPredicate>, SolveAvailabilityError>
     {
         source.release_replay_scratch();
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        let owner_meter = source_meter.or_else(|| source.f5c_probe_meter());
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        let mut retained_bounds = ObservedWalkerMap::from_values(
+            owner_meter, source.f5c_retained_bound_lane(),
+            source.new_retained_bounds(candidates.len()));
+        #[cfg(not(all(test, feature = "f5c_resource_probe")))]
         let mut retained_bounds = source.new_retained_bounds(candidates.len());
         for owner in raw_owner_order {
             if !candidates.contains(owner) {
@@ -9532,12 +10709,19 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
             let bound = source
                 .replay_bound(memo, *owner, candidates, positive_only, negative_only)?
                 .ok_or(SolveAvailabilityError::IdentityExhausted)?;
-            source.reserve_retained_bound(memo, &mut retained_bounds)?;
+            let reservation = source.reserve_retained_bound(memo, &mut retained_bounds);
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            retained_bounds.observe_capacity(retained_bounds.len() + 1);
+            reservation?;
             retained_bounds.insert(*owner, bound);
         }
         if retained_bounds.len() != candidates.len() {
             return Err(SolveAvailabilityError::IdentityExhausted);
         }
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        let mut surviving_bound_owners = ObservedWalkerSet::new_optional(
+            owner_meter, F5cWalkerLaneKind::PostRSurvivingBounds);
+        #[cfg(not(all(test, feature = "f5c_resource_probe")))]
         let mut surviving_bound_owners = HashSet::new();
         for owner in raw_owner_order {
             let Some(bound) = retained_bounds.get(owner) else {
@@ -9545,14 +10729,21 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
             };
             memo.work_meter.charge(1)?; // revisited retained bound
             if source.guarded_bound_survives(memo, *owner, bound)? {
-                source.reserve_post_r_set(
+                let reservation = source.reserve_post_r_set(
                     memo,
                     &mut surviving_bound_owners,
                     F5cWalkerLaneKind::PostRSurvivingBounds,
-                )?;
+                );
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                surviving_bound_owners.observe_capacity(surviving_bound_owners.len() + 1);
+                reservation?;
                 surviving_bound_owners.insert(*owner);
             }
         }
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        let mut surviving_traces = ObservedWalkerSet::new_optional(
+            owner_meter, F5cWalkerLaneKind::PostRSurvivingTraces);
+        #[cfg(not(all(test, feature = "f5c_resource_probe")))]
         let mut surviving_traces = HashSet::new();
         for (index, trace) in reentries.iter().enumerate() {
             memo.work_meter.charge(1)?; // post-convergence trace record
@@ -9566,12 +10757,15 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
                     negative_only,
                 )?
             {
-                source.reserve_post_r_trace_set(memo, &mut surviving_traces)?;
+                let reservation = source.reserve_post_r_trace_set(memo, &mut surviving_traces);
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                surviving_traces.observe_capacity(surviving_traces.len() + 1);
+                reservation?;
                 surviving_traces.insert(index);
             }
         }
         #[cfg(test)]
-        memo.post_r_temporary_live_samples.push((
+        memo.record_post_r_sample((
             F5cWalkerLaneKind::PostRSurvivingBounds,
             surviving_bound_owners.capacity(),
             memo.walker_resources.lanes[F5cWalkerLaneKind::PostRSurvivingBounds as usize]
@@ -9579,27 +10773,47 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
         ));
         drop(surviving_bound_owners);
         source.release_post_r_lane(memo, F5cWalkerLaneKind::PostRSurvivingBounds);
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        let mut recursive_owners_owner = owner_meter.map(|meter| RawWalkerOwner::new(meter,
+            F5cWalkerLaneKind::PostRRecursiveOwners as usize,
+            F5cWalkerLaneKind::PostRRecursiveOwners.slot_size()));
         let mut recursive_owners = Vec::new();
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        let mut recursive_set = ObservedWalkerSet::new_optional(
+            owner_meter, F5cWalkerLaneKind::PostRRecursiveSet);
+        #[cfg(not(all(test, feature = "f5c_resource_probe")))]
         let mut recursive_set = HashSet::new();
         for (index, trace) in reentries.iter().enumerate() {
             memo.work_meter.charge(1)?; // recursive-owner ordering trace
             if surviving_traces.contains(&index) && !recursive_set.contains(&trace.owner) {
-                source.reserve_post_r_set(
+                let reservation = source.reserve_post_r_set(
                     memo,
                     &mut recursive_set,
                     F5cWalkerLaneKind::PostRRecursiveSet,
-                )?;
-                source.reserve_post_r_vec(
+                );
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                recursive_set.observe_capacity(recursive_set.len() + 1);
+                reservation?;
+                let reservation = source.reserve_post_r_vec(
                     memo,
                     &mut recursive_owners,
                     F5cWalkerLaneKind::PostRRecursiveOwners,
-                )?;
+                );
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                if let Some(owner) = recursive_owners_owner.as_mut() {
+                    owner.observe(recursive_owners.len(), recursive_owners.capacity());
+                }
+                reservation?;
                 recursive_set.insert(trace.owner);
                 recursive_owners.push(trace.owner);
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                if let Some(owner) = recursive_owners_owner.as_mut() {
+                    owner.observe(recursive_owners.len(), recursive_owners.capacity());
+                }
             }
         }
         #[cfg(test)]
-        memo.post_r_temporary_live_samples.push((
+        memo.record_post_r_sample((
             F5cWalkerLaneKind::PostRSurvivingTraces,
             surviving_traces.capacity(),
             memo.walker_resources.lanes[F5cWalkerLaneKind::PostRSurvivingTraces as usize]
@@ -9609,21 +10823,31 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
         source.release_post_r_lane(memo, F5cWalkerLaneKind::PostRSurvivingTraces);
         let retained_predicate =
             source.replay_predicate(memo, &recursive_set, positive_only, negative_only)?;
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        let mut occurrence_owner = owner_meter.map(|meter| RawWalkerOwner::new(
+            meter, F5cWalkerLaneKind::PostROccurrenceOrder as usize,
+            F5cWalkerLaneKind::PostROccurrenceOrder.slot_size()));
         let first_occurrences = source.retained_occurrences(
             memo,
             &retained_predicate,
             &recursive_owners,
             &retained_bounds,
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            occurrence_owner.as_mut(),
         )?;
         #[cfg(test)]
-        memo.post_r_temporary_live_samples.push((
+        memo.record_post_r_sample((
             F5cWalkerLaneKind::PostROccurrenceOrder,
-            first_occurrences.values.capacity(),
+            first_occurrences.capacity(),
             memo.walker_resources.lanes[F5cWalkerLaneKind::PostROccurrenceOrder as usize]
                 .actual_capacity,
         ));
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        let mut q = ObservedWalkerMap::new_optional(
+            owner_meter, F5cWalkerLaneKind::PostRQuantifiers);
+        #[cfg(not(all(test, feature = "f5c_resource_probe")))]
         let mut q = HashMap::new();
-        for ordinal in first_occurrences.values.iter().copied() {
+        for ordinal in first_occurrences {
             memo.work_meter.charge(1)?; // Q first occurrence
             if !recursive_set.contains(&ordinal)
                 && positive_incidences.contains(&ordinal)
@@ -9633,15 +10857,24 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
                 let next = u32::try_from(q.len())
                     .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
                 memo.work_meter.charge(1)?; // Q entry
-                source.reserve_post_r_map(memo, &mut q, F5cWalkerLaneKind::PostRQuantifiers)?;
+                let reservation = source.reserve_post_r_map(
+                    memo, &mut q, F5cWalkerLaneKind::PostRQuantifiers);
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                q.observe_capacity(q.len() + 1);
+                reservation?;
                 q.insert(ordinal, next);
             }
         }
-        drop(first_occurrences);
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        drop(occurrence_owner);
         source.release_post_r_lane(memo, F5cWalkerLaneKind::PostROccurrenceOrder);
         let q_count =
             u32::try_from(q.len()).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
         f5c_draft::checked_q_r_count(q_count, recursive_owners.len())?;
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        let mut r = ObservedWalkerMap::new_optional(
+            owner_meter, F5cWalkerLaneKind::PostRRecursives);
+        #[cfg(not(all(test, feature = "f5c_resource_probe")))]
         let mut r = HashMap::new();
         for (index, ordinal) in recursive_owners.iter().enumerate() {
             memo.work_meter.charge(1)?; // R owner
@@ -9651,7 +10884,11 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
                 .checked_add(offset)
                 .ok_or(SolveAvailabilityError::IdentityExhausted)?;
             memo.work_meter.charge(1)?; // R entry
-            source.reserve_post_r_map(memo, &mut r, F5cWalkerLaneKind::PostRRecursives)?;
+            let reservation = source.reserve_post_r_map(
+                memo, &mut r, F5cWalkerLaneKind::PostRRecursives);
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            r.observe_capacity(r.len() + 1);
+            reservation?;
             r.insert(*ordinal, binder);
         }
         Self::reject_unclassified_rows(&memo.work_meter, order, &recursive_set, &q, eligible)?;
@@ -9659,14 +10896,18 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
             retained_bounds,
             retained_predicate,
             recursive_owners,
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            recursive_owners_owner,
             recursive_set,
+            #[cfg(not(all(test, feature = "f5c_resource_probe")))]
+            lifetime: std::marker::PhantomData,
             q,
             r,
         })
     }
 
-    fn r_candidates<S: F5cRCandidateSource<'meter>>(
-        source_meter: &DraftHeapMeter,
+    fn r_candidates<'probe, S: F5cRCandidateSource<'meter>>(
+        source_meter: &'probe DraftHeapMeter,
         memo: &mut F5cComponentExpansionMemo,
         source: &mut S,
         reentries: &[F5cGuardedTrace],
@@ -9674,35 +10915,50 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
         eligible: impl Fn(u32) -> bool,
         positive_only: &HashSet<u32>,
         negative_only: &HashSet<u32>,
-    ) -> Result<HashSet<u32>, SolveAvailabilityError> {
+    ) -> Result<F5cObservedSet<'probe>, SolveAvailabilityError> {
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        let mut candidates = ObservedWalkerSet::new(source_meter, F5cWalkerLaneKind::RCandidates);
+        #[cfg(not(all(test, feature = "f5c_resource_probe")))]
         let mut candidates = HashSet::new();
         let result = (|| {
             for &owner in reentries_by_owner.keys() {
                 memo.work_meter.charge(1)?; // candidate eligibility owner
                 if eligible(owner) {
                     memo.work_meter.charge(1)?; // candidate entry
-                    memo.insert_physical_set_with_source(
+                    let reservation = memo.insert_physical_set_with_source(
                         &mut candidates,
                         owner,
                         F5cWalkerLaneKind::RCandidates,
                         source_meter,
-                    )?;
+                    );
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    candidates.observe_capacity(candidates.len() + 1);
+                    reservation?;
                 }
             }
             loop {
                 memo.work_meter.charge(1)?; // fixed-point round
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                let mut previous = ObservedWalkerSet::new(source_meter, F5cWalkerLaneKind::RPrevious);
+                #[cfg(not(all(test, feature = "f5c_resource_probe")))]
                 let mut previous = HashSet::new();
                 let round = (|| {
                     for &owner in &candidates {
-                        memo.reserve_physical_set_insert_with_source(
+                        let reservation = memo.reserve_physical_set_insert_with_source(
                             &mut previous,
                             owner,
                             F5cWalkerLaneKind::RPrevious,
                             source_meter,
-                        )?;
+                        );
+                        #[cfg(all(test, feature = "f5c_resource_probe"))]
+                        previous.observe_capacity(previous.len() + 1);
+                        reservation?;
                         memo.work_meter.charge(1)?; // copied candidate owner
                         previous.insert(owner);
                     }
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    let mut surviving_bounds = ObservedWalkerSet::new(source_meter, F5cWalkerLaneKind::RSurvivingBounds);
+                    #[cfg(not(all(test, feature = "f5c_resource_probe")))]
                     let mut surviving_bounds = HashSet::new();
                     for owner in &previous {
                         memo.work_meter.charge(1)?; // examined bound owner
@@ -9719,12 +10975,15 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
                         let survives = source.guarded_bound_survives(memo, *owner, &bound)?;
                         source.release_replay_scratch();
                         if survives {
-                            memo.insert_physical_set_with_source(
+                            let reservation = memo.insert_physical_set_with_source(
                                 &mut surviving_bounds,
                                 *owner,
                                 F5cWalkerLaneKind::RSurvivingBounds,
                                 source_meter,
-                            )?;
+                            );
+                            #[cfg(all(test, feature = "f5c_resource_probe"))]
+                            surviving_bounds.observe_capacity(surviving_bounds.len() + 1);
+                            reservation?;
                         }
                     }
                     source.release_replay_scratch();
@@ -9767,38 +11026,61 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
                     }
                     let replayed_predicate =
                         source.replay_predicate(memo, &candidates, positive_only, negative_only)?;
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    let mut reachable = ObservedWalkerSet::new(source_meter, F5cWalkerLaneKind::RReachable);
+                    #[cfg(not(all(test, feature = "f5c_resource_probe")))]
                     let mut reachable = HashSet::new();
                     {
                         let mut walker =
                             f5c_tree_analysis::Walker::new_with_source(memo, source_meter);
-                        source.references_predicate(
+                        let references = source.references_predicate(
                             &mut walker,
                             &replayed_predicate,
                             &candidates,
                             &mut reachable,
-                        )?;
+                        );
+                        #[cfg(all(test, feature = "f5c_resource_probe"))]
+                        reachable.observe_capacity(reachable.len());
+                        references?;
+                        #[cfg(all(test, feature = "f5c_resource_probe"))]
+                        let mut frontier_owner = RawWalkerOwner::new(source_meter,
+                            F5cWalkerLaneKind::RFrontier as usize,
+                            F5cWalkerLaneKind::RFrontier.slot_size());
                         let mut frontier = Vec::new();
                         let frontier_result: Result<(), SolveAvailabilityError> = (|| {
                             for &owner in &reachable {
-                                walker.memo.reserve_walker_with_source(
+                                let reservation = walker.memo.reserve_walker_with_source(
                                     &mut frontier,
                                     F5cWalkerLaneKind::RFrontier,
                                     source_meter,
-                                )?;
+                                );
+                                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                                frontier_owner.observe(frontier.len(), frontier.capacity());
+                                reservation?;
                                 walker.memo.work_meter.charge(1)?; // copied frontier owner
                                 frontier.push(owner);
+                                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                                frontier_owner.observe(frontier.len(), frontier.capacity());
                             }
                             while !frontier.is_empty() {
                                 walker.memo.work_meter.charge(1)?; // reachability frontier pop
                                 let owner = frontier.pop().expect("nonempty reachability frontier");
+                                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                                frontier_owner.observe(frontier.len(), frontier.capacity());
+                                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                                let mut referenced = ObservedWalkerSet::new(source_meter, F5cWalkerLaneKind::RReferenced);
+                                #[cfg(not(all(test, feature = "f5c_resource_probe")))]
                                 let mut referenced = HashSet::new();
                                 let reference_result: Result<(), SolveAvailabilityError> = (|| {
-                                    source.references_bound(
+                                    let references = source.references_bound(
                                         &mut walker,
                                         owner,
                                         &candidates,
                                         &mut referenced,
-                                    )?;
+                                    );
+                                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                                    referenced.observe_capacity(referenced.len());
+                                    references?;
                                     #[cfg(test)]
                                     {
                                         let kinds = [
@@ -9829,18 +11111,26 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
                                         walker.memo.work_meter.charge(1)?; // possible frontier entry
                                         let new_owner = !reachable.contains(&referenced_owner);
                                         if new_owner {
-                                            walker.memo.insert_physical_set_with_source(
+                                            let reservation = walker.memo.insert_physical_set_with_source(
                                                 &mut reachable,
                                                 referenced_owner,
                                                 F5cWalkerLaneKind::RReachable,
                                                 source_meter,
-                                            )?;
-                                            walker.memo.reserve_walker_with_source(
+                                            );
+                                            #[cfg(all(test, feature = "f5c_resource_probe"))]
+                                            reachable.observe_capacity(reachable.len() + 1);
+                                            reservation?;
+                                            let reservation = walker.memo.reserve_walker_with_source(
                                                 &mut frontier,
                                                 F5cWalkerLaneKind::RFrontier,
                                                 source_meter,
-                                            )?;
+                                            );
+                                            #[cfg(all(test, feature = "f5c_resource_probe"))]
+                                            frontier_owner.observe(frontier.len(), frontier.capacity());
+                                            reservation?;
                                             frontier.push(referenced_owner);
+                                            #[cfg(all(test, feature = "f5c_resource_probe"))]
+                                            frontier_owner.observe(frontier.len(), frontier.capacity());
                                         }
                                     }
                                     Ok(())
@@ -9943,9 +11233,17 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
             self.memo.boxed_raw_lanes_live_sample = None;
         }
         let predicate = self.positive_row(root, true)?;
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        let mut raw_recursive_bounds = ObservedWalkerMap::new(self.source_meter,
+            F5cWalkerLaneKind::BoxedRawBounds);
+        #[cfg(not(all(test, feature = "f5c_resource_probe")))]
         let mut raw_recursive_bounds = HashMap::new();
         let mut raw_owner_order = Vec::new();
         let mut next_owner = 0;
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        let mut completed_owners = ObservedWalkerSet::new(self.source_meter,
+            F5cWalkerLaneKind::BoxedCompletedOwners);
+        #[cfg(not(all(test, feature = "f5c_resource_probe")))]
         let mut completed_owners = HashSet::new();
         while next_owner < self.reentries.len() {
             self.memo.work_meter.charge(1)?; // reentry owner
@@ -9956,7 +11254,7 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
                 continue;
             }
             let memo_bytes = self.memo.retained_bytes()?;
-            self.memo.walker_resources.with_source(
+            let reservation = self.memo.walker_resources.with_source(
                 self.source_meter,
                 memo_bytes,
                 F5cWalkerLaneKind::BoxedCompletedOwners,
@@ -9967,7 +11265,10 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
                         memo_bytes,
                     )
                 },
-            )?;
+            );
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            completed_owners.observe_capacity(completed_owners.len() + 1);
+            reservation?;
             completed_owners.insert(ordinal);
             let bounds = self
                 .session
@@ -9993,7 +11294,7 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
             self.memo.work_meter.charge(1)?; // raw bound entry
             self.memo.work_meter.charge(1)?; // raw owner order entry
             let memo_bytes = self.memo.retained_bytes()?;
-            self.memo.walker_resources.with_source(
+            let reservation = self.memo.walker_resources.with_source(
                 self.source_meter,
                 memo_bytes,
                 F5cWalkerLaneKind::BoxedRawBounds,
@@ -10004,11 +11305,16 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
                         memo_bytes,
                     )
                 },
-            )?;
+            );
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            raw_recursive_bounds.observe_capacity(raw_recursive_bounds.len() + 1);
+            reservation?;
             let (requested, growth) = self.memo.prepare_scratch_reserve(1)?;
             let old = raw_owner_order.capacity();
             let reservation = raw_owner_order.try_reserve(1);
             self.memo.generalizer_scratch_capacities[3] = raw_owner_order.capacity();
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            if self.memo.matrix_active { self.memo.matrix_generalizer_lengths[3] = raw_owner_order.len() + 1; }
             #[cfg(test)]
             self.memo.observe_physical_memo();
             let committed = self.memo.commit_scratch_reserve(
@@ -10035,22 +11341,35 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
         }
         let predicate = self.materialize_positive(predicate)?;
         self.materialize_recursive_bounds(&raw_owner_order, &mut raw_recursive_bounds)?;
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        let mut reentry_owners = HashMap::<u32, RawWalkerOwner<'_>>::new();
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        let mut boxed_map_owner = RawWalkerOwner::new(self.source_meter,
+            F5cWalkerLaneKind::BoxedReentriesByOwner as usize,
+            F5cWalkerLaneKind::BoxedReentriesByOwner.slot_size());
         let mut reentries_by_owner = HashMap::<u32, Vec<usize>>::new();
         for (index, trace) in self.reentries.iter().enumerate() {
             self.memo.work_meter.charge(1)?; // indexed trace record
             self.memo.work_meter.charge(1)?; // owner index entry
             if let Some(indices) = reentries_by_owner.get_mut(&trace.owner) {
                 let memo_bytes = self.memo.retained_bytes()?;
-                self.memo.walker_resources.with_source(
+                let reservation = self.memo.walker_resources.with_source(
                     self.source_meter,
                     memo_bytes,
                     F5cWalkerLaneKind::BoxedReentryIndices,
                     |walker| walker.reserve_boxed_indices(indices, memo_bytes),
-                )?;
+                );
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                reentry_owners.get_mut(&trace.owner).expect("raw reentry owner")
+                    .observe(indices.len(), indices.capacity());
+                reservation?;
                 indices.push(index);
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                reentry_owners.get_mut(&trace.owner).expect("raw reentry owner")
+                    .observe(indices.len(), indices.capacity());
             } else {
                 let memo_bytes = self.memo.retained_bytes()?;
-                self.memo.walker_resources.with_source(
+                let reservation = self.memo.walker_resources.with_source(
                     self.source_meter,
                     memo_bytes,
                     F5cWalkerLaneKind::BoxedReentriesByOwner,
@@ -10061,14 +11380,25 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
                             memo_bytes,
                         )
                     },
-                )?;
+                );
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                boxed_map_owner.observe(reentries_by_owner.len(),
+                    reentries_by_owner.capacity());
+                reservation?;
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                let mut raw_owner = RawWalkerOwner::new(self.source_meter,
+                    F5cWalkerLaneKind::BoxedReentryIndices as usize,
+                    std::mem::size_of::<usize>());
                 let mut indices = Vec::new();
-                self.memo.walker_resources.with_source(
+                let reservation = self.memo.walker_resources.with_source(
                     self.source_meter,
                     memo_bytes,
                     F5cWalkerLaneKind::BoxedReentryIndices,
                     |walker| walker.reserve_boxed_indices(&mut indices, memo_bytes),
-                )?;
+                );
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                raw_owner.observe(indices.len(), indices.capacity());
+                reservation?;
                 #[cfg(test)]
                 if self.memo.fail_reserve_at
                     == Some((F5cTestReserveFailure::BoxedReentryIndices, index))
@@ -10077,7 +11407,13 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
                     return Err(SolveAvailabilityError::IdentityExhausted);
                 }
                 indices.push(index);
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                raw_owner.observe(indices.len(), indices.capacity());
                 reentries_by_owner.insert(trace.owner, indices);
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                boxed_map_owner.observe(reentries_by_owner.len(), reentries_by_owner.capacity());
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                reentry_owners.insert(trace.owner, raw_owner);
             }
         }
         let non_generic = self.non_generic_closure()?;
@@ -10090,21 +11426,45 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
         };
         let (positive_incidences, negative_incidences) = Self::raw_forest_incidences(
             Some(self.source_meter),
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            None,
             &mut self.memo,
             &raw_owner_order,
-            |walker, owner, positive, negative| {
+            |walker, owner, positive, negative,
+             #[cfg(all(test, feature = "f5c_resource_probe"))] mut positive_owner,
+             #[cfg(all(test, feature = "f5c_resource_probe"))] mut negative_owner| {
                 if let Some(owner) = owner {
                     let (lower, upper) = raw_recursive_bounds
                         .get(&owner)
                         .ok_or(SolveAvailabilityError::IdentityExhausted)?;
-                    walker.incidences_positive(lower, positive, negative)?;
-                    walker.incidences_negative(upper, positive, negative)
+                    walker.incidences_positive(lower, positive, negative,
+                        #[cfg(all(test, feature = "f5c_resource_probe"))]
+                        positive_owner.as_deref_mut(),
+                        #[cfg(all(test, feature = "f5c_resource_probe"))]
+                        negative_owner.as_deref_mut())?;
+                    walker.incidences_negative(upper, positive, negative,
+                        #[cfg(all(test, feature = "f5c_resource_probe"))]
+                        positive_owner.as_deref_mut(),
+                        #[cfg(all(test, feature = "f5c_resource_probe"))]
+                        negative_owner.as_deref_mut())
                 } else {
-                    walker.incidences_positive(&predicate, positive, negative)
+                    walker.incidences_positive(&predicate, positive, negative,
+                        #[cfg(all(test, feature = "f5c_resource_probe"))]
+                        positive_owner.as_deref_mut(),
+                        #[cfg(all(test, feature = "f5c_resource_probe"))]
+                        negative_owner.as_deref_mut())
                 }
             },
         )?;
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        let mut positive_only = ObservedWalkerSet::new(self.source_meter,
+            F5cWalkerLaneKind::BoxedPositiveOnly);
+        #[cfg(not(all(test, feature = "f5c_resource_probe")))]
         let mut positive_only = HashSet::new();
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        let mut negative_only = ObservedWalkerSet::new(self.source_meter,
+            F5cWalkerLaneKind::BoxedNegativeOnly);
+        #[cfg(not(all(test, feature = "f5c_resource_probe")))]
         let mut negative_only = HashSet::new();
         for &owner in &self.order {
             self.memo.work_meter.charge(1)?; // metadata and eligibility owner
@@ -10112,7 +11472,7 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
                 if positive_incidences.contains(&owner) && !negative_incidences.contains(&owner) {
                     self.memo.work_meter.charge(1)?; // positive-only entry
                     let memo_bytes = self.memo.retained_bytes()?;
-                    self.memo.walker_resources.with_source(
+                    let reservation = self.memo.walker_resources.with_source(
                         self.source_meter,
                         memo_bytes,
                         F5cWalkerLaneKind::BoxedPositiveOnly,
@@ -10123,14 +11483,17 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
                                 memo_bytes,
                             )
                         },
-                    )?;
+                    );
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    positive_only.observe_capacity(positive_only.len() + 1);
+                    reservation?;
                     positive_only.insert(owner);
                 }
                 self.memo.work_meter.charge(1)?; // second eligibility/order scan
                 if negative_incidences.contains(&owner) && !positive_incidences.contains(&owner) {
                     self.memo.work_meter.charge(1)?; // negative-only entry
                     let memo_bytes = self.memo.retained_bytes()?;
-                    self.memo.walker_resources.with_source(
+                    let reservation = self.memo.walker_resources.with_source(
                         self.source_meter,
                         memo_bytes,
                         F5cWalkerLaneKind::BoxedNegativeOnly,
@@ -10141,7 +11504,10 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
                                 memo_bytes,
                             )
                         },
-                    )?;
+                    );
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    negative_only.observe_capacity(negative_only.len() + 1);
+                    reservation?;
                     negative_only.insert(owner);
                 }
             } else {
@@ -10186,6 +11552,8 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
             &negative_only,
         )?;
         let selection = Self::post_r_selection(
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            Some(self.source_meter),
             &mut self.memo,
             &mut r_source,
             &candidates,
@@ -10204,10 +11572,13 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
         let F5cPostRSelection {
             retained_bounds,
             retained_predicate: _,
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            recursive_owners_owner,
             recursive_owners,
             recursive_set,
             q,
             r,
+            ..
         } = selection?;
         drop(retained_bounds);
         self.memo.release_walker_with_source(
@@ -10216,7 +11587,15 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
         )?;
         let q_count =
             u32::try_from(q.len()).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        let mut positive_eliminated = ObservedWalkerSet::new(self.source_meter,
+            F5cWalkerLaneKind::SelectedPositiveEliminated);
+        #[cfg(not(all(test, feature = "f5c_resource_probe")))]
         let mut positive_eliminated = HashSet::new();
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        let mut negative_eliminated = ObservedWalkerSet::new(self.source_meter,
+            F5cWalkerLaneKind::SelectedNegativeEliminated);
+        #[cfg(not(all(test, feature = "f5c_resource_probe")))]
         let mut negative_eliminated = HashSet::new();
         for ordinal in self.order.iter().copied() {
             self.memo.work_meter.charge(1)?; // positive eliminated-set owner
@@ -10226,7 +11605,7 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
             {
                 self.memo.work_meter.charge(1)?;
                 let bytes = self.memo.retained_bytes()?;
-                self.memo.walker_resources.with_source(
+                let reservation = self.memo.walker_resources.with_source(
                     self.source_meter,
                     bytes,
                     F5cWalkerLaneKind::SelectedPositiveEliminated,
@@ -10237,7 +11616,10 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
                             bytes,
                         )
                     },
-                )?;
+                );
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                positive_eliminated.observe_capacity(positive_eliminated.len() + 1);
+                reservation?;
                 positive_eliminated.insert(ordinal);
             }
         }
@@ -10249,7 +11631,7 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
             {
                 self.memo.work_meter.charge(1)?;
                 let bytes = self.memo.retained_bytes()?;
-                self.memo.walker_resources.with_source(
+                let reservation = self.memo.walker_resources.with_source(
                     self.source_meter,
                     bytes,
                     F5cWalkerLaneKind::SelectedNegativeEliminated,
@@ -10260,7 +11642,10 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
                             bytes,
                         )
                     },
-                )?;
+                );
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                negative_eliminated.observe_capacity(negative_eliminated.len() + 1);
+                reservation?;
                 negative_eliminated.insert(ordinal);
             }
         }
@@ -10275,7 +11660,8 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
         )?;
         let mut tracked_bounds = bound_sidecar
             .as_ref()
-            .map(|sidecar| TrackedVec::<F5cRecursiveBound>::new(sidecar.meter()));
+            .map(|sidecar| TrackedVec::<F5cRecursiveBound>::new_with_kind(
+                sidecar.meter(), PhysicalOwnerKind::SourceActiveBounds));
         if let Some(bounds) = tracked_bounds.as_mut() {
             #[cfg(test)]
             let old_capacity = bounds.capacity();
@@ -10344,10 +11730,15 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
                 recursive_bounds.push(bound);
             }
         }
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        drop(recursive_owners);
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        drop(recursive_owners_owner);
         if let (Some(bounds), Some(sidecar)) = (tracked_bounds, bound_sidecar) {
             #[cfg(test)]
             let bound_capacity = bounds.capacity();
-            let (raw, token) = bounds.into_raw_with_token();
+            let (raw, mut token) = bounds.into_raw_with_token();
+            token.classify(PhysicalOwnerKind::SourceHeldBounds);
             sidecar.push_reserved(token);
             #[cfg(test)]
             self.memo.transfer_physical_bound(bound_capacity);
@@ -10392,5 +11783,274 @@ mod raw_root_count_tests {
             checked_raw_root_append(usize::MAX, 1),
             Err(SolveAvailabilityError::IdentityExhausted)
         );
+    }
+}
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+mod observed_walker_set_tests {
+    use super::*;
+
+    #[test]
+    fn flat_occurrence_order_uses_probe_meter_without_explicit_source_meter() {
+        let path = std::env::temp_dir().join(format!(
+            "f5c-flat-occurrence-order-{}-{:?}.bin", std::process::id(),
+            std::thread::current().id()));
+        crate::f5c_draft_heap::open_f5c_resource_events(&path).unwrap();
+        let meter = DraftHeapMeter::default();
+        meter.set_event_component(23);
+        let mut draft = f5c_draft::FlatDraft::default();
+        draft.predicate = Some(draft.positive(f5c_draft::PositiveNode::Variable(7)).unwrap());
+        let bounds = HashMap::new();
+        let mut source = F5cFlatRCandidateSource {
+            source: &draft,
+            output: f5c_draft::FlatDraft::default(),
+            bounds: &bounds,
+            probe_meter: Some(&meter),
+        };
+        let mut memo = F5cComponentExpansionMemo::default();
+        let selection = F5cGeneralizer::post_r_selection(
+            None, &mut memo, &mut source, &HashSet::new(), &[], &[], &[],
+            &HashSet::new(), &HashSet::new(), &HashSet::new(), &HashSet::new(), |_| true,
+        ).unwrap();
+        drop(selection);
+        release_flat_post_r_lanes(&mut memo);
+        let before_release = meter.family6_event_current().unwrap();
+        f5c_replay::release_flat_output(&mut memo, source.output, Some(&meter));
+        let after_release = meter.family6_event_current().unwrap();
+        assert!(after_release.1 < before_release.1);
+        crate::f5c_draft_heap::close_f5c_resource_events().unwrap();
+        let bytes = std::fs::read(&path).unwrap();
+        std::fs::remove_file(path).unwrap();
+        let role = 32 + F5cWalkerLaneKind::PostROccurrenceOrder as u64;
+        let events: Vec<[u64; 8]> = bytes[8..].chunks_exact(64).map(|event| {
+            std::array::from_fn(|index| u64::from_le_bytes(
+                event[index * 8..(index + 1) * 8].try_into().unwrap()))
+        }).filter(|event| event[3] == role).collect();
+        assert_eq!(events.iter().map(|event| event[2]).collect::<Vec<_>>(),
+            [1, 3, 2, 5]);
+        assert!(events.iter().all(|event| event[0] == 23
+            && event[1] == events[0][1]));
+        let seen_role = 32 + F5cWalkerLaneKind::PostROccurrenceSeen as u64;
+        let seen_events: Vec<[u64; 8]> = bytes[8..].chunks_exact(64).map(|event| {
+            std::array::from_fn(|index| u64::from_le_bytes(
+                event[index * 8..(index + 1) * 8].try_into().unwrap()))
+        }).filter(|event| event[3] == seen_role).collect();
+        assert_eq!(seen_events.iter().map(|event| event[2]).collect::<Vec<_>>(),
+            [1, 3, 2, 5]);
+        assert!(seen_events.iter().all(|event| event[0] == 23
+            && event[1] == seen_events[0][1]));
+    }
+
+    #[test]
+    fn selected_eliminated_sets_release_after_success_and_error() {
+        let path = std::env::temp_dir().join(format!(
+            "f5c-selected-eliminated-{}-{:?}.bin", std::process::id(),
+            std::thread::current().id()));
+        crate::f5c_draft_heap::open_f5c_resource_events(&path).unwrap();
+        let meter = DraftHeapMeter::default();
+        for (kind, fail) in [
+            (F5cWalkerLaneKind::SelectedPositiveEliminated, false),
+            (F5cWalkerLaneKind::SelectedNegativeEliminated, false),
+            (F5cWalkerLaneKind::SelectedPositiveEliminated, true),
+            (F5cWalkerLaneKind::SelectedNegativeEliminated, true),
+        ] {
+            let result = (|| -> Result<(), ()> {
+                let mut set = ObservedWalkerSet::<u32>::new(&meter, kind);
+                let reservation = set.values.try_reserve(1).map_err(|_| ());
+                set.observe_capacity(0);
+                reservation?;
+                if fail { return Err(()); }
+                set.insert(7);
+                Ok(())
+            })();
+            assert_eq!(result.is_err(), fail);
+        }
+        crate::f5c_draft_heap::close_f5c_resource_events().unwrap();
+        let bytes = std::fs::read(&path).unwrap();
+        std::fs::remove_file(path).unwrap();
+        let events: Vec<[u64; 8]> = bytes[8..].chunks_exact(64).map(|event| {
+            std::array::from_fn(|index| u64::from_le_bytes(
+                event[index * 8..(index + 1) * 8].try_into().unwrap()))
+        }).collect();
+        for lane in [F5cWalkerLaneKind::SelectedPositiveEliminated,
+            F5cWalkerLaneKind::SelectedNegativeEliminated]
+        {
+            let owners: Vec<u64> = events.iter()
+                .filter(|event| event[3] == 32 + lane as u64 && event[2] == 1)
+                .map(|event| event[1]).collect();
+            assert_eq!(owners.len(), 2);
+            assert_ne!(owners[0], owners[1]);
+            for (index, owner) in owners.iter().enumerate() {
+                let operations: Vec<u64> = events.iter()
+                    .filter(|event| event[1] == *owner)
+                    .map(|event| event[2]).collect();
+                assert_eq!(operations, if index == 0 {
+                    vec![1, 3, 2, 5]
+                } else {
+                    vec![1, 3, 5]
+                });
+            }
+        }
+    }
+
+    #[test]
+    fn raw_forest_set_map_and_callback_owners_shape_and_release() {
+        let path = std::env::temp_dir().join(format!(
+            "f5c-raw-forest-owners-{}-{:?}.bin", std::process::id(),
+            std::thread::current().id()));
+        crate::f5c_draft_heap::open_f5c_resource_events(&path).unwrap();
+        let meter = DraftHeapMeter::default();
+        let mut seen_owner = RawWalkerOwner::new(&meter,
+            F5cWalkerLaneKind::RawOwnerSeen as usize,
+            F5cWalkerLaneKind::RawOwnerSeen.slot_size());
+        let mut seen = HashSet::<u32>::new();
+        let mut bounds_owner = RawWalkerOwner::new(&meter,
+            F5cWalkerLaneKind::RawOwnerBounds as usize,
+            F5cWalkerLaneKind::RawOwnerBounds.slot_size());
+        let mut bounds = HashMap::<u32, (f5c_draft::PositiveId, f5c_draft::NegativeId)>::new();
+        let mut trace_owner = RawWalkerOwner::new(&meter,
+            F5cWalkerLaneKind::RawCallbackTrace as usize,
+            F5cWalkerLaneKind::RawCallbackTrace.slot_size());
+        let mut trace = Vec::<(u32, Polarity)>::new();
+        seen.try_reserve(1).unwrap();
+        seen_owner.observe(seen.len(), seen.capacity());
+        assert!(seen.try_reserve(usize::MAX).is_err());
+        seen_owner.observe(seen.len(), seen.capacity());
+        seen.insert(7);
+        seen_owner.observe(seen.len(), seen.capacity());
+        bounds.try_reserve(1).unwrap();
+        bounds_owner.observe(bounds.len(), bounds.capacity());
+        bounds.insert(7, (f5c_draft::PositiveId(0), f5c_draft::NegativeId(0)));
+        bounds_owner.observe(bounds.len(), bounds.capacity());
+        let value = bounds.remove(&7).unwrap();
+        bounds_owner.observe(bounds.len(), bounds.capacity());
+        bounds.insert(7, value);
+        bounds_owner.observe(bounds.len(), bounds.capacity());
+        trace.try_reserve(1).unwrap();
+        trace_owner.observe(trace.len(), trace.capacity());
+        trace.push((7, Polarity::Positive));
+        trace_owner.observe(trace.len(), trace.capacity());
+        drop(trace);
+        drop(trace_owner);
+        drop(bounds);
+        drop(bounds_owner);
+        drop(seen);
+        drop(seen_owner);
+        let (_, _) = crate::f5c_draft_heap::close_f5c_resource_events().unwrap();
+        let bytes = std::fs::read(&path).unwrap();
+        std::fs::remove_file(path).unwrap();
+        let events: Vec<[u64; 8]> = bytes[8..].chunks_exact(64).map(|event| {
+            std::array::from_fn(|index| u64::from_le_bytes(
+                event[index * 8..(index + 1) * 8].try_into().unwrap()))
+        }).collect();
+        for lane in [F5cWalkerLaneKind::RawOwnerSeen,
+            F5cWalkerLaneKind::RawOwnerBounds, F5cWalkerLaneKind::RawCallbackTrace]
+        {
+            let operations: Vec<u64> = events.iter()
+                .filter(|event| event[3] == 32 + lane as u64)
+                .map(|event| event[2]).collect();
+            assert_eq!(operations.first(), Some(&1));
+            assert_eq!(operations.last(), Some(&5));
+            assert!(operations.contains(&3));
+            assert!(operations.contains(&2));
+        }
+        assert!(!events.iter().any(|event| event[4] == usize::MAX as u64));
+    }
+
+    #[test]
+    fn reserve_then_early_return_releases_set_owner() {
+        let path = std::env::temp_dir().join(format!(
+            "f5c-observed-set-{}-{:?}.bin", std::process::id(),
+            std::thread::current().id()));
+        crate::f5c_draft_heap::open_f5c_resource_events(&path).unwrap();
+        let meter = DraftHeapMeter::default();
+        let result = (|| -> Result<(), ()> {
+            let mut set = ObservedWalkerSet::<u32>::new(&meter,
+                F5cWalkerLaneKind::BoxedPositiveOnly);
+            let reservation = set.values.try_reserve(1).map_err(|_| ());
+            set.observe_capacity(1);
+            reservation?;
+            return Err(());
+        })();
+        assert_eq!(result, Err(()));
+        let (count, _) = crate::f5c_draft_heap::close_f5c_resource_events().unwrap();
+        let bytes = std::fs::read(&path).unwrap();
+        std::fs::remove_file(path).unwrap();
+        assert_eq!(count, 3);
+        let operations: Vec<u64> = bytes[8..].chunks_exact(64).map(|event| {
+            u64::from_le_bytes(event[16..24].try_into().unwrap())
+        }).collect();
+        assert_eq!(operations, [1, 3, 5]);
+    }
+
+    #[test]
+    fn moved_post_r_selection_releases_recursive_set_owner() {
+        let path = std::env::temp_dir().join(format!(
+            "f5c-post-r-set-{}-{:?}.bin", std::process::id(),
+            std::thread::current().id()));
+        crate::f5c_draft_heap::open_f5c_resource_events(&path).unwrap();
+        let meter = DraftHeapMeter::default();
+        let mut recursive_set = ObservedWalkerSet::<u32>::new(&meter,
+            F5cWalkerLaneKind::PostRRecursiveSet);
+        recursive_set.values.try_reserve(1).unwrap();
+        recursive_set.observe_capacity(1);
+        recursive_set.insert(7);
+        let selection = F5cPostRSelection {
+            retained_bounds: ObservedWalkerMap::<u32, ()>::new(&meter,
+                F5cWalkerLaneKind::BoxedRetainedOwnerBounds),
+            retained_predicate: (), recursive_owners: Vec::new(),
+            recursive_owners_owner: None,
+            recursive_set,
+            q: ObservedWalkerMap::new(&meter, F5cWalkerLaneKind::PostRQuantifiers),
+            r: ObservedWalkerMap::new(&meter, F5cWalkerLaneKind::PostRRecursives),
+        };
+        assert!(selection.recursive_set.contains(&7));
+        drop(selection);
+        let (count, _) = crate::f5c_draft_heap::close_f5c_resource_events().unwrap();
+        let bytes = std::fs::read(&path).unwrap();
+        std::fs::remove_file(path).unwrap();
+        assert_eq!(count, 10);
+        let operations: Vec<u64> = bytes[8..].chunks_exact(64).map(|event| {
+            u64::from_le_bytes(event[16..24].try_into().unwrap())
+        }).collect();
+        assert_eq!(operations, [1, 3, 2, 1, 1, 1, 5, 5, 5, 5]);
+    }
+
+    #[test]
+    fn moved_reentry_map_keeps_distinct_index_owner() {
+        let path = std::env::temp_dir().join(format!(
+            "f5c-reentry-map-{}-{:?}.bin", std::process::id(),
+            std::thread::current().id()));
+        crate::f5c_draft_heap::open_f5c_resource_events(&path).unwrap();
+        let meter = DraftHeapMeter::default();
+        let mut map_owner = RawWalkerOwner::new(&meter,
+            F5cWalkerLaneKind::BoxedReentriesByOwner as usize,
+            F5cWalkerLaneKind::BoxedReentriesByOwner.slot_size());
+        let mut index_owner = RawWalkerOwner::new(&meter,
+            F5cWalkerLaneKind::BoxedReentryIndices as usize,
+            std::mem::size_of::<usize>());
+        let mut indices = Vec::with_capacity(2);
+        indices.push(3);
+        index_owner.observe(indices.len(), indices.capacity());
+        let mut values = HashMap::new();
+        values.insert(7, indices);
+        map_owner.observe(values.len(), values.capacity());
+        let mut index_owners = HashMap::new();
+        index_owners.insert(7, index_owner);
+        let moved = ObservedReentryMap { values, _map_owner: map_owner,
+            _index_owners: index_owners };
+        assert_eq!(moved.get(&7).unwrap(), &[3]);
+        drop(moved);
+        let (count, _) = crate::f5c_draft_heap::close_f5c_resource_events().unwrap();
+        let bytes = std::fs::read(&path).unwrap();
+        std::fs::remove_file(path).unwrap();
+        assert_eq!(count, 6);
+        let events: Vec<[u64; 8]> = bytes[8..].chunks_exact(64).map(|event| {
+            std::array::from_fn(|index| u64::from_le_bytes(
+                event[index * 8..(index + 1) * 8].try_into().unwrap()))
+        }).collect();
+        assert_eq!(events.iter().map(|event| event[2]).collect::<Vec<_>>(),
+            [1, 1, 3, 3, 5, 5]);
+        assert_ne!(events[0][1], events[1][1]);
     }
 }

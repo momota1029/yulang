@@ -1,5 +1,93 @@
 use super::*;
 
+#[cfg(feature = "f5c_resource_probe")]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum F5cMatrixFamily {
+    IndependentIdentities,
+    IdentityAliases,
+    SharedAcyclic,
+    IndependentAcyclic,
+    GuardedCycle,
+    Normalization,
+    ArenaFactor,
+}
+
+#[cfg(feature = "f5c_resource_probe")]
+impl F5cMatrixFamily {
+    const ALL: [Self; 7] = [Self::IndependentIdentities, Self::IdentityAliases,
+        Self::SharedAcyclic, Self::IndependentAcyclic, Self::GuardedCycle,
+        Self::Normalization, Self::ArenaFactor];
+
+    fn parse(name: &str) -> Option<Self> {
+        Some(match name {
+            "independent_identities" => Self::IndependentIdentities,
+            "identity_aliases" => Self::IdentityAliases,
+            "shared_acyclic" => Self::SharedAcyclic,
+            "independent_acyclic" => Self::IndependentAcyclic,
+            "guarded_cycle" => Self::GuardedCycle,
+            "normalization" => Self::Normalization,
+            "arena_factor" => Self::ArenaFactor,
+            _ => return None,
+        })
+    }
+}
+
+#[cfg(feature = "f5c_resource_probe")]
+#[derive(Clone, Copy, Debug)]
+struct F5cMatrixCase {
+    family: F5cMatrixFamily,
+    dimension: char,
+    size: usize,
+    companion: Option<usize>,
+    emit: bool,
+}
+
+#[cfg(feature = "f5c_resource_probe")]
+impl F5cMatrixCase {
+    fn from_env() -> Self {
+        let required = |name| std::env::var(name).unwrap_or_else(|_| panic!("missing {name}"));
+        let family = F5cMatrixFamily::parse(&required("F5C_RESOURCE_MATRIX_FAMILY"))
+            .expect("unknown F5c matrix family");
+        let dimension = match required("F5C_RESOURCE_MATRIX_DIMENSION").as_str() {
+            "D" => 'D', "K" => 'K', "M" => 'M', "U" => 'U',
+            _ => panic!("unknown F5c matrix dimension"),
+        };
+        let size = match required("F5C_RESOURCE_MATRIX_SIZE").as_str() {
+            "1000" => 1000, "2000" => 2000, "4000" => 4000,
+            _ => panic!("F5c matrix size must be 1000, 2000, or 4000"),
+        };
+        let companion = match required("F5C_RESOURCE_MATRIX_COMPANION").as_str() {
+            "none" => None, "8" => Some(8), "1000" => Some(1000),
+            "4000" => Some(4000),
+            _ => panic!("invalid F5c matrix companion"),
+        };
+        let valid = match family {
+            F5cMatrixFamily::IndependentIdentities => dimension == 'D' && companion.is_none(),
+            F5cMatrixFamily::IdentityAliases => dimension == 'U' && companion.is_none(),
+            F5cMatrixFamily::SharedAcyclic | F5cMatrixFamily::IndependentAcyclic
+            | F5cMatrixFamily::Normalization => {
+                matches!(dimension, 'D' | 'K') && companion == Some(8)
+            }
+            F5cMatrixFamily::GuardedCycle => match dimension {
+                'D' => companion == Some(4000),
+                'K' => companion == Some(8),
+                _ => false,
+            },
+            F5cMatrixFamily::ArenaFactor => matches!(dimension, 'M' | 'U') && companion == Some(1000),
+        };
+        assert!(valid, "tuple is outside the approved F5c matrix");
+        Self { family, dimension, size, companion, emit: true }
+    }
+
+    fn parameters(self) -> (usize, usize) {
+        match self.companion {
+            None => (self.size, 0),
+            Some(other) if matches!(self.dimension, 'D' | 'M') => (self.size, other),
+            Some(other) => (other, self.size),
+        }
+    }
+}
+
 struct CandidateProbeResult {
     schemes: Vec<Option<Vec<u64>>>,
     normalization: [usize; 4],
@@ -1310,4 +1398,712 @@ fn f5c_resource_probe_scale_families() {
         assert_eq!(drain_positive_function_chain(value), depth);
         assert_eq!(drain_positive_function_chain(output), depth);
     }
+}
+
+#[cfg(feature = "f5c_resource_probe")]
+fn matrix_source(family: F5cMatrixFamily, count: usize) -> String {
+    use std::fmt::Write;
+    let mut source = String::with_capacity(count.saturating_mul(32).saturating_add(32));
+    match family {
+        F5cMatrixFamily::IndependentIdentities => {
+            for i in 0..count { write!(source, "my n{i} x = x; ").unwrap(); }
+        }
+        F5cMatrixFamily::IdentityAliases | F5cMatrixFamily::ArenaFactor => {
+            source.push_str("my f x = x; ");
+            for i in 0..count { write!(source, "my a{i} = f; ").unwrap(); }
+        }
+        _ => {
+            for i in 0..count {
+                write!(source, "my n{i} = n{}; ", (i + 1) % count).unwrap();
+            }
+        }
+    }
+    source
+}
+
+#[cfg(feature = "f5c_resource_probe")]
+#[test]
+fn f5c_live_variable_events_release_after_returned_error() {
+    F5C_LEDGER_AFTER_STAGE_HIT.with(|hit| hit.set(false));
+    let mut session = matrix_session_before_admission(
+        "my left = right; my right = left", "live-returned-error");
+    session.flat_candidate_precommit_failure =
+        Some(FlatCandidatePrecommitFailure::LedgerAfterStage);
+    assert!(matches!(session.run(), Err(SolveAvailabilityError::IdentityExhausted)));
+    assert!(F5C_LEDGER_AFTER_STAGE_HIT.with(|hit| hit.get()),
+        "returned error must reach LedgerAfterStage injection");
+    let path = F5C_MATRIX_SIDECAR.with(|path| path.borrow_mut().take()).unwrap();
+    let (count, _) = crate::f5c_draft_heap::close_f5c_resource_events().unwrap();
+    let bytes = std::fs::read(&path).unwrap();
+    std::fs::remove_file(path).unwrap();
+    let events: Vec<[u64; 8]> = bytes[8..].chunks_exact(64).map(|event| {
+        std::array::from_fn(|index| u64::from_le_bytes(
+            event[index * 8..(index + 1) * 8].try_into().unwrap()))
+    }).collect();
+    assert_eq!(count as usize, events.len());
+    let created: Vec<_> = events.iter().filter(|event| event[2] == 1 && (512..530).contains(&event[3]))
+        .map(|event| event[1]).collect();
+    assert!(events.iter().any(|event| (512..522).contains(&event[3])
+        && event[5] > 0), "fixture needs positive top-level family-1 capacity");
+    for id in created {
+        assert_eq!(events.iter().filter(|event| event[1] == id && event[2] == 5).count(), 1);
+    }
+    assert!(events.iter().any(|event| (522..530).contains(&event[3])
+        && event[5] > 0), "fixture needs positive nested family-1 capacity");
+    let mut live = std::collections::HashMap::new();
+    for event in &events {
+        if !(512..530).contains(&event[3]) { continue; }
+        match event[2] {
+            1 => { assert!(live.insert(event[1], (event[5], event[5] * event[6])).is_none()); }
+            2 | 3 | 4 => { assert!(live.insert(event[1], (event[5], event[5] * event[6])).is_some()); }
+            5 => { assert!(live.remove(&event[1]).is_some()); }
+            _ => {}
+        }
+    }
+    assert!(live.is_empty(), "returned error must leave zero family-1 live capacity and bytes");
+}
+
+#[cfg(feature = "f5c_resource_probe")]
+#[test]
+fn f5c_live_variable_events_keep_row_identity_and_same_time_peak() {
+    let path = std::env::temp_dir().join(format!(
+        "f5c-live-events-{}-{:?}.bin", std::process::id(), std::thread::current().id()));
+    crate::f5c_draft_heap::open_f5c_resource_events(&path).unwrap();
+    let mut live = F5cLiveEventLedger::new([4; 10], 1, 0);
+    live.top(0, 1, 4);
+    live.row(false, 0, 0, 1, 4);
+    let first_peak = live.peak;
+    live.row(false, 0, 0, 2, 8);
+    assert_eq!(live.peak, live.retained);
+    live.row(false, 0, 0, 1, 8);
+    live.add_row(false);
+    live.row(false, 1, 0, 1, 4);
+    assert!(live.peak > first_peak);
+    live.truncate_rows(false, 1);
+    assert!(live.peak > live.retained);
+    crate::f5c_draft_heap::checkpoint_live_variable_events(live.capacity, live.retained);
+    live.release_all();
+    let (count, _) = crate::f5c_draft_heap::close_f5c_resource_events().unwrap();
+    let bytes = std::fs::read(&path).unwrap();
+    std::fs::remove_file(path).unwrap();
+    let events: Vec<[u64; 8]> = bytes[8..].chunks_exact(64).map(|event| {
+        std::array::from_fn(|index| u64::from_le_bytes(
+            event[index * 8..(index + 1) * 8].try_into().unwrap()))
+    }).collect();
+    assert_eq!(count as usize, events.len());
+    let row_ids: Vec<_> = events.iter().filter(|event| event[2] == 1 && event[3] == 522)
+        .map(|event| event[1]).collect();
+    assert_eq!(row_ids.len(), 2);
+    assert_ne!(row_ids[0], row_ids[1]);
+    assert!(events.iter().any(|event| event[1] == row_ids[0]
+        && event[2] == 3 && event[5] == 8));
+    assert!(events.iter().any(|event| event[1] == row_ids[0]
+        && event[2] == 5 && event[4] == 0 && event[5] == 0));
+    assert!(events.iter().any(|event| event[1] == 0 && event[2] == 6
+        && event[3] == 512 && event[5] > 0));
+}
+
+#[cfg(feature = "f5c_resource_probe")]
+#[test]
+fn f5c_live_variable_events_reconcile_terminal_session() {
+    let mut session = matrix_session("my f x = x;", "live-terminal");
+    session.execute_scc_plan().unwrap();
+    matrix_assert_output(&session);
+    let solved = session.finish().unwrap();
+    let observer = solved.f5c_matrix_observer.as_ref().unwrap();
+    assert_eq!(observer.family1_event_terminal,
+        (usize::try_from(observer.family_capacity[0]).expect("family-1 capacity"),
+            observer.family_retained[0], observer.family_peak[0]));
+    assert_eq!(observer.live_events.as_ref().unwrap().capacity, 0);
+    let sidecar = F5C_MATRIX_SIDECAR.with(|path| path.borrow_mut().take()).unwrap();
+    crate::f5c_draft_heap::close_f5c_resource_events().unwrap();
+    std::fs::remove_file(sidecar).unwrap();
+}
+
+#[cfg(feature = "f5c_resource_probe")]
+fn matrix_session(source: &str, name: &str) -> InferenceSession {
+    let mut session = matrix_session_before_admission(source, name);
+    session.admit_all_collected_facts().unwrap();
+    session
+}
+
+#[cfg(feature = "f5c_resource_probe")]
+fn matrix_session_before_admission(source: &str, name: &str) -> InferenceSession {
+    let hir = module(source, name);
+    assert!(hir.diagnostics().is_empty(), "matrix HIR diagnostics");
+    let batch = collect(hir);
+    let mut session = InferenceSession::new(batch);
+    let sidecar = std::env::var_os("F5C_RESOURCE_SIDECAR")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| std::env::temp_dir().join(format!(
+            "f5c-resource-{}-{}.bin", std::process::id(), name)));
+    crate::f5c_draft_heap::open_f5c_resource_events(&sidecar)
+        .expect("open F5c resource event sidecar before solve");
+    F5C_MATRIX_SIDECAR.with(|path| *path.borrow_mut() = Some(sidecar));
+    session.flat_candidate_enabled = true;
+    session.f5c_matrix_observer = Some(F5cMatrixObserver::new());
+    session.seed_f5c_matrix_live_events();
+    session.start_f5c_matrix_route_growth();
+    session
+}
+
+#[cfg(feature = "f5c_resource_probe")]
+thread_local! {
+    static F5C_MATRIX_SIDECAR: std::cell::RefCell<Option<std::path::PathBuf>> = const {
+        std::cell::RefCell::new(None)
+    };
+}
+
+#[cfg(feature = "f5c_resource_probe")]
+fn matrix_assert_output(session: &InferenceSession) {
+    assert!(session.errors.is_empty(), "matrix solver diagnostics");
+    assert!(session.schemes.iter().all(Option::is_some), "all schemes installed");
+    assert!(session.f5c_candidate_capture.is_none());
+    assert!(session.resource_ledger.boundary_order.is_empty());
+    assert_eq!(session.resource_ledger.semantic_arena_retained_bytes,
+        session.execution_counters.semantic_arena_retained_bytes);
+    assert_eq!(session.resource_ledger.inference_session_retained_bytes,
+        session.execution_counters.inference_session_retained_bytes);
+    let observer = session.f5c_matrix_observer.as_ref().unwrap();
+    assert_eq!(observer.boundaries.len(), F5C_MATRIX_BOUNDARIES);
+    assert!(observer.lane_count > 0);
+    assert_eq!(observer.family_ends[7] + 6, observer.lane_count);
+    assert!(observer.family_ends.windows(2).all(|pair| pair[0] < pair[1]));
+    assert!(observer.boundaries.iter().any(|boundary| boundary.seen > 0));
+}
+
+#[cfg(feature = "f5c_resource_probe")]
+fn matrix_lane_identity(index: usize) -> String {
+    const FRONT: [&str; 45] = [
+        "live_components", "value_bounds", "effect_bounds", "value_levels",
+        "effect_levels", "value_metadata", "effect_metadata", "extrusion_stack",
+        "extrusion_value_marks", "extrusion_effect_marks", "value_direct_lower",
+        "value_direct_upper", "value_exact_lower", "value_exact_upper",
+        "effect_direct_lower", "effect_direct_upper", "effect_exact_lower",
+        "effect_exact_upper", "term_0", "term_1", "term_2", "term_3", "term_4",
+        "term_5", "typed_pairs", "diagnostic_edges", "typed_worklist",
+        "diagnostic_delta", "diagnostic_delta_indices", "diagnostic_reverse_offsets",
+        "diagnostic_reverse_edges", "diagnostic_reverse_cursors", "diagnostic_dfs_stack",
+        "diagnostic_finish_order", "diagnostic_scc_indices", "diagnostic_scc_nodes",
+        "diagnostic_scc_offsets", "diagnostic_scc_pending_children",
+        "diagnostic_scc_worklist", "diagnostic_bucket_heads", "diagnostic_bucket_tails",
+        "diagnostic_bucket_candidates", "diagnostic_node_witnesses", "errors",
+        "reported_errors",
+    ];
+    let lane = match index {
+        0..45 => FRONT[index].to_owned(),
+        45..65 => format!("component_memo_{}", index - 45),
+        65..73 => format!("closed_arena_{}", index - 65),
+        73..90 => format!("closed_scratch_{}", index - 73),
+        90..101 => format!("closed_indexed_{}", index - 90),
+        101..129 => format!("normalization_{}", index - 101),
+        129 => "aggregate_source_draft_slots".to_owned(),
+        130 => "aggregate_source_bound_tokens".to_owned(),
+        131 => "aggregate_source_recursive_bounds".to_owned(),
+        132..230 => format!("generalization_walker_{}", index - 132),
+        230..237 => format!("instantiation_{}", index - 230),
+        237..241 => format!("route_store_{}", index - 237),
+        241..243 => format!("routed_use_{}", index - 241),
+        _ => panic!("unexpected F5c matrix lane index {index}"),
+    };
+    let family = match index {
+        0..18 => "live_variable_tables",
+        18..24 => "inference_type_arena",
+        24..45 => "structured_pair_memo",
+        45..65 => "component_expansion_memo",
+        65..101 => "closed_type_arena",
+        101..129 => "closed_normalization_index",
+        129..230 => "generalization_scratch",
+        230..237 => "instantiation_substitution",
+        _ => "outside_family",
+    };
+    format!("{family}/{lane}")
+}
+
+#[cfg(feature = "f5c_resource_probe")]
+fn matrix_emit(session: &SolvedModule, case: F5cMatrixCase) {
+    if !case.emit {
+        crate::f5c_draft_heap::close_f5c_resource_events()
+            .expect("flush F5c resource event sidecar");
+        let sidecar = F5C_MATRIX_SIDECAR.with(|path| path.borrow_mut().take())
+            .expect("F5c resource sidecar path");
+        std::fs::remove_file(sidecar).expect("remove preflight event sidecar");
+        return;
+    }
+    let observer = session.f5c_matrix_observer.as_ref().unwrap();
+    // One record per process; the offline checker consumes this after the solve.
+    let companion = case.companion.map_or_else(|| "none".to_owned(), |n| n.to_string());
+    let lanes = observer.current[..observer.lane_count].iter().enumerate()
+        .map(|(index, lane)| format!("{}:{},{},{},{},{},{}", matrix_lane_identity(index), lane.actual_capacity,
+            lane.peak_capacity, lane.retained_bytes, lane.observed_retained_bytes,
+            lane.peak_bytes, lane.slot_size))
+        .collect::<Vec<_>>().join(";");
+    let family_totals = observer.family_capacity.iter()
+        .zip(observer.family_retained.iter().zip(observer.family_peak.iter()))
+        .map(|(capacity, (retained, peak))| format!("{capacity},{retained},{peak}"))
+        .collect::<Vec<_>>().join(";");
+    let (event_count, event_checksum) =
+        crate::f5c_draft_heap::close_f5c_resource_events()
+            .expect("flush F5c resource event sidecar");
+    let sidecar = F5C_MATRIX_SIDECAR.with(|path| path.borrow_mut().take())
+        .expect("F5c resource sidecar path");
+    eprintln!("F5C_RESOURCE_MATRIX_ROW\tfamily={:?}\tdimension={}\tsize={}\tcompanion={}\tfamily_ends={:?}\tfamily_totals={}\tfamily1_event={},{},{}\tfamily6_event={},{},{},{},{},{}\tsemantic_retained={}\tsemantic_peak={}\tsession_retained={}\tsession_peak={}\tlanes={}",
+        case.family, case.dimension, case.size, companion, observer.family_ends,
+        family_totals, observer.family1_event_terminal.0,
+        observer.family1_event_terminal.1, observer.family1_event_terminal.2,
+        observer.family6_event_capacity, observer.family6_event_retained,
+        observer.family6_event_peak, observer.family6_event_count,
+        event_count, event_checksum,
+        session.resource_ledger.semantic_arena_retained_bytes,
+        session.resource_ledger.semantic_arena_peak_bytes,
+        session.resource_ledger.inference_session_retained_bytes,
+        session.resource_ledger.inference_session_peak_bytes, lanes);
+    eprintln!("F5C_RESOURCE_MATRIX_SIDECAR\tpath={}", sidecar.display());
+    eprintln!(
+        "F5C_RESOURCE_MATRIX\tfamily={:?}\tdimension={}\tsize={}\tcompanion={:?}\tlanes={}\tfamily_ends={:?}\tsemantic_retained={}\tsemantic_peak={}\tsession_retained={}\tsession_peak={}",
+        case.family, case.dimension, case.size, case.companion, observer.lane_count,
+        observer.family_ends,
+        session.resource_ledger.semantic_arena_retained_bytes,
+        session.resource_ledger.semantic_arena_peak_bytes,
+        session.resource_ledger.inference_session_retained_bytes,
+        session.resource_ledger.inference_session_peak_bytes,
+    );
+    for (index, boundary) in observer.boundaries.iter().enumerate() {
+        if boundary.seen == 0 { continue; }
+        eprintln!(
+            "F5C_RESOURCE_MATRIX_BOUNDARY\tfamily={:?}\tdimension={}\tsize={}\tboundary={}\tseen={}\tsemantic_retained={}\tsemantic_peak={}\tsession_retained={}\tsession_peak={}\tlanes={:?}",
+            case.family, case.dimension, case.size, index, boundary.seen,
+            boundary.semantic_retained, boundary.semantic_peak,
+            boundary.session_retained, boundary.session_peak,
+            &boundary.lanes[..observer.lane_count],
+        );
+    }
+}
+
+#[cfg(feature = "f5c_resource_probe")]
+fn matrix_finish_and_emit(mut session: InferenceSession, case: F5cMatrixCase) {
+    matrix_assert_output(&session);
+    session.sample_f4_resources(ResourceBoundary::StoreAccounting).unwrap();
+    session.store.finish_accounting();
+    session.sample_f4_resources(ResourceBoundary::StoreAccounting).unwrap();
+    let solved = session.finish().expect("matrix final output");
+    assert!(solved.errors.is_empty());
+    let observer = solved.f5c_matrix_observer.as_ref().unwrap();
+    assert!(observer.boundaries[ResourceBoundary::FinishOutputWithStaging as usize].seen > 0);
+    assert!(observer.boundaries[ResourceBoundary::FinishOutput as usize].seen > 0);
+    assert_eq!(solved.resource_ledger.instantiation_substitution_retained_bytes, 0);
+    matrix_emit(&solved, case);
+}
+
+#[cfg(feature = "f5c_resource_probe")]
+fn matrix_identity(case: F5cMatrixCase) {
+    let (d, _) = case.parameters();
+    let source = matrix_source(case.family, d);
+    let mut session = matrix_session(&source, "f5c-resource-matrix-identity");
+    assert_eq!(session.batch.definitions.len(), d);
+    assert_eq!(session.batch.counters.emitted_facts, 5 * d);
+    assert!(session.batch.definition_uses.is_empty());
+    assert_eq!(session.bounds.len(), 2 * d, "constructed value rows");
+    assert_eq!(session.effect_bounds.len(), 2 * d, "constructed effect rows");
+    assert_eq!(session.store.facts().len(), 5 * d, "admitted source facts");
+    session.execute_scc_plan().unwrap();
+    assert_eq!(session.execution_counters.generalization_quantifier_writes, d);
+    assert_eq!(session.execution_counters.generalization_recursive_binder_writes, 0);
+    assert_eq!(session.execution_counters.generalization_shared_summary_hits, 0);
+    matrix_finish_and_emit(session, case);
+}
+
+#[cfg(feature = "f5c_resource_probe")]
+fn matrix_aliases(case: F5cMatrixCase) {
+    let (u, _) = case.parameters();
+    let source = matrix_source(case.family, u);
+    let mut session = matrix_session(&source, "f5c-resource-matrix-aliases");
+    assert_eq!(session.batch.definitions.len(), u + 1);
+    assert_eq!(session.batch.definition_uses.len(), u);
+    session.execute_scc_plan().unwrap();
+    assert_eq!(session.execution_counters.scc_execution_incoming_instantiations, u);
+    assert_eq!(session.execution_counters.instantiation_fresh_value_variables, u);
+    assert_eq!(session.execution_counters.instantiation_fresh_effect_variables, 0);
+    assert_eq!(session.execution_counters.instantiation_node_visits, 5 * u);
+    matrix_finish_and_emit(session, case);
+}
+
+#[cfg(feature = "f5c_resource_probe")]
+fn matrix_seed_value_bound(session: &mut InferenceSession, row: u32,
+    value: ValueEndpointKey, lower: bool) {
+    let (slot, accounting, lane_index) = if lower {
+        (&mut session.bounds[row as usize].exact_non_variable_lowers,
+            &mut session.independent_nested_capacities.value_exact_lower, 2)
+    } else {
+        (&mut session.bounds[row as usize].exact_non_variable_uppers,
+            &mut session.independent_nested_capacities.value_exact_upper, 3)
+    };
+    let old_capacity = slot.capacity();
+    slot.try_reserve_exact(1).expect("matrix bound reservation");
+    session.f5c_matrix_observer.as_mut().unwrap()
+        .nested_request(lane_index, old_capacity, slot.capacity());
+    InferenceSession::record_bound_capacity_growth(
+        &mut session.bound_payload_bytes, accounting, &mut session.execution_counters,
+        &mut session.route_journal, row as usize, false, old_capacity, slot.capacity(),
+        std::mem::size_of::<ValueEndpointKey>(),
+    ).unwrap();
+    slot.push(value);
+    session.f5c_matrix_observer.as_mut().unwrap().nested_insert(lane_index);
+}
+
+#[cfg(feature = "f5c_resource_probe")]
+fn matrix_seed_value_edge(session: &mut InferenceSession, row: u32, next: u32, lower: bool) {
+    let (slot, accounting, lane_index) = if lower {
+        (&mut session.bounds[row as usize].direct_lower_rows,
+            &mut session.independent_nested_capacities.value_direct_lower, 0)
+    } else {
+        (&mut session.bounds[row as usize].direct_upper_rows,
+            &mut session.independent_nested_capacities.value_direct_upper, 1)
+    };
+    let old_capacity = slot.capacity();
+    slot.try_reserve_exact(1).expect("matrix edge reservation");
+    session.f5c_matrix_observer.as_mut().unwrap()
+        .nested_request(lane_index, old_capacity, slot.capacity());
+    InferenceSession::record_bound_capacity_growth(
+        &mut session.bound_payload_bytes, accounting, &mut session.execution_counters,
+        &mut session.route_journal, row as usize, false, old_capacity, slot.capacity(),
+        std::mem::size_of::<u32>(),
+    ).unwrap();
+    slot.push(next);
+    session.f5c_matrix_observer.as_mut().unwrap().nested_insert(lane_index);
+}
+
+#[cfg(feature = "f5c_resource_probe")]
+fn matrix_graph_session(d: usize, name: &str) -> (InferenceSession, Vec<u32>) {
+    let source = matrix_source(F5cMatrixFamily::SharedAcyclic, d);
+    let mut session = matrix_session(&source, name);
+    assert_eq!(session.batch.definitions.len(), d);
+    assert_eq!(session.batch.definition_uses.len(), d);
+    assert_eq!(session.batch.scc_components_in_dependency_first_order().count(), 1);
+    let mut roots = Vec::with_capacity(d);
+    for index in 0..d {
+        let root = session.batch.definitions[index].root.clone();
+        let position = session.batch.root_component_positions[&root].component;
+        let row = session.fresh_value_at_level(1).unwrap();
+        session.live_components[position].ordinal = row;
+        roots.push(row);
+    }
+    for index in 0..d {
+        let use_record = &session.batch.definition_uses[index];
+        let target = use_record.target_root_component;
+        let use_position = use_record.use_value_component;
+        session.live_components[use_position].ordinal = session.live_components[target].ordinal;
+    }
+    (session, roots)
+}
+
+#[cfg(feature = "f5c_resource_probe")]
+fn matrix_acyclic(case: F5cMatrixCase) {
+    let (d, k) = case.parameters();
+    let shared = case.family == F5cMatrixFamily::SharedAcyclic;
+    let (mut session, roots) = matrix_graph_session(d, "f5c-resource-matrix-acyclic");
+    let cones = if shared { 1 } else { d };
+    let mut rows = Vec::with_capacity(k);
+    let mut bound_edges = 0usize;
+    let terms_before = session.store.terms.capacity_snapshot().1.lengths.iter().sum::<usize>();
+    for cone in 0..cones {
+        rows.clear();
+        for _ in 0..k { rows.push(session.fresh_value_at_level(1).unwrap()); }
+        matrix_seed_value_bound(&mut session, rows[k - 1], ValueEndpointKey::IntPositive, true);
+        matrix_seed_value_bound(&mut session, rows[k - 1], ValueEndpointKey::IntNegative, false);
+        bound_edges += 2;
+        for i in 0..k - 1 {
+            matrix_seed_value_edge(&mut session, rows[i], rows[i + 1], true);
+            matrix_seed_value_edge(&mut session, rows[i], rows[i + 1], false);
+            bound_edges += 2;
+        }
+        let argument = session.live_value_term(Polarity::Negative, rows[0]).unwrap();
+        let result = session.live_value_term(Polarity::Positive, rows[0]).unwrap();
+        let function = session.positive_function_term(argument,
+            session.batch.collected_leaf_term(Leaf::EmptyEffectNegative),
+            session.batch.collected_leaf_term(Leaf::EffectBottomPositive), result).unwrap();
+        for root in if shared { 0..d } else { cone..cone + 1 } {
+            matrix_seed_value_bound(&mut session, roots[root],
+                ValueEndpointKey::PositiveFunction(function), true);
+            bound_edges += 1;
+        }
+    }
+    assert_eq!(bound_edges, 2 * k * cones + d);
+    assert_eq!(roots.len(), d, "constructed root frontier");
+    let terms_after = session.store.terms.capacity_snapshot().1.lengths.iter().sum::<usize>();
+    assert_eq!(terms_after - terms_before, 3 * cones, "constructed terms");
+    session.sample_f4_resources(ResourceBoundary::InitialAdmission).unwrap();
+    session.execute_scc_plan().unwrap();
+    let states = 2 * k * cones;
+    assert_eq!(session.resource_ledger.component_expansion_memo_roots.requested_slots, states);
+    assert_eq!(session.execution_counters.generalization_shared_summary_admissions, states);
+    assert_eq!(session.execution_counters.generalization_shared_summary_hits,
+        if shared { 2 * k * (d - 1) } else { 0 });
+    if shared { assert_eq!(session.execution_counters.generalization_uncacheable_states, 0); }
+    matrix_finish_and_emit(session, case);
+}
+
+#[cfg(feature = "f5c_resource_probe")]
+fn matrix_guarded_cycle(case: F5cMatrixCase) {
+    let (d, k) = case.parameters();
+    assert!(d <= k, "each root enters a distinct cycle rotation");
+    let (mut session, roots) = matrix_graph_session(d, "f5c-resource-matrix-cycle");
+    let mut cycle = Vec::with_capacity(k);
+    for _ in 0..k { cycle.push(session.fresh_value_at_level(1).unwrap()); }
+    let terms_before = session.store.terms.capacity_snapshot().1.lengths.iter().sum::<usize>();
+    for index in 0..k {
+        let next = cycle[(index + 1) % k];
+        let negative = session.live_value_term(Polarity::Negative, next).unwrap();
+        let positive = session.live_value_term(Polarity::Positive, next).unwrap();
+        let lower = session.positive_function_term(negative,
+            session.batch.collected_leaf_term(Leaf::EmptyEffectNegative),
+            session.batch.collected_leaf_term(Leaf::EffectBottomPositive), positive).unwrap();
+        let upper = session.negative_function_term(positive,
+            session.batch.collected_leaf_term(Leaf::EffectBottomPositive),
+            session.batch.collected_leaf_term(Leaf::EmptyEffectNegative), negative).unwrap();
+        matrix_seed_value_bound(&mut session, cycle[index],
+            ValueEndpointKey::PositiveFunction(lower), true);
+        matrix_seed_value_bound(&mut session, cycle[index],
+            ValueEndpointKey::NegativeFunction(upper), false);
+    }
+    for (index, root) in roots.iter().copied().enumerate() {
+        let rotation = cycle[index];
+        matrix_seed_value_bound(&mut session, root, ValueEndpointKey::ValueRow(rotation), true);
+        matrix_seed_value_bound(&mut session, root, ValueEndpointKey::ValueRow(rotation), false);
+    }
+    assert_eq!(cycle.len(), k);
+    assert_eq!(roots.len(), d);
+    let terms_after = session.store.terms.capacity_snapshot().1.lengths.iter().sum::<usize>();
+    assert_eq!(terms_after - terms_before, 4 * k, "constructed cycle terms");
+    session.sample_f4_resources(ResourceBoundary::InitialAdmission).unwrap();
+    session.execute_scc_plan().unwrap();
+    assert_eq!(session.execution_counters.generalization_recursive_binder_writes, d);
+    assert_eq!(session.execution_counters.generalization_shared_summary_admissions, 0);
+    assert_eq!(session.execution_counters.generalization_uncacheable_states, 2 * d * k);
+    matrix_finish_and_emit(session, case);
+}
+
+#[cfg(feature = "f5c_resource_probe")]
+fn matrix_arena_factor(case: F5cMatrixCase) {
+    let (m, u) = case.parameters();
+    let source = matrix_source(case.family, u);
+    let mut session = matrix_session(&source, "f5c-resource-matrix-arena-factor");
+    assert_eq!(session.batch.definition_uses.len(), u);
+    let before = session.finalization.as_ref().unwrap().f5c_resource_probe().arena[0].requested_slots;
+    for _ in 0..m {
+        let closed = session.finalization.as_mut().unwrap().finalize_scheme(|finalizer| {
+            let value = finalizer.positive_int()?;
+            finalizer.set_scheme(0, &[], value)
+        }).unwrap();
+        let (_, checkpoint) = closed.into_parts();
+        assert_eq!(checkpoint.retained_bytes_before(), session.current_closed_retained_bytes);
+        session.current_closed_retained_bytes = checkpoint.retained_bytes_after();
+    }
+    let after = session.finalization.as_ref().unwrap().f5c_resource_probe().arena[0].requested_slots;
+    assert_eq!(after - before, m, "unrelated closed positive nodes");
+    session.sample_f4_resources(ResourceBoundary::InitialAdmission).unwrap();
+    session.execute_scc_plan().unwrap();
+    assert_eq!(session.execution_counters.instantiation_node_visits, 5 * u);
+    assert_eq!(session.execution_counters.instantiation_fresh_value_variables, u);
+    assert_eq!(session.instantiation_scratch.substitution_peak_len, 1,
+        "one substitution slot is live at a time");
+    let identity = session.schemes[0].as_ref().unwrap();
+    let view = session.finalization.as_ref().unwrap().scheme_view(identity).unwrap();
+    assert_eq!(view.quantifier_count(), 1, "one substitution slot per use");
+    assert!(view.recursive_bounds().is_empty());
+    matrix_finish_and_emit(session, case);
+}
+
+#[cfg(feature = "f5c_resource_probe")]
+fn matrix_flat_normalization_draft(k: usize, _ordinal: usize) -> f5c_draft::FlatDraft {
+    use f5c_draft::{ChildSpan, FlatDraft, NegativeId, NegativeNode, NodeRef,
+        PositiveId, PositiveNode};
+    assert!(k >= 2);
+    let q = k - 1;
+    let mut draft = FlatDraft {
+        structural_incidences: 2 * k + 2,
+        quantifier_count: q as u32,
+        predicate: Some(PositiveId(k as u32)),
+        positive_nodes: Vec::with_capacity(k + 1),
+        negative_nodes: Vec::with_capacity(k + 1),
+        positive_children: Vec::with_capacity(k),
+        negative_children: Vec::with_capacity(k),
+        recursive_bounds: Vec::new(),
+        insertion_order: Vec::with_capacity(2 * (k + 1)),
+        owners: None,
+    };
+    for ordinal in 0..q {
+        draft.positive_nodes.push(PositiveNode::Quantified(ordinal as u32));
+        draft.insertion_order.push(NodeRef::Positive(PositiveId(ordinal as u32)));
+        draft.negative_nodes.push(NegativeNode::Quantified(ordinal as u32));
+        draft.insertion_order.push(NodeRef::Negative(NegativeId(ordinal as u32)));
+    }
+    draft.negative_nodes.push(NegativeNode::Int);
+    draft.insertion_order.push(NodeRef::Negative(NegativeId(q as u32)));
+    draft.negative_children.extend((0..k).map(|id| NegativeId(id as u32)));
+    draft.negative_nodes.push(NegativeNode::Intersection(ChildSpan { start: 0, len: k as u32 }));
+    draft.insertion_order.push(NodeRef::Negative(NegativeId(k as u32)));
+    draft.positive_nodes.push(PositiveNode::Function {
+        argument: NegativeId(k as u32), result: PositiveId(0),
+    });
+    draft.insertion_order.push(NodeRef::Positive(PositiveId(q as u32)));
+    draft.positive_children.extend((0..k).map(|id| PositiveId(id as u32)));
+    draft.positive_nodes.push(PositiveNode::Union(ChildSpan { start: 0, len: k as u32 }));
+    draft.insertion_order.push(NodeRef::Positive(PositiveId(k as u32)));
+    assert_eq!(draft.positive_nodes.len(), k + 1);
+    assert_eq!(draft.negative_nodes.len(), k + 1);
+    assert_eq!(draft.insertion_order.len(), 2 * (k + 1));
+    draft
+}
+
+#[cfg(feature = "f5c_resource_probe")]
+fn matrix_stable_merge_sort<T: Copy>(
+    values: &mut [T], scratch: &mut [T], compare: &mut impl FnMut(T, T) -> std::cmp::Ordering,
+) {
+    if values.len() < 2 { return; }
+    let middle = values.len() / 2;
+    let (left, right) = values.split_at_mut(middle);
+    let (left_scratch, right_scratch) = scratch.split_at_mut(middle);
+    matrix_stable_merge_sort(left, left_scratch, compare);
+    matrix_stable_merge_sort(right, right_scratch, compare);
+    let (left, right) = values.split_at(middle);
+    let (mut l, mut r, mut out) = (0, 0, 0);
+    while l < left.len() && r < right.len() {
+        if compare(left[l], right[r]) != std::cmp::Ordering::Greater {
+            scratch[out] = left[l]; l += 1;
+        } else {
+            scratch[out] = right[r]; r += 1;
+        }
+        out += 1;
+    }
+    while l < left.len() { scratch[out] = left[l]; l += 1; out += 1; }
+    while r < right.len() { scratch[out] = right[r]; r += 1; out += 1; }
+    values.copy_from_slice(&scratch[..values.len()]);
+}
+
+#[cfg(feature = "f5c_resource_probe")]
+fn matrix_normalization_oracle(k: usize) -> (usize, usize) {
+    use std::cmp::Ordering;
+    let mut child_calls = 0usize;
+    let mut word_calls = 0usize;
+    // All four integer descriptor-height groups in radix order. Each rank
+    // group is passed through the same stable mergesort and adjacent compare
+    // schedule, including the singleton composite groups.
+    let mut height_zero = Vec::with_capacity(2 * k - 1);
+    height_zero.extend((0..k - 1).map(|ordinal| vec![2u32, ordinal as u32]));
+    height_zero.push(vec![8]);
+    height_zero.extend((0..k - 1).map(|ordinal| vec![9u32, ordinal as u32]));
+    let mut intersection = Vec::with_capacity(2 * k + 2);
+    intersection.extend([11, k as u32]);
+    intersection.extend((k - 1..2 * k - 1).flat_map(|rank| [0, rank as u32]));
+    let function = vec![5, 1, 0, 0, 0];
+    let mut union = Vec::with_capacity(2 * k + 2);
+    union.extend([4, k as u32]);
+    union.extend((0..k - 1).flat_map(|rank| [0, rank as u32]));
+    union.extend([2, 0]);
+    for descriptors in [height_zero, vec![intersection], vec![function], vec![union]] {
+        let mut order = (0..descriptors.len()).collect::<Vec<_>>();
+        let mut scratch = order.clone();
+        let mut compare_descriptor = |left: usize, right: usize| {
+            for (l, r) in descriptors[left].iter().zip(&descriptors[right]) {
+                word_calls += 1;
+                match l.cmp(r) {
+                    Ordering::Equal => {}
+                    result => return result,
+                }
+            }
+            descriptors[left].len().cmp(&descriptors[right].len())
+        };
+        matrix_stable_merge_sort(&mut order, &mut scratch, &mut compare_descriptor);
+        for pair in order.windows(2) { compare_descriptor(pair[0], pair[1]); }
+    }
+    for mut children in [
+        (0..k).map(|rank| (0u32, (k - 1 + rank) as u32)).collect::<Vec<_>>(),
+        (0..k - 1).map(|rank| (0u32, rank as u32))
+            .chain(std::iter::once((2u32, 0))).collect::<Vec<_>>(),
+    ] {
+        let mut scratch = children.clone();
+        let mut compare_child = |left: (u32, u32), right: (u32, u32)| {
+            child_calls += 1;
+            word_calls += 1;
+            match left.0.cmp(&right.0) {
+                Ordering::Equal => { word_calls += 1; left.1.cmp(&right.1) }
+                order => order,
+            }
+        };
+        matrix_stable_merge_sort(&mut children, &mut scratch, &mut compare_child);
+        for pair in children.windows(2) { compare_child(pair[0], pair[1]); }
+    }
+    (child_calls, word_calls)
+}
+
+#[cfg(feature = "f5c_resource_probe")]
+fn matrix_normalization(case: F5cMatrixCase) {
+    let (d, k) = case.parameters();
+    assert_eq!(d % 2, 0, "paired positive and negative composites");
+    let source = matrix_source(F5cMatrixFamily::IndependentIdentities, d / 2);
+    let mut session = matrix_session(&source, "f5c-resource-matrix-normalization");
+    assert_eq!(session.batch.definitions.len(), d / 2);
+    assert_eq!(session.batch.counters.emitted_facts, 5 * (d / 2));
+    assert_eq!(session.store.facts().len(), 5 * (d / 2));
+    let witness = matrix_flat_normalization_draft(k, 0);
+    assert_eq!(witness.positive_children.len(), k);
+    assert_eq!(witness.negative_children.len(), k);
+    assert_eq!(witness.positive_nodes.len() + witness.negative_nodes.len(), 2 * (k + 1));
+    let (child_per_draft, word_per_draft) = matrix_normalization_oracle(k);
+    session.f5c_matrix_normalization = Some((k, matrix_flat_normalization_draft));
+    session.execute_scc_plan().unwrap();
+    assert_eq!(session.execution_counters.generalization_quantifier_writes,
+        d / 2 * (k - 1));
+    assert_eq!(session.execution_counters.generalization_recursive_binder_writes, 0);
+    assert_eq!(session.execution_counters.closed_normalized_key_writes, d * (k + 1));
+    assert_eq!(session.execution_counters.closed_normalization_child_comparisons,
+        d / 2 * child_per_draft);
+    assert_eq!(session.execution_counters.closed_normalization_word_comparisons,
+        d / 2 * word_per_draft);
+    assert_eq!(session.execution_counters.closed_normalization_hash_probes, 0);
+    assert_eq!(session.execution_counters.closed_normalization_hash_admissions, 0);
+    assert_eq!(session.execution_counters.closed_normalization_hash_duplicates, 0);
+    matrix_finish_and_emit(session, case);
+}
+
+#[cfg(feature = "f5c_resource_probe")]
+fn matrix_run(case: F5cMatrixCase) {
+    match case.family {
+        F5cMatrixFamily::IndependentIdentities => matrix_identity(case),
+        F5cMatrixFamily::IdentityAliases => matrix_aliases(case),
+        F5cMatrixFamily::SharedAcyclic | F5cMatrixFamily::IndependentAcyclic => {
+            matrix_acyclic(case)
+        }
+        F5cMatrixFamily::GuardedCycle => matrix_guarded_cycle(case),
+        F5cMatrixFamily::Normalization => matrix_normalization(case),
+        F5cMatrixFamily::ArenaFactor => matrix_arena_factor(case),
+    }
+}
+
+#[cfg(feature = "f5c_resource_probe")]
+#[test]
+#[ignore = "approved F5c resource matrix preflight"]
+fn f5c_resource_matrix_preflight() {
+    for family in F5cMatrixFamily::ALL {
+        let dimension = match family {
+            F5cMatrixFamily::IndependentIdentities => 'D',
+            F5cMatrixFamily::IdentityAliases => 'U',
+            F5cMatrixFamily::ArenaFactor => 'M',
+            _ => 'D',
+        };
+        let companion = match family {
+            F5cMatrixFamily::IndependentIdentities | F5cMatrixFamily::IdentityAliases => None,
+            _ => Some(32),
+        };
+        matrix_run(F5cMatrixCase { family, dimension, size: 32, companion, emit: false });
+    }
+    eprintln!("F5C_RESOURCE_MATRIX_PREFLIGHT\tfamilies=7\tdimension=32");
+}
+
+#[cfg(feature = "f5c_resource_probe")]
+#[test]
+#[ignore = "approved F5c resource matrix case"]
+fn f5c_resource_matrix_case() {
+    matrix_run(F5cMatrixCase::from_env());
 }

@@ -81,26 +81,36 @@ pub(crate) enum F5bCapacityLane {
 
 pub(crate) trait F5bReservable {
     fn reserve_f5b(&mut self, additional: usize) -> Result<(), ()>;
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    fn f5c_capacity(&self) -> usize;
 }
 impl<T> F5bReservable for Vec<T> {
     fn reserve_f5b(&mut self, additional: usize) -> Result<(), ()> {
         self.try_reserve(additional).map_err(|_| ())
     }
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    fn f5c_capacity(&self) -> usize { self.capacity() }
 }
 impl<T> F5bReservable for VecDeque<T> {
     fn reserve_f5b(&mut self, additional: usize) -> Result<(), ()> {
         self.try_reserve(additional).map_err(|_| ())
     }
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    fn f5c_capacity(&self) -> usize { self.capacity() }
 }
 impl<K: Eq + Hash, V, S: std::hash::BuildHasher> F5bReservable for HashMap<K, V, S> {
     fn reserve_f5b(&mut self, additional: usize) -> Result<(), ()> {
         self.try_reserve(additional).map_err(|_| ())
     }
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    fn f5c_capacity(&self) -> usize { self.capacity() }
 }
 impl<T: Eq + Hash, S: std::hash::BuildHasher> F5bReservable for HashSet<T, S> {
     fn reserve_f5b(&mut self, additional: usize) -> Result<(), ()> {
         self.try_reserve(additional).map_err(|_| ())
     }
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    fn f5c_capacity(&self) -> usize { self.capacity() }
 }
 
 #[cfg(test)]
@@ -115,6 +125,13 @@ thread_local! {
     static F5C_SAMPLED_ACTIVE_VALUE_UNDO_CAPACITY: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
 }
 
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+thread_local! {
+    static F5C_MATRIX_ROUTE_GROWTH_ACTIVE: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+    static F5C_MATRIX_ROUTE_GROWTHS: std::cell::Cell<[usize; F5bCapacityLane::StoreProvenance as usize + 1]> =
+        const { std::cell::Cell::new([0; F5bCapacityLane::StoreProvenance as usize + 1]) };
+}
+
 pub(crate) fn reserve_f5b<T: F5bReservable>(
     target: &mut T,
     additional: usize,
@@ -127,9 +144,21 @@ pub(crate) fn reserve_f5b<T: F5bReservable>(
         F5B_INJECTED_RESERVE_FAILURE.with(|injected| injected.set(None));
         return Err(ConstraintError::IdentityExhausted);
     }
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    let old_f5c_capacity = target.f5c_capacity();
     let result = target
         .reserve_f5b(additional)
         .map_err(|_| ConstraintError::IdentityExhausted);
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    if target.f5c_capacity() > old_f5c_capacity &&
+        F5C_MATRIX_ROUTE_GROWTH_ACTIVE.with(|active| active.get()) {
+        F5C_MATRIX_ROUTE_GROWTHS.with(|summary| {
+            let mut counts = summary.get();
+            counts[lane as usize] = counts[lane as usize].checked_add(1)
+                .expect("matrix route growth count");
+            summary.set(counts);
+        });
+    }
     #[cfg(test)]
     if result.is_ok()
         && F5B_INJECTED_POST_RESERVE_FAILURE.with(|injected| injected.get() == Some(lane))
@@ -183,7 +212,9 @@ mod f5c_binder_substitution;
 mod f5c_draft;
 #[allow(dead_code)] // The source-draft owner migration proceeds in staged slices.
 mod f5c_draft_heap;
-use f5c_draft_heap::{DraftHeapMeter, TrackedAllocation, TrackedOne, TrackedVec};
+use f5c_draft_heap::{DraftHeapMeter, PhysicalOwnerKind, TrackedAllocation, TrackedOne, TrackedVec};
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+use f5c_draft_heap::RawWalkerOwner;
 
 #[cfg(test)]
 trait IntoTestTracked<'meter, T> {
@@ -2144,6 +2175,8 @@ pub struct ProductionCounters {
     scc_execution_bottom_trivial_instantiations: usize,
     scc_execution_draft_lookups: usize,
     scc_execution_cross_draft_visits: usize,
+    generalization_quantifier_writes: usize,
+    generalization_recursive_binder_writes: usize,
     generalization_shared_summary_admissions: usize,
     generalization_uncacheable_states: usize,
     generalization_shared_summary_hits: usize,
@@ -2387,6 +2420,8 @@ impl ProductionCounters {
         scc_execution_bottom_trivial_instantiations,
         scc_execution_draft_lookups,
         scc_execution_cross_draft_visits,
+        generalization_quantifier_writes,
+        generalization_recursive_binder_writes,
         generalization_shared_summary_admissions,
         generalization_uncacheable_states,
         generalization_shared_summary_hits,
@@ -2701,6 +2736,8 @@ impl ProductionCounters {
             scc_execution_bottom_trivial_instantiations,
             scc_execution_draft_lookups,
             scc_execution_cross_draft_visits,
+            generalization_quantifier_writes,
+            generalization_recursive_binder_writes,
             generalization_shared_summary_admissions,
             generalization_uncacheable_states,
             generalization_shared_summary_hits,
@@ -3891,6 +3928,13 @@ enum FlatCandidatePrecommitFailure {
     CounterAfterNormalization,
 }
 
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+thread_local! {
+    static F5C_LEDGER_AFTER_STAGE_HIT: std::cell::Cell<bool> = const {
+        std::cell::Cell::new(false)
+    };
+}
+
 #[cfg(test)]
 #[derive(Clone, Debug)]
 struct F5cCandidateCapture {
@@ -4040,6 +4084,8 @@ impl F5cCandidateCaptureRecord {
 #[cfg(test)]
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 struct IndependentResourceLedger {
+    structured_pair_family_retained_bytes: usize,
+    structured_pair_family_peak_bytes: usize,
     term_lanes: [IndependentMemoLane; 6],
     route_store_lanes: [IndependentMemoLane; 4],
     route_use_lanes: [IndependentMemoLane; 2],
@@ -4062,6 +4108,7 @@ struct IndependentResourceLedger {
     component_expansion_memo_actual_capacity: usize,
     component_expansion_memo_retained_bytes: usize,
     component_expansion_memo_peak_bytes: usize,
+    source_walker_peak_bytes: usize,
     memo_capacity_samples_seen: usize,
     component_expansion_memo_capacity_growths: usize,
     source_draft_slots: IndependentMemoLane,
@@ -4134,6 +4181,253 @@ struct IndependentNormalizationLane {
     retained_bytes: usize,
     peak_bytes: usize,
     capacity_growths: usize,
+}
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+const F5C_MATRIX_BOUNDARIES: usize = 14;
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+const F5C_MATRIX_LANES: usize = 256;
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+const F5C_MATRIX_ROUTE_LANES: usize = F5bCapacityLane::StoreProvenance as usize + 1;
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+#[derive(Clone, Copy, Debug, Default)]
+struct F5cMatrixLane {
+    requested_slots: usize,
+    actual_capacity: usize,
+    peak_capacity: usize,
+    slot_size: usize,
+    retained_bytes: usize,
+    observed_retained_bytes: usize,
+    peak_bytes: usize,
+    growths: usize,
+    clear_or_transfer: Option<ResourceBoundary>,
+}
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+struct F5cMatrixBoundary {
+    seen: usize,
+    lanes: [F5cMatrixLane; F5C_MATRIX_LANES],
+    semantic_retained: usize,
+    semantic_peak: usize,
+    session_retained: usize,
+    session_peak: usize,
+}
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+impl Default for F5cMatrixBoundary {
+    fn default() -> Self {
+        Self {
+            seen: 0,
+            lanes: [F5cMatrixLane::default(); F5C_MATRIX_LANES],
+            semantic_retained: 0,
+            semantic_peak: 0,
+            session_retained: 0,
+            session_peak: 0,
+        }
+    }
+}
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+struct F5cMatrixObserver {
+    boundaries: Vec<F5cMatrixBoundary>,
+    current: [F5cMatrixLane; F5C_MATRIX_LANES],
+    nested_requested: [usize; 9],
+    nested_growths: [usize; 9],
+    route_growths: [usize; F5C_MATRIX_ROUTE_LANES],
+    memo_lanes: [f5c_generalization::F5cMatrixMemoLane; 20],
+    family_ends: [usize; 8],
+    family_retained: [usize; 8],
+    family_peak: [usize; 8],
+    family6_event_peak: usize,
+    family6_event_count: usize,
+    family6_event_capacity: usize,
+    family6_event_retained: usize,
+    family_capacity: [u128; 8],
+    lane_count: usize,
+    live_events: Option<F5cLiveEventLedger>,
+    family1_event_terminal: (usize, usize, usize),
+}
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+struct F5cLiveEventLedger {
+    top: [f5c_draft_heap::LiveVariableOwner; 10],
+    values: Vec<[f5c_draft_heap::LiveVariableOwner; 4]>,
+    effects: Vec<[f5c_draft_heap::LiveVariableOwner; 4]>,
+    capacity: usize,
+    retained: usize,
+    peak: usize,
+    released: bool,
+}
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+impl F5cLiveEventLedger {
+    fn new(top_sizes: [usize; 10], value_rows: usize, effect_rows: usize) -> Self {
+        let top = std::array::from_fn(|lane| f5c_draft_heap::LiveVariableOwner::new(lane, top_sizes[lane]));
+        let mut ledger = Self { top, values: Vec::with_capacity(value_rows),
+            effects: Vec::with_capacity(effect_rows), capacity: 0, retained: 0, peak: 0,
+            released: false };
+        for _ in 0..value_rows { ledger.add_row(false); }
+        for _ in 0..effect_rows { ledger.add_row(true); }
+        ledger
+    }
+
+    fn add_row(&mut self, effect: bool) {
+        let rows = if effect { &mut self.effects } else { &mut self.values };
+        let start = if effect { 14 } else { 10 };
+        let exact_size = if effect { std::mem::size_of::<EffectEndpointKey>() }
+            else { std::mem::size_of::<ValueEndpointKey>() };
+        rows.push(std::array::from_fn(|offset| f5c_draft_heap::LiveVariableOwner::new(
+            start + offset, if offset < 2 { std::mem::size_of::<u32>() } else { exact_size })));
+    }
+
+    fn apply(&mut self, (capacity, retained): (isize, isize)) {
+        self.capacity = self.capacity.checked_add_signed(capacity).expect("live event capacity");
+        self.retained = self.retained.checked_add_signed(retained).expect("live event bytes");
+        self.peak = self.peak.max(self.retained);
+    }
+
+    fn top(&mut self, lane: usize, requested: usize, capacity: usize) {
+        let delta = self.top[lane].observe(requested, capacity);
+        self.apply(delta);
+    }
+
+    fn row(&mut self, effect: bool, index: usize, lane: usize, requested: usize, capacity: usize) {
+        let rows = if effect { &mut self.effects } else { &mut self.values };
+        let delta = rows[index][lane].observe(requested, capacity);
+        self.apply(delta);
+    }
+
+    fn truncate_rows(&mut self, effect: bool, len: usize) {
+        loop {
+            let row = if effect { &mut self.effects } else { &mut self.values };
+            if row.len() <= len { break; }
+            let mut row = row.pop().expect("live row");
+            for owner in &mut row { self.apply(owner.release()); }
+        }
+    }
+
+    fn release_all(&mut self) {
+        if self.released { return; }
+        self.truncate_rows(false, 0);
+        self.truncate_rows(true, 0);
+        for lane in 0..10 {
+            let delta = self.top[lane].release();
+            self.apply(delta);
+        }
+        assert_eq!((self.capacity, self.retained), (0, 0));
+        self.released = true;
+    }
+}
+
+// InferenceSession declares its family-1 Vec fields before the matrix observer.
+// Rust drops struct fields in declaration order, so returned-error exits release
+// their backing allocations before this observer emits owner RELEASE events.
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+impl Drop for F5cLiveEventLedger {
+    fn drop(&mut self) {
+        self.release_all();
+    }
+}
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+impl std::fmt::Debug for F5cMatrixObserver {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("F5cMatrixObserver")
+            .field("lane_count", &self.lane_count)
+            .finish_non_exhaustive()
+    }
+}
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+impl F5cMatrixObserver {
+    fn new() -> Self {
+        let mut boundaries = Vec::with_capacity(F5C_MATRIX_BOUNDARIES);
+        boundaries.resize_with(F5C_MATRIX_BOUNDARIES, F5cMatrixBoundary::default);
+        Self { boundaries, current: [F5cMatrixLane::default(); F5C_MATRIX_LANES],
+            nested_requested: [0; 9], nested_growths: [0; 9],
+            route_growths: [0; F5C_MATRIX_ROUTE_LANES],
+            memo_lanes: [f5c_generalization::F5cMatrixMemoLane::default(); 20],
+            family_ends: [0; 8],
+            family_retained: [0; 8], family_peak: [0; 8],
+            family6_event_peak: 0, family6_event_count: 0,
+            family6_event_capacity: 0, family6_event_retained: 0,
+            family_capacity: [0; 8],
+            lane_count: 0, live_events: None, family1_event_terminal: (0, 0, 0) }
+    }
+    fn nested_request(&mut self, index: usize, old_capacity: usize, capacity: usize) {
+        // Reservation is not an insertion: a later reservation may fail or roll back.
+        // Live requested slots are updated only at the successful owner mutation.
+        if capacity > old_capacity {
+            self.nested_growths[index] = self.nested_growths[index]
+                .checked_add(1).expect("matrix nested growth");
+        }
+    }
+    fn nested_insert(&mut self, index: usize) {
+        self.nested_requested[index] = self.nested_requested[index]
+            .checked_add(1).expect("matrix nested live slot");
+    }
+    fn nested_remove(&mut self, index: usize, removed: usize) {
+        self.nested_requested[index] = self.nested_requested[index]
+            .checked_sub(removed).expect("matrix nested rollback");
+    }
+    fn boundary(&mut self, boundary: ResourceBoundary, ledger: &IndependentResourceLedger) {
+        let sample = &mut self.boundaries[boundary as usize];
+        sample.seen += 1;
+        sample.semantic_retained = ledger.semantic_arena_retained_bytes;
+        sample.semantic_peak = sample.semantic_peak.max(ledger.semantic_arena_peak_bytes);
+        sample.session_retained = ledger.inference_session_retained_bytes;
+        sample.session_peak = sample.session_peak.max(ledger.inference_session_peak_bytes);
+    }
+    fn lane(&mut self, boundary: ResourceBoundary, index: usize, requested: usize,
+        capacity: usize, size: usize, retained: usize, peak: usize, growths: Option<usize>) {
+        assert!(index < F5C_MATRIX_LANES);
+        let lane = &mut self.current[index];
+        assert!(lane.slot_size == 0 || size == 0 || lane.slot_size == size);
+        if size != 0 { lane.slot_size = size; }
+        if capacity > lane.actual_capacity && growths.is_none() { lane.growths += 1; }
+        if capacity < lane.actual_capacity || (requested == 0 && lane.requested_slots > 0) {
+            lane.clear_or_transfer = Some(boundary);
+        }
+        if let Some(growths) = growths { lane.growths = growths; }
+        lane.requested_slots = requested;
+        lane.actual_capacity = capacity;
+        lane.peak_capacity = lane.peak_capacity.max(capacity).max(if size == 0 { 0 } else { peak / size });
+        lane.retained_bytes = retained;
+        lane.observed_retained_bytes = lane.observed_retained_bytes.max(retained);
+        lane.peak_bytes = lane.peak_bytes.max(peak).max(lane.retained_bytes);
+        self.boundaries[boundary as usize].lanes[index] = *lane;
+        self.lane_count = self.lane_count.max(index + 1);
+    }
+}
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+trait F5cMatrixShape {
+    fn matrix_shape(&self) -> (usize, usize, usize);
+}
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+impl<T> F5cMatrixShape for Vec<T> {
+    fn matrix_shape(&self) -> (usize, usize, usize) {
+        (self.len(), self.capacity(), std::mem::size_of::<T>())
+    }
+}
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+impl<T> F5cMatrixShape for VecDeque<T> {
+    fn matrix_shape(&self) -> (usize, usize, usize) {
+        (self.len(), self.capacity(), std::mem::size_of::<T>())
+    }
+}
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+impl<K, V> F5cMatrixShape for HashMap<K, V> {
+    fn matrix_shape(&self) -> (usize, usize, usize) {
+        (self.len(), self.capacity(), std::mem::size_of::<(K, V)>())
+    }
+}
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+impl<T> F5cMatrixShape for HashSet<T> {
+    fn matrix_shape(&self) -> (usize, usize, usize) {
+        (self.len(), self.capacity(), std::mem::size_of::<T>())
+    }
 }
 
 #[cfg(test)]
@@ -4239,6 +4533,10 @@ impl IndependentResourceLedger {
             .checked_add(self.flat_indexed_bytes)
             .ok_or(SolveAvailabilityError::IdentityExhausted)?;
         self.flat_source_peak_bytes = self.flat_source_peak_bytes.max(current);
+        // Indexed conversion follows the batch memo/walker clear. Its staged
+        // source and mapped buffers overlap each other, but not the earlier
+        // source/walker high-water phase.
+        self.source_walker_peak_bytes = self.source_walker_peak_bytes.max(current);
         if meter.current_bytes() != Some(current) {
             return Err(SolveAvailabilityError::IdentityExhausted);
         }
@@ -4249,22 +4547,31 @@ impl IndependentResourceLedger {
         &mut self,
         memo: &F5cComponentExpansionMemo,
     ) -> Result<(), SolveAvailabilityError> {
-        let capacities = memo
-            .transfer_raw_capacity_samples
-            .last()
-            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
-        let observed = memo
-            .transfer_raw_staged_samples
-            .last()
-            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
-        let physical = memo
-            .transfer_physical_samples
-            .last()
-            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
-        let (source_capacities, memo_capacities, walker_capacities, value_slot_size) = memo
-            .transfer_live_capacity_samples
-            .last()
-            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        #[cfg(feature = "f5c_resource_probe")]
+        let capacities = if memo.matrix_active { memo.matrix_transfer_raw_capacity.as_ref() }
+            else { memo.transfer_raw_capacity_samples.last() };
+        #[cfg(not(feature = "f5c_resource_probe"))]
+        let capacities = memo.transfer_raw_capacity_samples.last();
+        let capacities = capacities.ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        #[cfg(feature = "f5c_resource_probe")]
+        let observed = if memo.matrix_active { memo.matrix_transfer_raw_staged.as_ref() }
+            else { memo.transfer_raw_staged_samples.last() };
+        #[cfg(not(feature = "f5c_resource_probe"))]
+        let observed = memo.transfer_raw_staged_samples.last();
+        let observed = observed.ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        #[cfg(feature = "f5c_resource_probe")]
+        let physical = if memo.matrix_active { memo.matrix_transfer_physical.as_ref() }
+            else { memo.transfer_physical_samples.last() };
+        #[cfg(not(feature = "f5c_resource_probe"))]
+        let physical = memo.transfer_physical_samples.last();
+        let physical = physical.ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        #[cfg(feature = "f5c_resource_probe")]
+        let live = if memo.matrix_active { memo.matrix_transfer_live_capacity.as_ref() }
+            else { memo.transfer_live_capacity_samples.last() };
+        #[cfg(not(feature = "f5c_resource_probe"))]
+        let live = memo.transfer_live_capacity_samples.last();
+        let (source_capacities, memo_capacities, walker_capacities, value_slot_size) =
+            live.ok_or(SolveAvailabilityError::IdentityExhausted)?;
         let sizes = [
             std::mem::size_of::<f5c_draft::PositiveNode>(),
             std::mem::size_of::<f5c_draft::NegativeNode>(),
@@ -4555,7 +4862,11 @@ impl IndependentResourceLedger {
     ) -> Result<(usize, usize), SolveAvailabilityError> {
         let mut peak = self.flat_normalization_peak_bytes;
         let mut scratch_peak = self.flat_normalization_scratch_peak_bytes;
-        for sample in &memo.flat_candidate_physical_peaks {
+        #[cfg(feature = "f5c_resource_probe")]
+        let matrix_samples = memo.matrix_flat_candidate_peaks.iter().flatten();
+        #[cfg(not(feature = "f5c_resource_probe"))]
+        let matrix_samples = std::iter::empty::<&f5c_normalization::FlatCandidatePhysicalPeak>();
+        for sample in memo.flat_candidate_physical_peaks.iter().chain(matrix_samples) {
             let scratch = sample
                 .capacities
                 .iter()
@@ -4632,6 +4943,7 @@ impl IndependentResourceLedger {
         retain_peak!(semantic_arena_peak_bytes);
         retain_peak!(inference_session_peak_bytes);
         retain_peak!(component_expansion_memo_peak_bytes);
+        retain_peak!(source_walker_peak_bytes);
         retain_peak!(flat_source_peak_bytes);
         retain_peak!(flat_transfer_peak_bytes);
         retain_peak!(flat_normalization_peak_bytes);
@@ -4739,6 +5051,7 @@ impl IndependentResourceLedger {
             let bytes = simultaneous_capacity
                 .checked_mul(std::mem::size_of::<F5cRecursiveBound>())
                 .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            lane.peak_capacity = lane.peak_capacity.max(simultaneous_capacity);
             lane.peak_bytes = lane.peak_bytes.max(bytes);
         }
         Ok(())
@@ -4820,6 +5133,7 @@ impl IndependentResourceLedger {
                 .checked_add(usize::from(sidecar_requested > 0 && sidecar.capacity() > 0))
                 .ok_or(SolveAvailabilityError::IdentityExhausted)?;
             lane.actual_capacity = sidecar.capacity();
+            lane.peak_capacity = lane.peak_capacity.max(lane.actual_capacity);
             lane.retained_bytes = sidecar_bytes;
             lane.peak_bytes = lane.peak_bytes.max(sidecar_bytes);
         }
@@ -4833,6 +5147,7 @@ impl IndependentResourceLedger {
             .checked_add(bound_growths)
             .ok_or(SolveAvailabilityError::IdentityExhausted)?;
         bound_lane.actual_capacity = held_bound_capacity;
+        bound_lane.peak_capacity = bound_lane.peak_capacity.max(held_bound_capacity);
         bound_lane.retained_bytes = bound_bytes;
         bound_lane.peak_bytes = bound_lane.peak_bytes.max(bound_bytes);
         let lane = &mut self.source_draft_slots;
@@ -4845,6 +5160,7 @@ impl IndependentResourceLedger {
             .checked_add(growths)
             .ok_or(SolveAvailabilityError::IdentityExhausted)?;
         lane.actual_capacity = drafts.capacity();
+        lane.peak_capacity = lane.peak_capacity.max(lane.actual_capacity);
         lane.retained_bytes = buffer_bytes;
         lane.peak_bytes = lane.peak_bytes.max(buffer_bytes);
         physical_bytes
@@ -5007,6 +5323,7 @@ impl IndependentResourceLedger {
             lane.requested_slots = owner.requests[index];
             lane.capacity_growths = owner.growths[index];
             lane.actual_capacity = owner.capacities[index];
+            lane.peak_capacity = lane.peak_capacity.max(lane.actual_capacity);
             lane.retained_bytes = owner.bytes[index];
             lane.peak_bytes = lane.peak_bytes.max(lane.retained_bytes);
             total = total
@@ -5052,6 +5369,7 @@ impl IndependentResourceLedger {
                 .checked_add(scratch.lane_growths[index])
                 .ok_or(SolveAvailabilityError::IdentityExhausted)?;
             lane.actual_capacity = capacities[index];
+            lane.peak_capacity = lane.peak_capacity.max(lane.actual_capacity);
             lane.retained_bytes = capacities[index]
                 .checked_mul(sizes[index])
                 .ok_or(SolveAvailabilityError::IdentityExhausted)?;
@@ -5357,6 +5675,10 @@ impl IndependentResourceLedger {
                     })
                     .map(|bytes| peak.max(bytes))
             })?;
+        #[cfg(feature = "f5c_resource_probe")]
+        let component_peak = if memo.matrix_active {
+            component_peak.max(memo.matrix_peak_bytes)
+        } else { component_peak };
         self.component_expansion_memo_peak_bytes =
             self.component_expansion_memo_peak_bytes.max(component_peak);
         for sample in new_samples {
@@ -5384,6 +5706,19 @@ impl IndependentResourceLedger {
                 )?;
                 lane.peak_capacity = lane.peak_capacity.max(capacity);
                 lane.peak_bytes = lane.peak_bytes.max(bytes);
+            }
+        }
+        #[cfg(feature = "f5c_resource_probe")]
+        if memo.matrix_active {
+            for (group, lane) in [
+                &mut self.component_expansion_memo_roots,
+                &mut self.component_expansion_memo_nodes,
+                &mut self.component_expansion_memo_children,
+                &mut self.component_expansion_memo_index,
+                &mut self.component_expansion_memo_scratch,
+            ].into_iter().enumerate() {
+                lane.peak_capacity = lane.peak_capacity.max(memo.matrix_group_peak_capacity[group]);
+                lane.peak_bytes = lane.peak_bytes.max(memo.matrix_group_peak_bytes[group]);
             }
         }
         self.memo_capacity_samples_seen = memo.capacity_samples.len();
@@ -5458,6 +5793,10 @@ impl IndependentResourceLedger {
         }
         let physical_peak = usize::try_from(physical.peak)
             .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+        self.source_walker_peak_bytes = self.source_walker_peak_bytes.max(
+            usize::try_from(physical.source_walker_peak)
+                .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
+        );
         let current_joint = source_draft_bytes
             .checked_add(retained_bytes)
             .and_then(|bytes| bytes.checked_add(walker_bytes))
@@ -5563,6 +5902,34 @@ impl IndependentResourceLedger {
         let queue_bytes = checked.bytes::<TypedWorkItem>(
             typed_worklist.capacity(),
             "F5b independent typed frontier queue",
+        );
+        // Fold the complete pair family from its owners at this checkpoint. The
+        // last two lanes belong to the session ledger, not the semantic arena.
+        let pair_family_bytes = checked.sum(
+            [
+                checked.bytes::<(TypedPairKey, TypedPairMemo)>(typed_pairs.capacity(), "independent pair owner"),
+                nested_capacities.diagnostic_edges,
+                queue_bytes,
+                checked.bytes::<CanonicalValuePairKey>(diagnostic_delta.capacity(), "independent diagnostic delta"),
+                checked.bytes::<(CanonicalValuePairKey, usize)>(diagnostic_delta_indices.capacity(), "independent diagnostic index"),
+                checked.bytes::<usize>(diagnostic_reverse_offsets.capacity(), "independent reverse offsets"),
+                checked.bytes::<DiagnosticReverseEdge>(diagnostic_reverse_edges.capacity(), "independent reverse edges"),
+                checked.bytes::<usize>(diagnostic_reverse_cursors.capacity(), "independent reverse cursors"),
+                checked.bytes::<(usize, usize)>(diagnostic_dfs_stack.capacity(), "independent DFS stack"),
+                checked.bytes::<usize>(diagnostic_finish_order.capacity(), "independent finish order"),
+                checked.bytes::<usize>(diagnostic_scc_indices.capacity(), "independent SCC indices"),
+                checked.bytes::<usize>(diagnostic_scc_nodes.capacity(), "independent SCC nodes"),
+                checked.bytes::<usize>(diagnostic_scc_offsets.capacity(), "independent SCC offsets"),
+                checked.bytes::<usize>(diagnostic_scc_pending_children.capacity(), "independent SCC pending"),
+                checked.bytes::<usize>(diagnostic_scc_worklist.capacity(), "independent SCC worklist"),
+                checked.bytes::<Option<usize>>(diagnostic_bucket_heads.capacity(), "independent bucket heads"),
+                checked.bytes::<Option<usize>>(diagnostic_bucket_tails.capacity(), "independent bucket tails"),
+                checked.bytes::<DiagnosticBucketCandidate>(diagnostic_bucket_candidates.capacity(), "independent bucket candidates"),
+                checked.bytes::<Option<DiagnosticWitness>>(diagnostic_node_witnesses.capacity(), "independent node witnesses"),
+                checked.bytes::<SolverError>(errors.capacity(), "independent pair family errors"),
+                checked.bytes::<(ConstraintOccurrenceId, SolverErrorKind)>(reported_errors.capacity(), "independent pair family reported errors"),
+            ],
+            "independent complete structured pair family",
         );
         let semantic = checked.sum(
             [
@@ -5815,6 +6182,8 @@ impl IndependentResourceLedger {
         );
         let full_session = checked.add(session, finish_output_retained_bytes);
         checked.finish()?;
+        self.structured_pair_family_retained_bytes = pair_family_bytes;
+        self.structured_pair_family_peak_bytes = self.structured_pair_family_peak_bytes.max(pair_family_bytes);
         let route_capacities = [
             store.facts.capacity(),
             store.canonical.capacity(),
@@ -6642,6 +7011,8 @@ pub struct SolvedModule {
     resource_boundary_samples: usize,
     #[cfg(test)]
     resource_ledger: IndependentResourceLedger,
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    f5c_matrix_observer: Option<F5cMatrixObserver>,
 }
 
 /// Private owner for one concrete inference attempt.
@@ -6760,6 +7131,12 @@ struct InferenceSession {
     flat_candidate_precommit_counter_baseline: Option<ProductionCounters>,
     #[cfg(test)]
     f5c_candidate_capture: Option<F5cCandidateCapture>,
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    f5c_matrix_observer: Option<F5cMatrixObserver>,
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    f5c_matrix_finished_closed: Option<yu_types::F5cResourceProbeSummary>,
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    f5c_matrix_normalization: Option<(usize, fn(usize, usize) -> f5c_draft::FlatDraft)>,
     #[cfg(test)]
     ordering_observer: Option<OrderingObserver>,
     #[cfg(test)]
@@ -6833,6 +7210,8 @@ enum InstantiationWork {
 #[derive(Default)]
 struct InstantiationScratch {
     substitution: HashMap<u32, u32>,
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    substitution_peak_len: usize,
     positive: HashMap<yu_types::PositiveValueId, std::ops::Range<usize>>,
     negative: HashMap<yu_types::NegativeValueId, std::ops::Range<usize>>,
     positive_effects: HashSet<yu_types::PositiveEffectId>,
@@ -7785,6 +8164,13 @@ macro_rules! reserve_typed_route_lane {
         let old_capacity = target.capacity();
         let reservation = reserve_f5b(target, $additional, lane);
         let changed = target.capacity() != old_capacity;
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        if let Some(index) = f5c_live_top_lane(lane) {
+            if let Some(live) = $session.f5c_matrix_observer.as_mut()
+                .and_then(|observer| observer.live_events.as_mut()) {
+                live.top(index, target.len(), target.capacity());
+            }
+        }
         #[cfg(test)]
         if changed {
             if $session.incoming_route_accounting_active {
@@ -7803,6 +8189,23 @@ macro_rules! reserve_typed_route_lane {
         }
         reservation.map_err(SolveAvailabilityError::from)?;
     }};
+}
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+fn f5c_live_top_lane(lane: F5bCapacityLane) -> Option<usize> {
+    Some(match lane {
+        F5bCapacityLane::LiveComponents => 0,
+        F5bCapacityLane::FreshValueBounds => 1,
+        F5bCapacityLane::FreshEffectBounds => 2,
+        F5bCapacityLane::ValueLevels => 3,
+        F5bCapacityLane::EffectLevels => 4,
+        F5bCapacityLane::ValueMetadata => 5,
+        F5bCapacityLane::EffectMetadata => 6,
+        F5bCapacityLane::ExtrusionStack => 7,
+        F5bCapacityLane::ExtrusionValueMarks => 8,
+        F5bCapacityLane::ExtrusionEffectMarks => 9,
+        _ => return None,
+    })
 }
 
 #[cfg(test)]
@@ -7826,6 +8229,50 @@ fn fresh_effect_bounds_lane() -> F5bCapacityLane {
 }
 
 impl InferenceSession {
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    fn observe_f5c_live_top(&mut self, lane: usize) {
+        let shape = match lane {
+            0 => (self.live_components.len(), self.live_components.capacity()),
+            1 => (self.bounds.len(), self.bounds.capacity()),
+            2 => (self.effect_bounds.len(), self.effect_bounds.capacity()),
+            3 => (self.value_levels.len(), self.value_levels.capacity()),
+            4 => (self.effect_levels.len(), self.effect_levels.capacity()),
+            5 => (self.value_metadata.len(), self.value_metadata.capacity()),
+            6 => (self.effect_metadata.len(), self.effect_metadata.capacity()),
+            7 => (self.extrusion_stack.len(), self.extrusion_stack.capacity()),
+            8 => (self.extrusion_value_marks.len(), self.extrusion_value_marks.capacity()),
+            9 => (self.extrusion_effect_marks.len(), self.extrusion_effect_marks.capacity()),
+            _ => unreachable!(),
+        };
+        if let Some(live) = self.f5c_matrix_observer.as_mut()
+            .and_then(|observer| observer.live_events.as_mut()) {
+            live.top(lane, shape.0, shape.1);
+        }
+    }
+
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    fn observe_f5c_live_row(&mut self, effect: bool, index: usize) {
+        let row = if effect {
+            let row = &self.effect_bounds[index];
+            [(row.direct_lower_rows.len(), row.direct_lower_rows.capacity()),
+                (row.direct_upper_rows.len(), row.direct_upper_rows.capacity()),
+                (row.exact_non_variable_lowers.len(), row.exact_non_variable_lowers.capacity()),
+                (row.exact_non_variable_uppers.len(), row.exact_non_variable_uppers.capacity())]
+        } else {
+            let row = &self.bounds[index];
+            [(row.direct_lower_rows.len(), row.direct_lower_rows.capacity()),
+                (row.direct_upper_rows.len(), row.direct_upper_rows.capacity()),
+                (row.exact_non_variable_lowers.len(), row.exact_non_variable_lowers.capacity()),
+                (row.exact_non_variable_uppers.len(), row.exact_non_variable_uppers.capacity())]
+        };
+        if let Some(live) = self.f5c_matrix_observer.as_mut()
+            .and_then(|observer| observer.live_events.as_mut()) {
+            for (lane, (len, capacity)) in row.into_iter().enumerate() {
+                live.row(effect, index, lane, len, capacity);
+            }
+        }
+    }
+
     fn observe_typed_route_capacity(
         &mut self,
         changed: bool,
@@ -8168,6 +8615,42 @@ impl InferenceSession {
             },
         );
         self.store.rollback_route(store_journal);
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        if let Some(observer) = self.f5c_matrix_observer.as_mut() {
+            for bounds in &self.bounds[journal.value_rows_len..] {
+                for (index, len) in [bounds.direct_lower_rows.len(), bounds.direct_upper_rows.len(),
+                    bounds.exact_non_variable_lowers.len(), bounds.exact_non_variable_uppers.len()]
+                    .into_iter().enumerate() { observer.nested_remove(index, len); }
+            }
+            for bounds in &self.effect_bounds[journal.effect_rows_len..] {
+                for (offset, len) in [bounds.direct_lower_rows.len(), bounds.direct_upper_rows.len(),
+                    bounds.exact_non_variable_lowers.len(), bounds.exact_non_variable_uppers.len()]
+                    .into_iter().enumerate() { observer.nested_remove(offset + 4, len); }
+            }
+            for undo in &journal.value_rows {
+                let bounds = &self.bounds[undo.index];
+                for (index, (current, saved)) in [
+                    (bounds.direct_lower_rows.len(), undo.direct_lower_rows_len),
+                    (bounds.direct_upper_rows.len(), undo.direct_upper_rows_len),
+                    (bounds.exact_non_variable_lowers.len(), undo.exact_non_variable_lowers_len),
+                    (bounds.exact_non_variable_uppers.len(), undo.exact_non_variable_uppers_len),
+                ].into_iter().enumerate() { observer.nested_remove(index, current - saved); }
+            }
+            for undo in &journal.effect_rows {
+                let bounds = &self.effect_bounds[undo.index];
+                for (offset, (current, saved)) in [
+                    (bounds.direct_lower_rows.len(), undo.direct_lower_rows_len),
+                    (bounds.direct_upper_rows.len(), undo.direct_upper_rows_len),
+                    (bounds.exact_non_variable_lowers.len(), undo.exact_non_variable_lowers_len),
+                    (bounds.exact_non_variable_uppers.len(), undo.exact_non_variable_uppers_len),
+                ].into_iter().enumerate() { observer.nested_remove(offset + 4, current - saved); }
+            }
+            for key in &journal.typed_pair_keys {
+                if let Some(TypedPairMemo::Value { children, .. }) = self.typed_pairs.get(key) {
+                    observer.nested_remove(8, children.len());
+                }
+            }
+        }
         for undo in &journal.value_rows {
             let bounds = &mut self.bounds[undo.index];
             bounds
@@ -8185,6 +8668,8 @@ impl InferenceSession {
             bounds.has_int_positive_lower = undo.has_int_positive_lower;
             self.value_levels[undo.index] = undo.level;
             self.extrusion_value_marks[undo.index] = undo.mark;
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            self.observe_f5c_live_row(false, undo.index);
         }
         for undo in &journal.effect_rows {
             let bounds = &mut self.effect_bounds[undo.index];
@@ -8204,6 +8689,8 @@ impl InferenceSession {
             bounds.has_empty_upper = undo.has_empty_upper;
             self.effect_levels[undo.index] = undo.level;
             self.extrusion_effect_marks[undo.index] = undo.mark;
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            self.observe_f5c_live_row(true, undo.index);
         }
         self.bounds.truncate(journal.value_rows_len);
         self.value_levels.truncate(journal.value_rows_len);
@@ -8214,6 +8701,16 @@ impl InferenceSession {
         self.effect_metadata.truncate(journal.effect_rows_len);
         self.extrusion_effect_marks
             .truncate(journal.effect_rows_len);
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        if let Some(live) = self.f5c_matrix_observer.as_mut()
+            .and_then(|observer| observer.live_events.as_mut()) {
+            live.truncate_rows(false, journal.value_rows_len);
+            live.truncate_rows(true, journal.effect_rows_len);
+        }
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        for lane in [1, 2, 3, 4, 5, 6, 8, 9] {
+            self.observe_f5c_live_top(lane);
+        }
         for key in journal.typed_pair_keys.iter().rev() {
             assert!(self.typed_pairs.remove(&key).is_some());
         }
@@ -8376,6 +8873,8 @@ impl InferenceSession {
             .inference_session_peak_bytes
             .max(session_peak_bytes);
         self.extrusion_stack.clear();
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        self.observe_f5c_live_top(7);
         self.typed_worklist.clear();
         self.clear_diagnostic_scratch();
         #[cfg(test)]
@@ -8535,6 +9034,12 @@ impl InferenceSession {
             flat_candidate_precommit_counter_baseline: None,
             #[cfg(test)]
             f5c_candidate_capture: None,
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            f5c_matrix_observer: None,
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            f5c_matrix_finished_closed: None,
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            f5c_matrix_normalization: None,
             #[cfg(test)]
             ordering_observer: None,
             #[cfg(test)]
@@ -8790,6 +9295,11 @@ impl InferenceSession {
             non_generic: false,
         });
         self.extrusion_value_marks.push(0);
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        if self.f5c_matrix_observer.is_some() {
+            self.f5c_matrix_observer.as_mut().unwrap().live_events.as_mut().unwrap().add_row(false);
+            for lane in [1, 3, 5, 8] { self.observe_f5c_live_top(lane); }
+        }
         Ok(ordinal)
     }
 
@@ -8821,6 +9331,11 @@ impl InferenceSession {
             non_generic: false,
         });
         self.extrusion_effect_marks.push(0);
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        if self.f5c_matrix_observer.is_some() {
+            self.f5c_matrix_observer.as_mut().unwrap().live_events.as_mut().unwrap().add_row(true);
+            for lane in [2, 4, 6, 9] { self.observe_f5c_live_top(lane); }
+        }
         Ok(ordinal)
     }
 
@@ -9217,6 +9732,10 @@ impl InferenceSession {
                     self.resource_ledger.inference_session_peak_bytes,
                 );
             }
+        }
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        if result.is_ok() {
+            self.observe_f5c_matrix(_boundary);
         }
         result
     }
@@ -9876,8 +10395,12 @@ impl InferenceSession {
         }
         let generation = self.extrusion_generation;
         self.extrusion_stack.clear();
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        self.observe_f5c_live_top(7);
         self.push_extrusion(initial)?;
         while let Some(endpoint) = self.extrusion_stack.pop() {
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            self.observe_f5c_live_top(7);
             match endpoint {
                 ExtrusionEndpoint::Value(endpoint) => match endpoint {
                     ValueEndpointKey::ValueRow(ordinal) => {
@@ -10022,6 +10545,8 @@ impl InferenceSession {
             F5bCapacityLane::ExtrusionStack
         );
         self.extrusion_stack.push(endpoint);
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        self.observe_f5c_live_top(7);
         Ok(())
     }
 
@@ -10089,6 +10614,17 @@ impl InferenceSession {
                 )?;
                 self.effect_bounds[b as usize].direct_lower_rows.push(a);
                 self.effect_bounds[a as usize].direct_upper_rows.push(b);
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                if let Some(observer) = self.f5c_matrix_observer.as_mut() {
+                    observer.nested_insert(4);
+                    observer.nested_insert(5);
+                    if let Some(live) = observer.live_events.as_mut() {
+                        let lower = &self.effect_bounds[b as usize].direct_lower_rows;
+                        live.row(true, b as usize, 0, lower.len(), lower.capacity());
+                        let upper = &self.effect_bounds[a as usize].direct_upper_rows;
+                        live.row(true, a as usize, 1, upper.len(), upper.capacity());
+                    }
+                }
                 let lower_len = self.effect_bounds[a as usize]
                     .exact_non_variable_lowers
                     .len();
@@ -10134,6 +10670,14 @@ impl InferenceSession {
                 self.effect_bounds[index]
                     .exact_non_variable_lowers
                     .push(item);
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                if let Some(observer) = self.f5c_matrix_observer.as_mut() {
+                    observer.nested_insert(6);
+                    if let Some(live) = observer.live_events.as_mut() {
+                        let row = &self.effect_bounds[index].exact_non_variable_lowers;
+                        live.row(true, index, 2, row.len(), row.capacity());
+                    }
+                }
                 self.effect_bounds[index].has_bottom_lower |=
                     item == EffectEndpointKey::BottomPositive;
                 let upper_len = self.effect_bounds[index].exact_non_variable_uppers.len();
@@ -10179,6 +10723,14 @@ impl InferenceSession {
                 self.effect_bounds[index]
                     .exact_non_variable_uppers
                     .push(item);
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                if let Some(observer) = self.f5c_matrix_observer.as_mut() {
+                    observer.nested_insert(7);
+                    if let Some(live) = observer.live_events.as_mut() {
+                        let row = &self.effect_bounds[index].exact_non_variable_uppers;
+                        live.row(true, index, 3, row.len(), row.capacity());
+                    }
+                }
                 self.effect_bounds[index].has_empty_upper |=
                     item == EffectEndpointKey::EmptyNegative;
                 let lower_len = self.effect_bounds[index].exact_non_variable_lowers.len();
@@ -10523,6 +11075,10 @@ impl InferenceSession {
             let reservation = reserve_f5b(children, 1, F5bCapacityLane::DiagnosticEdges);
             (old_capacity, children.capacity(), reservation)
         };
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        if let Some(observer) = self.f5c_matrix_observer.as_mut() {
+            observer.nested_request(8, old_capacity, new_capacity);
+        }
         if new_capacity != old_capacity {
             #[cfg(test)]
             if self.incoming_route_accounting_active {
@@ -10583,6 +11139,10 @@ impl InferenceSession {
             unreachable!("a semantic value pair owns its diagnostic children");
         };
         children.push(parent_edge);
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        if let Some(observer) = self.f5c_matrix_observer.as_mut() {
+            observer.nested_insert(8);
+        }
         Ok(())
     }
 
@@ -11230,6 +11790,17 @@ impl InferenceSession {
                 self.bounds[upper_index].direct_lower_rows.push(lower);
                 self.execution_counters.lower_bound_insertions += 1;
                 self.bounds[lower_index].direct_upper_rows.push(upper);
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                if let Some(observer) = self.f5c_matrix_observer.as_mut() {
+                    observer.nested_insert(0);
+                    observer.nested_insert(1);
+                    if let Some(live) = observer.live_events.as_mut() {
+                        let lower = &self.bounds[upper_index].direct_lower_rows;
+                        live.row(false, upper_index, 0, lower.len(), lower.capacity());
+                        let upper = &self.bounds[lower_index].direct_upper_rows;
+                        live.row(false, lower_index, 1, upper.len(), upper.capacity());
+                    }
+                }
                 self.execution_counters.upper_bound_insertions += 1;
                 let lower_len = self.bounds[lower_index].exact_non_variable_lowers.len();
                 for item_index in 0..lower_len {
@@ -11281,6 +11852,14 @@ impl InferenceSession {
                     reservation,
                 )?;
                 self.bounds[index].exact_non_variable_lowers.push(atom);
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                if let Some(observer) = self.f5c_matrix_observer.as_mut() {
+                    observer.nested_insert(2);
+                    if let Some(live) = observer.live_events.as_mut() {
+                        let row = &self.bounds[index].exact_non_variable_lowers;
+                        live.row(false, index, 2, row.len(), row.capacity());
+                    }
+                }
                 self.execution_counters.lower_bound_insertions += 1;
                 #[cfg(test)]
                 {
@@ -11341,6 +11920,14 @@ impl InferenceSession {
                     reservation,
                 )?;
                 self.bounds[index].exact_non_variable_uppers.push(atom);
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                if let Some(observer) = self.f5c_matrix_observer.as_mut() {
+                    observer.nested_insert(3);
+                    if let Some(live) = observer.live_events.as_mut() {
+                        let row = &self.bounds[index].exact_non_variable_uppers;
+                        live.row(false, index, 3, row.len(), row.capacity());
+                    }
+                }
                 self.execution_counters.upper_bound_insertions += 1;
                 #[cfg(test)]
                 {
@@ -11553,6 +12140,37 @@ impl InferenceSession {
         slot_size: usize,
         reservation: Result<(), ConstraintError>,
     ) -> Result<(), SolveAvailabilityError> {
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        if let Some(observer) = self.f5c_matrix_observer.as_mut() {
+            let index = match lane {
+                F5bCapacityLane::ValueDirectLower => 0,
+                F5bCapacityLane::ValueDirectUpper => 1,
+                F5bCapacityLane::ValueExactLower => 2,
+                F5bCapacityLane::ValueExactUpper => 3,
+                F5bCapacityLane::EffectDirectLower => 4,
+                F5bCapacityLane::EffectDirectUpper => 5,
+                F5bCapacityLane::EffectExactLower => 6,
+                F5bCapacityLane::EffectExactUpper => 7,
+                _ => unreachable!("nested row lane"),
+            };
+            observer.nested_request(index, old_capacity, new_capacity);
+            if let Some(live) = observer.live_events.as_mut() {
+                let requested = if effect_row {
+                    let row = &self.effect_bounds[row_index];
+                    match index - 4 { 0 => row.direct_lower_rows.len(),
+                        1 => row.direct_upper_rows.len(),
+                        2 => row.exact_non_variable_lowers.len(),
+                        3 => row.exact_non_variable_uppers.len(), _ => unreachable!() }
+                } else {
+                    let row = &self.bounds[row_index];
+                    match index { 0 => row.direct_lower_rows.len(),
+                        1 => row.direct_upper_rows.len(),
+                        2 => row.exact_non_variable_lowers.len(),
+                        3 => row.exact_non_variable_uppers.len(), _ => unreachable!() }
+                };
+                live.row(effect_row, row_index, index % 4, requested, new_capacity);
+            }
+        }
         if old_capacity != new_capacity {
             #[cfg(test)]
             if self.incoming_route_accounting_active {
@@ -11744,6 +12362,25 @@ impl InferenceSession {
         source_draft_bytes: usize,
         sampled_source_draft_bytes: usize,
     ) -> Result<(), SolveAvailabilityError> {
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        if memo.matrix_active {
+            if let Some(observer) = self.f5c_matrix_observer.as_mut() {
+                observer.memo_lanes = memo.matrix_lanes;
+                for (lane, requested) in observer.memo_lanes.iter_mut().zip([
+                    memo.roots.len(), memo.nodes.len(), memo.children.len(),
+                    memo.parent_heads.len(), memo.reverse_parents.len(),
+                    memo.incidence_heads.len(), memo.incidences.len(),
+                    memo.root_heads.len(), memo.root_edges.len(),
+                    memo.root_edge_marks.len(), memo.root_undo.len(),
+                    memo.active_rows.len(), memo.active_conflicts.len(), memo.work.len(),
+                    memo.conflict_journal.len(), memo.visit_epochs.len(),
+                    memo.matrix_generalizer_lengths[0], memo.matrix_generalizer_lengths[1],
+                    memo.matrix_generalizer_lengths[2], memo.matrix_generalizer_lengths[3],
+                ]) {
+                    lane.requested_slots = requested;
+                }
+            }
+        }
         let requested_slots = memo.requested_slots()?;
         let actual_capacity = memo.actual_capacity()?;
         let retained_bytes = memo.retained_bytes()?;
@@ -11910,7 +12547,8 @@ impl InferenceSession {
         // copy their identity after admission.
         macro_rules! sample_boundary {
             ($boundary:expr) => {
-                Self::sample_f4_resource_parts(
+                {
+                let sample = Self::sample_f4_resource_parts(
                     &self.store,
                     None,
                     None,
@@ -11982,7 +12620,13 @@ impl InferenceSession {
                         .map(RouteMutationJournal::checked_independent_retained_bytes)
                         .transpose()?
                         .unwrap_or(0),
-                )
+                );
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                if sample.is_ok() {
+                    self.observe_f5c_matrix($boundary);
+                }
+                sample
+                }
             };
         }
         let components = self
@@ -12027,11 +12671,14 @@ impl InferenceSession {
             // `clear` is a reuse boundary: it changes live draft ownership
             // without changing capacity, so sample it independently.
             sample_boundary!(ResourceBoundary::DraftScratchClear)?;
+            let mut completed_qr = (0usize, 0usize);
             macro_rules! boxed_component {
                 () => {{
             let source_meter = DraftHeapMeter::default();
-            let mut bound_sidecar = TrackedVec::<TrackedAllocation<'_>>::new(&source_meter);
-            let mut generalization_drafts = TrackedVec::new(&source_meter);
+            let mut bound_sidecar = TrackedVec::<TrackedAllocation<'_>>::new_with_kind(
+                &source_meter, PhysicalOwnerKind::SourceSidecar);
+            let mut generalization_drafts = TrackedVec::new_with_kind(
+                &source_meter, PhysicalOwnerKind::SourceOuter);
             let mut component_expansion_memo = F5cComponentExpansionMemo::default();
             source_meter
                 .begin_component()
@@ -12263,6 +12910,10 @@ impl InferenceSession {
             );
             sample_boundary!(ResourceBoundary::AllDrafts)?;
             for plan in generalization_drafts.iter() {
+                completed_qr.0 = completed_qr.0.checked_add(plan.quantifier_count as usize)
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                completed_qr.1 = completed_qr.1.checked_add(plan.recursive_bounds.len())
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)?;
                 let old_capacity = self.drafts.capacity();
                 #[cfg(test)]
                 let inject_finalization_failure = if self.injected_finalization_failure_after
@@ -12347,11 +12998,28 @@ impl InferenceSession {
             }
             #[cfg(test)]
             if self.flat_candidate_enabled {
-                self.resource_ledger.track_flat_boundary_order = true;
+                #[cfg(feature = "f5c_resource_probe")]
+                {
+                    self.resource_ledger.track_flat_boundary_order =
+                        self.f5c_matrix_observer.is_none();
+                }
+                #[cfg(not(feature = "f5c_resource_probe"))]
+                {
+                    self.resource_ledger.track_flat_boundary_order = true;
+                }
                 let source_meter = DraftHeapMeter::default();
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                source_meter.set_event_component(
+                    self.execution_counters.scc_execution_component_visits);
                 let mut staged =
-                    TrackedVec::<f5c_generalization::F5cStagedCandidate<'_>>::new(&source_meter);
+                    TrackedVec::<f5c_generalization::F5cStagedCandidate<'_>>::new_with_kind(
+                        &source_meter, PhysicalOwnerKind::StagedOuter);
                 let mut memo = F5cComponentExpansionMemo::default();
+                #[cfg(feature = "f5c_resource_probe")]
+                {
+                    memo.matrix_active = self.f5c_matrix_observer.is_some();
+                    if memo.matrix_active { memo.observe_physical_memo(); }
+                }
                 source_meter
                     .begin_component()
                     .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
@@ -12408,6 +13076,10 @@ impl InferenceSession {
                             .component;
                         let row = self.live_components[position].ordinal as usize;
                         let admissions_before = memo.root_lane.requested_slots;
+                        #[cfg(feature = "f5c_resource_probe")]
+                        let transfers_before = if memo.matrix_active { memo.matrix_transfer_count }
+                            else { memo.transfer_raw_capacity_samples.len() };
+                        #[cfg(not(feature = "f5c_resource_probe"))]
                         let transfers_before = memo.transfer_raw_capacity_samples.len();
                         let mut generalizer = F5cGeneralizer::with_memo(
                             self,
@@ -12423,13 +13095,20 @@ impl InferenceSession {
                         memo = returned_memo;
                         self.resource_ledger
                             .record_flat_staged(&staged, &source_meter)?;
-                        if memo.transfer_raw_capacity_samples.len() > transfers_before {
+                        #[cfg(feature = "f5c_resource_probe")]
+                        let transfers_after = if memo.matrix_active { memo.matrix_transfer_count }
+                            else { memo.transfer_raw_capacity_samples.len() };
+                        #[cfg(not(feature = "f5c_resource_probe"))]
+                        let transfers_after = memo.transfer_raw_capacity_samples.len();
+                        if transfers_after > transfers_before {
                             self.resource_ledger.record_flat_transfer(&memo)?;
                         }
                         result?;
                         if self.flat_candidate_precommit_failure
                             == Some(FlatCandidatePrecommitFailure::LedgerAfterStage)
                         {
+                            #[cfg(feature = "f5c_resource_probe")]
+                            F5C_LEDGER_AFTER_STAGE_HIT.with(|hit| hit.set(true));
                             capture_failure_site = "post_transfer";
                             self.flat_candidate_precommit_failure = None;
                             return Err(SolveAvailabilityError::IdentityExhausted);
@@ -12458,6 +13137,17 @@ impl InferenceSession {
                     }
                     if self.f5c_candidate_capture.is_some() {
                         f5c_normalization::take_failed_flat_physical_resource();
+                    }
+                    #[cfg(feature = "f5c_resource_probe")]
+                    if let Some((width, make_draft)) = self.f5c_matrix_normalization {
+                        let first = self.execution_counters.scc_execution_component_visits;
+                        for (index, member) in staged.as_mut_slice().iter_mut().enumerate() {
+                            let draft = make_draft(width, first + index);
+                            memo.replace_flat_batch_member(&source_meter, member, draft)?;
+                        }
+                        source_draft_bytes = source_meter.current_bytes()
+                            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                        self.resource_ledger.reconcile_flat_staged(&staged, &source_meter)?;
                     }
                     if self.flat_candidate_normalization_failure_after.is_some() {
                         capture_failure_site = "batch_normalization";
@@ -12562,17 +13252,6 @@ impl InferenceSession {
                         source_draft_bytes,
                         sampled_source_draft_bytes,
                     )?;
-                    // Prepare the authoritative post-release snapshot while
-                    // the memo transaction can still be rolled back.
-                    self.execution_counters
-                        .component_expansion_memo_actual_capacity = 0;
-                    self.execution_counters
-                        .component_expansion_memo_retained_bytes = 0;
-                    self.resource_ledger.record_component_expansion_memo_inner(
-                        &F5cComponentExpansionMemo::default(),
-                        source_draft_bytes,
-                        source_draft_bytes,
-                    )?;
                     self.execution_counters
                         .scc_execution_drafts_visible_barriers += 1;
                     assert_eq!(staged.len(), members.len());
@@ -12582,14 +13261,6 @@ impl InferenceSession {
                     if let Some(capture) = self.f5c_candidate_capture.as_mut() {
                         capture.observe_memo_diagnostics(&memo);
                     }
-                    sample_boundary!(ResourceBoundary::AllDrafts)?;
-                    self.capture_f5c_candidate(
-                        Some(ResourceBoundary::AllDrafts),
-                        self.execution_counters.scc_execution_component_visits,
-                        None,
-                        None,
-                        source_draft_bytes,
-                    );
                     Ok(())
                 })();
                 if let Err(error) = precommit {
@@ -12686,6 +13357,21 @@ impl InferenceSession {
                 memo.finish_flat_batch(batch_checkpoint, true)
                     .expect("committing a prepared flat batch only truncates its undo log");
                 memo.clear();
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                source_meter.observe_family6_walker(0, 0);
+                #[cfg(feature = "f5c_resource_probe")]
+                if memo.matrix_active {
+                    if let Some(observer) = self.f5c_matrix_observer.as_mut() {
+                        observer.memo_lanes = memo.matrix_lanes;
+                    }
+                }
+                self.execution_counters.component_expansion_memo_actual_capacity = 0;
+                self.execution_counters.component_expansion_memo_retained_bytes = 0;
+                self.resource_ledger.record_component_expansion_memo_inner(
+                    &memo,
+                    source_draft_bytes,
+                    source_draft_bytes,
+                )?;
                 source_meter
                     .observe_component_external(0)
                     .expect("prepared batch release fits the source meter");
@@ -12693,12 +13379,26 @@ impl InferenceSession {
                     .observe_physical_component_external(0)
                     .expect("prepared batch release fits the physical source meter");
                 source_meter.end_component();
+                sample_boundary!(ResourceBoundary::AllDrafts)?;
+                self.capture_f5c_candidate(
+                    Some(ResourceBoundary::AllDrafts),
+                    self.execution_counters.scc_execution_component_visits,
+                    None,
+                    None,
+                    source_draft_bytes,
+                );
                 if let Some(observer) = self.ordering_observer.as_mut() {
                     observer
                         .record(|| ExecutionEvent::DraftsVisible(component.clone(), staged.len()));
                 }
                 let finalizer_calls_before = self.resource_ledger.flat_finalizer_calls;
                 for index in 0..staged.len() {
+                    completed_qr.0 = completed_qr.0
+                        .checked_add(staged[index].candidate.draft.quantifier_count as usize)
+                        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                    completed_qr.1 = completed_qr.1
+                        .checked_add(staged[index].candidate.draft.recursive_bounds.len())
+                        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
                     let old_capacity = self.drafts.capacity();
                     if self.flat_candidate_failure_after == Some(index) {
                         self.flat_candidate_failure_after = None;
@@ -12795,6 +13495,27 @@ impl InferenceSession {
                     .max(self.drafts.len());
                 let finalized_member_count = staged.len();
                 drop(staged);
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                if let Some(observer) = self.f5c_matrix_observer.as_mut() {
+                    observer.family6_event_peak = observer.family6_event_peak.max(
+                        source_meter.family6_event_peak()
+                            .expect("family-6 per-owner event sum fits usize"),
+                    );
+                    observer.family6_event_count += source_meter.family6_event_count();
+                    assert!(observer.family6_event_count > 0);
+                    assert_eq!(observer.family6_event_peak,
+                        self.resource_ledger.source_walker_peak_bytes,
+                        "family-6 event peak equals source/walker owner peak");
+                    let live_bytes = source_meter.physical_owner_bytes()
+                        .expect("family-6 live physical owner bytes");
+                    assert_eq!(source_meter.physical_current_bytes(), Some(live_bytes));
+                    let (event_capacity, event_retained) = source_meter.family6_event_current()
+                        .expect("family-6 event current fits usize");
+                    assert_eq!(event_retained, live_bytes);
+                    observer.family6_event_capacity = event_capacity;
+                    observer.family6_event_retained = event_retained;
+                    source_meter.record_event_checkpoint(event_capacity, event_retained);
+                }
                 drop(source_meter);
                 source_draft_bytes = 0;
                 self.resource_ledger.release_flat_staged();
@@ -12808,6 +13529,14 @@ impl InferenceSession {
             }
             #[cfg(not(test))]
             boxed_component!();
+            self.execution_counters.generalization_quantifier_writes = self
+                .execution_counters.generalization_quantifier_writes
+                .checked_add(completed_qr.0)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            self.execution_counters.generalization_recursive_binder_writes = self
+                .execution_counters.generalization_recursive_binder_writes
+                .checked_add(completed_qr.1)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
             for (ordinal, member) in members.iter().enumerate() {
                 self.execution_counters.scc_execution_draft_lookups += 1;
                 self.execution_counters.scc_execution_finalized_members += 1;
@@ -13453,6 +14182,10 @@ impl InferenceSession {
             )?;
             self.sample_instantiation_growth(scratch, grew)?;
             scratch.substitution.insert(ordinal, fresh);
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            {
+                scratch.substitution_peak_len = scratch.substitution_peak_len.max(scratch.substitution.len());
+            }
             self.execution_counters.instantiation_fresh_value_variables += 1;
         }
         for bound in view.recursive_bounds() {
@@ -13472,6 +14205,10 @@ impl InferenceSession {
                 )?;
                 self.sample_instantiation_growth(scratch, grew)?;
                 scratch.substitution.insert(ordinal, fresh);
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                {
+                    scratch.substitution_peak_len = scratch.substitution_peak_len.max(scratch.substitution.len());
+                }
                 self.execution_counters.instantiation_fresh_value_variables += 1;
             }
         }
@@ -14375,10 +15112,14 @@ impl InferenceSession {
             .finalization
             .take()
             .expect("F4 finalization session is consumed exactly once by finish");
-        let (closed_types, receipt) = finalization
+        let finished_closed = finalization
             .finish()
-            .map_err(Self::map_finalization_error)?
-            .into_parts();
+            .map_err(Self::map_finalization_error)?;
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        {
+            self.f5c_matrix_finished_closed = Some(finished_closed.f5c_resource_probe());
+        }
+        let (closed_types, receipt) = finished_closed.into_parts();
         assert_eq!(
             receipt.retained_bytes_before_finish(),
             self.current_closed_retained_bytes,
@@ -14451,6 +15192,21 @@ impl InferenceSession {
         counters.combine(self.store.counters());
         counters.combine(&work);
         counters.combine(&self.execution_counters);
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        if let Some(live) = self.f5c_matrix_observer.as_mut()
+            .and_then(|observer| observer.live_events.as_mut()) {
+            drop(std::mem::take(&mut self.live_components));
+            drop(std::mem::take(&mut self.bounds));
+            drop(std::mem::take(&mut self.effect_bounds));
+            drop(std::mem::take(&mut self.value_levels));
+            drop(std::mem::take(&mut self.effect_levels));
+            drop(std::mem::take(&mut self.value_metadata));
+            drop(std::mem::take(&mut self.effect_metadata));
+            drop(std::mem::take(&mut self.extrusion_stack));
+            drop(std::mem::take(&mut self.extrusion_value_marks));
+            drop(std::mem::take(&mut self.extrusion_effect_marks));
+            live.release_all();
+        }
         Ok(SolvedModule {
             hir: self.batch.hir,
             projection_order: self.batch.projection_order,
@@ -14471,6 +15227,8 @@ impl InferenceSession {
             resource_boundary_samples: self.resource_boundary_samples,
             #[cfg(test)]
             resource_ledger: self.resource_ledger,
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            f5c_matrix_observer: self.f5c_matrix_observer,
         })
     }
 }
@@ -14558,6 +15316,337 @@ impl SolvedModule {
             | PositiveValueView::Function { .. }
             | PositiveValueView::Union(_) => Ok(SolvedValue::Unknown),
         }
+    }
+}
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+impl InferenceSession {
+    fn seed_f5c_matrix_live_events(&mut self) {
+        let sizes = [
+            std::mem::size_of::<LiveComponentEndpoint>(),
+            std::mem::size_of::<VariableBounds>(),
+            std::mem::size_of::<EffectBounds>(),
+            std::mem::size_of::<u32>(), std::mem::size_of::<u32>(),
+            std::mem::size_of::<LiveVariableMetadata>(),
+            std::mem::size_of::<LiveVariableMetadata>(),
+            std::mem::size_of::<ExtrusionEndpoint>(),
+            std::mem::size_of::<u32>(), std::mem::size_of::<u32>(),
+        ];
+        let top = [
+            (self.live_components.len(), self.live_components.capacity()),
+            (self.bounds.len(), self.bounds.capacity()),
+            (self.effect_bounds.len(), self.effect_bounds.capacity()),
+            (self.value_levels.len(), self.value_levels.capacity()),
+            (self.effect_levels.len(), self.effect_levels.capacity()),
+            (self.value_metadata.len(), self.value_metadata.capacity()),
+            (self.effect_metadata.len(), self.effect_metadata.capacity()),
+            (self.extrusion_stack.len(), self.extrusion_stack.capacity()),
+            (self.extrusion_value_marks.len(), self.extrusion_value_marks.capacity()),
+            (self.extrusion_effect_marks.len(), self.extrusion_effect_marks.capacity()),
+        ];
+        let mut live = F5cLiveEventLedger::new(sizes, self.bounds.len(), self.effect_bounds.len());
+        for (lane, (len, capacity)) in top.into_iter().enumerate() { live.top(lane, len, capacity); }
+        for (index, row) in self.bounds.iter().enumerate() {
+            for (lane, (len, capacity)) in [
+                (row.direct_lower_rows.len(), row.direct_lower_rows.capacity()),
+                (row.direct_upper_rows.len(), row.direct_upper_rows.capacity()),
+                (row.exact_non_variable_lowers.len(), row.exact_non_variable_lowers.capacity()),
+                (row.exact_non_variable_uppers.len(), row.exact_non_variable_uppers.capacity()),
+            ].into_iter().enumerate() { live.row(false, index, lane, len, capacity); }
+        }
+        for (index, row) in self.effect_bounds.iter().enumerate() {
+            for (lane, (len, capacity)) in [
+                (row.direct_lower_rows.len(), row.direct_lower_rows.capacity()),
+                (row.direct_upper_rows.len(), row.direct_upper_rows.capacity()),
+                (row.exact_non_variable_lowers.len(), row.exact_non_variable_lowers.capacity()),
+                (row.exact_non_variable_uppers.len(), row.exact_non_variable_uppers.capacity()),
+            ].into_iter().enumerate() { live.row(true, index, lane, len, capacity); }
+        }
+        self.f5c_matrix_observer.as_mut().expect("matrix observer").live_events = Some(live);
+    }
+
+    fn start_f5c_matrix_route_growth(&mut self) {
+        F5C_MATRIX_ROUTE_GROWTHS.with(|summary| summary.set([0; F5C_MATRIX_ROUTE_LANES]));
+        let observer = self.f5c_matrix_observer.as_mut().expect("matrix observer");
+        macro_rules! seed {
+            ($field:ident, $lane:ident) => {
+                observer.route_growths[F5bCapacityLane::$lane as usize] =
+                    usize::from(self.$field.capacity() > 0);
+            };
+        }
+        seed!(live_components, LiveComponents);
+        seed!(bounds, FreshValueBounds);
+        seed!(effect_bounds, FreshEffectBounds);
+        seed!(value_levels, ValueLevels);
+        seed!(effect_levels, EffectLevels);
+        seed!(value_metadata, ValueMetadata);
+        seed!(effect_metadata, EffectMetadata);
+        seed!(extrusion_stack, ExtrusionStack);
+        seed!(extrusion_value_marks, ExtrusionValueMarks);
+        seed!(extrusion_effect_marks, ExtrusionEffectMarks);
+        seed!(typed_pairs, TypedPairs);
+        seed!(typed_worklist, TypedWorklist);
+        seed!(diagnostic_delta, DiagnosticDelta);
+        seed!(diagnostic_delta_indices, DiagnosticDeltaIndices);
+        seed!(diagnostic_reverse_offsets, DiagnosticReverseOffsets);
+        seed!(diagnostic_reverse_edges, DiagnosticReverseEdges);
+        seed!(diagnostic_reverse_cursors, DiagnosticReverseCursors);
+        seed!(diagnostic_dfs_stack, DiagnosticDfsStack);
+        seed!(diagnostic_finish_order, DiagnosticFinishOrder);
+        seed!(diagnostic_scc_indices, DiagnosticSccIndices);
+        seed!(diagnostic_scc_nodes, DiagnosticSccNodes);
+        seed!(diagnostic_scc_offsets, DiagnosticSccOffsets);
+        seed!(diagnostic_scc_pending_children, DiagnosticSccPendingChildren);
+        seed!(diagnostic_scc_worklist, DiagnosticSccWorklist);
+        seed!(diagnostic_bucket_heads, DiagnosticBucketHeads);
+        seed!(diagnostic_bucket_tails, DiagnosticBucketTails);
+        seed!(diagnostic_bucket_candidates, DiagnosticBucketCandidates);
+        seed!(diagnostic_node_witnesses, DiagnosticNodeWitnesses);
+        F5C_MATRIX_ROUTE_GROWTH_ACTIVE.with(|active| active.set(true));
+    }
+    fn observe_f5c_matrix(&mut self, boundary: ResourceBoundary) {
+        let Some(mut observer) = self.f5c_matrix_observer.take() else { return; };
+        observer.boundary(boundary, &self.resource_ledger);
+        let mut index = 0usize;
+        macro_rules! vector {
+            ($value:expr, $lane:expr) => {{
+                let (len, capacity, size) = F5cMatrixShape::matrix_shape(&$value);
+                let retained = capacity.checked_mul(size).expect("matrix vector bytes");
+                let owner_growths = F5C_MATRIX_ROUTE_GROWTHS.with(|summary|
+                    summary.get()[$lane as usize]);
+                let event_growths = observer.route_growths[$lane as usize]
+                    .checked_add(owner_growths).expect("matrix route growth total");
+                observer.lane(boundary, index, len, capacity, size,
+                    retained, retained, Some(event_growths));
+                index += 1;
+            }};
+            ($value:expr) => {{
+                let (len, capacity, size) = F5cMatrixShape::matrix_shape(&$value);
+                let retained = capacity.checked_mul(size).expect("matrix vector bytes");
+                observer.lane(boundary, index, len, capacity, size,
+                    retained, retained, None);
+                index += 1;
+            }};
+        }
+        macro_rules! independent {
+            ($value:expr) => {{
+                let lane = &$value;
+                let size = if lane.peak_capacity == 0 { 0 } else {
+                    lane.peak_bytes / lane.peak_capacity
+                };
+                observer.lane(boundary, index, lane.requested_slots,
+                    lane.actual_capacity, size, lane.retained_bytes, lane.peak_bytes,
+                    Some(lane.capacity_growths));
+                index += 1;
+            }};
+        }
+        vector!(self.live_components, F5bCapacityLane::LiveComponents);
+        vector!(self.bounds, F5bCapacityLane::FreshValueBounds);
+        vector!(self.effect_bounds, F5bCapacityLane::FreshEffectBounds);
+        vector!(self.value_levels, F5bCapacityLane::ValueLevels);
+        vector!(self.effect_levels, F5bCapacityLane::EffectLevels);
+        vector!(self.value_metadata, F5bCapacityLane::ValueMetadata);
+        vector!(self.effect_metadata, F5bCapacityLane::EffectMetadata);
+        vector!(self.extrusion_stack, F5bCapacityLane::ExtrusionStack);
+        vector!(self.extrusion_value_marks, F5bCapacityLane::ExtrusionValueMarks);
+        vector!(self.extrusion_effect_marks, F5bCapacityLane::ExtrusionEffectMarks);
+        for (nested, (bytes, size)) in [
+            (self.independent_nested_capacities.value_direct_lower, std::mem::size_of::<u32>()),
+            (self.independent_nested_capacities.value_direct_upper, std::mem::size_of::<u32>()),
+            (self.independent_nested_capacities.value_exact_lower, std::mem::size_of::<ValueEndpointKey>()),
+            (self.independent_nested_capacities.value_exact_upper, std::mem::size_of::<ValueEndpointKey>()),
+            (self.independent_nested_capacities.effect_direct_lower, std::mem::size_of::<u32>()),
+            (self.independent_nested_capacities.effect_direct_upper, std::mem::size_of::<u32>()),
+            (self.independent_nested_capacities.effect_exact_lower, std::mem::size_of::<EffectEndpointKey>()),
+            (self.independent_nested_capacities.effect_exact_upper, std::mem::size_of::<EffectEndpointKey>()),
+        ].into_iter().enumerate() {
+            assert_eq!(bytes % size, 0);
+            let requested = observer.nested_requested[nested];
+            let growths = observer.nested_growths[nested];
+            observer.lane(boundary, index, requested, bytes / size,
+                size, bytes, bytes, Some(growths));
+            index += 1;
+        }
+        observer.family_ends[0] = index;
+        for lane in &self.resource_ledger.term_lanes { independent!(lane); }
+        observer.family_ends[1] = index;
+        vector!(self.typed_pairs, F5bCapacityLane::TypedPairs);
+        let edge_bytes = self.independent_nested_capacities.diagnostic_edges;
+        let edge_size = std::mem::size_of::<DiagnosticEdge>();
+        assert_eq!(edge_bytes % edge_size, 0);
+        let edge_requested = observer.nested_requested[8];
+        let edge_growths = observer.nested_growths[8];
+        observer.lane(boundary, index, edge_requested, edge_bytes / edge_size,
+            edge_size, edge_bytes, edge_bytes, Some(edge_growths));
+        index += 1;
+        vector!(self.typed_worklist, F5bCapacityLane::TypedWorklist);
+        vector!(self.diagnostic_delta, F5bCapacityLane::DiagnosticDelta);
+        vector!(self.diagnostic_delta_indices, F5bCapacityLane::DiagnosticDeltaIndices);
+        vector!(self.diagnostic_reverse_offsets, F5bCapacityLane::DiagnosticReverseOffsets);
+        vector!(self.diagnostic_reverse_edges, F5bCapacityLane::DiagnosticReverseEdges);
+        vector!(self.diagnostic_reverse_cursors, F5bCapacityLane::DiagnosticReverseCursors);
+        vector!(self.diagnostic_dfs_stack, F5bCapacityLane::DiagnosticDfsStack);
+        vector!(self.diagnostic_finish_order, F5bCapacityLane::DiagnosticFinishOrder);
+        vector!(self.diagnostic_scc_indices, F5bCapacityLane::DiagnosticSccIndices);
+        vector!(self.diagnostic_scc_nodes, F5bCapacityLane::DiagnosticSccNodes);
+        vector!(self.diagnostic_scc_offsets, F5bCapacityLane::DiagnosticSccOffsets);
+        vector!(self.diagnostic_scc_pending_children, F5bCapacityLane::DiagnosticSccPendingChildren);
+        vector!(self.diagnostic_scc_worklist, F5bCapacityLane::DiagnosticSccWorklist);
+        vector!(self.diagnostic_bucket_heads, F5bCapacityLane::DiagnosticBucketHeads);
+        vector!(self.diagnostic_bucket_tails, F5bCapacityLane::DiagnosticBucketTails);
+        vector!(self.diagnostic_bucket_candidates, F5bCapacityLane::DiagnosticBucketCandidates);
+        vector!(self.diagnostic_node_witnesses, F5bCapacityLane::DiagnosticNodeWitnesses);
+        vector!(self.errors);
+        vector!(self.reported_errors);
+        observer.family_ends[2] = index;
+        for lane in observer.memo_lanes {
+            observer.lane(boundary, index, lane.requested_slots, lane.actual_capacity,
+                lane.slot_size, lane.retained_bytes, lane.peak_bytes, Some(lane.growths));
+            if lane.cleared && observer.current[index].clear_or_transfer.is_none() {
+                observer.current[index].clear_or_transfer = Some(boundary);
+                observer.boundaries[boundary as usize].lanes[index] = observer.current[index];
+            }
+            index += 1;
+        }
+        observer.family_ends[3] = index;
+        if let Some(finalization) = self.finalization.as_ref() {
+            let closed = finalization.f5c_resource_probe();
+            let retained_bytes = closed.arena.iter().chain(&closed.scratch).chain(&closed.indexed)
+                .try_fold(0usize, |sum, lane| sum.checked_add(lane.retained_bytes))
+                .expect("matrix closed retained bytes");
+            assert_eq!(retained_bytes, self.current_closed_retained_bytes,
+                "matrix closed physical lanes reconcile with finalization receipt");
+            for lane in closed.arena.into_iter().chain(closed.scratch).chain(closed.indexed) {
+                observer.lane(boundary, index, lane.requested_slots, lane.actual_capacity,
+                    lane.slot_size, lane.retained_bytes, lane.peak_bytes,
+                    Some(lane.capacity_growths));
+                index += 1;
+            }
+        } else if let Some(closed) = self.f5c_matrix_finished_closed {
+            let retained_bytes = closed.arena.iter().chain(&closed.scratch).chain(&closed.indexed)
+                .try_fold(0usize, |sum, lane| sum.checked_add(lane.retained_bytes))
+                .expect("matrix closed retained bytes");
+            assert_eq!(retained_bytes, self.current_closed_retained_bytes,
+                "matrix finished closed arena reconciles with receipt");
+            for lane in closed.arena.into_iter().chain(closed.scratch).chain(closed.indexed) {
+                observer.lane(boundary, index, lane.requested_slots, lane.actual_capacity,
+                    lane.slot_size, lane.retained_bytes, lane.peak_bytes,
+                    Some(lane.capacity_growths));
+                index += 1;
+            }
+        } else { index += 36; }
+        observer.family_ends[4] = index;
+        for lane in &self.resource_ledger.closed_normalization_index_lanes {
+            observer.lane(boundary, index, lane.requested_slots, lane.actual_capacity,
+                lane.slot_size, lane.retained_bytes, lane.peak_bytes,
+                Some(lane.capacity_growths));
+            index += 1;
+        }
+        observer.family_ends[5] = index;
+        independent!(self.resource_ledger.source_draft_slots);
+        independent!(self.resource_ledger.source_bound_tokens);
+        independent!(self.resource_ledger.source_recursive_bounds);
+        for lane in &self.resource_ledger.generalization_walker_lanes { independent!(lane); }
+        observer.family_ends[6] = index;
+        for lane in &self.resource_ledger.instantiation_lanes { independent!(lane); }
+        observer.family_ends[7] = index;
+        for (index_in_family, (requested, size)) in [
+            (self.store.facts.len(), std::mem::size_of::<SemanticFact>()),
+            (self.store.canonical.len(), std::mem::size_of::<(FactKey, FactId)>()),
+            (self.store.consumed_receipts.len(), std::mem::size_of::<u64>()),
+            (self.store.provenance.len(), std::mem::size_of::<ProvenanceEdge>()),
+        ].into_iter().enumerate() {
+            let lane = &self.resource_ledger.route_store_lanes[index_in_family];
+            observer.lane(boundary, index, requested, lane.actual_capacity, size,
+                lane.retained_bytes, lane.peak_bytes, Some(lane.capacity_growths));
+            index += 1;
+        }
+        for (index_in_family, (requested, size)) in [
+            (self.routed_uses.len(), std::mem::size_of::<RoutedUseProvenance>()),
+            (self.routed_use_positions.len(), std::mem::size_of::<DefinitionUseId>()),
+        ].into_iter().enumerate() {
+            let lane = &self.resource_ledger.route_use_lanes[index_in_family];
+            observer.lane(boundary, index, requested, lane.actual_capacity, size,
+                lane.retained_bytes, lane.peak_bytes,
+                Some(lane.capacity_growths + usize::from(lane.actual_capacity > 0)));
+            index += 1;
+        }
+        assert!(index <= F5C_MATRIX_LANES);
+        let sum_family = |start: usize, end: usize| {
+            observer.current[start..end].iter().try_fold(0usize,
+                |sum, lane| sum.checked_add(lane.retained_bytes))
+                .expect("matrix family retained bytes")
+        };
+        for lane in &observer.current[..index] {
+            assert_eq!(lane.retained_bytes,
+                lane.actual_capacity.checked_mul(lane.slot_size)
+                    .expect("matrix physical lane bytes"));
+        }
+        assert_eq!(sum_family(0, observer.family_ends[0]),
+            self.execution_counters.bound_table_retained_bytes);
+        assert_eq!(sum_family(observer.family_ends[0], observer.family_ends[1]),
+            self.resource_ledger.term_retained_bytes);
+        assert_eq!(sum_family(observer.family_ends[1], observer.family_ends[1] + 2),
+            self.execution_counters.constraint_pair_cache_retained_bytes);
+        assert_eq!(sum_family(observer.family_ends[1], observer.family_ends[2]),
+            self.resource_ledger.structured_pair_family_retained_bytes);
+        assert_eq!(sum_family(observer.family_ends[3], observer.family_ends[4]),
+            self.current_closed_retained_bytes);
+        assert_eq!(sum_family(observer.family_ends[2], observer.family_ends[3]),
+            self.resource_ledger.component_expansion_memo_retained_bytes);
+        assert_eq!(sum_family(observer.family_ends[4], observer.family_ends[5]),
+            self.resource_ledger.closed_normalization_index_retained_bytes);
+        assert_eq!(sum_family(observer.family_ends[5], observer.family_ends[6]),
+            self.resource_ledger.source_draft_slots.retained_bytes
+                + self.resource_ledger.source_bound_tokens.retained_bytes
+                + self.resource_ledger.source_recursive_bounds.retained_bytes
+                + self.resource_ledger.generalization_walker_retained_bytes);
+        assert_eq!(sum_family(observer.family_ends[6], observer.family_ends[7]),
+            self.resource_ledger.instantiation_substitution_retained_bytes);
+        let owner_peaks = [
+            self.execution_counters.bound_table_peak_bytes,
+            self.resource_ledger.term_peak_bytes,
+            self.resource_ledger.structured_pair_family_peak_bytes,
+            self.resource_ledger.component_expansion_memo_peak_bytes,
+            self.resource_ledger.flat_finalizer_peak_bytes,
+            self.resource_ledger.closed_normalization_index_peak_bytes,
+            self.resource_ledger.source_walker_peak_bytes,
+            self.resource_ledger.instantiation_substitution_peak_bytes,
+        ];
+        let mut start = 0;
+        for family in 0..observer.family_ends.len() {
+            let retained = sum_family(start, observer.family_ends[family]);
+            observer.family_retained[family] = retained;
+            assert!(owner_peaks[family] >= retained,
+                "matrix owner family peak must cover current retained bytes");
+            observer.family_peak[family] = owner_peaks[family];
+            observer.family_capacity[family] = observer.current[start..observer.family_ends[family]]
+                .iter().try_fold(0u128, |sum, lane| sum.checked_add(lane.actual_capacity as u128))
+                .expect("matrix family capacity");
+            start = observer.family_ends[family];
+        }
+        if boundary == ResourceBoundary::FinishOutput {
+            let live = observer.live_events.as_ref().expect("live owner events");
+            assert_eq!((live.capacity, live.retained),
+                (usize::try_from(observer.family_capacity[0]).expect("family-1 capacity"),
+                    observer.family_retained[0]),
+                "terminal family-1 event owners reconcile to live-variable lanes");
+            assert_eq!(live.peak, observer.family_peak[0],
+                "family-1 same-time owner peak reconciles to terminal observer");
+            f5c_draft_heap::checkpoint_live_variable_events(live.capacity, live.retained);
+            observer.family1_event_terminal = (live.capacity, live.retained, live.peak);
+        }
+        assert_eq!(observer.family_peak[2],
+            self.resource_ledger.structured_pair_family_peak_bytes);
+        assert_eq!(self.resource_ledger.semantic_arena_retained_bytes,
+            self.execution_counters.semantic_arena_retained_bytes);
+        assert_eq!(self.resource_ledger.semantic_arena_peak_bytes,
+            self.execution_counters.semantic_arena_peak_bytes);
+        assert_eq!(self.resource_ledger.inference_session_retained_bytes,
+            self.execution_counters.inference_session_retained_bytes);
+        assert_eq!(self.resource_ledger.inference_session_peak_bytes,
+            self.execution_counters.inference_session_peak_bytes);
+        self.f5c_matrix_observer = Some(observer);
     }
 }
 

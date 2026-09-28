@@ -3,10 +3,13 @@ use super::f5c_draft::{FlatDraft, NegativeNode, NodeRef, PositiveNode};
 use super::f5c_generalization::{F5cBulkDrainSite, record_bulk_drain_boundary};
 use super::{
     DraftHeapMeter, F5cComponentExpansionMemo, F5cNegative, F5cNegativeEffect, F5cPositive,
-    F5cPositiveEffect, F5cWalkValue, F5cWalkerLaneKind, SolveAvailabilityError, TrackedOne,
+    F5cPositiveEffect, F5cWalkValue, F5cWalkerLaneKind, PhysicalOwnerKind,
+    SolveAvailabilityError, TrackedOne,
     TrackedVec,
 };
 use std::collections::{HashMap, HashSet};
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+use super::f5c_draft_heap::RawWalkerOwner;
 
 pub(super) enum Task<'meter> {
     Positive(F5cPositive<'meter>),
@@ -28,11 +31,16 @@ pub(super) fn substitute_flat(
     positive_eliminated: &HashSet<u32>,
     negative_eliminated: &HashSet<u32>,
 ) -> Result<(), SolveAvailabilityError> {
-    substitute_flat_inner(None, draft, q, r, positive_eliminated, negative_eliminated)
+    substitute_flat_inner(None,
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        None,
+        draft, q, r, positive_eliminated, negative_eliminated)
 }
 
 pub(super) fn substitute_flat_metered(
     memo: &mut F5cComponentExpansionMemo,
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    probe_meter: &DraftHeapMeter,
     draft: &mut FlatDraft,
     q: &HashMap<u32, u32>,
     r: &HashMap<u32, u32>,
@@ -41,6 +49,8 @@ pub(super) fn substitute_flat_metered(
 ) -> Result<(), SolveAvailabilityError> {
     let result = substitute_flat_inner(
         Some(&mut *memo),
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        Some(probe_meter),
         draft,
         q,
         r,
@@ -59,6 +69,8 @@ pub(super) fn substitute_flat_metered(
 
 fn substitute_flat_inner(
     mut memo: Option<&mut F5cComponentExpansionMemo>,
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    probe_meter: Option<&DraftHeapMeter>,
     draft: &mut FlatDraft,
     q: &HashMap<u32, u32>,
     r: &HashMap<u32, u32>,
@@ -66,38 +78,68 @@ fn substitute_flat_inner(
     negative_eliminated: &HashSet<u32>,
 ) -> Result<(), SolveAvailabilityError> {
     let exhausted = SolveAvailabilityError::IdentityExhausted;
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    let mut positive_seen_owner = probe_meter.map(|meter| RawWalkerOwner::new(meter,
+        F5cWalkerLaneKind::SubstitutePositiveSeen as usize,
+        F5cWalkerLaneKind::SubstitutePositiveSeen.slot_size()));
     let mut positive_seen = Vec::new();
     if let Some(memo) = memo.as_deref_mut() {
         memo.work_meter.charge(draft.positive_nodes.len())?;
         let bytes = memo.retained_bytes()?;
-        memo.walker_resources.reserve(
+        let reservation = memo.walker_resources.reserve(
             &mut positive_seen,
             F5cWalkerLaneKind::SubstitutePositiveSeen,
             draft.positive_nodes.len(),
             bytes,
-        )?;
+        );
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        if let Some(owner) = positive_seen_owner.as_mut() {
+            owner.observe(positive_seen.len(), positive_seen.capacity());
+        }
+        reservation?;
     } else {
         positive_seen
             .try_reserve(draft.positive_nodes.len())
             .map_err(|_| exhausted)?;
     }
     positive_seen.resize(draft.positive_nodes.len(), false);
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    if let Some(owner) = positive_seen_owner.as_mut() {
+        owner.observe(positive_seen.len(), positive_seen.capacity());
+    }
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    let mut negative_seen_owner = probe_meter.map(|meter| RawWalkerOwner::new(meter,
+        F5cWalkerLaneKind::SubstituteNegativeSeen as usize,
+        F5cWalkerLaneKind::SubstituteNegativeSeen.slot_size()));
     let mut negative_seen = Vec::new();
     if let Some(memo) = memo.as_deref_mut() {
         memo.work_meter.charge(draft.negative_nodes.len())?;
         let bytes = memo.retained_bytes()?;
-        memo.walker_resources.reserve(
+        let reservation = memo.walker_resources.reserve(
             &mut negative_seen,
             F5cWalkerLaneKind::SubstituteNegativeSeen,
             draft.negative_nodes.len(),
             bytes,
-        )?;
+        );
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        if let Some(owner) = negative_seen_owner.as_mut() {
+            owner.observe(negative_seen.len(), negative_seen.capacity());
+        }
+        reservation?;
     } else {
         negative_seen
             .try_reserve(draft.negative_nodes.len())
             .map_err(|_| exhausted)?;
     }
     negative_seen.resize(draft.negative_nodes.len(), false);
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    if let Some(owner) = negative_seen_owner.as_mut() {
+        owner.observe(negative_seen.len(), negative_seen.capacity());
+    }
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    let mut stack_owner = probe_meter.map(|meter| RawWalkerOwner::new(meter,
+        F5cWalkerLaneKind::SubstituteStack as usize,
+        F5cWalkerLaneKind::SubstituteStack.slot_size()));
     let mut stack = Vec::new();
     macro_rules! enqueue {
         ($node:expr) => {{
@@ -114,11 +156,26 @@ fn substitute_flat_inner(
             if !*seen {
                 if let Some(memo) = memo.as_deref_mut() {
                     memo.work_meter.charge(1)?;
-                    memo.reserve_walker(&mut stack, F5cWalkerLaneKind::SubstituteStack)?;
+                    let reservation = memo.reserve_walker(&mut stack,
+                        F5cWalkerLaneKind::SubstituteStack);
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    if let Some(owner) = stack_owner.as_mut() {
+                        owner.observe(stack.len(), stack.capacity());
+                    }
+                    reservation?;
                 } else {
-                    stack.try_reserve(1).map_err(|_| exhausted)?;
+                    let reservation = stack.try_reserve(1).map_err(|_| exhausted);
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    if let Some(owner) = stack_owner.as_mut() {
+                        owner.observe(stack.len(), stack.capacity());
+                    }
+                    reservation?;
                 }
                 stack.push(node);
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                if let Some(owner) = stack_owner.as_mut() {
+                    owner.observe(stack.len(), stack.capacity());
+                }
                 *seen = true;
             }
         }};
@@ -131,6 +188,10 @@ fn substitute_flat_inner(
     }
     enqueue!(NodeRef::Positive(predicate));
     while let Some(node) = stack.pop() {
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        if let Some(owner) = stack_owner.as_mut() {
+            owner.observe(stack.len(), stack.capacity());
+        }
         if let Some(memo) = memo.as_deref_mut() {
             memo.work_meter.charge(1)?;
         }
@@ -272,28 +333,63 @@ fn substitute<'meter>(
     positive_eliminated: &HashSet<u32>,
     negative_eliminated: &HashSet<u32>,
 ) -> Result<F5cWalkValue<'meter>, SolveAvailabilityError> {
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    let mut tasks_owner = RawWalkerOwner::new(source_meter,
+        F5cWalkerLaneKind::BinderTasks as usize,
+        F5cWalkerLaneKind::BinderTasks.slot_size());
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    let mut values_owner = RawWalkerOwner::new(source_meter,
+        F5cWalkerLaneKind::BinderValues as usize,
+        F5cWalkerLaneKind::BinderValues.slot_size());
     let mut tasks = Vec::new();
     let mut values = Vec::new();
     macro_rules! push_task {
         ($task:expr) => {{
             memo.work_meter.charge(1)?;
-            memo.reserve_walker_with_source(
+            let reservation = memo.reserve_walker_with_source(
                 &mut tasks,
                 F5cWalkerLaneKind::BinderTasks,
                 source_meter,
-            )?;
+            );
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            tasks_owner.observe(tasks.len(), tasks.capacity());
+            reservation?;
             tasks.push($task);
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            tasks_owner.observe(tasks.len(), tasks.capacity());
         }};
     }
     macro_rules! push_value {
         ($value:expr) => {{
             memo.work_meter.charge(1)?;
-            memo.reserve_walker_with_source(
+            let reservation = memo.reserve_walker_with_source(
                 &mut values,
                 F5cWalkerLaneKind::BinderValues,
                 source_meter,
-            )?;
+            );
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            values_owner.observe(values.len(), values.capacity());
+            reservation?;
             values.push($value);
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            values_owner.observe(values.len(), values.capacity());
+        }};
+    }
+
+    macro_rules! pop_task {
+        () => {{
+            let popped = tasks.pop();
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            tasks_owner.observe(tasks.len(), tasks.capacity());
+            popped
+        }};
+    }
+    macro_rules! pop_value {
+        () => {{
+            let popped = values.pop();
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            values_owner.observe(values.len(), values.capacity());
+            popped
         }};
     }
 
@@ -301,8 +397,7 @@ fn substitute<'meter>(
         push_task!(first);
         while !tasks.is_empty() {
             memo.work_meter.charge(1)?;
-            let task = tasks
-                .pop()
+            let task = pop_task!()
                 .ok_or(SolveAvailabilityError::IdentityExhausted)?;
             match task {
                 Task::Positive(value) => match value {
@@ -386,13 +481,19 @@ fn substitute<'meter>(
                         &memo.work_meter,
                         count,
                     );
-                    let mut children = TrackedVec::new(source_meter);
+                    let mut children = TrackedVec::new_with_kind(
+                        source_meter, PhysicalOwnerKind::UnionChildren);
                     memo.work_meter.charge(count)?;
                     memo.observe_component_external(source_meter)?;
                     children
                         .try_reserve_exact(count)
                         .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
-                    for value in values.drain(start..) {
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    let values_capacity = values.capacity();
+                    let drained = values.drain(start..);
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    values_owner.observe(start, values_capacity);
+                    for value in drained {
                         let F5cWalkValue::Positive(value, _) = value else {
                             return Err(SolveAvailabilityError::IdentityExhausted);
                         };
@@ -413,13 +514,19 @@ fn substitute<'meter>(
                         &memo.work_meter,
                         count,
                     );
-                    let mut children = TrackedVec::new(source_meter);
+                    let mut children = TrackedVec::new_with_kind(
+                        source_meter, PhysicalOwnerKind::IntersectionChildren);
                     memo.work_meter.charge(count)?;
                     memo.observe_component_external(source_meter)?;
                     children
                         .try_reserve_exact(count)
                         .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
-                    for value in values.drain(start..) {
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    let values_capacity = values.capacity();
+                    let drained = values.drain(start..);
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    values_owner.observe(start, values_capacity);
+                    for value in drained {
                         let F5cWalkValue::Negative(value, _) = value else {
                             return Err(SolveAvailabilityError::IdentityExhausted);
                         };
@@ -432,25 +539,25 @@ fn substitute<'meter>(
                 }
                 Task::FinishPositiveFunction => {
                     memo.work_meter.charge(2)?;
-                    let F5cWalkValue::Positive(result, _) = values
-                        .pop()
+                    let F5cWalkValue::Positive(result, _) = pop_value!()
                         .ok_or(SolveAvailabilityError::IdentityExhausted)?
                     else {
                         return Err(SolveAvailabilityError::IdentityExhausted);
                     };
-                    let F5cWalkValue::Negative(argument, _) = values
-                        .pop()
+                    let F5cWalkValue::Negative(argument, _) = pop_value!()
                         .ok_or(SolveAvailabilityError::IdentityExhausted)?
                     else {
                         return Err(SolveAvailabilityError::IdentityExhausted);
                     };
                     push_value!(F5cWalkValue::Positive(
                         F5cPositive::Function {
-                            argument: TrackedOne::try_new(source_meter, argument)
+                            argument: TrackedOne::try_new_with_kind(source_meter, argument,
+                                PhysicalOwnerKind::PositiveFunctionArgument)
                                 .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
                             argument_effect: F5cNegativeEffect::Empty,
                             result_effect: F5cPositiveEffect::Bottom,
-                            result: TrackedOne::try_new(source_meter, result)
+                            result: TrackedOne::try_new_with_kind(source_meter, result,
+                                PhysicalOwnerKind::PositiveFunctionResult)
                                 .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
                         },
                         true,
@@ -458,25 +565,25 @@ fn substitute<'meter>(
                 }
                 Task::FinishNegativeFunction => {
                     memo.work_meter.charge(2)?;
-                    let F5cWalkValue::Negative(result, _) = values
-                        .pop()
+                    let F5cWalkValue::Negative(result, _) = pop_value!()
                         .ok_or(SolveAvailabilityError::IdentityExhausted)?
                     else {
                         return Err(SolveAvailabilityError::IdentityExhausted);
                     };
-                    let F5cWalkValue::Positive(argument, _) = values
-                        .pop()
+                    let F5cWalkValue::Positive(argument, _) = pop_value!()
                         .ok_or(SolveAvailabilityError::IdentityExhausted)?
                     else {
                         return Err(SolveAvailabilityError::IdentityExhausted);
                     };
                     push_value!(F5cWalkValue::Negative(
                         F5cNegative::Function {
-                            argument: TrackedOne::try_new(source_meter, argument)
+                            argument: TrackedOne::try_new_with_kind(source_meter, argument,
+                                PhysicalOwnerKind::NegativeFunctionArgument)
                                 .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
                             argument_effect: F5cPositiveEffect::Bottom,
                             result_effect: F5cNegativeEffect::Empty,
-                            result: TrackedOne::try_new(source_meter, result)
+                            result: TrackedOne::try_new_with_kind(source_meter, result,
+                                PhysicalOwnerKind::NegativeFunctionResult)
                                 .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
                         },
                         true,
@@ -487,8 +594,7 @@ fn substitute<'meter>(
         if values.len() != 1 {
             return Err(SolveAvailabilityError::IdentityExhausted);
         }
-        values
-            .pop()
+        pop_value!()
             .ok_or(SolveAvailabilityError::IdentityExhausted)
     })();
     memo.release_walker_with_source(F5cWalkerLaneKind::BinderTasks, source_meter)?;

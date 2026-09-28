@@ -1252,7 +1252,9 @@ fn post_r_selected_owners_and_q_r_ordinals_match_boxed_and_flat() {
             .is_some()
     );
     drop(indexed);
-    crate::f5c_replay::release_flat_output(&mut flat_memo, output);
+    crate::f5c_replay::release_flat_output(&mut flat_memo, output,
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        None);
     crate::f5c_generalization::release_flat_post_r_lanes(&mut flat_memo);
     assert_eq!(
         flat_memo.walker_resources.lanes[F5cWalkerLaneKind::RetainedOwnerBounds as usize]
@@ -1552,7 +1554,9 @@ fn post_r_trace_order_overrides_raw_order_for_two_retained_owners() {
     assert_eq!(retried.q, boxed.q);
     assert_eq!(retried.r, boxed.r);
     drop(indexed);
-    crate::f5c_replay::release_flat_output(&mut flat_memo, output);
+    crate::f5c_replay::release_flat_output(&mut flat_memo, output,
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        None);
     crate::f5c_generalization::release_flat_post_r_lanes(&mut flat_memo);
     for lane in [
         F5cWalkerLaneKind::RetainedOwnerBounds,
@@ -4772,6 +4776,8 @@ fn checked_materialization_observes_co_resident_source_memo_draft_and_scratch() 
     let mut draft = FlatDraft::default();
     materialize_summary_flat_checked(
         &mut generalizer.memo,
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        None,
         &mut draft,
         shared,
         Polarity::Positive,
@@ -4893,276 +4899,4 @@ fn checked_materialization_observes_co_resident_source_memo_draft_and_scratch() 
             .independent_simultaneous_memo_peak_bytes
             >= simultaneous
     );
-}
-
-#[cfg(feature = "f5c_resource_probe")]
-#[test]
-fn post_r_occurrence_owner_events_match_live_lanes_and_failure() {
-    use crate::f5c_draft::{FlatDraft, PositiveNode};
-    use crate::f5c_draft_heap::{close_f5c_resource_events, open_f5c_resource_events};
-    use std::collections::{HashMap, HashSet};
-
-    let path = std::env::temp_dir().join(format!(
-        "f5c-occurrence-{}-{:?}.bin",
-        std::process::id(),
-        std::thread::current().id()
-    ));
-    open_f5c_resource_events(&path).unwrap();
-    let meter = DraftHeapMeter::default();
-    meter.set_event_component(71);
-    let predicate = F5cPositive::Union(test_tracked(
-        &meter,
-        vec![
-            F5cPositive::Variable(1),
-            F5cPositive::Variable(2),
-            F5cPositive::Variable(3),
-        ],
-    ));
-    let empty_bounds = HashMap::new();
-    let empty_set = HashSet::new();
-    let positive = HashSet::from([1, 2, 3]);
-    let mut boxed_memo = F5cComponentExpansionMemo::default();
-    let boxed = F5cGeneralizer::boxed_post_r_for_test(
-        &meter,
-        &mut boxed_memo,
-        &predicate,
-        &empty_bounds,
-        &[],
-        &[],
-        &empty_set,
-        &[1, 2, 3],
-        &positive,
-        &empty_set,
-    )
-    .unwrap();
-    assert!(matches!(boxed.retained_predicate, F5cPositive::Union(_)));
-    let boxed_peaks =
-        [55, 56].map(|lane| boxed_memo.walker_resources.independent_lanes[lane].peak_capacity);
-    let boxed_peak_bytes =
-        [55, 56].map(|lane| boxed_memo.walker_resources.independent_lanes[lane].peak_bytes);
-    assert!(boxed_peaks.iter().all(|&capacity| capacity >= 3));
-    for lane in [55, 56] {
-        assert_eq!(boxed_memo.walker_resources.lanes[lane].actual_capacity, 0);
-        assert_eq!(
-            boxed_memo.walker_resources.independent_lanes[lane].actual_capacity,
-            0
-        );
-        assert_eq!(boxed_memo.walker_resources.lanes[lane].requested_slots, 3);
-        assert_eq!(
-            boxed_memo.walker_resources.independent_lanes[lane].requested_slots,
-            3
-        );
-    }
-
-    let mut flat = FlatDraft::default();
-    let children = [1, 2, 3].map(|owner| flat.positive(PositiveNode::Variable(owner)).unwrap());
-    let span = flat.positive_span(&children).unwrap();
-    flat.predicate = Some(flat.positive(PositiveNode::Union(span)).unwrap());
-    let mut flat_memo = F5cComponentExpansionMemo::default();
-    let (_selection, output) = F5cGeneralizer::flat_post_r_for_test(
-        &mut flat_memo,
-        &flat,
-        &HashMap::new(),
-        &[],
-        &[],
-        &empty_set,
-        &[1, 2, 3],
-        &positive,
-        &empty_set,
-    )
-    .unwrap();
-    drop(output);
-    let flat_peaks =
-        [55, 56].map(|lane| flat_memo.walker_resources.independent_lanes[lane].peak_capacity);
-    let flat_peak_bytes =
-        [55, 56].map(|lane| flat_memo.walker_resources.independent_lanes[lane].peak_bytes);
-    assert!(flat_peaks.iter().all(|&capacity| capacity >= 3));
-    for lane in [55, 56] {
-        assert_eq!(flat_memo.walker_resources.lanes[lane].actual_capacity, 0);
-        assert_eq!(
-            flat_memo.walker_resources.independent_lanes[lane].actual_capacity,
-            0
-        );
-        assert_eq!(flat_memo.walker_resources.lanes[lane].requested_slots, 3);
-        assert_eq!(
-            flat_memo.walker_resources.independent_lanes[lane].requested_slots,
-            3
-        );
-    }
-
-    meter.set_event_component(72);
-    let mut failed_memo = F5cComponentExpansionMemo::default();
-    failed_memo.walker_resources.lanes[55].requested_slots = usize::MAX;
-    assert!(
-        F5cGeneralizer::boxed_post_r_for_test(
-            &meter,
-            &mut failed_memo,
-            &predicate,
-            &empty_bounds,
-            &[],
-            &[],
-            &empty_set,
-            &[1, 2, 3],
-            &positive,
-            &empty_set,
-        )
-        .is_err()
-    );
-    assert_eq!(failed_memo.walker_resources.lanes[55].actual_capacity, 0);
-    assert_eq!(failed_memo.walker_resources.lanes[56].actual_capacity, 0);
-    let failed_peaks =
-        [55, 56].map(|lane| failed_memo.walker_resources.independent_lanes[lane].peak_capacity);
-    let failed_peak_bytes =
-        [55, 56].map(|lane| failed_memo.walker_resources.independent_lanes[lane].peak_bytes);
-    for lane in [55, 56] {
-        assert_eq!(failed_memo.walker_resources.lanes[lane].actual_capacity, 0);
-        assert_eq!(
-            failed_memo.walker_resources.independent_lanes[lane].actual_capacity,
-            0
-        );
-        let expected = if lane == 55 { usize::MAX } else { 1 };
-        assert_eq!(
-            failed_memo.walker_resources.lanes[lane].requested_slots,
-            expected
-        );
-        assert_eq!(
-            failed_memo.walker_resources.independent_lanes[lane].requested_slots,
-            if lane == 55 { 0 } else { 1 }
-        );
-    }
-
-    let (count, _) = close_f5c_resource_events().unwrap();
-    let bytes = std::fs::read(&path).unwrap();
-    std::fs::remove_file(path).unwrap();
-    assert_eq!(&bytes[..8], b"F5CRES01");
-    assert_eq!((bytes.len() - 8) % 64, 0);
-    let events: Vec<[u64; 8]> = bytes[8..]
-        .chunks_exact(64)
-        .map(|chunk| {
-            std::array::from_fn(|index| {
-                u64::from_le_bytes(chunk[index * 8..(index + 1) * 8].try_into().unwrap())
-            })
-        })
-        .collect();
-    assert_eq!(events.len() as u64, count);
-    for (component, peaks, peak_bytes, success) in [
-        (71, boxed_peaks, boxed_peak_bytes, true),
-        (0, flat_peaks, flat_peak_bytes, true),
-        (72, failed_peaks, failed_peak_bytes, false),
-    ] {
-        let resources = match component {
-            71 => &boxed_memo.walker_resources,
-            0 => &flat_memo.walker_resources,
-            72 => &failed_memo.walker_resources,
-            _ => unreachable!(),
-        };
-        let ids: Vec<u64> = [55usize, 56]
-            .map(|lane| {
-                events
-                    .iter()
-                    .find(|event| event[0] == component && event[3] == 32 + lane as u64)
-                    .unwrap()[1]
-            })
-            .to_vec();
-        assert_ne!(ids[0], ids[1]);
-        let release_at: Vec<_> = ids
-            .iter()
-            .map(|id| {
-                events
-                    .iter()
-                    .position(|event| event[0] == component && event[1] == *id && event[2] == 5)
-                    .unwrap()
-            })
-            .collect();
-        assert!(release_at[1] < release_at[0]);
-        for (offset, lane) in [55usize, 56].into_iter().enumerate() {
-            let lane_events: Vec<_> = events
-                .iter()
-                .filter(|event| event[0] == component && event[3] == 32 + lane as u64)
-                .collect();
-            assert!(
-                !lane_events.is_empty(),
-                "missing component {component} lane {lane}"
-            );
-            let id = lane_events[0][1];
-            assert_ne!(id, 0);
-            assert!(lane_events.iter().all(|event| event[1] == id));
-            assert_eq!(
-                (lane_events[0][2], lane_events[0][4], lane_events[0][5]),
-                (1, 0, 0)
-            );
-            assert_eq!(lane_events.last().unwrap()[2], 5);
-            assert_eq!(
-                (
-                    lane_events.last().unwrap()[4],
-                    lane_events.last().unwrap()[5]
-                ),
-                (0, 0)
-            );
-            assert_eq!(lane_events.iter().filter(|event| event[2] == 5).count(), 1);
-            assert!(
-                lane_events
-                    .iter()
-                    .all(|event| matches!(event[2], 1 | 2 | 3 | 5))
-            );
-            assert_eq!(
-                lane_events.iter().filter(|event| event[2] == 3).count(),
-                usize::from(success || lane == 56)
-            );
-            let mut current = (0usize, 0usize);
-            let mut peak = 0usize;
-            for event in &lane_events {
-                assert_eq!(event[6] as usize, F5cWalkerLaneKind::ALL[lane].slot_size());
-                let shape = (event[4] as usize, event[5] as usize);
-                match event[2] {
-                    1 => assert_eq!(shape, (0, 0)),
-                    2 => {
-                        assert_eq!(shape.1, current.1);
-                        assert_eq!(shape.0, current.0 + 1);
-                    }
-                    3 => {
-                        assert_eq!(shape.0, current.0);
-                        assert!(shape.1 > current.1);
-                    }
-                    5 => assert_eq!(shape, (0, 0)),
-                    _ => unreachable!(),
-                }
-                current = shape;
-                peak = peak.max(shape.1);
-            }
-            assert_eq!(current, (0, 0));
-            assert_eq!(peak, peaks[offset]);
-            let slot_size = F5cWalkerLaneKind::ALL[lane].slot_size();
-            assert_eq!(peak * slot_size, peak_bytes[offset]);
-            let lane_state = &resources.lanes[lane];
-            let independent_state = &resources.independent_lanes[lane];
-            assert_eq!(lane_state.actual_capacity, current.1);
-            assert_eq!(independent_state.actual_capacity, current.1);
-            assert_eq!(independent_state.peak_capacity, peak);
-            assert_eq!(lane_state.peak_bytes, peak * slot_size);
-            assert_eq!(independent_state.peak_bytes, peak * slot_size);
-            if success {
-                assert_eq!(lane_events[lane_events.len() - 2][4], 3);
-                assert_eq!(
-                    lane_events
-                        .iter()
-                        .filter(|event| event[2] == 2)
-                        .map(|event| event[4])
-                        .collect::<Vec<_>>(),
-                    [1, 2, 3]
-                );
-            } else if lane == 55 {
-                assert!(lane_events.iter().all(|event| event[4] == 0));
-            } else {
-                assert_eq!(
-                    lane_events
-                        .iter()
-                        .filter(|event| event[2] == 2)
-                        .map(|event| event[4])
-                        .collect::<Vec<_>>(),
-                    []
-                );
-            }
-        }
-    }
 }

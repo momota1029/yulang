@@ -249,10 +249,18 @@ fn f5c_flat_tree_analysis_matches_boxed_dfs_and_guarding() {
             NodeRef::Positive(root),
             &mut flat_positive,
             &mut flat_negative,
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            None,
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            None,
         )
         .unwrap();
     walker
-        .incidences_positive(&boxed, &mut boxed_positive, &mut boxed_negative)
+        .incidences_positive(&boxed, &mut boxed_positive, &mut boxed_negative,
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            None,
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            None)
         .unwrap();
     walker
         .flat_references(
@@ -365,7 +373,11 @@ fn f5c_tree_analysis_preserves_depth_first_polarity_and_first_occurrence() {
     {
         let mut walker = crate::f5c_tree_analysis::Walker::new(&mut memo);
         walker
-            .incidences_positive(&value, &mut positive, &mut negative)
+            .incidences_positive(&value, &mut positive, &mut negative,
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                None,
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                None)
             .unwrap();
     }
     assert_eq!(ordered, [3, 4, 5]);
@@ -412,6 +424,10 @@ fn f5c_tree_analysis_preserves_depth_first_polarity_and_first_occurrence() {
                 &negative_value,
                 &mut negative_positive,
                 &mut negative_negative,
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                None,
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                None,
             )
             .unwrap();
         assert!(

@@ -5,10 +5,13 @@ use super::f5c_draft::{
 use super::f5c_generalization::{F5cBulkDrainSite, record_bulk_drain_boundary};
 use super::{
     DraftHeapMeter, F5cComponentExpansionMemo, F5cNegative, F5cNegativeEffect, F5cPositive,
-    F5cPositiveEffect, F5cWalkValue, F5cWalkerLaneKind, SolveAvailabilityError, TrackedOne,
+    F5cPositiveEffect, F5cWalkValue, F5cWalkerLaneKind, PhysicalOwnerKind,
+    SolveAvailabilityError, TrackedOne,
     TrackedVec,
 };
 use std::collections::HashSet;
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+use super::f5c_draft_heap::RawWalkerOwner;
 
 #[cfg(test)]
 thread_local! {
@@ -43,39 +46,58 @@ pub(super) fn observe_flat_output(
 ) -> Result<(), SolveAvailabilityError> {
     let memo_bytes = memo.retained_bytes()?;
     let resources = &mut memo.walker_resources;
-    resources.reserve(
+    let reservation = resources.reserve(
         &mut output.positive_nodes,
         F5cWalkerLaneKind::ReplayOutputPositiveNodes,
         0,
         memo_bytes,
-    )?;
-    resources.reserve(
+    );
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    output.observe_owner(0, output.positive_nodes.len());
+    reservation?;
+    let reservation = resources.reserve(
         &mut output.negative_nodes,
         F5cWalkerLaneKind::ReplayOutputNegativeNodes,
         0,
         memo_bytes,
-    )?;
-    resources.reserve(
+    );
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    output.observe_owner(1, output.negative_nodes.len());
+    reservation?;
+    let reservation = resources.reserve(
         &mut output.positive_children,
         F5cWalkerLaneKind::ReplayOutputPositiveChildren,
         0,
         memo_bytes,
-    )?;
-    resources.reserve(
+    );
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    output.observe_owner(2, output.positive_children.len());
+    reservation?;
+    let reservation = resources.reserve(
         &mut output.negative_children,
         F5cWalkerLaneKind::ReplayOutputNegativeChildren,
         0,
         memo_bytes,
-    )?;
-    resources.reserve(
+    );
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    output.observe_owner(3, output.negative_children.len());
+    reservation?;
+    let reservation = resources.reserve(
         &mut output.insertion_order,
         F5cWalkerLaneKind::ReplayOutputInsertionOrder,
         0,
         memo_bytes,
-    )
+    );
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    output.observe_owner(5, output.insertion_order.len());
+    reservation
 }
 
-pub(super) fn release_flat_output(memo: &mut F5cComponentExpansionMemo, output: FlatDraft) {
+pub(super) fn release_flat_output(
+    memo: &mut F5cComponentExpansionMemo,
+    output: FlatDraft,
+    #[cfg(all(test, feature = "f5c_resource_probe"))] source_meter: Option<&DraftHeapMeter>,
+) {
     drop(output);
     for lane in [
         F5cWalkerLaneKind::ReplayOutputPositiveNodes,
@@ -85,6 +107,10 @@ pub(super) fn release_flat_output(memo: &mut F5cComponentExpansionMemo, output: 
         F5cWalkerLaneKind::ReplayOutputInsertionOrder,
     ] {
         memo.walker_resources.release(lane);
+    }
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    if let Some(source_meter) = source_meter {
+        let _ = memo.observe_component_external(source_meter);
     }
 }
 
@@ -119,6 +145,8 @@ fn flat_children<T: Copy>(children: &[T], span: ChildSpan) -> Result<&[T], Solve
 #[allow(dead_code)]
 pub(super) fn replay_flat(
     memo: &mut F5cComponentExpansionMemo,
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    probe_meter: Option<&DraftHeapMeter>,
     source: &FlatDraft,
     root: NodeRef,
     output: &mut FlatDraft,
@@ -143,51 +171,136 @@ pub(super) fn replay_flat(
             .ok_or(exhausted)?;
         memo.work_meter.charge(active_len)?; // initialized replay-active slots
         let mut active_positive = Vec::new();
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        let mut active_positive_owner = probe_meter.map(|meter| RawWalkerOwner::new(meter,
+            F5cWalkerLaneKind::ReplayActivePositive as usize,
+            F5cWalkerLaneKind::ReplayActivePositive.slot_size()));
         let memo_bytes = memo.retained_bytes()?;
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        let old_capacity = active_positive.capacity();
         let allocation = memo.walker_resources.reserve(
             &mut active_positive,
             F5cWalkerLaneKind::ReplayActivePositive,
             source.positive_nodes.len(),
             memo_bytes,
         );
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        if let Some(owner) = active_positive_owner.as_mut() {
+            owner.observe(active_positive.len(), active_positive.capacity());
+        }
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        let allocation = memo.observe_walker_capacity_change_with_source(
+            probe_meter, old_capacity, active_positive.capacity()).and(allocation);
         if let Err(error) = allocation {
             drop(active_positive);
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            drop(active_positive_owner);
             memo.walker_resources
                 .release(F5cWalkerLaneKind::ReplayActivePositive);
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            if let Some(meter) = probe_meter {
+                memo.observe_walker_with_source(meter)?;
+            }
             return Err(error);
         }
         active_positive.resize(source.positive_nodes.len(), false);
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        if let Some(owner) = active_positive_owner.as_mut() {
+            owner.observe(active_positive.len(), active_positive.capacity());
+        }
         let mut active_negative = Vec::new();
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        let mut active_negative_owner = probe_meter.map(|meter| RawWalkerOwner::new(meter,
+            F5cWalkerLaneKind::ReplayActiveNegative as usize,
+            F5cWalkerLaneKind::ReplayActiveNegative.slot_size()));
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        let old_capacity = active_negative.capacity();
         let allocation = memo.walker_resources.reserve(
             &mut active_negative,
             F5cWalkerLaneKind::ReplayActiveNegative,
             source.negative_nodes.len(),
             memo_bytes,
         );
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        if let Some(owner) = active_negative_owner.as_mut() {
+            owner.observe(active_negative.len(), active_negative.capacity());
+        }
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        let allocation = memo.observe_walker_capacity_change_with_source(
+            probe_meter, old_capacity, active_negative.capacity()).and(allocation);
         if let Err(error) = allocation {
             drop(active_positive);
             drop(active_negative);
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            {
+                drop(active_positive_owner);
+                drop(active_negative_owner);
+            }
             memo.walker_resources
                 .release(F5cWalkerLaneKind::ReplayActivePositive);
             memo.walker_resources
                 .release(F5cWalkerLaneKind::ReplayActiveNegative);
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            if let Some(meter) = probe_meter {
+                memo.observe_walker_with_source(meter)?;
+            }
             return Err(error);
         }
         active_negative.resize(source.negative_nodes.len(), false);
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        if let Some(owner) = active_negative_owner.as_mut() {
+            owner.observe(active_negative.len(), active_negative.capacity());
+        }
 
         let mut tasks = Vec::new();
         let mut values = Vec::new();
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        let mut tasks_owner = probe_meter.map(|meter| RawWalkerOwner::new(meter,
+            F5cWalkerLaneKind::ReplayTasks as usize,
+            F5cWalkerLaneKind::ReplayTasks.slot_size()));
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        let mut values_owner = probe_meter.map(|meter| RawWalkerOwner::new(meter,
+            F5cWalkerLaneKind::ReplayValues as usize,
+            F5cWalkerLaneKind::ReplayValues.slot_size()));
         macro_rules! push_task {
             ($task:expr) => {{
                 memo.work_meter.charge(1)?; // scheduled flat replay task
-                memo.reserve_walker(&mut tasks, F5cWalkerLaneKind::ReplayTasks)?;
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                let old_capacity = tasks.capacity();
+                let reservation = memo.reserve_walker(&mut tasks, F5cWalkerLaneKind::ReplayTasks);
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                if let Some(owner) = tasks_owner.as_mut() {
+                    owner.observe(tasks.len(), tasks.capacity());
+                }
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                memo.observe_walker_capacity_change_with_source(
+                    probe_meter, old_capacity, tasks.capacity())?;
+                reservation?;
                 tasks.push($task);
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                if let Some(owner) = tasks_owner.as_mut() {
+                    owner.observe(tasks.len(), tasks.capacity());
+                }
             }};
         }
         macro_rules! push_value {
             ($value:expr) => {{
-                memo.reserve_walker(&mut values, F5cWalkerLaneKind::ReplayValues)?;
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                let old_capacity = values.capacity();
+                let reservation = memo.reserve_walker(&mut values, F5cWalkerLaneKind::ReplayValues);
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                if let Some(owner) = values_owner.as_mut() {
+                    owner.observe(values.len(), values.capacity());
+                }
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                memo.observe_walker_capacity_change_with_source(
+                    probe_meter, old_capacity, values.capacity())?;
+                reservation?;
                 values.push($value);
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                if let Some(owner) = values_owner.as_mut() {
+                    owner.observe(values.len(), values.capacity());
+                }
             }};
         }
         macro_rules! push_positive {
@@ -198,6 +311,26 @@ pub(super) fn replay_flat(
         macro_rules! push_negative {
             ($node:expr) => {{
                 push_value!(NodeRef::Negative(output.negative($node)?));
+            }};
+        }
+        macro_rules! pop_task {
+            () => {{
+                let popped = tasks.pop();
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                if let Some(owner) = tasks_owner.as_mut() {
+                    owner.observe(tasks.len(), tasks.capacity());
+                }
+                popped
+            }};
+        }
+        macro_rules! pop_value {
+            () => {{
+                let popped = values.pop();
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                if let Some(owner) = values_owner.as_mut() {
+                    owner.observe(values.len(), values.capacity());
+                }
+                popped
             }};
         }
 
@@ -213,7 +346,7 @@ pub(super) fn replay_flat(
                     FAIL_AFTER_FLAT_OUTPUT.with(|flag| flag.set(0));
                     return Err(exhausted);
                 }
-                let task = tasks.pop().expect("nonempty flat replay tasks");
+                let task = pop_task!().expect("nonempty flat replay tasks");
                 match task {
                     FlatTask::Positive(id) => {
                         let index = usize::try_from(id.0).map_err(|_| exhausted)?;
@@ -358,11 +491,19 @@ pub(super) fn replay_flat(
                         child_start.checked_add(child_len).ok_or(exhausted)?;
                         output.admit_child_entries(count)?;
                         output.admit_logical_incidences(count)?;
-                        output
-                            .positive_children
-                            .try_reserve(count)
-                            .map_err(|_| exhausted)?;
-                        for value in values.drain(start..) {
+                        let reservation = output.positive_children.try_reserve(count)
+                            .map_err(|_| exhausted);
+                        #[cfg(all(test, feature = "f5c_resource_probe"))]
+                        output.observe_owner(2, output.positive_children.len() + count);
+                        reservation?;
+                        #[cfg(all(test, feature = "f5c_resource_probe"))]
+                        let values_capacity = values.capacity();
+                        let drained = values.drain(start..);
+                        #[cfg(all(test, feature = "f5c_resource_probe"))]
+                        if let Some(owner) = values_owner.as_mut() {
+                            owner.observe(start, values_capacity);
+                        }
+                        for value in drained {
                             let NodeRef::Positive(child) = value else {
                                 return Err(exhausted);
                             };
@@ -381,11 +522,19 @@ pub(super) fn replay_flat(
                         child_start.checked_add(child_len).ok_or(exhausted)?;
                         output.admit_child_entries(count)?;
                         output.admit_logical_incidences(count)?;
-                        output
-                            .negative_children
-                            .try_reserve(count)
-                            .map_err(|_| exhausted)?;
-                        for value in values.drain(start..) {
+                        let reservation = output.negative_children.try_reserve(count)
+                            .map_err(|_| exhausted);
+                        #[cfg(all(test, feature = "f5c_resource_probe"))]
+                        output.observe_owner(3, output.negative_children.len() + count);
+                        reservation?;
+                        #[cfg(all(test, feature = "f5c_resource_probe"))]
+                        let values_capacity = values.capacity();
+                        let drained = values.drain(start..);
+                        #[cfg(all(test, feature = "f5c_resource_probe"))]
+                        if let Some(owner) = values_owner.as_mut() {
+                            owner.observe(start, values_capacity);
+                        }
+                        for value in drained {
                             let NodeRef::Negative(child) = value else {
                                 return Err(exhausted);
                             };
@@ -397,19 +546,19 @@ pub(super) fn replay_flat(
                         }));
                     }
                     FlatTask::FinishPositiveFunction => {
-                        let NodeRef::Positive(result) = values.pop().ok_or(exhausted)? else {
+                        let NodeRef::Positive(result) = pop_value!().ok_or(exhausted)? else {
                             return Err(exhausted);
                         };
-                        let NodeRef::Negative(argument) = values.pop().ok_or(exhausted)? else {
+                        let NodeRef::Negative(argument) = pop_value!().ok_or(exhausted)? else {
                             return Err(exhausted);
                         };
                         push_positive!(PositiveNode::Function { argument, result });
                     }
                     FlatTask::FinishNegativeFunction => {
-                        let NodeRef::Negative(result) = values.pop().ok_or(exhausted)? else {
+                        let NodeRef::Negative(result) = pop_value!().ok_or(exhausted)? else {
                             return Err(exhausted);
                         };
-                        let NodeRef::Positive(argument) = values.pop().ok_or(exhausted)? else {
+                        let NodeRef::Positive(argument) = pop_value!().ok_or(exhausted)? else {
                             return Err(exhausted);
                         };
                         push_negative!(NegativeNode::Function { argument, result });
@@ -419,7 +568,7 @@ pub(super) fn replay_flat(
             if values.len() != 1 {
                 return Err(exhausted);
             }
-            values.pop().ok_or(exhausted)
+            pop_value!().ok_or(exhausted)
         })();
         #[cfg(test)]
         if replayed.is_ok() && FAIL_AFTER_FLAT_OUTPUT.with(|flag| flag.get()) == 1 {
@@ -432,13 +581,30 @@ pub(super) fn replay_flat(
         }
         #[cfg(test)]
         let observed = observe_flat_output(memo, output);
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        let observed = observed.and_then(|()| match probe_meter {
+            Some(meter) => memo.observe_walker_with_source(meter),
+            None => Ok(()),
+        });
         #[cfg(test)]
         let replayed = match observed {
             Ok(()) => replayed,
             Err(error) => Err(error),
         };
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        let had_scratch_capacity = active_positive.capacity() != 0
+            || active_negative.capacity() != 0 || tasks.capacity() != 0 || values.capacity() != 0;
         drop(active_positive);
         drop(active_negative);
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        {
+            drop(tasks);
+            drop(values);
+            drop(active_positive_owner);
+            drop(active_negative_owner);
+            drop(tasks_owner);
+            drop(values_owner);
+        }
         memo.walker_resources
             .release(F5cWalkerLaneKind::ReplayActivePositive);
         memo.walker_resources
@@ -447,6 +613,10 @@ pub(super) fn replay_flat(
             .release(F5cWalkerLaneKind::ReplayTasks);
         memo.walker_resources
             .release(F5cWalkerLaneKind::ReplayValues);
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        if had_scratch_capacity && let Some(meter) = probe_meter {
+            memo.observe_walker_with_source(meter)?;
+        }
         replayed
     })();
     if result.is_err() {
@@ -455,6 +625,8 @@ pub(super) fn replay_flat(
         output.positive_children.truncate(checkpoint.2);
         output.negative_children.truncate(checkpoint.3);
         output.insertion_order.truncate(checkpoint.4);
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        output.sync_owners();
         output.restore_structural_census(checkpoint.5);
     }
     result
@@ -512,26 +684,61 @@ fn replay<'meter>(
 ) -> Result<F5cWalkValue<'meter>, SolveAvailabilityError> {
     let mut tasks = Vec::new();
     let mut values = Vec::new();
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    let mut tasks_owner = RawWalkerOwner::new(source_meter,
+        F5cWalkerLaneKind::ReplayTasks as usize,
+        F5cWalkerLaneKind::ReplayTasks.slot_size());
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    let mut values_owner = RawWalkerOwner::new(source_meter,
+        F5cWalkerLaneKind::ReplayValues as usize,
+        F5cWalkerLaneKind::ReplayValues.slot_size());
     macro_rules! push_task {
         ($task:expr) => {{
             memo.work_meter.charge(1)?; // scheduled replay task
-            memo.reserve_walker_with_source(
+            let reservation = memo.reserve_walker_with_source(
                 &mut tasks,
                 F5cWalkerLaneKind::ReplayTasks,
                 source_meter,
-            )?;
+            );
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            tasks_owner.observe(tasks.len(), tasks.capacity());
+            reservation?;
             tasks.push($task);
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            tasks_owner.observe(tasks.len(), tasks.capacity());
         }};
     }
     macro_rules! push_value {
         ($value:expr) => {{
             memo.work_meter.charge(1)?; // emitted replay value
-            memo.reserve_walker_with_source(
+            let reservation = memo.reserve_walker_with_source(
                 &mut values,
                 F5cWalkerLaneKind::ReplayValues,
                 source_meter,
-            )?;
+            );
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            values_owner.observe(values.len(), values.capacity());
+            reservation?;
             values.push($value);
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            values_owner.observe(values.len(), values.capacity());
+        }};
+    }
+
+    macro_rules! pop_task {
+        () => {{
+            let popped = tasks.pop();
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            tasks_owner.observe(tasks.len(), tasks.capacity());
+            popped
+        }};
+    }
+    macro_rules! pop_value {
+        () => {{
+            let popped = values.pop();
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            values_owner.observe(values.len(), values.capacity());
+            popped
         }};
     }
 
@@ -539,7 +746,7 @@ fn replay<'meter>(
         push_task!(first);
         while !tasks.is_empty() {
             memo.work_meter.charge(1)?; // visited source or finish task
-            let task = tasks.pop().expect("nonempty replay tasks");
+            let task = pop_task!().expect("nonempty replay tasks");
             match task {
                 Task::Positive(value) => match value {
                     F5cPositive::Variable(owner)
@@ -635,13 +842,19 @@ fn replay<'meter>(
                         &memo.work_meter,
                         count,
                     );
-                    let mut children = TrackedVec::new(source_meter);
+                    let mut children = TrackedVec::new_with_kind(
+                        source_meter, PhysicalOwnerKind::UnionChildren);
                     memo.work_meter.charge(count)?;
                     memo.observe_component_external(source_meter)?;
                     children
                         .try_reserve_exact(count)
                         .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
-                    for value in values.drain(start..) {
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    let values_capacity = values.capacity();
+                    let drained = values.drain(start..);
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    values_owner.observe(start, values_capacity);
+                    for value in drained {
                         let F5cWalkValue::Positive(value, _) = value else {
                             return Err(SolveAvailabilityError::IdentityExhausted);
                         };
@@ -662,13 +875,19 @@ fn replay<'meter>(
                         &memo.work_meter,
                         count,
                     );
-                    let mut children = TrackedVec::new(source_meter);
+                    let mut children = TrackedVec::new_with_kind(
+                        source_meter, PhysicalOwnerKind::IntersectionChildren);
                     memo.work_meter.charge(count)?;
                     memo.observe_component_external(source_meter)?;
                     children
                         .try_reserve_exact(count)
                         .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
-                    for value in values.drain(start..) {
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    let values_capacity = values.capacity();
+                    let drained = values.drain(start..);
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    values_owner.observe(start, values_capacity);
+                    for value in drained {
                         let F5cWalkValue::Negative(value, _) = value else {
                             return Err(SolveAvailabilityError::IdentityExhausted);
                         };
@@ -680,50 +899,50 @@ fn replay<'meter>(
                     ));
                 }
                 Task::FinishPositiveFunction => {
-                    let F5cWalkValue::Positive(result, _) = values
-                        .pop()
+                    let F5cWalkValue::Positive(result, _) = pop_value!()
                         .ok_or(SolveAvailabilityError::IdentityExhausted)?
                     else {
                         return Err(SolveAvailabilityError::IdentityExhausted);
                     };
-                    let F5cWalkValue::Negative(argument, _) = values
-                        .pop()
+                    let F5cWalkValue::Negative(argument, _) = pop_value!()
                         .ok_or(SolveAvailabilityError::IdentityExhausted)?
                     else {
                         return Err(SolveAvailabilityError::IdentityExhausted);
                     };
                     push_value!(F5cWalkValue::Positive(
                         F5cPositive::Function {
-                            argument: TrackedOne::try_new(source_meter, argument)
+                            argument: TrackedOne::try_new_with_kind(source_meter, argument,
+                                PhysicalOwnerKind::PositiveFunctionArgument)
                                 .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
                             argument_effect: F5cNegativeEffect::Empty,
                             result_effect: F5cPositiveEffect::Bottom,
-                            result: TrackedOne::try_new(source_meter, result)
+                            result: TrackedOne::try_new_with_kind(source_meter, result,
+                                PhysicalOwnerKind::PositiveFunctionResult)
                                 .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
                         },
                         true,
                     ));
                 }
                 Task::FinishNegativeFunction => {
-                    let F5cWalkValue::Negative(result, _) = values
-                        .pop()
+                    let F5cWalkValue::Negative(result, _) = pop_value!()
                         .ok_or(SolveAvailabilityError::IdentityExhausted)?
                     else {
                         return Err(SolveAvailabilityError::IdentityExhausted);
                     };
-                    let F5cWalkValue::Positive(argument, _) = values
-                        .pop()
+                    let F5cWalkValue::Positive(argument, _) = pop_value!()
                         .ok_or(SolveAvailabilityError::IdentityExhausted)?
                     else {
                         return Err(SolveAvailabilityError::IdentityExhausted);
                     };
                     push_value!(F5cWalkValue::Negative(
                         F5cNegative::Function {
-                            argument: TrackedOne::try_new(source_meter, argument)
+                            argument: TrackedOne::try_new_with_kind(source_meter, argument,
+                                PhysicalOwnerKind::NegativeFunctionArgument)
                                 .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
                             argument_effect: F5cPositiveEffect::Bottom,
                             result_effect: F5cNegativeEffect::Empty,
-                            result: TrackedOne::try_new(source_meter, result)
+                            result: TrackedOne::try_new_with_kind(source_meter, result,
+                                PhysicalOwnerKind::NegativeFunctionResult)
                                 .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
                         },
                         true,
@@ -734,10 +953,16 @@ fn replay<'meter>(
         if values.len() != 1 {
             return Err(SolveAvailabilityError::IdentityExhausted);
         }
-        values
-            .pop()
+        pop_value!()
             .ok_or(SolveAvailabilityError::IdentityExhausted)
     })();
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    {
+        drop(tasks);
+        drop(values);
+        drop(tasks_owner);
+        drop(values_owner);
+    }
     memo.release_walker_with_source(F5cWalkerLaneKind::ReplayTasks, source_meter)?;
     memo.release_walker_with_source(F5cWalkerLaneKind::ReplayValues, source_meter)?;
     result

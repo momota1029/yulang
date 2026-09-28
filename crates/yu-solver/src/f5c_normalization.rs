@@ -7,7 +7,8 @@ use super::f5c_draft::{
     RecursiveBound,
 };
 use super::{
-    DraftHeapMeter, F5cNegative, F5cPositive, GeneralizationDraft, SolveAvailabilityError,
+    DraftHeapMeter, F5cNegative, F5cPositive, GeneralizationDraft, PhysicalOwnerKind,
+    SolveAvailabilityError,
     TrackedOne, TrackedVec,
 };
 #[cfg(test)]
@@ -292,6 +293,8 @@ struct FlatCandidateObserver(FlatCandidateCapacity);
 #[derive(Clone)]
 struct FlatCandidateCapacity {
     work: super::f5c_generalization::F5cDraftWorkMeter,
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    event_component: usize,
     base_memo_bytes: usize,
     base_walker_bytes: usize,
     #[cfg(test)]
@@ -335,6 +338,9 @@ pub(super) struct FlatPhysicalIndexLedger {
     requests: [usize; FLAT_CANDIDATE_LANE_COUNT],
     member_output_lengths: [usize; 6],
     output_member_samples: Vec<[usize; 6]>,
+    output_member_totals: [usize; 6],
+    #[cfg(feature = "f5c_resource_probe")]
+    matrix_active: bool,
     growths: [usize; FLAT_CANDIDATE_LANE_COUNT],
     lane_peaks: [usize; FLAT_CANDIDATE_LANE_COUNT],
     peak_capacities: [usize; FLAT_CANDIDATE_LANE_COUNT],
@@ -362,15 +368,26 @@ impl FlatPhysicalIndexLedger {
     }
 
     fn handoff_member(&mut self) -> Result<(), SolveAvailabilityError> {
-        self.output_member_samples.push(self.member_output_lengths);
+        self.finish_member_sample()?;
         self.member_output_lengths = [0; 6];
         self.clear(LANE_COUNT + 5..LANE_COUNT + 14)
     }
 
     fn release_after_normalizer_drop(&mut self) -> Result<(), SolveAvailabilityError> {
-        self.output_member_samples.push(self.member_output_lengths);
+        self.finish_member_sample()?;
         self.member_output_lengths = [0; 6];
         self.clear(0..FLAT_CANDIDATE_LANE_COUNT)
+    }
+
+    fn finish_member_sample(&mut self) -> Result<(), SolveAvailabilityError> {
+        for (total, length) in self.output_member_totals.iter_mut().zip(self.member_output_lengths) {
+            *total = total.checked_add(length)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        }
+        #[cfg(feature = "f5c_resource_probe")]
+        if self.matrix_active { return Ok(()); }
+        self.output_member_samples.push(self.member_output_lengths);
+        Ok(())
     }
 
     fn record(
@@ -1825,7 +1842,8 @@ impl<'meter> Normalizer<'meter> {
                     let end = start
                         .checked_add(len)
                         .ok_or(SolveAvailabilityError::IdentityExhausted)?;
-                    let mut values = TrackedVec::new(source_meter);
+                    let mut values = TrackedVec::new_with_kind(
+                        source_meter, PhysicalOwnerKind::UnionChildren);
                     values
                         .try_reserve_exact(len)
                         .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
@@ -1848,11 +1866,13 @@ impl<'meter> Normalizer<'meter> {
                         return Err(SolveAvailabilityError::IdentityExhausted);
                     };
                     BuiltValue::Positive(F5cPositive::Function {
-                        argument: TrackedOne::try_new(source_meter, argument)
+                        argument: TrackedOne::try_new_with_kind(source_meter, argument,
+                            PhysicalOwnerKind::PositiveFunctionArgument)
                             .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
                         argument_effect: super::F5cNegativeEffect::Empty,
                         result_effect: super::F5cPositiveEffect::Bottom,
-                        result: TrackedOne::try_new(source_meter, result)
+                        result: TrackedOne::try_new_with_kind(source_meter, result,
+                            PhysicalOwnerKind::PositiveFunctionResult)
                             .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
                     })
                 }
@@ -1869,7 +1889,8 @@ impl<'meter> Normalizer<'meter> {
                     let end = start
                         .checked_add(len)
                         .ok_or(SolveAvailabilityError::IdentityExhausted)?;
-                    let mut values = TrackedVec::new(source_meter);
+                    let mut values = TrackedVec::new_with_kind(
+                        source_meter, PhysicalOwnerKind::IntersectionChildren);
                     values
                         .try_reserve_exact(len)
                         .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
@@ -1892,11 +1913,13 @@ impl<'meter> Normalizer<'meter> {
                         return Err(SolveAvailabilityError::IdentityExhausted);
                     };
                     BuiltValue::Negative(F5cNegative::Function {
-                        argument: TrackedOne::try_new(source_meter, argument)
+                        argument: TrackedOne::try_new_with_kind(source_meter, argument,
+                            PhysicalOwnerKind::NegativeFunctionArgument)
                             .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
                         argument_effect: super::F5cPositiveEffect::Bottom,
                         result_effect: super::F5cNegativeEffect::Empty,
-                        result: TrackedOne::try_new(source_meter, result)
+                        result: TrackedOne::try_new_with_kind(source_meter, result,
+                            PhysicalOwnerKind::NegativeFunctionResult)
                             .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
                     })
                 }
@@ -2801,6 +2824,8 @@ fn new_flat_candidate_observer(
     let _ = staged;
     Ok(FlatCandidateObserver(FlatCandidateCapacity {
         work: memo.work_meter.clone(),
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        event_component: source_meter.event_component(),
         base_memo_bytes: memo.retained_bytes()?,
         base_walker_bytes: memo.walker_resources.retained_bytes()?,
         #[cfg(test)]
@@ -2845,7 +2870,13 @@ fn new_flat_candidate_observer(
         #[cfg(test)]
         physical_peak: None,
         #[cfg(test)]
-        physical_index: FlatPhysicalIndexLedger::default(),
+        physical_index: {
+            #[allow(unused_mut)]
+            let mut index = FlatPhysicalIndexLedger::default();
+            #[cfg(feature = "f5c_resource_probe")]
+            { index.matrix_active = memo.matrix_active; }
+            index
+        },
     }))
 }
 
@@ -2873,6 +2904,28 @@ fn complete_flat_candidate_observer(
     }
     #[cfg(test)]
     if let Some(physical) = state.physical_peak.clone() {
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        if memo.matrix_active {
+            let scratch = physical.capacities.iter().zip(physical.sizes)
+                .try_fold(0usize, |sum, (capacity, size)|
+                    capacity.checked_mul(size).and_then(|bytes| sum.checked_add(bytes)))
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            let old_scratch = memo.matrix_flat_candidate_peaks[1].as_ref()
+                .and_then(|sample| sample.capacities.iter().zip(sample.sizes)
+                    .try_fold(0usize, |sum, (capacity, size)|
+                        capacity.checked_mul(size).and_then(|bytes| sum.checked_add(bytes))))
+                .unwrap_or(0);
+            if memo.matrix_flat_candidate_peaks[0].as_ref()
+                .is_none_or(|sample| physical.observed_total_bytes > sample.observed_total_bytes) {
+                memo.matrix_flat_candidate_peaks[0] = Some(physical.clone());
+            }
+            if scratch > old_scratch {
+                memo.matrix_flat_candidate_peaks[1] = Some(physical);
+            }
+        } else {
+            memo.flat_candidate_physical_peaks.push(physical);
+        }
+        #[cfg(not(all(test, feature = "f5c_resource_probe")))]
         memo.flat_candidate_physical_peaks.push(physical);
     }
     let mut merged_lanes = [FlatCandidateLane::default(); FLAT_CANDIDATE_LANE_COUNT];
@@ -3169,6 +3222,17 @@ fn rebuild_flat_member_with_map(
         quantifier_count: q_count,
         ..FlatDraft::default()
     };
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    if let Some(observer) = normalizer.stats.candidate_observer.as_ref() {
+        output.attach_owners_component(observer.0.event_component, [
+            super::F5cWalkerLaneKind::NormalizedPositiveNodes as usize,
+            super::F5cWalkerLaneKind::NormalizedNegativeNodes as usize,
+            super::F5cWalkerLaneKind::NormalizedPositiveChildren as usize,
+            super::F5cWalkerLaneKind::NormalizedNegativeChildren as usize,
+            super::F5cWalkerLaneKind::NormalizedRecursiveBounds as usize,
+            super::F5cWalkerLaneKind::NormalizedInsertionOrder as usize,
+        ]);
+    }
     let mut work = Vec::new();
     let mut positive_scratch = Vec::new();
     let mut negative_scratch = Vec::new();
@@ -3898,10 +3962,21 @@ impl super::IndependentResourceLedger {
         let mut independent_output_requests = [0usize; 6];
         for member in &physical.output_member_samples {
             for (total, length) in independent_output_requests.iter_mut().zip(member) {
-                *total = total
-                    .checked_add(*length)
+                *total = total.checked_add(*length)
                     .ok_or(SolveAvailabilityError::IdentityExhausted)?;
             }
+        }
+        #[cfg(feature = "f5c_resource_probe")]
+        if physical.matrix_active {
+            independent_output_requests = physical.output_member_totals;
+        } else {
+            if independent_output_requests != physical.output_member_totals {
+                return Err(SolveAvailabilityError::IdentityExhausted);
+            }
+        }
+        #[cfg(not(feature = "f5c_resource_probe"))]
+        if independent_output_requests != physical.output_member_totals {
+            return Err(SolveAvailabilityError::IdentityExhausted);
         }
         for (offset, total) in independent_output_requests.iter().enumerate() {
             if *total != physical.requests[LANE_COUNT + 8 + offset] {
@@ -4312,6 +4387,8 @@ mod tests {
         stats.index_retained_bytes = items.capacity();
         stats.candidate_observer = Some(Box::new(FlatCandidateObserver(FlatCandidateCapacity {
             work: Default::default(),
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            event_component: 0,
             base_memo_bytes: 0,
             base_walker_bytes: 0,
             physical_base_memo_bytes: 0,
@@ -4386,6 +4463,8 @@ mod tests {
             stats.candidate_observer =
                 Some(Box::new(FlatCandidateObserver(FlatCandidateCapacity {
                     work: Default::default(),
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    event_component: 0,
                     base_memo_bytes: 0,
                     base_walker_bytes: 0,
                     physical_base_memo_bytes: 0,
