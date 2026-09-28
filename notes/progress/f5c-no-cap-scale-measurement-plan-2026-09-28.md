@@ -37,9 +37,16 @@ its `#[cfg(test)]` internals are unavailable there; the user approved a narrow
 same-named `yu-solver` feature, for closed-type physical-lane observation. The
 feature exposes a doc-hidden fixed-size summary for its 8 arena, 17 scratch,
 and 11 indexed-temporary lanes. It must not add a growing event history, drive
-the terminal-capacity seam, or change semantic results, counters, or
-transaction behavior. With the feature disabled (the default), no observer
-fields, hooks, branches, or allocations are compiled into `yu-types`.
+the terminal-capacity seam, or change semantic results, counter values, or
+transaction behavior. Separately, the measurement implementation must add the
+two §26-required `ProductionCounters` fields and same-named accessors for
+`generalization_quantifier_writes` and
+`generalization_recursive_binder_writes`. Count each successful selected Q/R
+binder write once at the completed member-draft owner; do not count candidate
+attempts, repeated R rounds, map probes, or finalizer copies. These counters
+are part of the existing §26/§34 production contract, not observer effects.
+With the feature disabled (the default), no observer fields, hooks, branches,
+or allocations are compiled into `yu-types`.
 
 Allocate solver observer storage before the measured solve, update both
 observers without per-event allocation, and disable the flat path's growing

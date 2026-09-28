@@ -26,19 +26,22 @@ budget, plus at most one 10-second kill grace. Primary, reviewer, and user
 approvals are recorded; the matrix remains conditional on a successful,
 reviewed preflight. The prior §15 plans remain exhausted.
 
-Next: implement and independently review the fixed-size `yu-types` and
-`yu-solver` per-lane/per-boundary summaries required by the plan, with the
-feature disabled by default and no use of the 64-row capture; then run the
+Next: implement and independently review the §26 quantifier/recursive-binder
+write counters together with the fixed-size `yu-types` and `yu-solver`
+per-lane/per-boundary summaries required by the plan. Keep the observer
+feature disabled by default and do not use the 64-row capture. Then run the
 approved preflight first. Only after a passing reviewed preflight may the
 36-case scale matrix proceed.
 
-The separate ordinary Function-ring source proof remains open. The audit at
-[`F5c ordinary ring complexity audit`](../notes/progress/f5c-ordinary-ring-complexity-audit-2026-09-28.md)
-closed the owner/trace count as one owner and two `Θ(N)` traces per member, but
-did not bound cumulative active memo-edge propagation or exact draft/output
-cardinality through normalization. The `O(N² log N)` target is not certified;
-production cutover remains closed. No source-ring measurement is authorized
-under the exhausted §15 plan.
+The ordinary Function-ring source proof is closed for the exact successful
+recipe. The audit at
+[`F5c ordinary ring complexity proof`](../notes/progress/f5c-ordinary-ring-complexity-audit-2026-09-28.md)
+establishes one owner and two `Θ(N)` traces per member, no retained component-
+memo adjacency on the ring, `O(N²)` selected nodes, and `O(N² log N)`
+normalization work under expected constant-time hash operations. This does not
+certify arbitrary path-sensitive contexts or the entire F5c input space.
+Production cutover remains a separate gate. No source-ring measurement is
+authorized under the exhausted §15 plan.
 
 ### Completed continuation (2026-09-28): no-cap resource-policy design approved
 
