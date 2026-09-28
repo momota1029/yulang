@@ -138,9 +138,11 @@ checker parses, and `git diff --check` passes. No test, matrix, preflight,
 benchmark, or scale process ran; measurement budget remains zero. The event
 trace has compile-time and static-review evidence only. Semantic §34 family 5
 `closed_type_arena` is the sole remaining event-coverage gate. Its fixed-size
-cross-crate observation architecture is resolved; implementation and review
-remain next. Do not begin matrix work until family 5 and the fresh diagnostic
-plan have passed their required reviews.
+cross-crate observation architecture is resolved; a separate call-peak field
+is unnecessary because `ClosedTypeAccountingCheckpoint` is already call-local.
+The implementation needs the cross-call aggregate peak missing from the 36
+independent lane maxima. Do not begin matrix work until family 5 and the fresh
+diagnostic plan have passed their required reviews.
 
 ### Latest continuation (2026-09-28): user authorized autonomous completion and budget expansion
 

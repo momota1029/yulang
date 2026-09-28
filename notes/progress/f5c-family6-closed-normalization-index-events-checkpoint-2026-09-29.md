@@ -69,9 +69,11 @@ remains unverified. Production builds compile no family-6 event observer.
 ## Next gate and limits
 
 The remaining event-coverage gate is semantic §34 family 5, `closed_type_arena`,
-owned by `yu-types`. The read-only architecture review has selected fixed
-current/peak and call-local aggregate observation at the existing reconciliation
-sites, then a solver-side combination with owners stable across the synchronous
-indexed-finalizer call. No implementation or runtime event validation for that
-slice is included here. After family 5 closes, review the full eight-family
-event fold and the fresh diagnostic plan before any preflight or matrix work.
+owned by `yu-types`. The read-only architecture review selected a fixed
+cross-call aggregate peak at the existing reconciliation sites. Current
+capacity/bytes can be folded from its existing 36-lane summary, and the existing
+finalization checkpoint already carries a call-local same-time peak for solver
+owners that remain stable during that synchronous call. No implementation or
+runtime event validation for that slice is included here. After family 5
+closes, review the full eight-family event fold and the fresh diagnostic plan
+before any preflight or matrix work.

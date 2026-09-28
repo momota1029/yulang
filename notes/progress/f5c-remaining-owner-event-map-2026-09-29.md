@@ -24,7 +24,7 @@ semantic family 7 for compatibility. The only remaining §34 family is 5:
 |---|---:|---|---|
 | 2 `inference_type_arena` | 18–23 | Implemented and independently reviewed; see [`family-2 event checkpoint`](f5c-family2-inference-type-arena-events-checkpoint-2026-09-29.md). | Six event lane totals reconcile at FinishOutput; every retained owner transfers under the same ID into `SolvedModule.store` and remains live at EOF. |
 | 4 `component_expansion_memo` | 45–64 | Implemented and independently reviewed; see [`family-4 event checkpoint`](f5c-family4-component-expansion-memo-events-checkpoint-2026-09-29.md). | All 20 lane owners release on clear/drop; terminal current capacity and retained bytes are zero while event peak remains. |
-| 5 `closed_type_arena` | 65–100 | `crates/yu-types/src/lib.rs`: fixed aggregate current/peak and call-local aggregate peak at existing finalizer reconciliation sites; solver combines with owners stable over the indexed-finalizer call | Finalization releases scratch/indexed lanes and transfers the permanent arena into `SolvedModule.closed_types`. Architecture is resolved; event implementation remains open. |
+| 5 `closed_type_arena` | 65–100 | `crates/yu-types/src/lib.rs`: fixed cross-call aggregate peak at existing finalizer reconciliation sites; current total folds the fixed 36-lane summary. The existing finalization checkpoint already supplies a call-local same-time peak for solver reconciliation. | Finalization releases scratch/indexed lanes and transfers the permanent arena into `SolvedModule.closed_types`. Architecture is resolved; event implementation remains open. |
 | 6 `closed_normalization_index` | 101–128 | Implemented and independently reviewed; see [`family-6 event checkpoint`](f5c-family6-closed-normalization-index-events-checkpoint-2026-09-29.md). Thirteen base and fifteen flat physical-index lanes use same-time owner events. | All index lanes reach zero; output lanes 21–26 transfer the same IDs into staged buffers. |
 | 8 `instantiation_substitution` | 230–236 | Implemented and independently reviewed; see [`family-8 event checkpoint`](f5c-family8-instantiation-substitution-events-checkpoint-2026-09-29.md). | Seven event lane totals reconcile at FinishOutput; all scratch owners release and family-8 current capacity/bytes are zero at EOF. |
 
@@ -35,11 +35,19 @@ snapshot cannot hide a larger same-time peak.
 
 ## Next bounded slice: family 5 event implementation
 
-Follow the fixed-size aggregate architecture boundary above: update same-time
-current/peak at the existing `yu-types` reconciliation sites, retain a separate
-call-local peak for the synchronous indexed-finalizer call, and let the solver
-combine only owners known to remain live across that call. No per-growth
-cross-crate callback or growing event history is authorized by this path.
+Follow the fixed-size aggregate architecture boundary above: retain the
+cross-call 36-lane simultaneous peak at existing `yu-types` reconciliation
+sites, derive current capacity/bytes from the fixed lane summary, and let the
+solver combine the existing call-local checkpoint only with owners that remain
+live across that synchronous call. No per-growth cross-crate callback, new
+call-peak field, or growing event history is authorized by this path.
+
+Architecture correction: the read-only audit found that the finalizer resets
+`self.peak_bytes` from `retained_bytes_before` at each attempt, so its existing
+`ClosedTypeAccountingCheckpoint::peak_bytes_during_call()` is call-local. A
+separate call-peak field would duplicate that evidence; only the fixed
+cross-call lane aggregate peak is missing because the 36 individual lane peaks
+may occur at different times.
 
 Other established contract locators are the term-owner event tests near
 `lib.rs:29462`, the yu-types indexed-probe case near
