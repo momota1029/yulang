@@ -68,8 +68,9 @@ it reported formatting differences across unrelated workspace files, so no
 workspace-wide formatting was applied. No matrix, preflight, benchmark, or
 scale process ran; measurement budget consumed: zero.
 
-The next gate is a read-only map of the remaining F5c physical families and
-their same-time owner events, followed by one bounded implementation slice.
-The exhausted 39-process preflight campaign remains closed. Do not begin a new
-preflight or scale run until all required families are reconciled and the fresh
-diagnostic plan is reviewed.
+The remaining physical families are mapped in the
+[`remaining owner-event map`](f5c-remaining-owner-event-map-2026-09-29.md).
+The next bounded slice is §34 family 4 `component_expansion_memo`, lanes
+45–64. The exhausted 39-process preflight campaign remains closed. Do not begin
+a new preflight or scale run until all required families are reconciled and
+the fresh diagnostic plan is reviewed.

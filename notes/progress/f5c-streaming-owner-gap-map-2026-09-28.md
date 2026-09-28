@@ -77,12 +77,13 @@ terminal rules before the all-eight-family stream is complete.
 
 ## Next checkpoint
 
-Audit the remaining physical families against F5 §34's exact lane list and
-same-time owner requirements, then take the next bounded event-coverage slice.
-No preflight or scale row is eligible until all eight families have same-time
-event aggregation and terminal reconciliation, followed by a reviewed fresh
-diagnostic plan.
+Implement the family-4 `component_expansion_memo` event slice, using the
+[`remaining owner-event map`](f5c-remaining-owner-event-map-2026-09-29.md) for
+its exact lane and lifecycle locators. No preflight or scale row is eligible
+until all eight families have same-time event aggregation and terminal
+reconciliation, followed by a reviewed fresh diagnostic plan.
 
-This map was updated to record the completed family-1/family-6 checkpoint. The
-focused tests and checks are listed in its checkpoint note; no benchmark,
-preflight, or scale process ran. Measurement budget consumed: zero.
+This map now records the family-1, family-3, and family-6 event slices. Their
+focused verification is listed in the corresponding checkpoint notes; no
+matrix, preflight, benchmark, or scale process ran. Measurement budget
+consumed: zero.

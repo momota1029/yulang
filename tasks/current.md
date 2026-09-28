@@ -15,8 +15,9 @@ and release-before-buffer-drop error paths; both were fixed and delta-reviewed.
 The family-aware checker now folds families 1 and 6, including repeated
 family-6 checkpoints and the family-1 terminal release suffix.
 
-No matrix, preflight, benchmark, or scale process ran. The all-eight-family
-gate remains open; family 3 structured-pair events are next. The shared event
+At this checkpoint, no matrix, preflight, benchmark, or scale process had run.
+Family 3 structured-pair events were next and are now closed for the reviewed
+slice below. The all-eight-family gate remains open. The shared event
 observer and family-6 call paths could not be split into a smaller verified
 commit from the current branch head, so this family-1/family-6 integration is
 one coherent checkpoint. The user asked for small coherent commits and prompt
@@ -46,9 +47,12 @@ checks; the Python replay checker parses and `git diff --check` passes. No test
 was run. `cargo fmt --all -- --check` reports formatting differences across
 the repository; no broad formatting was applied. No matrix, preflight,
 benchmark, or scale row ran; measurement budget remains zero. The all-eight-
-family gate remains open. Next: audit the still-unclosed resource families and
-continue with the next bounded owner-event checkpoint; do not start a matrix
-run until event coverage and the fresh diagnostic plan are reviewed.
+family gate remains open. A read-only path map identifies §34 families 2/4/5/6/8
+as still open and selects family 4 `component_expansion_memo` as the next
+bounded slice; details are in
+[`F5c remaining owner-event map`](../notes/progress/f5c-remaining-owner-event-map-2026-09-29.md).
+Do not start a matrix run until event coverage and the fresh diagnostic plan
+are reviewed.
 
 ### Latest continuation (2026-09-28): user authorized autonomous completion and budget expansion
 
@@ -152,8 +156,8 @@ terminal-live-owner requirements are in the linked map.
 
 At that checkpoint the next steps were family-1 live-variable owner events,
 then family-3 structured-pair events and family-aware replay. Family 1 and the
-shared family-6 event integration are now complete for the verified slice in
-the latest continuation above; family 3 remains next. The closed 39-process
+shared family-6 integration are complete for the verified slice above, and
+family 3 has since closed in the latest continuation. The closed 39-process
 campaign remains stopped, the 64-row capture stays unused, and the prior §15
 plans remain exhausted. Any diagnostic or matrix work follows the corrected,
 reviewed plan and the user's standing instruction to continue without repeated
