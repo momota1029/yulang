@@ -466,22 +466,35 @@ assertion change:
 
 - `RUSTC_WRAPPER= cargo check -p yu-solver --tests --features f5c_resource_probe`
 
-The next preflight allowance is one supervised process with a 60-second timeout
+The fourth supervised preflight, run as
+`20260929-closed-probe-retry-01`, passed the first two fixture cases and then
+failed before admission in `SharedAcyclic/D/32/K=32`: the fixture expected
+three constructed terms but summed six entries across physical Term lanes.
+`TermLaneState.lengths[3]` is the logical interner size; the other entries
+include page metadata. The guarded-cycle fixture repeats the same mistaken
+sum. A pre-write `spec_auditor` confirmed that sampling only `lengths[3]` for
+both before/after values preserves the §34 logical formulas (`3 * cones` and
+`4 * K`). The narrow measurement correction is implemented and awaiting its
+post-write delta review and fresh preflight. Exact run metrics and retained
+evidence are recorded in [`F5c logical-term preflight failure checkpoint`](f5c-preflight-logical-term-count-failure-checkpoint-2026-09-29.md).
+
+The next preflight allowance is one supervised process with a 45-second timeout
 and 10-second TERM-to-KILL grace, using the existing 8-GiB memory/disk floors
-and a fresh run ID `20260929-closed-probe-retry-01`. The first three attempts
-used 16.06, 5.02, and 6.03 seconds without termination grace. Counting those,
-this retry plus the reviewed 300-second diagnostic and 150-second replay use at
-most six process invocations and 567.11 seconds (16.06 + 5.02 + 6.03 + 60 +
-300 + 150 seconds, plus three 10-second graces), leaving 32.89 seconds within the ordinary
-8-process/10-minute budget. Do not run the diagnostic or replay unless this
-preflight succeeds. Keep all 36 matrix rows; derive their budget from the
-diagnostic/replay evidence. The user authorized autonomous continuation and
-budget expansion, so no approval pause is needed.
+and fresh run ID `20260929-logical-term-count-retry-01`. The four completed
+attempts used 16.06, 5.02, 6.03, and 11.05 seconds. This retry plus the
+reviewed 300-second diagnostic and 150-second replay use at most seven
+invocations and 543.16 seconds including grace, leaving 56.84 seconds under
+the 8-process/10-minute budget. One additional 45-second preflight plus its
+10-second grace would bring the total to eight invocations and 598.16 seconds;
+no further supervised process fits this campaign. Do not run the diagnostic or
+replay unless preflight succeeds. Keep all 36 matrix rows; derive their budget
+from diagnostic/replay evidence. The user authorized autonomous continuation
+and budget expansion, so no approval pause is needed.
 
 Exact next preflight command:
 
 ```bash
 set -euo pipefail
-RUN_ID=20260929-closed-probe-retry-01
-python3 tools/run_f5c_resource_process.py --timeout-seconds 60 --log "/tmp/f5c-preflight-$RUN_ID.log" --monitor "/tmp/f5c-preflight-$RUN_ID.monitor.jsonl" --summary "/tmp/f5c-preflight-$RUN_ID.summary.json" --sidecar "/tmp/f5c-preflight-$RUN_ID.events" -- /usr/bin/time -v cargo test -p yu-solver --lib --features f5c_resource_probe f5c_resource_matrix_preflight --offline -j 2 -- --ignored --nocapture --test-threads=1
+RUN_ID=20260929-logical-term-count-retry-01
+python3 tools/run_f5c_resource_process.py --timeout-seconds 45 --log "/tmp/f5c-preflight-$RUN_ID.log" --monitor "/tmp/f5c-preflight-$RUN_ID.monitor.jsonl" --summary "/tmp/f5c-preflight-$RUN_ID.summary.json" --sidecar "/tmp/f5c-preflight-$RUN_ID.events" -- /usr/bin/time -v cargo test -p yu-solver --lib --features f5c_resource_probe f5c_resource_matrix_preflight --offline -j 2 -- --ignored --nocapture --test-threads=1
 ```

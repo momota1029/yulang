@@ -240,8 +240,15 @@ that temporary route handoff and clears after restore. Every active matrix
 boundary requires one of the live, handoff, or finished probes and reconciles
 all 36 rows, so the former silent skip is removed. Spec/performance reviews
 and the focused test-target compile are clean. The retry budget and fresh run
-ID `20260929-closed-probe-retry-01` are recorded. Run the supervised preflight
-next; diagnostic and matrix processes remain behind its success.
+ID `20260929-closed-probe-retry-01` are recorded. The fourth supervised
+preflight passed its first two cases, then found a synthetic fixture counter
+that summed physical Term lanes instead of counting logical terms. The
+pre-write spec review approved reading the interner length for the acyclic and
+guarded-cycle builders, preserving their exact term formulas. That narrow
+measurement correction is awaiting post-write review and a fresh preflight
+under ID `20260929-logical-term-count-retry-01`; diagnostics and the matrix
+remain behind preflight success. See
+[`F5c logical-term preflight failure checkpoint`](../notes/progress/f5c-preflight-logical-term-count-failure-checkpoint-2026-09-29.md).
 
 ### Latest continuation (2026-09-28): user authorized autonomous completion and budget expansion
 
