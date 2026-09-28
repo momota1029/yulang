@@ -2,6 +2,43 @@
 
 Updated: 2026-09-29. Branch: `yulang3`; do not modify frozen `main`.
 
+### Latest continuation (2026-09-29): raw-walker request-event coalescing
+
+The post-timeout observer repair is implemented in three explicit paths:
+
+- `crates/yu-solver/src/f5c_draft_heap.rs`: `RawWalkerOwner::observe` now
+  checks `requested <= capacity`, stores each latest request, emits GROW only
+  for capacity increases and DECREASE for capacity decreases, and omits
+  same-capacity request-only SHAPEs. CREATE, RELEASE, transfer IDs, and sampled
+  request state stay intact.
+- `crates/yu-solver/src/f5c_generalization.rs`:
+  `ObservedWalkerMap::remove` observes the map after removal, including the
+  `BoxedRawBounds` owner path.
+- `tools/check_f5c_resource_matrix.py`: replay admits same-owner DECREASE for
+  raw-walker kinds 32–129 with unchanged kind/slot size, strict capacity
+  reduction, zero target, and the existing `requested <= actual` check. The
+  separate FlatDraft kinds 12–17 and same-ID staged transfer are untouched.
+
+The M2 pre-write exact-conformance and architecture reviews closed the
+coalescing conditions; the post-write `spec_auditor` review is clean. The
+`performance_auditor` confirmed that observation call count remains fixed and
+the hot-path addition is bounded validation/state writes, while same-capacity
+events no longer pay sidecar serialization and replay cost. Its one-process
+next-evidence recommendation is recorded in the measurement plan. A focused
+synthetic replay accepted a valid same-ID grow/decrease/regrow/release trace,
+reconciled physical row 150 to zero current and an 8-slot/64-byte peak, and
+rejected five malformed DECREASE traces, including kind 12. Focused Rust tests,
+feature-enabled test-target compilation, Python syntax compilation, and
+`git diff --check` passed in the implementation pass.
+
+The separately checkpointed six-buffer FlatDraft carrier and same-ID transfer
+remain completed and unchanged. This current raw-walker slice has not yet run a
+new preflight. One new supervised D=32/K=32 preflight is now authorized by the
+primary under the user's standing budget expansion: 60-second command timeout,
+10-second TERM grace, 8-GiB `MemAvailable` and disk floors, and one invocation.
+Run it before any corrected K=4,000 diagnostic or replay; only use its result
+to set the next reviewed budget. The prior 10/600 campaign remains exhausted.
+
 Resume handoff: [`2026-09-22 F5c scheme-closure handoff`](../notes/handoffs/2026-09-22-f5c-scheme-closure-handoff.md).
 
 ### Completed continuation (2026-09-29): family-1 and family-6 owner events

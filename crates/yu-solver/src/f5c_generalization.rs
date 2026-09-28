@@ -133,6 +133,13 @@ impl<'meter, K: Eq + std::hash::Hash, V> ObservedWalkerMap<'meter, K, V> {
         self.observe_capacity(0);
         old
     }
+
+    fn remove<Q>(&mut self, key: &Q) -> Option<V>
+    where K: std::borrow::Borrow<Q>, Q: std::hash::Hash + Eq + ?Sized {
+        let old = self.values.remove(key);
+        self.observe_capacity(0);
+        old
+    }
 }
 
 #[cfg(all(test, feature = "f5c_resource_probe"))]
@@ -11900,7 +11907,7 @@ mod observed_walker_set_tests {
                 event[index * 8..(index + 1) * 8].try_into().unwrap()))
         }).filter(|event| event[3] == role).collect();
         assert_eq!(events.iter().map(|event| event[2]).collect::<Vec<_>>(),
-            [1, 3, 2, 5]);
+            [1, 3, 5]);
         assert!(events.iter().all(|event| event[0] == 23
             && event[1] == events[0][1]));
         let seen_role = 32 + F5cWalkerLaneKind::PostROccurrenceSeen as u64;
@@ -11909,7 +11916,7 @@ mod observed_walker_set_tests {
                 event[index * 8..(index + 1) * 8].try_into().unwrap()))
         }).filter(|event| event[3] == seen_role).collect();
         assert_eq!(seen_events.iter().map(|event| event[2]).collect::<Vec<_>>(),
-            [1, 3, 2, 5]);
+            [1, 3, 5]);
         assert!(seen_events.iter().all(|event| event[0] == 23
             && event[1] == seen_events[0][1]));
     }
@@ -11958,7 +11965,7 @@ mod observed_walker_set_tests {
                     .filter(|event| event[1] == *owner)
                     .map(|event| event[2]).collect();
                 assert_eq!(operations, if index == 0 {
-                    vec![1, 3, 2, 5]
+                    vec![1, 3, 5]
                 } else {
                     vec![1, 3, 5]
                 });
@@ -12025,7 +12032,7 @@ mod observed_walker_set_tests {
             assert_eq!(operations.first(), Some(&1));
             assert_eq!(operations.last(), Some(&5));
             assert!(operations.contains(&3));
-            assert!(operations.contains(&2));
+            assert!(!operations.contains(&2));
         }
         assert!(!events.iter().any(|event| event[4] == usize::MAX as u64));
     }
@@ -12057,6 +12064,17 @@ mod observed_walker_set_tests {
     }
 
     #[test]
+    fn observed_walker_map_remove_accepts_borrowed_key() {
+        let meter = DraftHeapMeter::default();
+        let mut map = ObservedWalkerMap::<String, u32>::new(&meter,
+            F5cWalkerLaneKind::BoxedRawBounds);
+        map.insert("owner".to_owned(), 7);
+        assert_eq!(map.len(), 1);
+        assert_eq!(map.remove("owner"), Some(7));
+        assert!(map.is_empty());
+    }
+
+    #[test]
     fn moved_post_r_selection_releases_recursive_set_owner() {
         let path = std::env::temp_dir().join(format!(
             "f5c-post-r-set-{}-{:?}.bin", std::process::id(),
@@ -12082,11 +12100,11 @@ mod observed_walker_set_tests {
         let (count, _) = crate::f5c_draft_heap::close_f5c_resource_events().unwrap();
         let bytes = std::fs::read(&path).unwrap();
         std::fs::remove_file(path).unwrap();
-        assert_eq!(count, 10);
+        assert_eq!(count, 9);
         let operations: Vec<u64> = bytes[8..].chunks_exact(64).map(|event| {
             u64::from_le_bytes(event[16..24].try_into().unwrap())
         }).collect();
-        assert_eq!(operations, [1, 3, 2, 1, 1, 1, 5, 5, 5, 5]);
+        assert_eq!(operations, [1, 3, 1, 1, 1, 5, 5, 5, 5]);
     }
 
     #[test]

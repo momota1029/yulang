@@ -779,10 +779,11 @@ impl<'meter> RawWalkerOwner<'meter> {
     }
 
     pub(super) fn observe(&mut self, requested: usize, capacity: usize) {
-        let operation = if capacity != self.capacity {
+        assert!(requested <= capacity);
+        let operation = if capacity > self.capacity {
             Some(event_sink::GROW)
-        } else if requested != self.requested {
-            Some(event_sink::SHAPE)
+        } else if capacity < self.capacity {
+            Some(event_sink::DECREASE)
         } else {
             None
         };
@@ -2395,6 +2396,7 @@ mod tests {
                     event[index * 8..(index + 1) * 8].try_into().unwrap()))
             }).collect();
             assert_eq!(words.iter().map(|event| event[1]).collect::<std::collections::HashSet<_>>().len(), 1);
+            assert_eq!(words.iter().find(|event| event[2] == 4).unwrap()[4], 1);
             assert_eq!(words.iter().filter(|event| event[2] == 4).count(), 1);
             assert_eq!(words.iter().filter(|event| event[2] == 5).count(), 1);
         }
@@ -2412,10 +2414,12 @@ mod tests {
         owner.observe(raw.len(), raw.capacity());
         raw.push(7);
         owner.observe(raw.len(), raw.capacity());
+        assert_eq!(owner.requested, 1);
         assert!(raw.try_reserve(usize::MAX).is_err());
         owner.observe(raw.len(), raw.capacity());
         raw.pop();
         owner.observe(raw.len(), raw.capacity());
+        assert_eq!(owner.requested, 0);
         drop(raw);
         drop(owner);
         let (count, _) = super::close_f5c_resource_events().unwrap();
@@ -2425,9 +2429,45 @@ mod tests {
             std::array::from_fn(|index| u64::from_le_bytes(
                 event[index * 8..(index + 1) * 8].try_into().unwrap()))
         }).collect();
-        assert_eq!(count, 5);
+        assert_eq!(count, 3);
         assert_eq!(words.iter().map(|event| (event[2], event[4])).collect::<Vec<_>>(),
-            [(1, 0), (3, 0), (2, 1), (2, 0), (5, 0)]);
+            [(1, 0), (3, 0), (5, 0)]);
         assert!(words.iter().all(|event| event[1] == words[0][1]));
+    }
+
+    #[cfg(feature = "f5c_resource_probe")]
+    #[test]
+    fn raw_walker_owner_rejects_request_above_capacity() {
+        let meter = DraftHeapMeter::default();
+        let mut owner = super::RawWalkerOwner::new(&meter, 7, 8);
+        let invalid = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| owner.observe(3, 2)));
+        assert!(invalid.is_err());
+        assert_eq!((owner.requested, owner.capacity), (0, 0));
+    }
+
+    #[cfg(feature = "f5c_resource_probe")]
+    #[test]
+    fn raw_walker_owner_decrease_then_growth_preserves_identity() {
+        let path = std::env::temp_dir().join(format!(
+            "f5c-raw-decrease-{}-{:?}.bin", std::process::id(), std::thread::current().id()));
+        super::open_f5c_resource_events(&path).unwrap();
+        let meter = DraftHeapMeter::default();
+        let mut owner = super::RawWalkerOwner::new(&meter, 7, 8);
+        owner.observe(2, 8);
+        owner.observe(1, 4);
+        owner.observe(3, 12);
+        assert_eq!((owner.requested, owner.capacity), (3, 12));
+        drop(owner);
+        let (count, _) = super::close_f5c_resource_events().unwrap();
+        let bytes = std::fs::read(&path).unwrap();
+        std::fs::remove_file(path).unwrap();
+        let events: Vec<[u64; 8]> = bytes[8..].chunks_exact(64).map(|event| {
+            std::array::from_fn(|index| u64::from_le_bytes(
+                event[index * 8..(index + 1) * 8].try_into().unwrap()))
+        }).collect();
+        assert_eq!(count, 5);
+        assert_eq!(events.iter().map(|event| (event[2], event[5])).collect::<Vec<_>>(),
+            [(1, 0), (3, 8), (7, 4), (3, 12), (5, 0)]);
+        assert!(events.iter().all(|event| event[1] == events[0][1]));
     }
 }

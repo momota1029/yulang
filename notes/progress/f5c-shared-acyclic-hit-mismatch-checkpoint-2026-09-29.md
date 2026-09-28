@@ -4,16 +4,12 @@ Status: the family-1 seed-ledger and family-4 capacity-decrease observer fixes
 are reviewed, compiled, and pushed. The eighth supervised preflight passed the
 first four D=32 rows, then timed out while producing a 654 MB sidecar with over
 10 million complete events. No resource floor was breached. A fresh event-kind
-histogram shows that most records are raw-walker SHAPE events, while
-family-4-only coalescing would save about 1.4 million records. §26/§34 review
-allows omitting request-only family-4 sidecar records while retaining exact
-in-memory and boundary state. A fresh exact-conformance review also allows
-coalescing same-capacity raw-walker SHAPEs for owner kinds 32–129 if every
-observation still updates and validates its in-memory request, and all CREATE,
-GROW, RELEASE, TRANSFER, and boundary state remains exact. This does not touch
-the six-buffer kinds 12–17 or their same-ID staged transfer. The old 10/600
-budget is exhausted; a bounded campaign and the existing request-witness path
-still need closure.
+histogram showed that most records were raw-walker SHAPE events. The approved
+raw-walker coalescing slice is now implemented and reviewed; its focused
+synthetic replay witness passed. The exact paths, event rules, focused checks,
+and the single new preflight budget are recorded below. This does not touch the
+separately checkpointed six-buffer kinds 12–17 or their same-ID staged
+transfer.
 
 ## Failed attempt and evidence
 
@@ -235,13 +231,69 @@ Eight preflight invocations are complete and used 101.40 seconds combined. The
 performance review and primary approval allowed 10 total invocations and a
 600-second cap, conditional on this eighth preflight passing before diagnostic
 and replay. It timed out, so no further process is covered. Keep the 8-GiB
-floors, process-group monitoring, and all 36 matrix rows. Before resuming,
-apply and review the request-only SHAPE coalescing conditions above, establish
-the sampled request-witness path and expected event-count/replay-cost bounds,
-then obtain a fresh performance review and primary approval for a concrete
-bounded sequence. The linear K=32-to-4,000 event estimate is 1.28 billion
-records / 82 GB, but is not a static upper bound and does not justify another
-process by itself.
+floors, process-group monitoring, and all 36 matrix rows. That 10/600 campaign
+is exhausted. The user's standing authorization permits autonomous budget
+expansion; the new process below is a separately reviewed and recorded
+one-invocation budget.
 
-The user authorized autonomous continuation and expanded time/memory budgets;
-no approval pause is needed for this scoped continuation.
+### Raw-walker request-event coalescing and next preflight
+
+The implementation is limited to raw-walker owner kinds 32–129 and the
+required observed-map removal path:
+
+- `crates/yu-solver/src/f5c_draft_heap.rs`: `RawWalkerOwner::observe` validates
+  `requested <= capacity` on every observation and always updates its stored
+  request/capacity. It emits GROW only for a strict increase, DECREASE for a
+  strict decrease, and no event for same-capacity request-only changes. Owner
+  creation, release, transfer identity, and the request field at serialized
+  growth/decrease boundaries remain intact.
+- `crates/yu-solver/src/f5c_generalization.rs`:
+  `ObservedWalkerMap::remove` observes reported capacity after removal, closing
+  the `BoxedRawBounds` path that could otherwise miss a capacity decrease.
+- `tools/check_f5c_resource_matrix.py`: op7 accepts either existing family-4
+  lanes or walker kinds 32–129, only with identical owner kind and slot size,
+  strictly lower capacity, zero target, and the general `requested <= actual`
+  invariant. Kinds 12–17 and their family-6 transfer rule are unchanged.
+
+Selected M2. Pre-write `spec_auditor`, `architect`, and `compiler_referee`
+reviews established the request validation, reported-capacity decrease, and
+missing map-removal observation conditions. Post-write `spec_auditor` review
+is clean. The `performance_auditor` found the observation count unchanged and
+the extra work bounded to validation/comparison/state writes; it recommends
+one supervised D=32/K=32 preflight as the next evidence and defers any
+K=4,000 diagnostic or replay budget until that result is reviewed. The
+primary authorized this one process under the user's standing budget decision.
+
+Focused verification passed in the implementation pass:
+
+- Three focused `yu-solver` test invocations covering raw-walker owner events,
+  observed walker sets, and same-ID transfer.
+- `RUSTC_WRAPPER= cargo check -p yu-solver --tests --features f5c_resource_probe`
+- Python syntax compilation of `tools/check_f5c_resource_matrix.py`.
+- Synthetic `replay_f6_events` witness: accepted CREATE/GROW/DECREASE/GROW/
+  RELEASE under one owner ID, reconciled lane 150 to zero current and an
+  8-slot/64-byte peak, and rejected five malformed DECREASE cases, including
+  staged kind 12.
+- `git diff --check`.
+
+The next command is exactly one supervised preflight, run ID
+`20260929-raw-walker-coalescing-preflight-01`:
+
+```sh
+python3 tools/run_f5c_resource_process.py --timeout-seconds 60 \
+  --log /tmp/f5c-preflight-20260929-raw-walker-coalescing-preflight-01.log \
+  --monitor /tmp/f5c-preflight-20260929-raw-walker-coalescing-preflight-01.monitor.jsonl \
+  --summary /tmp/f5c-preflight-20260929-raw-walker-coalescing-preflight-01.summary.json \
+  --sidecar /tmp/f5c-preflight-20260929-raw-walker-coalescing-preflight-01.events \
+  -- /usr/bin/time -v cargo test -p yu-solver --lib \
+  --features f5c_resource_probe f5c_resource_matrix_preflight \
+  --offline -j 2 -- --ignored --nocapture --test-threads=1
+```
+
+The supervisor sets `RUSTC_WRAPPER` empty, enforces 8-GiB minimum available
+memory and disk reserve, samples the process group once per second, and sends
+TERM followed by KILL after the fixed 10-second grace. This process budget is
+one invocation and at most 60 seconds plus that grace. It is measurement
+containment, not a language input or compiler-work cap. Do not start the
+corrected K=4,000 diagnostic, replay, or matrix rows until the result and event
+volume are reviewed.
