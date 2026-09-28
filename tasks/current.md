@@ -4,22 +4,41 @@ Updated: 2026-09-28. Branch: `yulang3`; do not modify frozen `main`.
 
 Resume handoff: [`2026-09-22 F5c scheme-closure handoff`](../notes/handoffs/2026-09-22-f5c-scheme-closure-handoff.md).
 
-### Checkpoint (2026-09-28): verified FlatDraft carrier and same-ID transfer core
+### Latest continuation (2026-09-28): user authorized autonomous completion and budget expansion
+
+The user wants the complete F5c result and explicitly directed continuation
+without repeated approval pauses. Measurement time and host-memory budgets may
+be expanded as needed. The previously failed 39-process campaign remains
+closed; its rows still have no valid preflight. Any new run must use the
+corrected K=4,000 guarded-cycle series and independently reviewed streaming
+physical-event evidence. The raw walker owner lifecycle is already checkpointed;
+occurrence lanes 55/56 remain uncommitted. A read-only audit now maps their
+narrow patch plus missing family-1 and family-3 event owners in
+[`F5c streaming owner event coverage map`](../notes/progress/f5c-streaming-owner-gap-map-2026-09-28.md).
+No preflight or scale row has run after the earlier failures.
 
 The six-buffer `FlatDraft` carrier and atomic same-ID staged-transfer core are
 checkpointed in [`F5c FlatDraft owner carrier checkpoint`](../notes/progress/f5c-flatdraft-owner-carrier-checkpoint-2026-09-28.md).
-That record names the exact diff units, independent reviews, and isolated
-worktree checks. Later family-6 owner hooks, the all-family event fold, and
-scale measurements remain open.
+The checkpoint's exact paths, diff units, independent reviews, and isolated
+worktree checks are recorded there. Replay, sink, materialization,
+recursive-bound selection, normalization, the lane-55/56 event repairs, and
+the rest of family-6/all-family event coverage remain outside this checkpoint
+and open for their own reviewable slices. No matrix, preflight, or scale run
+followed; the all-eight-family fold remains open.
 
-### Checkpoint (2026-09-28): raw walker owner event lifecycle
+The source-owner complexity audit now spells out `r_candidates`' at-most
+`r+1` shrinking-mask rounds, including per-round candidate-capacity scans,
+trace hops, bound and predicate replay, and reachable-reference visits;
+`build_inner_work` adds member expansions, occurrence materialization,
+session closure rebuilds, post-R replay, and substitution. Batch `rank_all` is
+`O(N + W + C_norm)` for selected nodes `N`, descriptor words `W`, and the
+prescribed descriptor-word comparisons `C_norm`. Composed with the already
+proved exact ordinary ring cardinalities, no concrete asymptotic blocker was
+found for its `O(N² log N)` target. Path-sensitive trace multiplicity and
+repeated mask-dependent replay remain outside that ring-specific result. See
+[`F5c ordinary ring complexity proof`](../notes/progress/f5c-ordinary-ring-complexity-audit-2026-09-28.md).
 
-The feature-gated raw-owner lifecycle primitive is reviewed and verified in
-[`F5c raw walker owner checkpoint`](../notes/progress/f5c-raw-walker-owner-checkpoint-2026-09-28.md).
-Occurrence-lane wiring and the remaining family-6/all-family event coverage
-remain open.
-
-### Latest continuation (2026-09-28): no-cap scale plan and observer scope reviewed
+### Latest continuation (2026-09-28): third matrix preflight failed; matrix contract needs correction
 
 The fresh §26/§34 plan is
 [`F5c no-cap scale measurement plan`](../notes/progress/f5c-no-cap-scale-measurement-plan-2026-09-28.md).
@@ -34,19 +53,60 @@ code, and the feature does not exercise the terminal-capacity seam. The
 performance auditor supplied a written justification for the required larger
 budget.
 
-No probe or test has run for this plan. The user approved the full campaign on
-2026-09-28: one 32-size preflight, then 36 isolated 1k/2k/4k cases only if the
-preflight passes. The total is 37 processes and 43 minutes of nominal timeout
-budget, plus at most one 10-second kill grace. Primary, reviewer, and user
-approvals are recorded; the matrix remains conditional on a successful,
-reviewed preflight. The prior §15 plans remain exhausted.
+The user approved the original 37-process campaign, a reviewed extension to 38
+processes, and then a reviewed extension to 39 processes / 45 nominal minutes.
+The three authorized preflight processes all failed: first at compilation, the
+second at a per-lane retained-byte/slot-size invariant (`10240` versus `0`),
+and the third after compilation at component-expansion memo reconciliation
+(`48` observed lane bytes versus `0` in the independent ledger). The third
+process used 752,724 KiB maximum RSS and saw at least 27.7 GiB `MemAvailable`.
+The exact logs and samples are recorded in the plan. No matrix row ran, and the
+39-process campaign's preflight retry allowance is exhausted; its failed gate
+never authorized the conditional matrix rows.
 
-Next: implement and independently review the §26 quantifier/recursive-binder
-write counters together with the fixed-size `yu-types` and `yu-solver`
-per-lane/per-boundary summaries required by the plan. Keep the observer
-feature disabled by default and do not use the 64-row capture. Then run the
-approved preflight first. Only after a passing reviewed preflight may the
-36-case scale matrix proceed.
+The independent ledger now retains missing peak-capacity witnesses for term,
+instantiation, and source lanes, including simultaneous recursive-bound reserve
+peaks. Specification and performance delta reviews closed that repair.
+
+Read-only root-cause review traced the third failure to AllDrafts being sampled
+while memo lanes were still physically live, after their public and independent
+retained totals had been set to zero and before `memo.clear()`. This is an
+observer timing defect; changing lane formulas or production byte counters
+would mask it. The success-path snapshot must move after transaction commit
+and actual memo clear while retaining peak/growth history.
+
+An authority review also found that the planned `guarded_cycle` D series does
+not follow F5 §34: it repeats cycle positions when D exceeds K, although the
+constructor requires D distinct rotations of one K-Function cycle. Fixing the
+series while retaining D=1,000/2,000/4,000 requires K=4,000, which raises its
+uncacheable-state counts to 8M/16M/32M (500 times the old D-series values).
+Performance review says the current row timeouts do not establish feasibility
+for that workload and recommends a reviewed diagnostic with memory monitoring
+before any revised matrix budget. The earlier 39-process approval is closed;
+the corrected workload requires a fresh plan and budget review.
+
+The observer snapshot ordering and guarded-cycle fixture contract have now
+been repaired in the uncommitted code, without running another process. The
+spec delta review is clean. A performance delta review found a broader peak
+accounting gap: the reported family peak can be only the largest named-boundary
+sample, while the authoritative record requires same-time high-water coverage
+at owner growth events. It identified transient omissions for closed
+finalization, normalization, and memo lanes; generalization scratch has no
+single exact aggregate peak owner yet. Event completeness is also unproved for
+live variable tables and structured-pair scratch. Architecture review confirms
+the fix must use same-time owner aggregates. A read-only path audit mapped the
+live-variable and structured-pair lifetimes and the missing occurrence events;
+the exact owner IDs, sink-open snapshots, nested-buffer releases, and
+terminal-live-owner requirements are in the linked map.
+
+The user has explicitly authorized continuing without further approval pauses,
+including extending time and memory budgets as the work requires. Next: rebuild
+lane 55/56 as an isolated two-file patch against HEAD, verify and checkpoint it,
+then fill the family-1 and family-3 owner events and family-aware replay before
+revising the monitored K=4,000 diagnostic plan. The closed 39-process campaign
+remains stopped; any new run uses the fresh reviewed plan. The observer remains
+feature-gated, the 64-row capture stays unused, and the prior §15 plans remain
+exhausted.
 
 The ordinary Function-ring source proof is closed for the exact successful
 recipe. The audit at
@@ -82,10 +142,10 @@ The addendum retains checked representation arithmetic, fallible allocation
 handling, transaction/failure-epoch behavior, exact counters and ordering, and
 does not make resource exhaustion language-level undefined behavior. Its
 ordinary productive Function SCC ring target is `O(N² log N)` for `N`
-definitions (`O(B²)` coarsely for `B = Θ(N log N)` source bytes); the
-architectural derivation is not yet certified, and `build_inner`/`r_candidates`
-plus batch `rank_all` still need source-owner proofs before production
-cutover. The full F5 §26 1k/2k/4k identity, alias-use, shared-graph, and
+definitions (`O(B²)` coarsely for `B = Θ(N log N)` source bytes). The exact
+ordinary-ring recipe now has a reviewed source-owner proof for `build_inner`,
+`r_candidates`, and batch `rank_all`; this does not cover arbitrary
+path-sensitive inputs. The full F5 §26 1k/2k/4k identity, alias-use, shared-graph, and
 arena-factorization runs remain mandatory. No probes or tests ran in this
 design review.
 
