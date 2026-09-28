@@ -474,8 +474,10 @@ three constructed terms but summed six entries across physical Term lanes.
 include page metadata. The guarded-cycle fixture repeats the same mistaken
 sum. A pre-write `spec_auditor` confirmed that sampling only `lengths[3]` for
 both before/after values preserves the §34 logical formulas (`3 * cones` and
-`4 * K`). The narrow measurement correction is implemented and awaiting its
-post-write delta review and fresh preflight. Exact run metrics and retained
+`4 * K`). The narrow measurement correction is implemented. Post-write
+`spec_auditor` review confirmed exactly four count-source substitutions and
+unchanged formulas, and the focused feature-enabled test-target compile passed.
+Run the fresh supervised preflight next. Exact run metrics and retained
 evidence are recorded in [`F5c logical-term preflight failure checkpoint`](f5c-preflight-logical-term-count-failure-checkpoint-2026-09-29.md).
 
 The next preflight allowance is one supervised process with a 45-second timeout

@@ -245,9 +245,10 @@ preflight passed its first two cases, then found a synthetic fixture counter
 that summed physical Term lanes instead of counting logical terms. The
 pre-write spec review approved reading the interner length for the acyclic and
 guarded-cycle builders, preserving their exact term formulas. That narrow
-measurement correction is awaiting post-write review and a fresh preflight
-under ID `20260929-logical-term-count-retry-01`; diagnostics and the matrix
-remain behind preflight success. See
+measurement correction passed post-write spec review and the feature-enabled
+test-target compile. A fresh preflight under ID
+`20260929-logical-term-count-retry-01` is next; diagnostics and the matrix
+remain behind its success. See
 [`F5c logical-term preflight failure checkpoint`](../notes/progress/f5c-preflight-logical-term-count-failure-checkpoint-2026-09-29.md).
 
 ### Latest continuation (2026-09-28): user authorized autonomous completion and budget expansion

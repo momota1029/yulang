@@ -1837,7 +1837,7 @@ fn matrix_acyclic(case: F5cMatrixCase) {
     let cones = if shared { 1 } else { d };
     let mut rows = Vec::with_capacity(k);
     let mut bound_edges = 0usize;
-    let terms_before = session.store.terms.capacity_snapshot().1.lengths.iter().sum::<usize>();
+    let terms_before = session.store.terms.capacity_snapshot().1.lengths[3];
     for cone in 0..cones {
         rows.clear();
         for _ in 0..k { rows.push(session.fresh_value_at_level(1).unwrap()); }
@@ -1862,7 +1862,7 @@ fn matrix_acyclic(case: F5cMatrixCase) {
     }
     assert_eq!(bound_edges, 2 * k * cones + d);
     assert_eq!(roots.len(), d, "constructed root frontier");
-    let terms_after = session.store.terms.capacity_snapshot().1.lengths.iter().sum::<usize>();
+    let terms_after = session.store.terms.capacity_snapshot().1.lengths[3];
     assert_eq!(terms_after - terms_before, 3 * cones, "constructed terms");
     session.sample_f4_resources(ResourceBoundary::InitialAdmission).unwrap();
     session.execute_scc_plan().unwrap();
@@ -1882,7 +1882,7 @@ fn matrix_guarded_cycle(case: F5cMatrixCase) {
     let (mut session, roots) = matrix_graph_session(d, "f5c-resource-matrix-cycle");
     let mut cycle = Vec::with_capacity(k);
     for _ in 0..k { cycle.push(session.fresh_value_at_level(1).unwrap()); }
-    let terms_before = session.store.terms.capacity_snapshot().1.lengths.iter().sum::<usize>();
+    let terms_before = session.store.terms.capacity_snapshot().1.lengths[3];
     for index in 0..k {
         let next = cycle[(index + 1) % k];
         let negative = session.live_value_term(Polarity::Negative, next).unwrap();
@@ -1905,7 +1905,7 @@ fn matrix_guarded_cycle(case: F5cMatrixCase) {
     }
     assert_eq!(cycle.len(), k);
     assert_eq!(roots.len(), d);
-    let terms_after = session.store.terms.capacity_snapshot().1.lengths.iter().sum::<usize>();
+    let terms_after = session.store.terms.capacity_snapshot().1.lengths[3];
     assert_eq!(terms_after - terms_before, 4 * k, "constructed cycle terms");
     session.sample_f4_resources(ResourceBoundary::InitialAdmission).unwrap();
     session.execute_scc_plan().unwrap();

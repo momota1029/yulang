@@ -2,11 +2,11 @@
 
 Status: the fourth supervised preflight passed the earlier closed-probe and
 owner-peak checks, emitted its first two fixture tuples, then stopped in the
-third synthetic graph fixture at its constructed-term count. The failure is
-in the fixture's measurement of logical term count. A spec audit approved the
-narrow measurement correction; its code delta is now present but still needs
-post-write review and supervised preflight evidence. Diagnostic and matrix
-processes remain behind preflight success.
+third synthetic graph fixture at its constructed-term count. The failure was
+in the fixture's measurement of logical term count. The narrow correction has
+clean pre-write and post-write spec reviews, and the feature-enabled
+test-target compile passed. A fresh supervised preflight is next; diagnostic
+and matrix processes remain behind preflight success.
 
 ## Failed attempt and evidence
 
@@ -49,8 +49,11 @@ remain three terms per acyclic cone and four terms per guarded-cycle node. A
 pre-write `spec_auditor` review confirmed that measuring only
 `TermLaneState.lengths[3]` (`positions.len()`) preserves both formulas and the
 approved contract. The implementation changes only the before/after count
-source in `matrix_acyclic` and `matrix_guarded_cycle`; post-write review and a
-focused check are pending.
+source in `matrix_acyclic` and `matrix_guarded_cycle`. Post-write `spec_auditor`
+delta review confirmed exactly those four substitutions and the unchanged
+formulas. Focused check passed:
+
+- `RUSTC_WRAPPER= cargo check -p yu-solver --tests --features f5c_resource_probe`
 
 ## Next gate and budget
 
