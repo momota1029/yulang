@@ -10,6 +10,192 @@
 
 use std::{cell::Cell, fmt, ops::Deref};
 
+#[allow(dead_code)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum PhysicalOwnerKind {
+    Unclassified,
+    SourceOuter,
+    SourceSidecar,
+    SourceHeldBounds,
+    SourceActiveBounds,
+    PositiveFunctionArgument,
+    PositiveFunctionResult,
+    NegativeFunctionArgument,
+    NegativeFunctionResult,
+    UnionChildren,
+    IntersectionChildren,
+    StagedOuter,
+    StagedBuffer(usize),
+    IndexedBuffer(usize),
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    WalkerLane(usize),
+}
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+mod event_sink {
+    use super::PhysicalOwnerKind;
+    use std::{cell::RefCell, fs::File, io::{BufWriter, Write}, path::Path};
+
+    const MAGIC: &[u8; 8] = b"F5CRES01";
+    pub(super) const CREATE: u64 = 1;
+    pub(super) const SHAPE: u64 = 2;
+    pub(super) const GROW: u64 = 3;
+    pub(super) const TRANSFER: u64 = 4;
+    pub(super) const RELEASE: u64 = 5;
+    pub(super) const CHECKPOINT: u64 = 6;
+
+    struct Sink { writer: BufWriter<File>, next_id: u64, count: u64, checksum: u64, failed: bool }
+    thread_local! { static SINK: RefCell<Option<Sink>> = const { RefCell::new(None) }; }
+
+    pub(crate) fn open(path: &Path) -> std::io::Result<()> {
+        let mut writer = BufWriter::new(File::create(path)?);
+        writer.write_all(MAGIC)?;
+        SINK.with(|slot| *slot.borrow_mut() = Some(Sink {
+            writer, next_id: 1, count: 0, checksum: 0, failed: false,
+        }));
+        Ok(())
+    }
+
+    pub(crate) fn close() -> std::io::Result<(u64, u64)> {
+        SINK.with(|slot| {
+            let Some(mut sink) = slot.borrow_mut().take() else {
+                return Err(std::io::Error::other("F5c resource sidecar was not opened"));
+            };
+            sink.writer.flush()?;
+            if sink.failed { return Err(std::io::Error::other("F5c resource sidecar write failed")); }
+            Ok((sink.count, sink.checksum))
+        })
+    }
+
+    pub(super) fn next_id() -> usize {
+        SINK.with(|slot| {
+            let mut slot = slot.borrow_mut();
+            let Some(sink) = slot.as_mut() else { return 0; };
+            let id = sink.next_id;
+            sink.next_id = id.checked_add(1).expect("F5c owner ID overflow");
+            usize::try_from(id).expect("F5c owner ID fits usize")
+        })
+    }
+
+    pub(super) fn record(component: usize, id: usize, op: u64, kind: PhysicalOwnerKind,
+        requested: usize, capacity: usize, slot_size: usize, target: u64) {
+        SINK.with(|slot| {
+            let mut slot = slot.borrow_mut();
+            let Some(sink) = slot.as_mut() else { return; };
+            let words = [component as u64, id as u64, op, kind.code(), requested as u64,
+                capacity as u64, slot_size as u64, target];
+            for word in words {
+                if sink.writer.write_all(&word.to_le_bytes()).is_err() { sink.failed = true; }
+                sink.checksum = sink.checksum.wrapping_add(word);
+            }
+            sink.count = sink.count.checked_add(1).expect("F5c event count overflow");
+        });
+    }
+
+    pub(super) fn checkpoint(component: usize, capacity: usize, retained: usize) {
+        record(component, 0, CHECKPOINT, PhysicalOwnerKind::Unclassified,
+            0, capacity, retained, 0);
+    }
+}
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+impl PhysicalOwnerKind {
+    fn code(self) -> u64 {
+        match self {
+            Self::Unclassified => 0, Self::SourceOuter => 1, Self::SourceSidecar => 2,
+            Self::SourceHeldBounds => 3, Self::SourceActiveBounds => 4,
+            Self::PositiveFunctionArgument => 5, Self::PositiveFunctionResult => 6,
+            Self::NegativeFunctionArgument => 7, Self::NegativeFunctionResult => 8,
+            Self::UnionChildren => 9, Self::IntersectionChildren => 10,
+            Self::StagedOuter => 11, Self::StagedBuffer(index) => 12 + index as u64,
+            Self::IndexedBuffer(index) => 18 + index as u64,
+            Self::WalkerLane(index) => 32 + index as u64,
+        }
+    }
+}
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+pub(super) use event_sink::{close as close_f5c_resource_events, open as open_f5c_resource_events};
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+pub(super) struct FlatDraftOwner {
+    component: usize,
+    id: usize,
+    lane: usize,
+    capacity: usize,
+    slot_size: usize,
+    requested: usize,
+    peak_requested: usize,
+    transferred: bool,
+}
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+impl FlatDraftOwner {
+    pub(super) fn new(meter: &DraftHeapMeter, lane: usize, slot_size: usize) -> Self {
+        Self::new_with_component(meter.0.event_component.get(), lane, slot_size)
+    }
+
+    pub(super) fn new_with_component(component: usize, lane: usize, slot_size: usize) -> Self {
+        let id = event_sink::next_id();
+        event_sink::record(component, id, event_sink::CREATE,
+            PhysicalOwnerKind::WalkerLane(lane), 0, 0, slot_size, 0);
+        Self { component, id, lane, capacity: 0, slot_size,
+            requested: 0, peak_requested: 0, transferred: false }
+    }
+
+    pub(super) fn observe(&mut self, requested: usize, capacity: usize) {
+        let operation = if capacity != self.capacity {
+            Some(event_sink::GROW)
+        } else if requested != self.requested {
+            Some(event_sink::SHAPE)
+        } else {
+            None
+        };
+        if let Some(operation) = operation {
+            event_sink::record(self.component, self.id, operation,
+                PhysicalOwnerKind::WalkerLane(self.lane), requested, capacity,
+                self.slot_size, 0);
+        }
+        self.capacity = capacity;
+        self.requested = requested;
+        self.peak_requested = self.peak_requested.max(requested);
+    }
+}
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+impl Drop for FlatDraftOwner {
+    fn drop(&mut self) {
+        if !self.transferred {
+            event_sink::record(self.component, self.id, event_sink::RELEASE,
+                PhysicalOwnerKind::WalkerLane(self.lane), 0, 0, self.slot_size, 0);
+        }
+    }
+}
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+#[derive(Clone, Copy, Debug)]
+struct PhysicalOwnerHandle { slot: usize, id: usize }
+
+#[cfg(all(test, not(feature = "f5c_resource_probe")))]
+type PhysicalOwnerHandle = usize;
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+#[derive(Clone, Copy)]
+struct PhysicalOwnerEntry {
+    capacity: usize, slot_size: usize, id: usize, kind: PhysicalOwnerKind,
+    requested: usize, peak_requested: usize, adopting: bool,
+}
+#[cfg(all(test, not(feature = "f5c_resource_probe")))]
+type PhysicalOwnerEntry = (usize, usize);
+
+#[cfg(test)]
+fn dead_physical_handle() -> PhysicalOwnerHandle {
+    #[cfg(feature = "f5c_resource_probe")]
+    { PhysicalOwnerHandle { slot: 0, id: 0 } }
+    #[cfg(not(feature = "f5c_resource_probe"))]
+    { 0 }
+}
+
 struct MeterState {
     current: Cell<Option<usize>>,
     normalization_scratch: Cell<Option<usize>>,
@@ -19,13 +205,25 @@ struct MeterState {
     #[cfg(test)]
     physical_current: Cell<Option<usize>>,
     #[cfg(test)]
-    physical_owners: std::cell::RefCell<Vec<Option<(usize, usize)>>>,
+    physical_owners: std::cell::RefCell<Vec<Option<PhysicalOwnerEntry>>>,
     #[cfg(test)]
     free_physical_owners: std::cell::RefCell<Vec<usize>>,
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    event_component: Cell<usize>,
     #[cfg(test)]
     physical_component_external: Cell<Option<usize>>,
     #[cfg(test)]
     physical_joint_peak: Cell<Option<usize>>,
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    family6_walker_current: Cell<usize>,
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    family6_source_capacity: Cell<Option<usize>>,
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    family6_walker_capacity: Cell<usize>,
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    family6_event_peak: Cell<Option<usize>>,
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    family6_event_count: Cell<usize>,
 }
 
 impl Default for MeterState {
@@ -42,10 +240,22 @@ impl Default for MeterState {
             physical_owners: std::cell::RefCell::new(vec![None]),
             #[cfg(test)]
             free_physical_owners: std::cell::RefCell::new(Vec::new()),
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            event_component: Cell::new(0),
             #[cfg(test)]
             physical_component_external: Cell::new(None),
             #[cfg(test)]
             physical_joint_peak: Cell::new(None),
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            family6_walker_current: Cell::new(0),
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            family6_source_capacity: Cell::new(Some(0)),
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            family6_walker_capacity: Cell::new(0),
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            family6_event_peak: Cell::new(Some(0)),
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            family6_event_count: Cell::new(0),
         }
     }
 }
@@ -56,6 +266,64 @@ impl Default for MeterState {
 pub(super) struct DraftHeapMeter(MeterState);
 
 impl DraftHeapMeter {
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    pub(super) fn event_component(&self) -> usize {
+        self.0.event_component.get()
+    }
+
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    pub(super) fn claim_existing_batch_with_owners<'meter>(
+        &'meter self,
+        bytes: [usize; 6],
+        future_external: usize,
+        owners: &mut [FlatDraftOwner; 6],
+        requested: [usize; 6],
+        capacities: [usize; 6],
+        sizes: [usize; 6],
+    ) -> Result<[TrackedAllocation<'meter>; 6], ()> {
+        let added = bytes.iter().try_fold(0usize, |sum, byte| sum.checked_add(*byte))
+            .ok_or(())?;
+        let next = self.current_bytes().ok_or(())?.checked_add(added).ok_or(())?;
+        self.0.physical_current.get().ok_or(())?.checked_add(added).ok_or(())?;
+        if self.0.component_external.get().is_some() {
+            next.checked_add(future_external).ok_or(())?;
+        }
+        for (index, owner) in owners.iter().enumerate() {
+            if owner.component != self.0.event_component.get()
+                || owner.transferred
+                || owner.capacity != capacities[index]
+                || owner.slot_size != sizes[index]
+                || owner.capacity.checked_mul(owner.slot_size) != Some(bytes[index])
+            {
+                return Err(());
+            }
+        }
+        self.0.current.set(Some(next));
+        let allocations = std::array::from_fn(|index| {
+            let owner = &mut owners[index];
+            let kind = PhysicalOwnerKind::StagedBuffer(index);
+            let handle = self.register_physical_owner_id(bytes[index], kind, owner.id,
+                false, false);
+            {
+                let mut registry = self.0.physical_owners.borrow_mut();
+                let entry = registry[handle.slot].as_mut().expect("transferred draft owner");
+                entry.capacity = owner.capacity;
+                entry.slot_size = owner.slot_size;
+                entry.requested = requested[index];
+                entry.peak_requested = owner.peak_requested.max(requested[index]);
+                entry.adopting = false;
+            }
+            self.0.family6_source_capacity.set(self.0.family6_source_capacity.get()
+                .and_then(|current| current.checked_sub(bytes[index])?
+                    .checked_add(owner.capacity)));
+            owner.transferred = true;
+            event_sink::record(owner.component, owner.id, event_sink::TRANSFER,
+                kind, requested[index], owner.capacity, owner.slot_size, kind.code());
+            TrackedAllocation(AllocationToken { meter: self, bytes: bytes[index],
+                physical_owner: handle })
+        });
+        Ok(allocations)
+    }
     /// Claim already allocated buffers as one checked transfer. The caller
     /// releases their former ledger lanes before the next observation.
     pub(super) fn claim_existing_batch<'meter>(
@@ -76,7 +344,10 @@ impl DraftHeapMeter {
             next.checked_add(future_external).ok_or(())?;
         }
         self.0.current.set(Some(next));
-        Ok(bytes.map(|byte| TrackedAllocation(AllocationToken::new(self, byte))))
+        Ok(std::array::from_fn(|index| TrackedAllocation(
+            AllocationToken::new_with_kind(
+                self, bytes[index], PhysicalOwnerKind::StagedBuffer(index),
+            ))))
     }
     pub(super) fn begin_component(&self) -> Result<(), ()> {
         let current = self.current_bytes().ok_or(())?;
@@ -219,20 +490,78 @@ impl DraftHeapMeter {
             .borrow()
             .iter()
             .flatten()
-            .try_fold(0usize, |sum, (capacity, slot_size)| {
-                sum.checked_add(capacity.checked_mul(*slot_size)?)
+            .try_fold(0usize, |sum, owner| {
+                #[cfg(feature = "f5c_resource_probe")]
+                let (capacity, slot_size) = (owner.capacity, owner.slot_size);
+                #[cfg(not(feature = "f5c_resource_probe"))]
+                let (capacity, slot_size) = (owner.0, owner.1);
+                sum.checked_add(capacity.checked_mul(slot_size)?)
             })
     }
 
-    #[cfg(test)]
-    fn register_physical_owner(&self, bytes: usize) -> usize {
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    pub(super) fn set_event_component(&self, component: usize) {
+        self.0.event_component.set(component);
+    }
+
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    pub(super) fn record_event_checkpoint(&self, capacity: usize, retained: usize) {
+        event_sink::checkpoint(self.0.event_component.get(), capacity, retained);
+    }
+
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    pub(super) fn family6_event_peak(&self) -> Option<usize> {
+        self.0.family6_event_peak.get()
+    }
+
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    pub(super) fn family6_event_count(&self) -> usize {
+        self.0.family6_event_count.get()
+    }
+
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    pub(super) fn family6_event_current(&self) -> Option<(usize, usize)> {
+        Some((self.0.family6_source_capacity.get()?
+            .checked_add(self.0.family6_walker_capacity.get())?,
+            self.0.physical_current.get()?
+                .checked_add(self.0.family6_walker_current.get())?))
+    }
+
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    pub(super) fn observe_family6_walker(&self, bytes: usize, capacity: usize) {
+        self.0.family6_walker_current.set(bytes);
+        self.0.family6_walker_capacity.set(capacity);
+        self.sample_family6_event();
+    }
+
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    fn sample_family6_event(&self) {
+        let current = self.0.physical_current.get().and_then(|source|
+            source.checked_add(self.0.family6_walker_current.get()));
+        self.0.family6_event_peak.set(match (self.0.family6_event_peak.get(), current) {
+            (Some(old), Some(now)) => Some(old.max(now)),
+            _ => None,
+        });
+        self.0.family6_event_count.set(self.0.family6_event_count.get() + 1);
+    }
+
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    fn register_physical_owner(&self, bytes: usize, kind: PhysicalOwnerKind) -> PhysicalOwnerHandle {
+        self.register_physical_owner_id(bytes, kind, event_sink::next_id(), true, true)
+    }
+
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    fn register_physical_owner_id(&self, bytes: usize, kind: PhysicalOwnerKind,
+        owner_id: usize, create: bool, sample: bool) -> PhysicalOwnerHandle {
         let mut owners = self.0.physical_owners.borrow_mut();
+        let entry = PhysicalOwnerEntry { capacity: bytes, slot_size: 1, id: owner_id,
+            kind, requested: 0, peak_requested: 0, adopting: !create };
         let id = if let Some(id) = self.0.free_physical_owners.borrow_mut().pop() {
-            assert!(owners[id].replace((bytes, 1)).is_none());
+            assert!(owners[id].replace(entry).is_none());
             id
         } else {
             let id = owners.len();
-            owners.push(Some((bytes, 1)));
+            owners.push(Some(entry));
             id
         };
         self.0.physical_current.set(
@@ -241,15 +570,41 @@ impl DraftHeapMeter {
                 .get()
                 .and_then(|total| total.checked_add(bytes)),
         );
-        id
+        self.0.family6_source_capacity.set(self.0.family6_source_capacity.get()
+            .and_then(|current| current.checked_add(bytes)));
+        if sample { self.sample_family6_event(); }
+        if create {
+            event_sink::record(self.0.event_component.get(), owner_id, event_sink::CREATE,
+                kind, 0, bytes, 1, 0);
+        }
+        PhysicalOwnerHandle { slot: id, id: owner_id }
     }
 
-    #[cfg(test)]
-    fn replace_physical_owner(&self, id: usize, capacity: usize, slot_size: usize) {
+    #[cfg(all(test, not(feature = "f5c_resource_probe")))]
+    fn register_physical_owner(&self, bytes: usize, _kind: PhysicalOwnerKind) -> PhysicalOwnerHandle {
         let mut owners = self.0.physical_owners.borrow_mut();
-        let (old_capacity, old_size) = owners[id]
-            .replace((capacity, slot_size))
-            .expect("live physical source owner");
+        let slot = if let Some(slot) = self.0.free_physical_owners.borrow_mut().pop() {
+            assert!(owners[slot].replace((bytes, 1)).is_none());
+            slot
+        } else {
+            let slot = owners.len();
+            owners.push(Some((bytes, 1)));
+            slot
+        };
+        self.0.physical_current.set(self.0.physical_current.get()
+            .and_then(|total| total.checked_add(bytes)));
+        slot
+    }
+
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    fn replace_physical_owner(&self, handle: PhysicalOwnerHandle, capacity: usize, slot_size: usize) {
+        let mut owners = self.0.physical_owners.borrow_mut();
+        let owner = owners[handle.slot].as_mut().expect("live physical source owner");
+        assert_eq!(owner.id, handle.id, "physical owner generation");
+        let (old_capacity, old_size) = (owner.capacity, owner.slot_size);
+        owner.capacity = capacity;
+        owner.slot_size = slot_size;
+        let (kind, requested, adopting) = (owner.kind, owner.requested, owner.adopting);
         self.0
             .physical_current
             .set(self.0.physical_current.get().and_then(|total| {
@@ -257,23 +612,92 @@ impl DraftHeapMeter {
                     .checked_sub(old_capacity.checked_mul(old_size)?)?
                     .checked_add(capacity.checked_mul(slot_size)?)
             }));
+        #[cfg(feature = "f5c_resource_probe")]
+        self.0.family6_source_capacity.set(self.0.family6_source_capacity.get()
+            .and_then(|current| current.checked_sub(old_capacity)?
+                .checked_add(capacity)));
+        #[cfg(feature = "f5c_resource_probe")]
+        self.sample_family6_event();
+        if !adopting && (capacity != old_capacity || slot_size != old_size) {
+            event_sink::record(self.0.event_component.get(), handle.id,
+                if slot_size != old_size { event_sink::SHAPE } else { event_sink::GROW },
+                kind, requested, capacity, slot_size, 0);
+        }
     }
 
-    #[cfg(test)]
-    fn release_physical_owner(&self, id: usize) {
-        if id == 0 {
+    #[cfg(all(test, not(feature = "f5c_resource_probe")))]
+    fn replace_physical_owner(&self, slot: PhysicalOwnerHandle, capacity: usize, slot_size: usize) {
+        let (old_capacity, old_size) = self.0.physical_owners.borrow_mut()[slot]
+            .replace((capacity, slot_size)).expect("live physical source owner");
+        self.0.physical_current.set(self.0.physical_current.get().and_then(|total| {
+            total.checked_sub(old_capacity.checked_mul(old_size)?)?
+                .checked_add(capacity.checked_mul(slot_size)?)
+        }));
+    }
+
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    fn release_physical_owner(&self, handle: PhysicalOwnerHandle) {
+        if handle.slot == 0 {
             return;
         }
-        let (capacity, slot_size) = self.0.physical_owners.borrow_mut()[id]
+        let owner = self.0.physical_owners.borrow_mut()[handle.slot]
             .take()
             .expect("live physical source owner");
+        let (capacity, slot_size) = (owner.capacity, owner.slot_size);
+        assert_eq!(owner.id, handle.id, "physical owner generation");
         self.0.physical_current.set(
             self.0
                 .physical_current
                 .get()
                 .and_then(|total| total.checked_sub(capacity.checked_mul(slot_size)?)),
         );
-        self.0.free_physical_owners.borrow_mut().push(id);
+        #[cfg(feature = "f5c_resource_probe")]
+        self.0.family6_source_capacity.set(self.0.family6_source_capacity.get()
+            .and_then(|current| current.checked_sub(capacity)));
+        #[cfg(feature = "f5c_resource_probe")]
+        self.sample_family6_event();
+        if !owner.adopting {
+            event_sink::record(self.0.event_component.get(), handle.id, event_sink::RELEASE,
+                owner.kind, 0, 0, slot_size, 0);
+        }
+        self.0.free_physical_owners.borrow_mut().push(handle.slot);
+    }
+
+    #[cfg(all(test, not(feature = "f5c_resource_probe")))]
+    fn release_physical_owner(&self, slot: PhysicalOwnerHandle) {
+        if slot == 0 { return; }
+        let (capacity, slot_size) = self.0.physical_owners.borrow_mut()[slot]
+            .take().expect("live physical source owner");
+        self.0.physical_current.set(self.0.physical_current.get()
+            .and_then(|total| total.checked_sub(capacity.checked_mul(slot_size)?)));
+        self.0.free_physical_owners.borrow_mut().push(slot);
+    }
+
+    #[cfg(test)]
+    fn physical_owner_requested(&self, handle: PhysicalOwnerHandle, requested: usize) {
+        #[cfg(feature = "f5c_resource_probe")]
+        {
+            let mut owners = self.0.physical_owners.borrow_mut();
+            let owner = owners[handle.slot].as_mut().expect("live physical owner");
+            assert_eq!(owner.id, handle.id);
+            owner.requested = requested;
+            owner.peak_requested = owner.peak_requested.max(requested);
+        }
+        #[cfg(not(feature = "f5c_resource_probe"))]
+        let _ = (handle, requested);
+    }
+
+    #[cfg(test)]
+    fn physical_owner_transfer(&self, handle: PhysicalOwnerHandle) {
+        #[cfg(feature = "f5c_resource_probe")]
+        {
+            let owners = self.0.physical_owners.borrow();
+            let owner = owners[handle.slot].as_ref().expect("live physical owner");
+            event_sink::record(self.0.event_component.get(), handle.id, event_sink::TRANSFER,
+                owner.kind, owner.requested, owner.capacity, owner.slot_size, owner.kind.code());
+        }
+        #[cfg(not(feature = "f5c_resource_probe"))]
+        let _ = handle;
     }
 
     pub(super) const fn fixed_payload_bytes() -> usize {
@@ -319,18 +743,32 @@ struct AllocationToken<'meter> {
     meter: &'meter DraftHeapMeter,
     bytes: usize,
     #[cfg(test)]
-    physical_owner: usize,
+    physical_owner: PhysicalOwnerHandle,
 }
 
 impl AllocationToken<'_> {
     fn new(meter: &DraftHeapMeter, bytes: usize) -> AllocationToken<'_> {
+        Self::new_with_kind(meter, bytes, PhysicalOwnerKind::Unclassified)
+    }
+
+    fn new_with_kind(meter: &DraftHeapMeter, bytes: usize, kind: PhysicalOwnerKind) -> AllocationToken<'_> {
+        #[cfg(not(test))]
+        let _ = kind;
         AllocationToken {
             meter,
             bytes,
             #[cfg(test)]
-            physical_owner: meter.register_physical_owner(bytes),
+            physical_owner: meter.register_physical_owner(bytes, kind),
         }
     }
+
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    fn new_with_existing_owner(meter: &DraftHeapMeter, kind: PhysicalOwnerKind,
+        id: usize) -> AllocationToken<'_> {
+        AllocationToken { meter, bytes: 0,
+            physical_owner: meter.register_physical_owner_id(0, kind, id, false, true) }
+    }
+
 
     fn reconcile<T>(&mut self, capacity: usize) -> Result<(), ()> {
         self.reconcile_with_component_sample::<T>(capacity, true)
@@ -377,9 +815,13 @@ pub(super) struct TrackedVec<'meter, T> {
 
 impl<'meter, T> TrackedVec<'meter, T> {
     pub(super) fn new(meter: &'meter DraftHeapMeter) -> Self {
+        Self::new_with_kind(meter, PhysicalOwnerKind::Unclassified)
+    }
+
+    pub(super) fn new_with_kind(meter: &'meter DraftHeapMeter, kind: PhysicalOwnerKind) -> Self {
         Self {
             values: Some(Vec::new()),
-            token: AllocationToken::new(meter, 0),
+            token: AllocationToken::new_with_kind(meter, 0, kind),
         }
     }
 
@@ -444,7 +886,10 @@ impl<'meter, T> TrackedVec<'meter, T> {
         let values = self.values.take().unwrap();
         let bytes = std::mem::replace(&mut self.token.bytes, 0);
         #[cfg(test)]
-        let physical_owner = std::mem::replace(&mut self.token.physical_owner, 0);
+        let physical_owner = std::mem::replace(&mut self.token.physical_owner,
+            dead_physical_handle());
+        #[cfg(test)]
+        self.token.meter.physical_owner_transfer(physical_owner);
         (
             values,
             TrackedAllocation(AllocationToken {
@@ -538,6 +983,50 @@ impl<'meter, T> TrackedVec<'meter, T> {
 /// Capacity charge for a raw buffer whose owner controls the drop order.
 pub(super) struct TrackedAllocation<'meter>(AllocationToken<'meter>);
 
+impl TrackedAllocation<'_> {
+    pub(super) fn classify(&mut self, kind: PhysicalOwnerKind) {
+        #[cfg(not(all(test, feature = "f5c_resource_probe")))]
+        let _ = kind;
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        {
+            let handle = self.0.physical_owner;
+            let mut owners = self.0.meter.0.physical_owners.borrow_mut();
+            let owner = owners[handle.slot].as_mut().expect("live physical owner");
+            assert_eq!(owner.id, handle.id);
+            owner.kind = kind;
+            event_sink::record(self.0.meter.0.event_component.get(), handle.id,
+                event_sink::SHAPE, kind, owner.requested, owner.capacity, owner.slot_size, 0);
+        }
+    }
+
+    pub(super) fn classify_shape(
+        &mut self, kind: PhysicalOwnerKind, requested: usize, capacity: usize, slot_size: usize,
+    ) {
+        debug_assert_eq!(self.0.bytes, capacity.saturating_mul(slot_size));
+        #[cfg(not(all(test, feature = "f5c_resource_probe")))]
+        let _ = (kind, requested, capacity, slot_size);
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        {
+            let handle = self.0.physical_owner;
+            let mut owners = self.0.meter.0.physical_owners.borrow_mut();
+            let owner = owners[handle.slot].as_mut().expect("live physical owner");
+            assert_eq!(owner.id, handle.id);
+            let old_capacity = owner.capacity;
+            owner.kind = kind;
+            owner.requested = requested;
+            owner.peak_requested = owner.peak_requested.max(requested);
+            owner.capacity = capacity;
+            owner.slot_size = slot_size;
+            self.0.meter.0.family6_source_capacity.set(
+                self.0.meter.0.family6_source_capacity.get()
+                    .and_then(|current| current.checked_sub(old_capacity)?
+                        .checked_add(capacity)));
+            event_sink::record(self.0.meter.0.event_component.get(), handle.id,
+                event_sink::TRANSFER, kind, requested, capacity, slot_size, kind.code());
+        }
+    }
+}
+
 impl<T> Deref for TrackedVec<'_, T> {
     type Target = [T];
     fn deref(&self) -> &Self::Target {
@@ -604,7 +1093,10 @@ impl<'meter, T> IntoIterator for TrackedVec<'meter, T> {
         let bytes = self.token.bytes;
         self.token.bytes = 0;
         #[cfg(test)]
-        let physical_owner = std::mem::replace(&mut self.token.physical_owner, 0);
+        let physical_owner = std::mem::replace(&mut self.token.physical_owner,
+            dead_physical_handle());
+        #[cfg(test)]
+        self.token.meter.physical_owner_transfer(physical_owner);
         TrackedIntoIter {
             iter: Some(values.into_iter()),
             token: AllocationToken {

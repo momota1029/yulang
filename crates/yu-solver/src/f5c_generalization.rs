@@ -1,4 +1,44 @@
 use super::*;
+use super::f5c_draft_heap::PhysicalOwnerKind;
+
+fn classify_staged_buffers(
+    allocations: &mut [TrackedAllocation<'_>; 6],
+    capacities: [usize; 6], requested: [usize; 6], sizes: [usize; 6],
+) {
+    for index in 0..6 {
+        allocations[index].classify_shape(
+            PhysicalOwnerKind::StagedBuffer(index), requested[index],
+            capacities[index], sizes[index],
+        );
+    }
+}
+
+fn staged_requested(draft: &f5c_draft::FlatDraft) -> [usize; 6] {
+    [draft.positive_nodes.len(), draft.negative_nodes.len(),
+        draft.positive_children.len(), draft.negative_children.len(),
+        draft.recursive_bounds.len(), draft.insertion_order.len()]
+}
+
+fn claim_flat_draft_batch<'meter>(
+    meter: &'meter DraftHeapMeter,
+    draft: &mut f5c_draft::FlatDraft,
+    bytes: [usize; 6],
+    future_external: usize,
+    capacities: [usize; 6],
+    sizes: [usize; 6],
+) -> Result<[TrackedAllocation<'meter>; 6], ()> {
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    draft.sync_owners();
+    let requested = staged_requested(draft);
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    if let Some(owners) = draft.owners.as_mut() {
+        return meter.claim_existing_batch_with_owners(
+            bytes, future_external, owners, requested, capacities, sizes);
+    }
+    let mut allocations = meter.claim_existing_batch(bytes, future_external)?;
+    classify_staged_buffers(&mut allocations, capacities, requested, sizes);
+    Ok(allocations)
+}
 
 #[cfg(test)]
 pub(super) struct PhysicalJoint {
@@ -4501,7 +4541,7 @@ impl F5cComponentExpansionMemo {
         &mut self,
         source_meter: &'meter DraftHeapMeter,
         staged: &mut F5cStagedCandidate<'meter>,
-        draft: f5c_draft::FlatDraft,
+        mut draft: f5c_draft::FlatDraft,
     ) -> Result<(), SolveAvailabilityError> {
         let capacities = [
             draft.positive_nodes.capacity(),
@@ -4529,8 +4569,8 @@ impl F5cComponentExpansionMemo {
             .retained_bytes()?
             .checked_add(self.walker_resources.retained_bytes()?)
             .ok_or(SolveAvailabilityError::IdentityExhausted)?;
-        let allocations = source_meter
-            .claim_existing_batch(bytes, future_external)
+        let allocations = claim_flat_draft_batch(
+            source_meter, &mut draft, bytes, future_external, capacities, sizes)
             .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
         let old = std::mem::replace(
             staged,
@@ -7347,6 +7387,15 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
         #[cfg(test)]
         let mut callback_trace = Vec::<(u32, Polarity)>::new();
         let mut draft = f5c_draft::FlatDraft::default();
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        draft.attach_owners(self.source_meter, [
+            F5cWalkerLaneKind::DraftPositiveNodes as usize,
+            F5cWalkerLaneKind::DraftNegativeNodes as usize,
+            F5cWalkerLaneKind::DraftPositiveChildren as usize,
+            F5cWalkerLaneKind::DraftNegativeChildren as usize,
+            F5cWalkerLaneKind::DraftRecursiveBounds as usize,
+            F5cWalkerLaneKind::DraftInsertionOrder as usize,
+        ]);
         let result = (|| {
             let predicate = self.walk_flat(F5cWalkTask::EnterRow {
                 row: root,
@@ -8766,7 +8815,7 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
     fn stage_normalized_candidate_inner(
         &mut self,
         staged: &mut TrackedVec<'meter, F5cStagedCandidate<'meter>>,
-        candidate: F5cNormalizedCandidate,
+        mut candidate: F5cNormalizedCandidate,
         fail_preflight: bool,
         fail_observe: bool,
     ) -> Result<(), SolveAvailabilityError> {
@@ -8823,10 +8872,9 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
             self.release_normalized_candidate(candidate);
             return Err(SolveAvailabilityError::IdentityExhausted);
         }
-        let allocations = match self
-            .source_meter
-            .claim_existing_batch(bytes, future_external)
-        {
+        let allocations = match claim_flat_draft_batch(
+            self.source_meter, &mut candidate.draft, bytes, future_external,
+            capacities, kinds.map(F5cWalkerLaneKind::slot_size)) {
             Ok(allocations) => allocations,
             Err(()) => {
                 self.release_normalized_candidate(candidate);

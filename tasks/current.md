@@ -4,6 +4,14 @@ Updated: 2026-09-28. Branch: `yulang3`; do not modify frozen `main`.
 
 Resume handoff: [`2026-09-22 F5c scheme-closure handoff`](../notes/handoffs/2026-09-22-f5c-scheme-closure-handoff.md).
 
+### Checkpoint (2026-09-28): verified FlatDraft carrier and same-ID transfer core
+
+The six-buffer `FlatDraft` carrier and atomic same-ID staged-transfer core are
+checkpointed in [`F5c FlatDraft owner carrier checkpoint`](../notes/progress/f5c-flatdraft-owner-carrier-checkpoint-2026-09-28.md).
+That record names the exact diff units, independent reviews, and isolated
+worktree checks. Later family-6 owner hooks, the all-family event fold, and
+scale measurements remain open.
+
 ### Latest continuation (2026-09-28): no-cap scale plan and observer scope reviewed
 
 The fresh §26/§34 plan is

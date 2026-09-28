@@ -1,5 +1,7 @@
 use super::SolveAvailabilityError;
-use super::f5c_draft_heap::{DraftHeapMeter, TrackedVec};
+use super::f5c_draft_heap::{DraftHeapMeter, PhysicalOwnerKind, TrackedVec};
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+use super::f5c_draft_heap::FlatDraftOwner;
 use yu_types::{
     IndexedChildSpan, IndexedNegativeNode, IndexedNegativeNodeId, IndexedPositiveNode,
     IndexedPositiveNodeId, IndexedRecursiveBound, IndexedSchemeRef,
@@ -14,6 +16,89 @@ pub(super) struct NegativeId(pub(super) u32);
 pub(super) struct ChildSpan {
     pub(super) start: u32,
     pub(super) len: u32,
+}
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+mod owner_transfer_tests {
+    use super::*;
+    use super::super::f5c_draft_heap::{close_f5c_resource_events, open_f5c_resource_events};
+
+    fn events(path: &std::path::Path) -> Vec<[u64; 8]> {
+        let bytes = std::fs::read(path).unwrap();
+        bytes[8..].chunks_exact(64).map(|event| std::array::from_fn(|i| {
+            u64::from_le_bytes(event[i * 8..(i + 1) * 8].try_into().unwrap())
+        })).collect()
+    }
+
+    #[test]
+    fn flat_draft_move_failed_preflight_and_drop_keep_one_identity() {
+        let path = std::env::temp_dir().join(format!("f5c-draft-owner-{}-{:?}.bin",
+            std::process::id(), std::thread::current().id()));
+        open_f5c_resource_events(&path).unwrap();
+        let meter = DraftHeapMeter::default();
+        meter.set_event_component(17);
+        let mut draft = FlatDraft::default();
+        draft.attach_owners(&meter, [1, 2, 3, 4, 5, 6]);
+        draft.positive(PositiveNode::Int).unwrap();
+        let mut moved = draft;
+        meter.begin_component().unwrap();
+        let capacities = moved.capacities();
+        let sizes = [std::mem::size_of::<PositiveNode>(),
+            std::mem::size_of::<NegativeNode>(), std::mem::size_of::<PositiveId>(),
+            std::mem::size_of::<NegativeId>(), std::mem::size_of::<RecursiveBound>(),
+            std::mem::size_of::<NodeRef>()];
+        let bytes = std::array::from_fn(|i| capacities[i] * sizes[i]);
+        assert!(meter.claim_existing_batch_with_owners(bytes, usize::MAX,
+            moved.owners.as_mut().unwrap(), [1, 0, 0, 0, 0, 1], capacities, sizes).is_err());
+        let failed_reserve = moved.positive_nodes.try_reserve(usize::MAX);
+        moved.observe_owner(0, usize::MAX);
+        assert!(failed_reserve.is_err());
+        moved.positive(PositiveNode::Bottom).unwrap();
+        drop(moved);
+        close_f5c_resource_events().unwrap();
+        let rows = events(&path);
+        std::fs::remove_file(path).unwrap();
+        assert_eq!(rows.iter().filter(|row| row[2] == 1).count(), 6);
+        assert_eq!(rows.iter().filter(|row| row[2] == 4).count(), 0);
+        assert_eq!(rows.iter().filter(|row| row[2] == 5).count(), 6);
+        let grown: Vec<_> = rows.iter().filter(|row| row[2] == 3).collect();
+        assert!(!grown.is_empty());
+        assert!(grown.iter().all(|row| row[0] == 17));
+        assert!(rows.iter().any(|row| row[2] == 2 && row[4] == 2));
+        assert!(!rows.iter().any(|row| row[4] == usize::MAX as u64));
+    }
+
+    #[test]
+    fn flat_draft_transfer_reuses_ids_and_failure_drop_releases_once() {
+        let path = std::env::temp_dir().join(format!("f5c-draft-transfer-{}-{:?}.bin",
+            std::process::id(), std::thread::current().id()));
+        open_f5c_resource_events(&path).unwrap();
+        let meter = DraftHeapMeter::default();
+        meter.set_event_component(23);
+        let mut draft = FlatDraft::default();
+        draft.attach_owners(&meter, [1, 2, 3, 4, 5, 6]);
+        draft.positive(PositiveNode::Int).unwrap();
+        meter.begin_component().unwrap();
+        let capacities = draft.capacities();
+        let sizes = [std::mem::size_of::<PositiveNode>(),
+            std::mem::size_of::<NegativeNode>(), std::mem::size_of::<PositiveId>(),
+            std::mem::size_of::<NegativeId>(), std::mem::size_of::<RecursiveBound>(),
+            std::mem::size_of::<NodeRef>()];
+        let bytes = std::array::from_fn(|i| capacities[i] * sizes[i]);
+        let allocations = meter.claim_existing_batch_with_owners(bytes, 0,
+            draft.owners.as_mut().unwrap(), [1, 0, 0, 0, 0, 1], capacities, sizes).unwrap();
+        drop(draft);
+        drop(allocations);
+        close_f5c_resource_events().unwrap();
+        let rows = events(&path);
+        std::fs::remove_file(path).unwrap();
+        let created: Vec<_> = rows.iter().filter(|row| row[2] == 1).map(|row| row[1]).collect();
+        let transferred: Vec<_> = rows.iter().filter(|row| row[2] == 4).map(|row| row[1]).collect();
+        let released: Vec<_> = rows.iter().filter(|row| row[2] == 5).map(|row| row[1]).collect();
+        assert_eq!(created, transferred);
+        assert_eq!(created, released);
+        assert_eq!(rows.iter().filter(|row| row[2] == 4 && row[4] == 1).count(), 2);
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -63,6 +148,8 @@ pub(super) struct FlatDraft {
     pub(super) negative_children: Vec<NegativeId>,
     pub(super) recursive_bounds: Vec<RecursiveBound>,
     pub(super) insertion_order: Vec<NodeRef>,
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    pub(super) owners: Option<[FlatDraftOwner; 6]>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -126,10 +213,11 @@ impl IndexedFlatDraft<'_> {
 #[allow(dead_code)]
 fn mapped<'meter, T, U>(
     meter: &'meter DraftHeapMeter,
+    kind: PhysicalOwnerKind,
     source: &[T],
     mut convert: impl FnMut(&T) -> Result<U, SolveAvailabilityError>,
 ) -> Result<TrackedVec<'meter, U>, SolveAvailabilityError> {
-    let mut result = TrackedVec::new(meter);
+    let mut result = TrackedVec::new_with_kind(meter, kind);
     result
         .try_reserve(source.len())
         .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
@@ -172,6 +260,58 @@ pub(super) fn indexed_count_for_test(len: usize) -> Result<u32, SolveAvailabilit
 }
 
 impl FlatDraft {
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    pub(super) fn attach_owners(&mut self, meter: &DraftHeapMeter, lanes: [usize; 6]) {
+        self.attach_owners_component(meter.event_component(), lanes);
+    }
+
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    pub(super) fn attach_owners_component(&mut self, component: usize, lanes: [usize; 6]) {
+        assert!(self.owners.is_none());
+        let sizes = [
+            std::mem::size_of::<PositiveNode>(),
+            std::mem::size_of::<NegativeNode>(),
+            std::mem::size_of::<PositiveId>(),
+            std::mem::size_of::<NegativeId>(),
+            std::mem::size_of::<RecursiveBound>(),
+            std::mem::size_of::<NodeRef>(),
+        ];
+        let capacities = self.capacities();
+        let lengths = self.lengths();
+        self.owners = Some(std::array::from_fn(|i| {
+            let mut owner = FlatDraftOwner::new_with_component(component, lanes[i], sizes[i]);
+            owner.observe(lengths[i], capacities[i]);
+            owner
+        }));
+    }
+
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    pub(super) fn capacities(&self) -> [usize; 6] {
+        [self.positive_nodes.capacity(), self.negative_nodes.capacity(),
+            self.positive_children.capacity(), self.negative_children.capacity(),
+            self.recursive_bounds.capacity(), self.insertion_order.capacity()]
+    }
+
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    fn lengths(&self) -> [usize; 6] {
+        [self.positive_nodes.len(), self.negative_nodes.len(),
+            self.positive_children.len(), self.negative_children.len(),
+            self.recursive_bounds.len(), self.insertion_order.len()]
+    }
+
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    pub(super) fn observe_owner(&mut self, index: usize, _requested: usize) {
+        let capacity = self.capacities()[index];
+        let requested = self.lengths()[index];
+        if let Some(owners) = self.owners.as_mut() {
+            owners[index].observe(requested, capacity);
+        }
+    }
+
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    pub(super) fn sync_owners(&mut self) {
+        for index in 0..6 { self.observe_owner(index, 0); }
+    }
     pub(super) fn structural_census(&self) -> Result<(usize, usize), SolveAvailabilityError> {
         Ok((
             self.positive_children
@@ -203,10 +343,14 @@ impl FlatDraft {
             .map_err(|_| SolveAvailabilityError::IdentityExhausted)?
             .checked_add(1)
             .ok_or(SolveAvailabilityError::IdentityExhausted)?;
-        self.positive_children
-            .try_reserve(1)
-            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+        let reservation = self.positive_children.try_reserve(1)
+            .map_err(|_| SolveAvailabilityError::IdentityExhausted);
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        self.observe_owner(2, self.positive_children.len() + 1);
+        reservation?;
         self.positive_children.push(child);
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        self.observe_owner(2, 0);
         Ok(())
     }
 
@@ -219,10 +363,14 @@ impl FlatDraft {
             .map_err(|_| SolveAvailabilityError::IdentityExhausted)?
             .checked_add(1)
             .ok_or(SolveAvailabilityError::IdentityExhausted)?;
-        self.negative_children
-            .try_reserve(1)
-            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+        let reservation = self.negative_children.try_reserve(1)
+            .map_err(|_| SolveAvailabilityError::IdentityExhausted);
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        self.observe_owner(3, self.negative_children.len() + 1);
+        reservation?;
         self.negative_children.push(child);
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        self.observe_owner(3, 0);
         Ok(())
     }
 
@@ -244,11 +392,15 @@ impl FlatDraft {
     pub(super) fn push_reserved_positive_child(&mut self, child: PositiveId) {
         debug_assert!(self.positive_children.len() < self.positive_children.capacity());
         self.positive_children.push(child);
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        self.observe_owner(2, 0);
     }
 
     pub(super) fn push_reserved_negative_child(&mut self, child: NegativeId) {
         debug_assert!(self.negative_children.len() < self.negative_children.capacity());
         self.negative_children.push(child);
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        self.observe_owner(3, 0);
     }
 
     pub(super) fn admit_positive_node(
@@ -293,7 +445,7 @@ impl FlatDraft {
             indexed_count(len)?;
         }
         let predicate = IndexedPositiveNodeId(self.predicate.ok_or(exhausted)?.0);
-        let positive_nodes = mapped(meter, &self.positive_nodes, |node| {
+        let positive_nodes = mapped(meter, PhysicalOwnerKind::IndexedBuffer(0), &self.positive_nodes, |node| {
             Ok(match *node {
                 PositiveNode::Bottom => IndexedPositiveNode::Bottom,
                 PositiveNode::Int => IndexedPositiveNode::Int,
@@ -307,7 +459,7 @@ impl FlatDraft {
                 },
             })
         })?;
-        let negative_nodes = mapped(meter, &self.negative_nodes, |node| {
+        let negative_nodes = mapped(meter, PhysicalOwnerKind::IndexedBuffer(1), &self.negative_nodes, |node| {
             Ok(match *node {
                 NegativeNode::Top => IndexedNegativeNode::Top,
                 NegativeNode::Bottom => IndexedNegativeNode::Bottom,
@@ -329,13 +481,13 @@ impl FlatDraft {
             predicate,
             positive_nodes,
             negative_nodes,
-            positive_children: mapped(meter, &self.positive_children, |id| {
+            positive_children: mapped(meter, PhysicalOwnerKind::IndexedBuffer(2), &self.positive_children, |id| {
                 Ok(IndexedPositiveNodeId(id.0))
             })?,
-            negative_children: mapped(meter, &self.negative_children, |id| {
+            negative_children: mapped(meter, PhysicalOwnerKind::IndexedBuffer(3), &self.negative_children, |id| {
                 Ok(IndexedNegativeNodeId(id.0))
             })?,
-            recursive_bounds: mapped(meter, &self.recursive_bounds, |bound| {
+            recursive_bounds: mapped(meter, PhysicalOwnerKind::IndexedBuffer(4), &self.recursive_bounds, |bound| {
                 Ok(IndexedRecursiveBound {
                     ordinal: bound.ordinal,
                     lower: IndexedPositiveNodeId(bound.lower.0),
@@ -361,14 +513,23 @@ impl FlatDraft {
             u32::try_from(self.positive_nodes.len())
                 .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
         );
-        self.positive_nodes
-            .try_reserve(1)
-            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
-        self.insertion_order
-            .try_reserve(1)
-            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+        let reservation = self.positive_nodes.try_reserve(1)
+            .map_err(|_| SolveAvailabilityError::IdentityExhausted);
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        self.observe_owner(0, self.positive_nodes.len() + 1);
+        reservation?;
+        let reservation = self.insertion_order.try_reserve(1)
+            .map_err(|_| SolveAvailabilityError::IdentityExhausted);
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        self.observe_owner(5, self.insertion_order.len() + 1);
+        reservation?;
         self.positive_nodes.push(node);
         self.insertion_order.push(NodeRef::Positive(id));
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        {
+            self.observe_owner(0, 0);
+            self.observe_owner(5, 0);
+        }
         self.structural_incidences = incidences;
         Ok(id)
     }
@@ -387,14 +548,23 @@ impl FlatDraft {
             u32::try_from(self.negative_nodes.len())
                 .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
         );
-        self.negative_nodes
-            .try_reserve(1)
-            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
-        self.insertion_order
-            .try_reserve(1)
-            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+        let reservation = self.negative_nodes.try_reserve(1)
+            .map_err(|_| SolveAvailabilityError::IdentityExhausted);
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        self.observe_owner(1, self.negative_nodes.len() + 1);
+        reservation?;
+        let reservation = self.insertion_order.try_reserve(1)
+            .map_err(|_| SolveAvailabilityError::IdentityExhausted);
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        self.observe_owner(5, self.insertion_order.len() + 1);
+        reservation?;
         self.negative_nodes.push(node);
         self.insertion_order.push(NodeRef::Negative(id));
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        {
+            self.observe_owner(1, 0);
+            self.observe_owner(5, 0);
+        }
         self.structural_incidences = incidences;
         Ok(id)
     }
@@ -412,10 +582,14 @@ impl FlatDraft {
         start
             .checked_add(len)
             .ok_or(SolveAvailabilityError::IdentityExhausted)?;
-        self.positive_children
-            .try_reserve(children.len())
-            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+        let reservation = self.positive_children.try_reserve(children.len())
+            .map_err(|_| SolveAvailabilityError::IdentityExhausted);
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        self.observe_owner(2, self.positive_children.len() + children.len());
+        reservation?;
         self.positive_children.extend_from_slice(children);
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        self.observe_owner(2, 0);
         Ok(ChildSpan { start, len })
     }
 
@@ -432,10 +606,14 @@ impl FlatDraft {
         start
             .checked_add(len)
             .ok_or(SolveAvailabilityError::IdentityExhausted)?;
-        self.negative_children
-            .try_reserve(children.len())
-            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+        let reservation = self.negative_children.try_reserve(children.len())
+            .map_err(|_| SolveAvailabilityError::IdentityExhausted);
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        self.observe_owner(3, self.negative_children.len() + children.len());
+        reservation?;
         self.negative_children.extend_from_slice(children);
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        self.observe_owner(3, 0);
         Ok(ChildSpan { start, len })
     }
 
@@ -446,10 +624,14 @@ impl FlatDraft {
             .checked_add(1)
             .ok_or(SolveAvailabilityError::IdentityExhausted)?;
         checked_q_r_count(self.quantifier_count, next)?;
-        self.recursive_bounds
-            .try_reserve(1)
-            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+        let reservation = self.recursive_bounds.try_reserve(1)
+            .map_err(|_| SolveAvailabilityError::IdentityExhausted);
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        self.observe_owner(4, self.recursive_bounds.len() + 1);
+        reservation?;
         self.recursive_bounds.push(bound);
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        self.observe_owner(4, 0);
         Ok(())
     }
 }
