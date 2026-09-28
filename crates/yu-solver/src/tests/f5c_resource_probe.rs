@@ -1539,6 +1539,7 @@ fn matrix_session_before_admission(source: &str, name: &str) -> InferenceSession
             "f5c-resource-{}-{}.bin", std::process::id(), name)));
     crate::f5c_draft_heap::open_f5c_resource_events(&sidecar)
         .expect("open F5c resource event sidecar before solve");
+    session.store.terms.start_owner_events();
     F5C_MATRIX_SIDECAR.with(|path| *path.borrow_mut() = Some(sidecar));
     session.flat_candidate_enabled = true;
     session.f5c_matrix_observer = Some(F5cMatrixObserver::new());
@@ -1647,10 +1648,12 @@ fn matrix_emit(session: &SolvedModule, case: F5cMatrixCase) {
             .expect("flush F5c resource event sidecar");
     let sidecar = F5C_MATRIX_SIDECAR.with(|path| path.borrow_mut().take())
         .expect("F5c resource sidecar path");
-    eprintln!("F5C_RESOURCE_MATRIX_ROW\tfamily={:?}\tdimension={}\tsize={}\tcompanion={}\tfamily_ends={:?}\tfamily_totals={}\tfamily1_event={},{},{}\tfamily3_event={},{},{}\tfamily4_event={},{},{}\tfamily6_event={},{},{},{},{},{}\tsemantic_retained={}\tsemantic_peak={}\tsession_retained={}\tsession_peak={}\tlanes={}",
+    eprintln!("F5C_RESOURCE_MATRIX_ROW\tfamily={:?}\tdimension={}\tsize={}\tcompanion={}\tfamily_ends={:?}\tfamily_totals={}\tfamily1_event={},{},{}\tfamily2_event={},{},{}\tfamily3_event={},{},{}\tfamily4_event={},{},{}\tfamily6_event={},{},{},{},{},{}\tsemantic_retained={}\tsemantic_peak={}\tsession_retained={}\tsession_peak={}\tlanes={}",
         case.family, case.dimension, case.size, companion, observer.family_ends,
         family_totals, observer.family1_event_terminal.0,
         observer.family1_event_terminal.1, observer.family1_event_terminal.2,
+        observer.family2_event_terminal.0, observer.family2_event_terminal.1,
+        observer.family2_event_terminal.2,
         observer.family3_event_terminal.0, observer.family3_event_terminal.1,
         observer.family3_event_terminal.2,
         observer.family4_event_terminal.0, observer.family4_event_terminal.1,

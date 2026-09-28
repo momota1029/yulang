@@ -35,6 +35,8 @@ pub(super) enum PhysicalOwnerKind {
     StructuredPairLane(usize),
     #[cfg(all(test, feature = "f5c_resource_probe"))]
     ComponentMemoLane(usize),
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    TermLane(usize),
 }
 
 #[cfg(all(test, feature = "f5c_resource_probe"))]
@@ -55,6 +57,7 @@ mod event_sink {
         static SINK: RefCell<Option<Sink>> = const { RefCell::new(None) };
         static STRUCTURED_PAIR_TOTALS: Cell<(usize, usize, usize)> = const { Cell::new((0, 0, 0)) };
         static COMPONENT_MEMO_TOTALS: Cell<(usize, usize, usize)> = const { Cell::new((0, 0, 0)) };
+        static TERM_TOTALS: Cell<(usize, usize, usize)> = const { Cell::new((0, 0, 0)) };
     }
 
     pub(crate) fn open(path: &Path) -> std::io::Result<()> {
@@ -65,6 +68,7 @@ mod event_sink {
         }));
         STRUCTURED_PAIR_TOTALS.with(|totals| totals.set((0, 0, 0)));
         COMPONENT_MEMO_TOTALS.with(|totals| totals.set((0, 0, 0)));
+        TERM_TOTALS.with(|totals| totals.set((0, 0, 0)));
         Ok(())
     }
 
@@ -146,6 +150,66 @@ mod event_sink {
         record(0, 0, CHECKPOINT, PhysicalOwnerKind::ComponentMemoLane(0),
             0, capacity, retained, 0);
     }
+    pub(super) fn term_totals() -> (usize, usize, usize) { TERM_TOTALS.with(Cell::get) }
+    pub(super) fn term_event(id: usize, op: u64, lane: usize, requested: usize,
+        capacity: usize, size: usize) {
+        if id == 0 { return; }
+        record(0, id, op, PhysicalOwnerKind::TermLane(lane), requested, capacity, size, 0);
+    }
+    pub(super) fn adjust_term(capacity_delta: isize, bytes_delta: isize) {
+        TERM_TOTALS.with(|cell| {
+            let (capacity, bytes, peak) = cell.get();
+            let capacity = capacity.checked_add_signed(capacity_delta).expect("family-2 capacity");
+            let bytes = bytes.checked_add_signed(bytes_delta).expect("family-2 bytes");
+            cell.set((capacity, bytes, peak.max(bytes)));
+        });
+    }
+    pub(super) fn checkpoint_term(capacity: usize, bytes: usize) {
+        record(0, 0, CHECKPOINT, PhysicalOwnerKind::TermLane(0), 0, capacity, bytes, 0);
+    }
+}
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+pub(super) fn new_term_owner(lane: usize, requested: usize, capacity: usize, size: usize) -> usize {
+    let id = event_sink::next_id();
+    event_sink::term_event(id, event_sink::CREATE, lane, requested, capacity, size);
+    if id != 0 { event_sink::adjust_term(capacity as isize, (capacity * size) as isize); }
+    id
+}
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+pub(super) fn update_term_owner(id: usize, lane: usize, requested: usize, old_requested: usize,
+    capacity: usize, old_capacity: usize, size: usize) {
+    if capacity == old_capacity && requested == old_requested { return; }
+    let op = if capacity > old_capacity { event_sink::GROW } else { event_sink::SHAPE };
+    assert!(capacity >= old_capacity);
+    event_sink::term_event(id, op, lane, requested, capacity, size);
+    if id != 0 && capacity > old_capacity {
+        let delta = capacity - old_capacity;
+        event_sink::adjust_term(delta as isize, (delta * size) as isize);
+    }
+}
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+pub(super) fn release_term_owner(id: usize, lane: usize, capacity: usize, size: usize) {
+    event_sink::term_event(id, event_sink::RELEASE, lane, 0, 0, size);
+    if id != 0 { event_sink::adjust_term(-(capacity as isize), -((capacity * size) as isize)); }
+}
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+pub(super) fn transfer_term_owner(id: usize, lane: usize, requested: usize,
+    capacity: usize, size: usize) {
+    if id == 0 { return; }
+    event_sink::record(0, id, event_sink::TRANSFER, PhysicalOwnerKind::TermLane(lane),
+        requested, capacity, size, 571 + lane as u64);
+}
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+pub(super) fn term_event_totals() -> (usize, usize, usize) { event_sink::term_totals() }
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+pub(super) fn checkpoint_term_events(capacity: usize, bytes: usize) {
+    event_sink::checkpoint_term(capacity, bytes);
 }
 
 #[cfg(all(test, feature = "f5c_resource_probe"))]
@@ -163,6 +227,7 @@ impl PhysicalOwnerKind {
             Self::LiveVariableLane(index) => 512 + index as u64,
             Self::StructuredPairLane(index) => 530 + index as u64,
             Self::ComponentMemoLane(index) => 551 + index as u64,
+            Self::TermLane(index) => 571 + index as u64,
         }
     }
 }

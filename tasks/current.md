@@ -73,6 +73,30 @@ family gate remains open, with §34 families 2, 5, 6, and 8 still lacking event
 coverage. Continue with one of those bounded family slices; do not begin matrix
 work until all event coverage and the fresh diagnostic plan are reviewed.
 
+### Latest continuation (2026-09-29): family-2 inference arena owner events
+
+§34 family 2 now streams its six `inference_type_arena` lanes. Each fixed
+`TermPage` backing has its own owner ID, including a temporary page released
+when page claiming fails; five descriptor/map/interner/journal owners preserve
+IDs through route commit, rollback, and active/spare moves. At `FinishOutput`,
+the row records the live arena checkpoint, then the same owners transfer into
+`SolvedModule.store` and remain live at EOF. The checker reconciles lanes 18–23,
+peak, checkpoint, and those exact transfers. Details are in
+[`F5c family-2 inference arena event checkpoint`](../notes/progress/f5c-family2-inference-type-arena-events-checkpoint-2026-09-29.md).
+
+Selected M2 with `spec_auditor` and `compiler_referee`. The compiler review
+found one major ordering issue: the page owner released before its backing Box
+was freed. A fixed-size owner token now drops after the Box, and focused delta
+review closed the finding. Production, feature-enabled test-target, and
+test-target-without-feature compile checks pass; the Python checker parses and
+`git diff --check` passes. One initial cargo invocation failed before build
+because sccache returned EPERM; the same feature-enabled check passed with
+`RUSTC_WRAPPER=`. No tests, matrix, preflight, benchmark, or scale process ran;
+measurement budget remains zero. The all-eight-family gate remains open, with
+§34 families 5, 6, and 8 still needing events. Continue with family 8
+`instantiation_substitution`; do not begin matrix work until all event coverage
+and the fresh diagnostic plan are reviewed.
+
 ### Latest continuation (2026-09-28): user authorized autonomous completion and budget expansion
 
 The user wants the complete F5c result and explicitly directed continuation

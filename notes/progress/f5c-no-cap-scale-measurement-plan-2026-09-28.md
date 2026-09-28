@@ -1,6 +1,6 @@
 # F5c no-cap §26/§34 scale measurement plan
 
-Status: The prior 39-process campaign stopped at the third failed preflight; no matrix row ran. The user has since directed autonomous F5c completion and authorized expanding time and memory plans as needed, so the old no-retry allowance does not constrain a fresh campaign. The AllDrafts and guarded-cycle repairs are statically reviewed but unverified. The six-buffer `FlatDraft` family-6 carrier and atomic same-ID staged transfer are implemented and independently reviewed; family-1 live-variable, family-3 structured-pair, family-4 component-memo, and family-6 streaming-owner events are implemented and independently reviewed in their checkpoints. §34 families 2, 5, 6, and 8 event coverage and the all-eight-family gate remain open; no preflight or scale row has run.
+Status: The prior 39-process campaign stopped at the third failed preflight; no matrix row ran. The user has since directed autonomous F5c completion and authorized expanding time and memory plans as needed, so the old no-retry allowance does not constrain a fresh campaign. The AllDrafts and guarded-cycle repairs are statically reviewed but unverified. The six-buffer `FlatDraft` family-6 carrier and atomic same-ID staged transfer are implemented and independently reviewed; family-1 live-variable, family-2 term-arena, family-3 structured-pair, family-4 component-memo, and family-6 streaming-owner events are implemented and independently reviewed in their checkpoints. §34 families 5, 6, and 8 event coverage and the all-eight-family gate remain open; no preflight or scale row has run.
 Reviewed-by: spec_auditor, performance_auditor (matrix, formulas, safety, and budget deltas closed without unresolved findings)
 Observer-scope delta review: architect, spec_auditor, performance_auditor; no blocking or major findings
 Execution-extension delta review: spec_auditor clarified approval timing; performance_auditor supplied the one-process budget justification
@@ -10,7 +10,7 @@ Guarded-cycle authority delta review: architect and spec_auditor found D>K cases
 Corrected-workload performance delta review: performance_auditor found the K=4,000 D series raises uncacheable states to 8M/16M/32M and current row timeouts do not establish feasibility
 Third-preflight observer root-cause review: compiler_referee traced the 48-byte mismatch to precommit AllDrafts sampling before actual memo clear
 Observer and fixture repair spec delta: spec_auditor found no blocking or major issue
-Family peak resource delta: same-time owner aggregates are required; family-1, family-3, family-4, and family-6 event integration is implemented and reviewed, with §34 families 2, 5, 6, and 8 open
+Family peak resource delta: same-time owner aggregates are required; family-1, family-2, family-3, family-4, and family-6 event integration is implemented and reviewed, with §34 families 5, 6, and 8 open
 Normalization-counter delta review: spec_auditor; aligned the builder oracle
 with §36's descriptor ranking and actual-operation counters
 Approved-by: user

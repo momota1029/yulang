@@ -423,6 +423,8 @@ pub(crate) struct BranchTermArena {
     route_journal: Option<BranchTermJournal>,
     route_journal_spare: Option<BranchTermJournal>,
     capacity_events: TermCapacityEvents,
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    owner_events: [TermOwnerEvent; 5],
     #[cfg(test)]
     lane_requests: [usize; 6],
     #[cfg(test)]
@@ -523,6 +525,41 @@ struct BranchTermJournal {
     claimed_pages: Vec<u32>,
 }
 
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+#[derive(Debug)]
+struct TermOwnerEvent { id: usize, requested: usize, capacity: usize }
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+impl Drop for BranchTermArena {
+    fn drop(&mut self) {
+        let sizes = Self::independent_lane_sizes();
+        drop(std::mem::take(&mut self.pages));
+        self.release_owner_event(1, sizes[1]);
+        drop(std::mem::take(&mut self.page_positions));
+        self.release_owner_event(2, sizes[2]);
+        drop(std::mem::take(&mut self.positions));
+        self.release_owner_event(3, sizes[3]);
+        drop(self.route_journal.take());
+        drop(self.route_journal_spare.take());
+        self.release_owner_event(4, sizes[4]);
+        self.release_owner_event(5, sizes[5]);
+    }
+}
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+impl TermOwnerEvent {
+    fn new(lane: usize, size: usize) -> Self {
+        Self { id: crate::f5c_draft_heap::new_term_owner(lane, 0, 0, size),
+            requested: 0, capacity: 0 }
+    }
+    fn observe(&mut self, lane: usize, requested: usize, capacity: usize, size: usize) {
+        crate::f5c_draft_heap::update_term_owner(self.id, lane, requested,
+            self.requested, capacity, self.capacity, size);
+        self.requested = requested;
+        self.capacity = capacity;
+    }
+}
+
 #[allow(
     dead_code,
     reason = "F5b fixed-page allocation is exercised by private lifecycle seams before F5d produces postfix terms"
@@ -585,6 +622,11 @@ impl BranchTermArena {
             route_journal: None,
             route_journal_spare: None,
             capacity_events: TermCapacityEvents::new(),
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            owner_events: std::array::from_fn(|index| {
+                let lane = index + 1;
+                TermOwnerEvent::new(lane, Self::independent_lane_sizes()[lane])
+            }),
             #[cfg(test)]
             lane_requests: [0; 6],
             #[cfg(test)]
@@ -641,6 +683,8 @@ impl BranchTermArena {
         journal.interned.clear();
         journal.claimed_pages.clear();
         self.route_journal = Some(journal);
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        self.observe_owner_events();
     }
 
     pub(crate) fn commit_route(&mut self) {
@@ -649,6 +693,8 @@ impl BranchTermArena {
             .take()
             .expect("Term route transaction is active");
         self.route_journal_spare = Some(journal);
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        self.observe_owner_events();
         #[cfg(test)]
         {
             self.journal_transfers += 1;
@@ -672,6 +718,8 @@ impl BranchTermArena {
                 .truncate_to(journal.checkpoint.last_page_initialized);
         }
         self.route_journal_spare = Some(journal);
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        self.observe_owner_events();
         #[cfg(test)]
         {
             self.journal_transfers += 1;
@@ -753,6 +801,51 @@ impl BranchTermArena {
         )
     }
 
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    fn observe_owner_events(&mut self) {
+        let owner = self.independent_owner_lanes().expect("term owner capacity fits");
+        let sizes = Self::independent_lane_sizes();
+        for lane in 1..6 {
+            self.owner_events[lane - 1].observe(lane, owner.lengths[lane],
+                owner.capacities[lane], sizes[lane]);
+        }
+    }
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    fn release_owner_event(&mut self, lane: usize, size: usize) {
+        let owner = &mut self.owner_events[lane - 1];
+        crate::f5c_draft_heap::release_term_owner(owner.id, lane, owner.capacity, size);
+        owner.id = 0;
+    }
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    pub(crate) fn start_owner_events(&mut self) {
+        let sizes = Self::independent_lane_sizes();
+        for page in &mut self.pages {
+            assert_eq!(page.owner_id.id, 0, "term page owner already traced");
+            page.owner_id.id = crate::f5c_draft_heap::new_term_owner(0, 1, 1, sizes[0]);
+        }
+        let lanes = self.independent_owner_lanes().expect("term owner capacity fits");
+        for lane in 1..6 {
+            let owner = &mut self.owner_events[lane - 1];
+            assert_eq!(owner.id, 0, "term vector owner already traced");
+            owner.id = crate::f5c_draft_heap::new_term_owner(lane,
+                lanes.lengths[lane], lanes.capacities[lane], sizes[lane]);
+            owner.requested = lanes.lengths[lane];
+            owner.capacity = lanes.capacities[lane];
+        }
+    }
+
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    pub(crate) fn transfer_owner_events_to_solved_store(&self) {
+        let sizes = Self::independent_lane_sizes();
+        for page in &self.pages {
+            crate::f5c_draft_heap::transfer_term_owner(page.owner_id.id, 0, 1, 1, sizes[0]);
+        }
+        for (index, owner) in self.owner_events.iter().enumerate() {
+            crate::f5c_draft_heap::transfer_term_owner(owner.id, index + 1,
+                owner.requested, owner.capacity, sizes[index + 1]);
+        }
+    }
+
     pub(crate) fn take_capacity_events(
         &mut self,
     ) -> impl Iterator<Item = TermCapacitySnapshot> + use<> {
@@ -760,6 +853,8 @@ impl BranchTermArena {
     }
 
     fn record_capacity_change(&mut self, before: TermCapacitySnapshot, lane: TermCapacityLane) {
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        self.observe_owner_events();
         let after = self.capacity_snapshot();
         if before.0[lane as usize] != after.0[lane as usize] {
             #[cfg(test)]
@@ -929,6 +1024,8 @@ impl BranchTermArena {
             debug_assert!(previous.is_none(), "a claimed page base is never reused");
             page.base = base;
             self.pages.push(page);
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            self.observe_owner_events();
             #[cfg(test)]
             {
                 self.lane_requests[0] += 1;
@@ -947,6 +1044,8 @@ impl BranchTermArena {
             if let Some(journal) = &mut self.route_journal {
                 journal.claimed_pages.push(base);
             }
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            self.observe_owner_events();
         }
         let page = self.pages.last_mut().expect("new branch page is available");
         let index = page.push(node);
@@ -990,6 +1089,8 @@ impl BranchTermArena {
         if let Some(journal) = &mut self.route_journal {
             journal.interned.push(node);
         }
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        self.observe_owner_events();
         Ok(term)
     }
 
@@ -1172,6 +1273,23 @@ struct TermPage {
     base: u32,
     initialized: u16,
     nodes: Box<[MaybeUninit<TermNode>; TERM_PAGE_SLOTS as usize]>,
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    owner_id: TermPageOwnerEvent,
+}
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+#[derive(Debug)]
+struct TermPageOwnerEvent {
+    id: usize,
+}
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+impl Drop for TermPageOwnerEvent {
+    fn drop(&mut self) {
+        if self.id != 0 {
+            crate::f5c_draft_heap::release_term_owner(self.id, 0, 1,
+                std::mem::size_of::<[MaybeUninit<TermNode>; TERM_PAGE_SLOTS as usize]>());
+        }
+    }
 }
 #[allow(
     dead_code,
@@ -1194,6 +1312,10 @@ impl TermPage {
             // above and every element is `MaybeUninit`, so uninitialized bytes
             // are valid until `push` initializes their prefix.
             nodes: unsafe { Box::from_raw(pointer) },
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            owner_id: TermPageOwnerEvent {
+                id: crate::f5c_draft_heap::new_term_owner(0, 1, 1, layout.size()),
+            },
         })
     }
 

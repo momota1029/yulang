@@ -4413,6 +4413,7 @@ struct F5cMatrixObserver {
     family1_event_terminal: (usize, usize, usize),
     structured_pair_events: Option<F5cStructuredPairEvents>,
     family3_event_terminal: (usize, usize, usize),
+    family2_event_terminal: (usize, usize, usize),
     family4_event_terminal: (usize, usize, usize),
 }
 
@@ -4522,6 +4523,7 @@ impl F5cMatrixObserver {
             family_capacity: [0; 8],
             lane_count: 0, live_events: None, family1_event_terminal: (0, 0, 0),
             structured_pair_events: None, family3_event_terminal: (0, 0, 0),
+            family2_event_terminal: (0, 0, 0),
             family4_event_terminal: (0, 0, 0) }
     }
     fn nested_request(&mut self, index: usize, old_capacity: usize, capacity: usize) {
@@ -15526,6 +15528,10 @@ impl InferenceSession {
                 events.transfer_errors();
             }
         }
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        if self.f5c_matrix_observer.is_some() {
+            self.store.terms.transfer_owner_events_to_solved_store();
+        }
         Ok(SolvedModule {
             hir: self.batch.hir,
             projection_order: self.batch.projection_order,
@@ -16015,10 +16021,11 @@ impl InferenceSession {
         assert_eq!(sum_family(observer.family_ends[6], observer.family_ends[7]),
             self.resource_ledger.instantiation_substitution_retained_bytes);
         let streamed_family3 = f5c_draft_heap::structured_pair_event_totals();
+        let streamed_family2 = f5c_draft_heap::term_event_totals();
         let streamed_family4 = f5c_draft_heap::component_memo_event_totals();
         let owner_peaks = [
             self.execution_counters.bound_table_peak_bytes,
-            self.resource_ledger.term_peak_bytes,
+            streamed_family2.2,
             streamed_family3.2,
             streamed_family4.2,
             self.resource_ledger.flat_finalizer_peak_bytes,
@@ -16042,6 +16049,12 @@ impl InferenceSession {
             (usize::try_from(observer.family_capacity[2]).expect("family-3 capacity"),
                 observer.family_retained[2]),
             "family-3 owner events reconcile with current physical lanes");
+        assert_eq!((streamed_family2.0, streamed_family2.1),
+            (usize::try_from(observer.family_capacity[1]).expect("family-2 capacity"),
+                observer.family_retained[1]),
+            "family-2 owner events reconcile with current physical lanes");
+        assert!(streamed_family2.2 >= self.resource_ledger.term_peak_bytes,
+            "family-2 event peak covers sampled Term arena peak");
         assert_eq!((streamed_family4.0, streamed_family4.1),
             (usize::try_from(observer.family_capacity[3]).expect("family-4 capacity"),
                 observer.family_retained[3]),
@@ -16049,6 +16062,8 @@ impl InferenceSession {
         assert!(streamed_family4.2 >= self.resource_ledger.component_expansion_memo_peak_bytes,
             "family-4 event peak covers sampled memo peak");
         if boundary == ResourceBoundary::FinishOutput {
+            f5c_draft_heap::checkpoint_term_events(streamed_family2.0, streamed_family2.1);
+            observer.family2_event_terminal = streamed_family2;
             let live = observer.live_events.as_ref().expect("live owner events");
             assert_eq!((live.capacity, live.retained),
                 (usize::try_from(observer.family_capacity[0]).expect("family-1 capacity"),
