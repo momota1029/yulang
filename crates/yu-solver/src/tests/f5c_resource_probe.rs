@@ -1601,10 +1601,14 @@ fn matrix_lane_identity(index: usize) -> String {
         129 => "aggregate_source_draft_slots".to_owned(),
         130 => "aggregate_source_bound_tokens".to_owned(),
         131 => "aggregate_source_recursive_bounds".to_owned(),
-        132..230 => format!("generalization_walker_{}", index - 132),
-        230..237 => format!("instantiation_{}", index - 230),
-        237..241 => format!("route_store_{}", index - 237),
-        241..243 => format!("routed_use_{}", index - 241),
+        132..138 => format!("source_nested_payload_{}", index - 132),
+        138 => "staged_outer".to_owned(),
+        139..145 => format!("staged_buffer_{}", index - 139),
+        145..150 => format!("indexed_buffer_{}", index - 145),
+        150..248 => format!("generalization_walker_{}", index - 150),
+        248..255 => format!("instantiation_{}", index - 248),
+        255..259 => format!("route_store_{}", index - 255),
+        259..261 => format!("routed_use_{}", index - 259),
         _ => panic!("unexpected F5c matrix lane index {index}"),
     };
     let family = match index {
@@ -1614,8 +1618,8 @@ fn matrix_lane_identity(index: usize) -> String {
         45..65 => "component_expansion_memo",
         65..101 => "closed_type_arena",
         101..129 => "closed_normalization_index",
-        129..230 => "generalization_scratch",
-        230..237 => "instantiation_substitution",
+        129..248 => "generalization_scratch",
+        248..255 => "instantiation_substitution",
         _ => "outside_family",
     };
     format!("{family}/{lane}")
@@ -2123,4 +2127,17 @@ fn f5c_resource_matrix_preflight() {
 #[ignore = "approved F5c resource matrix case"]
 fn f5c_resource_matrix_case() {
     matrix_run(F5cMatrixCase::from_env());
+}
+
+#[cfg(feature = "f5c_resource_probe")]
+#[test]
+#[ignore = "isolated F5c guarded cycle D=32 K=4000 diagnostic"]
+fn f5c_guarded_cycle_32_4000_diagnostic() {
+    matrix_guarded_cycle(F5cMatrixCase {
+        family: F5cMatrixFamily::GuardedCycle,
+        dimension: 'D',
+        size: 32,
+        companion: Some(4000),
+        emit: true,
+    });
 }

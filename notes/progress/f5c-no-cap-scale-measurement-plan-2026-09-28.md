@@ -1,6 +1,6 @@
 # F5c no-cap §26/§34 scale measurement plan
 
-Status: The prior 39-process campaign stopped at the third failed preflight; no matrix row ran. The user has since directed autonomous F5c completion and authorized expanding time and memory plans as needed, so the old no-retry allowance does not constrain a fresh campaign. The AllDrafts and guarded-cycle repairs are statically reviewed but unverified. The six-buffer `FlatDraft` family-6 carrier and atomic same-ID staged transfer, plus all eight §34 family event/reconciliation slices, are implemented and independently reviewed in their checkpoints. The family-aware row and offline replay still need runtime verification; no preflight or scale row has run after these repairs. See the [`family-5 aggregate-peak checkpoint`](f5c-family5-closed-type-arena-aggregate-peak-checkpoint-2026-09-29.md) and [`family-6 event checkpoint`](f5c-family6-closed-normalization-index-events-checkpoint-2026-09-29.md).
+Status: The prior 39-process campaign stopped at the third failed preflight; no matrix row ran. The user has since directed autonomous F5c completion and authorized expanding time and memory plans as needed, so the old no-retry allowance does not constrain a fresh campaign. The AllDrafts and guarded-cycle repairs are statically reviewed but unverified. The six-buffer `FlatDraft` family-6 carrier and atomic same-ID staged transfer, all eight §34 family event/reconciliation slices, and the 261-row family-aware replay are implemented and independently reviewed in their checkpoints. The runtime fold remains unverified; no preflight, corrected diagnostic, or scale row has run after these repairs. See the [`family-5 aggregate-peak checkpoint`](f5c-family5-closed-type-arena-aggregate-peak-checkpoint-2026-09-29.md), [`family-6 event checkpoint`](f5c-family6-closed-normalization-index-events-checkpoint-2026-09-29.md), and [`261-lane physical replay checkpoint`](f5c-family7-physical-lane-replay-checkpoint-2026-09-29.md).
 Reviewed-by: spec_auditor, performance_auditor (matrix, formulas, safety, and budget deltas closed without unresolved findings)
 Observer-scope delta review: architect, spec_auditor, performance_auditor; no blocking or major findings
 Execution-extension delta review: spec_auditor clarified approval timing; performance_auditor supplied the one-process budget justification
@@ -11,6 +11,7 @@ Corrected-workload performance delta review: performance_auditor found the K=4,0
 Third-preflight observer root-cause review: compiler_referee traced the 48-byte mismatch to precommit AllDrafts sampling before actual memo clear
 Observer and fixture repair spec delta: spec_auditor found no blocking or major issue
 Family peak resource delta: same-time owner aggregates are required; all eight §34 family event/reconciliation slices are implemented and reviewed. The combined checker fold remains runtime-unverified.
+Physical row replay delta review: spec_auditor and regression_auditor; an unmapped-owner admission blocker was repaired and narrowly re-reviewed cleanly. The 261-row mapping, exact current reconciliation, same-time peak replay, and isolated diagnostic selector are statically reviewed.
 Normalization-counter delta review: spec_auditor; aligned the builder oracle
 with §36's descriptor ranking and actual-operation counters
 Approved-by: user
@@ -361,3 +362,51 @@ Do not use the largest passing point to derive a supported-input limit. These
 repository-bounded records do not certify all-input complexity, choose a
 numeric boundary, or authorize production/API cutover. The source-level
 ordinary-family proofs and separate reviewed production gate remain required.
+
+## Fresh replay diagnostic budget (2026-09-29)
+
+This is a new run after the corrected `guarded_cycle(D,K)` fixture and the
+261-row event replay. The old 39-process campaign remains closed. The first
+runtime gate is two serial solver processes: the existing seven-builder
+preflight with a 60-second timeout, then the isolated
+`GuardedCycle/D/32/4000` diagnostic with a 300-second timeout. Each uses a
+10-second TERM-to-KILL grace, for six nominal timeout minutes and at most 20
+additional seconds. The diagnostic covers 256,000 uncacheable states. This
+fits the ordinary 8-process / 10-minute measurement budget; compilation stays
+inside each command timeout. A separate offline checker invocation replays the
+diagnostic sidecar and does not launch a solver.
+
+Run the preflight and diagnostic sequentially, each with a unique
+`F5C_RESOURCE_SIDECAR` path and `/tmp` log. Preserve combined stdout/stderr and
+`/usr/bin/time -v` output; record rustc/Cargo versions, exit status or signal,
+elapsed time, peak process-tree RSS, minimum host `MemAvailable`, event count,
+and sidecar size. Sample process-tree RSS and `/proc/meminfo` about once per
+second. Do not start below 8 GiB `MemAvailable`; terminate the whole solver
+process group on the first fall below 8 GiB, timeout, assertion failure,
+checker failure, or disk-pressure signal. Allow at most 10 seconds after TERM
+before KILL; preserve all logs and do not retry a failed process. The sidecar
+uses fixed 64-byte records, so its file size and event count provide a direct
+cross-check. The replay checker must complete successfully on the same
+diagnostic log before this gate closes.
+
+Preflight command template:
+
+```text
+timeout --signal=TERM --kill-after=10s 60s /usr/bin/time -v env RUSTC_WRAPPER= F5C_RESOURCE_SIDECAR=/tmp/f5c-preflight-RUN_ID.events cargo test -p yu-solver --lib --features f5c_resource_probe f5c_resource_matrix_preflight --offline -j 2 -- --ignored --nocapture --test-threads=1 > /tmp/f5c-preflight-RUN_ID.log 2>&1
+```
+
+Corrected diagnostic command template:
+
+```text
+timeout --signal=TERM --kill-after=10s 300s /usr/bin/time -v env RUSTC_WRAPPER= F5C_RESOURCE_SIDECAR=/tmp/f5c-cycle32-RUN_ID.events cargo test -p yu-solver --lib --features f5c_resource_probe f5c_guarded_cycle_32_4000_diagnostic --offline -j 2 -- --ignored --nocapture --test-threads=1 > /tmp/f5c-cycle32-RUN_ID.log 2>&1
+python3 tools/check_f5c_resource_matrix.py --diagnostic-cycle-32-4000 /tmp/f5c-cycle32-RUN_ID.log
+```
+
+No preflight, diagnostic, or matrix process has run under this plan yet. A
+performance-auditor review of this process-tree and disk-monitoring protocol is
+pending; execute neither command before that review closes. If the diagnostic
+passes, use its elapsed time, RSS, event count, and sidecar size to derive and
+review the 36-row matrix's individual timeout and total process budget. Keep
+all 36 required rows; the diagnostic does not substitute for them. The user has
+already authorized expanding the overall time and memory plan, so no approval
+pause is needed when that measured follow-up budget is ready.

@@ -13,7 +13,7 @@ EVENT_MAGIC = b"F5CRES01"
 EVENT = struct.Struct("<8Q")
 MAX_RECORD_LENGTH = 65536
 SIZES = (1000, 2000, 4000)
-FAMILY_ENDS = (18, 24, 45, 65, 101, 129, 230, 237)
+FAMILY_ENDS = (18, 24, 45, 65, 101, 129, 248, 255)
 FRONT = (
     "live_components", "value_bounds", "effect_bounds", "value_levels",
     "effect_levels", "value_metadata", "effect_metadata", "extrusion_stack",
@@ -37,6 +37,9 @@ LANE_NAMES = (
     *(f"normalization_{i}" for i in range(28)),
     "aggregate_source_draft_slots", "aggregate_source_bound_tokens",
     "aggregate_source_recursive_bounds",
+    *(f"source_nested_payload_{i}" for i in range(6)),
+    "staged_outer", *(f"staged_buffer_{i}" for i in range(6)),
+    *(f"indexed_buffer_{i}" for i in range(5)),
     *(f"generalization_walker_{i}" for i in range(98)),
     *(f"instantiation_{i}" for i in range(7)),
     *(f"route_store_{i}" for i in range(4)),
@@ -64,13 +67,13 @@ SERIES.add(("GuardedCycle", "D", "4000"))
 SERIES.add(("GuardedCycle", "K", "8"))
 
 
-def parse_line(line, source):
+def parse_line(line, source, diagnostic=False):
     fields = dict(part.split("=", 1) for part in line[len(PREFIX):].split("\t"))
     if set(fields) != {"family", "dimension", "size", "companion", "family_ends", "family_totals", "family1_event", "family2_event", "family3_event", "family4_event", "closed_type_event", "closed_type_checkpoint_peak", "family5_event", "family5_growths", "family8_event", "family6_event", "semantic_retained", "semantic_peak", "session_retained", "session_peak", "lanes"}:
         raise ValueError(f"{source}: unexpected or missing row fields")
     key = (fields["family"], fields["dimension"], fields["companion"])
     size = int(fields["size"])
-    if key not in SERIES or size not in SIZES:
+    if not (diagnostic and key == ("GuardedCycle", "D", "4000") and size == 32) and (key not in SERIES or size not in SIZES):
         raise ValueError(f"{source}: unexpected row {key} size {size}")
     ends = tuple(int(n.strip()) for n in fields["family_ends"].strip("[]").split(","))
     totals = tuple(tuple(int(n) for n in family.split(","))
@@ -182,6 +185,9 @@ def replay_f6_events(path, expected_count, expected_checksum):
     family_peak = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 8: 0}
     lane_current = {}
     lane_peak = {}
+    row_current = {}
+    row_peak = {}
+    row_sizes = {}
     normalization_growth = {}
     checkpoints = {}
     checkpoint_by_kind = None
@@ -209,6 +215,34 @@ def replay_f6_events(path, expected_count, expected_checksum):
             return 6
         raise ValueError(f"{path}: unknown owner kind {kind}")
 
+    def row_lane(kind):
+        if 512 <= kind < 530:
+            return kind - 512
+        if 530 <= kind < 551:
+            return 24 + kind - 530
+        if kind == 1:
+            return 129
+        if kind == 2:
+            return 130
+        if kind in (3, 4):
+            return 131
+        if 5 <= kind <= 22:
+            return 132 + kind - 5
+        if 32 <= kind < 130:
+            return 150 + kind - 32
+        return None
+
+    def check_admitted_owner(kind, requested, actual, size):
+        family = family_of(kind)
+        if family == 6:
+            if kind == 0:
+                if requested or actual or actual * size:
+                    raise ValueError(f"{path}: unclassified owner has nonzero capacity or bytes")
+            elif row_lane(kind) is None:
+                raise ValueError(f"{path}: unmapped family-6 owner kind {kind}")
+        if family in (1, 3, 6) and kind != 0 and row_lane(kind) is None:
+            raise ValueError(f"{path}: owner kind {kind} lacks a physical row")
+
     def adjust(kind, capacity_delta, bytes_delta):
         family = family_of(kind)
         totals = family_current[family]
@@ -225,6 +259,23 @@ def replay_f6_events(path, expected_count, expected_checksum):
         maxima = lane_peak.setdefault(kind, [0, 0])
         maxima[0] = max(maxima[0], lane[0])
         maxima[1] = max(maxima[1], lane[1])
+        row = row_lane(kind)
+        if row is not None:
+            current = row_current.setdefault(row, [0, 0])
+            current[0] += capacity_delta
+            current[1] += bytes_delta
+            if min(current) < 0:
+                raise ValueError(f"{path}: negative physical row lane {row}")
+            peak = row_peak.setdefault(row, [0, 0])
+            peak[0] = max(peak[0], current[0])
+            peak[1] = max(peak[1], current[1])
+
+    def check_row_size(kind, size):
+        row = row_lane(kind)
+        if row is not None:
+            previous = row_sizes.setdefault(row, size)
+            if previous != size:
+                raise ValueError(f"{path}: physical row lane {row} combines unequal slot sizes {previous} and {size}")
 
     with path.open("rb") as stream:
         if stream.read(len(EVENT_MAGIC)) != EVENT_MAGIC:
@@ -276,12 +327,15 @@ def replay_f6_events(path, expected_count, expected_checksum):
                 last_id = owner_id
                 if key in owners or requested > actual or size == 0 or target:
                     raise ValueError(f"{path}: invalid create {key}")
+                check_admitted_owner(kind, requested, actual, size)
                 owners[key] = (kind, requested, actual, size)
+                check_row_size(kind, size)
                 adjust(kind, actual, actual * size)
             else:
                 if key not in owners:
                     raise ValueError(f"{path}: mutation of unknown owner {key}")
                 old_kind, old_requested, old_actual, old_size = owners[key]
+                check_admitted_owner(old_kind, old_requested, old_actual, old_size)
                 if op == 5:
                     if old_kind == 0 or actual or requested or kind != old_kind or size != old_size or target:
                         raise ValueError(f"{path}: release retains owner {key}")
@@ -290,6 +344,7 @@ def replay_f6_events(path, expected_count, expected_checksum):
                 elif op in (2, 3, 4):
                     if requested > actual or size == 0:
                         raise ValueError(f"{path}: invalid owner shape {key}")
+                    check_admitted_owner(kind, requested, actual, size)
                     if family_of(old_kind) in (4, 8) and (op == 4 or kind != old_kind or size != old_size):
                         raise ValueError(f"{path}: family-{family_of(old_kind)} lane cannot transfer or change slot size")
                     if op == 2 and family_of(old_kind) in (1, 2, 3, 4, 5, 8) and (kind != old_kind or size != old_size or
@@ -327,6 +382,7 @@ def replay_f6_events(path, expected_count, expected_checksum):
                         raise ValueError(f"{path}: cross-family owner transfer {key}")
                     adjust(old_kind, -old_actual, -old_actual * old_size)
                     owners[key] = (kind, requested, actual, size)
+                    check_row_size(kind, size)
                     adjust(kind, actual, actual * size)
                 else:
                     raise ValueError(f"{path}: unknown event operation {op}")
@@ -367,11 +423,16 @@ def replay_f6_events(path, expected_count, expected_checksum):
         normalization_growth,
         (*checkpoints[8], family_peak[8]),
         instantiation_checkpoint_by_kind,
+        row_current,
+        row_peak,
+        row_sizes,
     )
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--diagnostic-cycle-32-4000", action="store_true",
+                        help="replay only the isolated guarded_cycle(D=32,K=4000) row")
     parser.add_argument("logs", type=Path, nargs="+", help="captured matrix process logs")
     args = parser.parse_args()
     rows = {}
@@ -399,10 +460,10 @@ def main():
             raise ValueError(f"{path}: expected exactly one matrix row, found 0")
         if sidecar is None:
             raise ValueError(f"{path}: missing resource sidecar")
-        key, size, ends, totals, aggregate, lanes, family1_event, family2_event, family3_event, family4_event, family5_event, family5_growths, family8_event, family6_event = parse_line(record, path)
+        key, size, ends, totals, aggregate, lanes, family1_event, family2_event, family3_event, family4_event, family5_event, family5_growths, family8_event, family6_event = parse_line(record, path, args.diagnostic_cycle_32_4000)
         if (key, size) in rows:
             raise ValueError(f"{path}: duplicate matrix row {key} size {size}")
-        folded, by_kind, folded_family1, folded_family2, term_by_kind, folded_family3, folded_family4, folded_family5, normalization_by_kind, normalization_growth, folded_family8, instantiation_by_kind = replay_f6_events(sidecar, family6_event[4], family6_event[5])
+        folded, by_kind, folded_family1, folded_family2, term_by_kind, folded_family3, folded_family4, folded_family5, normalization_by_kind, normalization_growth, folded_family8, instantiation_by_kind, row_current, row_peak, row_sizes = replay_f6_events(sidecar, family6_event[4], family6_event[5])
         if folded != family6_event[:3]:
             raise ValueError(f"{path}: family-6 event fold differs from matrix row")
         if folded_family1 != family1_event:
@@ -417,6 +478,21 @@ def main():
             raise ValueError(f"{path}: family-5 event fold differs from matrix row")
         if folded_family8 != family8_event:
             raise ValueError(f"{path}: family-8 event fold differs from matrix row")
+        canonical_lanes = list(lanes)
+        # Lane snapshots witness sampled state. The offline event replay supplies
+        # the authoritative same-time current and actual physical row peak.
+        for lane in (*range(0, 18), *range(24, 45), *range(129, 248)):
+            values = lanes[lane]
+            current = row_current.get(lane, [0, 0])
+            peak = row_peak.get(lane, [0, 0])
+            size = row_sizes.get(lane, values[5])
+            if (current[0] != values[0] or current[1] != values[2]
+                    or current[1] != current[0] * size
+                    or (values[5] not in (0, size))
+                    or peak[0] < values[1] or peak[1] < values[4]
+                    or peak[1] != peak[0] * size):
+                raise ValueError(f"{path}: physical row lane {lane} owner shape differs from matrix row")
+            canonical_lanes[lane] = (current[0], peak[0], current[1], peak[1], peak[1], size)
         for lane, values in enumerate(lanes[18:24]):
             kind_values = term_by_kind.get(571 + lane, [0, 0, 0, 0])
             if (kind_values[0] != values[0] or kind_values[1] != values[2]
@@ -433,16 +509,20 @@ def main():
                     or kind_values[2] < values[1] or kind_values[3] < values[4]
                     or normalization_growth.get(584 + lane, 0) != family5_growths[lane]):
                 raise ValueError(f"{path}: family-5 lane {lane} owner shape differs from matrix row")
-        for lane, values in enumerate(lanes[230:237]):
+        for lane, values in enumerate(lanes[248:255]):
             kind_values = instantiation_by_kind.get(577 + lane, [0, 0, 0, 0])
             if (kind_values[0] != values[0] or kind_values[1] != values[2]
                     or kind_values[2] != values[1] or kind_values[3] != values[4]):
                 raise ValueError(f"{path}: family-8 lane {lane} owner shape differs from matrix row")
         owner_aggregates[key, size] = by_kind
-        rows[key, size] = ends, totals, aggregate, lanes
-    expected = {(key, size) for key in SERIES for size in SIZES}
+        rows[key, size] = ends, totals, aggregate, tuple(canonical_lanes)
+    expected = ({(("GuardedCycle", "D", "4000"), 32)} if args.diagnostic_cycle_32_4000
+                else {(key, size) for key in SERIES for size in SIZES})
     if set(rows) != expected:
         raise ValueError(f"missing={sorted(expected - set(rows))}; unexpected={sorted(set(rows) - expected)}")
+    if args.diagnostic_cycle_32_4000:
+        print("F5c guarded cycle diagnostic: one D=32 K=4000 row replayed; 158 event-backed physical rows reconciled")
+        return
     for key in sorted(SERIES):
         for small, large in zip(SIZES, SIZES[1:]):
             old_kinds = owner_aggregates[key, small]
@@ -492,7 +572,7 @@ def main():
                     raise ValueError(f"{key} {small}->{large} aggregate {field}: undefined zero-to-nonzero ratio")
                 if 2 * b >= 5 * a:
                     raise ValueError(f"{key} {small}->{large} aggregate {field}: {b}/{a} is not <2.5")
-    print("F5c resource matrix: 36 unique rows, 12 series, all adjacent physical ratios <2.5")
+    print("F5c resource matrix: 36 unique rows, 12 series, 158 event-backed physical rows per run reconciled, all adjacent physical ratios <2.5")
 
 
 if __name__ == "__main__":

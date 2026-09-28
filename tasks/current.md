@@ -167,6 +167,28 @@ repeated approval pauses. The prior 39-process campaign stays closed; prepare
 and review a fresh corrected-workload budget, then proceed under that standing
 authorization with a bounded D=32,K=4,000 diagnostic and host-memory monitoring.
 
+### Latest continuation (2026-09-29): §34 event-backed physical lane replay
+
+The family-aware matrix now has 261 stable physical rows. The checker maps and
+replays all 158 event-backed lanes across families 1, 3, and 7, requires exact
+current capacity/retained-byte reconciliation and per-row slot-size identity,
+checks sampled peaks against simultaneous event peaks, and uses replayed
+same-time peaks for lane ratios. Family-7 source, staged, indexed, and walker
+rows occupy 129–247; family 8 and route rows shift to 248–260. Unmapped
+family-6 owner kinds are rejected, and kind 0 is allowed only as an empty
+classification placeholder. The ignored corrected-workload diagnostic accepts
+only `GuardedCycle/D/32/4000`. Exact paths, findings, and checks are in
+[`F5c 261-lane physical replay checkpoint`](../notes/progress/f5c-family7-physical-lane-replay-checkpoint-2026-09-29.md).
+
+Selected M2 with `spec_auditor` and `regression_auditor`. Specification review
+found and closed one blocker for unmapped event kinds; the narrow repair review
+closed cleanly, and the regression review found no index or selector regression.
+Feature-enabled `yu-solver` test-target compile check, Python syntax check, and
+`git diff --check` pass. No test, diagnostic, preflight, matrix, or measurement
+process ran; measurement budget remains zero. Next gate: write and independently
+review the corrected preflight plus D=32,K=4,000 diagnostic resource protocol.
+Do not launch either process before that review closes.
+
 ### Latest continuation (2026-09-28): user authorized autonomous completion and budget expansion
 
 The user wants the complete F5c result and explicitly directed continuation

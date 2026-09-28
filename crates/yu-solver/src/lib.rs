@@ -4285,7 +4285,7 @@ struct IndependentNormalizationLane {
 #[cfg(all(test, feature = "f5c_resource_probe"))]
 const F5C_MATRIX_BOUNDARIES: usize = 14;
 #[cfg(all(test, feature = "f5c_resource_probe"))]
-const F5C_MATRIX_LANES: usize = 256;
+const F5C_MATRIX_LANES: usize = 261;
 #[cfg(all(test, feature = "f5c_resource_probe"))]
 const F5C_MATRIX_ROUTE_LANES: usize = F5bCapacityLane::StoreProvenance as usize + 1;
 
@@ -16020,6 +16020,12 @@ impl InferenceSession {
         independent!(self.resource_ledger.source_draft_slots);
         independent!(self.resource_ledger.source_bound_tokens);
         independent!(self.resource_ledger.source_recursive_bounds);
+        // These physical owners have exact same-time capacity and peak evidence
+        // in the resource event sidecar. Matrix samples are lower-bound witnesses.
+        for _ in 5..=22 {
+            observer.lane(boundary, index, 0, 0, 0, 0, 0, Some(0));
+            index += 1;
+        }
         for lane in &self.resource_ledger.generalization_walker_lanes { independent!(lane); }
         observer.family_ends[6] = index;
         for lane in &self.resource_ledger.instantiation_lanes { independent!(lane); }
