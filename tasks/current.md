@@ -189,6 +189,23 @@ process ran; measurement budget remains zero. Next gate: write and independently
 review the corrected preflight plus D=32,K=4,000 diagnostic resource protocol.
 Do not launch either process before that review closes.
 
+### Latest continuation (2026-09-29): bounded first-runtime supervisor
+
+The F5c process supervisor now enforces process-group timeout, TERM/KILL,
+8-GiB `MemAvailable`, and an 8-GiB plus sidecar/log disk reserve; it records
+one-second group-RSS and resource samples. Preflight writes exact per-builder
+event counts, checksums, and bytes before removing each sidecar. Offline replay
+can read the existing diagnostic sidecar under the same disk and memory floors.
+Exact commands and paths are in [`F5c first-runtime supervisor checkpoint`](../notes/progress/f5c-first-diagnostic-supervisor-checkpoint-2026-09-29.md).
+
+Selected M1 with `performance_auditor`. The review found and closed the missing
+supervisor, transient-sidecar, existing-input-sidecar, and byte/count-check
+gaps; no scoped finding remains. Python syntax, feature-enabled test-target
+compile, and `git diff --check` pass. No test or runtime process ran; measurement
+budget remains zero. Next: execute the reviewed preflight, D=32/K=4,000
+diagnostic, and bounded checker in order. Derive the 36-row matrix timeout and
+total budget from those measurements before starting any matrix row.
+
 ### Latest continuation (2026-09-28): user authorized autonomous completion and budget expansion
 
 The user wants the complete F5c result and explicitly directed continuation

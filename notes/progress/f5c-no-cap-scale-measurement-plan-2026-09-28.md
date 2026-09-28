@@ -12,6 +12,7 @@ Third-preflight observer root-cause review: compiler_referee traced the 48-byte 
 Observer and fixture repair spec delta: spec_auditor found no blocking or major issue
 Family peak resource delta: same-time owner aggregates are required; all eight §34 family event/reconciliation slices are implemented and reviewed. The combined checker fold remains runtime-unverified.
 Physical row replay delta review: spec_auditor and regression_auditor; an unmapped-owner admission blocker was repaired and narrowly re-reviewed cleanly. The 261-row mapping, exact current reconciliation, same-time peak replay, and isolated diagnostic selector are statically reviewed.
+First-runtime resource supervisor review: performance_auditor found and closed process-group supervision, disk/memory floors, checker gating, existing-sidecar replay, and exact transient preflight sidecar accounting. No runtime process has run.
 Normalization-counter delta review: spec_auditor; aligned the builder oracle
 with §36's descriptor ranking and actual-operation counters
 Approved-by: user
@@ -369,44 +370,59 @@ This is a new run after the corrected `guarded_cycle(D,K)` fixture and the
 261-row event replay. The old 39-process campaign remains closed. The first
 runtime gate is two serial solver processes: the existing seven-builder
 preflight with a 60-second timeout, then the isolated
-`GuardedCycle/D/32/4000` diagnostic with a 300-second timeout. Each uses a
-10-second TERM-to-KILL grace, for six nominal timeout minutes and at most 20
-additional seconds. The diagnostic covers 256,000 uncacheable states. This
-fits the ordinary 8-process / 10-minute measurement budget; compilation stays
-inside each command timeout. A separate offline checker invocation replays the
-diagnostic sidecar and does not launch a solver.
+`GuardedCycle/D/32/4000` diagnostic with a 300-second timeout. The offline
+checker gets a separate 150-second timeout. Each process has a 10-second
+TERM-to-KILL grace: 510 nominal seconds, at most 30 seconds grace, and 540
+seconds total (9 minutes), leaving 60 seconds within the ordinary 8-process /
+10-minute budget for setup and reporting. The diagnostic covers 256,000
+uncacheable states. Compilation stays inside each solver timeout.
 
-Run the preflight and diagnostic sequentially, each with a unique
-`F5C_RESOURCE_SIDECAR` path and `/tmp` log. Preserve combined stdout/stderr and
-`/usr/bin/time -v` output; record rustc/Cargo versions, exit status or signal,
-elapsed time, peak process-tree RSS, minimum host `MemAvailable`, event count,
-and sidecar size. Sample process-tree RSS and `/proc/meminfo` about once per
-second. Do not start below 8 GiB `MemAvailable`; terminate the whole solver
-process group on the first fall below 8 GiB, timeout, assertion failure,
-checker failure, or disk-pressure signal. Allow at most 10 seconds after TERM
-before KILL; preserve all logs and do not retry a failed process. The sidecar
-uses fixed 64-byte records, so its file size and event count provide a direct
-cross-check. The replay checker must complete successfully on the same
-diagnostic log before this gate closes.
+`tools/run_f5c_resource_process.py` supervises all three processes. It starts
+each command in a new process group, samples once per second, records the sum
+of resident pages for all live PIDs in that group, reads `/proc/meminfo`, and
+tracks sidecar/log bytes plus `statvfs` free bytes. It checks the same
+thresholds before spawning: host `MemAvailable` must be at least 8 GiB and
+free disk must be at least `max(8 GiB, 2 * (sidecar bytes + log bytes))`. A
+memory/disk breach, timeout, or received SIGINT/SIGTERM sends TERM to the
+entire group, waits 10 seconds, then sends KILL to survivors. The supervisor
+waits for descendants even if the leader exits; only status 0 with an empty
+group is success. It writes JSONL samples and a JSON summary with command
+status, elapsed time, minimum `MemAvailable`/disk free, sampled peak group RSS,
+and sidecar/log high-water bytes. `/usr/bin/time -v` remains inside the
+command log as a per-process diagnostic.
 
-Preflight command template:
+The preflight removes its sidecar after each of its seven builders, so the
+supervisor also samples transient files. `matrix_emit` now records each
+preflight tuple's exact event count, checksum, and sidecar bytes in the
+captured log before removal. This records per-builder peaks and total write
+volume without retaining seven sidecars. The corrected diagnostic keeps its
+sidecar; the emitted event count must agree with file size `8 + 64 * count`
+(the 8-byte header plus fixed 64-byte records). The checker replays one
+64-byte record at a time, with O(E) time and O(live owner IDs + lane kinds)
+memory; its separate process is supervised with the same memory/disk floors
+and a 150-second wall timeout.
 
-```text
-timeout --signal=TERM --kill-after=10s 60s /usr/bin/time -v env RUSTC_WRAPPER= F5C_RESOURCE_SIDECAR=/tmp/f5c-preflight-RUN_ID.events cargo test -p yu-solver --lib --features f5c_resource_probe f5c_resource_matrix_preflight --offline -j 2 -- --ignored --nocapture --test-threads=1 > /tmp/f5c-preflight-RUN_ID.log 2>&1
+Use one shell session with `set -euo pipefail` and a unique `RUN_ID`; a failed
+supervisor exits nonzero, so later commands (especially the offline checker)
+do not run after a failed, timed-out, or interrupted solver:
+
+```bash
+set -euo pipefail
+RUN_ID=replace-with-a-unique-run-id
+python3 tools/run_f5c_resource_process.py --timeout-seconds 60 --log "/tmp/f5c-preflight-$RUN_ID.log" --monitor "/tmp/f5c-preflight-$RUN_ID.monitor.jsonl" --summary "/tmp/f5c-preflight-$RUN_ID.summary.json" --sidecar "/tmp/f5c-preflight-$RUN_ID.events" -- /usr/bin/time -v cargo test -p yu-solver --lib --features f5c_resource_probe f5c_resource_matrix_preflight --offline -j 2 -- --ignored --nocapture --test-threads=1
+python3 tools/run_f5c_resource_process.py --timeout-seconds 300 --log "/tmp/f5c-cycle32-$RUN_ID.log" --monitor "/tmp/f5c-cycle32-$RUN_ID.monitor.jsonl" --summary "/tmp/f5c-cycle32-$RUN_ID.summary.json" --sidecar "/tmp/f5c-cycle32-$RUN_ID.events" -- /usr/bin/time -v cargo test -p yu-solver --lib --features f5c_resource_probe f5c_guarded_cycle_32_4000_diagnostic --offline -j 2 -- --ignored --nocapture --test-threads=1
+python3 tools/run_f5c_resource_process.py --timeout-seconds 150 --log "/tmp/f5c-replay-$RUN_ID.log" --monitor "/tmp/f5c-replay-$RUN_ID.monitor.jsonl" --summary "/tmp/f5c-replay-$RUN_ID.summary.json" --sidecar "/tmp/f5c-cycle32-$RUN_ID.events" --existing-sidecar -- python3 tools/check_f5c_resource_matrix.py --diagnostic-cycle-32-4000 "/tmp/f5c-cycle32-$RUN_ID.log"
 ```
 
-Corrected diagnostic command template:
-
-```text
-timeout --signal=TERM --kill-after=10s 300s /usr/bin/time -v env RUSTC_WRAPPER= F5C_RESOURCE_SIDECAR=/tmp/f5c-cycle32-RUN_ID.events cargo test -p yu-solver --lib --features f5c_resource_probe f5c_guarded_cycle_32_4000_diagnostic --offline -j 2 -- --ignored --nocapture --test-threads=1 > /tmp/f5c-cycle32-RUN_ID.log 2>&1
-python3 tools/check_f5c_resource_matrix.py --diagnostic-cycle-32-4000 /tmp/f5c-cycle32-RUN_ID.log
-```
-
-No preflight, diagnostic, or matrix process has run under this plan yet. A
-performance-auditor review of this process-tree and disk-monitoring protocol is
-pending; execute neither command before that review closes. If the diagnostic
-passes, use its elapsed time, RSS, event count, and sidecar size to derive and
-review the 36-row matrix's individual timeout and total process budget. Keep
-all 36 required rows; the diagnostic does not substitute for them. The user has
-already authorized expanding the overall time and memory plan, so no approval
-pause is needed when that measured follow-up budget is ready.
+No preflight, diagnostic, or matrix process has run under this plan. The
+performance-auditor review found and closed two blockers: the supervisor now
+supports read-only replay of an existing regular sidecar, and preflight asserts
+the exact `8 + 64 * event_count` file length before logging/removal. The
+supervisor, numeric thresholds, three-process timeout budget, descendant
+termination, and fail-closed checker ordering now have static review. Execute
+the three supervised commands above next. If the diagnostic and replay pass,
+use measured elapsed time, peak RSS, event count, and sidecar size to derive
+and review the 36-row matrix's individual timeout and total process budget.
+Keep all 36 required rows; the diagnostic does not substitute for them. The
+user has already authorized expanding the overall time and memory plan, so no
+approval pause is needed when that measured follow-up budget is ready.

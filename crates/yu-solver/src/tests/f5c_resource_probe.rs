@@ -1628,10 +1628,21 @@ fn matrix_lane_identity(index: usize) -> String {
 #[cfg(feature = "f5c_resource_probe")]
 fn matrix_emit(session: &SolvedModule, case: F5cMatrixCase) {
     if !case.emit {
-        crate::f5c_draft_heap::close_f5c_resource_events()
+        let (event_count, event_checksum) = crate::f5c_draft_heap::close_f5c_resource_events()
             .expect("flush F5c resource event sidecar");
         let sidecar = F5C_MATRIX_SIDECAR.with(|path| path.borrow_mut().take())
             .expect("F5c resource sidecar path");
+        let sidecar_bytes = std::fs::metadata(&sidecar)
+            .expect("preflight event sidecar metadata").len();
+        let expected_bytes = event_count.checked_mul(64)
+            .and_then(|bytes| bytes.checked_add(8))
+            .expect("preflight event sidecar length arithmetic");
+        assert_eq!(sidecar_bytes, expected_bytes,
+            "preflight event sidecar length must match event count");
+        eprintln!("F5C_RESOURCE_PREFLIGHT_EVENT\tfamily={:?}\tdimension={}\tsize={}\tcompanion={}\tcount={}\tchecksum={}\tbytes={}",
+            case.family, case.dimension, case.size,
+            case.companion.map_or_else(|| "none".to_owned(), |n| n.to_string()),
+            event_count, event_checksum, sidecar_bytes);
         std::fs::remove_file(sidecar).expect("remove preflight event sidecar");
         return;
     }
