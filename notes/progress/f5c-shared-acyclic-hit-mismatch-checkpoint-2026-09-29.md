@@ -9,9 +9,10 @@ resulting self-routes replay each seeded function bound, making each root
 traverse the cone twice. Follow-up tracing confirms the original per-use rows
 are distinct and that the route edges do not lead back into seeded roots. A
 `spec_auditor` confirmed that removing the alias preserves the §34 shared and
-guarded-cycle fixture contracts. The narrow code repair is next; exact
-post-change fixture output remains to be verified. No expected value has
-changed. Diagnostic and matrix processes remain blocked.
+guarded-cycle fixture contracts. That one-loop deletion passed post-write spec
+review and the feature-enabled test-target compile. No expected value has
+changed. A fresh supervised preflight remains; diagnostics and matrix processes
+are blocked until it succeeds.
 
 ## Failed attempt and evidence
 
@@ -70,8 +71,14 @@ positive root traversal nor a non-generic closure seed.
 
 The pre-write `spec_auditor` confirmed that deleting only the use-row overwrite
 preserves the §34 shared acyclic cone, independent-cone case, and guarded-cycle
-rotations without changing expected formulas or output assertions. Apply the
-narrow fixture repair, then inspect the exact schemes and summary counters.
+rotations without changing expected formulas or output assertions. The six-line
+alias loop was removed. Post-write spec delta review confirmed the D fresh root
+setup, source/admission order, all three builder shapes, and formulas are
+unchanged. Focused check passed:
+
+- `RUSTC_WRAPPER= cargo check -p yu-solver --tests --features f5c_resource_probe`
+
+The supervised preflight must now prove the exact schemes and summary counters.
 Do not change the approved hit formula to fit the current fixture output.
 
 The previous logical-term repair remains limited to reading

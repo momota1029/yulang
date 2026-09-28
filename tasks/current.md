@@ -253,9 +253,10 @@ fixture request flow and found that mapping each use row onto its target creates
 self-routes that replay the seeded cone. Follow-up static review confirms that
 retaining original use rows leaves only root-to-use edges, and `spec_auditor`
 confirmed the proposed helper correction preserves the shared, independent,
-and guarded-cycle fixture contracts. The counter itself is consistent with
-the §34 formula. Remove the alias, review the exact delta, and then use the one
-remaining supervised preflight under ID
+and guarded-cycle fixture contracts. The alias loop is removed, post-write
+spec review is clean, and the feature-enabled test-target compile passes. The
+counter itself is consistent with the §34 formula. Use the one remaining
+supervised preflight under ID
 `20260929-shared-acyclic-hit-retry-01`; diagnostics and the matrix remain
 behind its success. See
 [`F5c logical-term preflight failure checkpoint`](../notes/progress/f5c-preflight-logical-term-count-failure-checkpoint-2026-09-29.md).

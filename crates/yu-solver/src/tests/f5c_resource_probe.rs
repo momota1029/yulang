@@ -1820,12 +1820,6 @@ fn matrix_graph_session(d: usize, name: &str) -> (InferenceSession, Vec<u32>) {
         session.live_components[position].ordinal = row;
         roots.push(row);
     }
-    for index in 0..d {
-        let use_record = &session.batch.definition_uses[index];
-        let target = use_record.target_root_component;
-        let use_position = use_record.use_value_component;
-        session.live_components[use_position].ordinal = session.live_components[target].ordinal;
-    }
     (session, roots)
 }
 

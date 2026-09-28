@@ -488,9 +488,12 @@ Follow-up trace confirms that original use rows are distinct from fresh roots,
 internal routing adds only root-to-use edges, and the positive generalizer
 cannot return through those edges. `spec_auditor` confirmed that removing the
 overwrite preserves the D-root shared/independent and guarded-cycle fixtures.
-Apply the narrow helper repair, then verify exact schemes and counters without
-changing formulas. Keep diagnostics blocked. Exact evidence and review scope
-are in
+The helper's use-row alias loop was removed. Post-write `spec_auditor` review
+confirmed the D fresh root setup, source/admission order, and all three builder
+shapes/formulas are unchanged; the feature-enabled test-target compile passed.
+Run the one remaining supervised preflight to verify exact schemes and
+counters without changing formulas. Keep diagnostics blocked. Exact evidence
+and review scope are in
 [`F5c shared-acyclic hit-count preflight checkpoint`](f5c-shared-acyclic-hit-mismatch-checkpoint-2026-09-29.md).
 
 The next preflight allowance is one supervised process with a 45-second timeout
