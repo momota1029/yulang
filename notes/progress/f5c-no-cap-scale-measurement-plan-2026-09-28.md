@@ -414,15 +414,30 @@ python3 tools/run_f5c_resource_process.py --timeout-seconds 300 --log "/tmp/f5c-
 python3 tools/run_f5c_resource_process.py --timeout-seconds 150 --log "/tmp/f5c-replay-$RUN_ID.log" --monitor "/tmp/f5c-replay-$RUN_ID.monitor.jsonl" --summary "/tmp/f5c-replay-$RUN_ID.summary.json" --sidecar "/tmp/f5c-cycle32-$RUN_ID.events" --existing-sidecar -- python3 tools/check_f5c_resource_matrix.py --diagnostic-cycle-32-4000 "/tmp/f5c-cycle32-$RUN_ID.log"
 ```
 
-No preflight, diagnostic, or matrix process has run under this plan. The
-performance-auditor review found and closed two blockers: the supervisor now
-supports read-only replay of an existing regular sidecar, and preflight asserts
-the exact `8 + 64 * event_count` file length before logging/removal. The
-supervisor, numeric thresholds, three-process timeout budget, descendant
-termination, and fail-closed checker ordering now have static review. Execute
-the three supervised commands above next. If the diagnostic and replay pass,
-use measured elapsed time, peak RSS, event count, and sidecar size to derive
-and review the 36-row matrix's individual timeout and total process budget.
-Keep all 36 required rows; the diagnostic does not substitute for them. The
-user has already authorized expanding the overall time and memory plan, so no
-approval pause is needed when that measured follow-up budget is ready.
+The first supervised preflight attempt ran on 2026-09-29 and exited 101 after
+the ignored test started. It panicked at `crates/yu-solver/src/lib.rs:16144`
+while converting `observer.family_capacity[4]` to `usize` (`TryFromIntError`).
+The supervisor recorded 16.06 seconds elapsed, exit status 101, minimum host
+`MemAvailable` of 27,408,719,872 bytes, sampled peak process-group RSS of
+1,215,074,304 bytes, sidecar high-water 2,296,968 bytes, and minimum free disk
+of 666,050,269,184 bytes. The command log and monitor summary remain at
+`/tmp/f5c-preflight-20260928T204753Z.log`,
+`/tmp/f5c-preflight-20260928T204753Z.monitor.jsonl`, and
+`/tmp/f5c-preflight-20260928T204753Z.summary.json`; the failed test left its
+sidecar at `/tmp/f5c-preflight-20260928T204753Z.events`. The panic occurred
+before the preflight event summary was emitted. No diagnostic or matrix process
+ran after this failure. Do not retry until the capacity source is identified,
+repaired, reviewed, and recorded with a fresh run budget. The initial failure
+and next gate are recorded in [`F5c first preflight failure checkpoint`](f5c-first-preflight-failure-checkpoint-2026-09-29.md).
+
+The performance-auditor review had already closed the supervisor design and
+numeric thresholds; the failed execution now requires a new root-cause and
+repair gate. The cause and one-helper correction awaiting review are recorded in
+[`F5c first preflight failure checkpoint`](f5c-first-preflight-failure-checkpoint-2026-09-29.md).
+After narrow review and focused checks, record a revised preflight-only retry
+budget before execution. If it succeeds, use measured elapsed time, peak RSS,
+event count, and sidecar size to derive and review the 36-row matrix's
+individual timeout and total process budget. Keep all 36 required rows; the
+diagnostic does not substitute for them. The user has authorized expanding
+the overall time and memory plan, so no approval pause is needed when the
+revised preflight and later measurement budgets are ready.

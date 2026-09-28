@@ -206,6 +206,24 @@ budget remains zero. Next: execute the reviewed preflight, D=32/K=4,000
 diagnostic, and bounded checker in order. Derive the 36-row matrix timeout and
 total budget from those measurements before starting any matrix row.
 
+### Latest continuation (2026-09-29): first preflight exposed ZST capacity sentinel
+
+The first supervised preflight exited 101 after 16.06 seconds at the terminal
+closed-type capacity conversion. The cause is the probe reporting raw
+`Vec<()>::capacity()` (`usize::MAX`) for four zero-sized family-5 lanes even
+though those lanes own no backing allocation. The aggregate then cannot fit in
+the terminal `usize` conversion. Exact metrics, preserved `/tmp` evidence,
+source locations, and the repair boundary are in
+[`F5c first preflight failure checkpoint`](../notes/progress/f5c-first-preflight-failure-checkpoint-2026-09-29.md).
+
+The immediate gate is a feature-gated `f5c_probe_shape` correction in
+`crates/yu-types/src/lib.rs`: preserve requested length, report zero physical
+capacity for zero-sized slots, and retain `Vec::capacity()` for non-ZST lanes.
+Then get one narrow independent review and run focused compile/syntax checks.
+Only after recording that repair and a revised bounded preflight allowance may
+the preflight be retried; diagnostic and matrix processes remain behind its
+successful completion.
+
 ### Latest continuation (2026-09-28): user authorized autonomous completion and budget expansion
 
 The user wants the complete F5c result and explicitly directed continuation
