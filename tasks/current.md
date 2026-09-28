@@ -97,6 +97,27 @@ measurement budget remains zero. The all-eight-family gate remains open, with
 `instantiation_substitution`; do not begin matrix work until all event coverage
 and the fresh diagnostic plan are reviewed.
 
+### Latest continuation (2026-09-29): family-8 instantiation owner events
+
+§34 family 8 now streams the seven `InstantiationScratch` lanes through reserve
+success/failure, insertion, work pops, clear, and scratch destruction. Owner
+IDs follow scratch reuse and nested instantiation; the sidecar records the
+actual simultaneous peak, verifies lanes 230–236, and requires zero live
+family-8 capacity at EOF. Exact paths, review findings, and focused compile
+checks are recorded in
+[`F5c family-8 instantiation event checkpoint`](../notes/progress/f5c-family8-instantiation-substitution-events-checkpoint-2026-09-29.md).
+
+Selected M2 with `spec_auditor` and `compiler_referee`; both closed the scoped
+event/replay and owner-lifecycle review without findings. Production,
+feature-enabled test-target, and test-target-without-feature compile checks
+pass; the Python checker parses and `git diff --check` passes. No test, matrix,
+preflight, benchmark, or scale process ran, so the measurement budget remains
+zero. The all-eight-family gate remains open with §34 families 5 and 6
+remaining. Next is a bounded family-6 architecture review of the six output
+vectors already owned by the generalizer, before implementing any additional
+normalization-lane events. Do not begin matrix work until all event coverage and
+the fresh diagnostic plan are reviewed.
+
 ### Latest continuation (2026-09-28): user authorized autonomous completion and budget expansion
 
 The user wants the complete F5c result and explicitly directed continuation

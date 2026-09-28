@@ -4415,6 +4415,7 @@ struct F5cMatrixObserver {
     family3_event_terminal: (usize, usize, usize),
     family2_event_terminal: (usize, usize, usize),
     family4_event_terminal: (usize, usize, usize),
+    family8_event_terminal: (usize, usize, usize),
 }
 
 #[cfg(all(test, feature = "f5c_resource_probe"))]
@@ -4524,7 +4525,7 @@ impl F5cMatrixObserver {
             lane_count: 0, live_events: None, family1_event_terminal: (0, 0, 0),
             structured_pair_events: None, family3_event_terminal: (0, 0, 0),
             family2_event_terminal: (0, 0, 0),
-            family4_event_terminal: (0, 0, 0) }
+            family4_event_terminal: (0, 0, 0), family8_event_terminal: (0, 0, 0) }
     }
     fn nested_request(&mut self, index: usize, old_capacity: usize, capacity: usize) {
         // Reservation is not an insertion: a later reservation may fail or roll back.
@@ -7394,9 +7395,22 @@ struct InstantiationScratch {
     lane_requested: [usize; 7],
     lane_growths: [usize; 7],
     growth_sample_pending: bool,
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    events: f5c_draft_heap::InstantiationEvents,
 }
 
 impl InstantiationScratch {
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    fn observe_events(&mut self) {
+        self.events.observe(0, self.substitution.len(), self.substitution.capacity(), std::mem::size_of::<(u32, u32)>());
+        self.events.observe(1, self.positive.len(), self.positive.capacity(), std::mem::size_of::<(yu_types::PositiveValueId, std::ops::Range<usize>)>());
+        self.events.observe(2, self.negative.len(), self.negative.capacity(), std::mem::size_of::<(yu_types::NegativeValueId, std::ops::Range<usize>)>());
+        self.events.observe(3, self.positive_effects.len(), self.positive_effects.capacity(), std::mem::size_of::<yu_types::PositiveEffectId>());
+        self.events.observe(4, self.negative_effects.len(), self.negative_effects.capacity(), std::mem::size_of::<yu_types::NegativeEffectId>());
+        self.events.observe(5, self.parts.len(), self.parts.capacity(), std::mem::size_of::<Term>());
+        self.events.observe(6, self.work.len(), self.work.capacity(), std::mem::size_of::<InstantiationWork>());
+    }
+
     fn clear(&mut self) {
         self.substitution.clear();
         self.positive.clear();
@@ -7405,6 +7419,8 @@ impl InstantiationScratch {
         self.negative_effects.clear();
         self.parts.clear();
         self.work.clear();
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        self.observe_events();
         self.growth_sample_pending = false;
     }
 
@@ -7467,7 +7483,7 @@ impl InstantiationScratch {
     }
 
     fn push_work(&mut self, item: InstantiationWork) -> Result<bool, SolveAvailabilityError> {
-        let grew = reserve_instantiation(
+        let reservation = reserve_instantiation(
             &mut self.work,
             1,
             F5bCapacityLane::InstantiationWork,
@@ -7477,13 +7493,18 @@ impl InstantiationScratch {
             &mut self.lane_requested,
             &mut self.lane_growths,
             &mut self.growth_sample_pending,
-        )?;
+        );
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        self.observe_events();
+        let grew = reservation?;
         self.work.push(item);
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        self.observe_events();
         Ok(grew)
     }
 
     fn push_part(&mut self, item: Term) -> Result<bool, SolveAvailabilityError> {
-        let grew = reserve_instantiation(
+        let reservation = reserve_instantiation(
             &mut self.parts,
             1,
             F5bCapacityLane::InstantiationParts,
@@ -7493,8 +7514,13 @@ impl InstantiationScratch {
             &mut self.lane_requested,
             &mut self.lane_growths,
             &mut self.growth_sample_pending,
-        )?;
+        );
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        self.observe_events();
+        let grew = reservation?;
         self.parts.push(item);
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        self.observe_events();
         Ok(grew)
     }
 
@@ -7503,7 +7529,7 @@ impl InstantiationScratch {
         id: yu_types::PositiveValueId,
         range: std::ops::Range<usize>,
     ) -> Result<bool, SolveAvailabilityError> {
-        let grew = reserve_instantiation(
+        let reservation = reserve_instantiation(
             &mut self.positive,
             1,
             F5bCapacityLane::InstantiationPositiveMemo,
@@ -7513,8 +7539,13 @@ impl InstantiationScratch {
             &mut self.lane_requested,
             &mut self.lane_growths,
             &mut self.growth_sample_pending,
-        )?;
+        );
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        self.observe_events();
+        let grew = reservation?;
         self.positive.insert(id, range);
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        self.observe_events();
         Ok(grew)
     }
 
@@ -7523,7 +7554,7 @@ impl InstantiationScratch {
         id: yu_types::NegativeValueId,
         range: std::ops::Range<usize>,
     ) -> Result<bool, SolveAvailabilityError> {
-        let grew = reserve_instantiation(
+        let reservation = reserve_instantiation(
             &mut self.negative,
             1,
             F5bCapacityLane::InstantiationNegativeMemo,
@@ -7533,8 +7564,13 @@ impl InstantiationScratch {
             &mut self.lane_requested,
             &mut self.lane_growths,
             &mut self.growth_sample_pending,
-        )?;
+        );
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        self.observe_events();
+        let grew = reservation?;
         self.negative.insert(id, range);
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        self.observe_events();
         Ok(grew)
     }
 
@@ -7542,7 +7578,7 @@ impl InstantiationScratch {
         &mut self,
         range: std::ops::Range<usize>,
     ) -> Result<bool, SolveAvailabilityError> {
-        let grew = reserve_instantiation(
+        let reservation = reserve_instantiation(
             &mut self.parts,
             range.len(),
             F5bCapacityLane::InstantiationParts,
@@ -7552,8 +7588,13 @@ impl InstantiationScratch {
             &mut self.lane_requested,
             &mut self.lane_growths,
             &mut self.growth_sample_pending,
-        )?;
+        );
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        self.observe_events();
+        let grew = reservation?;
         self.parts.extend_from_within(range);
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        self.observe_events();
         Ok(grew)
     }
 }
@@ -14135,6 +14176,8 @@ impl InferenceSession {
         let grew = scratch.push_work(root)?;
         self.sample_instantiation_growth(scratch, grew)?;
         while let Some(work) = scratch.work.pop() {
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            scratch.observe_events();
             match work {
                 InstantiationWork::Positive(id, complete) => {
                     if scratch.positive.contains_key(&id) {
@@ -14400,7 +14443,7 @@ impl InferenceSession {
         scratch: &mut InstantiationScratch,
     ) -> Result<(), SolveAvailabilityError> {
         if !scratch.positive_effects.contains(&id) {
-            let grew = reserve_instantiation(
+            let reservation = reserve_instantiation(
                 &mut scratch.positive_effects,
                 1,
                 F5bCapacityLane::InstantiationPositiveEffects,
@@ -14410,9 +14453,14 @@ impl InferenceSession {
                 &mut scratch.lane_requested,
                 &mut scratch.lane_growths,
                 &mut scratch.growth_sample_pending,
-            )?;
+            );
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            scratch.observe_events();
+            let grew = reservation?;
             self.sample_instantiation_growth(scratch, grew)?;
             scratch.positive_effects.insert(id);
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            scratch.observe_events();
             self.execution_counters.instantiation_node_visits += 1;
         }
         Ok(())
@@ -14424,7 +14472,7 @@ impl InferenceSession {
         scratch: &mut InstantiationScratch,
     ) -> Result<(), SolveAvailabilityError> {
         if !scratch.negative_effects.contains(&id) {
-            let grew = reserve_instantiation(
+            let reservation = reserve_instantiation(
                 &mut scratch.negative_effects,
                 1,
                 F5bCapacityLane::InstantiationNegativeEffects,
@@ -14434,9 +14482,14 @@ impl InferenceSession {
                 &mut scratch.lane_requested,
                 &mut scratch.lane_growths,
                 &mut scratch.growth_sample_pending,
-            )?;
+            );
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            scratch.observe_events();
+            let grew = reservation?;
             self.sample_instantiation_growth(scratch, grew)?;
             scratch.negative_effects.insert(id);
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            scratch.observe_events();
             self.execution_counters.instantiation_node_visits += 1;
         }
         Ok(())
@@ -14452,7 +14505,7 @@ impl InferenceSession {
     ) -> Result<usize, SolveAvailabilityError> {
         for ordinal in 0..view.quantifier_count() {
             let fresh = self.fresh_value_at_level(use_record.use_level)?;
-            let grew = reserve_instantiation(
+            let reservation = reserve_instantiation(
                 &mut scratch.substitution,
                 1,
                 F5bCapacityLane::InstantiationSubstitution,
@@ -14462,9 +14515,14 @@ impl InferenceSession {
                 &mut scratch.lane_requested,
                 &mut scratch.lane_growths,
                 &mut scratch.growth_sample_pending,
-            )?;
+            );
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            scratch.observe_events();
+            let grew = reservation?;
             self.sample_instantiation_growth(scratch, grew)?;
             scratch.substitution.insert(ordinal, fresh);
+            #[cfg(all(test, feature = "f5c_resource_probe"))]
+            scratch.observe_events();
             #[cfg(all(test, feature = "f5c_resource_probe"))]
             {
                 scratch.substitution_peak_len = scratch.substitution_peak_len.max(scratch.substitution.len());
@@ -14475,7 +14533,7 @@ impl InferenceSession {
             let ordinal = bound.binder().ordinal();
             if !scratch.substitution.contains_key(&ordinal) {
                 let fresh = self.fresh_value_at_level(use_record.use_level)?;
-                let grew = reserve_instantiation(
+                let reservation = reserve_instantiation(
                     &mut scratch.substitution,
                     1,
                     F5bCapacityLane::InstantiationSubstitution,
@@ -14485,9 +14543,14 @@ impl InferenceSession {
                     &mut scratch.lane_requested,
                     &mut scratch.lane_growths,
                     &mut scratch.growth_sample_pending,
-                )?;
+                );
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                scratch.observe_events();
+                let grew = reservation?;
                 self.sample_instantiation_growth(scratch, grew)?;
                 scratch.substitution.insert(ordinal, fresh);
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                scratch.observe_events();
                 #[cfg(all(test, feature = "f5c_resource_probe"))]
                 {
                     scratch.substitution_peak_len = scratch.substitution_peak_len.max(scratch.substitution.len());
@@ -16023,6 +16086,7 @@ impl InferenceSession {
         let streamed_family3 = f5c_draft_heap::structured_pair_event_totals();
         let streamed_family2 = f5c_draft_heap::term_event_totals();
         let streamed_family4 = f5c_draft_heap::component_memo_event_totals();
+        let streamed_family8 = f5c_draft_heap::instantiation_event_totals();
         let owner_peaks = [
             self.execution_counters.bound_table_peak_bytes,
             streamed_family2.2,
@@ -16031,7 +16095,7 @@ impl InferenceSession {
             self.resource_ledger.flat_finalizer_peak_bytes,
             self.resource_ledger.closed_normalization_index_peak_bytes,
             self.resource_ledger.source_walker_peak_bytes,
-            self.resource_ledger.instantiation_substitution_peak_bytes,
+            streamed_family8.2,
         ];
         let mut start = 0;
         for family in 0..observer.family_ends.len() {
@@ -16061,6 +16125,12 @@ impl InferenceSession {
             "family-4 owner events reconcile with current physical lanes");
         assert!(streamed_family4.2 >= self.resource_ledger.component_expansion_memo_peak_bytes,
             "family-4 event peak covers sampled memo peak");
+        assert_eq!((streamed_family8.0, streamed_family8.1),
+            (usize::try_from(observer.family_capacity[7]).expect("family-8 capacity"),
+                observer.family_retained[7]),
+            "family-8 events reconcile with current physical lanes");
+        assert!(streamed_family8.2 >= self.resource_ledger.instantiation_substitution_peak_bytes,
+            "family-8 event peak covers sampled scratch peak");
         if boundary == ResourceBoundary::FinishOutput {
             f5c_draft_heap::checkpoint_term_events(streamed_family2.0, streamed_family2.1);
             observer.family2_event_terminal = streamed_family2;
@@ -16080,6 +16150,9 @@ impl InferenceSession {
             assert_eq!((streamed_family4.0, streamed_family4.1), (0, 0));
             f5c_draft_heap::checkpoint_component_memo_events(0, 0);
             observer.family4_event_terminal = streamed_family4;
+            assert_eq!((streamed_family8.0, streamed_family8.1), (0, 0));
+            f5c_draft_heap::checkpoint_instantiation_events(0, 0);
+            observer.family8_event_terminal = streamed_family8;
         }
         assert!(observer.family_peak[2] >=
             self.resource_ledger.structured_pair_family_peak_bytes,

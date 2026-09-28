@@ -1648,7 +1648,7 @@ fn matrix_emit(session: &SolvedModule, case: F5cMatrixCase) {
             .expect("flush F5c resource event sidecar");
     let sidecar = F5C_MATRIX_SIDECAR.with(|path| path.borrow_mut().take())
         .expect("F5c resource sidecar path");
-    eprintln!("F5C_RESOURCE_MATRIX_ROW\tfamily={:?}\tdimension={}\tsize={}\tcompanion={}\tfamily_ends={:?}\tfamily_totals={}\tfamily1_event={},{},{}\tfamily2_event={},{},{}\tfamily3_event={},{},{}\tfamily4_event={},{},{}\tfamily6_event={},{},{},{},{},{}\tsemantic_retained={}\tsemantic_peak={}\tsession_retained={}\tsession_peak={}\tlanes={}",
+    eprintln!("F5C_RESOURCE_MATRIX_ROW\tfamily={:?}\tdimension={}\tsize={}\tcompanion={}\tfamily_ends={:?}\tfamily_totals={}\tfamily1_event={},{},{}\tfamily2_event={},{},{}\tfamily3_event={},{},{}\tfamily4_event={},{},{}\tfamily8_event={},{},{}\tfamily6_event={},{},{},{},{},{}\tsemantic_retained={}\tsemantic_peak={}\tsession_retained={}\tsession_peak={}\tlanes={}",
         case.family, case.dimension, case.size, companion, observer.family_ends,
         family_totals, observer.family1_event_terminal.0,
         observer.family1_event_terminal.1, observer.family1_event_terminal.2,
@@ -1658,6 +1658,8 @@ fn matrix_emit(session: &SolvedModule, case: F5cMatrixCase) {
         observer.family3_event_terminal.2,
         observer.family4_event_terminal.0, observer.family4_event_terminal.1,
         observer.family4_event_terminal.2,
+        observer.family8_event_terminal.0, observer.family8_event_terminal.1,
+        observer.family8_event_terminal.2,
         observer.family6_event_capacity, observer.family6_event_retained,
         observer.family6_event_peak, observer.family6_event_count,
         event_count, event_checksum,

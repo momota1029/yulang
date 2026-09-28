@@ -37,6 +37,8 @@ pub(super) enum PhysicalOwnerKind {
     ComponentMemoLane(usize),
     #[cfg(all(test, feature = "f5c_resource_probe"))]
     TermLane(usize),
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    InstantiationLane(usize),
 }
 
 #[cfg(all(test, feature = "f5c_resource_probe"))]
@@ -58,6 +60,7 @@ mod event_sink {
         static STRUCTURED_PAIR_TOTALS: Cell<(usize, usize, usize)> = const { Cell::new((0, 0, 0)) };
         static COMPONENT_MEMO_TOTALS: Cell<(usize, usize, usize)> = const { Cell::new((0, 0, 0)) };
         static TERM_TOTALS: Cell<(usize, usize, usize)> = const { Cell::new((0, 0, 0)) };
+        static INSTANTIATION_TOTALS: Cell<(usize, usize, usize)> = const { Cell::new((0, 0, 0)) };
     }
 
     pub(crate) fn open(path: &Path) -> std::io::Result<()> {
@@ -69,6 +72,7 @@ mod event_sink {
         STRUCTURED_PAIR_TOTALS.with(|totals| totals.set((0, 0, 0)));
         COMPONENT_MEMO_TOTALS.with(|totals| totals.set((0, 0, 0)));
         TERM_TOTALS.with(|totals| totals.set((0, 0, 0)));
+        INSTANTIATION_TOTALS.with(|totals| totals.set((0, 0, 0)));
         Ok(())
     }
 
@@ -167,6 +171,15 @@ mod event_sink {
     pub(super) fn checkpoint_term(capacity: usize, bytes: usize) {
         record(0, 0, CHECKPOINT, PhysicalOwnerKind::TermLane(0), 0, capacity, bytes, 0);
     }
+    pub(super) fn instantiation_totals() -> (usize, usize, usize) { INSTANTIATION_TOTALS.with(Cell::get) }
+    pub(super) fn adjust_instantiation(capacity_delta: isize, bytes_delta: isize) {
+        INSTANTIATION_TOTALS.with(|cell| {
+            let (capacity, bytes, peak) = cell.get();
+            let capacity = capacity.checked_add_signed(capacity_delta).expect("family-8 capacity");
+            let bytes = bytes.checked_add_signed(bytes_delta).expect("family-8 bytes");
+            cell.set((capacity, bytes, peak.max(bytes)));
+        });
+    }
 }
 
 #[cfg(all(test, feature = "f5c_resource_probe"))]
@@ -213,6 +226,71 @@ pub(super) fn checkpoint_term_events(capacity: usize, bytes: usize) {
 }
 
 #[cfg(all(test, feature = "f5c_resource_probe"))]
+pub(super) fn instantiation_event_totals() -> (usize, usize, usize) {
+    event_sink::instantiation_totals()
+}
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+pub(super) fn checkpoint_instantiation_events(capacity: usize, bytes: usize) {
+    event_sink::record(0, 0, event_sink::CHECKPOINT,
+        PhysicalOwnerKind::InstantiationLane(0), 0, capacity, bytes, 0);
+}
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+#[derive(Default)]
+pub(super) struct InstantiationEvents {
+    owners: [Option<(usize, usize, usize, usize)>; 7],
+}
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+impl InstantiationEvents {
+    pub(super) fn observe(&mut self, lane: usize, requested: usize, capacity: usize, size: usize) {
+        assert!(requested <= capacity && size > 0);
+        let kind = PhysicalOwnerKind::InstantiationLane(lane);
+        match &mut self.owners[lane] {
+            None => {
+                let id = event_sink::next_id();
+                event_sink::record(0, id, event_sink::CREATE, kind, requested, capacity, size, 0);
+                if id != 0 {
+                    event_sink::adjust_instantiation(capacity as isize, (capacity * size) as isize);
+                }
+                self.owners[lane] = Some((id, requested, capacity, size));
+            }
+            Some((id, old_requested, old_capacity, old_size)) => {
+                assert_eq!(*old_size, size);
+                assert!(capacity >= *old_capacity, "instantiation backing shrank before release");
+                let op = if capacity > *old_capacity { Some(event_sink::GROW) }
+                    else if requested != *old_requested { Some(event_sink::SHAPE) } else { None };
+                if let Some(op) = op {
+                    event_sink::record(0, *id, op, kind, requested, capacity, size, 0);
+                    if *id != 0 {
+                        let delta = capacity - *old_capacity;
+                        event_sink::adjust_instantiation(delta as isize, (delta * size) as isize);
+                    }
+                }
+                *old_requested = requested;
+                *old_capacity = capacity;
+            }
+        }
+    }
+}
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+impl Drop for InstantiationEvents {
+    fn drop(&mut self) {
+        for (lane, owner) in self.owners.iter_mut().enumerate() {
+            if let Some((id, _, capacity, size)) = owner.take() {
+                event_sink::record(0, id, event_sink::RELEASE,
+                    PhysicalOwnerKind::InstantiationLane(lane), 0, 0, size, 0);
+                if id != 0 {
+                    event_sink::adjust_instantiation(-(capacity as isize), -((capacity * size) as isize));
+                }
+            }
+        }
+    }
+}
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
 impl PhysicalOwnerKind {
     fn code(self) -> u64 {
         match self {
@@ -228,6 +306,7 @@ impl PhysicalOwnerKind {
             Self::StructuredPairLane(index) => 530 + index as u64,
             Self::ComponentMemoLane(index) => 551 + index as u64,
             Self::TermLane(index) => 571 + index as u64,
+            Self::InstantiationLane(index) => 577 + index as u64,
         }
     }
 }
