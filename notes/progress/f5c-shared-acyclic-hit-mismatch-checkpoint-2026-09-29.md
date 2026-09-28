@@ -1,20 +1,18 @@
 # F5c shared-acyclic hit-count preflight checkpoint
 
-Status: after the logical-term measurement repair, the fifth supervised
-preflight again completed the first two fixtures but failed during
-`SharedAcyclic/D/32/K=32`. The exact-contract expectation for shared-summary
-hits is 1,984; the observer recorded 4,032. A `compiler_referee` traced the
-excess to the fixture assigning every use component its target root row. The
-resulting self-routes replay each seeded function bound, making each root
-traverse the cone twice. Follow-up tracing confirms the original per-use rows
-are distinct and that the route edges do not lead back into seeded roots. A
-`spec_auditor` confirmed that removing the alias preserves the §34 shared and
-guarded-cycle fixture contracts. That one-loop deletion passed post-write spec
-review and the feature-enabled test-target compile. No expected value has
-changed. A fresh supervised preflight remains; diagnostics and matrix processes
-are blocked until it succeeds.
+Status: after retaining original source-use rows, the sixth supervised
+preflight passed the shared-summary hit count and then failed at FinishOutput
+while reconciling the independent family-1 event ledger. The physical family
+has 96 capacity slots and 656 retained bytes absent from its event ledger. A
+`compiler_referee` traced the delta exactly to 62 fixture-seeded direct edges
+and 34 fixture-seeded exact bounds which update the physical observer but not
+`F5cLiveEventLedger`. The route fix and expected formulas remain correct. The
+narrow event-observation repair is active; the one extension-reviewed
+preflight is next, and diagnostics remain blocked until it succeeds.
 
 ## Failed attempt and evidence
+
+### Fifth preflight: shared-summary hit count
 
 Run ID `20260929-logical-term-count-retry-01` exited 101 after 5.025 seconds.
 It completed the `IndependentIdentities/D/32` and `IdentityAliases/U/32`
@@ -29,10 +27,24 @@ left: 4032
 right: 1984
 ```
 
-For `D=32` and `K=32`, §34 expects `2*K*(D-1) = 1,984` hits. The supervisor
-recorded peak process-group RSS 576,876,544 bytes, minimum `MemAvailable`
-27,883,868,160 bytes, sidecar high-water 4,561,224 bytes, minimum free disk
-665,995,304,960 bytes, and 9 monitor samples.
+For `D=32` and `K=32`, §34 expects `2*K*(D-1) = 1,984` hits. After the use-row
+alias repair in the following retry, this assertion passed.
+
+The fifth-attempt supervisor recorded peak process-group RSS 576,876,544
+bytes, minimum `MemAvailable` 27,883,868,160 bytes, sidecar high-water
+4,561,224 bytes, minimum free disk 665,995,304,960 bytes, and 9 monitor
+samples.
+
+### Sixth preflight: family-1 event reconciliation
+
+Run ID `20260929-shared-acyclic-hit-retry-01` exited 101 after 5.024 seconds.
+It completed the first two tuples and reached FinishOutput in the shared
+acyclic fixture, then stopped at
+`crates/yu-solver/src/lib.rs:16180` with event-ledger `(capacity, retained)`
+`(1856, 27328)` against family-1 `(1952, 27984)`. The supervisor recorded
+peak process-group RSS 607,596,544 bytes, minimum `MemAvailable`
+27,833,888,768 bytes, sidecar high-water 5,421,448 bytes, minimum free disk
+666,045,722,624 bytes, and 9 monitor samples.
 
 Preserved evidence:
 
@@ -40,6 +52,10 @@ Preserved evidence:
 - `/tmp/f5c-preflight-20260929-logical-term-count-retry-01.monitor.jsonl`
 - `/tmp/f5c-preflight-20260929-logical-term-count-retry-01.summary.json`
 - `/tmp/f5c-preflight-20260929-logical-term-count-retry-01.events`
+- `/tmp/f5c-preflight-20260929-shared-acyclic-hit-retry-01.log`
+- `/tmp/f5c-preflight-20260929-shared-acyclic-hit-retry-01.monitor.jsonl`
+- `/tmp/f5c-preflight-20260929-shared-acyclic-hit-retry-01.summary.json`
+- `/tmp/f5c-preflight-20260929-shared-acyclic-hit-retry-01.events`
 
 ## Authority and current gate
 
@@ -85,16 +101,29 @@ The previous logical-term repair remains limited to reading
 `TermLaneState.lengths[3]` for before/after counts; its exact formulas and
 specification review are unaffected by this later assertion.
 
+The family-1 event mismatch is also a fixture observer gap, not unaccounted
+production capacity. `matrix_seed_value_bound` and `matrix_seed_value_edge`
+reserve and push synthetic row entries, update the physical owner observer,
+but omit the independent `F5cLiveEventLedger` row observation. The preflight
+starts that independent ledger before these seeds. In the shared D=32/K=32
+fixture, 62 direct-edge slots plus 34 exact-bound slots total the observed 96
+slot delta; `62*4 + 34*12 = 656` bytes matches exactly. Both acyclic and
+guarded-cycle builders share these seed helpers, so the repair must report the
+touched value row after each successful reservation and insertion. Keep the
+independent ledger and family formula intact.
+
 ## Remaining measurement budget
 
-The five completed supervised preflights used 16.06, 5.02, 6.03, 11.05, and
-5.03 seconds. The next corrected preflight is allocated a 45-second timeout
-and 10-second termination grace under fresh run ID
-`20260929-shared-acyclic-hit-retry-01`. If it succeeds, the reviewed
-300-second diagnostic and 150-second replay use processes seven and eight;
-the maximum total is 548.19 seconds, leaving 51.81 seconds within the
-8-process/10-minute budget. If it fails, keep diagnostic/replay blocked and
-reassess the measurement plan before spending any further process invocation.
+Six preflight invocations are complete and used 48.21 seconds combined. The
+`performance_auditor` provided written justification for one bounded extension
+above the ordinary eight-process limit: one more preflight, then the already
+reviewed diagnostic and replay only if that preflight succeeds. The primary
+approves this extension under `rules/performance.md`, capped at 9 total
+invocations and 600 seconds. Allocate a 45-second timeout plus 10-second grace
+to preflight, 300 seconds plus 10-second grace to diagnostic, and 150 seconds
+plus 10-second grace to replay. The maximum is 573.21 seconds. If this seventh
+preflight fails, stop the campaign and reassess; no eighth preflight is
+approved by this plan.
 
 The user authorized autonomous continuation and expanded time/memory budgets;
 no approval pause is needed for this scoped continuation.

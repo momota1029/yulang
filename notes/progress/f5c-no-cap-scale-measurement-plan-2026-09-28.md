@@ -491,27 +491,32 @@ overwrite preserves the D-root shared/independent and guarded-cycle fixtures.
 The helper's use-row alias loop was removed. Post-write `spec_auditor` review
 confirmed the D fresh root setup, source/admission order, and all three builder
 shapes/formulas are unchanged; the feature-enabled test-target compile passed.
-Run the one remaining supervised preflight to verify exact schemes and
-counters without changing formulas. Keep diagnostics blocked. Exact evidence
-and review scope are in
+The sixth supervised preflight passed the shared-summary hit formula and
+reached FinishOutput, then found 96 seeded bound slots (656 bytes) missing from
+the independent family-1 event ledger. `compiler_referee` traced both fixture
+seed helpers to the gap: their physical observer is updated, but
+`F5cLiveEventLedger` is not. Add same-time value-row observations after
+successful reserve and push in those two helpers; preserve the event and family
+formulas. Keep diagnostics blocked. Exact evidence and review scope are in
 [`F5c shared-acyclic hit-count preflight checkpoint`](f5c-shared-acyclic-hit-mismatch-checkpoint-2026-09-29.md).
 
-The next preflight allowance is one supervised process with a 45-second timeout
-and 10-second TERM-to-KILL grace, using the existing 8-GiB memory/disk floors
-and fresh run ID `20260929-shared-acyclic-hit-retry-01`. The five completed
-attempts used 16.06, 5.02, 6.03, 11.05, and 5.03 seconds. This final preflight
-plus the reviewed 300-second diagnostic and 150-second replay use at most eight
-invocations and 548.19 seconds including the 10-second grace, leaving 51.81
-seconds under the 8-process/10-minute budget. If preflight fails, keep
-diagnostic/replay blocked and reassess the measurement plan before any further
-process. Keep all 36 matrix rows; derive their budget from diagnostic/replay
-evidence. The user authorized autonomous continuation and budget expansion, so
-no approval pause is needed.
+The six completed preflights used 16.06, 5.02, 6.03, 11.05, 5.03, and 5.02
+seconds (48.21 seconds combined). `performance_auditor` supplied written
+justification to extend the ordinary eight-process cap for one more preflight,
+followed only on success by the already-reviewed 300-second diagnostic and
+150-second replay. The primary approves this bounded extension under
+`rules/performance.md`: 9 total invocations, at most 600 seconds, 8-GiB memory
+and disk floors. With 45/300/150-second timeouts and one 10-second grace per
+process, the maximum is 573.21 seconds, leaving 26.79 seconds. If the seventh
+preflight fails, stop and reassess; the approval covers no eighth preflight.
+Keep all 36 matrix rows and derive their budget from diagnostic/replay evidence.
+The user authorized autonomous continuation and budget expansion; no user
+approval pause is needed.
 
 Exact next preflight command:
 
 ```bash
 set -euo pipefail
-RUN_ID=20260929-shared-acyclic-hit-retry-01
+RUN_ID=20260929-live-event-seed-retry-01
 python3 tools/run_f5c_resource_process.py --timeout-seconds 45 --log "/tmp/f5c-preflight-$RUN_ID.log" --monitor "/tmp/f5c-preflight-$RUN_ID.monitor.jsonl" --summary "/tmp/f5c-preflight-$RUN_ID.summary.json" --sidecar "/tmp/f5c-preflight-$RUN_ID.events" -- /usr/bin/time -v cargo test -p yu-solver --lib --features f5c_resource_probe f5c_resource_matrix_preflight --offline -j 2 -- --ignored --nocapture --test-threads=1
 ```

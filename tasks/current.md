@@ -255,10 +255,15 @@ retaining original use rows leaves only root-to-use edges, and `spec_auditor`
 confirmed the proposed helper correction preserves the shared, independent,
 and guarded-cycle fixture contracts. The alias loop is removed, post-write
 spec review is clean, and the feature-enabled test-target compile passes. The
-counter itself is consistent with the §34 formula. Use the one remaining
-supervised preflight under ID
-`20260929-shared-acyclic-hit-retry-01`; diagnostics and the matrix remain
-behind its success. See
+counter itself is consistent with the §34 formula. The sixth preflight reached
+FinishOutput and found fixture-seeded bound slots absent from the independent
+family-1 event ledger: 96 capacities and 656 bytes. The compiler audit traced
+this to both synthetic seed helpers updating the physical observer but not
+`F5cLiveEventLedger`; add the row observations without changing formulas. The
+performance auditor justified and the primary approved a single bounded
+extension to 9 invocations/600 seconds. After the narrow repair and review,
+run the seventh and final preflight under ID
+`20260929-live-event-seed-retry-01`; diagnostics remain behind its success. See
 [`F5c logical-term preflight failure checkpoint`](../notes/progress/f5c-preflight-logical-term-count-failure-checkpoint-2026-09-29.md).
 Also see
 [`F5c shared-acyclic hit-count preflight checkpoint`](../notes/progress/f5c-shared-acyclic-hit-mismatch-checkpoint-2026-09-29.md).
