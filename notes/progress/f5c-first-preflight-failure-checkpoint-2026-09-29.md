@@ -3,7 +3,8 @@
 Status: the first supervised preflight was executed and failed before emitting
 its summary. No diagnostic or matrix process ran. A read-only root-cause audit
 identified a feature-gated physical-capacity probe defect; the one-helper
-repair is written and awaits independent review and focused checks.
+repair is independently reviewed and passes focused feature-enabled compile
+checks. The supervised retry is the next gate.
 
 ## Exact paths and evidence
 
@@ -40,7 +41,7 @@ capacity for four family-5 lanes (matrix lanes 69, 70, 79, and 80). This made
 the aggregate family capacity unrepresentable in the solver's `usize`
 terminal event. The later family-7 row expansion does not overlap these rows.
 
-The implemented repair is limited to `f5c_probe_shape` in
+The repair is limited to `f5c_probe_shape` in
 `crates/yu-types/src/lib.rs`:
 keep `lane.len()` as the requested length; report physical capacity `0` when
 `size_of::<T>() == 0`; retain `lane.capacity()` for non-zero-sized slots.
@@ -53,12 +54,23 @@ stay in their existing checkpoints.
 
 The failed attempt consumed one process invocation and 16.06 seconds. It
 produced no successful preflight tuple; the sidecar remains preserved for
-forensics. No diagnostic, offline replay, matrix row, benchmark, or scale
-process ran. The read-only root-cause audit made no edits and ran no commands.
+forensics. The scoped repair received a clean `spec_auditor` review of the
+helper, probe lane, solver consumer, checker tuple, and governing physical-lane
+contract. Focused checks passed:
 
-After the scoped repair receives one independent review and focused
-feature-enabled compile plus syntax checks, record a revised preflight-only
-retry allowance and run the supervised preflight with a fresh unique run ID.
-Do not run the diagnostic or offline replay unless preflight succeeds. The
-user has authorized autonomous continuation and expanded time/memory budgets;
-no approval pause is required.
+- `RUSTC_WRAPPER= cargo check -p yu-types --lib --features f5c_resource_probe`
+- `RUSTC_WRAPPER= cargo check -p yu-solver --tests --features f5c_resource_probe`
+- `git diff --check`
+
+No diagnostic, offline replay, matrix row, benchmark, or scale process has run.
+
+The retry is one preflight process with a 60-second timeout and the same
+supervisor thresholds and 10-second TERM-to-KILL grace. Use fresh run ID
+`20260929-zst-retry-01` and unique `/tmp/f5c-preflight-20260929-zst-retry-01.*`
+paths. Including the failed 16.06-second attempt, this gate and the planned
+diagnostic/replay consume at most four measured process invocations and
+556.06 seconds (16.06 + 60 + 300 + 150 seconds, plus three 10-second grace
+periods), leaving 43.94 seconds inside the ordinary 8-process/10-minute
+budget. The retry must pass before either downstream command runs. The user
+has authorized autonomous continuation and expanded time/memory budgets; no
+approval pause is required.

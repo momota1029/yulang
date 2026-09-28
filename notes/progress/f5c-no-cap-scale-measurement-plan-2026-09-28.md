@@ -426,18 +426,32 @@ of 666,050,269,184 bytes. The command log and monitor summary remain at
 `/tmp/f5c-preflight-20260928T204753Z.summary.json`; the failed test left its
 sidecar at `/tmp/f5c-preflight-20260928T204753Z.events`. The panic occurred
 before the preflight event summary was emitted. No diagnostic or matrix process
-ran after this failure. Do not retry until the capacity source is identified,
-repaired, reviewed, and recorded with a fresh run budget. The initial failure
-and next gate are recorded in [`F5c first preflight failure checkpoint`](f5c-first-preflight-failure-checkpoint-2026-09-29.md).
+ran after this failure. A retry was held until the capacity source was
+identified, repaired, reviewed, and recorded with a fresh run budget. The
+initial failure and next gate are recorded in [`F5c first preflight failure checkpoint`](f5c-first-preflight-failure-checkpoint-2026-09-29.md).
 
 The performance-auditor review had already closed the supervisor design and
-numeric thresholds; the failed execution now requires a new root-cause and
-repair gate. The cause and one-helper correction awaiting review are recorded in
+numeric thresholds. The root cause and reviewed repair are recorded in
 [`F5c first preflight failure checkpoint`](f5c-first-preflight-failure-checkpoint-2026-09-29.md).
-After narrow review and focused checks, record a revised preflight-only retry
-budget before execution. If it succeeds, use measured elapsed time, peak RSS,
+Retry only the preflight with a 60-second timeout and fresh run ID
+`20260929-zst-retry-01`; use `/tmp/f5c-preflight-20260929-zst-retry-01.log`,
+`.monitor.jsonl`, `.summary.json`, and `.events`. Keep the existing 8-GiB
+memory/disk thresholds and process-group supervisor. The retry adds one process
+and at most 70 seconds including its grace. Counting the first 16.06-second
+failed attempt, the retry plus the already-reviewed 300-second diagnostic and
+150-second replay fit within four process invocations and 556.06 seconds,
+including the three 10-second termination graces. If preflight succeeds, run
+the diagnostic and replay in order. Use their measured elapsed time, peak RSS,
 event count, and sidecar size to derive and review the 36-row matrix's
 individual timeout and total process budget. Keep all 36 required rows; the
 diagnostic does not substitute for them. The user has authorized expanding
 the overall time and memory plan, so no approval pause is needed when the
-revised preflight and later measurement budgets are ready.
+later measurement budget is ready.
+
+Exact retry command:
+
+```bash
+set -euo pipefail
+RUN_ID=20260929-zst-retry-01
+python3 tools/run_f5c_resource_process.py --timeout-seconds 60 --log "/tmp/f5c-preflight-$RUN_ID.log" --monitor "/tmp/f5c-preflight-$RUN_ID.monitor.jsonl" --summary "/tmp/f5c-preflight-$RUN_ID.summary.json" --sidecar "/tmp/f5c-preflight-$RUN_ID.events" -- /usr/bin/time -v cargo test -p yu-solver --lib --features f5c_resource_probe f5c_resource_matrix_preflight --offline -j 2 -- --ignored --nocapture --test-threads=1
+```

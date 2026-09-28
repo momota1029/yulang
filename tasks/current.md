@@ -216,13 +216,13 @@ the terminal `usize` conversion. Exact metrics, preserved `/tmp` evidence,
 source locations, and the repair boundary are in
 [`F5c first preflight failure checkpoint`](../notes/progress/f5c-first-preflight-failure-checkpoint-2026-09-29.md).
 
-The immediate gate is a feature-gated `f5c_probe_shape` correction in
-`crates/yu-types/src/lib.rs`: preserve requested length, report zero physical
-capacity for zero-sized slots, and retain `Vec::capacity()` for non-ZST lanes.
-Then get one narrow independent review and run focused compile/syntax checks.
-Only after recording that repair and a revised bounded preflight allowance may
-the preflight be retried; diagnostic and matrix processes remain behind its
-successful completion.
+The feature-gated `f5c_probe_shape` correction in `crates/yu-types/src/lib.rs`
+preserves requested length, reports zero physical capacity for zero-sized
+slots, and retains `Vec::capacity()` for non-ZST lanes. A narrow
+`spec_auditor` review is clean, and focused feature-enabled compile checks pass.
+The revised one-process preflight retry is recorded with a 60-second timeout
+and fresh run ID in the failure checkpoint. Run that retry next; diagnostic
+and matrix processes remain behind its successful completion.
 
 ### Latest continuation (2026-09-28): user authorized autonomous completion and budget expansion
 

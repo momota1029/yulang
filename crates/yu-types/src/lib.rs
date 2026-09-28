@@ -1076,7 +1076,8 @@ impl F5cResourceProbeSummary {
 
 #[cfg(feature = "f5c_resource_probe")]
 fn f5c_probe_shape<T>(lane: &Vec<T>) -> (usize, usize, usize) {
-    (lane.len(), lane.capacity(), std::mem::size_of::<T>())
+    let slot_size = std::mem::size_of::<T>();
+    (lane.len(), if slot_size == 0 { 0 } else { lane.capacity() }, slot_size)
 }
 impl ClosedTypeAccountingCheckpoint {
     #[doc(hidden)]
