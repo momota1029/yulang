@@ -437,8 +437,41 @@ The proof is the local-step argument from the edge-transport lemma: constructors
 and polarities are unchanged; injectivity preserves variable equality, rule
 premises, and the same-variable fast path; induction maps every finite closure
 step in both directions. This is a constraint-graph isomorphism for the
-prepared view. It is not a denotational solution-set result: the draft has not
-defined a subtype satisfaction relation for regular types.
+prepared view. It does not by itself establish that the bound graph has
+principal solutions.
+
+**Conditional solution-set transport.** Fix any semantic carrier `D`, an
+interpretation of graph endpoints into `D`, and a relation `≤` on `D`. For a
+selected graph `G` with local vertices `L` and anchored environment vertices
+`E`, let `Sol_D(G, eta)` be the assignments `nu : L -> D` for which every
+selected lower/upper obligation holds under `eta : E -> D`. This definition
+does not choose `D`, endpoint interpretation, or `≤`; those are still an open
+semantic decision.
+
+Let `rho : L -> P` be a bijection to fresh parent identities, disjoint from
+`E`, and the identity on `E`. Rename every local variable occurrence in the
+selected graph homomorphically, preserving constructors and edge direction.
+For each `nu` define `rho_*(nu)(rho(v)) = nu(v)`. Then:
+
+```text
+nu in Sol_D(G, eta)  iff  rho_*(nu) in Sol_D(rho(G), eta)
+```
+
+For this lemma only, endpoint syntax is finite constructor syntax with every
+cycle in the selected graph returning through a variable reference. Evaluation
+of that reference is a direct lookup in `nu` or `eta`; it does not unfold the
+variable's bound edges. Assume constructor interpretation respects this
+evaluation rule. Structural induction over each finite endpoint then gives
+`eval(rho(e), rho_*(nu), eta) = eval(e, nu, eta)`, so every selected subtype
+obligation has the same truth value. Since `rho` is bijective on local
+vertices and fixes `E`, `rho_*` has the inverse assignment map and gives a
+bijection of solution sets. Root observations are preserved only when they
+depend extensionally on interpreted root values, not on raw vertex IDs. If a
+later model interprets recursive bounds by unfolding or a fixed-point
+construction, it must separately prove renaming equivariance for that
+interpretation. This conditional lemma does not show that `G` or its projected
+view is principal, that the selected graph is Oracle-compatible, or that
+one-sided erasure preserves the solution relation.
 
 **Structural use isolation.** For two distinct uses `u != v`, require their
 fresh image sets to be disjoint and to intersect the stable graph only through

@@ -119,7 +119,11 @@ recursive-type interpretation, assignment domain, and principal-solution
 order remain open; no representation decision follows yet. Next resolve these
 denotation choices, then prove projection congruence, ordered root-step
 simulation, publication/finalization, and use simulation. A two-root
-characterization remains optional diagnostic evidence.
+characterization remains optional diagnostic evidence. A conditional lemma now
+shows that injective fresh-parent renaming bijects solution assignments when
+finite endpoints evaluate variable/back-edge references by direct lookup, while
+keeping `E_d` anchors fixed. Recursive unfolding, root projection, and
+principality remain unproved.
 The first
 two focused `yu-solver` Rust-path baseline
 probes pass for current identity-Function and productive/unproductive recursion

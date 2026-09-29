@@ -58,5 +58,10 @@ complete mathematical proof.
 ## Status
 
 The abstract-semantics draft and `tasks/current.md` now record the separation
-and unresolved decisions. No compiler code changed. No tests were run; this
+and unresolved decisions. The draft now also proves a conditional solution-set
+bijection for injective fresh-parent renaming when finite endpoints interpret
+variable/back-edge references by direct assignment lookup; environment anchors
+remain fixed, and root observations must be extensional in interpreted values.
+It does not prove an unfolding interpretation, root projection, edge selection,
+erasure, or principality. No compiler code changed. No tests were run; this
 slice changed research records only. The active objective remains incomplete.
