@@ -894,9 +894,10 @@ denotation, not evidence that the Oracle emits this exact graph. A companion
 source probe, `my expect(x: int): int = 1; pub k x = expect x`, observes a
 bounded negative argument: its first compact view contains both the argument
 variable and `Int`, the variable has an upper-bound record, and the saved
-public scheme is `int -> int` with no diagnostics. This is consistent with the
-Oracle compactor expanding negative variables through upper bounds before its
-one-polarity elimination pass
+generalized compact root contains only `Int` in that argument position; the
+saved public scheme is `int -> int` with no diagnostics. This is consistent
+with the Oracle compactor expanding negative variables through upper bounds
+before its one-polarity elimination pass
 (`compact/collect/mod.rs::compact_var_side,compact_var_bounds`;
 `compact/analysis/mod.rs::eliminate_polar_variables_with_roles_and_non_generic`).
 It does not establish that this source graph is identical to the abstract

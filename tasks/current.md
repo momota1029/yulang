@@ -128,8 +128,9 @@ Function argument is `TypeVar(2)` with no stored bounds, and the saved compact
 argument is empty. This does not prove the general erasure/projection rule.
 The bounded negative-argument source case is now characterized: when
 `k x = expect x` constrains the argument to `int`, Oracle's first compact view
-contains both the argument variable and `Int`, and the saved scheme is
-`int -> int`. The conditional counterexample and reviewed pointwise
+contains both the argument variable and `Int`; the saved generalized compact
+root contains only `Int`, and the public scheme is `int -> int`. The
+conditional counterexample and reviewed pointwise
 extremal-projection lemma show that a bounded variable projects to its greatest
 admissible upper type, not automatically to `Top`. Review found the
 source-level singleton-bound argument insufficient as a general Oracle
