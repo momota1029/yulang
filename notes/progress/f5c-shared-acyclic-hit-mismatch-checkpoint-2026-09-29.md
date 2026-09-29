@@ -708,3 +708,48 @@ No resource/scale process, diagnostic, or matrix row ran. The staged-buffer
 online rows 12–17 and transfer reconciliation, closed-type/route composition,
 exact serialization suppression, global
 same-time witness, and corrected-scale evidence remain open.
+
+### 2026-09-29 staged-destination online-ledger extension
+
+Added six fixed online rows for StagedBuffer kinds 12–17 to
+`crates/yu-solver/src/f5c_draft_heap.rs`. For a tracked WalkerLane or
+NormalizationLane owner, the copied ledger debits the source row and credits
+the destination row while preserving combined current and peak values. A
+tracked-transfer marker on the physical owner entry makes release debit happen
+only for these owners, after the staged buffer's backing vector has dropped;
+the raw `claim_existing_batch` CREATE/classify/release route remains outside
+the transfer-only online rows.
+
+The witness checks the six exact destination capacities/bytes immediately after
+transfer, confirms source rows are clear and combined current/peak are
+unchanged, then releases the staged tokens and checks zero current/nonzero peak
+for all six rows. The Python witness replay now compares 204 physical event
+rows plus the joint subtotal and rejects staged CREATE, wrong target, wrong
+ID, and wrong shape mutations. Full `replay_f6_events` still accepts the raw
+staged CREATE/classify/release sequence.
+
+M2 review: pre-write `spec_auditor`; post-write `spec_auditor` plus
+`performance_auditor`. The first post-write specification pass found a
+blocking overreach: a global CREATE rejection contradicted the raw staged
+owner path. The repair moved that restriction to the transfer-only witness;
+the fresh narrow spec delta review closed it. Performance review found no
+blocking issue and no timing measurement requirement. The ledger is 6,560
+bytes per thread on 64-bit targets. Six output transfers copy up to 39,360
+bytes per staged batch (78,720 bytes counting read/write traffic), +1,152 /
+2,304 bytes respectively over the previous ledger if the copies materialize.
+
+Primary verification:
+
+```text
+F5C_WALKER_SHADOW_SIDECAR=/tmp/f5c-staged-shadow-witness-final.bin F5C_WALKER_SHADOW_TOTALS=/tmp/f5c-staged-shadow-witness-final.txt RUSTC_WRAPPER= cargo test -p yu-solver --features f5c_resource_probe f5c_walker_online_shadow_witness --lib --offline -j 2 -- --test-threads=1
+python3 tools/check_f5c_resource_matrix.py --walker-shadow-witness /tmp/f5c-staged-shadow-witness-final.bin --walker-shadow-totals /tmp/f5c-staged-shadow-witness-final.txt
+python3 -c 'import ast, pathlib; ast.parse(pathlib.Path("tools/check_f5c_resource_matrix.py").read_text())'
+git diff --check
+```
+
+The focused Rust test passed (1/1); replay accepted all 356 events and matched
+all 204 rows plus the joint subtotal. Four mutated witnesses were rejected.
+A synthetic family-aware replay with raw staged CREATE/classify/release was
+accepted. No scale/resource process, diagnostic, or matrix row ran. Next gate:
+compose the closed-type finalizer peak and route-growth samples, then prove the
+global same-time total before any corrected-scale process.

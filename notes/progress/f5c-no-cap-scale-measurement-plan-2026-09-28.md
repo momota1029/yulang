@@ -1,6 +1,40 @@
 # F5c no-cap §26/§34 scale measurement plan
 
-Status: The user has directed autonomous F5c completion and authorized practical expansion of time and memory plans. AllDrafts and guarded-cycle repairs remain unverified at corrected scale. The six-buffer `FlatDraft` family-6 carrier and same-ID staged transfer, all eight §34 family event/reconciliation slices, and the 261-row family-aware replay are separately checkpointed. The isolated GuardedCycle D=32/K=32 event-volume run timed out at 120 seconds without breaching a host floor; its 5.5-million-record partial sidecar is not replayable. Family-4 request-only SHAPEs were removed as intended, leaving repeated short-lived walker vectors and retained reentry paths as the dominant event owners. The closed pre-write observer reviews require a fixed-size ledger across every event-backed lane, composed with the existing closed-type finalizer peak and route-growth samples. The online-shadow checkpoints now prove all 98 WalkerLane, 20 ComponentMemoLane, six TermLane, seven InstantiationLane, 18 LiveVariableLane, 21 StructuredPairLane, and 28 normalization-owner rows (198 total), their tracked-lane joint subtotal, and FlatDraft, Term, kind-549, and normalization-output transfer witnesses against offline replay. Normalization source owners transfer by same ID to staged kinds 12–17, but those destination rows remain outside the online subtotal. Add and compose the staged-buffer rows with the closed-type and route families before claiming global same-time reconciliation. The ledger is 6,368 bytes per thread; each transfer copies 6,368 bytes, or 12,736 bytes of read/write traffic. The fresh scale plan must report transfer counts by source and target, including six output transfers per staged batch, and total copied bytes (`6,368 * transfers`; `12,736 * transfers` counting reads and writes), along with event count, sidecar size, family1/family3/normalization row and owner counts, peak RSS, elapsed time, and disk use. No resource/scale process, K=4,000 diagnostic, or matrix row may run before global same-time composition and a fresh performance review. Exact run data and architecture constraints are in the [`shared-acyclic preflight checkpoint`](f5c-shared-acyclic-hit-mismatch-checkpoint-2026-09-29.md). See the [`family-5 aggregate-peak checkpoint`](f5c-family5-closed-type-arena-aggregate-peak-checkpoint-2026-09-29.md), [`family-6 event checkpoint`](f5c-family6-closed-normalization-index-events-checkpoint-2026-09-29.md), and [`261-lane physical replay checkpoint`](f5c-family7-physical-lane-replay-checkpoint-2026-09-29.md).
+Status: The user has directed autonomous F5c completion and authorized
+practical expansion of time and memory plans. AllDrafts and guarded-cycle
+repairs remain unverified at corrected scale. The six-buffer `FlatDraft`
+family-6 carrier and same-ID staged transfer, all eight §34 family
+event/reconciliation slices, and the 261-row family-aware replay are separately
+checkpointed. The isolated GuardedCycle D=32/K=32 event-volume run timed out
+at 120 seconds without breaching a host floor; its 5.5-million-record partial
+sidecar is not replayable. Family-4 request-only SHAPEs were removed as
+intended, leaving repeated short-lived walker vectors and retained reentry
+paths as the dominant event owners. The closed pre-write observer reviews
+require a fixed-size ledger across every event-backed lane, composed with the
+existing closed-type finalizer peak and route-growth samples.
+
+The online shadow now compares 204 event rows plus its joint subtotal: 98
+WalkerLane, 20 ComponentMemoLane, six TermLane, seven InstantiationLane, 18
+LiveVariableLane, 21 StructuredPairLane, 28 normalization-owner, and six
+StagedBuffer destination rows. FlatDraft, Term, kind-549, and
+normalization-output same-ID transfer witnesses replay against the same-time
+ledger. The 6,560-byte-per-thread ledger copies 6,560 bytes per transfer
+(13,120 bytes of read/write traffic) on 64-bit targets. Six output transfers
+per staged batch therefore account for 39,360 copied bytes (78,720 bytes of
+read/write traffic), if the copies materialize. The fresh scale plan must
+report transfer counts by source and target and compute `6,560 * transfers`
+copied bytes (`13,120 * transfers` counting reads and writes), alongside
+event count, sidecar size, family1/family3/normalization row and owner counts,
+peak RSS, elapsed time, and disk use.
+
+Compose the staged rows with the closed-type and route families before
+claiming global same-time reconciliation. No resource/scale process, K=4,000
+diagnostic, or matrix row may run before that composition and a fresh
+performance review. Exact run data and architecture constraints are in the
+[`shared-acyclic preflight checkpoint`](f5c-shared-acyclic-hit-mismatch-checkpoint-2026-09-29.md).
+See the [`family-5 aggregate-peak checkpoint`](f5c-family5-closed-type-arena-aggregate-peak-checkpoint-2026-09-29.md),
+[`family-6 event checkpoint`](f5c-family6-closed-normalization-index-events-checkpoint-2026-09-29.md),
+and [`261-lane physical replay checkpoint`](f5c-family7-physical-lane-replay-checkpoint-2026-09-29.md).
 Reviewed-by: spec_auditor, performance_auditor (matrix, formulas, safety, and budget deltas closed without unresolved findings)
 Observer-scope delta review: architect, spec_auditor, performance_auditor; no blocking or major findings
 Execution-extension delta review: spec_auditor clarified approval timing; performance_auditor supplied the one-process budget justification

@@ -74,6 +74,7 @@ mod event_sink {
         live_lanes: [WalkerTotals; 18],
         structured_pair_lanes: [WalkerTotals; 21],
         normalization_lanes: [WalkerTotals; 28],
+        staged_lanes: [WalkerTotals; 6],
         combined: WalkerTotals,
     }
 
@@ -93,6 +94,8 @@ mod event_sink {
                     current_bytes: 0, peak_bytes: 0 }; 21],
                 normalization_lanes: [WalkerTotals { current_capacity: 0, peak_capacity: 0,
                     current_bytes: 0, peak_bytes: 0 }; 28],
+                staged_lanes: [WalkerTotals { current_capacity: 0, peak_capacity: 0,
+                    current_bytes: 0, peak_bytes: 0 }; 6],
                 combined: WalkerTotals { current_capacity: 0, peak_capacity: 0,
                     current_bytes: 0, peak_bytes: 0 } }
         }
@@ -130,6 +133,28 @@ mod event_sink {
         fn adjust_normalization(&mut self, lane: usize, old: usize, new: usize, size: usize) {
             let lane_totals = self.normalization_lanes.get_mut(lane).expect("NormalizationLane index");
             Self::adjust_totals(lane_totals, &mut self.combined, old, new, size);
+        }
+
+        fn adjust_staged(&mut self, lane: usize, old: usize, new: usize, size: usize) {
+            let lane_totals = self.staged_lanes.get_mut(lane).expect("StagedBuffer index");
+            Self::adjust_totals(lane_totals, &mut self.combined, old, new, size);
+        }
+
+        fn transfer_staged(&mut self, source: PhysicalOwnerKind, lane: usize,
+            capacity: usize, size: usize) {
+            let source_totals = match source {
+                PhysicalOwnerKind::WalkerLane(index) => self.lanes.get_mut(index).expect("WalkerLane index"),
+                PhysicalOwnerKind::NormalizationLane(index) => self.normalization_lanes.get_mut(index).expect("NormalizationLane index"),
+                _ => panic!("untracked staged source"),
+            };
+            let target_totals = self.staged_lanes.get_mut(lane).expect("StagedBuffer index");
+            let bytes = capacity.checked_mul(size).expect("staged transfer bytes");
+            source_totals.current_capacity = source_totals.current_capacity.checked_sub(capacity).expect("staged source capacity");
+            source_totals.current_bytes = source_totals.current_bytes.checked_sub(bytes).expect("staged source bytes");
+            target_totals.current_capacity = target_totals.current_capacity.checked_add(capacity).expect("staged target capacity");
+            target_totals.current_bytes = target_totals.current_bytes.checked_add(bytes).expect("staged target bytes");
+            target_totals.peak_capacity = target_totals.peak_capacity.max(target_totals.current_capacity);
+            target_totals.peak_bytes = target_totals.peak_bytes.max(target_totals.current_bytes);
         }
 
         fn adjust_totals(lane_totals: &mut WalkerTotals, combined: &mut WalkerTotals,
@@ -184,6 +209,14 @@ mod event_sink {
         WALKER_LEDGER.with(|ledger| ledger.borrow().normalization_lanes)
     }
 
+    pub(crate) fn staged_shadow_totals() -> [WalkerTotals; 6] {
+        WALKER_LEDGER.with(|ledger| ledger.borrow().staged_lanes)
+    }
+
+    pub(super) fn release_staged_shadow(lane: usize, capacity: usize, size: usize) {
+        WALKER_LEDGER.with(|ledger| ledger.borrow_mut().adjust_staged(lane, capacity, 0, size));
+    }
+
     pub(super) fn adjust_normalization_shadow(lane: usize, old: usize, new: usize, size: usize) {
         WALKER_LEDGER.with(|ledger| ledger.borrow_mut().adjust_normalization(lane, old, new, size));
     }
@@ -216,6 +249,11 @@ mod event_sink {
         capacity: usize, size: usize) {
         WALKER_LEDGER.with(|ledger| {
             let mut next = *ledger.borrow();
+            if let PhysicalOwnerKind::StagedBuffer(lane) = target {
+                next.transfer_staged(source, lane, capacity, size);
+                *ledger.borrow_mut() = next;
+                return;
+            }
             if let PhysicalOwnerKind::NormalizationLane(lane) = source {
                 next.adjust_normalization(lane, capacity, 0, size);
             }
@@ -496,6 +534,8 @@ pub(super) use event_sink::walker_totals as f5c_walker_shadow_totals;
 
 #[cfg(all(test, feature = "f5c_resource_probe"))]
 pub(super) use event_sink::normalization_shadow_totals as f5c_normalization_shadow_totals;
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+pub(super) use event_sink::staged_shadow_totals as f5c_staged_shadow_totals;
 
 #[cfg(all(test, feature = "f5c_resource_probe"))]
 pub(super) fn normalization_event_totals() -> (usize, usize, usize) {
@@ -1021,7 +1061,7 @@ type PhysicalOwnerHandle = usize;
 #[derive(Clone, Copy)]
 struct PhysicalOwnerEntry {
     capacity: usize, slot_size: usize, id: usize, kind: PhysicalOwnerKind,
-    requested: usize, peak_requested: usize, adopting: bool,
+    requested: usize, peak_requested: usize, adopting: bool, staged_shadow: bool,
 }
 #[cfg(all(test, not(feature = "f5c_resource_probe")))]
 type PhysicalOwnerEntry = (usize, usize);
@@ -1150,6 +1190,8 @@ impl DraftHeapMeter {
                 entry.requested = requested[index];
                 entry.peak_requested = owner.peak_requested.max(requested[index]);
                 entry.adopting = false;
+                entry.staged_shadow = owner.id != 0 && matches!(owner.kind,
+                    PhysicalOwnerKind::WalkerLane(_) | PhysicalOwnerKind::NormalizationLane(_));
             }
             self.0.family6_source_capacity.set(self.0.family6_source_capacity.get()
                 .and_then(|current| current.checked_sub(bytes[index])?
@@ -1401,7 +1443,7 @@ impl DraftHeapMeter {
         owner_id: usize, create: bool, sample: bool) -> PhysicalOwnerHandle {
         let mut owners = self.0.physical_owners.borrow_mut();
         let entry = PhysicalOwnerEntry { capacity: bytes, slot_size: 1, id: owner_id,
-            kind, requested: 0, peak_requested: 0, adopting: !create };
+            kind, requested: 0, peak_requested: 0, adopting: !create, staged_shadow: false };
         let id = if let Some(id) = self.0.free_physical_owners.borrow_mut().pop() {
             assert!(owners[id].replace(entry).is_none());
             id
@@ -1505,6 +1547,10 @@ impl DraftHeapMeter {
         if !owner.adopting {
             event_sink::record(self.0.event_component.get(), handle.id, event_sink::RELEASE,
                 owner.kind, 0, 0, slot_size, 0);
+        }
+        if owner.staged_shadow {
+            let PhysicalOwnerKind::StagedBuffer(lane) = owner.kind else { unreachable!() };
+            event_sink::release_staged_shadow(lane, capacity, slot_size);
         }
         self.0.free_physical_owners.borrow_mut().push(handle.slot);
     }

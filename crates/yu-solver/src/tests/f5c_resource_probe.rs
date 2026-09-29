@@ -1539,13 +1539,27 @@ fn f5c_walker_online_shadow_witness() {
             std::mem::size_of::<NegativeId>(), std::mem::size_of::<RecursiveBound>(),
             std::mem::size_of::<NodeRef>()];
         let bytes = std::array::from_fn(|lane| capacities[lane] * sizes[lane]);
+        let combined_before_transfer = crate::f5c_draft_heap::f5c_walker_shadow_totals().6;
         let staged = meter.claim_existing_batch_with_owners(bytes, 0,
             draft.owners.as_mut().unwrap(), requested, capacities, sizes)
             .expect("flat draft owner transfer failed");
         assert!(crate::f5c_draft_heap::f5c_normalization_shadow_totals()[21..27]
             .iter().all(|lane| lane.current_capacity == 0));
+        let staged_lanes = crate::f5c_draft_heap::f5c_staged_shadow_totals();
+        for lane in 0..6 {
+            assert_eq!((staged_lanes[lane].current_capacity, staged_lanes[lane].current_bytes),
+                (capacities[lane], bytes[lane]));
+        }
+        let combined_after_transfer = crate::f5c_draft_heap::f5c_walker_shadow_totals().6;
+        assert_eq!((combined_after_transfer.current_capacity, combined_after_transfer.current_bytes,
+            combined_after_transfer.peak_capacity, combined_after_transfer.peak_bytes),
+            (combined_before_transfer.current_capacity, combined_before_transfer.current_bytes,
+                combined_before_transfer.peak_capacity, combined_before_transfer.peak_bytes));
         drop(draft);
         drop(staged);
+        assert!(crate::f5c_draft_heap::f5c_staged_shadow_totals().iter().all(|lane|
+            lane.current_capacity == 0 && lane.current_bytes == 0 &&
+            lane.peak_capacity > 0 && lane.peak_bytes > 0));
         drop(scratch);
         for owner in &mut normalization { owner.release(); }
         let lineage = crate::term::TermBuilder::new().unwrap().seal().unwrap();
@@ -1627,6 +1641,10 @@ fn f5c_walker_online_shadow_witness() {
         }
         for (lane, totals) in normalization_lanes.iter().enumerate() {
             writeln!(output, "{} {} {} {} {}", lane + 584, totals.current_capacity,
+                totals.peak_capacity, totals.current_bytes, totals.peak_bytes).unwrap();
+        }
+        for (lane, totals) in crate::f5c_draft_heap::f5c_staged_shadow_totals().iter().enumerate() {
+            writeln!(output, "{} {} {} {} {}", lane + 12, totals.current_capacity,
                 totals.peak_capacity, totals.current_bytes, totals.peak_bytes).unwrap();
         }
         writeln!(output, "combined {} {} {} {}", combined.current_capacity,

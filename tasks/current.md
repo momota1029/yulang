@@ -24,20 +24,50 @@ capacity changes occur later and already pass through the existing
 
 Implement this gate in reviewable checkpoints. The fixed-size online shadow
 now covers 98 WalkerLane, 20 ComponentMemoLane, 6 TermLane, 7 InstantiationLane,
-18 LiveVariableLane, 21 StructuredPairLane, and 28 normalization-owner rows:
-198 lane rows plus the joint subtotal. The normalization witness covers all 27
-physical lanes, leaves lane 16 zero, and exercises the six output-owner
-same-ID transfers into staged kinds 12–17. The combined online subtotal still
-omits those staged destination rows after transfer. Next add the remaining
-staged-buffer rows 12–17 and make each 605–610 to 12–17 handoff an atomic
-source debit/destination credit, then compose the closed-type finalizer peak
-and route-growth samples and prove global same-time totals. Only after that
-closes, suppress serialization for exact
+18 LiveVariableLane, 21 StructuredPairLane, 28 normalization-owner rows, and
+six StagedBuffer destination rows: 204 lane rows plus the joint subtotal. The
+normalization witness covers all 27 physical lanes, leaves lane 16 zero, and
+exercises six same-ID transfers into staged kinds 12–17. Those transfers now
+move source and destination rows atomically while leaving combined current and
+peak unchanged; staged releases debit after backing vectors drop. Next compose
+the closed-type finalizer peak and route-growth samples and prove global
+same-time totals. Only after that closes, suppress serialization for exact
 non-transferring WalkerLane kinds 54–56 and 116. Preserve the FlatDraft kinds
 12–17 trace in full throughout. The partial timed-out sidecar is not a replay
 input; no resource/scale process, diagnostic, or matrix row may run before the
 composed ledger and witness receive a fresh measurement review. Do not claim
 corrected-scale completion until those gates close.
+
+### Latest continuation (2026-09-29): staged destination online shadow
+
+`crates/yu-solver/src/f5c_draft_heap.rs` now accounts for StagedBuffer event
+kinds 12–17 alongside the six source families. The same-ID transfer copies the
+fixed ledger, moves source and destination lane totals as one operation, and
+preserves the combined current and peak. A tracked-transfer marker keeps raw
+`claim_existing_batch` allocations outside these transfer-only rows; tracked
+stage releases debit after their backing buffers drop. The witness asserts all
+six rows live with their exact slot and byte shapes, confirms zero source rows
+and unchanged joint totals after transfer, then confirms zero staged current
+with nonzero peaks after release. The replay compares 204 rows plus the joint
+subtotal and rejects staged creation or shape/ID/target mutations in this
+witness. The general matrix replay continues to accept its valid raw staged
+CREATE/classify/release path.
+
+M2 review used a pre-write `spec_auditor`, then a post-write
+`spec_auditor` and `performance_auditor`. The specification review found a
+blocking overbroad CREATE rejection in the full replay; it was moved into the
+transfer-only witness and a fresh delta review closed the finding. The
+performance review found no material issue: the fixed state is now 6,560 bytes
+per thread on 64-bit targets, adding 1,152 copied bytes / 2,304 read-write
+bytes across six transfers per staged batch. No timing measurement is needed
+for this bounded test-only update.
+
+The focused witness passed (1 test), and its 356-event replay matched all 204
+rows and the joint subtotal. Four mutated witness inputs (staged CREATE, wrong
+target, wrong ID, and wrong shape) were rejected. A synthetic full replay
+accepted raw staged CREATE/classify/release. Python syntax validation and
+`git diff --check` passed. No resource/scale process, diagnostic, or matrix row
+ran. Next: compose the closed-type finalizer peak and route-growth samples.
 
 ### Latest continuation (2026-09-29): normalization-output online shadow
 
