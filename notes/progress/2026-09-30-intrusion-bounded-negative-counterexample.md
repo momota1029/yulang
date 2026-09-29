@@ -591,3 +591,39 @@ YULANG_INTRUSION_SOURCE_USES=1 CARGO_TARGET_DIR=/tmp/yulang-intrusion-oracle-tar
 The temporary test and instrumentation were removed with detached scratch
 worktree `/tmp/yulang-intrusion-source-use-probe`; the frozen Oracle worktree
 remains unchanged.
+
+## Guarded multi-member component with differently typed incoming uses (2026-09-30)
+
+A temporary Rust source-path test in detached worktree
+`/tmp/yulang-intrusion-multiscc-probe` exercised one nominally guarded,
+two-member recursive Function SCC and then called `helper` at both `int` and
+identity-Function argument types:
+
+```yulang
+struct loop 'a { next: 'a }
+pub helper x = loop { next: \y -> g x }
+pub g x = loop { next: \y -> helper x }
+pub number = helper 1
+pub function_value = helper (\z -> z)
+```
+
+The focused test completed without diagnostics. Oracle SCC events show `helper`
+and `g` in one `QuantifyComponent`, preceded by their open internal uses. Both
+member schemes expose the same quantifier identities (`TypeVar(81)` and
+`TypeVar(82)`); their recursive-bound roots differ (`81` for `helper`, `82`
+for `g`). After the joint quantification, the `number` and `function_value`
+definitions each have a distinct `InstantiateUse` edge to `helper`, with use
+values `TypeVar(64)` and `TypeVar(72)`. This is source-level Oracle evidence
+for publication of a multi-member guarded SCC followed by two differently
+typed incoming calls. It does not yet show the instantiated binder mapping at
+each use, prove those mappings are disjoint, compare later constraints on the
+two instances, or establish candidate intrusion equivalence. The test and
+instrumentation remain only in the detached scratch worktree; the frozen
+Oracle checkout and research branch compiler code are unchanged.
+
+Focused command:
+
+```text
+CARGO_TARGET_DIR=/tmp/yulang-intrusion-oracle-target \
+  cargo test -p infer scratch_guarded_mutual_scc_two_differently_typed_incoming_uses -- --nocapture
+```
