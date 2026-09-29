@@ -1018,6 +1018,31 @@ root-order simulation, diagnostics, or principal-solution equivalence for a
 larger graph class. Exact source path and test command are recorded in
 `notes/progress/2026-09-30-intrusion-bounded-negative-counterexample.md`.
 
+**Two independent alias paths to an upper meet (conditional; one Oracle
+characterization).** Let each path `j` have only the obligations
+`x = v_{j,0} ≤ v_{j,1} ≤ ... ≤ v_{j,n_j} ≤ U_j`; intermediate vertices from
+different paths are distinct and have no other incident obligations. Fix the
+result `R`, the endpoints `U_j`, and a satisfying assignment to all other
+locals; all remaining obligations are independent of the path vertices and
+hold under those assignments. The feasible projection onto `x` is exactly
+`{a | a ≤ U_j for every j}`: transitivity proves necessity, and assigning
+every intermediate on path `j` to `U_j` proves sufficiency. If the carrier has
+the finite meet `M = ∧_j U_j`, then `M` is the greatest feasible value and the
+negative-only root projects to `Arr(M,R)`.
+
+A focused synthetic Oracle Rust-path test characterizes two length-two paths
+`x ≤ y ≤ U1` and `x ≤ z ≤ U2` with empty weights and eligible local levels.
+Upper-bound replay inserts direct projected upper records `x ≤ U1` and
+`x ≤ U2`; generalization removes the negative-only local variables, and
+finalization produces a Function argument whose negative type is exactly the
+intersection of the two concrete constructors. The tested compact and
+finalized views therefore match the candidate meet projection for this graph.
+This is not a source-language witness or proof for arbitrary path lengths,
+shared intermediates, weights, cycles, environment anchors, later roots, or
+principal-solution equivalence over a broader input class. See the focused
+command, reviewer scope, and locators in
+`notes/progress/2026-09-30-intrusion-bounded-negative-counterexample.md`.
+
 **Restricted singleton-root path correspondence (conditional).** Consider a
 pure acyclic member with structural Function root `Arr(x, R)`, where `x` is
 the sole negative argument occurrence and has no other occurrence affecting

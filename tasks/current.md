@@ -160,8 +160,11 @@ aliases only in positive positions and flips under Function arguments. Thus
 negative-argument correspondence depends on solver replay: a focused isolated
 Oracle Rust probe confirms `x <: y`, `y <: U` inserts direct projected upper
 `x <: U` before generalization, whose saved Function argument is exactly `U`.
-This closes one synthetic unweighted chain case only. Source-level reachability,
-weighted/shared/cyclic chains, and general root-order simulation remain open.
+An additional synthetic two-path probe confirms replay creates both upper
+endpoints and finalization retains their exact `Neg::Intersection`, matching
+the candidate's meet result for that graph. These are only unweighted synthetic
+characterizations. Source-level reachability, weighted/shared/cyclic paths,
+and general root-order simulation remain open.
 The Oracle collector, one-polarity removal, and finalization path for this
 conditional case now has independent source review. A nested captured-function
 source probe exceeded its 20-second bound inside Oracle `prepare_cold` and is

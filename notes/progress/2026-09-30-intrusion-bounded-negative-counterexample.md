@@ -172,6 +172,39 @@ the frozen checkout: `constraints/machine/propagate.rs:104-145`,
 `compact/analysis/mod.rs:41-59,506-515`, and
 `generalize/mod.rs:75-134`.
 
+The candidate fiber result now covers a family of independent upper-alias paths
+from one negative-only root variable `x` to fixed endpoints `U_j`. With no
+other obligations incident to the disjoint path intermediates and all other
+locals fixed in a satisfying assignment, the exact feasible projection is
+`{a | a ≤ U_j for every j}`. If the carrier has finite meets, its greatest
+element is `∧_j U_j`, so `Arr(x,R)` projects to `Arr(∧_j U_j,R)`.
+
+A second isolated frozen-Oracle Rust probe characterizes two length-two paths:
+`x ≤ y ≤ U1` and `x ≤ z ≤ U2`. It asserts upper-bound replay creates both
+direct projected uppers on `x`, the generalized compact Function argument has
+no local variables and exactly the two endpoint constructors, and finalized
+scheme output has a `Neg::Intersection` with one `U1` and one `U2` child in
+either order. A compiler referee reviewed the mechanism and graph scope. It
+initially found a finalization assertion that could accept duplicate endpoints;
+the assertion was strengthened and the focused test rerun successfully. No
+blocking or major review finding remains for this topology. The reviewer notes
+that the test demonstrates scoped selection indirectly through the final
+compact output, not by inspecting selected record IDs.
+
+Focused command in the isolated frozen checkout `a58eefc3`:
+`CARGO_TARGET_DIR=/tmp/yulang-intrusion-oracle-target cargo test -p infer
+scratch_negative_argument_two_alias_paths_meet -- --nocapture`. This remains a
+synthetic unweighted case with separate intermediate vars at `root.child()`,
+unknown internal origins, and a quantification boundary one level below. It
+does not establish a source witness, weighted/shared/cyclic paths, arbitrary
+anchors, later-root behavior, diagnostics, or general principality. The temp
+test worktree is removed after evidence capture; frozen Oracle remains clean.
+Source locators: `constraints/machine/propagate.rs:104-127`,
+`constraints/machine/bounds.rs:888-909,3582-3645`,
+`compact/collect/mod.rs:816-845`,
+`compact/finalize.rs:415-425,802-820`, and
+`compact/analysis/mod.rs:41-57,506-515`.
+
 Source locators in frozen Oracle `a58eefc3`: `lowering/expr/lambda.rs:674,
 1244-1280`; `annotation/constraints.rs:124-136,251-281,771-793`;
 `lowering/expr/tail.rs:94-124,535-566,630-646`;
