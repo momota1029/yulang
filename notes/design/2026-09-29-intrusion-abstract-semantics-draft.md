@@ -1043,6 +1043,20 @@ principal-solution equivalence over a broader input class. See the focused
 command, reviewer scope, and locators in
 `notes/progress/2026-09-30-intrusion-bounded-negative-counterexample.md`.
 
+**One shared-join diamond (bounded output characterization).** For the
+selected graph `x ≤ left`, `x ≤ right`, `left ≤ join`, `right ≤ join`, and
+`join ≤ U`, the feasible projection onto `x` is exactly `{a | a ≤ U}`. The
+upper bound follows by transitivity; conversely, any `a ≤ U` extends to a
+satisfying assignment by setting `left = right = join = U`. A focused
+synthetic Oracle Rust-path test with empty weights and eligible local levels
+observes the same finalized negative Function argument `Con(U)`. The test
+establishes this output for the diamond input, not that both replay paths or
+the shared `join` identity survive as separate provenance in the projected
+view; either route alone could induce the same final output. This is not a
+general shared-DAG, weighted/cyclic, source-reachability, diagnostic, or
+principality result. The probe and its reviewer scope are recorded in
+`notes/progress/2026-09-30-intrusion-bounded-negative-counterexample.md`.
+
 **Restricted singleton-root path correspondence (conditional).** Consider a
 pure acyclic member with structural Function root `Arr(x, R)`, where `x` is
 the sole negative argument occurrence and has no other occurrence affecting

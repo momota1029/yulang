@@ -163,8 +163,10 @@ Oracle Rust probe confirms `x <: y`, `y <: U` inserts direct projected upper
 An additional synthetic two-path probe confirms replay creates both upper
 endpoints and finalization retains their exact `Neg::Intersection`, matching
 the candidate's meet result for that graph. These are only unweighted synthetic
-characterizations. Source-level reachability, weighted/shared/cyclic paths,
-and general root-order simulation remain open.
+characterizations. A third probe observes matching `Con(U)` output for one
+shared-join diamond; it does not expose path-specific replay provenance.
+Source-level reachability, arbitrary shared DAGs, weighted/cyclic paths, and
+general root-order simulation remain open.
 The Oracle collector, one-polarity removal, and finalization path for this
 conditional case now has independent source review. A nested captured-function
 source probe exceeded its 20-second bound inside Oracle `prepare_cold` and is

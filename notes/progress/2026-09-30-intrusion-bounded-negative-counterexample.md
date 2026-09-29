@@ -205,6 +205,29 @@ Source locators: `constraints/machine/propagate.rs:104-127`,
 `compact/finalize.rs:415-425,802-820`, and
 `compact/analysis/mod.rs:41-57,506-515`.
 
+A third isolated frozen-Oracle probe characterizes one shared-join diamond:
+`x ≤ left`, `x ≤ right`, `left ≤ join`, `right ≤ join`, `join ≤ U`. It asserts
+replay creates a direct projected `x ≤ U` record, the generalized compact
+negative Function argument contains exactly `U` and no variables, and the
+finalized scheme argument is exactly `Neg::Con(U)`. For the candidate graph,
+the fiber is `{a | a ≤ U}`: transitivity proves necessity and assigning
+`left = right = join = U` proves sufficiency. A compiler referee found no
+blocking or major issue for this bounded output characterization. The reviewer
+emphasized that the final output does not prove both replay routes or the
+shared-join identity survive as separate evidence; either route could produce
+the same result. Therefore this characterizes one diamond's output only, not
+general shared-DAG behavior.
+
+Focused command in isolated frozen checkout `a58eefc3`:
+`CARGO_TARGET_DIR=/tmp/yulang-intrusion-oracle-target cargo test -p infer
+scratch_negative_argument_diamond_alias_projection -- --nocapture`. As with
+the alias-chain probes, the graph is synthetic and unweighted, all local vars
+are at `root.child()`, and the quantification boundary is one level lower. It
+does not establish source reachability, path-specific provenance, additional
+incident constraints, weights, cycles, anchors, later-root simulation,
+diagnostics, or principality. Temporary test worktree removed; frozen Oracle
+is clean.
+
 Source locators in frozen Oracle `a58eefc3`: `lowering/expr/lambda.rs:674,
 1244-1280`; `annotation/constraints.rs:124-136,251-281,771-793`;
 `lowering/expr/tail.rs:94-124,535-566,630-646`;
