@@ -112,5 +112,12 @@ failing test was removed. Gate C can use a test-only semantic batch for graph
 and independent-use characterization, but that cannot prove source-level
 parity. Gate E must include expression application in the source envelope or
 record it as a compatibility delta; a broad Oracle-capability claim requires
-the source path. Implementation remains gated on the reviewed successor
-contract and explicit user approval.
+the source path. The abstract semantics now has a reviewed conditional lemma:
+injective per-use renaming preserves finite closure, and raw use edges share
+only through `E_d`; closure-derived cross-use edges through `E_d` are explicitly
+allowed. This proves neither solution-space independence nor principality.
+Details and review limits are in
+`notes/progress/2026-09-30-intrusion-factorization-proof.md`. Next construct the
+Gate C semantic-batch witness and prove exact root preparation and the
+soundness/principality theorem. Implementation remains gated on the reviewed
+successor contract and explicit user approval.

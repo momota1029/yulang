@@ -403,6 +403,74 @@ member view. Constraints reaching identities in `E_d` remain intentionally
 shared. This is the current isolation invariant for the candidate model; it
 still needs a formal preservation proof against the Oracle's use behavior.
 
+### Conditional factorization lemmas for an exact member view
+
+Assume root preparation has already produced a finite regular member graph
+`H_d` with its selected ordered edges, recursive back-edges, and one-sided
+occurrences projected exactly as specified for that member. This assumption
+does not prove Oracle edge selection or root preparation. Let `R_d` be the
+source TypeVar identities visited while preparing the root, and `V_d` the
+identities that still occur in `H_d`. Every member of `V_d` must be in
+`Gen_d ∪ Free_d ∪ Cycle_d`; `Gen_d ∩ Cycle_d` is permitted, while `Free_d` is
+disjoint from `Gen_d ∪ Cycle_d`. `Erase_d` is a subset of `R_d \ V_d` whose
+root occurrences were replaced by the appropriate polarity extreme. Other
+pruned identities need not be in `Erase_d`.
+
+For a use `u`, define `rho_(d,u)` on the surviving identities:
+
+- `Gen_d ∪ Cycle_d`: map through the single source-identity map `Phi_d`, then
+  through this use's fresh substitution `sigma_(d,u)`;
+- `Free_d`: map to its stable identity in `E_d`.
+
+No `Erase_d` variable occurs in `H_d`; its extreme node is copied as a
+constructor leaf. This keeps erasure separate from the injective variable
+renaming.
+
+Constructor nodes and both edge directions are copied homomorphically. Stable
+source/proof identities and edge order are retained; any type-variable
+payload in evidence uses the same variable map. A source identity that belongs
+to both `Gen_d` and `Cycle_d` is mapped once through `Phi_d`. The resulting
+variable map must be injective over identities still present in `H_d`: distinct
+local identities receive distinct fresh IDs, environment identities retain
+their identity, and no fresh ID collides with `E_d`. A boundary collision is a
+view-construction failure, not implicit capture.
+
+**Closure transport.** For any finite set `S_d` of subtype obligations formed
+from `H_d`, and the well-formed injective renaming `rho_(d,u)` above, the
+closure under the finite graph rules commutes with the map:
+
+```text
+C(rho_(d,u)(S_d)) = rho_(d,u)(C(S_d))
+```
+
+The proof is the local-step argument from the edge-transport lemma: constructors
+and polarities are unchanged; injectivity preserves variable equality, rule
+premises, and the same-variable fast path; induction maps every finite closure
+step in both directions. This is a constraint-graph isomorphism for the
+prepared view. It is not a denotational solution-set result: the draft has not
+defined a subtype satisfaction relation for regular types.
+
+**Structural use isolation.** For two distinct uses `u != v`, require their
+fresh image sets to be disjoint and to intersect the stable graph only through
+`E_d`. Every raw copied edge then mentions local IDs from at most one use, plus
+stable environment IDs. Closure can combine constraints through a shared
+environment row: for example, `a_u <: e` and `e <: b_v` can derive a cross-use
+obligation `a_u <: b_v`. Every such cross-use derivation must pass through an
+identity in `E_d`; disjoint fresh identities rule out any other shared pivot.
+This is the intended environment interaction, but the precise effect on use
+solution spaces is not established here. The claim is limited to raw edge
+separation and the shared-pivot condition on closure derivations. A
+solution-space product and principal-solution theorem require a denotational
+subtype model and remain unproved.
+
+These conditional lemmas do not close Gate C. The full obligation remains to
+define and prove the soundness/principality theorem for the supported graph
+class and envelope, show that Oracle root preparation yields a well-formed
+`H_d` with the `Gen_d`, `Free_d`, `Erase_d`, and `Cycle_d` behavior above, and
+complete the charter's independent semantic/specification review before Gate
+D. Evidence-sensitive edge selection, root/epoch transitions, and recursive
+projection remain unproved.
+
 Monomorphization may later choose concrete values for overlay ports and
 specialize the selected member graph through the same lookup. It must preserve
 recursive edges and `E_d` identities. This draft does not specify a cache key,
