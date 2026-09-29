@@ -22,14 +22,22 @@ independently reproduced execution.
 | Naked variable generalization | A child-level naked variable is generalized/finalized to an empty compact root and `Bottom` predicate, with no quantifiers. | `crates/infer/src/generalize/tests.rs::finalized_generalized_naked_root_variable_becomes_never` (near `:800`). |
 | Recursive bound observation | A recursive interval containing `self ∪ int` is finalized with one recursive scheme bound whose lower side still contains `int`. | `crates/infer/src/generalize/tests.rs::finalized_generalized_root_moves_recursive_bounds_into_scheme` (`:834–861`). |
 | Independent uses and shared outer identity | One manually constructed imported scheme is instantiated twice. The test asserts distinct fresh Q and R variables for each use while both uses map the same outer boundary variable to one session-level imported identity. | `crates/infer/src/analysis/tests/case_02.rs::oracle_a1_stage_3_exit_preserves_q_r_and_b_lifetimes_across_imported_uses` (`:494–598`). |
+| Internal use while an SCC is open | A use whose source and target are already in the same open component is retained as an internal use. Once the target root is known, the use is constrained directly against that live root; if the root is not known yet, the use remains pending until registration. It is not sent through scheme instantiation while the component is open. | `crates/infer/src/scc.rs::add_use` (same-component branch); `crates/infer/src/scc/graph.rs::add_internal_use,open_pending_uses_for`; `crates/infer/src/analysis/tests/case_01.rs::open_scc_use_adds_target_to_use_constraint`. |
+| Cross-component dependency barrier | An open dependency edge from one component to another blocks readiness of the source component. When a target component becomes ready, it is quantified and removed; its incoming uses then become `InstantiateUse` events, and predecessors are reconsidered. Thus the source use switches from a live open root to a use-site scheme instantiation only after target quantification. | `crates/infer/src/scc/graph.rs::is_ready_to_quantify,remove_ready_component`; `crates/infer/src/scc.rs::settle_components`. |
+| Component publication | The scheduler's `QuantifyComponent` event carries aligned member and root vectors. The analysis handler generates a result per member, inserts all member schemes before finalizing any member into the poly arena, then finalizes them. This gives an all-member visibility barrier; it does not establish a shared SCC scheme representation. | `crates/infer/src/scc.rs::settle_components`; `crates/infer/src/analysis/session/instantiate.rs::quantify_component`; fixture `crates/infer/src/analysis/tests/case_01.rs::quantify_component_writes_scheme_to_poly_def`. |
 
 ## Open rows
 
 This is not yet a complete observable contract. Still to inspect and record:
 
-- source-level valid identity/constant and two-use programs through the frozen
-  Oracle's public analysis path;
-- mutually recursive definitions with incoming and internal uses;
+- source-level identity and single-use programs through the frozen Oracle's
+  public analysis path. Fixtures exist for `my id x = x` and
+  `my answer = id 42`, but the inspected assertions concern cache/runtime
+  boundary construction and use-level placement. No two-distinct-type uses
+  are established yet;
+- mutually recursive source definitions combining incoming and internal uses.
+  The scheduler tests above establish the component state transitions
+  separately, but do not assert a full source-level mutual-recursion result;
 - a shared diamond and a descendant outside the definition SCC;
 - a nested polarity inversion with a rigid enclosing non-generic variable;
 - guarded and unguarded recursive cycles from full analysis, not only a
@@ -38,6 +46,9 @@ This is not yet a complete observable contract. Still to inspect and record:
   continuations;
 - whether a behavior is fixed by tests/observable output or only inferred from
   the machine's implementation order.
+
+The first two open rows are therefore marked **not established**, rather than
+filled by extrapolating scheduler internals into source-language behavior.
 
 ## Research consequence
 
