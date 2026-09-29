@@ -1,6 +1,6 @@
 # Current task: prove and implement SCC-intrusion Function inference
 
-Updated: 2026-09-29. Branch: `research/simple-sub-intrusion`.
+Updated: 2026-09-30. Branch: `research/simple-sub-intrusion`.
 
 ## Objective
 
@@ -117,7 +117,12 @@ injective per-use renaming preserves finite closure, and raw use edges share
 only through `E_d`; closure-derived cross-use edges through `E_d` are explicitly
 allowed. This proves neither solution-space independence nor principality.
 Details and review limits are in
-`notes/progress/2026-09-30-intrusion-factorization-proof.md`. Next construct the
-Gate C semantic-batch witness and prove exact root preparation and the
-soundness/principality theorem. Implementation remains gated on the reviewed
-successor contract and explicit user approval.
+`notes/progress/2026-09-30-intrusion-factorization-proof.md`. A Rust-only
+synthetic incoming-use characterization now exercises two distinct incoming
+IDs with different Function constraints through the current route; it does
+not establish fresh identity/edge isolation, intrusion semantics, or
+principality. The independent review's evidence limit and focused command are
+recorded in `notes/progress/2026-09-30-intrusion-rust-use-characterization.md`.
+Next prove exact root preparation and the soundness/principality theorem,
+including direct isolation evidence. Implementation remains gated on the
+reviewed successor contract and explicit user approval.

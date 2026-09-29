@@ -22743,6 +22743,113 @@ mod tests {
     }
 
     #[test]
+    fn synthetic_identity_incoming_uses_accept_distinct_function_constraints() {
+        // This is a current Rust-path semantic-batch characterization. It
+        // does not establish source-level Oracle parity, fresh identity
+        // isolation, intrusion, or principality.
+        let meter = DraftHeapMeter::default();
+        let batch = collect(module(
+            "my identity = 1; my first = identity; my second = identity",
+            "synthetic-identity-incoming-uses",
+        ));
+        let routes: Vec<_> = batch
+            .definition_uses()
+            .iter()
+            .map(|use_record| use_record.id.clone())
+            .collect();
+        assert_eq!(routes.len(), 2);
+        assert_ne!(routes[0], routes[1]);
+        let mut session = InferenceSession::new(batch);
+        let root = session.batch.definitions[0].root.clone();
+        let definition = session.batch.definitions[0].definition.clone();
+        let root_row = session.live_components
+            [session.batch.root_component_positions[&root].component]
+            .ordinal;
+        let variable = session.fresh_value_at_level(1).unwrap();
+        let argument = session.live_value_term(Polarity::Negative, variable).unwrap();
+        let result = session.live_value_term(Polarity::Positive, variable).unwrap();
+        let identity = session
+            .positive_function_term(
+                argument,
+                session.batch.collected_leaf_term(Leaf::EmptyEffectNegative),
+                session.batch.collected_leaf_term(Leaf::EffectBottomPositive),
+                result,
+            )
+            .unwrap();
+        let root_occurrence =
+            ConstraintOccurrenceId::new(session.batch.projection_order[0].clone(), 200);
+        session
+            .constrain_live_value(
+                CanonicalValuePairKey {
+                    lower: ValueEndpointKey::PositiveFunction(identity),
+                    upper: ValueEndpointKey::ValueRow(root_row),
+                },
+                &root_occurrence,
+                &CauseId::for_occurrence(root_occurrence.clone()),
+            )
+            .unwrap();
+        let draft = session.generalization_draft(&meter, &definition).unwrap();
+        let finalized = InferenceSession::finalize_generalization_draft(
+            session.finalization.as_mut().unwrap(),
+            &draft,
+            false,
+        )
+        .unwrap();
+        let target = session.batch.definition_uses()[0].target.ordinal() as usize;
+        session.schemes[target] = Some(finalized.into_parts().0);
+
+        let int_positive = session.batch.collected_leaf_term(Leaf::IntPositive);
+        let int_negative = session.batch.collected_leaf_term(Leaf::IntNegative);
+        let effect_positive = session.batch.collected_leaf_term(Leaf::EffectBottomPositive);
+        let effect_negative = session.batch.collected_leaf_term(Leaf::EmptyEffectNegative);
+        let inner_positive = session
+            .positive_function_term(int_negative, effect_negative, effect_positive, int_positive)
+            .unwrap();
+        let inner_negative = session
+            .negative_function_term(int_positive, effect_positive, effect_negative, int_negative)
+            .unwrap();
+        let expected = [
+            session
+                .negative_function_term(
+                    int_positive,
+                    effect_positive,
+                    effect_negative,
+                    int_negative,
+                )
+                .unwrap(),
+            session
+                .negative_function_term(
+                    inner_positive,
+                    effect_positive,
+                    effect_negative,
+                    inner_negative,
+                )
+                .unwrap(),
+        ];
+        for (index, route) in routes.iter().enumerate() {
+            session.route_incoming(route).unwrap();
+            let use_record = &session.batch.definition_uses()[index];
+            let use_row = session.live_components[use_record.use_value_component].ordinal;
+            let occurrence = ConstraintOccurrenceId::new(use_record.occurrence.clone(), 201);
+            session
+                .constrain_live_value(
+                    CanonicalValuePairKey {
+                        lower: ValueEndpointKey::ValueRow(use_row),
+                        upper: ValueEndpointKey::NegativeFunction(expected[index]),
+                    },
+                    &occurrence,
+                    &CauseId::for_occurrence(occurrence.clone()),
+                )
+                .unwrap();
+            assert!(session.errors.is_empty());
+        }
+        assert_eq!(session.routed_uses.len(), routes.len());
+        assert!(routes
+            .iter()
+            .all(|route| session.routed_use_positions.contains(route)));
+    }
+
+    #[test]
     fn f5c_component_expansion_memo_aliases_preserve_cold_warm_structure() {
         let test_source_meter = DraftHeapMeter::default();
         let mut memo = F5cComponentExpansionMemo::default();
