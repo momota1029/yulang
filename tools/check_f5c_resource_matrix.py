@@ -771,16 +771,191 @@ def check_walker_shadow_witness(sidecar, totals_path):
     print(f"F5c online owner shadow: {count} full sidecar events, 219 exact lane rows and joint total")
 
 
+def check_joint_session_witness(sidecar, totals_path):
+    """Replay event current plus independently sampled session decompositions."""
+    expected = tuple(map(int, totals_path.read_text(encoding="ascii").split()))
+    if len(expected) != 7:
+        raise ValueError("joint witness needs count, checksum, current, peak, samples, calls, adjustments")
+    owners = {}
+    owner_current = 0
+    owner_peak = 0
+    closed_peak = route_peak = other_peak = 0
+    other = closed = route = current = peak = 0
+    samples = calls = count = checksum = 0
+    baseline_seen = False
+    route_values = []
+    other_values = []
+    finalizer_overlap = 0
+    indexed_live = source_live = 0
+    previous_boundary = None
+    pending_member = False
+    member_rebase = False
+    route_growth = route_decrease = False
+    previous_route = None
+
+    def physical(kind):
+        if kind == 1:
+            return 129
+        if kind == 2:
+            return 130
+        if kind in (3, 4):
+            return 131
+        if 5 <= kind <= 11 or 18 <= kind <= 22:
+            return kind + 127
+        if 32 <= kind < 130:
+            return kind + 118
+        return kind
+
+    def tracked(kind):
+        kind = physical(kind)
+        return (12 <= kind < 18 or 129 <= kind < 139
+                or 145 <= kind < 248 or 512 <= kind < 612)
+
+    def indexed(kind):
+        return 145 <= physical(kind) < 150
+
+    def source(kind):
+        kind = physical(kind)
+        return 129 <= kind < 139 or 12 <= kind < 18
+
+    with sidecar.open("rb") as stream:
+        if stream.read(8) != EVENT_MAGIC:
+            raise ValueError("invalid joint witness sidecar header")
+        while block := stream.read(EVENT.size):
+            if len(block) != EVENT.size:
+                raise ValueError("truncated joint witness sidecar")
+            words = EVENT.unpack(block)
+            boundary, owner_id, op, kind, requested, actual, size, target = words
+            count += 1
+            checksum = (checksum + sum(words)) & ((1 << 64) - 1)
+            if op == 8:
+                if owner_id or kind or boundary > 13 or actual != owner_current:
+                    raise ValueError(f"invalid joint baseline ordering or owner subtotal: event {count}, boundary {boundary}, online {actual}, replay {owner_current}")
+                if not baseline_seen and (boundary != 0 or owner_current != 0):
+                    raise ValueError("joint witness needs the initial zero-owner baseline")
+                if pending_member and boundary != 7:
+                    raise ValueError("finalizer must be followed by DraftMember sample")
+                decomposed = actual + size + target
+                if decomposed > requested:
+                    raise ValueError("joint baseline exceeds independent session sample")
+                previous_other = other
+                other, closed, route = requested - decomposed, size, target
+                if boundary == 7 and baseline_seen:
+                    member_rebase |= other != previous_other
+                if pending_member:
+                    pending_member = False
+                if boundary == 9:
+                    if previous_route is not None:
+                        route_growth |= route > previous_route
+                        route_decrease |= route < previous_route
+                    previous_route = route
+                closed_peak = max(closed_peak, closed)
+                route_peak = max(route_peak, route)
+                other_peak = max(other_peak, other)
+                if other + owner_current + closed + route != requested:
+                    raise ValueError("joint baseline decomposition mismatch")
+                current = requested
+                peak = max(peak, current)
+                samples += 1
+                baseline_seen = True
+                previous_boundary = boundary
+                route_values.append(route)
+                other_values.append(other)
+                continue
+            if op == 9:
+                if (not baseline_seen or pending_member or previous_boundary != 13
+                        or boundary or owner_id or kind or target or requested != closed):
+                    raise ValueError("invalid finalizer continuity")
+                if size < requested or size < actual:
+                    raise ValueError("finalizer call peak below retained baseline")
+                if indexed_live and source_live:
+                    finalizer_overlap += 1
+                candidate = other + owner_current + route + size
+                peak = max(peak, candidate)
+                closed = actual
+                closed_peak = max(closed_peak, size)
+                current = other + owner_current + route + closed
+                peak = max(peak, current)
+                calls += 1
+                pending_member = True
+                continue
+            key = (boundary, owner_id)
+            if op == 6:
+                continue
+            if op == 1:
+                if key in owners or actual or target:
+                    raise ValueError("invalid joint owner create")
+                owners[key] = (kind, 0, size)
+            elif op == 5:
+                old_kind, old_capacity, old_size = owners.pop(key)
+                if (kind, requested, actual, size, target) != (old_kind, 0, 0, old_size, 0):
+                    raise ValueError("invalid joint owner release")
+                if tracked(old_kind):
+                    owner_current -= old_capacity * old_size
+                if old_capacity:
+                    indexed_live -= indexed(old_kind)
+                    source_live -= source(old_kind)
+            elif op in (2, 3, 4, 7):
+                old_kind, old_capacity, old_size = owners[key]
+                if old_capacity and size != old_size:
+                    raise ValueError("joint owner size changed")
+                if op == 4 and (target != kind or actual != old_capacity):
+                    raise ValueError("invalid joint owner transfer")
+                if op == 3 and actual <= old_capacity:
+                    raise ValueError("invalid joint owner growth")
+                if op == 7 and actual >= old_capacity:
+                    raise ValueError("invalid joint owner decrease")
+                if op == 2 and kind != old_kind and old_kind != 0 and (old_kind, kind) != (4, 3):
+                    raise ValueError("invalid joint owner classification")
+                if tracked(old_kind):
+                    owner_current -= old_capacity * old_size
+                if tracked(kind):
+                    owner_current += actual * size
+                if old_capacity:
+                    indexed_live -= indexed(old_kind)
+                    source_live -= source(old_kind)
+                if actual:
+                    indexed_live += indexed(kind)
+                    source_live += source(kind)
+                owners[key] = (kind, actual, size)
+            else:
+                raise ValueError(f"unexpected joint witness op {op}")
+            if owner_current < 0:
+                raise ValueError("negative joint owner subtotal")
+            owner_peak = max(owner_peak, owner_current)
+            if baseline_seen:
+                current = other + owner_current + closed + route
+                peak = max(peak, current)
+    if (count, checksum, current, peak, samples, calls) != expected[:6] or expected[6] <= 0:
+        raise ValueError("joint witness replay differs from online totals")
+    if (not baseline_seen or pending_member or calls < 2 or finalizer_overlap < 2
+            or not route_growth or not route_decrease or not member_rebase
+            or len(set(other_values)) < 2):
+        raise ValueError(f"joint witness lacks finalizer overlap or route/member rebases: calls={calls}, overlap={finalizer_overlap}, route_growth={route_growth}, route_decrease={route_decrease}, member_rebase={member_rebase}")
+    if owner_peak + closed_peak + route_peak + other_peak <= peak:
+        raise ValueError("joint witness lacks a non-co-temporal historical-peak counterexample")
+    print(f"F5c joint session: E={expected[6]} owner adjustments, S={samples} baselines, F={calls} finalizers, 64*(S+F)={64 * (samples + calls)} boundary bytes")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--walker-shadow-witness", type=Path,
                         help="complete small sidecar emitted by f5c_walker_online_shadow_witness")
     parser.add_argument("--walker-shadow-totals", type=Path,
                         help="online totals emitted by f5c_walker_online_shadow_witness")
+    parser.add_argument("--joint-session-witness", type=Path,
+                        help="live-session owner and boundary sidecar")
+    parser.add_argument("--joint-session-totals", type=Path,
+                        help="online joint totals emitted by the live-session witness")
     parser.add_argument("--diagnostic-cycle-32-4000", action="store_true",
                         help="replay only the isolated guarded_cycle(D=32,K=4000) row")
     parser.add_argument("logs", type=Path, nargs="*", help="captured matrix process logs")
     args = parser.parse_args()
+    if args.joint_session_witness is not None or args.joint_session_totals is not None:
+        if args.joint_session_witness is None or args.joint_session_totals is None or args.logs:
+            parser.error("joint session witness requires both paths and no matrix logs")
+        check_joint_session_witness(args.joint_session_witness, args.joint_session_totals)
+        return
     if args.walker_shadow_witness is not None or args.walker_shadow_totals is not None:
         if args.walker_shadow_witness is None or args.walker_shadow_totals is None or args.logs:
             parser.error("walker shadow witness requires both paths and no matrix logs")

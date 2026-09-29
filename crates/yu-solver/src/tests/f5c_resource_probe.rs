@@ -1769,6 +1769,57 @@ fn f5c_walker_online_shadow_witness() {
 
 #[cfg(feature = "f5c_resource_probe")]
 #[test]
+fn f5c_joint_session_replay_witness() {
+    let sidecar = std::env::var_os("F5C_JOINT_SESSION_SIDECAR")
+        .map(std::path::PathBuf::from).unwrap_or_else(|| std::env::temp_dir().join(format!(
+            "f5c-joint-session-{}.bin", std::process::id())));
+    crate::f5c_draft_heap::open_f5c_resource_events(&sidecar).unwrap();
+    let batch = collect(module(
+        "my left = right; my right = left; my consumer = left",
+        "f5c-joint-session",
+    ));
+    let mut session = InferenceSession::new(batch);
+    session.flat_candidate_enabled = true;
+    session.sample_f4_resources(ResourceBoundary::InitialReservation).unwrap();
+    session.admit_all_collected_facts().unwrap();
+    session.execute_scc_plan().unwrap();
+    assert!(session.resource_ledger.flat_finalizer_calls >= 2);
+    // Exercise the existing member sample with a live non-owner draft lane rebase.
+    let draft_capacity = session.drafts.capacity();
+    session.drafts.reserve_exact(draft_capacity + 8);
+    assert!(session.drafts.capacity() > draft_capacity);
+    session.sample_f4_resources(ResourceBoundary::DraftMember).unwrap();
+    session.sample_f4_resources(ResourceBoundary::IncomingRoute).unwrap();
+    let route_capacity = session.routed_uses.capacity();
+    session.routed_uses.reserve_exact(route_capacity + 8);
+    assert!(session.routed_uses.capacity() > route_capacity);
+    session.sample_f4_resources(ResourceBoundary::IncomingRoute).unwrap();
+    let route_before = session.resource_ledger.route_use_lanes[0].retained_bytes
+        + session.resource_ledger.route_use_lanes[1].retained_bytes;
+    assert!(route_before > 0);
+    session.routed_uses.clear();
+    session.routed_uses.shrink_to_fit();
+    session.routed_use_positions.clear();
+    session.routed_use_positions.shrink_to_fit();
+    session.sample_f4_resources(ResourceBoundary::IncomingRoute).unwrap();
+    assert_eq!(session.resource_ledger.route_use_lanes[0].retained_bytes
+        + session.resource_ledger.route_use_lanes[1].retained_bytes, 0);
+    let (current, peak, samples, calls, adjustments) =
+        crate::f5c_draft_heap::f5c_session_totals();
+    assert!(samples > calls && calls >= 2);
+    assert!(adjustments > samples);
+    assert!(peak >= current);
+    let (count, checksum) = crate::f5c_draft_heap::close_f5c_resource_events().unwrap();
+    if let Some(path) = std::env::var_os("F5C_JOINT_SESSION_TOTALS") {
+        std::fs::write(path, format!("{count} {checksum} {current} {peak} {samples} {calls} {adjustments}\n"))
+            .unwrap();
+    } else {
+        std::fs::remove_file(sidecar).unwrap();
+    }
+}
+
+#[cfg(feature = "f5c_resource_probe")]
+#[test]
 fn f5c_live_variable_events_release_after_returned_error() {
     F5C_LEDGER_AFTER_STAGE_HIT.with(|hit| hit.set(false));
     let mut session = matrix_session_before_admission(

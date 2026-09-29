@@ -2,14 +2,22 @@
 
 Updated: 2026-09-29. Branch: `yulang3`; do not modify frozen `main`.
 
-### Active gate (2026-09-29): replace transient owner sidecar volume
+### Active gate (2026-09-29): suppress selected transient owner serialization
 
-The isolated GuardedCycle D=32/K=32 run authorized below has been consumed:
-it timed out at 120 seconds while still recording path-expanded owner events.
-No host safety floor was breached, but the partial sidecar is not replayable.
-The family-4 SHAPE reduction worked; kinds 54–56 and 116 now dominate because
-they represent repeated short-lived walk vectors and retained reentry paths.
-The exact run evidence and owner attribution are in the
+The global same-time composition gate is now closed. The next bounded code gate
+is to suppress serialization only for non-transferring WalkerLane kinds 54–56
+and 116, while preserving FlatDraft kinds 12–17 and the online owner ledger.
+Keep the change test-and-feature-only and verify that replay still reconciles
+all retained owner rows and the composed session current/peak. Do not run a
+resource/scale process, diagnostic, or matrix row until this serialization
+change has its fresh review and the measurement plan's exact input, sample,
+and stop criteria are rechecked.
+
+The earlier isolated GuardedCycle D=32/K=32 run timed out at 120 seconds while
+recording path-expanded owner events; its partial sidecar is not replayable.
+The family-4 SHAPE reduction worked, leaving kinds 54–56 and 116 dominant
+because they represent repeated short-lived walk vectors and retained reentry
+paths. Exact prior evidence is in the
 [`shared-acyclic checkpoint`](../notes/progress/f5c-shared-acyclic-hit-mismatch-checkpoint-2026-09-29.md).
 
 The M2 pre-write `spec_auditor` and `performance_auditor` reviews allow the
@@ -37,17 +45,44 @@ reserve result, retained peak after release, source classification, and
 same-ID owner transfers. Its exact paths and review evidence are in the
 [`source-owner online-shadow checkpoint`](../notes/progress/f5c-source-owner-online-shadow-checkpoint-2026-09-29.md).
 
-Next compose the closed-type finalizer peak and route-growth samples and prove
-global same-time totals: during finalization replace closed-type current with
-that call's `peak_bytes_during_call()` exactly once, while all other solver
-lanes stay fixed; at later route samples use the exact route current. Keep the
-full owner trace while building and reviewing that composed witness. Only
-after it closes, suppress serialization for exact non-transferring WalkerLane
-kinds 54–56 and 116. Preserve the FlatDraft kinds 12–17 trace in full
-throughout. The partial timed-out sidecar is not a replay input; no
-resource/scale process, diagnostic, or matrix row may run before the composed
-ledger and witness receive a fresh measurement review. Do not claim
-corrected-scale completion until those gates close.
+The global same-time ledger checkpoint is recorded in the
+[`global session composition checkpoint`](../notes/progress/f5c-global-session-composition-checkpoint-2026-09-29.md).
+The prior partial timed-out sidecar remains unusable. Do not claim
+corrected-scale completion until serialization suppression, fresh measurement
+review, and the reviewed resource/scale evidence close.
+
+### Latest continuation (2026-09-29): global co-temporal session composition
+
+The test-only online witness now composes its 219-row owner current with the
+exact closed-type baseline, all six current route lane byte values, and the
+residual from the independent session sample. Each successful sample checks
+that decomposition; every indexed finalizer contributes only its own
+`peak_bytes_during_call()` and then replaces closed current with checkpoint
+after exactly once. The live witness covers three finalizers, two real
+source/indexed overlaps, route growth and decrease, a `DraftMember` residual
+rebase, and a counterexample where historical owner maxima exceed the actual
+co-temporal peak. The 219-row synthetic owner witness and all staged kinds
+12–17 remain intact.
+
+The M2 pre-write and post-write reviews used `spec_auditor` and
+`performance_auditor`. A feature/non-test cfg mismatch was repaired. The
+performance delta review found O(E+S+F) total observer work: O(1) per shadow
+owner adjustment/transfer, successful sample, and indexed finalizer; the route
+sum visits six fixed lanes. The live witness observed E=553 owner
+adjustment/transfer operations, S=33 successful samples, F=3 finalizers, and
+2,304 bytes of added boundary records (`64 × (S+F)`). The Python finalizer
+overlap replay now uses incremental counters instead of rescanning all live
+owners. A spec delta requested an `E > S+F` witness assertion; primary
+adjudication rejected that extra predicate because the governing contract
+requires reporting E and verifying the exact `64 × (S+F)` record volume, but
+does not require that inequality. E is reported as the test-side observer
+counter, not as an independently replay-reconstructed count.
+
+The feature-enabled non-test package check passed. The focused live-session
+witness and its replay passed, as did the prior 219-row witness and replay,
+Python AST parsing, and `git diff --check`. No resource/scale process,
+diagnostic, or matrix row ran. Next: suppress only kinds 54–56 and 116, then
+review the resulting replay and refreshed measurement plan.
 
 ### Latest continuation (2026-09-29): source-owner online-shadow rows
 

@@ -10426,6 +10426,19 @@ impl InferenceSession {
         {
             *resource_boundary_samples = prepared_samples;
         }
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        {
+            let route = resource_ledger.route_store_lanes.iter()
+                .chain(resource_ledger.route_use_lanes.iter())
+                .try_fold(0usize, |sum, lane| sum.checked_add(lane.retained_bytes))
+                .expect("F5c current route lane sum");
+            f5c_draft_heap::f5c_session_baseline(
+                boundary as u64,
+                resource_ledger.inference_session_retained_bytes,
+                closed_type_retained_bytes,
+                route,
+            );
+        }
         Ok(())
     }
 
@@ -13769,6 +13782,12 @@ impl InferenceSession {
                     );
                     self.resource_ledger
                         .record_flat_finalizer_peak(&checkpoint, source_draft_bytes)?;
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    f5c_draft_heap::f5c_finalizer_peak(
+                        checkpoint.retained_bytes_before(),
+                        checkpoint.retained_bytes_after(),
+                        checkpoint.peak_bytes_during_call(),
+                    );
                     let semantic_without_closed = self
                         .execution_counters
                         .semantic_arena_retained_bytes

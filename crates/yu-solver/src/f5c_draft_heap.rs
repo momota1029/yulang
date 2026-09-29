@@ -56,6 +56,8 @@ mod event_sink {
     pub(super) const RELEASE: u64 = 5;
     pub(super) const CHECKPOINT: u64 = 6;
     pub(super) const DECREASE: u64 = 7;
+    pub(super) const SESSION_BASELINE: u64 = 8;
+    pub(super) const FINALIZER_PEAK: u64 = 9;
 
     #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
     pub(crate) struct WalkerTotals {
@@ -77,6 +79,14 @@ mod event_sink {
         staged_lanes: [WalkerTotals; 6],
         source_lanes: [WalkerTotals; 15],
         combined: WalkerTotals,
+        session_other: Option<usize>,
+        session_closed: usize,
+        session_route: usize,
+        session_current: usize,
+        session_peak: usize,
+        session_samples: usize,
+        finalizer_calls: usize,
+        owner_adjustments: usize,
     }
 
     impl WalkerLedger {
@@ -104,47 +114,75 @@ mod event_sink {
                     peak_bytes: 0,
                 }; 15],
                 combined: WalkerTotals { current_capacity: 0, peak_capacity: 0,
-                    current_bytes: 0, peak_bytes: 0 } }
+                    current_bytes: 0, peak_bytes: 0 },
+                session_other: None, session_closed: 0, session_route: 0,
+                session_current: 0, session_peak: 0, session_samples: 0,
+                finalizer_calls: 0, owner_adjustments: 0 }
+        }
+
+        fn observe_session(&mut self) {
+            if let Some(other) = self.session_other {
+                let current = other.checked_add(self.combined.current_bytes)
+                    .and_then(|n| n.checked_add(self.session_closed))
+                    .and_then(|n| n.checked_add(self.session_route))
+                    .expect("F5c composed session current");
+                self.session_current = current;
+                self.session_peak = self.session_peak.max(current);
+            }
+        }
+
+        fn observe_owner_adjustment(&mut self) {
+            self.owner_adjustments = self.owner_adjustments.checked_add(1)
+                .expect("F5c owner adjustment count");
+            self.observe_session();
         }
 
         fn adjust(&mut self, lane: usize, old: usize, new: usize, size: usize) {
             let lane_totals = self.lanes.get_mut(lane).expect("WalkerLane index");
             Self::adjust_totals(lane_totals, &mut self.combined, old, new, size);
+            self.observe_owner_adjustment();
         }
 
         fn adjust_component(&mut self, lane: usize, old: usize, new: usize, size: usize) {
             let lane_totals = self.component_lanes.get_mut(lane).expect("ComponentMemoLane index");
             Self::adjust_totals(lane_totals, &mut self.combined, old, new, size);
+            self.observe_owner_adjustment();
         }
 
         fn adjust_instantiation(&mut self, lane: usize, old: usize, new: usize, size: usize) {
             let lane_totals = self.instantiation_lanes.get_mut(lane).expect("InstantiationLane index");
             Self::adjust_totals(lane_totals, &mut self.combined, old, new, size);
+            self.observe_owner_adjustment();
         }
 
         fn adjust_term(&mut self, lane: usize, old: usize, new: usize, size: usize) {
             let lane_totals = self.term_lanes.get_mut(lane).expect("TermLane index");
             Self::adjust_totals(lane_totals, &mut self.combined, old, new, size);
+            self.observe_owner_adjustment();
         }
 
         fn adjust_live(&mut self, lane: usize, old: usize, new: usize, size: usize) {
             let lane_totals = self.live_lanes.get_mut(lane).expect("LiveVariableLane index");
             Self::adjust_totals(lane_totals, &mut self.combined, old, new, size);
+            self.observe_owner_adjustment();
         }
 
         fn adjust_structured_pair(&mut self, lane: usize, old: usize, new: usize, size: usize) {
             let lane_totals = self.structured_pair_lanes.get_mut(lane).expect("StructuredPairLane index");
             Self::adjust_totals(lane_totals, &mut self.combined, old, new, size);
+            self.observe_owner_adjustment();
         }
 
         fn adjust_normalization(&mut self, lane: usize, old: usize, new: usize, size: usize) {
             let lane_totals = self.normalization_lanes.get_mut(lane).expect("NormalizationLane index");
             Self::adjust_totals(lane_totals, &mut self.combined, old, new, size);
+            self.observe_owner_adjustment();
         }
 
         fn adjust_staged(&mut self, lane: usize, old: usize, new: usize, size: usize) {
             let lane_totals = self.staged_lanes.get_mut(lane).expect("StagedBuffer index");
             Self::adjust_totals(lane_totals, &mut self.combined, old, new, size);
+            self.observe_owner_adjustment();
         }
 
         fn source_lane(kind: PhysicalOwnerKind) -> Option<usize> {
@@ -175,6 +213,7 @@ mod event_sink {
                     new,
                     size,
                 );
+                self.observe_owner_adjustment();
             }
         }
 
@@ -212,6 +251,8 @@ mod event_sink {
                 .expect("target transfer bytes");
             target.peak_capacity = target.peak_capacity.max(target.current_capacity);
             target.peak_bytes = target.peak_bytes.max(target.current_bytes);
+            self.owner_adjustments = self.owner_adjustments.checked_add(1)
+                .expect("F5c source transfer count");
         }
 
         fn transfer_staged(&mut self, source: PhysicalOwnerKind, lane: usize,
@@ -229,6 +270,8 @@ mod event_sink {
             target_totals.current_bytes = target_totals.current_bytes.checked_add(bytes).expect("staged target bytes");
             target_totals.peak_capacity = target_totals.peak_capacity.max(target_totals.current_capacity);
             target_totals.peak_bytes = target_totals.peak_bytes.max(target_totals.current_bytes);
+            self.owner_adjustments = self.owner_adjustments.checked_add(1)
+                .expect("F5c staged transfer count");
         }
 
         fn adjust_totals(lane_totals: &mut WalkerTotals, combined: &mut WalkerTotals,
@@ -289,6 +332,57 @@ mod event_sink {
 
     pub(crate) fn source_shadow_totals() -> [WalkerTotals; 15] {
         WALKER_LEDGER.with(|ledger| ledger.borrow().source_lanes)
+    }
+
+    pub(crate) fn session_totals() -> (usize, usize, usize, usize, usize) {
+        WALKER_LEDGER.with(|ledger| {
+            let ledger = ledger.borrow();
+            (ledger.session_current, ledger.session_peak,
+                ledger.session_samples, ledger.finalizer_calls,
+                ledger.owner_adjustments)
+        })
+    }
+
+    pub(crate) fn session_baseline(boundary: u64, session: usize, closed: usize, route: usize) {
+        if !SINK.with(|slot| slot.borrow().is_some()) { return; }
+        let owner = WALKER_LEDGER.with(|slot| {
+            let mut ledger = slot.borrow_mut();
+            let owner = ledger.combined.current_bytes;
+            let other = session.checked_sub(owner)
+                .and_then(|n| n.checked_sub(closed))
+                .and_then(|n| n.checked_sub(route))
+                .expect("F5c independent session decomposition");
+            ledger.session_other = Some(other);
+            ledger.session_closed = closed;
+            ledger.session_route = route;
+            ledger.session_samples += 1;
+            ledger.observe_session();
+            assert_eq!(ledger.session_current, session);
+            owner
+        });
+        record(boundary as usize, 0, SESSION_BASELINE, PhysicalOwnerKind::Unclassified,
+            session, owner, closed, route as u64);
+    }
+
+    pub(crate) fn finalizer_peak(before: usize, after: usize, peak: usize) {
+        if !SINK.with(|slot| slot.borrow().is_some()) { return; }
+        WALKER_LEDGER.with(|slot| {
+            let mut ledger = slot.borrow_mut();
+            assert!(ledger.session_other.is_some(), "F5c finalizer needs a sample baseline");
+            assert_eq!(ledger.session_closed, before);
+            assert!(peak >= before && peak >= after);
+            let candidate = ledger.session_other.unwrap()
+                .checked_add(ledger.combined.current_bytes)
+                .and_then(|n| n.checked_add(ledger.session_route))
+                .and_then(|n| n.checked_add(peak))
+                .expect("F5c finalizer same-time candidate");
+            ledger.session_peak = ledger.session_peak.max(candidate);
+            ledger.session_closed = after;
+            ledger.finalizer_calls += 1;
+            ledger.observe_session();
+        });
+        record(0, 0, FINALIZER_PEAK, PhysicalOwnerKind::Unclassified,
+            before, after, peak, 0);
     }
 
     pub(super) fn adjust_source_shadow(kind: PhysicalOwnerKind, old: usize, new: usize, size: usize) {
@@ -630,6 +724,9 @@ pub(super) use event_sink::normalization_shadow_totals as f5c_normalization_shad
 pub(super) use event_sink::staged_shadow_totals as f5c_staged_shadow_totals;
 #[cfg(all(test, feature = "f5c_resource_probe"))]
 pub(super) use event_sink::source_shadow_totals as f5c_source_shadow_totals;
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+pub(super) use event_sink::{session_baseline as f5c_session_baseline,
+    finalizer_peak as f5c_finalizer_peak, session_totals as f5c_session_totals};
 
 #[cfg(all(test, feature = "f5c_resource_probe"))]
 pub(super) fn normalization_event_totals() -> (usize, usize, usize) {
