@@ -68,10 +68,15 @@ Effect hygiene and runtime freshness remain a later separate gate.
 
 Finite examples characterize the candidate but do not alone prove soundness or
 principality. Do not run guarded-cycle resource captures: the current F5c plans
-on `yulang3` have consumed their authorized runs. The immediate work is to
-define the graph operation's observable result function and prove the
-candidate's injective graph transport, then test recursive subtype rules
-against Oracle and continue ordered root-step/use-event simulation. The
+on `yulang3` have consumed their authorized runs. A candidate observation
+interface now compares complete source-induced contexts through machine-
+specific lowerings, with internal error/fallback traces separated from public
+results; independent semantic and charter reviews closed the initial relation
+scope findings. The immediate work is to define the supported source/event
+envelope and public type/diagnostic normalization, then prove the lowerings and
+root-indexed state simulation. The existing injective graph-transport lemma
+remains conditional, and recursive subtype observations are still only
+focused Oracle characterizations. The
 unselected graph-boundary operation keeps the SCC graph authoritative and
 maps source-local identities through member-owned ports to fresh per-use IDs,
 while resolving preserved identities through injective shared anchors. A

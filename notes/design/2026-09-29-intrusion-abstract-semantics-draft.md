@@ -271,7 +271,9 @@ positive, `Top` when negative); a variable seen at both polarities remains
 shared. Boundary/non-generic variables are excluded from this erasure.
 
 The intrusion candidate must run this projection per member root over an
-immutable shared component graph. Polarity census for one root must not absorb
+immutable selected input for that root attempt. The ordered root sequence may
+advance the shared solver state between attempts; this does not posit one
+immutable SCC-wide snapshot. Polarity census for one root must not absorb
 occurrences belonging only to another SCC member: the Oracle produces one
 generalized result per member, even though the component is solved together.
 The internal result may remain a regular graph with parent references; it need
@@ -636,10 +638,13 @@ prepare_member_step(state_i, member_root, environment):
     save the root result produced here and return updated state (state_i_plus_1)
 ```
 
-The component preparation result is staged privately. Any terminal projection
-failure aborts preparation, produces no member view for that component, and
-prevents partial publication. This is the replacement's atomicity rule; it does
-not describe Oracle's sequential slot finalization.
+The component preparation result is staged privately. A compaction-attempt
+error is not automatically a component-terminal failure: the replacement must
+simulate the Oracle's round latch, query-gateway escalation, or default-root
+continuation for that error. When the corresponding Oracle path is terminal,
+the replacement aborts preparation, produces no member view for that
+component, and prevents partial publication. This is the replacement's
+atomicity rule; it does not describe Oracle's sequential slot finalization.
 
 `state_i` must eventually include every input that can affect a later root,
 not only the bound graph: proof/projection state, relevant role or cast inputs,
@@ -1012,7 +1017,9 @@ partition and renaming before taking the union over resolved shared anchors.
 No component-wide quantification bit is used. The intended operational
 relation is `G --Use(u,d)--> G'`, where
 `G'` records the fresh map, renamed graph, root, and use constraint; a solver
-then returns success with observable roots/diagnostics or its defined failure.
+then continues from that state according to the component driver's later
+events. These events and their observation are defined by the candidate
+relation below, not by treating each use as an isolated solver call.
 
 Conditional solution semantics for `G'` quantify one assignment to each
 preserved identity and a separate assignment to each use's fresh identities;
@@ -1032,8 +1039,83 @@ general subtype use paths induce the same stated use observation; (v) empty
 fibers and failures are preserved; and (vi) recursive bounds remain interval
 inequalities rather than being silently converted into recursive equations.
 The source `Free`/local partition coverage, cross-member batch relation,
-observable result function, and carrier remain unproved. This operation is a
-research candidate, not a selected representation or implementation contract.
+public observation normalization, and carrier remain unproved. The contextual
+observation function below is only a candidate proof interface. This operation
+is a research candidate, not a selected representation or implementation
+contract.
+
+**Candidate contextual observation relation (unselected).** For an Oracle
+state `O` or intrusion state `I` at a paired component boundary, model the
+finite ordered continuation as a well-formed event sequence `K` induced by a
+supported source program:
+
+```text
+source_event ::= ConstraintSource(site, source_form)
+               | PrepareRoot(component, member)
+               | IncomingUse(component, parent, member, occurrence)
+               | PublishComponent(component)
+K             ::= source_event* ObserveModule
+```
+
+`ConstraintSource` is source-level input, not a TypeVar/evidence record shared
+verbatim between implementations. Each machine lowers it to its own polarized
+endpoints, weights, evidence, and origins through `lower_O(K)` or `lower_I(K)`;
+the root/use simulation must relate those results. The sequence preserves
+interleaving between constraint-producing source forms, member roots, incoming
+uses, and later constraints; it is not limited to one use batch after
+publication. The well-formedness relation requires each component's member
+roots to be prepared in Oracle order, its publication to follow all member
+results, and its external uses to follow publication. `K` ranges over complete
+supported source contexts ending at `ObserveModule`; finite prefixes are used
+only in step-simulation lemmas and have no final public observation. The
+supported source forms and source-to-event correspondence remain proof
+obligations.
+
+Execution is split into an internal transition trace and a public observation:
+
+```text
+Run_X(state_X, lower_X(K)) = (trace_X, public_X)
+public_X = (status, ordered_diagnostics, exported_module_observations)
+```
+
+The internal trace records root attempts/restarts, projection decisions and
+errors, round latches, query-gateway escalation, surface fallback to a default
+root, constraint routing, use cloning/insertion, and publication. These are
+not all public outcomes: an attempt-local error or round latch may be handled
+by a later transition, and the surface may continue after a default-root
+fallback. The public projection retains only what the Oracle exposes at the
+end of `K`, including success/failure and ordered diagnostics with source
+locations and semantic payload. Its precise type/interface normalization and
+whether diagnostic internals are visible remain to be fixed for the supported
+envelope.
+
+The candidate parity claim is that, for every pair of initial states related
+by the root-indexed state invariant and every supported complete `K`, Oracle
+and intrusion runs have the same
+normalized `public_X` under one identity correspondence that fixes shared
+anchors and consistently renames fresh local identities per use. Their
+internal traces need not be equal; a root/use simulation relation must match
+each public-relevant transition and continuation. This quantifies over
+interleaved later constraints, root preparation, publication, and uses, not
+only their immediate result at one use root. The supported source alphabet,
+root-indexed initial-state invariant, lowerings `lower_O/lower_I`, and public
+normalization remain unresolved, so this is still a proposed proof shape
+rather than a Gate C theorem.
+
+For proof debugging, one may additionally record a non-public graph witness:
+`BoundReach_X(K)` contains positive and negative bound reachability at
+requested use roots and preserved outer anchors after the corresponding use
+constraints. Comparing these witnesses under the identity correspondence may
+expose a lost edge or captured anchor. It is optional diagnostic evidence,
+not a parity requirement: graph isomorphism is not known to be necessary for
+observational equivalence and would constrain the representation prematurely.
+
+This relation is an operational comparison proposal, not a proof that the
+candidate has a principal type. Matching possible root values for all
+continuations, soundness, subsumption, or principality still requires a
+carrier, endpoint interpretation, subtype preorder, and solver-adequacy
+theorem. The precise supported event/source grammar and public type/diagnostic
+normalization also remain open; until fixed, this relation cannot close Gate C.
 
 **Unconstrained negative-parameter lemma.** A small erasure case follows from
 the candidate relation. Assume `D` has a greatest element `Top` and a Function
