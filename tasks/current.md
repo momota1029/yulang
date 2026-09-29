@@ -22,17 +22,42 @@ capacity changes occur later and already pass through the existing
 `IncomingRoute` O(1) sample path. See the exact source audit in the
 [`shared-acyclic checkpoint`](../notes/progress/f5c-shared-acyclic-hit-mismatch-checkpoint-2026-09-29.md).
 
-Implement this gate in reviewable checkpoints. First add exact fixed-size
-online totals for all 98 WalkerLane rows, including transfer deltas, while the
-full sidecar remains enabled; compare the online lanes against offline replay
-on a small witness. Then extend the same ledger across the other event-backed
-families, compose the closed-type finalizer peak and route-growth samples, and
-prove the global same-time totals. Only after that closes, suppress serialization
-for exact non-transferring WalkerLane kinds 54–56 and 116. Preserve the
-FlatDraft kinds 12–17 trace in full throughout. The partial timed-out sidecar
-is not a replay input; no resource/scale process, diagnostic, or matrix row may
-run before the new ledger and witness receive a fresh measurement review.
-Do not claim corrected-scale completion until those gates close.
+Implement this gate in reviewable checkpoints. The first fixed-size online
+shadow ledger for all 98 WalkerLane rows now closes with raw adoption and
+six-buffer same-ID transfer coverage; the full sidecar remains enabled. Next
+extend the ledger across the other event-backed families, compose the closed-
+type finalizer peak and route-growth samples, and prove the global same-time
+totals. Only after that closes, suppress serialization for exact
+non-transferring WalkerLane kinds 54–56 and 116. Preserve the FlatDraft kinds
+12–17 trace in full throughout. The partial timed-out sidecar is not a replay
+input; no resource/scale process, diagnostic, or matrix row may run before the
+composed ledger and witness receive a fresh measurement review. Do not claim
+corrected-scale completion until those gates close.
+
+### Latest continuation (2026-09-29): WalkerLane online-shadow witness
+
+`crates/yu-solver/src/f5c_draft_heap.rs` adds a test-and-feature-only fixed
+98-row ledger for current/peak slots and bytes, per WalkerLane and combined.
+Raw owner growth/decrease/release, raw adoption, FlatDraft growth/release, and
+the six-buffer `claim_existing_batch_with_owners` transfer update it. The full
+event sidecar remains unchanged. `f5c_walker_online_shadow_witness` emits a
+small complete trace with request-only observation, shrink/regrow, retained
+kind 116, raw adoption, and all six same-ID staged transfers/releases. The
+Python replay requires transfer IDs to remain the same and compares all 98
+four-field lane totals and the combined WalkerLane subtotal against offline
+replay.
+
+The M2 post-write `spec_auditor` found one major witness gap, repaired by
+adding all six FlatDraft transfers; focused spec delta review closed it. The
+performance review recorded a fixed 98-row (about 3.2 KiB) state copy per
+transfer, currently used for checked atomic updates;
+the fresh scale plan must count transfers and account for copied bytes before
+accepting that cost. One focused witness test, its complete-sidecar Python
+replay, Python syntax compilation, and `git diff --check` passed. One initial
+Cargo invocation hit the existing sccache `EPERM`; the identical focused test
+passed with `RUSTC_WRAPPER=`. No scale/resource process or matrix row ran.
+Other event-backed families, closed-type/route composition, exact-kind
+serialization suppression, and corrected-scale evidence remain open.
 
 ### Latest continuation (2026-09-29): raw-walker request-event coalescing
 

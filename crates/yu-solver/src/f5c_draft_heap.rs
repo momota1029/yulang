@@ -57,6 +57,43 @@ mod event_sink {
     pub(super) const CHECKPOINT: u64 = 6;
     pub(super) const DECREASE: u64 = 7;
 
+    #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+    pub(crate) struct WalkerTotals {
+        pub current_capacity: usize,
+        pub peak_capacity: usize,
+        pub current_bytes: usize,
+        pub peak_bytes: usize,
+    }
+
+    #[derive(Clone, Copy)]
+    struct WalkerLedger {
+        lanes: [WalkerTotals; 98],
+        combined: WalkerTotals,
+    }
+
+    impl WalkerLedger {
+        const fn new() -> Self {
+            Self { lanes: [WalkerTotals { current_capacity: 0, peak_capacity: 0,
+                current_bytes: 0, peak_bytes: 0 }; 98],
+                combined: WalkerTotals { current_capacity: 0, peak_capacity: 0,
+                    current_bytes: 0, peak_bytes: 0 } }
+        }
+
+        fn adjust(&mut self, lane: usize, old: usize, new: usize, size: usize) {
+            let lane_totals = self.lanes.get_mut(lane).expect("WalkerLane index");
+            let old_bytes = old.checked_mul(size).expect("WalkerLane old bytes");
+            let new_bytes = new.checked_mul(size).expect("WalkerLane new bytes");
+            for totals in [lane_totals, &mut self.combined] {
+                totals.current_capacity = totals.current_capacity.checked_sub(old)
+                    .and_then(|value| value.checked_add(new)).expect("WalkerLane capacity");
+                totals.current_bytes = totals.current_bytes.checked_sub(old_bytes)
+                    .and_then(|value| value.checked_add(new_bytes)).expect("WalkerLane bytes");
+                totals.peak_capacity = totals.peak_capacity.max(totals.current_capacity);
+                totals.peak_bytes = totals.peak_bytes.max(totals.current_bytes);
+            }
+        }
+    }
+
     struct Sink { writer: BufWriter<File>, next_id: u64, count: u64, checksum: u64, failed: bool }
     thread_local! {
         static SINK: RefCell<Option<Sink>> = const { RefCell::new(None) };
@@ -65,6 +102,7 @@ mod event_sink {
         static TERM_TOTALS: Cell<(usize, usize, usize)> = const { Cell::new((0, 0, 0)) };
         static INSTANTIATION_TOTALS: Cell<(usize, usize, usize)> = const { Cell::new((0, 0, 0)) };
         static NORMALIZATION_TOTALS: Cell<(usize, usize, usize)> = const { Cell::new((0, 0, 0)) };
+        static WALKER_LEDGER: RefCell<WalkerLedger> = const { RefCell::new(WalkerLedger::new()) };
     }
 
     pub(crate) fn open(path: &Path) -> std::io::Result<()> {
@@ -78,7 +116,33 @@ mod event_sink {
         TERM_TOTALS.with(|totals| totals.set((0, 0, 0)));
         INSTANTIATION_TOTALS.with(|totals| totals.set((0, 0, 0)));
         NORMALIZATION_TOTALS.with(|totals| totals.set((0, 0, 0)));
+        WALKER_LEDGER.with(|ledger| *ledger.borrow_mut() = WalkerLedger::new());
         Ok(())
+    }
+
+    pub(crate) fn walker_totals() -> ([WalkerTotals; 98], WalkerTotals) {
+        WALKER_LEDGER.with(|ledger| {
+            let ledger = ledger.borrow();
+            (ledger.lanes, ledger.combined)
+        })
+    }
+
+    pub(super) fn adjust_walker(lane: usize, old: usize, new: usize, size: usize) {
+        WALKER_LEDGER.with(|ledger| ledger.borrow_mut().adjust(lane, old, new, size));
+    }
+
+    pub(super) fn transfer_walker(source: PhysicalOwnerKind, target: PhysicalOwnerKind,
+        capacity: usize, size: usize) {
+        WALKER_LEDGER.with(|ledger| {
+            let mut next = *ledger.borrow();
+            if let PhysicalOwnerKind::WalkerLane(lane) = source {
+                next.adjust(lane, capacity, 0, size);
+            }
+            if let PhysicalOwnerKind::WalkerLane(lane) = target {
+                next.adjust(lane, 0, capacity, size);
+            }
+            *ledger.borrow_mut() = next;
+        });
     }
 
     pub(crate) fn close() -> std::io::Result<(u64, u64)> {
@@ -336,6 +400,9 @@ impl PhysicalOwnerKind {
 
 #[cfg(all(test, feature = "f5c_resource_probe"))]
 pub(super) use event_sink::{close as close_f5c_resource_events, open as open_f5c_resource_events};
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+pub(super) use event_sink::walker_totals as f5c_walker_shadow_totals;
 
 #[cfg(all(test, feature = "f5c_resource_probe"))]
 pub(super) fn normalization_event_totals() -> (usize, usize, usize) {
@@ -718,6 +785,7 @@ impl FlatDraftOwner {
     }
 
     pub(super) fn observe(&mut self, requested: usize, capacity: usize) {
+        assert!(requested <= capacity && capacity >= self.capacity);
         let operation = if capacity != self.capacity {
             Some(event_sink::GROW)
         } else if requested != self.requested {
@@ -729,6 +797,10 @@ impl FlatDraftOwner {
             event_sink::record(self.component, self.id, operation,
                 self.kind, requested, capacity,
                 self.slot_size, 0);
+        }
+        if self.id != 0 && matches!(self.kind, PhysicalOwnerKind::WalkerLane(_))
+            && capacity != self.capacity {
+            event_sink::adjust_walker(self.lane, self.capacity, capacity, self.slot_size);
         }
         if self.id != 0 && matches!(self.kind, PhysicalOwnerKind::NormalizationLane(_))
             && capacity != self.capacity {
@@ -747,6 +819,9 @@ impl Drop for FlatDraftOwner {
         if !self.transferred {
             event_sink::record(self.component, self.id, event_sink::RELEASE,
                 self.kind, 0, 0, self.slot_size, 0);
+            if self.id != 0 && matches!(self.kind, PhysicalOwnerKind::WalkerLane(_)) {
+                event_sink::adjust_walker(self.lane, self.capacity, 0, self.slot_size);
+            }
             if self.id != 0 && matches!(self.kind, PhysicalOwnerKind::NormalizationLane(_)) {
                 event_sink::adjust_normalization(-(self.capacity as isize),
                     -((self.capacity * self.slot_size) as isize));
@@ -788,16 +863,23 @@ impl<'meter> RawWalkerOwner<'meter> {
         if let Some(operation) = operation {
             event_sink::record(self.meter.0.event_component.get(), self.id, operation,
                 PhysicalOwnerKind::WalkerLane(self.lane), requested, capacity, self.slot_size, 0);
+            if self.id != 0 {
+                event_sink::adjust_walker(self.lane, self.capacity, capacity, self.slot_size);
+            }
         }
         self.capacity = capacity;
         self.requested = requested;
     }
 
     fn transfer(&mut self, kind: PhysicalOwnerKind, requested: usize) -> usize {
-        assert!(!self.transferred);
+        assert!(!self.transferred && requested <= self.capacity);
         self.transferred = true;
         event_sink::record(self.meter.0.event_component.get(), self.id, event_sink::TRANSFER,
             kind, requested, self.capacity, self.slot_size, kind.code());
+        if self.id != 0 {
+            event_sink::transfer_walker(PhysicalOwnerKind::WalkerLane(self.lane), kind,
+                self.capacity, self.slot_size);
+        }
         self.id
     }
 }
@@ -808,6 +890,9 @@ impl Drop for RawWalkerOwner<'_> {
         if !self.transferred {
             event_sink::record(self.meter.0.event_component.get(), self.id, event_sink::RELEASE,
                 PhysicalOwnerKind::WalkerLane(self.lane), 0, 0, self.slot_size, 0);
+            if self.id != 0 {
+                event_sink::adjust_walker(self.lane, self.capacity, 0, self.slot_size);
+            }
         }
     }
 }
@@ -957,6 +1042,9 @@ impl DraftHeapMeter {
                 .and_then(|current| current.checked_sub(bytes[index])?
                     .checked_add(owner.capacity)));
             owner.transferred = true;
+            if owner.id != 0 && matches!(owner.kind, PhysicalOwnerKind::WalkerLane(_)) {
+                event_sink::transfer_walker(owner.kind, kind, owner.capacity, owner.slot_size);
+            }
             if owner.id != 0 && matches!(owner.kind, PhysicalOwnerKind::NormalizationLane(_)) {
                 event_sink::adjust_normalization(-(owner.capacity as isize),
                     -((owner.capacity * owner.slot_size) as isize));

@@ -432,12 +432,112 @@ def replay_f6_events(path, expected_count, expected_checksum):
     )
 
 
+def check_walker_shadow_witness(sidecar, totals_path):
+    """Replay the complete witness sidecar with the matrix replay's owner rules."""
+    expected = totals_path.read_text(encoding="ascii").splitlines()
+    expected_count, expected_checksum = map(int, expected[0].split())
+    expected_rows = {}
+    for line in expected[1:]:
+        key, *values = line.split()
+        expected_rows[key if key == "combined" else int(key)] = tuple(map(int, values))
+    if set(expected_rows) != set(range(32, 130)) | {"combined"}:
+        raise ValueError("walker shadow witness needs all 98 lanes and combined totals")
+    owners = {}
+    rows = {kind: [0, 0, 0, 0] for kind in range(32, 130)}
+    combined = [0, 0, 0, 0]
+    count = checksum = last_id = 0
+    staged_transfers = {}
+    staged_releases = set()
+
+    def adjust(kind, old, new, size):
+        if not 32 <= kind < 130:
+            return
+        for totals in (rows[kind], combined):
+            totals[0] = totals[0] - old + new
+            totals[2] = totals[2] - old * size + new * size
+            if totals[0] < 0 or totals[2] < 0:
+                raise ValueError(f"negative walker total for kind {kind}")
+            totals[1] = max(totals[1], totals[0])
+            totals[3] = max(totals[3], totals[2])
+
+    with sidecar.open("rb") as stream:
+        if stream.read(8) != EVENT_MAGIC:
+            raise ValueError("invalid witness sidecar header")
+        while block := stream.read(EVENT.size):
+            if len(block) != EVENT.size:
+                raise ValueError("truncated witness sidecar")
+            component, owner_id, op, kind, requested, actual, size, target = EVENT.unpack(block)
+            count += 1
+            checksum = (checksum + sum(EVENT.unpack(block))) & ((1 << 64) - 1)
+            key = (component, owner_id)
+            if requested > actual or size == 0:
+                raise ValueError(f"invalid witness shape {key}")
+            if op == 1:
+                if owner_id <= last_id or key in owners or target:
+                    raise ValueError(f"invalid witness create {key}")
+                last_id = owner_id
+                owners[key] = (kind, requested, actual, size)
+                adjust(kind, 0, actual, size)
+                continue
+            if key not in owners:
+                raise ValueError(f"unknown witness owner {key}")
+            old_kind, old_requested, old_actual, old_size = owners[key]
+            if op == 5:
+                if (kind, requested, actual, size, target) != (old_kind, 0, 0, old_size, 0):
+                    raise ValueError(f"invalid witness release {key}")
+                if key in staged_transfers:
+                    staged_releases.add(key)
+                adjust(kind, old_actual, 0, size)
+                del owners[key]
+            elif op in (2, 3, 4, 7):
+                if size != old_size:
+                    raise ValueError(f"witness slot size changed {key}")
+                if op == 2 and (kind != old_kind or actual != old_actual or target):
+                    raise ValueError(f"invalid witness shape event {key}")
+                if op == 3 and (kind != old_kind or actual <= old_actual or target):
+                    raise ValueError(f"invalid witness growth {key}")
+                if op == 7 and (kind != old_kind or actual >= old_actual or target):
+                    raise ValueError(f"invalid witness decrease {key}")
+                if op == 4 and (target != kind or actual != old_actual):
+                    raise ValueError(f"invalid witness transfer {key}")
+                if op == 4 and 32 <= old_kind < 130 and 12 <= kind < 18:
+                    if kind in staged_transfers.values():
+                        raise ValueError(f"duplicate staged witness transfer for kind {kind}")
+                    staged_transfers[key] = kind
+                adjust(old_kind, old_actual, 0, size)
+                owners[key] = (kind, requested, actual, size)
+                adjust(kind, 0, actual, size)
+            else:
+                raise ValueError(f"unexpected witness op {op}")
+    if (count, checksum) != (expected_count, expected_checksum):
+        raise ValueError("witness event count/checksum mismatch")
+    if set(staged_transfers.values()) != set(range(12, 18)) or staged_releases != set(staged_transfers):
+        raise ValueError("witness needs six same-ID FlatDraft transfers and adopted-owner releases")
+    if owners or tuple(combined) != expected_rows["combined"]:
+        raise ValueError("witness retained owner or combined shadow mismatch")
+    for kind, totals in rows.items():
+        if tuple(totals) != expected_rows[kind]:
+            raise ValueError(f"WalkerLane {kind} shadow mismatch: {totals} != {expected_rows[kind]}")
+    print(f"WalkerLane shadow: {count} full sidecar events, 98 exact lanes and combined total")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--walker-shadow-witness", type=Path,
+                        help="complete small sidecar emitted by f5c_walker_online_shadow_witness")
+    parser.add_argument("--walker-shadow-totals", type=Path,
+                        help="online totals emitted by f5c_walker_online_shadow_witness")
     parser.add_argument("--diagnostic-cycle-32-4000", action="store_true",
                         help="replay only the isolated guarded_cycle(D=32,K=4000) row")
-    parser.add_argument("logs", type=Path, nargs="+", help="captured matrix process logs")
+    parser.add_argument("logs", type=Path, nargs="*", help="captured matrix process logs")
     args = parser.parse_args()
+    if args.walker_shadow_witness is not None or args.walker_shadow_totals is not None:
+        if args.walker_shadow_witness is None or args.walker_shadow_totals is None or args.logs:
+            parser.error("walker shadow witness requires both paths and no matrix logs")
+        check_walker_shadow_witness(args.walker_shadow_witness, args.walker_shadow_totals)
+        return
+    if not args.logs:
+        parser.error("matrix replay requires captured process logs")
     rows = {}
     owner_aggregates = {}
     for path in args.logs:

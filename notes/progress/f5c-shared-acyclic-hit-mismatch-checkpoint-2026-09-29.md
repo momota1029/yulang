@@ -457,10 +457,23 @@ their later `IncomingRoute` growth samples, outside that frozen interval. This
 proves the boundary composition for indexed F5c finalization only; it does not
 cover unrelated boxed finalizer closures or external concurrent mutation.
 
-Implementation sequence: first add the fixed-size online ledger as a shadow
-beside the full sidecar and prove exact reconciliation on one small complete
-witness. Then enable exact-kind serialization suppression and update sidecar
-count/checksum and checker reconciliation. No additional process budget is set;
-the focused witness is allowed, while resource/scale processes, partial-sidecar
-replay, the diagnostic, and matrix rows remain gated on a fresh performance
-plan after the online evidence closes.
+The first fixed-size shadow checkpoint now covers all 98 WalkerLane rows and
+their combined current/peak slots and bytes. The complete 46-event witness
+includes raw-walker adoption, all six FlatDraft same-ID staged transfers and
+adopted releases, request-only observation, shrink/regrow, and retained kind
+116. The Python replay compares every lane's four fields and the combined
+WalkerLane subtotal; the old full sidecar path remains unchanged. The
+post-write M2 `spec_auditor` found one missing FlatDraft-transfer witness,
+repaired and closed by a focused spec delta review. The performance review
+recorded a constant 98-row (about 3.2 KiB) checked-state copy per transfer;
+the next scale plan must count transfers and account for total copied bytes
+before accepting that cost.
+
+Implementation sequence: extend the online ledger across the other
+event-backed families, compose the closed-type finalizer peak and route-growth
+samples, and prove the global same-time totals. Only after that closes, enable
+exact-kind serialization suppression and update sidecar count/checksum and
+checker reconciliation. No additional process budget is set; the focused
+witness was allowed, while resource/scale processes, partial-sidecar replay,
+the diagnostic, and matrix rows remain gated on the composed online evidence
+and a fresh performance plan.
