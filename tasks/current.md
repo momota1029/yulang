@@ -145,8 +145,13 @@ projection, elimination, saved-root, and later-pass premises are in the draft.
 This does not prove that fiber from Oracle evidence or close Gate C. A reviewed
 interval lemma shows compatible lower obligations leave the upper-bound meet
 as the greatest assignment, once the exact fiber is fixed. Next derive
-selected fibers from Oracle evidence when anchors or shared occurrences are
-present, then continue with ordered root-step simulation,
+the fiber directly from selected variable edges when other assignments are
+fixed; this remains a candidate-graph result. The next bridge is to prove that
+Oracle's scoped evidence query and `compact_var_side` produce that graph and
+retain its upper-endpoint meet at the saved root. A nested captured-function
+source probe exceeded its 20-second bound inside Oracle `prepare_cold` and is
+recorded as no result in the progress note. Then extend the proof to anchored
+or shared endpoints and continue with ordered root-step simulation,
 publication/finalization, and use simulation. A two-root characterization
 remains optional diagnostic evidence. A conditional lemma now shows that
 injective fresh-parent renaming bijects solution assignments when finite

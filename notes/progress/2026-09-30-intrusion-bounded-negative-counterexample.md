@@ -91,9 +91,32 @@ uppers is the greatest admissible assignment; compatible lower bounds do not
 change the projected root. This still assumes the exact selected fiber and
 does not derive it from Oracle evidence or cover shared-variable dependencies.
 
+The selected-edge corollary now derives that exact fiber for a restricted
+already-selected graph: after fixing anchors and every other local vertex, all
+edges mentioning `x` must be fixed-endpoint inequalities into or out of `x`,
+and every other obligation must be independent of `x`. Its nonempty fiber then
+has the upper-endpoint meet as maximum, so a negative-only `Arr(x,R)` projects
+fiberwise to that meet. A compiler referee found no blocking/major issue and
+requested two premise clarifications, now applied: omitted obligations must be
+syntactically x-free, and finite meets include the empty meet `Top`. The result
+does not establish Oracle evidence selection or global principal-view
+representability.
+
+An attempted scratch Rust source-path probe for a nested captured polymorphic
+function application, `pub outer(f: 'a -> 'b) = my inner x = f x; inner`, did
+not complete. In an isolated detached worktree at frozen Oracle `a58eefc3`,
+`cargo test -p infer scratch_intrusion_anchor_argument_application --
+--nocapture` remained inside `prepare_cold` for over 90 seconds at nearly one
+CPU core and was interrupted; a second run with `timeout 20s` also timed out
+before leaving `prepare_cold`. No diagnostic or type result was observed. The
+temporary test and worktree were removed, and no frozen Oracle files changed.
+This is not evidence about the source program's type or language acceptance;
+do not use it as a fixture or repeat it without a bounded execution plan.
+
 ## Next action
 
-Derive exact selected assignment fibers from Oracle graph evidence when bounds
-interact with anchors or shared occurrences, and prove the saved root denotes
-their extremum. The general denotation, ordered root simulation, use simulation,
-and implementation gates remain open.
+Prove that the Oracle's scoped evidence query and `compact_var_side` produce the
+selected-edge graph and upper-endpoint meet for the restricted pure fragment,
+including the exact saved-root stage. Then extend the graph class to anchored
+or shared endpoints. The general denotation, ordered root simulation, use
+simulation, and implementation gates remain open.
