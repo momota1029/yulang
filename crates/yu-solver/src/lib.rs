@@ -22745,8 +22745,10 @@ mod tests {
     #[test]
     fn synthetic_identity_incoming_uses_accept_distinct_function_constraints() {
         // This is a current Rust-path semantic-batch characterization. It
-        // does not establish source-level Oracle parity, fresh identity
-        // isolation, intrusion, or principality.
+        // observes identity sharing within each use and distinct exposed
+        // live variable identities across these uses. It does not establish
+        // source-level Oracle parity, general graph isolation, intrusion, or
+        // principality.
         let meter = DraftHeapMeter::default();
         let batch = collect(module(
             "my identity = 1; my first = identity; my second = identity",
@@ -22826,10 +22828,38 @@ mod tests {
                 )
                 .unwrap(),
         ];
+        let mut use_binders = Vec::new();
         for (index, route) in routes.iter().enumerate() {
             session.route_incoming(route).unwrap();
             let use_record = &session.batch.definition_uses()[index];
             let use_row = session.live_components[use_record.use_value_component].ordinal;
+            let function = session.bounds[use_row as usize]
+                .exact_non_variable_lowers
+                .iter()
+                .find_map(|lower| match lower {
+                    ValueEndpointKey::PositiveFunction(term) => Some(*term),
+                    _ => None,
+                })
+                .expect("incoming use has an actual Function lower bound");
+            let TermView::PositiveFunction {
+                argument, result, ..
+            } = session.store.term_view(function).unwrap()
+            else {
+                panic!("incoming lower bound is a Function");
+            };
+            let TermView::LiveVariable(argument) = session.store.term_view(argument).unwrap()
+            else {
+                panic!("incoming Function argument is live");
+            };
+            let TermView::LiveVariable(result) = session.store.term_view(result).unwrap() else {
+                panic!("incoming Function result is live");
+            };
+            assert_eq!(argument.polarity(), Polarity::Negative);
+            assert_eq!(result.polarity(), Polarity::Positive);
+            assert_eq!(argument.ordinal(), result.ordinal());
+            assert_ne!(argument.ordinal(), variable);
+            assert!(!use_binders.contains(&argument.ordinal()));
+            use_binders.push(argument.ordinal());
             let occurrence = ConstraintOccurrenceId::new(use_record.occurrence.clone(), 201);
             session
                 .constrain_live_value(

@@ -119,10 +119,12 @@ allowed. This proves neither solution-space independence nor principality.
 Details and review limits are in
 `notes/progress/2026-09-30-intrusion-factorization-proof.md`. A Rust-only
 synthetic incoming-use characterization now exercises two distinct incoming
-IDs with different Function constraints through the current route; it does
-not establish fresh identity/edge isolation, intrusion semantics, or
-principality. The independent review's evidence limit and focused command are
-recorded in `notes/progress/2026-09-30-intrusion-rust-use-characterization.md`.
-Next prove exact root preparation and the soundness/principality theorem,
-including direct isolation evidence. Implementation remains gated on the
-reviewed successor contract and explicit user approval.
+IDs with different Function constraints through the current route. It directly
+observes shared argument/result identity within each use and distinct exposed
+live identities across the uses. It does not establish general graph-edge
+isolation, intrusion semantics, or principality. Review scope and the focused
+command are recorded in
+`notes/progress/2026-09-30-intrusion-rust-use-characterization.md`. Next prove
+exact root preparation and the soundness/principality theorem, including
+general graph isolation. Implementation remains gated on the reviewed
+successor contract and explicit user approval.

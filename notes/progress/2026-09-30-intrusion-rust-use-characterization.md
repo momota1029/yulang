@@ -27,14 +27,19 @@ current implementation's finalized member view, so the test characterizes the
 current incoming route rather than the future intrusion engine or the full SCC
 publication scheduler.
 
-The review found a major evidence gap for Gate C: accepting the two constraints
-does not directly establish that fresh identities and graph edges are isolated
-across the two uses. Accordingly, this test is only acceptance
-characterization; fresh-identity/edge isolation remains open. It also does not
-establish source-level Oracle parity, intrusion correctness, soundness, or
-principality. The source-level Oracle identity-use witness remains unsupported
-by current Yulang3 HIR, as recorded in
-`2026-09-29-intrusion-rust-replacement-map.md`.
+The first review found a major evidence gap: accepting both constraints alone
+did not directly establish fresh identity isolation. The test was extended to
+inspect each actual routed Function lower before later constraints. It now
+checks that the argument and result share one exposed live variable identity,
+and that the identities for the two uses differ from one another and from the
+root variable. An independent delta review accepted these assertions without
+blocking or major findings. This establishes per-use identity sharing and
+freshness for the one exposed identity variable in this witness. It does not
+establish isolation of every graph node, all cross-use edges, or solution-space
+independence through a shared environment. It also does not establish
+source-level Oracle parity, intrusion correctness, soundness, or principality.
+The source-level Oracle identity-use witness remains unsupported by current
+Yulang3 HIR, as recorded in `2026-09-29-intrusion-rust-replacement-map.md`.
 
 Focused verification:
 
