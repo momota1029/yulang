@@ -605,34 +605,39 @@ pub helper x = wrap { value: (x, \y -> g x) }
 pub g x = wrap { value: (x, \y -> helper x) }
 pub number = helper 1
 pub function_value = helper (\z -> z)
+pub function_from_g = g (\w -> w)
 ```
 
 The focused test completed without diagnostics. Oracle SCC events show `helper`
 and `g` in one `QuantifyComponent`, after two internal open uses and before
-external incoming uses. The two member schemes assert the same three-binder
-quantifier vector, but each has a distinct recursive-bound binder. The test
-also asserts that the two incoming use-value constraint graphs have disjoint
-TypeVar sets. Their argument binders receive different later bounds: the
-`number` use receives `Int`, while `function_value` receives a Function whose
-domain and result share one variable. Thus the two actual source uses exercise
-independent specialization under different argument constraints.
+three external incoming uses: two target `helper` and one targets `g`. The two
+member schemes assert the same three-binder quantifier vector, but each has a
+distinct recursive-bound binder. The three uses have distinct `use_value`
+identities, and the raw TypeVar sets in their immediate lower predicates are
+pairwise disjoint. Their argument variables receive different observed
+bounds: `number` receives `Int`, while `function_value` and `function_from_g`
+each have a Function lower whose domain and result share one variable. Thus
+these source uses exercise both published member views and separate
+specialization under distinct argument constraints.
 
 An environment-gated trace inside Oracle's production scheme instantiator
-prints two maps for the component's same source binder vector:
+prints three maps for the component's same source binder vector:
 
 ```text
-{TypeVar(11): TypeVar(89), TypeVar(87): TypeVar(90), TypeVar(88): TypeVar(91)}
-{TypeVar(11): TypeVar(92), TypeVar(87): TypeVar(93), TypeVar(88): TypeVar(94)}
+{TypeVar(11): TypeVar(99), TypeVar(97): TypeVar(100), TypeVar(98): TypeVar(101)}
+{TypeVar(11): TypeVar(102), TypeVar(97): TypeVar(103), TypeVar(98): TypeVar(104)}
+{TypeVar(11): TypeVar(105), TypeVar(97): TypeVar(106), TypeVar(98): TypeVar(107)}
 ```
 
-The trace is emitted during the two source uses and their target sets are
-disjoint. The map lines are not keyed by `(parent, use_value)`, so that linkage
-is inferred from their position in this focused run together with the two
-recorded helper-use events; the test asserts use-graph disjointness but does
-not assert each production map entry. A compiler-referee delta review found no
-blocking or major flaw in this narrow observation and confirmed these limits.
-This is Oracle characterization only; it does not establish candidate
-intrusion equivalence, principality, effect denotation, or handler hygiene.
+The three target sets are disjoint. The map lines are not keyed by
+`(parent, target, use_value)`, so their pairing with the two helper events and
+one `g` event is inferred from this focused run's trace order and source
+context; the test asserts event identities and immediate-predicate variable
+disjointness, not every production map entry or the transitive reachable bound
+graphs. A compiler-referee delta review found no blocking or major flaw in
+this narrow observation and called out these limits. This is Oracle
+characterization only; it does not establish candidate intrusion equivalence,
+principality, effect denotation, or handler hygiene.
 The test and instrumentation remain only in the detached scratch worktree; the
 frozen Oracle checkout and research branch compiler code are unchanged.
 

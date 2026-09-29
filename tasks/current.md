@@ -69,9 +69,9 @@ Effect hygiene and runtime freshness remain a later separate gate.
 Finite examples characterize the candidate but do not alone prove soundness or
 principality. Do not run guarded-cycle resource captures: the current F5c plans
 on `yulang3` have consumed their authorized runs. The immediate work is to
-extend the restricted projection correspondence through selected graph
-evidence and then discharge root-step and use-event simulation for the declared
-graph envelope. A first synthetic Oracle graph now combines a compatible outer lower,
+define scheme instantiation/subsumption and the admissible environment-fiber
+domain for Gate C, then test recursive subtype rules against Oracle and continue
+the ordered root-step/use-event simulation. A first synthetic Oracle graph now combines a compatible outer lower,
 an upper path to an outer anchor, and a local alias cycle. Its successful
 scoped query selects the exact lower endpoint and exposes the upper anchor;
 propagation lowers both local variables, which remain alongside the anchor in
@@ -97,18 +97,28 @@ one forced effect quantifier. An annotated-parent source fixture now exercises
 two independent uses of the same one-member recursive local scheme: the forced
 effect identity freshens at each use while eleven unquantified effect
 identities remain shared. A separate Rust-path source fixture confirms a
-nominally guarded two-member Function SCC is quantified jointly and then used
-at `int` and identity-Function argument types; the events expose separate use
-slots, both member schemes share a three-binder quantifier vector, and their
-recursive roots remain distinct. The two use constraint graphs are disjoint,
-and their argument binders receive the `Int` and identity-Function bounds. A
-production-instantiator trace reports disjoint maps for the shared binder
-vector, though those map lines are not keyed by use identity. A
-compiler-referee delta review found no blocking or major issue in this narrow
-Oracle characterization; it makes no intrusion-equivalence claim. For
-unannotated parents, local reads keep the live value when forced quantifiers
-are present. Details and review limits are in
+nominally guarded two-member Function SCC is quantified jointly, then uses
+`helper` twice and `g` once at distinct incoming sites. Both member schemes
+share a three-binder quantifier vector and retain distinct recursive roots.
+The three use-value identities differ and the raw TypeVar sets in their
+immediate lower predicates are pairwise disjoint; argument bounds include
+`Int` and identity-shaped Function lowers. A production-instantiator trace
+reports three disjoint maps for the component vector, but does not key them to
+individual uses or prove transitive use-graph disjointness. The
+compiler-referee review found no blocking or major issue within this narrow
+characterization; it makes no intrusion-equivalence claim. For unannotated
+parents, local reads keep the live value when forced quantifiers are present.
+Details and review limits are in
 `notes/progress/2026-09-30-intrusion-bounded-negative-counterexample.md`.
+An unselected guarded-regular carrier option was blocked at Gate C by a
+compiler-referee review: scheme denotation/projection equality is undefined,
+recursive subtype cycles and empty environment fibers need rules, and graph
+inequality cycles must remain distinct from recursive type equations. The
+finite fixed-endpoint graph lemmas remain sound under feasibility and meet/join
+premises, but do not cover recursive Functions or Oracle root preparation.
+The findings are in
+`notes/progress/2026-09-30-intrusion-carrier-candidate-review.md`; the option
+has not been selected.
 The Rust integration map is recorded in
 `notes/progress/2026-09-29-intrusion-rust-replacement-map.md`: replacing only
 F5 draft generalization is insufficient because publication, incoming-use

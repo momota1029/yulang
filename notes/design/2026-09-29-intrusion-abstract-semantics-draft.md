@@ -788,6 +788,32 @@ lower and upper bounds, and reinstalls them as subtype constraints. This
 operational fact constrains the implementation comparison but does not choose
 the denotational interpretation of recursive solutions.
 
+**Unselected carrier option and review findings.** An architecture review
+proposed using guarded regular type terms modulo alpha and equi-recursive
+unfolding, with `Bottom`/`Top`, finite union/intersection, polarized Functions,
+and invariant same-head nominal constructors. Local graph cycles would remain
+inequalities over direct assignment lookup; they would not become recursive
+type equations. This is only an option: no current Authoritative source defines
+that carrier or its nominal/recursive laws, and no choice is made here.
+
+A compiler-referee review found a blocking gap for Gate C certification: the
+option does not yet define a scheme's instantiation relation or prove that
+projection/erasure yields exactly `Pred_d`. It also identified three major
+proof obligations. First, the subtype preorder must say whether guarded
+recursive comparisons admit cyclic/coinductive derivations; for example,
+`X = μx.Arr(Int,x)` and `Y = μy.Arr(Int,y ∪ Int)` reduce to a repeated
+`X ≤ Y ∪ Int` obligation after unfolding. Second, admissible environment
+assignments must preserve empty fibers: `Int ≤ x ≤ e` has no solution when
+`eta(e) = Bottom`. Third, inequality cycles must remain distinct from recursive
+equations: `x ≤ Arr(Int,x)` admits `x = Bottom`, while
+`x = μx.Arr(Int,x)` specifies a recursive value. The review did not find these
+to be contradictions in the restricted finite fixed-endpoint lemmas; those
+remain sound when the fiber is feasible and finite meets/joins exist. It found
+that the option does not yet cover locally dependent constructor endpoints,
+mixed-polarity roots, or Oracle root preparation and finalization. The full
+findings and review limits are recorded in
+`notes/progress/2026-09-30-intrusion-carrier-candidate-review.md`.
+
 **Candidate principality criterion.** Once a carrier `D` and subtype preorder
 `≤` have been fixed, a saved member view `H_d` and environment assignment `eta`
 induce the set of root types realized by satisfying local assignments:
@@ -1099,20 +1125,22 @@ SCC publication/use scheduling, effect constraint denotation, or handler
 hygiene. A separate pure source probe now covers one top-level, nominally
 guarded two-member Function SCC. Oracle jointly quantifies both member roots;
 both member schemes expose one shared quantifier vector while retaining
-distinct recursive-bound roots. Two later source uses of the same member pass
-`int` and an identity Function; their use-value constraint graphs are
-disjoint, and their generalized argument binders receive the corresponding
-different bounds. An environment-gated production-instantiator trace reports
-disjoint maps for the component binder vector. That trace is sequential rather
-than keyed by parent/use, so it is run evidence paired with the SCC events,
-not a durable assertion of each map entry. This adds Oracle characterization
-for one multi-member publication/use path; it does not establish candidate
-intrusion equivalence, principality, effect constraint denotation, or handler
-hygiene. It is a top-level SCC witness and does not resolve the separately
-failed local multi-member source construction above. Without the outer
-annotation, the earlier one-member lowering path instead keeps the live value
-when the forced quantifier is present. Exact capture command and review scope
-are recorded in the progress note.
+distinct recursive-bound roots. Two later source uses target `helper` with
+`int` and identity-Function arguments, and a third targets `g` with an
+identity-Function argument. Their use-value identities differ, the raw
+TypeVar sets in immediate lower predicates are pairwise disjoint, and the
+argument bounds retain the `Int` and identity-shaped Function lower forms. An
+environment-gated production-instantiator trace reports three disjoint maps
+for the component binder vector. The trace is sequential rather than keyed by
+parent/target/use, and the test does not traverse transitive reachable bounds;
+these are run observations, not a durable proof of complete map isolation.
+This adds Oracle characterization for one multi-member publication/use path;
+it does not establish candidate intrusion equivalence, principality, effect
+constraint denotation, or handler hygiene. It is a top-level SCC witness and
+does not resolve the separately failed local multi-member source construction
+above. Without the outer annotation, the earlier one-member lowering path
+instead keeps the live value when the forced quantifier is present. Exact
+capture command and review scope are recorded in the progress note.
 
 **Selected-edge fiber corollary (conditional).** The interval premise can be
 derived for a restricted selected graph. Let `G` have a finite set of selected
