@@ -217,6 +217,58 @@ Oracle-adequacy theorem must show that the actual root preparation, restart,
 projection, and use operations induce the same selected input state and public
 result. A proof of closure equivariance alone is not that adequacy theorem.
 
+### Carrier-parametric saturation preservation (conditional)
+
+The finite saturation rules admit a semantic preservation theorem without
+choosing how recursive intervals are interpreted. Let `D` be a preorder and
+let an assignment `nu : V -> D` evaluate every finite endpoint by direct
+lookup for variables and by the endpoint constructors; recursive graph
+back-edges therefore do not unfold during evaluation. Define
+`Sat_D(S, nu)` by requiring each obligation in `Q` to hold, and for every
+`p ∈ L(v)` and `n ∈ U(v)` requiring
+`eval(p, nu) ≤ nu(v) ≤ eval(n, nu)`.
+
+Assume the endpoint interpretation validates the pure rules in §1 exactly:
+`Bottom` is least, `Top` greatest, a union is a join, an intersection is a
+meet, and Function comparison is equivalent to the stated contravariant
+argument and covariant result obligations. Matching atoms are reflexive;
+every irreducible pair entered into `X` is unsatisfiable. Variable-bound
+insertion records the same inequality as the source obligation, and pairing a
+lower with an upper bound adds only their transitive consequence. These are
+axioms on a prospective carrier, not facts established for a concrete type
+domain.
+
+**Theorem schema.** Under those assumptions, every finite stage reachable
+from the initialized state `S₀` by `Sₙ = Fⁿ(S₀)` preserves the
+satisfying-assignment fiber:
+
+```text
+{ nu | Sat_D(S, nu) } = { nu | Sat_D(F(S), nu) }
+```
+
+Therefore the least fixed point has exactly the initial fiber. If `Xₙ` is
+nonempty at a reachable stage, that fiber is empty: `F` inserts into `X` only
+an existing irreducible obligation from `Q`, which the carrier assumptions
+make unsatisfiable. Proof is induction on finite stages: bound
+insertion preserves an already required inequality; paired bounds use
+transitivity; structural decomposition uses the assumed equivalences; trivial
+extremal cases follow from least/greatest; and an `X` entry contradicts the
+carrier's irreducible-pair assumption. This remains true when an endpoint
+refers back to an assigned variable, because evaluation is direct lookup.
+Nothing turns an inequality cycle into an equation or compares recursive
+types coinductively.
+
+This theorem schema supplies only a conditional sound-and-complete account of
+finite saturation for any carrier satisfying the axioms. It neither constructs
+such a carrier nor shows that one admits the Oracle-observed recursive
+intervals, preserves Oracle root projection, or yields a principal scheme
+instance/subsumption relation. In particular, a useful carrier must account
+for both `Bottom ≤ q ≤ Arr(Int, q)` and the observed guarded interval with
+matching recursive `Arr(Int, q)` lower/upper sides, without identifying an
+inequality cycle with an equation. Establishing that a concrete carrier can
+meet these requirements is still a Gate C semantic decision and proof
+obligation.
+
 ### Full-envelope stage boundary (candidate obligations)
 
 Do not extend the pure-fragment mismatch set `X` by treating every

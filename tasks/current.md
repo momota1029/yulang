@@ -435,3 +435,16 @@ the evidence route or prove provenance preservation. Details are in
 Next instantiate the transition's local commuting rules against an explicit
 carrier and the Oracle root/epoch simulation; do not treat this precondition as
 Gate C closure or implementation authority.
+
+A conditional semantic theorem now states that pure finite saturation
+preserves the assignment fiber for every carrier satisfying its endpoint
+algebra and mismatch axioms. The quantification is over stages reachable from
+the initialized state, so `X` can only contain generated irreducible
+mismatches. Independent compiler-referee review found no semantic finding;
+spec review's minor arbitrary-state concern was closed by that reachability
+condition. This does not construct the concrete recursive carrier or prove
+projection/principality. See
+`notes/progress/2026-09-30-intrusion-carrier-parametric-saturation.md`.
+Next establish whether one concrete carrier can model both Oracle-observed
+recursive intervals and define a scheme instance relation; keep implementation
+gated on the successor contract and explicit approval.
