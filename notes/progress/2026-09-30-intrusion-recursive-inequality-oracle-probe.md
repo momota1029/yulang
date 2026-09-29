@@ -2,7 +2,7 @@
 
 Date: 2026-09-30
 Reference: frozen Yulang2 Oracle `a58eefc31e22141574b6f20c6a5748151c6d79f1`
-Classification: one temporary Rust-path interval probe; not an equi-recursive test
+Classification: focused temporary Rust-path interval/constraint probes; not an equi-recursive test
 
 ## Fixture and result
 
@@ -64,15 +64,47 @@ require separate comparison and solution fixtures.
 
 ## Limits and state
 
-Both test sources exist only in `/tmp/yulang-intrusion-recursive-bound-probe`,
-a detached scratch worktree at the frozen Oracle revision; neither the frozen
-Oracle worktree nor this research branch was modified. No Python was used. No
-compiler implementation code or durable tests were changed. One focused Rust
-test ran; it compiled the `infer` test target and emitted existing unused-code
+All temporary test sources exist only in
+`/tmp/yulang-intrusion-recursive-bound-probe`, a detached scratch worktree at
+the frozen Oracle revision. No frozen Oracle source, compiler implementation,
+or permanent test changed. No Python was used. Four focused Rust tests ran;
+they compiled the `infer` test target and emitted existing unused-code
 warnings in that frozen checkout. No resource or performance measurement was
 run.
 
-This narrows the Oracle evidence for the distinction between an inequality
-cycle and a recursive equation. It does not resolve Gate C's recursive subtype
-rule, carrier, environment-fiber proof, scheme principality, or the broader
-intrusion equivalence theorem.
+## Independent narrowing/use constraints
+
+Two more temporary Rust tests use independent fresh `AnalysisSession`s from
+the same hand-built interval and its ordinary scheme-instantiation path. In
+the first, adding `q <: Bottom` emits no diagnostic, and the fresh variable
+retains both its `Neg::Bot` and self-referential `Neg::Fun` upper rows. In the
+second, without the `q <: Bottom` constraint, adding `String <: q` yields
+exactly one `UnsatisfiedSubtypeShape` with actual `Constructor(["string"])`
+and expected `Function`. The tests and shared fixture are in the detached
+scratch file `crates/infer/src/analysis/tests/case_02.rs`, helper
+`recursive_interval_use`, tests
+`recursive_upper_interval_accepts_bottom_narrowing` and
+`recursive_upper_interval_rejects_incompatible_concrete_lower`.
+
+The focused command was:
+
+```text
+CARGO_TARGET_DIR=/tmp/yulang-intrusion-oracle-target \
+  cargo test -p infer --lib recursive_upper_interval -- --nocapture
+```
+
+Both tests passed. A follow-up `compiler_referee` review confirmed that the
+separate sessions remove the earlier sequencing confound and that the exact
+diagnostic is asserted. The evidence characterizes this hand-built scheme's
+instantiation/constraint path only. It does not compare against an equation
+interpretation, establish source-to-SCC generalization behavior, or prove the
+proposed intrusion semantics.
+
+All four temporary tests remain confined to the detached scratch worktree. No
+Python, resource measurement, or permanent test change was made.
+
+This adds a narrow constraint-path characterization for one recursive
+interval. It does not establish a general distinction theorem between
+inequality cycles and recursive equations, nor resolve Gate C's recursive
+subtype rule, carrier, environment-fiber proof, scheme principality, or the
+broader intrusion equivalence theorem.

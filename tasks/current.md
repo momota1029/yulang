@@ -104,7 +104,14 @@ discarding the trivial Bottom lower. A second probe retains matching guarded
 Function shapes on both sides of one fresh variable's interval. Neither probe
 selects a concrete solution, compares distinct recursive schemes, or tests
 equi-recursive/coinductive subtyping; details and referee scope are in
-`notes/progress/2026-09-30-intrusion-recursive-inequality-oracle-probe.md`. A
+`notes/progress/2026-09-30-intrusion-recursive-inequality-oracle-probe.md`.
+Two additional independent Rust-path probes show that the instantiated
+`Bottom ≤ q ≤ Arr(Int,q)` interval accepts `q <: Bottom` while retaining both
+upper rows, and that `String <: q` in a separate fresh session emits the exact
+constructor-versus-Function shape diagnostic. Independent referee review
+confirmed these assertions and their limits: they exercise a hand-built scheme
+at instantiation/constraint level, not source-to-SCC generalization or the
+proposed intrusion semantics. A
 first synthetic Oracle graph now combines a compatible outer lower,
 an upper path to an outer anchor, and a local alias cycle. Its successful
 scoped query selects the exact lower endpoint and exposes the upper anchor;
