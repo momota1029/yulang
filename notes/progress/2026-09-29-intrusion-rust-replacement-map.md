@@ -72,8 +72,8 @@ Define the component/member-root denotation, boundary-parent selection,
 root-local view, independent incoming-use overlay, and result projection as one
 operation. Then state the simulation/principality property and prove it for a
 declared finite graph class before choosing which existing Rust owners survive.
-The executable Python characterization is not implementation evidence and
-does not close any of these obligations.
+An earlier finite Python characterization was removed; its outputs are
+withdrawn as evidence and do not close any of these obligations.
 
 ## Current Rust-path baseline probes
 

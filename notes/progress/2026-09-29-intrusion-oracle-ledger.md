@@ -35,7 +35,7 @@ independently reproduced execution.
 | Local diamond and captured rigid endpoint | The source `my outer x = my inner y = ({left: x, right: x}, y); inner` succeeds without diagnostics. The local scheme is `'a -> ({left: 'b, right: 'b}, 'a)` with one quantifier; the outer scheme is `'a -> 'b -> ({left: 'a, right: 'a}, 'b)` with two. Raw arena checks confirm both local record paths and the outer input use the same `TypeVar`, and that this captured variable is absent from the local scheme's quantifiers. This witnesses a shared diamond, capture avoidance, and one variable crossing from negative outer Function argument position to positive result position. | Probe command: `cargo test -p infer scratch_oracle_local_diamond_keeps_outer_parameter_shared -- --nocapture` in a detached worktree at `a58eefc3`; assertions inspected formatted schemes, binder counts, and exact TypeVar identities. Temporary probe source was removed. |
 | Nested local forward references | A temporary source probe attempted to place two mutually recursive local definitions under an outer parameter so both SCC members could capture one enclosing variable. The Oracle reports `UnresolvedName` for the forward reference from the first local definition to the second. The source form therefore cannot express this desired SCC/capture combination through ordinary sequential local `my` declarations. This is a syntax/lowering limitation observed for this exact form, not evidence that such graph topology is semantically unsupported. | Probe: `scratch_oracle_same_scc_shared_diamond_with_capture` in a detached `main` worktree at `a58eefc3`; the one-off test failed at its no-diagnostics assertion with unresolved `g`. Scratch source was removed; no Oracle files were changed. |
 | Pure Function guarded mutual cycle | The source `pub f x = \\y -> g x; pub g x = \\y -> f x` succeeds without diagnostics. Both schemes format as `any -> any -> never`, with zero ordinary quantifiers and zero recursive bounds. A Function-shaped recursive cycle alone therefore does not imply a productive recursive type bound in this witness; this complements, but does not generalize beyond, the nominal-guarded Function SCC result above. | Probe: `scratch_oracle_pure_function_guarded_mutual_cycle` in a detached `main` worktree at `a58eefc3`; inspected both formatted schemes and binder counts. Scratch source was removed. |
-| Self-recursive Function result projection | The source `pub returned x = \\y -> returned x` succeeds and formats as `any -> any -> never`, with zero ordinary quantifiers and zero recursive bounds. The finite projection model's graph with `root.lower = (x -> inner)` and `inner.lower = (y -> root)` projects to the same nested `Any -> Any -> Bottom` shape after positive-only recursive collapse. | Oracle probe `scratch_oracle_projection_polarity_matrix` in a detached `main` worktree at `a58eefc3`; its temporary assertion inspected this source alongside the constant and identity witnesses. Model check: `root-local projection` in `notes/progress/2026-09-29-intrusion-finite-model.py`. |
+| Self-recursive Function result projection | The source `pub returned x = \\y -> returned x` succeeds and formats as `any -> any -> never`, with zero ordinary quantifiers and zero recursive bounds. The earlier Python model's matching graph output is withdrawn and is not evidence. | Oracle probe `scratch_oracle_projection_polarity_matrix` in a detached `main` worktree at `a58eefc3`; its temporary assertion inspected this source alongside the constant and identity witnesses. |
 
 ## Open rows
 
@@ -96,27 +96,15 @@ nominal-guarded productive Function cycle. These are still individual
 observations, not a proof that a parent-based graph has the same principal
 solutions.
 
-## Intrusion finite closure model
+## Retired finite Python model
 
-Added `notes/progress/2026-09-29-intrusion-finite-model.py`, a small executable
-implementation of the pure closure rules recorded in the abstract-semantics
-draft. `python3 notes/progress/2026-09-29-intrusion-finite-model.py` passes
-nineteen checks covering injective parent-renaming commutation, identity sharing,
-directed variable flow, Function polarity, invariant constructor arguments,
-shared diamond, outer capture, nominal recursion, union/intersection branches,
-one-sided root erasure/expansion in both directions, root-local projection of
-two roots sharing a variable, nested positive-only recursive Function collapse,
-and separate overlays. A non-injective quotient counterexample confirms that
-mapping distinct variables to one parent erases a directed flow edge. The
-projection checks reproduce `any -> int` for the unused-argument shape, retain
-the identity Function's bipolar variable, preserve an outer rigid variable, and
-collapse a positive-only recursive Function result to `Bottom`.
-
-This validates the local edge-transport proof sketch against its executable
-encoding and characterizes a bounded root-projection fragment. The model does
-not encode the Oracle's recursive-binder table, implement principal solutions
-or SCC member schemes, or model production inference. It does not close the
-central principality obligation.
+An earlier assistant-authored finite Python model was removed after the user
+corrected the work direction. Its nineteen checks did not run through either
+the Rust solver or the frozen Oracle, and their claimed projection/overlay
+results are withdrawn as evidence. The model did not establish its stated
+claims against implementation behavior. Preserve this paragraph only as a
+history of the discarded detour; Gate B/C evidence must come from mathematical
+proof or the actual Rust and Oracle paths.
 
 ## Root-projection renaming lemma
 

@@ -249,18 +249,11 @@ the Oracle's generalizable set, that root projection is principal, or that
 retaining both bound directions matches one-sided Oracle approximations. Those
 are separate lemmas and remain the central semantic risks.
 
-An executable characterization of this lemma lives at
-`notes/progress/2026-09-29-intrusion-finite-model.py`. Running
-`python3 notes/progress/2026-09-29-intrusion-finite-model.py` checks closure
-commutation for identity sharing, directed variable flow, Function polarity,
-invariant constructors, a shared diamond, an outer endpoint, and a nominal
-recursive edge. It also checks that a non-injective quotient loses a directed
-edge and that two separate overlays keep their rows separate. This script
-implements the rules above; it is a regression aid for the proof sketch, not an
-independent proof or a model of principal root projection. It also checks
-one-sided erasure, matching lower/upper expansion, root-local polarity, and
-positive-only recursive collapse. It does not encode the Oracle's recursive
-binder table or prove principality.
+An earlier finite Python model was removed from the active research artifacts.
+Its checks did not execute the Rust solver or the Oracle and are not evidence
+for this lemma. Closure transport is currently only the written proof sketch
+above; it still needs a Rust characterization or a complete mathematical
+argument against the defined graph rules.
 
 ### Candidate root-local polarity projection
 
@@ -283,13 +276,10 @@ generalized result per member, even though the component is solved together.
 The internal result may remain a regular graph with parent references; it need
 not copy the Oracle's closed scheme encoding. The semantic obligations are to
 preserve the root-local reachability, recursive back-references, one-sided
-extremes, and shared identity of bipolar variables. The finite model exercises
-this rule on identity, constant-function, positive-bound, negative-bound, two
-root-local views sharing a variable, and recursive Function witnesses. It
-reproduces the structural results `'a -> 'a`, `any -> int`, and
-`any -> any -> never` for the recorded identity, constant, and pure recursive
-lambda graphs. It does not encode the Oracle's recursive-binder table or prove
-principality.
+extremes, and shared identity of bipolar variables. Oracle source probes
+establish only the exact programs listed in the behavior ledger. No executable
+intrusion model currently establishes this projection rule, and it does not
+prove principality.
 
 ### Alpha-renaming commutes with the pure root projection
 
@@ -723,6 +713,42 @@ none of the projection, root-step, finalization, use, soundness, or principality
 lemmas above is proved. A two-root graph-level characterization remains useful
 as diagnostic evidence, but is not a substitute for these lemmas.
 
+### Denotation boundary and unresolved choices
+
+The closure operator in §1 is an operational propagation relation. It is not a
+type satisfaction relation: proving that parent renaming commutes with closure
+does not show that a graph has any valid solutions, that a projected view is
+principal, or that the Oracle projection preserves solutions. Keep two proof
+layers separate:
+
+1. For an already selected regular member graph, define assignments to local
+   vertices with enclosing identities held fixed, a satisfaction relation for
+   every subtype obligation, and a preorder on solutions that makes
+   “principal” precise. Prove soundness and principality of the proposed
+   projection and per-use overlays under those definitions.
+2. Prove that each Oracle root/epoch preparation corresponds to a selected
+   graph in that model, including evidence-lane decisions, failures, root
+   ordering, saved views, and use routing.
+
+The required definitions are not recoverable from the existing closure rules
+alone. A successor semantics still has to decide: (a) whether recursive types
+are interpreted as equi-recursive regular trees or by another relation; (b)
+how `Bottom`, `Top`, unions, intersections, Function variance, and nominal
+constructors are interpreted; (c) what local vertices range over and how shared
+environment anchors constrain assignments; (d) whether principality means a
+most-general factorization, a least/greatest element in a subtype preorder, or
+another property; and (e) how unguarded cycles and polarity-only recursive
+collapse fit that interpretation. No option is selected here. Oracle's
+evidence-sensitive lower-edge choice remains an operational refinement of the
+selected graph, rather than an implicit clause of type satisfaction; its
+correspondence still needs proof.
+
+This split follows the audited Oracle path: compaction creates a fresh
+projection round, lower bounds are selected through a scoped evidence query,
+and returned query errors can become a default root at the surface. Therefore
+bare graph satisfaction cannot stand in for the round-local selection and
+failure behavior.
+
 These requirements expose two characterization targets before representation
 selection: compare resulting member-root views, diagnostics, and incoming-use
 behavior at the public solve boundary through executable runs of the actual
@@ -731,9 +757,8 @@ decisions through either a trace-capable Rust harness or a separate source
 proof. Public results alone cannot expose query-round identity or selected-edge
 masks. Rust applies to executable characterization; a source proof remains a
 separate valid route for the edge-decision target. Neither route replaces the
-soundness/principality proof gate. The auxiliary
-Python finite model is historical only and will not be extended or treated as
-implementation evidence.
+soundness/principality proof gate. Previous finite Python-model results are
+retired and must not be used as characterization or implementation evidence.
 
 The Yulang2 audit found in-place level lowering in `extrude_pos` and
 `extrude_neg`, not fresh parent allocation. Therefore this candidate cannot be

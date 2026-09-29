@@ -48,8 +48,8 @@ models a candidate versioned shared graph and states a root-indexed simulation
 theorem rather than assuming one frozen snapshot or one equal internal graph.
 This candidate remains unapproved. F5's Q/R shape, closed schemes, numbering,
 and resource contract remain historical comparison points, not acceptance
-criteria. The auxiliary Python model remains historical characterization only;
-it is not implementation evidence and will not be expanded.
+criteria. The earlier auxiliary Python model has been removed from active
+artifacts; its outputs are withdrawn as evidence.
 
 The reviewed pure-F5 protocol exposed a mistaken compatibility premise and is
 retained only as historical review evidence. The new lifecycle obligations
@@ -76,8 +76,8 @@ The Rust integration map is recorded in
 `notes/progress/2026-09-29-intrusion-rust-replacement-map.md`: replacing only
 F5 draft generalization is insufficient because publication, incoming-use
 instantiation, and retained root projection are coupled. Further work should
-use the actual Rust inference path as its characterization boundary; the
-Python finite model is not implementation evidence and will not be expanded.
+use the actual Rust inference path as its characterization boundary; previous
+Python-model outputs are withdrawn and cannot establish any Gate B/C claim.
 The abstract semantics draft now records a root-local preparation protocol
 from the frozen Rust Oracle. Source review found that component roots are
 generalized sequentially, may mutate/restart at a later constraint epoch, and
@@ -109,10 +109,17 @@ simulation state to include each member root, `B_d`/fetch mode, birth levels,
 and `E_d` lookup correspondence, and to distinguish attempt-local query errors,
 terminal latches, and surface default-root continuation. The draft now records
 these obligations. Exact lifecycle observations and locators are in
-`notes/progress/2026-09-30-intrusion-root-transition-audit.md`. Next define the
-polarized denotation and principal-solution preorder, then prove projection
-congruence, ordered root-step simulation, publication/finalization, and use
-simulation. A two-root characterization remains optional diagnostic evidence.
+`notes/progress/2026-09-30-intrusion-root-transition-audit.md`; the denotation
+split and unresolved semantics are recorded in
+`notes/progress/2026-09-30-intrusion-denotation-boundary-audit.md`. The next theorem
+layer is split: define satisfaction and principality for an already-selected
+regular member graph, then prove Oracle root/epoch projection and use
+preparation produces a graph in that model. The type universe,
+recursive-type interpretation, assignment domain, and principal-solution
+order remain open; no representation decision follows yet. Next resolve these
+denotation choices, then prove projection congruence, ordered root-step
+simulation, publication/finalization, and use simulation. A two-root
+characterization remains optional diagnostic evidence.
 The first
 two focused `yu-solver` Rust-path baseline
 probes pass for current identity-Function and productive/unproductive recursion

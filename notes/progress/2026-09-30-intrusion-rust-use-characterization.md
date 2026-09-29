@@ -14,9 +14,9 @@ different Function constraints to the two use rows: `Int -> Int` and
 `(Int -> Int) -> (Int -> Int)`. Both constraints are accepted without solver
 errors and both routes are recorded.
 
-The witness runs through Rust and uses no Python model. The existing Python
-finite model remains historical characterization only; it is not expanded or
-used as evidence for this result.
+The witness runs through Rust and uses no finite model. The earlier
+assistant-authored Python model has since been removed, and its outputs are not
+evidence for this result or any other Gate B/C claim.
 
 ## Review and limits
 
