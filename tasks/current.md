@@ -22,17 +22,17 @@ capacity changes occur later and already pass through the existing
 `IncomingRoute` O(1) sample path. See the exact source audit in the
 [`shared-acyclic checkpoint`](../notes/progress/f5c-shared-acyclic-hit-mismatch-checkpoint-2026-09-29.md).
 
-Implement the fixed-size test-only ledger across every event-backed lane, plus
-the closed-type finalizer boundary and route-growth samples. Preserve checked
-per-lane, family, and global same-time current/peak totals and owner-local ID,
-slot, request, lifecycle, and transfer validation. Keep the complete sidecar
-first and prove it against the existing offline replay on a small complete
-witness; only then suppress serialization for exact non-transferring
-WalkerLane kinds 54–56 and 116. Preserve the FlatDraft kinds 12–17 trace in
-full. A fresh supervised measurement plan is required before another resource
-or scale process. The partial timed-out sidecar is not a replay input, and no
-diagnostic or matrix row may run yet. Do not claim corrected-scale completion
-until those gates close.
+Implement this gate in reviewable checkpoints. First add exact fixed-size
+online totals for all 98 WalkerLane rows, including transfer deltas, while the
+full sidecar remains enabled; compare the online lanes against offline replay
+on a small witness. Then extend the same ledger across the other event-backed
+families, compose the closed-type finalizer peak and route-growth samples, and
+prove the global same-time totals. Only after that closes, suppress serialization
+for exact non-transferring WalkerLane kinds 54–56 and 116. Preserve the
+FlatDraft kinds 12–17 trace in full throughout. The partial timed-out sidecar
+is not a replay input; no resource/scale process, diagnostic, or matrix row may
+run before the new ledger and witness receive a fresh measurement review.
+Do not claim corrected-scale completion until those gates close.
 
 ### Latest continuation (2026-09-29): raw-walker request-event coalescing
 
