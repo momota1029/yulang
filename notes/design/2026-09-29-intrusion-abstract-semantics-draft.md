@@ -1014,6 +1014,28 @@ premises or the general projection rule. This conditional correspondence does
 not establish diagnostics, later-member state, incoming-use simulation, or
 Gate C.
 
+The Oracle half follows this audited Rust path under those premises. In
+`CompactBoundMode::SchemeProjection` with negative polarity,
+`compact_var_bounds` reads the scoped view's generalized projection upper
+records and folds each compacted bound with `merge_types(false, ...)`; direct
+concrete constructors take the ordinary constructor-compaction path. Then
+`compact_var_side` merges the source variable occurrence with that result using
+negative intersection polarity. The one-polarity simplifier drops `x` only
+when the boundary/non-generic checks pass and the root, recursive-bound, and
+role occurrence census is not bipolar; `rewrite_type_vars` implements that
+`None` result by removing the occurrence. With the stipulated sole concrete
+input `U`, the retained negative argument is therefore `U`. Function
+finalization sends that argument through
+`finalize_neg_type`/`intersection_neg`, preserving the singleton `U`.
+Relevant frozen-source locators are `compact/collect/mod.rs::compact_var_bounds,
+compact_upper_bound,compact_var_side`,
+`compact/analysis/mod.rs::eliminate_polar_variables_with_roles_and_non_generic`,
+`compact/analysis/occurrence/substitution.rs::rewrite_type_vars`, and
+`compact/finalize.rs::finalize_pos_fun,finalize_neg_type,intersection_neg`.
+This path derivation does not prove that a given source program yields the
+stipulated scoped upper record or that later root steps preserve it; those stay
+explicit premises.
+
 This split follows the audited Oracle path: compaction creates a fresh
 projection round, lower bounds are selected through a scoped evidence query,
 and returned query errors can become a default root at the surface. Therefore

@@ -102,6 +102,28 @@ syntactically x-free, and finite meets include the empty meet `Top`. The result
 does not establish Oracle evidence selection or global principal-view
 representability.
 
+The Oracle's collector/finalizer path for the conditional sole-`U` case is now
+audited against frozen `a58eefc3` Rust source and independently reviewed by a
+`compiler_referee`. In negative SchemeProjection, the scoped view exposes its
+generalized upper records; the collector folds them with negative merge,
+compacts a direct concrete constructor, then merges the original `x`
+occurrence. The one-polarity pass removes `x` only when the boundary,
+non-generic, and root/recursive-bound/role polarity checks allow it. Negative
+Function argument finalization preserves the singleton concrete `U`. The
+review found no issue in this derivation for the stipulated sole-`U` fragment.
+This explains the Oracle side of that conditional path; it still assumes the
+query view contains exactly the stipulated record and later passes retain the
+result. The source program's creation of that view and saved-root stability
+remain the bridge to prove.
+
+Source locators in the frozen checkout: `compact/collect/mod.rs:166-183,
+746-782,816-846,952-976,1132-1155`,
+`constraints/structural_kernel/access/legacy_read_view.rs:225-235`,
+`compact/analysis/mod.rs:41-58,506-513`,
+`compact/analysis/occurrence/substitution.rs:109-130`,
+`compact/finalize.rs:136-176,415-425,802-825`, and
+`compact/collect/type_nodes.rs:104-119,175-190`.
+
 An attempted scratch Rust source-path probe for a nested captured polymorphic
 function application, `pub outer(f: 'a -> 'b) = my inner x = f x; inner`, did
 not complete. In an isolated detached worktree at frozen Oracle `a58eefc3`,
@@ -115,8 +137,9 @@ do not use it as a fixture or repeat it without a bounded execution plan.
 
 ## Next action
 
-Prove that the Oracle's scoped evidence query and `compact_var_side` produce the
-selected-edge graph and upper-endpoint meet for the restricted pure fragment,
-including the exact saved-root stage. Then extend the graph class to anchored
+Prove that ordinary source constraints produce exactly the stipulated scoped
+upper-record view, and that root restarts and post-loop passes preserve the
+saved singleton-`U` argument. The existing `expect`/`k` source probe confirms one
+`U = Int` instance, not the graph class. Then extend the graph class to anchored
 or shared endpoints. The general denotation, ordered root simulation, use
 simulation, and implementation gates remain open.
