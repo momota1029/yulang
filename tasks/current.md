@@ -23,17 +23,18 @@ capacity changes occur later and already pass through the existing
 [`shared-acyclic checkpoint`](../notes/progress/f5c-shared-acyclic-hit-mismatch-checkpoint-2026-09-29.md).
 
 Implement this gate in reviewable checkpoints. The fixed-size online shadow
-now covers 98 WalkerLane, 20 ComponentMemoLane, and 7 InstantiationLane rows,
-with a checked 125-row same-time subtotal and raw plus six-buffer same-ID
-transfer coverage; the full sidecar remains enabled. Next extend the ledger
-across the other event-backed families, compose the closed-type finalizer peak
-and route-growth samples, and prove the global same-time totals. Only after
-that closes, suppress serialization for exact non-transferring WalkerLane
-kinds 54–56 and 116. Preserve the FlatDraft kinds 12–17 trace in full
-throughout. The partial timed-out sidecar is not a replay input; no
-resource/scale process, diagnostic, or matrix row may run before the composed
-ledger and witness receive a fresh measurement review. Do not claim
-corrected-scale completion until those gates close.
+now covers 98 WalkerLane, 20 ComponentMemoLane, 6 TermLane, and 7
+InstantiationLane rows, with a checked 131-row same-time subtotal, raw and
+six-buffer same-ID transfer coverage, and six TermLane same-ID transfers; the
+full sidecar remains enabled. Next extend the ledger across event-backed
+families 1, 3, and 5 plus the remaining family-6 source and staged rows, then
+compose the closed-type finalizer peak and route-growth samples and prove the
+global same-time totals. Only after that closes, suppress serialization for
+exact non-transferring WalkerLane kinds 54–56 and 116. Preserve the FlatDraft
+kinds 12–17 trace in full throughout. The partial timed-out sidecar is not a
+replay input; no resource/scale process, diagnostic, or matrix row may run
+before the composed ledger and witness receive a fresh measurement review. Do
+not claim corrected-scale completion until those gates close.
 
 ### Latest continuation (2026-09-29): WalkerLane online-shadow witness
 

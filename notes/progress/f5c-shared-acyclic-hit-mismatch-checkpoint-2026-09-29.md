@@ -529,3 +529,42 @@ now 4,032 bytes per thread; its transfer-copy cost must be included using
 observed transfer counts and copied bytes in the next measurement plan.
 Families 1–3 and 5–7, remaining family-6 source/staged rows, and closed-type/
 route composition remain open; do not suppress events or begin scale work yet.
+
+### 2026-09-29 family-2 online-ledger extension
+
+The fixed online shadow now includes all six family-2 `TermLane` rows (kinds
+571–576). Actual `BranchTermArena` CREATE/GROW/RELEASE hooks update each exact
+lane and the checked joint current/peak; request-only SHAPE and same-kind
+transfer leave capacity unchanged. The complete witness grows every lane—the
+page backing, descriptor vector, page-position map, interner, and both
+route-journal vectors—records the family-2 checkpoint, emits all six same-ID
+solved-store transfer markers, and releases every owner. The Python replay
+validates checkpoint totals, transferred identities and shapes, releases, all
+131 exact rows, the joint subtotal, and the existing six FlatDraft transfers.
+
+Selected M2 for shared-ledger conformance and transfer-copy cost. The prewrite
+`spec_auditor` confirmed the six lanes and checkpoint/identity ordering. The
+postwrite `spec_auditor` found no blocking or major issue; its minor
+standalone-checker gap was closed by requiring positive current capacity in all
+six lanes at the family-2 checkpoint. The `performance_auditor` found bounded
+probe-only overhead and no timing decision requiring measurement now. The
+state is 4,224 bytes per thread: each atomic WalkerLane transfer copies a
+4,224-byte ledger (+192 bytes from the previous 125-row state, or +384 bytes
+read/write traffic). The fresh scale plan must record observed transfer count
+and account for `4,224 * transfers` copied bytes (`8,448 * transfers` when
+counting reads and writes).
+
+The feature-enabled focused witness, complete 133-event replay, Python syntax
+compilation, and `git diff --check` passed. Successful commands:
+
+```text
+RUSTC_WRAPPER= cargo test -p yu-solver --features f5c_resource_probe f5c_walker_online_shadow_witness --offline -j 2 -- --nocapture
+F5C_WALKER_SHADOW_SIDECAR=/tmp/f5c-family2-witness.bin F5C_WALKER_SHADOW_TOTALS=/tmp/f5c-family2-witness.txt RUSTC_WRAPPER= cargo test -p yu-solver --features f5c_resource_probe f5c_walker_online_shadow_witness --offline -j 2 -- --nocapture
+python3 tools/check_f5c_resource_matrix.py --walker-shadow-witness /tmp/f5c-family2-witness.bin --walker-shadow-totals /tmp/f5c-family2-witness.txt
+python3 -m py_compile tools/check_f5c_resource_matrix.py
+git diff --check
+```
+
+No scale/resource process, diagnostic, or matrix row ran. Families 1, 3, 5,
+remaining family-6 source/staged rows, closed-type/route composition,
+serialization suppression, and corrected-scale evidence remain open.

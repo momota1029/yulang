@@ -1452,7 +1452,7 @@ fn f5c_walker_online_shadow_witness() {
         negative.observe(1, 2);
         retained.observe(1, 2);
         ordinary.observe(2, 4);
-        let (_, _, _, simultaneous) = crate::f5c_draft_heap::f5c_walker_shadow_totals();
+        let (_, _, _, _, simultaneous) = crate::f5c_draft_heap::f5c_walker_shadow_totals();
         assert_eq!((simultaneous.current_capacity, simultaneous.current_bytes), (68, 538));
         comparison.observe(3, 4); // Request-only update keeps the owner shape.
         negative.observe(0, 0);
@@ -1476,30 +1476,43 @@ fn f5c_walker_online_shadow_witness() {
         for owner in &mut staged_owners {
             owner.observe(1, 2);
         }
-        let (before_transfer, _, _, _) = crate::f5c_draft_heap::f5c_walker_shadow_totals();
+        let (before_transfer, _, _, _, _) = crate::f5c_draft_heap::f5c_walker_shadow_totals();
         assert!(before_transfer[2..8].iter().all(|lane| lane.current_capacity == 2));
         let staged = meter.claim_existing_batch_with_owners(bytes, 0, &mut staged_owners,
             requested, capacities, sizes).expect("flat draft owner transfer failed");
-        let (after_transfer, _, _, _) = crate::f5c_draft_heap::f5c_walker_shadow_totals();
+        let (after_transfer, _, _, _, _) = crate::f5c_draft_heap::f5c_walker_shadow_totals();
         assert!(after_transfer[2..8].iter().all(|lane| lane.current_capacity == 0));
         drop(staged_owners);
         drop(staged);
+        let lineage = crate::term::TermBuilder::new().unwrap().seal().unwrap();
+        let mut terms = crate::term::BranchTermArena::new(lineage);
+        terms.begin_route();
+        terms.live_variable(crate::ComponentKind::Value, crate::Polarity::Positive, 1).unwrap();
+        terms.commit_route();
+        let term_lanes = terms.independent_owner_lanes().unwrap();
+        assert!(term_lanes.capacities.iter().all(|capacity| *capacity > 0));
+        let (term_capacity, term_bytes, _) = crate::f5c_draft_heap::term_event_totals();
+        crate::f5c_draft_heap::checkpoint_term_events(term_capacity, term_bytes);
+        terms.transfer_owner_events_to_solved_store();
+        drop(terms);
         drop(memo);
         drop(instantiation);
         drop(ordinary);
         drop(comparison);
         drop(positive);
         drop(negative);
-        let (lanes, component_lanes, instantiation_lanes, combined) = crate::f5c_draft_heap::f5c_walker_shadow_totals();
+        let (lanes, component_lanes, term_lanes, instantiation_lanes, combined) = crate::f5c_draft_heap::f5c_walker_shadow_totals();
         assert_eq!((lanes[116 - 32].current_capacity, combined.current_bytes), (2, 32));
         assert!(component_lanes.iter().all(|lane| lane.current_capacity == 0));
+        assert!(term_lanes.iter().all(|lane| lane.current_capacity == 0));
         assert!(instantiation_lanes.iter().all(|lane| lane.current_capacity == 0));
         drop(retained);
     }
-    let (lanes, component_lanes, instantiation_lanes, combined) = crate::f5c_draft_heap::f5c_walker_shadow_totals();
+    let (lanes, component_lanes, term_lanes, instantiation_lanes, combined) = crate::f5c_draft_heap::f5c_walker_shadow_totals();
     assert_eq!((combined.current_capacity, combined.current_bytes), (0, 0));
     assert!(combined.peak_bytes >= 480);
     assert!(component_lanes.iter().all(|lane| lane.peak_capacity > 0));
+    assert!(term_lanes.iter().all(|lane| lane.peak_capacity > 0));
     assert!(instantiation_lanes.iter().all(|lane| lane.peak_capacity > 0));
     let (count, checksum) = crate::f5c_draft_heap::close_f5c_resource_events().unwrap();
     if let Some(path) = std::env::var_os("F5C_WALKER_SHADOW_TOTALS") {
@@ -1511,6 +1524,10 @@ fn f5c_walker_online_shadow_witness() {
         }
         for (lane, totals) in component_lanes.iter().enumerate() {
             writeln!(output, "{} {} {} {} {}", lane + 551, totals.current_capacity,
+                totals.peak_capacity, totals.current_bytes, totals.peak_bytes).unwrap();
+        }
+        for (lane, totals) in term_lanes.iter().enumerate() {
+            writeln!(output, "{} {} {} {} {}", lane + 571, totals.current_capacity,
                 totals.peak_capacity, totals.current_bytes, totals.peak_bytes).unwrap();
         }
         for (lane, totals) in instantiation_lanes.iter().enumerate() {
