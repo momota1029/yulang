@@ -17,11 +17,41 @@ a soundness/principality result. F5 closed schemes are not the target.
 ## 1. Initial graph class
 
 Start with finite regular graphs: cycles are represented by back-edges, never by
-unfolding. The first proof fragment contains only `Bottom`, `Top`, atomic
-constructors, variables, and polarized Functions. Function arguments reverse
-polarity; results preserve it. Records and tuples may be added as covariant
-products after the core lemmas. Effects, rows, methods, role constraints, and
-handler hygiene are outside this fragment.
+unfolding. The narrow graph fragment currently written below contains only
+`Bottom`, `Top`, atomic constructors, variables, and polarized Functions.
+Function arguments reverse polarity; results preserve it. It excludes effects,
+rows, methods, role constraints, and handler hygiene. This is a graph-level
+candidate only: source Function schemes also carry latent effect identities,
+which can be forced and freshened even when the source has no explicit effect
+syntax. Thus the fragment cannot yet claim source-level Oracle parity for the
+Function fixtures.
+
+The recorded source characterization programs use top-level `pub`
+definitions, sequential local `my` bindings where name resolution succeeds,
+mutually recursive top-level definitions, variables, integer literals,
+single-parameter backslash lambdas, expression application, finite tuples,
+records, and the unary nominal constructor `wrap` declared as
+`struct wrap 'a { value: 'a }`. The identity/two-use, captured-diamond, pure
+Function unproductive-cycle, and nominal-guarded two-member SCC with three
+incoming uses are exact Oracle observations, but they do not all inhabit the
+narrow graph fragment: the diamond needs tuple/record closure, the guarded SCC
+needs nominal closure, and Function source observations need latent effect
+behavior. They remain characterization fixtures, not evidence that the
+fragment covers those cases. Annotations, imports, arbitrary nominal families,
+explicit effects, handlers, stacks, rows, methods, variants, roles/casts, and
+failed local forward references are outside this source characterization set.
+
+Expanding the theorem to cover these source fixtures requires product subtype
+rules for tuple arity and record fields, nominal constructor compatibility and
+variance, a guardedness predicate with recursive interval-bound semantics, and
+a model of the latent effect identities that affect Oracle observations. Those
+rules and their closure/renaming lemmas are not specified here. The exact
+source/event alphabet and public observation normalization also remain open.
+Current Yulang3 HIR has no application node and rejects the identity witness's
+lambda/application path, so its Rust path cannot yet establish source-level
+parity. Graph-level characterization and source-level Oracle parity must be
+reported separately until both a lowering bridge and the required semantic
+extensions are defined and proved.
 
 The graph has two kinds of identity:
 
@@ -31,9 +61,10 @@ The graph has two kinds of identity:
   that graph at a generalization boundary.
 
 An edge occurrence records a polarized type endpoint, its direction, stable
-source/proof identity, and any weight annotation. An endpoint is a constant, a
-constructor applied to endpoints, a Function of endpoints, or a reference to a
-type vertex. A lower edge records `endpoint <: vertex`; an upper edge records
+source/proof identity, and any weight annotation. An endpoint is a constant, an
+application of a constructor admitted by the selected graph fragment to
+endpoints, a Function of endpoints, or a reference to a type vertex. A lower
+edge records `endpoint <: vertex`; an upper edge records
 `vertex <: endpoint`. Which lower occurrences are eligible for a scheme root
 is a separate evidence-sensitive projection decision; it is not implied by
 mere presence in the structural bound graph. The initial graph `G₀` is the
@@ -71,12 +102,16 @@ Functions, `Fun⁺(a⁻, r⁺) <: Fun⁻(a⁺, r⁻)` adds `a⁺ <: a⁻` and `r
 the argument obligation reverses direction and the result obligation keeps it.
 For the finite core used here, `Bottom <: n` and `p <: Top` close immediately;
 `(p₁ ∪ p₂) <: n` adds both branch obligations; `p <: (n₁ ∩ n₂)` adds both
-upper-branch obligations; and equal nominal constructor heads add the
-declared invariant argument obligations. Mismatched nominal heads and all
-effect/row cases are excluded from this first graph class.
+upper-branch obligations. Mismatched constructors and all effect/row cases are
+excluded from this first graph class.
 This records the Oracle's operational constraint relation for the fragment,
 not a denotational model of all possible runtime types. The source audit and
 the SCC scheduling observations are recorded in the behavior ledger.
+
+Outside that candidate fragment, the Oracle also decomposes equal nominal
+constructor heads according to declared argument variance; the observed
+`wrap` fixture uses an invariant argument. This is a source characterization,
+not a rule currently covered by the candidate closure or renaming lemmas.
 
 The candidate intrusion proof must show that parent/overlay construction
 preserves this closure relation after projecting each component root. It must

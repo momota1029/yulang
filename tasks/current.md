@@ -72,11 +72,17 @@ on `yulang3` have consumed their authorized runs. A candidate observation
 interface now compares complete source-induced contexts through machine-
 specific lowerings, with internal error/fallback traces separated from public
 results; independent semantic and charter reviews closed the initial relation
-scope findings. The immediate work is to define the supported source/event
-envelope and public type/diagnostic normalization, then prove the lowerings and
-root-indexed state simulation. The existing injective graph-transport lemma
-remains conditional, and recursive subtype observations are still only
-focused Oracle characterizations. The
+scope findings. Review rejected the first fixture-complete source envelope:
+latent Function effect identities, tuple/record subtype rules, and guarded
+recursive interval semantics are missing from the effect-free graph fragment.
+The draft now separates graph-level candidate claims from source
+characterization fixtures and records the current Yulang3 application/lambda
+lowering gap. The immediate work is to choose the first theorem boundary, then
+specify its event lowering and public type/diagnostic normalization before
+proving the root-indexed state simulation. The existing injective
+graph-transport lemma remains conditional, and recursive subtype observations
+are still only focused Oracle characterizations. Details are in
+`notes/progress/2026-09-30-intrusion-source-envelope-review.md`. The
 unselected graph-boundary operation keeps the SCC graph authoritative and
 maps source-local identities through member-owned ports to fresh per-use IDs,
 while resolving preserved identities through injective shared anchors. A
