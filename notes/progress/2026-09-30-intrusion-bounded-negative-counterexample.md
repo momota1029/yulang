@@ -524,3 +524,30 @@ establish graph-selection completeness or Oracle principality. The
 `compiler_referee` delta review is limited to the finite value-projection
 derivation and these evidence limits; it found no blocking, major, or minor
 finding and confirmed the forced-quantifier distinction.
+
+## Forced effect quantifier use-map characterization (2026-09-30)
+
+In a separate isolated detached probe worktree at frozen Oracle commit
+`a58eefc3`, a temporary Rust test obtained the finalized `inner` scheme and
+called `instantiate_scheme` twice into one fresh inference arena. The test
+passed:
+
+```text
+CARGO_TARGET_DIR=/tmp/yulang-intrusion-oracle-target \
+  cargo test -p infer scratch_intrusion_forced_effect_quantifier_freshens_per_instantiation -- --nocapture
+```
+
+The scheme contains only forced quantifier `TypeVar(21)`. Its result-effect
+occurrence is fresh per call: first instance uses `TypeVar(0)`, second uses
+`TypeVar(1)`. The other eleven result-effect TypeVars are identical across
+both instances (`23,39,28,25,29,37,33,30,34,31,35`), matching
+`instantiate.rs::SchemeInstantiator`'s per-instance memoized map for
+quantified variables while leaving unquantified variables anchored. This is a
+direct scheme-API characterization, not a pair of source-level incoming uses.
+For the unannotated parent in this fixture, the lowering path suppresses the
+saved local scheme when forced quantifiers are present and keeps local reads on
+the live value. An annotated parent takes a different branch and may retain the
+scheme. A source fixture exercising two independent incoming uses of this same
+local scheme is still missing. Effect subtype denotation and transport through
+SCC publication are also open. The scratch test and instrumentation were
+removed with the isolated worktree; frozen Oracle remains unchanged.

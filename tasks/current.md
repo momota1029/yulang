@@ -93,9 +93,13 @@ replay-qualified. A focused temporary Rust-path capture now shows the saved
 compact value argument/result have these conditional meet/join projections,
 while the result-effect row remains outside the graph theorem; lowering adds
 one forced effect quantifier. Next include the effect constraints and choose a
-polymorphic fixture for independent-use transport. The finite projection and
-its evidence limits passed one compiler-referee delta review. Details and
-review limits are in
+polymorphic fixture for independent-use transport. A focused Rust test also
+shows the forced effect quantifier freshens while eleven unquantified effect
+identities remain shared across two direct scheme instantiations; source-level
+incoming uses and full effect denotation remain open. For unannotated parent
+bindings, local reads keep the live value when forced quantifiers are present.
+The finite projection
+passed one compiler-referee delta review. Details and review limits are in
 `notes/progress/2026-09-30-intrusion-bounded-negative-counterexample.md`.
 The Rust integration map is recorded in
 `notes/progress/2026-09-29-intrusion-rust-replacement-map.md`: replacing only
