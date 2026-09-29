@@ -841,6 +841,33 @@ anchor; and the guarded recursive Function fixture must be representable with
 its recursive assignment fresh per use. A candidate carrier/order that fails
 any of these observations cannot satisfy the Oracle target.
 
+**Unconstrained negative-parameter lemma.** A small erasure case follows from
+the candidate relation. Assume `D` has a greatest element `Top` and a Function
+constructor with the usual subtyping law:
+
+```text
+Arr(A, R) ≤ Arr(A', R')  iff  A' ≤ A and R ≤ R'
+```
+
+For fixed result `R` and an otherwise unconstrained local argument variable
+`x`,
+
+```text
+↑{ Arr(A, R) | A in D } = ↑{ Arr(Top, R) }
+```
+
+For every `A`, `A ≤ Top`, so contravariance gives `Arr(Top, R) ≤ Arr(A, R)`;
+therefore every member of the left generator set is in the right upward
+closure. Conversely, assigning `x = Top` is allowed by the unconstrained
+premise, so `Arr(Top, R)` is in the left generator set. Taking upward closures
+proves equality. Thus the candidate principality criterion explains the
+`Top` erasure of a truly unconstrained negative-only argument, such as the
+observed shape `any -> int`. The behavior ledger records that rendered Oracle
+result, but does not by itself establish that this exact prepared graph has no
+additional obligations. If `x` has bounds, shares another occurrence, or is
+anchored in `E_d`, this lemma does not apply; the general `Erase_d` rule remains
+unproved.
+
 This split follows the audited Oracle path: compaction creates a fresh
 projection round, lower bounds are selected through a scoped evidence query,
 and returned query errors can become a default root at the surface. Therefore

@@ -120,8 +120,12 @@ closure of root values from satisfying local assignments, fibered over fixed
 environment assignments. The multi-use relation retains each use's root result
 and use-site constraints, with disjoint local assignments under one shared
 environment assignment. The carrier, subtype order, and finite-scheme
-representability remain open. Next resolve these denotation choices, prove
-erasure/projection correctness, then ordered root-step simulation,
+representability remain open. A conditional lemma proves `Top` erasure for an
+unconstrained negative-only Function argument under greatest-Top and
+contravariant Function assumptions; the Oracle's `any -> int` fixture is
+explained only if its prepared graph meets that premise. Next establish the
+exact carrier and source graph, then prove general erasure/projection
+correctness and ordered root-step simulation,
 publication/finalization, and use simulation. A two-root characterization
 remains optional diagnostic evidence. A conditional lemma now shows that
 injective fresh-parent renaming bijects solution assignments when finite
