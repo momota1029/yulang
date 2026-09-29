@@ -1406,6 +1406,70 @@ invariant, source-lowering relation, effect/product/recursive interval
 semantics, and public type normalization remain unresolved, so this is still a
 proposed proof shape rather than a Gate C theorem.
 
+**Candidate staged run signatures (unselected).** To expose deferred behavior
+without conflating it with pure subtype failure, factor the machine-specific
+run into three judgments:
+
+```text
+Lower_X(P) = (C_X, M_X, E0_X)
+Infer_X(S0_X, C_X, M_X) = InferReady_X(...) | InferStopped_X(...)
+Spec_X(S_X, Views_X, Ledger_X, M_X) = SpecDone_X(...) | SpecStopped_X(...)
+Observe_X(E0_X, M_X, Trace_X, Outcome_X) = Public_X
+Run_X(S0_X, Lower_X(P)) = (Trace_X, Public_X)
+```
+
+Here `S_X` must retain value and effect bounds, weighted row residuals,
+projection/evidence state, and the shared SCC graph. `Views_X` contains the
+ordered saved member results from their actual root epochs. `Ledger_X` is an
+identity-bearing proof ledger, not a claim that the Oracle emits these records:
+it retains checks whose result is decided after inference, including tuple
+arity and missing/optionality-sensitive record-field checks. Nominal path
+differences retain a distinct `NominalCastNeeded` route; they are not inserted
+into the pure mismatch set `X`. Weighted effect-row residuals remain inference
+state/evidence and cannot be reduced to plain set-valued effect bounds. Each
+tag's exact payload and which later phase consumes it remain to be specified
+from Oracle behavior. `M_X` is threaded through inference, specialization, and
+observation so machine-local events can be related to common source sites;
+generated records and their ordinals remain machine-specific.
+
+`InferReady_X` means that ordered root preparation completed, all member
+results have crossed the finalization/publication boundary, and external
+incoming uses may proceed after the all-member visibility barrier. The
+inference trace must retain the Oracle-related order among root collection,
+slot insertion, and finalization; this signature does not impose a new
+intra-barrier write order. `InferStopped_X` carries its terminal outcome and
+trace when no specialization input exists. `SpecDone_X` and `SpecStopped_X`
+distinguish successful specialization from rejection; the outcome must retain
+whatever published/export state the Oracle exposes on failure. A handled
+default-root fallback is an inference trace event and may continue to either
+inference outcome. Thus specialization is never called after a terminal
+inference stop.
+
+`TraceInfer_X` records root attempts/restarts, ordered projection evidence,
+root finalization/publication, member visibility barriers, internal live-root
+uses, and incoming-use freshening/insertion. `TraceSpec_X` records
+specialization decisions and outputs. `Trace_X` is the ordered concatenation
+of the phases that actually ran. `Observe_X` extracts only the public status,
+diagnostics in emitted order, and exported type observations; it must preserve
+source locations and semantic payload when the Oracle exposes them. The
+signatures are interfaces, not operational definitions: in particular, no
+public type normalizer or exact diagnostic projection is selected here.
+
+`Run_X` uses a case split: on `InferStopped_X`, it observes the inference trace
+and terminal state directly; on `InferReady_X`, it runs `Spec_X` and observes
+both traces plus the tagged specialization outcome. This is how the candidate
+relation represents inference failure, handled fallback, specialization
+rejection, and success without collapsing them into one error state.
+
+The phase-preserving simulation lemma should be rooted at one ordered member
+step. Related pre-root states must yield related evidence selections and
+outcomes; restarts and bounded post-loop mutations must produce related saved
+views and successor states, or the corresponding error/fallback continuation.
+Induction over member roots then establishes the all-member publication state;
+separate lemmas cover incoming uses, specialization, and public observation.
+This remains a proof obligation, not a theorem. It does not narrow the source
+envelope or authorize an implementation choice.
+
 For proof debugging, one may additionally record a non-public graph witness:
 `BoundReach_X(P)` contains positive and negative bound reachability at
 requested use roots and preserved outer anchors after the corresponding use

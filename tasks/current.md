@@ -100,13 +100,19 @@ as inequality endpoints, and has a conditional renaming-commutation proof. It
 is not a denotation or Oracle adequacy result. The pure-fragment mismatch set
 cannot be reused globally: Oracle defers tuple arity and missing required
 record checks to specialization, and nominal path differences route through
-`NominalCastNeeded`. The next formalization gives distinct judgments to
-inference saturation, deferred specialization checks, and final ordered public
-observations, then extends them to latent-effect bounds, products, records,
-nominal recursive intervals, constrained negative projection, and
-annotation-dependent local scheme routing. Oracle source/root simulation and
-public type normalization remain open. See
+`NominalCastNeeded`. Candidate `Lower -> Infer -> Spec -> Observe` signatures
+are now independently reviewed, with tagged terminal outcomes, handled
+fallback, a source-site map threaded through phases, and a deferred proof
+ledger that is not mistaken for Oracle-emitted records. Root finalization and
+the publication barrier sit inside inference; its trace preserves the Oracle-
+related order without imposing a new write schedule. Exact outcome payloads
+and public normalization remain unselected. Next define tags from Oracle
+events, especially weighted effect-row residuals, specialization checks, and
+cast routing, then state the one-root transition simulation. Oracle
+source/root adequacy remains open. See
 `notes/progress/2026-09-30-intrusion-finite-saturation-review.md`. The
+interface review is recorded in
+`notes/progress/2026-09-30-intrusion-staged-run-interface-review.md`. The
 Oracle's Function/tuple/record/nominal/effect rules and the Yulang3 replacement
 boundary are mapped in
 `notes/progress/2026-09-30-intrusion-structural-rule-and-implementation-map.md`.
