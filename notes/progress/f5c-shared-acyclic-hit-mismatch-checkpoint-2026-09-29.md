@@ -426,10 +426,41 @@ and remains independent from production counters. A four-kind-only aggregate
 cannot preserve cross-family same-time peaks. Full identity evidence for the
 FlatDraft kinds 12–17 transfer remains intact.
 
-Next gate: selected M2. Obtain a `spec_auditor` review of the online ledger
-invariants and a `performance_auditor` review of its cost/sidecar reduction;
-then implement the smallest sound observer slice, prove it against the old
-offline replay on a small complete witness, and obtain a fresh process budget.
-No solver process, replay, K=4,000 diagnostic, or matrix row is currently
-authorized. The user's standing time/memory authorization does not remove this
-review gate.
+The pre-write M2 reviews have closed. Implement the smallest sound online
+observer slice, prove it against the old offline replay on a small complete
+witness, and obtain a fresh process budget before any resource/scale process.
+The partial sidecar is not a replay input. The user's standing time/memory
+authorization does not remove this evidence gate.
+
+### 2026-09-29 architecture scope clarification
+
+The M2 pre-write reviews found that an online ledger must observe every owner
+transition in one order; a ledger for only kinds 54–56 and 116 loses peaks
+where those lanes overlap other families. The performance review found those
+four kinds account for 5,496,399 of 5,502,335 complete records in the isolated
+partial trace (about 99.89%), while retained kind 116 data remains real solver
+memory. The `spec_auditor` confirmed the targeted suppression is within §§26/34
+and limited it to those exact non-transferring WalkerLane kinds; FlatDraft
+kinds 12–17 and transfer-capable owners retain full identity traces.
+
+An `architect` then adjudicated the missing event coverage. §§26/34 require all
+eight resource families and exact aggregate peaks, so the sidecar's event-backed
+lanes alone cannot be called global. The closed-type family (matrix rows 65–100)
+stays under `yu-types`' existing independent probe; merge its exact per-call
+aggregate peak with the frozen solver-lane current at the synchronous indexed
+finalizer boundary. A source audit traced the sole F5c indexed call at
+`crates/yu-solver/src/lib.rs:13755–13771`: the final indexed-mapping sample
+precedes the call, the callee borrows only the finalization state and immutable
+indexed input, and solver owner mutations resume only after the finalizer peak
+is recorded. The existing route-store/use lane sampler handles rows 255–260 at
+their later `IncomingRoute` growth samples, outside that frozen interval. This
+proves the boundary composition for indexed F5c finalization only; it does not
+cover unrelated boxed finalizer closures or external concurrent mutation.
+
+Implementation sequence: first add the fixed-size online ledger as a shadow
+beside the full sidecar and prove exact reconciliation on one small complete
+witness. Then enable exact-kind serialization suppression and update sidecar
+count/checksum and checker reconciliation. No additional process budget is set;
+the focused witness is allowed, while resource/scale processes, partial-sidecar
+replay, the diagnostic, and matrix rows remain gated on a fresh performance
+plan after the online evidence closes.

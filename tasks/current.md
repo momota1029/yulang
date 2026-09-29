@@ -12,19 +12,27 @@ they represent repeated short-lived walk vectors and retained reentry paths.
 The exact run evidence and owner attribution are in the
 [`shared-acyclic checkpoint`](../notes/progress/f5c-shared-acyclic-hit-mismatch-checkpoint-2026-09-29.md).
 
-The next gate is M2, with `spec_auditor` checking evidence conformance and
-`performance_auditor` checking observer cost. Review a fixed-size test-only
-online ledger that observes every physical lane transition, preserves checked
-per-lane and global same-time current/peak totals, and keeps owner identity,
-slot, request, lifecycle, and transfer validation. Candidate raw sidecar
-identity suppression is limited to non-transferring WalkerLane kinds 54–56 and
-116; preserve the FlatDraft kinds 12–17 trace in full. First prove the online
-aggregates against the existing offline replay on a small complete witness.
-Then obtain a fresh supervised measurement plan before starting another
-resource or scale process. A focused in-memory/offline witness is part of the
-online-ledger gate; the partial timed-out sidecar, diagnostics, and matrix rows
-are not authorized for replay/execution. Do not claim corrected-scale
-completion until those gates close.
+The M2 pre-write `spec_auditor` and `performance_auditor` reviews allow the
+observer change under §§26/34. The `architect` confirmed that a sidecar-only
+sum would omit closed-type lanes 65–100 and route rows 255–260. The indexed
+`yu-types` finalizer runs synchronously while all other solver capacities stay
+fixed; its existing per-lane snapshot and per-call peak can therefore be
+combined with the fixed online ledger at `record_flat_finalizer_peak`. Route
+capacity changes occur later and already pass through the existing
+`IncomingRoute` O(1) sample path. See the exact source audit in the
+[`shared-acyclic checkpoint`](../notes/progress/f5c-shared-acyclic-hit-mismatch-checkpoint-2026-09-29.md).
+
+Implement the fixed-size test-only ledger across every event-backed lane, plus
+the closed-type finalizer boundary and route-growth samples. Preserve checked
+per-lane, family, and global same-time current/peak totals and owner-local ID,
+slot, request, lifecycle, and transfer validation. Keep the complete sidecar
+first and prove it against the existing offline replay on a small complete
+witness; only then suppress serialization for exact non-transferring
+WalkerLane kinds 54–56 and 116. Preserve the FlatDraft kinds 12–17 trace in
+full. A fresh supervised measurement plan is required before another resource
+or scale process. The partial timed-out sidecar is not a replay input, and no
+diagnostic or matrix row may run yet. Do not claim corrected-scale completion
+until those gates close.
 
 ### Latest continuation (2026-09-29): raw-walker request-event coalescing
 
