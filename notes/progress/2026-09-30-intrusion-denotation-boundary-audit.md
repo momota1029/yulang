@@ -22,6 +22,17 @@ An independent architecture review recommends splitting the next proof work:
    failure handling, root ordering, finalization, and incoming uses produce a
    graph covered by that mathematical model.
 
+The draft now proposes principality as exact equality between a member scheme's
+instantiation-and-subsumption relation and the upward closure of root values
+realized by satisfying local assignments, for each fixed environment
+assignment. The multi-use relation includes each root result and use-site
+constraint, uses a separate local assignment per use, and shares the environment
+assignment. This is a candidate criterion, not a theorem; finite-scheme
+representability and one-sided erasure remain open. The draft now names
+identity correlation, `Top` erasure for `any -> int`, independent Q/R with
+shared B, and fresh guarded-recursive assignments as concrete Oracle checks
+for the criterion, without treating those fixtures as proof.
+
 The required choices remain unresolved: regular-recursion interpretation;
 meaning of `Bottom`, `Top`, unions, intersections, Functions, and nominal
 constructors; assignment domain and environment-anchor semantics; the exact

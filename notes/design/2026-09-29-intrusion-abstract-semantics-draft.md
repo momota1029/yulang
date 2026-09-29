@@ -781,6 +781,66 @@ lower and upper bounds, and reinstalls them as subtype constraints. This
 operational fact constrains the implementation comparison but does not choose
 the denotational interpretation of recursive solutions.
 
+**Candidate principality criterion.** Once a carrier `D` and subtype preorder
+`≤` have been fixed, a saved member view `H_d` and environment assignment `eta`
+induce the set of root types realized by satisfying local assignments:
+
+```text
+Root_d(eta) = {
+    eval(root_d, eta, nu)
+    | nu assigns H_d's local vertices and satisfies every selected obligation
+}
+Pred_d(eta) = { T in D | exists t in Root_d(eta): t ≤ T }
+```
+
+The upward closure is appropriate if the public typing relation admits
+ordinary subsumption, where a root type may be used at any supertype; matching
+that rule to the Oracle remains an obligation. A finite member scheme `S_d` is
+principal under this candidate when its instantiation-and-subsumption relation
+at every admissible `eta` is exactly `Pred_d(eta)`. This states soundness and
+completeness together, rather than
+assuming that the projected graph is principal because it is finite. The
+definition remains conditional: `D`, `≤`, `eval`, admissible environments, and
+the denotation of scheme instantiation are not yet fixed, and it has not been
+shown that a finite regular scheme can represent `Pred_d`.
+
+For several incoming uses, the environment assignment `eta` is shared while
+each use gets an independent assignment to the member's local generalized and
+recursive identities. Let `Use_u(t, eta)` be the constraints and observations
+at incoming use `u` after receiving root value `t`; let `Shared(eta)` encode the
+pre-existing shared-environment constraints. The joint relation must retain
+the use-site obligations and root results:
+
+```text
+exists eta . Shared(eta) and
+  for every u, exists nu_u, t_u .
+    Member(H_d, eta, nu_u) and
+    t_u = eval(root_d, eta, nu_u) and
+    Use_u(t_u, eta)
+```
+
+Each `nu_u` assigns that use's disjoint fresh identities for the member's local
+generalized and recursive variables. When checking a particular environment
+fiber, `eta` is fixed and its existential quantifier is omitted. A single
+shared `eta` permits use constraints to interact through environment variables;
+distinct local assignments prevent direct local-variable sharing. This matches
+the Oracle fixture where Q/R identities are fresh per use and imported B
+identities are shared, but does not prove equality with that fixture's use
+relation. `Member(H_d, eta, nu_u)` abbreviates satisfaction of every selected
+obligation in the saved view under those assignments. One-sided erasure also
+remains open: the observed `any -> int`
+requires proving, under the chosen order and Function interpretation, that
+replacing a negative-only local variable by `Top` preserves `Pred_d`; that
+equality does not follow from closure or renaming transport.
+
+The Oracle ledger gives concrete checks for this candidate, not proofs of it:
+the identity root must retain one correlated argument/result assignment; the
+constant-function root must satisfy the `Top` erasure equation above; imported
+uses must choose independent Q/R assignments while sharing the imported B
+anchor; and the guarded recursive Function fixture must be representable with
+its recursive assignment fresh per use. A candidate carrier/order that fails
+any of these observations cannot satisfy the Oracle target.
+
 This split follows the audited Oracle path: compaction creates a fresh
 projection round, lower bounds are selected through a scoped evidence query,
 and returned query errors can become a default root at the surface. Therefore

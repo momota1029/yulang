@@ -114,14 +114,18 @@ split and unresolved semantics are recorded in
 `notes/progress/2026-09-30-intrusion-denotation-boundary-audit.md`. The next theorem
 layer is split: define satisfaction and principality for an already-selected
 regular member graph, then prove Oracle root/epoch projection and use
-preparation produces a graph in that model. The type universe,
-recursive-type interpretation, assignment domain, and principal-solution
-order remain open; no representation decision follows yet. Next resolve these
-denotation choices, then prove projection congruence, ordered root-step
-simulation, publication/finalization, and use simulation. A two-root
-characterization remains optional diagnostic evidence. A conditional lemma now
-shows that injective fresh-parent renaming bijects solution assignments when
-finite endpoints evaluate variable/back-edge references by direct lookup, while
+preparation produces a graph in that model. The draft now proposes an exact
+principality criterion: the sound-and-complete member relation is the upward
+closure of root values from satisfying local assignments, fibered over fixed
+environment assignments. The multi-use relation retains each use's root result
+and use-site constraints, with disjoint local assignments under one shared
+environment assignment. The carrier, subtype order, and finite-scheme
+representability remain open. Next resolve these denotation choices, prove
+erasure/projection correctness, then ordered root-step simulation,
+publication/finalization, and use simulation. A two-root characterization
+remains optional diagnostic evidence. A conditional lemma now shows that
+injective fresh-parent renaming bijects solution assignments when finite
+endpoints evaluate variable/back-edge references by direct lookup, while
 keeping `E_d` anchors fixed. Recursive unfolding, root projection, and
 principality remain unproved.
 The first
