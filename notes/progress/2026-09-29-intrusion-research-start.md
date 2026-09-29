@@ -69,7 +69,32 @@ especially §§8–9, 23, 25, and 33. The drafts remain non-authoritative. The
 current F5c guarded-cycle capture plans on `yulang3` have consumed their
 authorized process runs; this research branch will not repeat them.
 
-No code or tests changed in this kickoff. The first next action is a compact
-formal state model and reference relation for pure F5 extrusion versus
-intrusion. Implementation and any F5 scheme/lifecycle change remain behind
-independent review and explicit user approval.
+No code or tests changed in the kickoff. Implementation and any F5
+scheme/lifecycle change remain behind independent review and explicit user
+approval.
+
+## Reviewed reference protocol
+
+The first model is now recorded in
+`notes/design/2026-09-29-pure-f5-intrusion-reference-model.md`. It separates
+the pre-insertion transition comparison (needed to claim replacement of F5's
+insertion-time level aging) from post-insertion per-member generalization and
+projection. It also fixes `DefinitionUse.use_level`, same-member independent
+uses, Q ordinal order, R lower/upper restoration, use cause/provenance,
+per-use graph sharing, and atomic component publication/failure as comparison
+obligations.
+
+Mode: M3 design research, because the question touches type soundness,
+principal schemes, recursion, and SCC publication. Pre-write architecture
+review and post-write `compiler_referee` / `spec_auditor` reviews found and
+closed one blocking scope ambiguity and several major comparison omissions.
+The remaining minor finding asked for two incompatible uses of the same
+member; that witness is now included. No production code changed, no tests or
+measurements ran, and the note remains Reviewed but non-authoritative with no
+implementation authority.
+
+Next: manually derive the smallest witnesses, then make the candidate
+parent-transport transition explicit enough to compare against F5 from the
+same pre-insertion input. Finite witness agreement alone cannot establish a
+universal replacement theorem. The consumed guarded-cycle process budgets
+remain untouched.

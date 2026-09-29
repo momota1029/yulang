@@ -18,18 +18,18 @@ Authoritative F5 contract.
 
 ## Active gate
 
-Pure F5 proof or executable characterization: define the polarized boundary
-closure and eligible variables, then compare ordinary extrusion against
-parent-based intrusion per member and per incoming use. Include polarity,
-outer non-generic endpoints, one-sided bounds, guarded and unguarded cycles,
-Q/R identity, root-order independence, two incompatible incoming uses, internal
-live uses, and exact closed-scheme alpha-equivalence.
+Reviewed protocol: `notes/design/2026-09-29-pure-f5-intrusion-reference-model.md`.
+Next, work the first finite pure-F5 witnesses by hand and define one concrete
+candidate parent-transport transition. Compare it with insertion-time F5
+level-aging from the same pre-insertion input, then compare per-member schemes
+and same-member independent uses. Keep post-insertion projection evidence
+separate from any claim that intrusion replaces extrusion.
 
-The initial independent architecture and compiler reviews found unresolved
-correctness obligations. In particular, definition-SCC membership alone does
-not delimit the reachable polarized bound graph, and a shared component map
-does not establish F5's member-local binders or fresh per-use instantiation.
-See `notes/progress/2026-09-29-intrusion-research-start.md`.
+The initial reviews found that SCC membership does not delimit bound-graph
+reachability, parent sharing does not establish member-local binders or fresh
+per-use instantiation, and F5's insertion-time extrusion must be compared from
+pre-insertion state. The protocol records those obligations and exact
+comparison fixtures in `notes/progress/2026-09-29-intrusion-research-start.md`.
 
 ## Stop conditions and next action
 
@@ -40,7 +40,8 @@ incoming uses, loses lower/upper recursive bounds, or fails closed-scheme
 equivalence. Effect hygiene and runtime freshness remain a later separate
 gate.
 
-Next: write the smallest formal state model and reference relation for pure
-F5 extrusion versus intrusion; use the counterexample shapes in the progress
-record as mandatory fixtures. Do not run guarded-cycle resource captures: the
-current F5c plans on `yulang3` have consumed their authorized runs.
+Do not implement or claim general equivalence from finite examples. A general
+extrusion-replacement claim needs a simulation relation and induction
+invariant; any new scheme/lifecycle decision needs separate approval. Do not
+run guarded-cycle resource captures: the current F5c plans on `yulang3` have
+consumed their authorized runs.
