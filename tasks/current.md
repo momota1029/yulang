@@ -2,7 +2,7 @@
 
 Updated: 2026-09-29. Branch: `yulang3`; do not modify frozen `main`.
 
-### Active gate (2026-09-29): scope the next no-cap scale gate
+### Active decision (2026-09-29): guarded-cycle output-sensitive cost
 
 The exact-kind serialization gate is complete. Serialization is suppressed
 only for non-transferring WalkerLane kinds 54–56 and 116; the 219-row online
@@ -36,12 +36,20 @@ phase terms are expressed against R candidates/rounds, replay visits,
 path-expanded output, normalization nodes/descriptors/comparisons, and boxed
 callback finalization inputs. The current matrix row does not print several
 of these dimensions, and the indexed-finalizer bound does not apply to its
-callback path. The full no-cap §3 guarded-cycle equation remains open. Next,
-inspect existing scale-plan budgets and scope a fresh gate that advances the
-remaining required evidence without retrying this consumed guarded-cycle run.
-Any new process needs a separate reviewed plan. A lazy/shared traversal that
-skips occurrences or changes counter/trace order remains outside authority and
-would need a reviewed addendum and recorded user approval before code.
+callback path. The full no-cap §3 guarded-cycle equation remains open. An
+independent `compiler_referee` review confirmed a stronger conditional bound:
+successful exact `guarded_cycle(1,K)` output has at least `2^(K-1)` distinct
+reachable ordered Function subgraphs per root predicate under the current F5
+scheme-shape contract, even in an indexed DAG. This is not a lower bound for a
+new compressed-grammar representation or every Oracle-equivalent encoding.
+Prefix interning and symbolic trace lookup alone cannot solve output size.
+
+The next choice is whether to retain this output-sensitive exponential shape
+and revise the guarded-cycle evidence gate, or explore a compressed output
+representation with a separate consumer contract. Either change to an
+Authoritative gate or scheme representation needs explicit user approval
+before implementation. The consumed capture plan authorizes no further
+guarded-cycle process.
 
 The earlier isolated GuardedCycle D=32/K=32 run timed out at 120 seconds while
 recording path-expanded owner events; its partial sidecar is not replayable.

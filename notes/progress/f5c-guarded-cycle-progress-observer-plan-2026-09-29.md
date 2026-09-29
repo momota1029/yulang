@@ -217,3 +217,98 @@ reconciliation remain open; the raw-walker formula alone does not close
 no-cap §3. The exact matrix code paths, dimensions, and missing row fields are
 captured in this audit record. Any measurement intended to fill them needs a
 new reviewed plan.
+
+## Exponential-work design recommendation
+
+The measured run establishes exponential path enumeration in the current
+producer; it does not establish a lower bound for every equivalent compiler
+algorithm. The current single-predicate formula predicts
+`2^(K-1)(K+3)` guarded captures, and the D=32/K=32 prefix is consistent with
+that growth. There is no proof that the final normalized scheme itself must
+contain exponentially many distinct nodes.
+
+Two distinct changes have different effects. Path-prefix interning can reduce
+repeated copied hop storage when prefixes actually coincide, but still visits
+and records every path occurrence; a binary prefix trie can remain Θ(R).
+Symbolic/lazy ordered traversal could avoid enumerating occurrences if it can
+merge equivalent states, but the state includes root, polarity, active-path
+context, encounter rank, R candidate mask, and rollback epoch. Those contexts
+or the required occurrence-preserving output may still be exponential. No
+compact equivalence partition or output lower bound is proven.
+
+Recommendation: investigate the second option with a read-only ordered-state
+equivalence proof before any code. The proof must preserve owner discovery,
+first surviving trace under every candidate mask, Q/R order, scheme/facts/
+diagnostics, public causal counters, checked failure and rollback, and physical
+lane accounting. If it skips old charged operations, the accounting schedule
+needs explicit authority. The current F5 §§25/26/34 and no-cap §§3–4 do not
+authorize silently changing those meanings. Any such implementation needs a
+narrow reviewed addendum and explicit user approval first. Prefix interning
+may be evaluated separately as a memory optimization, but it cannot resolve
+the observed traversal count by itself.
+
+The next gate is a read-only proof of whether the exact guarded builder's
+retained normalized output has exponentially many distinct nodes and whether
+an ordered symbolic state can answer earliest-surviving-trace queries without
+visiting every occurrence. There is no demonstrated fundamental impossibility
+yet. If no quotient survives those obligations, retain the current semantics
+and ask for an explicit decision about revising the infeasible guarded-cycle
+evidence gate; do not introduce a numeric cap.
+
+The first feasibility pass proves an exponential lower bound only for the
+current boxed implementation. Each cycle row has one Function endpoint per
+polarity, the walker constructs a Function per expanded occurrence, and the
+boxed sink cannot share these occurrences. Replay and binder substitution
+rebuild every Function; normalizer flatten assigns a fresh node to each
+occurrence and rebuilds a unique boxed `TrackedOne` tree. Descriptor ranking
+does not hash-cons Functions. The first full binary lap therefore leaves at
+least `2^K-1` Function occurrences in the current normalized boxed predicate;
+callback finalization must traverse them. This shows why trace-prefix sharing
+alone cannot fix current output cost, but it is not a lower bound for an
+equivalent shared indexed graph.
+
+For this exact fixture, reentry traces contain only Exact and Function hops,
+so trace path survival is mask-independent; owner-bound survival and
+reachability still depend on R masks. A compact first-witness query appears
+possible because the earliest surviving trace for an eligible owner is its
+first producer encounter. That remains a hypothesis for the full Q/R and
+output contract. A generic state keyed by exact active-polarity history has
+exponentially many contexts. Next prove the number of distinct normalized
+subgraphs under the final Q/R assignment; only if that output can stay compact
+does a symbolic producer addendum have a credible path to subexponential work.
+No implementation is authorized by this audit.
+
+## Adversarial lower-bound review
+
+The earlier feasibility note left open whether a shared indexed DAG could
+represent this exact output in O(K) nodes. A focused `compiler_referee` review
+closed that question for the current F5 scheme shape. For `guarded_cycle(1,K)`
+with K≥2 and successful exact output, the first lap has 2^(K−1) branch
+sequences that return to row 0 in negative polarity. Repeating each sequence
+on the second lap yields a reachable Function chain in the predicate. Its
+PositiveFunction/NegativeFunction discriminator sequence records the first
+lap polarity choices. At the first differing choice, the normalized ordered
+Function descriptors differ, so hash-consing cannot merge these subgraphs.
+Replay and substitution replace Variable leaves only; normalization retains
+the Function constructors and ordered descendants. The normalized graph
+therefore contains at least 2^(K−1) distinct reachable nodes per successful
+root predicate. The finding depends on the exact F5 §§25/34 scheme-shape
+contract and successful finalization; it is not a lower bound for every
+Oracle-equivalent compressed representation.
+
+The review did not establish which exact R owner survives, the Q ordinals,
+the exact total node count, or sharing across root rotations. It also did not
+prove the one-sided-variable sets empty; that is unnecessary to the lower
+bound because replay/substitution preserve Function nodes and the selected
+predicate reaches the ladder. No tests or workloads were run for this proof.
+
+This supersedes the earlier hypothesis that a shared indexed DAG might give
+O(K) nodes under unchanged F5 scheme shape. A compact prefix store or ordered
+trace query cannot make the exact current normalized DAG subexponential. To
+make this family practical at K=32 would require a representation that
+compresses the exponential set of distinct Function subgraphs, with a new
+contract for its consumers, or a change to observable scheme shape. The other
+path is to retain the existing output-sensitive exponential behavior and
+amend the guarded-cycle evidence gate; no numeric cap is authorized by either
+path. This choice requires explicit user approval before changing an
+Authoritative gate or scheme representation.
