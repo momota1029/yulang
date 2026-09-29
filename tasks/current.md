@@ -30,8 +30,11 @@ unproductive mutual-recursion result and the scheduler's forward-cycle
 fixture. A nominal-guarded mutual Function SCC also yields one recursive bound
 per member in a temporary Oracle probe. A local diamond probe also confirms
 that an enclosing non-generic variable remains shared across two result paths
-and is not quantified by the inner function. A diamond shared across distinct
-members of one SCC and pure Function-only recursive cycles remain open. Next,
+and is not quantified by the inner function. A source probe for a nested local
+SCC sharing such an enclosing variable failed because sequential local `my`
+declarations do not resolve the forward member reference; this exact graph
+case remains open and needs an accepted source construction or graph-level
+characterization. Pure Function-only recursive cycles also remain open. Next,
 characterize those cases and state the graph simulation theorem. Do not make
 F5's Q/R shape, closed schemes, numbering, or resource contract the pass
 condition.
