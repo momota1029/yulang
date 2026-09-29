@@ -968,7 +968,14 @@ must provide a transport map for source identities and require:
    therefore preserving evidence payloads without preserving relevant order
    is insufficient. The relation must preserve this order under an explicit
    proof-identity transport or prove that any changed witness is unobservable
-   in all later selection and reporting. Projection-round cycle-cut and memo
+   in later selection and maps to the same normalized public provenance and
+   diagnostics. For two exact included claimed arms of one bound, compaction
+   retains the same bound, but witness capture stores only the decisive claim;
+   its lineage can change portable provenance/source locations. The reviewed
+   ordinary use path consumes witness identity/path/completeness rather than
+   those incoming parent edges, so this specific exact-arm swap is not known
+   to alter inserted subtype constraints. This does not make its public
+   provenance difference unobservable. Projection-round cycle-cut and memo
    state, plus error precedence/latches, also belong to the query relation.
    Numeric IDs and internal graph node IDs need not match only when these
    order, validity, and observation conditions are met.
@@ -998,7 +1005,8 @@ outcome for the compared finite snapshot.
 Under those premises, a deterministic scoped query has the same decision
 (`Included`, `Unclaimed`, `Excluded`, or corresponding semantic failure) on
 both snapshots, and any returned support/evidence payloads correspond under
-`pi`. The proof follows the execution: ordered record enumeration pairs each
+`pi`, including the decisive claim lineage needed by later witness capture.
+The proof follows the execution: ordered record enumeration pairs each
 call to `project_lower`; preflight checks read corresponding facts in matching
 order; the canonical cursors visit corresponding formula arms; mapped
 recursion and memo states take matching branches, including cycle cuts; and
@@ -1447,8 +1455,13 @@ observation.
 Execution is split into an internal transition trace and a public observation:
 
 ```text
-Run_X(state_X, Lower_X(P)) = (trace_X, public_X)
-public_X = (status, ordered_diagnostics, exported_module_observations)
+Run_X(Entry_X, state_X, Lower_X(Entry_X, P)) = (trace_X, public_X)
+public_X = (
+  status,
+  ordered_diagnostics,
+  exported_module_observations,
+  entrypoint_exposed_sidecars
+)
 ```
 
 The internal trace records root attempts/restarts, projection decisions and
@@ -1458,11 +1471,20 @@ not all public outcomes: an attempt-local error or round latch may be handled
 by a later transition, and the surface may continue after a default-root
 fallback. The public projection retains only what the Oracle exposes at the
 end of `P`, including success/failure and ordered diagnostics with source
-locations and semantic payload. Candidate diagnostic observations retain
+locations and semantic payload. It also retains public auxiliary fields such
+as the subtype-provenance sidecar when the chosen entrypoint returns it.
+Candidate diagnostic observations retain
 normalized diagnostic code/severity, primary and secondary source locations,
 and semantic payload in emitted order, subject to auditing which fields the
 Oracle actually exposes. Exported observations are keyed by source definition
 path and contain the public type/scheme result exposed for that definition.
+`entrypoint_exposed_sidecars` includes every auxiliary field returned through
+the compared public entrypoint. For Oracle `BuildPolyOutput`, this includes
+`SubtypeProvenanceSidecar` (`snapshot`, occurrence table, and metrics), whose
+portable nodes, edges, source sites, completeness/truncation, and occurrence
+anchors may expose proof-lineage differences. They cannot be discarded from
+the parity relation merely because they are adjacent metadata rather than type
+IR. Their identity/order normalization remains to be specified.
 Type-variable names and internal node IDs may be alpha-normalized if that
 matches the public type surface. Anchor identity, polarity, recursive interval
 bounds, and latent effect positions belong to the semantic root relation; they
@@ -1541,11 +1563,14 @@ inference result and a dispatch decision to proceed.
 root finalization/publication, member visibility barriers, internal live-root
 uses, and incoming-use freshening/insertion. `TraceSpec_X` records
 specialization decisions and outputs. `Trace_X` is the ordered concatenation
-of the phases that actually ran. `Observe_X` extracts only the public status,
-diagnostics in emitted order, and exported type observations; it must preserve
-source locations and semantic payload when the Oracle exposes them. The
-signatures are interfaces, not operational definitions: in particular, no
-public type normalizer or exact diagnostic projection is selected here.
+of the phases that actually ran. `Observe_X` extracts the public status,
+diagnostics in emitted order, exported type observations, and every auxiliary
+field or sidecar exposed by the entrypoint. It must preserve source locations
+and semantic payload when the Oracle exposes them, including public subtype
+provenance sidecars. The signatures are interfaces, not operational
+definitions: in particular, no public type normalizer, sidecar identity/order
+normalizer, or exact diagnostic projection is selected here. The eventual
+contract still needs to audit every public output field for each entrypoint.
 
 `Run_X` first observes `InferStopped_X` directly. On `InferReady_X`, it calls
 `Dispatch_X`; `DispatchObserve_X` is observed without running specialization,

@@ -142,7 +142,16 @@ intrusion states remains open. Details are in
 `notes/progress/2026-09-30-intrusion-projection-congruence-lemma-review.md`.
 Next relate proof identities and validity across root mutations, then prove
 the ordered one-root simulation while the carrier decision remains open.
-Settle that semantic basis before claiming a principal-solution theorem. See
+Downstream tracing now confirms that swapping two exact included proof arms
+can leave compact subtype constraints unchanged but alter the stored witness
+lineage and exported provenance/source site. The one-root relation therefore
+must preserve normalized public provenance as well as type/query outcomes; the
+narrow ordinary-use path does not use those incoming witness edges to build
+subtype constraints. `BuildPolyOutput` publicly returns its subtype-provenance
+sidecar, so `Observe_X` now includes entrypoint-exposed sidecars; their
+identity/order normalizer remains open. This evidence is recorded in
+`notes/progress/2026-09-30-intrusion-projection-order-map.md`. Settle the
+semantic carrier before claiming a principal-solution theorem. See
 `notes/progress/2026-09-30-intrusion-finite-saturation-review.md`. The
 interface review is recorded in
 `notes/progress/2026-09-30-intrusion-staged-run-interface-review.md`. The

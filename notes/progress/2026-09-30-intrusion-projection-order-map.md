@@ -71,5 +71,41 @@ included arm, and promotion to ordinary storage; it did not audit every proof
 path or runtime trace. The relation deliberately treats order transport and
 downstream witness unobservability as open proof obligations.
 
+## Downstream decisive-witness route
+
+A read-only follow-up traced `ProjectionEvidence::DecisiveClaimedArm` through
+generalized witness capture. Compaction itself discards the reason/evidence
+payload and merges the same included bound. Witness capture separately stores
+only the decisive claimed certificate as an exact lineage parent. The
+generalized witness then feeds explanation traversal and an exported portable
+provenance sidecar, which can preserve the selected producer/source site.
+`BuildPolyOutput` exposes `subtype_provenance` publicly; the sidecar contains a
+snapshot, occurrence table, and metrics.
+Thus, if two exact included arms have distinct source lineages, a numeric-order
+change may leave the compact type constraints unchanged while changing
+observable provenance. The candidate relation must map that lineage to the
+same normalized public cause or prove the observation contract intentionally
+forgets the difference.
+
+The inspected ordinary use-instantiation path consumes a generalized witness
+ID, path, and completeness; it does not clone incoming parent edges. For the
+narrow case of swapping between two exact claimed arms with the same
+qualification category, no change to inserted subtype constraints or later
+projection was found. This does not cover `FailOpenIncomplete`, distinct
+completeness, other import adapters, or every later provenance consumer.
+Evidence: frozen `generalize/provenance.rs:218–270`,
+`constraints/mod.rs:2960–3005`, `constraints/explain.rs:1426–1475`,
+`analysis/session/occurrence_provenance.rs:230–280`,
+`analysis/session/instantiate.rs:211, 394, 473`,
+`lowering/body/mod.rs:133, 1659`, `yulang/src/source/mod.rs:1874–1885`,
+`poly/src/provenance.rs:151–171`, and `proof/mod.rs:11704–11718`.
+
+A regression-auditor delta review found that the draft's later `Observe_X`
+paragraph still excluded auxiliary fields, contradicting the newly traced
+public sidecar. The paragraph now includes every entrypoint-exposed auxiliary
+field and sidecar, including subtype provenance, while leaving identity/order
+normalization and a complete per-entrypoint public-field audit open. No other
+repair was requested in that delta scope.
+
 No compiler code or tests changed or ran. No Python or measurements were
 used.
