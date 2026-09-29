@@ -440,17 +440,17 @@ def check_walker_shadow_witness(sidecar, totals_path):
     for line in expected[1:]:
         key, *values = line.split()
         expected_rows[key if key == "combined" else int(key)] = tuple(map(int, values))
-    if set(expected_rows) != (set(range(32, 130)) | set(range(551, 571)) | {"combined"}):
-        raise ValueError("walker shadow witness needs all 98 WalkerLane and 20 ComponentMemoLane rows and combined totals")
+    if set(expected_rows) != (set(range(32, 130)) | set(range(551, 571)) | set(range(577, 584)) | {"combined"}):
+        raise ValueError("walker shadow witness needs all 125 event lane rows and combined totals")
     owners = {}
-    rows = {kind: [0, 0, 0, 0] for kind in (*range(32, 130), *range(551, 571))}
+    rows = {kind: [0, 0, 0, 0] for kind in (*range(32, 130), *range(551, 571), *range(577, 584))}
     combined = [0, 0, 0, 0]
     count = checksum = last_id = 0
     staged_transfers = {}
     staged_releases = set()
 
     def adjust(kind, old, new, size):
-        if not (32 <= kind < 130 or 551 <= kind < 571):
+        if not (32 <= kind < 130 or 551 <= kind < 571 or 577 <= kind < 584):
             return
         for totals in (rows[kind], combined):
             totals[0] = totals[0] - old + new
@@ -518,7 +518,7 @@ def check_walker_shadow_witness(sidecar, totals_path):
     for kind, totals in rows.items():
         if tuple(totals) != expected_rows[kind]:
             raise ValueError(f"lane {kind} shadow mismatch: {totals} != {expected_rows[kind]}")
-    print(f"WalkerLane shadow: {count} full sidecar events, 98 WalkerLane and 20 ComponentMemoLane exact rows and joint total")
+    print(f"F5c online owner shadow: {count} full sidecar events, 125 exact lane rows and joint total")
 
 
 def main():

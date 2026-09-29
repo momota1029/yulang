@@ -499,3 +499,33 @@ Python syntax compilation, and `git diff --check` passed. No resource/scale
 process, diagnostic, or matrix row ran. The online ledger still lacks the
 other event-backed families and the separately reviewed closed-type/route
 composition; serialization suppression remains gated on those closures.
+
+### 2026-09-29 family-8 online-ledger extension
+
+The fixed online shadow now includes family-8 `InstantiationLane` kinds
+577–583, bringing its event-backed scope to 98 WalkerLane, 20 ComponentMemoLane,
+and seven InstantiationLane rows. `InstantiationEvents` adjusts checked per-lane
+and joint current/peak slots and bytes on CREATE/GROW/RELEASE; request-only
+SHAPE updates leave capacity totals unchanged. The 104-event complete witness
+compares all 125 lane rows and joint totals against offline replay, requires
+zero remaining owners, and preserves the prior six FlatDraft same-ID
+transfer/release checks.
+
+Selected M1 with a `spec_auditor`. The prewrite plan review and postwrite
+conformance review are clean. The focused feature-enabled test, 104-event
+Python replay, syntax compilation, and `git diff --check` passed. An initial
+`--exact` filter selected zero tests; the corrected focused invocation passed
+one test. Successful commands:
+
+```text
+RUSTC_WRAPPER= cargo test -p yu-solver --features f5c_resource_probe f5c_walker_online_shadow_witness -- --nocapture
+python3 tools/check_f5c_resource_matrix.py --walker-shadow-witness /tmp/f5c-family8-witness.bin --walker-shadow-totals /tmp/f5c-family8-witness.txt
+python3 -m py_compile tools/check_f5c_resource_matrix.py
+git diff --check
+```
+
+No scale/resource process, diagnostic, or matrix row ran. The fixed ledger is
+now 4,032 bytes per thread; its transfer-copy cost must be included using
+observed transfer counts and copied bytes in the next measurement plan.
+Families 1–3 and 5–7, remaining family-6 source/staged rows, and closed-type/
+route composition remain open; do not suppress events or begin scale work yet.

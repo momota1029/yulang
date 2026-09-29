@@ -69,6 +69,7 @@ mod event_sink {
     struct WalkerLedger {
         lanes: [WalkerTotals; 98],
         component_lanes: [WalkerTotals; 20],
+        instantiation_lanes: [WalkerTotals; 7],
         combined: WalkerTotals,
     }
 
@@ -78,6 +79,8 @@ mod event_sink {
                 current_bytes: 0, peak_bytes: 0 }; 98],
                 component_lanes: [WalkerTotals { current_capacity: 0, peak_capacity: 0,
                     current_bytes: 0, peak_bytes: 0 }; 20],
+                instantiation_lanes: [WalkerTotals { current_capacity: 0, peak_capacity: 0,
+                    current_bytes: 0, peak_bytes: 0 }; 7],
                 combined: WalkerTotals { current_capacity: 0, peak_capacity: 0,
                     current_bytes: 0, peak_bytes: 0 } }
         }
@@ -89,6 +92,11 @@ mod event_sink {
 
         fn adjust_component(&mut self, lane: usize, old: usize, new: usize, size: usize) {
             let lane_totals = self.component_lanes.get_mut(lane).expect("ComponentMemoLane index");
+            Self::adjust_totals(lane_totals, &mut self.combined, old, new, size);
+        }
+
+        fn adjust_instantiation(&mut self, lane: usize, old: usize, new: usize, size: usize) {
+            let lane_totals = self.instantiation_lanes.get_mut(lane).expect("InstantiationLane index");
             Self::adjust_totals(lane_totals, &mut self.combined, old, new, size);
         }
 
@@ -133,10 +141,10 @@ mod event_sink {
         Ok(())
     }
 
-    pub(crate) fn walker_totals() -> ([WalkerTotals; 98], [WalkerTotals; 20], WalkerTotals) {
+    pub(crate) fn walker_totals() -> ([WalkerTotals; 98], [WalkerTotals; 20], [WalkerTotals; 7], WalkerTotals) {
         WALKER_LEDGER.with(|ledger| {
             let ledger = ledger.borrow();
-            (ledger.lanes, ledger.component_lanes, ledger.combined)
+            (ledger.lanes, ledger.component_lanes, ledger.instantiation_lanes, ledger.combined)
         })
     }
 
@@ -146,6 +154,10 @@ mod event_sink {
 
     pub(super) fn adjust_component_shadow(lane: usize, old: usize, new: usize, size: usize) {
         WALKER_LEDGER.with(|ledger| ledger.borrow_mut().adjust_component(lane, old, new, size));
+    }
+
+    pub(super) fn adjust_instantiation_shadow(lane: usize, old: usize, new: usize, size: usize) {
+        WALKER_LEDGER.with(|ledger| ledger.borrow_mut().adjust_instantiation(lane, old, new, size));
     }
 
     pub(super) fn transfer_walker(source: PhysicalOwnerKind, target: PhysicalOwnerKind,
@@ -356,6 +368,7 @@ impl InstantiationEvents {
                 event_sink::record(0, id, event_sink::CREATE, kind, requested, capacity, size, 0);
                 if id != 0 {
                     event_sink::adjust_instantiation(capacity as isize, (capacity * size) as isize);
+                    event_sink::adjust_instantiation_shadow(lane, 0, capacity, size);
                 }
                 self.owners[lane] = Some((id, requested, capacity, size));
             }
@@ -366,9 +379,10 @@ impl InstantiationEvents {
                     else if requested != *old_requested { Some(event_sink::SHAPE) } else { None };
                 if let Some(op) = op {
                     event_sink::record(0, *id, op, kind, requested, capacity, size, 0);
-                    if *id != 0 {
+                    if *id != 0 && capacity > *old_capacity {
                         let delta = capacity - *old_capacity;
                         event_sink::adjust_instantiation(delta as isize, (delta * size) as isize);
+                        event_sink::adjust_instantiation_shadow(lane, *old_capacity, capacity, size);
                     }
                 }
                 *old_requested = requested;
@@ -387,6 +401,7 @@ impl Drop for InstantiationEvents {
                     PhysicalOwnerKind::InstantiationLane(lane), 0, 0, size, 0);
                 if id != 0 {
                     event_sink::adjust_instantiation(-(capacity as isize), -((capacity * size) as isize));
+                    event_sink::adjust_instantiation_shadow(lane, capacity, 0, size);
                 }
             }
         }

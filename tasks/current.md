@@ -23,16 +23,16 @@ capacity changes occur later and already pass through the existing
 [`shared-acyclic checkpoint`](../notes/progress/f5c-shared-acyclic-hit-mismatch-checkpoint-2026-09-29.md).
 
 Implement this gate in reviewable checkpoints. The fixed-size online shadow
-now covers all 98 WalkerLane rows and 20 ComponentMemoLane rows, with a checked
-same-time subtotal and raw plus six-buffer same-ID transfer coverage; the full
-sidecar remains enabled. Next extend the ledger across the other event-backed
-families, compose the closed-type finalizer peak and route-growth samples, and
-prove the global same-time totals. Only after that closes, suppress
-serialization for exact
-non-transferring WalkerLane kinds 54–56 and 116. Preserve the FlatDraft kinds
-12–17 trace in full throughout. The partial timed-out sidecar is not a replay
-input; no resource/scale process, diagnostic, or matrix row may run before the
-composed ledger and witness receive a fresh measurement review. Do not claim
+now covers 98 WalkerLane, 20 ComponentMemoLane, and 7 InstantiationLane rows,
+with a checked 125-row same-time subtotal and raw plus six-buffer same-ID
+transfer coverage; the full sidecar remains enabled. Next extend the ledger
+across the other event-backed families, compose the closed-type finalizer peak
+and route-growth samples, and prove the global same-time totals. Only after
+that closes, suppress serialization for exact non-transferring WalkerLane
+kinds 54–56 and 116. Preserve the FlatDraft kinds 12–17 trace in full
+throughout. The partial timed-out sidecar is not a replay input; no
+resource/scale process, diagnostic, or matrix row may run before the composed
+ledger and witness receive a fresh measurement review. Do not claim
 corrected-scale completion until those gates close.
 
 ### Latest continuation (2026-09-29): WalkerLane online-shadow witness
@@ -77,6 +77,23 @@ The focused feature-enabled test, replay, Python syntax check, and diff check
 passed. No scale/resource process ran. Families 1–3, 5–8, closed-type/route
 composition, serialization suppression, and corrected-scale evidence remain
 open.
+
+### Latest continuation (2026-09-29): family-8 online ledger
+
+The online shadow adds all seven `InstantiationLane` rows (kinds 577–583).
+Create, growth, and actual owner drop update checked per-lane and joint
+current/peak slots and bytes; same-capacity request-only SHAPEs remain capacity
+neutral. The 104-event complete witness now independently reconciles all 125
+online rows and joint totals, all owner releases, and the prior six same-ID
+FlatDraft transfers. M1 was selected with a `spec_auditor`; prewrite and
+postwrite exact-conformance reviews are clean. One focused test, Python replay,
+Python syntax check, and `git diff --check` passed. An initial exact-name filter
+selected zero tests; the corrected focused command ran and passed one test.
+No scale/resource process or matrix row ran. The fixed ledger now occupies
+4,032 bytes per thread, which the future scale plan must account for with
+observed transfer count and copied-byte totals. Families 1–3 and 5–7, remaining
+family-6 source/staged rows, closed-type/route composition, serialization
+suppression, and corrected-scale evidence remain open.
 
 ### Latest continuation (2026-09-29): raw-walker request-event coalescing
 
