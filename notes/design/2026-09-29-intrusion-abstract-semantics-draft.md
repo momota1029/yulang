@@ -814,6 +814,41 @@ mixed-polarity roots, or Oracle root preparation and finalization. The full
 findings and review limits are recorded in
 `notes/progress/2026-09-30-intrusion-carrier-candidate-review.md`.
 
+**Oracle ordinary use-instantiation operation (code characterization).** At
+frozen Oracle revision `a58eefc31`, `infer::instantiate::SchemeInstantiator`
+first allocates one fresh target variable for each ordinary quantifier and
+recursive-bound variable, then clones the polarized predicate and recursive
+bounds through a memoized source-variable/node map. Repeated occurrences of a
+source variable in one invocation therefore share one target variable;
+separate invocations use separate instantiators and fresh maps. Source
+variables that are neither quantified nor already mapped are retained by the
+ordinary internal adapter. Listed stack-subtraction IDs are freshened too;
+otherwise-unmapped subtraction IDs are retained. Role predicates and function
+effect positions are cloned through the same variable map, and stack weights
+are cloned through a subtraction-ID map; stack quantifiers also add an outer
+positive stack-pop wrapper. Recursive-bound intervals are reintroduced as
+`lower ≤ fresh-var ≤ upper` constraints (`instantiate.rs`,
+`instantiate_scheme_parts`, `fresh_var`, `clone_var`, and
+`clone_recursive_bounds`, roughly lines 620–650, 720–750, 1002–1028).
+At SCC use sites, `AnalysisSession::prepare_instantiated_use` clones at the
+secondary level, then adds the instantiated positive predicate to the
+use-value: constructor, Function, record, variant, tuple, and row roots take
+the direct-lower path; other roots (including a bare variable) are related to
+the use-value upper by a subtype constraint. Role predicates are installed separately
+(`analysis/session/instantiate.rs`, roughly lines 344–365 and 448–535).
+Imported/finalized schemes take a validated path that preloads session-owned
+boundary variables; role-implementation candidate freshening is a separate
+adapter with a different free-variable policy.
+
+This is an operational characterization of the Oracle path, not a
+mathematical scheme denotation. It does not specify the carrier/subtype
+preorder, prove that a scheme's complete set of instances is principal, or
+prove projection/erasure equality for intrusion. Imported-boundary and
+freshen-all adapters have different free-variable policies; stack/effect
+weights and role predicates also require their own transport account. These
+details are evidence for the replacement's use-site simulation obligation,
+not permission to copy F5's scheme architecture.
+
 **Candidate principality criterion.** Once a carrier `D` and subtype preorder
 `≤` have been fixed, a saved member view `H_d` and environment assignment `eta`
 induce the set of root types realized by satisfying local assignments:

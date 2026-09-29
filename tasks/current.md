@@ -69,9 +69,16 @@ Effect hygiene and runtime freshness remain a later separate gate.
 Finite examples characterize the candidate but do not alone prove soundness or
 principality. Do not run guarded-cycle resource captures: the current F5c plans
 on `yulang3` have consumed their authorized runs. The immediate work is to
-define scheme instantiation/subsumption and the admissible environment-fiber
-domain for Gate C, then test recursive subtype rules against Oracle and continue
-the ordered root-step/use-event simulation. A first synthetic Oracle graph now combines a compatible outer lower,
+define the candidate scheme-instantiation relation and admissible environment-
+fiber domain for Gate C, then test recursive subtype rules against Oracle and
+continue ordered root-step/use-event simulation. A source reading now records
+the frozen Oracle's operational ordinary use-instantiation path: binder and
+graph-node freshening, preservation of unmapped free variables, recursive-
+bound restoration, stack/effect/role handling, and direct-lower vs subtype
+insertion at a use site. This is not a denotational or principality proof.
+Details and exclusions are in
+`notes/progress/2026-09-30-intrusion-oracle-instantiation-operation.md`. A
+first synthetic Oracle graph now combines a compatible outer lower,
 an upper path to an outer anchor, and a local alias cycle. Its successful
 scoped query selects the exact lower endpoint and exposes the upper anchor;
 propagation lowers both local variables, which remain alongside the anchor in
