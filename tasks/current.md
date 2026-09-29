@@ -27,10 +27,12 @@ The Oracle ledger is in
 `notes/progress/2026-09-29-intrusion-oracle-ledger.md`. It now includes a
 reproduced source-level identity used at both `int` and Function types, plus an
 unproductive mutual-recursion result and the scheduler's forward-cycle
-fixture. Shared diamonds, nested polarity with an enclosing rigid variable,
-and productive recursive Function schemes remain open. Next, characterize
-those cases and state the graph simulation theorem. Do not make F5's Q/R shape,
-closed schemes, numbering, or resource contract the pass condition.
+fixture. A nominal-guarded mutual Function SCC also yields one recursive bound
+per member in a temporary Oracle probe. Shared diamonds, nested polarity with
+an enclosing rigid variable, and pure Function-only recursive cycles remain
+open. Next, characterize those cases and state the graph simulation theorem.
+Do not make F5's Q/R shape, closed schemes, numbering, or resource contract the
+pass condition.
 
 The reviewed pure-F5 protocol exposed a mistaken compatibility premise and is
 retained only as historical review evidence. The new lifecycle obligations

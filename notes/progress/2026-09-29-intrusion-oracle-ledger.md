@@ -2,7 +2,7 @@
 
 Date: 2026-09-29
 Oracle revision: frozen `main` at `a58eefc3`
-Status: partial source/test audit; tests not executed
+Status: partial source audit with temporary probes executed; no Oracle source or test was committed
 
 This ledger records directly observed Yulang2 behavior for the new SCC
 intrusion design. It does not use F5 closed schemes as the target. Test
@@ -27,8 +27,9 @@ independently reproduced execution.
 | Component publication | The scheduler's `QuantifyComponent` event carries aligned member and root vectors. The analysis handler generates a result per member, inserts all member schemes before finalizing any member into the poly arena, then finalizes them. This gives an all-member visibility barrier; it does not establish a shared SCC scheme representation. | `crates/infer/src/scc.rs::settle_components`; `crates/infer/src/analysis/session/instantiate.rs::quantify_component`; fixture `crates/infer/src/analysis/tests/case_01.rs::quantify_component_writes_scheme_to_poly_def`. |
 | Source-level independent polymorphic uses | A temporary test against frozen `main` lowered `pub id x = x`, `pub number = id 1`, and `pub function_value = id (\\x -> x)` with no diagnostics. The resulting schemes formatted as `id: 'a -> 'a`, `number: int`, and `function_value: 'a -> 'a`. This observes one binding instantiated at both an integer and a Function type. | Probe command: `cargo test -p infer scratch_oracle_identity_independent_type_uses -- --nocapture` in a detached worktree at `a58eefc3`; source and output are captured in this row. Probe code was temporary and is not part of the Oracle commit. |
 | Source-level mutual recursive definitions | A temporary public-surface probe for `pub f x = g x; pub g x = f x; pub number = f 1; pub function_value = g (\\z -> z)` completed with no lowering diagnostics. Both member schemes formatted as `any -> never`; both incoming use schemes formatted as `never`. This is an observed result for this unproductive call cycle, not evidence about every guarded/productive SCC shape. | Probe command: `cargo test -p infer scratch_oracle_mutual_scc_independent_incoming_uses -- --nocapture` in a detached worktree at `a58eefc3`; probe code was temporary and is not part of the Oracle commit. The existing committed scheduler fixture `crates/infer/src/lowering/tests/case_06.rs::body_lowering_keeps_forward_cycle_in_one_scc` independently asserts that `my a = b; my b = a` merges and quantifies one component. |
-| Nested self-recursive lambda source | The accepted source `pub f = \\x -> \\y -> f` formats as `any -> never` in the Oracle. This probe therefore does not witness a productive recursive Function scheme with a retained recursive bound; finding a source program that does remains open. | Probe command: `cargo test -p infer scratch_oracle_guarded_recursive_function_scheme -- --nocapture` in the same detached worktree at `a58eefc3`; temporary probe code removed with that worktree. |
+| Nested self-recursive lambda source | The accepted source `pub f = \\x -> \\y -> f` formats as `any -> never` in the Oracle. This pure Function-only shape does not retain a recursive scheme bound; it differs from the nominal-guarded mutual Function SCC recorded below. | Probe command: `cargo test -p infer scratch_oracle_guarded_recursive_function_scheme -- --nocapture` in a detached worktree at `a58eefc3`; temporary probe code removed with that worktree. |
 | Source-level recursive nominal and Function roots | A source-level self-recursive nominal value `struct loop 'a { next: 'a }; pub helper = loop { next: helper }` is accepted with scheme `loop 'a`, zero ordinary quantifiers, and one `recursive_bounds` entry. A recursive Function binding `pub helper x = loop { next: helper x }` is accepted with scheme `any -> loop 'a`, one ordinary quantifier, and no `recursive_bounds`. Thus the Oracle demonstrably supports guarded recursive type bounds in general, while this Function-valued witness does not create an R binder. | Probe command: `cargo test -p infer scratch_oracle_recursive_function_bounds_from_source -- --nocapture` in a detached worktree at `a58eefc3`. Probe inspected formatted scheme, `quantifiers.len()`, and `recursive_bounds.len()` for each source. Temporary probe code was removed. |
+| Guarded mutual Function SCC with recursive bounds | The source `struct loop 'a { next: 'a }; pub helper x = loop { next: \\y -> g x }; pub g x = loop { next: \\y -> helper x }` succeeds without diagnostics. Both member schemes format as `any -> loop 'a`, each with 2 ordinary quantifiers and 1 recursive bound. Each recursive lower interval is a union of a variable and a Function whose result is `loop` with a recursive argument bound; the two bounds' upper sides point to the opposite member's recursive variable. This is an actual source-level SCC witness combining Function structure, nominal guarding, cross-member recursion, and R bounds. | Probe command: `cargo test -p infer scratch_oracle_recursive_function_shape_matrix -- --nocapture` in a detached worktree at `a58eefc3`; the probe inspected both members' scheme binder counts and recursive-bound graph nodes. Probe source was temporary and removed after the run. |
 
 ## Open rows
 
@@ -36,18 +37,19 @@ This is not yet a complete observable contract. Still to inspect and record:
 
 - a shared diamond and a descendant outside the definition SCC;
 - a nested polarity inversion with a rigid enclosing non-generic variable;
-- guarded and unguarded recursive cycles from full analysis, not only a
-  manually constructed finalizer fixture;
+- pure Function-only guarded cycles, and additional recursive SCC shapes beyond
+  the nominal-guarded mutual witness;
 - exact use independence under interleaved constraints and later generalization
   continuations;
 - whether a behavior is fixed by tests/observable output or only inferred from
   the machine's implementation order.
 
-The successful identity-use and unproductive mutual-cycle probes establish
-only those exact programs. Oracle recursive bounds are now confirmed for a
-nominal self-cycle, but the tested recursive Function binding has no recursive
-scheme binder. Productive recursive Function SCCs remain unestablished; do not
-infer them from nominal recursive types or from the different F5 implementation.
+The successful identity-use, unproductive cycle, and nominal-guarded mutual
+Function probes establish only those exact programs. Recursive Function SCCs
+are therefore part of the Oracle target when guarded by the nominal
+constructor. Whether a pure Function-only cycle can retain a recursive scheme
+binder remains open; do not infer it from the mixed witness or from the
+different F5 implementation.
 
 ## Research consequence
 
@@ -79,7 +81,8 @@ proof:
    a use cannot observe a partially generalized recursive component.
 
 The first and third obligations are supported by scheduler and use-routing
-source/tests, while source-level mutual-recursion scheme results and
-two-distinct-type incoming uses remain unobserved. This separation matters:
-matching the event lifecycle is necessary, but it does not prove that a
-parent-based graph has the same principal solutions.
+source/tests. The identity probe observes two distinct incoming types, while
+the mutual probes cover one unproductive pure Function cycle and one
+nominal-guarded productive Function cycle. These are still individual
+observations, not a proof that a parent-based graph has the same principal
+solutions.
