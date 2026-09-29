@@ -9,9 +9,11 @@ Classification: unselected Gate C operation candidate; no implementation authori
 The abstract-semantics draft now describes use instantiation over a shared SCC
 graph and member-selected views, without making closed per-member trees the
 authority. Ordered root preparation and the all-member visibility barrier
-precede external use handling. For each target member `d`, `Free_d` resolves
-through one component-stable map `beta_C` to shared anchors, while
-`L_d = Gen_d ∪ Cycle_d` receives a per-use injective map `sigma_(d,u)`. Map
+precede external use handling. `H_d` retains source TypeVar identities;
+`Free_d` resolves through an injective component-stable `beta_C` to shared
+anchors, while `Lsrc_d = Gen_d ∪ Cycle_d` maps through member-owned `Phi_d`
+ports and then per-use injective `sigma_(d,u)` fresh identities. The composed
+map `rho_(d,u)` is explicit. Map
 application includes roots, selected edges, recursive-bound payloads, and
 type-variable occurrences in evidence; evidence identities must be transported
 with their validity dependencies or revalidated. Graph-node memoization is
@@ -39,12 +41,23 @@ this as an unselected candidate, not a design decision.
 A `compiler_referee` delta-reviewed the operation. The first review identified
 missing global freshness against caller identities, incomplete evidence-payload
 transport, cross-member imported-anchor lookup, and memoization scope. The
-draft now requires: `beta_d` to be a restriction of one `beta_C`; fresh ranges
+draft now requires: `beta_C` to be shared across views; fresh ranges
 to avoid `I_recv` and each other; all identity-bearing payloads to be mapped or
 their proof dependencies revalidated; and memoization to be per use operation.
 The final delta review found these specific counterexamples closed. It found
 no new contradiction within the operation, while confirming that source
 partition coverage and cross-member relational composition remain unproved.
+
+A focused follow-up found and closed two formal domain gaps: the single-view
+`Root_d` definition had an unbound use index, and an explanatory `Member`
+abbreviation applied the source-ID graph directly to fresh-ID assignments. The
+draft now defines the root observation using any valid fresh renaming and cites
+the conditional transport lemma for independence from the chosen fresh IDs;
+the multi-use formula names the renamed view explicitly. The source-to-port
+map is named `Phi_d`, with `Lsrc_d = Local_d`, and injectivity of `beta_C` is a
+stated precondition unless a separate quotient proof is supplied. The referee
+inspected the changed symbol/domain sections only; semantic proof validity and
+Oracle compatibility remain unreviewed.
 
 ## Remaining Gate C obligations
 

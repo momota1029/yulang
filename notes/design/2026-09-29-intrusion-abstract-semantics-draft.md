@@ -154,7 +154,8 @@ Free_d = surviving non-quantified variables, including unit-boundary identities
 Erase_d = one-sided variables replaced by the root projection's polarity extreme
 Cycle_d = member-local recursive identities needed to preserve regular bounds
 Local_d = Gen_d ∪ Cycle_d
-Phi_d : Local_d -> fresh member-owned ports
+Lsrc_d = Local_d
+Phi_d : Lsrc_d -> fresh member-owned ports
 P_d = Phi_d restricted to Gen_d; C_d = Phi_d restricted to Cycle_d
 ```
 
@@ -410,7 +411,8 @@ For a use `u`, define `rho_(d,u)` on the surviving identities:
 
 - `Gen_d ∪ Cycle_d`: map through the single source-identity map `Phi_d`, then
   through this use's fresh substitution `sigma_(d,u)`;
-- `Free_d`: map to its stable identity in `E_d`.
+- `Free_d`: resolve through the component-stable environment map `beta_C` to
+  an anchor in `A_d`, then keep that anchor fixed.
 
 No `Erase_d` variable occurs in `H_d`; its extreme node is copied as a
 constructor leaf. This keeps erasure separate from the injective variable
@@ -421,9 +423,11 @@ source/proof identities and edge order are retained; any type-variable
 payload in evidence uses the same variable map. A source identity that belongs
 to both `Gen_d` and `Cycle_d` is mapped once through `Phi_d`. The resulting
 variable map must be injective over identities still present in `H_d`: distinct
-local identities receive distinct fresh IDs, environment identities retain
-their identity, and no fresh ID collides with `E_d`. A boundary collision is a
-view-construction failure, not implicit capture.
+local identities receive distinct fresh IDs, and all resolved environment
+identities remain fixed. Fresh ranges must be disjoint from the entire
+receiving identity namespace, including caller variables outside the view,
+and from other uses' fresh ranges. A boundary collision is a view-construction
+failure, not implicit capture.
 
 **Closure transport.** For any finite set `S_d` of subtype obligations formed
 from `H_d`, and the well-formed injective renaming `rho_(d,u)` above, the
@@ -442,16 +446,17 @@ principal solutions.
 
 **Conditional solution-set transport.** Fix any semantic carrier `D`, an
 interpretation of graph endpoints into `D`, and a relation `≤` on `D`. For a
-selected graph `G` with local vertices `L` and anchored environment vertices
-`E`, let `Sol_D(G, eta)` be the assignments `nu : L -> D` for which every
-selected lower/upper obligation holds under `eta : E -> D`. This definition
+selected graph `G` with local vertices `L` and resolved anchor vertices
+`A`, let `Sol_D(G, eta)` be the assignments `nu : L -> D` for which every
+selected lower/upper obligation holds under `eta : A -> D`. This definition
 does not choose `D`, endpoint interpretation, or `≤`; those are still an open
 semantic decision.
 
-Let `rho : L -> P` be a bijection to fresh parent identities, disjoint from
-`E`, and the identity on `E`. Rename every local variable occurrence in the
-selected graph homomorphically, preserving constructors and edge direction.
-For each `nu` define `rho_*(nu)(rho(v)) = nu(v)`. Then:
+Let `rho : L -> P` be a bijection to fresh identities, disjoint from the
+entire receiving identity namespace, and the identity on resolved anchors `A`.
+Rename every local variable occurrence in the selected graph
+homomorphically, preserving constructors and edge direction. For each `nu`
+define `rho_*(nu)(rho(v)) = nu(v)`. Then:
 
 ```text
 nu in Sol_D(G, eta)  iff  rho_*(nu) in Sol_D(rho(G), eta)
@@ -464,7 +469,7 @@ variable's bound edges. Assume constructor interpretation respects this
 evaluation rule. Structural induction over each finite endpoint then gives
 `eval(rho(e), rho_*(nu), eta) = eval(e, nu, eta)`, so every selected subtype
 obligation has the same truth value. Since `rho` is bijective on local
-vertices and fixes `E`, `rho_*` has the inverse assignment map and gives a
+vertices and fixes `A`, `rho_*` has the inverse assignment map and gives a
 bijection of solution sets. Root observations are preserved only when they
 depend extensionally on interpreted root values, not on raw vertex IDs. If a
 later model interprets recursive bounds by unfolding or a fixed-point
@@ -474,12 +479,14 @@ view is principal, that the selected graph is Oracle-compatible, or that
 one-sided erasure preserves the solution relation.
 
 **Structural use isolation.** For two distinct uses `u != v`, require their
-fresh image sets to be disjoint and to intersect the stable graph only through
-`E_d`. Every raw copied edge then mentions local IDs from at most one use, plus
-stable environment IDs. Closure can combine constraints through a shared
-environment row: for example, `a_u <: e` and `e <: b_v` can derive a cross-use
-obligation `a_u <: b_v`. Every such cross-use derivation must pass through an
-identity in `E_d`; disjoint fresh identities rule out any other shared pivot.
+fresh image sets to be disjoint from one another and from the entire receiving
+identity namespace. Every raw copied edge then mentions local IDs from at most
+one use, plus resolved shared anchors. Closure can combine constraints through
+a shared anchor row: for example, `a_u <: a` and `a <: b_v` can derive a
+cross-use obligation `a_u <: b_v`. Every such cross-use derivation must pass
+through an identity in the component anchor set `A_C`; disjoint fresh
+identities rule out any other shared pivot. The copied use graphs may therefore
+overlap through `A_C`, while no fresh identity intersects the stable graph.
 This is the intended environment interaction, but the precise effect on use
 solution spaces is not established here. The claim is limited to raw edge
 separation and the shared-pivot condition on closure derivations. A
@@ -496,7 +503,7 @@ projection remain unproved.
 
 Monomorphization may later choose concrete values for overlay ports and
 specialize the selected member graph through the same lookup. It must preserve
-recursive edges and `E_d` identities. This draft does not specify a cache key,
+recursive edges and resolved `A_C` identities. This draft does not specify a cache key,
 runtime representation, or serialization format.
 
 ## 5. Candidate correctness statement
@@ -864,30 +871,38 @@ details are evidence for the replacement's use-site simulation obligation,
 not permission to copy F5's scheme architecture.
 
 **Candidate principality criterion.** Once a carrier `D` and subtype preorder
-`≤` have been fixed, a saved member view `H_d` and environment assignment
-`eta_d`
-induce the set of root types realized by satisfying per-use local assignments.
-For uses targeting member `d`, let `E_d = Free_d` contain the identities
-preserved across those uses, including outer/imported boundary identities, and
-let `L_d = Gen_d ∪ Cycle_d` contain the member-owned identities freshened per
-use. A valid view has `E_d ∩ L_d = ∅`, and every identity remaining in its
-saved root or selected obligations belongs to `E_d ∪ L_d`; projected-away
-`Erase_d` identities do not occur in `H_d`. Write `eta_d : E_d -> D` and
-`nu_d : L_d -> D`.
+`≤` have been fixed, a saved member view `H_d` induces the set of root types
+realized by satisfying per-use local assignments. `H_d` contains source
+TypeVar identities. Let `Free_d` be the source identities preserved across
+uses targeting `d`, including outer/imported boundary identities, and let
+`Lsrc_d = Gen_d ∪ Cycle_d` contain member-owned source identities freshened
+per use. These sets must be disjoint, and every identity remaining in the
+saved root or selected obligations belongs to `Free_d ∪ Lsrc_d`;
+projected-away `Erase_d` identities do not occur in `H_d`. The component
+resolver `beta_C : Free_C -> A_C` maps participating free source identities
+injectively to stable anchors; `A_d` is its image on `Free_d`.
+`Phi_d : Lsrc_d -> Ports_d` is an injective, member-owned source-to-port map.
+For each use, `sigma_(d,u) : Ports_d -> Fresh_(d,u)` is injective, with fresh
+ranges disjoint from the receiving identity namespace and all other use
+ranges. Define `rho_(d,u)(v) = sigma_(d,u)(Phi_d(v))` for `v ∈ Lsrc_d`, and
+`rho_(d,u)(v) = beta_C(v)` for `v ∈ Free_d`. Thus distinct surviving source
+identities have distinct images. Write `eta_d : A_d -> D` and
+`nu_u : Fresh_(d,u) -> D`.
 
 ```text
 Root_d(eta_d) = {
-    eval(root_d, eta_d, nu_d)
-    | nu_d assigns L_d and satisfies every selected obligation of H_d
+    eval(rho(root_d), eta_d, nu)
+    | rho is any valid use renaming of this member view, nu assigns its fresh
+      range, and the renamed selected obligations of H_d hold under eta_d, nu
 }
 Pred_d(eta_d) = { T in D | exists t in Root_d(eta_d): t ≤ T }
 ```
 
 **Environment-fiber convention (candidate clarification).** Let `Env_d` be
-assignments to `E_d` satisfying the shared-only constraints for uses targeting
+assignments to `A_d` satisfying the shared-only constraints for uses targeting
 `d`; `Shared_d(eta_d)` means exactly `eta_d ∈ Env_d`. Shared-only constraints
-include all relevant obligations whose identities are all in `E_d`; obligations
-involving `L_d` remain in the member view. Do not restrict `Env_d` to
+include all relevant obligations whose resolved identities are all in `A_d`;
+obligations involving fresh local identities remain in the member view. Do not restrict `Env_d` to
 assignments for which the member has a local solution. For every
 `eta_d ∈ Env_d`,
 including one whose local fiber is empty, `Root_d(eta_d)` and
@@ -912,7 +927,7 @@ shown that a finite regular scheme can represent `Pred_d`.
 
 For several incoming uses targeting the same member `d`, the environment
 assignment `eta_d` is shared while each use gets an independent assignment to
-the member's local generalized and recursive identities. Let `Use_u(t, eta_d)`
+its fresh local identities. Let `Use_u(t, eta_d)`
 be the constraints and observations at incoming use `u` after receiving root
 value `t`. The joint relation must retain the use-site obligations and root
 results:
@@ -920,23 +935,26 @@ results:
 ```text
 exists eta_d ∈ Env_d .
   for every u, exists nu_u, t_u .
-    nu_u assigns L_d and
-    Member(H_d, eta_d, nu_u) and
-    t_u = eval(root_d, eta_d, nu_u) and
+    nu_u assigns Fresh_(d,u) and
+    Member(rho_(d,u)(H_d), eta_d, nu_u) and
+    t_u = eval(rho_(d,u)(root_d), eta_d, nu_u) and
     Use_u(t_u, eta_d)
 ```
 
-Each `nu_u` assigns that use's disjoint fresh identities in `L_d`. Every
-`Free_d` identity is assigned through the same `eta_d` at every use, matching
+Each `nu_u` assigns that use's disjoint fresh identities. Every `Free_d`
+source identity resolves through the same `beta_C` anchor and is assigned
+through the shared `eta_d` at every use, matching
 the Oracle behavior that retains unmapped free variables. When checking a
 particular environment fiber, `eta_d` is fixed and its existential quantifier
 is omitted. A single shared `eta_d` permits use constraints to interact through
 preserved identities; distinct local assignments prevent direct local-variable
 sharing. This matches the Oracle fixture where per-use binders freshen and
 imported/free identities remain shared, but does not prove equality with that
-fixture's use relation. `Member(H_d, eta_d, nu_u)` abbreviates satisfaction of
-every selected obligation in the saved view under those assignments. This
-formula covers a batch targeting one member; different-member composition is
+fixture's use relation. `Member(rho_(d,u)(H_d), eta_d, nu_u)` abbreviates
+satisfaction of every selected obligation in the renamed saved view under
+those assignments. The `Root_d` set is independent of the chosen fresh IDs by
+the conditional solution-set transport lemma. This formula covers a batch
+targeting one member; different-member composition is
 specified only by the following unselected candidate operation. One-sided erasure also remains open: the
 observed `any -> int`
 requires proving, under the chosen order and Function interpretation, that
@@ -957,12 +975,15 @@ not make a closed per-member type tree authoritative. Its precondition is that
 ordered member preparation has produced valid saved views `H_d` and the
 all-member visibility barrier has completed. For an incoming use `u` targeting
 member `d`, first resolve each `Free_d` source identity through the stable
-environment lookup `beta_d : E_d -> A_d`. Every `beta_d` is a restriction of
-one component resolver `beta_C`; a source identity free in multiple views maps
-to the same anchor. Ordinary enclosing identities map to themselves; imported
-unit binders map through the once-seeded unit boundary map. Only after this
-lookup, choose an injective per-use map
-`sigma_(d,u) : L_d -> Fresh_(d,u)`. Let
+environment lookup `beta_C : Free_C -> A_C`; the member view uses its
+restriction to `Free_d`, whose image is `A_d`. A source identity free in
+multiple views maps to the same anchor. Distinct participating free source
+identities must map to distinct anchors for this candidate's injective
+transport argument; intentional aliasing needs a separate quotient proof.
+Ordinary enclosing identities map to themselves; imported unit binders map
+through the once-seeded unit boundary map. Use the member-owned map
+`Phi_d : Lsrc_d -> Ports_d`, then choose an injective per-use map
+`sigma_(d,u) : Ports_d -> Fresh_(d,u)`. Let
 `A_C = union_d A_d` be all preserved anchors in the component. Fresh ranges
 must be disjoint from the complete identity set `I_recv` in the receiving
 solver graph and every incoming-use constraint, as well as pairwise disjoint
@@ -973,9 +994,10 @@ another, the first view receives a fresh identity and the second resolves it
 to its preserved anchor. A globally fresh allocator is one way to enforce the
 noncollision condition.
 
-Apply the composed identity map consistently to the view root, selected edge
-endpoints, recursive-bound payloads, and every type-variable occurrence in
-evidence/proof payloads. A proof carrier keyed to a renamed identity must itself
+Apply `rho_(d,u)`—the composition of `Phi_d` and `sigma_(d,u)` on local source
+identities and `beta_C` on free source identities—consistently to the view
+root, selected edge endpoints, recursive-bound payloads, and every
+type-variable occurrence in evidence/proof payloads. A proof carrier keyed to a renamed identity must itself
 be transported with its validity dependencies or revalidated before use;
 stable proof IDs alone do not establish that validity. Memoize cloned graph
 nodes within one `(d,u,sigma_(d,u))` operation, never across uses. Add the

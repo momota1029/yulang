@@ -73,7 +73,9 @@ define the graph operation's observable result function and prove the
 candidate's injective graph transport, then test recursive subtype rules
 against Oracle and continue ordered root-step/use-event simulation. The
 unselected graph-boundary operation keeps the SCC graph authoritative and
-gives each use a member-scoped local map plus stable shared anchors. A focused
+maps source-local identities through member-owned ports to fresh per-use IDs,
+while resolving preserved identities through injective shared anchors. A
+focused
 compiler-referee review caught and closed specific freshness, evidence-map,
 imported-anchor, and memoization-scope gaps; source partition coverage and
 cross-member composition remain unproved. Details are in
@@ -82,8 +84,11 @@ candidate environment convention now assigns preserved
 `Free_d`/outer identities through one shared map, assigns `Gen_d ∪ Cycle_d`
 through a fresh per-use map, and keeps empty fibers empty. A compiler-referee
 delta review found that partition coherent after the draft required every
-surviving saved-view identity to belong to one of those maps or be erased.
-This remains a conditional candidate, not the Oracle denotation. A source
+surviving saved-view identity to belong to one of those maps or be erased. A
+follow-up review caught and closed an unbound use index in the root observation
+and a source-ID/fresh-ID mismatch in the multi-use explanation; fresh-ID
+independence is now conditional on the renaming lemma. This remains a
+conditional candidate, not the Oracle denotation. A source
 reading now records
 the frozen Oracle's operational ordinary use-instantiation path: binder and
 graph-node freshening, preservation of unmapped free variables, recursive-
@@ -276,8 +281,9 @@ parity. Gate E must include expression application in the source envelope or
 record it as a compatibility delta; a broad Oracle-capability claim requires
 the source path. The abstract semantics now has a reviewed conditional lemma:
 injective per-use renaming preserves finite closure, and raw use edges share
-only through `E_d`; closure-derived cross-use edges through `E_d` are explicitly
-allowed. This proves neither solution-space independence nor principality.
+only through resolved component anchors `A_C`; closure-derived cross-use edges
+through those anchors are explicitly allowed. This proves neither
+solution-space independence nor principality.
 Details and review limits are in
 `notes/progress/2026-09-30-intrusion-factorization-proof.md`. A Rust-only
 synthetic incoming-use characterization now exercises two distinct incoming
