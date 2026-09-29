@@ -140,18 +140,18 @@ state, and resource outcomes must correspond. Compiler-referee review found no
 blocking/major issue, but constructing this relation for actual Oracle and
 intrusion states remains open. Details are in
 `notes/progress/2026-09-30-intrusion-projection-congruence-lemma-review.md`.
-The latest Oracle source map narrows the next root-step proof: projection-round
-memo/cycle state is fresh per compact attempt and need not cross restarts, while
-proof-store identities and formula validity do. Post-loop alias and stack
-cleanup passes may mutate without restarting, so saved views must be related
-separately from the successor solver state. Canonical cursor order is not
-allocation order, and the global structural snapshot counter is not an active
-P0 reuse key. Establish an operation-by-operation mutation extension relation
-for the formula/support IDs and decisive evidence before claiming the ordered
-one-root simulation; see
-`notes/progress/2026-09-30-intrusion-projection-order-map.md`. The relation
-between Oracle mutation batches and an intrusion implementation remains
-unproved, as does the semantic carrier choice.
+The attempt/event simulation lemma now states the required restart, wrapper,
+post-loop view-construction, and full-state extension premises. Independent
+compiler-referee and spec-auditor review found and closed one phase error and
+the associated relation/continuation gaps; this remains a conditional proof
+plan, not Gate C evidence. Exact review limits and Oracle source facts are in
+`notes/progress/2026-09-30-intrusion-attempt-event-simulation-review.md`.
+Next define enough of the intrusion transition semantics to instantiate its
+local commuting rules, while keeping the denotational carrier and principality
+choice explicit. Oracle-side facts about fresh rounds, canonical proof order,
+post-loop companion mutations, and mixed-origin final views remain in
+`notes/progress/2026-09-30-intrusion-projection-order-map.md`; no
+cross-machine transition has been proved.
 Downstream tracing now confirms that swapping two exact included proof arms
 can leave compact subtype constraints unchanged but alter the stored witness
 lineage and exported provenance/source site. The one-root relation therefore

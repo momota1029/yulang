@@ -1015,6 +1015,75 @@ sublemma is conditional:
 it does not construct `pi` for Oracle and intrusion states or show root
 mutations preserve the premises.
 
+The next non-circular step is an **attempt/event simulation lemma**, rather
+than assuming `R_i` directly implies `R_(i+1)`. Write the related transition
+segments as
+
+```text
+O_j --δ_O*--> O_(j+1)       I_j --δ_I*--> I_(j+1)
+```
+
+where each segment is one compact attempt or one explicitly bounded
+post-loop phase. At the start of every compact attempt, freeze the
+projection/query input snapshot (not the solver for the whole attempt) and
+establish a fresh order-preserving transport `pi_j` for its reachable
+proof/query closure. Both projection rounds start empty; their
+memo and cycle state is related only within that attempt. The conditional query
+isomorphism pairs ordered decisions and evidence payloads, including the exact
+decisive lineage. It does not pair gateway latches or the surface fallback;
+those require a separate wrapper-transition simulation of error classification,
+precedence, and continuation. If the surface converts a query error to a
+default compact root and continues, both machines must simulate that path
+through later generalization. The round state is discarded at restart;
+proof-store identity and validity relations continue across it.
+
+For each primitive mutation in an attempt, require a local commuting rule:
+from related pre-states, the corresponding Oracle and intrusion operation
+preserve the branch/restart decision and extend the identity transport so
+that the *entire intermediate-state relation* is re-established. This includes
+enclosing anchors; newly reachable and surviving local vertices; levels, birth
+levels, shapes, polarity, weights, both bound directions, root/boundary/fetch
+mode and lookup; proof/support closure and validity; lane/order and decisive
+lineage; pending work and applied keys; and the remaining member cursor and
+previous saved views. A newly appended bound must map its semantic endpoint
+and extend the next attempt's reachable query closure, not merely preserve
+record order. The rule must also preserve bound/constraint canonical-key
+reuse versus append, lane placement and promotion, accepted event order,
+formula/support incidence, canonical cursor order, and certificate validity.
+A single Oracle mutation may correspond to a finite intrusion mutation
+sequence. If the full relation does not hold at each intrusion substep, give
+an explicit intermediate simulation relation for the block and prove that the
+block terminates with the full relation re-established. Composing these local
+rules through the finite restart trace yields the paired next attempt state;
+finiteness and matching termination are premises still to prove, not assumed
+consequences of graph finiteness.
+
+After the last compact attempt, the saved member view is not yet frozen.
+Oracle filters final role predicates and simplifies the compact root, performs
+alias expansion and its one bounded companion constraint pass, then performs
+stack cleanup and a second bounded companion constraint pass. Each phase has
+its own view-transformation rule, solver mutation rule, event routing, and
+wrapper/error behavior; neither companion pass restarts the compact loop. The
+final generalization consumes the pre-second-companion cleaned view while
+reading the then-current solver to choose quantifiers; recursive interval
+records are carried in that cleaned view from the earlier compact/pruning
+phases. The view therefore has mixed origin: its compact structure comes from
+the pre-second-companion cleaned view, while its final quantification consults
+the post-cleanup solver. The simulation must pair those exact inputs
+and this final construction point, then relate the resulting saved member view
+and successor solver state separately. It must model neither a fresh
+projection after the companions nor a finalized view before them.
+
+This formulation is non-circular: it relates only current query closures and
+primitive transitions, and does not assume future roots' projection decisions
+or the final successor relation. Oracle source establishes the Oracle side's
+control flow, append/reuse behavior, cursor ordering, wrapper fallback, and
+post-loop mutation/view construction points. It does not establish a matching
+intrusion transition or the local commuting rules, full intermediate-state
+relation, proof-identity transport, public-lineage match, wrapper continuation,
+or paired termination. Those remain the actual proof obligations; this
+conditional lemma is not a Gate C result.
+
 Then prove the full **projection congruence lemma**: related current inputs for
 a given root yield corresponding ordered visits, evidence/ordinary record
 queries, `Included`/`Unclaimed`/`Excluded` decisions, and corresponding query
