@@ -7,13 +7,16 @@ Status: reviewed conditional lemma; Gate C remains open
 
 ## Change
 
-The abstract-semantics draft now states the renaming result over a many-sorted
-identity signature, including at least value and latent-effect identities. A
-use-local renaming is sort-preserving, fixes the receiver namespace, and maps
-the complete surviving member-local namespace into a fresh range disjoint
-from both receiver identities and other use ranges. The well-formedness premise
-requires every selected view, continuation, and observation read to be covered
-by one of those namespaces.
+The abstract-semantics draft states the renaming result with one identity
+namespace and occurrence roles on endpoints. A use-local renaming maps each
+source identity exactly once, preserves its complete role profile, fixes the
+receiver namespace, and maps the complete surviving member-local namespace
+into a fresh range disjoint from both receiver identities and other use
+ranges. One source identity that occurs in both value and latent-effect
+positions keeps one semantic assignment package and one fresh image; role
+carriers and their compatibility relation belong to the still-unselected
+interpretation. The well-formedness premise requires every selected view,
+continuation, and observation read to be covered by one of those namespaces.
 
 The statement quantifies an arbitrary finite joint continuation `W`; it can
 couple observations and constraints across independent uses. The product
@@ -32,16 +35,21 @@ obligation. Handler hygiene remains outside this lemma.
 
 ## Independent review
 
-An independent compiler-referee delta review closed the prior findings about
-many-sorted type/effect identities and joint constraints between uses. It
-confirmed that recursive inequalities and pointwise empty-fiber preservation
-remain explicit. The referee raised one minor precision issue about evidence
-payload validity; the draft now makes its equivariance premise explicit or
-leaves validity to the separate selection proof.
+An independent compiler-referee delta review first closed findings about
+joint constraints between uses and recursive inequality/empty-fiber handling,
+then identified that Oracle Function effects reuse ordinary TypeVar identities
+and therefore can cross value/effect occurrence roles. The theorem was
+revised to use one identity map and one role-profile package per source ID. A
+follow-up semantic review confirmed that the inverse assignment remains
+well-typed and bijective when an ID occurs in several roles. The referee also
+raised a minor precision issue about evidence payload validity; the draft now
+makes its equivariance premise explicit or leaves validity to the separate
+selection proof.
 
 An independent spec-auditor delta review found no remaining finding in the
-theorem's contract scope. The candidate remains unselected and does not amend
-the reviewed research charter or authorize implementation.
+theorem's contract scope, including after the identity-map correction. The
+candidate remains unselected and does not amend the reviewed research charter
+or authorize implementation.
 
 ## Verification and next gate
 

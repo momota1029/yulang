@@ -82,10 +82,12 @@ component lemma; it does not redefine the objective or establish the required
 Oracle-capable envelope. A canonical source grammar, machine-specific
 lowering relation, generated root/use/publication traces, and candidate public
 observation fields are now drafted and independently delta-reviewed. The
-conditional joint-use renaming theorem now covers many-sorted value/effect
-identities, complete same-member view namespaces, and arbitrary finite joint
-continuations that can relate roots across uses; independent compiler-referee
-and spec-auditor delta reviews closed the theorem's findings. This remains an
+conditional joint-use renaming theorem now covers one identity map across all
+value/effect occurrence roles, complete same-member view namespaces, and
+arbitrary finite joint continuations that can relate roots across uses;
+independent compiler-referee and spec-auditor delta reviews closed the
+theorem's findings. The correction follows Oracle's use of one TypeVar map for
+value, recursive, and Function-effect occurrences. This remains an
 identity-transport lemma, not a carrier or Oracle-projection proof. The
 Oracle source map found no explicit equi-recursive/coinductive subtype rule:
 the Oracle uses finite polarized types, variable-bound propagation, and
@@ -101,6 +103,13 @@ recursive intervals, constrained negative projection, and annotation-dependent
 local scheme routing; then prove Oracle's source/root transitions against it
 and define public type normalization. See
 `notes/progress/2026-09-30-intrusion-finite-saturation-review.md`. The
+Oracle's Function/tuple/record/nominal/effect rules and the Yulang3 replacement
+boundary are mapped in
+`notes/progress/2026-09-30-intrusion-structural-rule-and-implementation-map.md`.
+Tuple arity and missing required record fields can fail during specialization
+after inference propagation, while nominal path mismatches route through
+`NominalCastNeeded`; the inference-only closure is not the full public result
+relation. The
 candidate and its reviews are recorded in
 `notes/progress/2026-09-30-intrusion-end-to-end-capability-matrix.md` and
 `notes/progress/2026-09-30-intrusion-source-envelope-review.md`. The

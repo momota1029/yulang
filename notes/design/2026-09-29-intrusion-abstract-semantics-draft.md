@@ -629,30 +629,43 @@ separation and the shared-pivot condition on closure derivations. A
 solution-space product and principal-solution theorem require a denotational
 subtype model and remain unproved.
 
-**Conditional joint-use renaming theorem (candidate).** Fix a many-sorted
-identity signature `S` (at least value and latent-effect sorts), a carrier
-interpretation for each sort, and subtype/effect relations for the corresponding
-endpoint positions. An endpoint, assignment, constraint, and observation is
-well-sorted; `rho` below is sort-preserving. A saved member view contains
-finite regular endpoint terms, selected inequality obligations `C_d`, a typed
-root observation tuple `R_d` (value root and any observable effect roots),
-and preserved anchors `A_d`. Recursive bound rows are members of `C_d` as
-inequalities; a variable back-edge evaluates by assignment lookup and is not a
-recursive type equation. Fix a well-sorted shared assignment `eta_d` for all
-identities in the receiver namespace, including anchors, with its admissibility
-domain defined independently of whether the member-local fiber is empty.
+**Conditional joint-use renaming theorem (candidate).** Fix one set of
+identities `Id` and occurrence roles `Role(o)` for each variable occurrence
+`o` in endpoints, constraints, and observations. Roles may include value and
+latent-effect positions. Do not assign separate identity namespaces to those
+roles: the Oracle represents Function effect variables with ordinary TypeVar
+identities and clones them through the same source-ID map as value and
+recursive-bound occurrences. For a chosen interpretation, let `D_r` be the
+carrier for role `r`; an identity `i` with role profile `R(i)` is assigned one
+semantic package in `D_{R(i)} ⊆ ∏_{r∈R(i)} D_r`, with any cross-role
+compatibility condition supplied by that interpretation. Each occurrence is
+evaluated through its role projection. Thus a single identity used in both a
+value and latent-effect position keeps one assignment and one fresh image.
+
+A saved member view contains finite regular endpoint terms, selected
+inequality obligations `C_d`, a role-annotated root observation tuple `R_d`
+(value root and any observable effect roots), and preserved anchors `A_d`.
+Recursive bound rows are members of `C_d` as inequalities; a variable
+back-edge evaluates by assignment lookup and is not a recursive type equation.
+Fix one shared assignment `eta_d` to the receiver identities, including
+anchors, well-typed for every role in which each identity occurs. Its
+admissibility domain is defined independently of whether the member-local
+fiber is empty.
 
 For each incoming use `u` targeting `d`, let `L_d` be the complete set of
 surviving member-local identities (ordinary, recursive, and forced-effect
-identities), and choose a sort-preserving bijection `rho_u : L_d -> F_u`.
-Require `F_u` to be disjoint from the entire receiver namespace and from every
-other use range. `rho_u` fixes `A_d`; apply it consistently to root terms, both
-sides of every inequality, effect positions, and all identity-bearing
-constraint/evidence payloads. Assume endpoint evaluation and each
-subtype/effect relation are equivariant under this renaming. This theorem
-assumes each use view is a complete copy: every identity it reads is either in
-`L_d` or the receiver namespace. Any omitted or erased identity must not be
-read by the view, its continuation, or its observations.
+identities), and choose one bijection `rho_u : L_d -> F_u` on identities.
+Require it to preserve each identity's complete role profile, not to split one
+identity by role. Require `F_u` to be disjoint from the entire receiver
+namespace and from every other use range. Extend `rho_u` by identity on the
+receiver namespace, so it fixes `A_d`; apply this same map consistently to
+root terms, both sides of every inequality, every role position, and all
+identity-bearing constraint/evidence payloads. Assume the
+role projections, endpoint evaluation, and each subtype/effect relation are
+equivariant under this renaming. This theorem assumes each use view is a
+complete copy: every identity it reads is either in `L_d` or the receiver
+namespace. Any omitted or erased identity must not be read by the view, its
+continuation, or its observations.
 
 Now choose an arbitrary finite, well-sorted joint continuation `W` over the
 receiver namespace and the disjoint use-local copies. `W` may relate roots or
@@ -664,19 +677,22 @@ family of typed observations `z = (z_u)_u`, define:
 ```text
 Batch_d(eta_d, W) = {
   z |
-    there exist assignments nu_u : F_u -> D_sort for all u such that
+    for every use u there exists nu_u assigning each i in F_u
+      a package in D_{R(i)}, such that
       renamed C_d holds for each u under eta_d, nu_u,
       z_u = eval(renamed R_d, eta_d, nu_u) for every u, and
       W(z, eta_d, (nu_u)_u) holds
 }
 ```
 
-Here `D_sort` is the carrier selected by each identity's sort. The product of
-the per-use assignment renamings is a bijection from assignments of the
-original local identities, with one independent assignment per use, to
-assignments of the fresh ranges. Structural induction on finite endpoint
-syntax preserves each typed root value; each copied inequality and every
-identity-bearing payload has the same identity correspondence. If payload
+Here each `nu_u` assigns a fresh identity one package for its complete role
+profile. The product of the per-use assignment renamings is a bijection from
+assignments of the original local identities, with one independent assignment
+per use, to assignments of the fresh ranges. Structural induction on finite
+endpoint syntax preserves each role-projected root value; if one identity
+occurs in several roles, all of its projections are preserved together by the
+same map. Each copied inequality and every identity-bearing payload has the
+same identity correspondence. If payload
 validity is part of the selected-view relation, its evaluator must also be
 equivariant under `rho`; otherwise payload validity remains a separate edge-
 selection obligation. Since `W` is equivariant, the full joint continuation
@@ -689,7 +705,7 @@ argument does not split them into per-use environments or assert that the
 batch relation is a Cartesian product.
 
 This conditional theorem assumes an already selected complete member view,
-fixed sorted carrier interpretations, and semantic equivariance. It establishes
+fixed role carriers/packages, and semantic equivariance. It establishes
 only identity-renaming transport for same-member use batches. It does not prove
 that Oracle root projection selects `C_d`, that different member views compose
 when an identity is free in one and local in another, that either scheme is
