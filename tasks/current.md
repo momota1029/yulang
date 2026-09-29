@@ -36,8 +36,12 @@ declarations do not resolve the forward member reference; this exact graph
 case remains open and needs an accepted source construction or graph-level
 characterization. A pure Function guarded mutual cycle was also observed to
 collapse to `any -> any -> never` for both members, without recursive bounds;
-other cycle shapes and the graph simulation theorem remain open. Next,
-characterize those cases and state the theorem. Do not make
+other cycle shapes remain open. The first Gate B candidate model is drafted in
+`notes/design/2026-09-29-intrusion-abstract-semantics-draft.md`: immutable
+frozen graph, boundary parent ports, outer identity preservation, and
+per-incoming-use overlays. It is exploratory and proves no theorem. Next define
+the polarized graph denotation and solve relation, then work counterexamples
+and the simulation theorem. Do not make
 F5's Q/R shape, closed schemes, numbering, or resource contract the pass
 condition.
 
