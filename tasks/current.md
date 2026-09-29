@@ -86,8 +86,11 @@ now includes an independently reviewed finite lower-graph lemma: joins of
 reachable lower endpoints give a pointwise least solution and the positive
 variable root denotation. It does not settle the source fixture's mixed-
 polarity Function root, where argument and result identities are coupled.
-Next extract that full graph and compare the Oracle root denotation with
-intrusion through finalization and independent uses. Details and review limits
+The draft now states a candidate joint edge relation with shared `x` and
+anchored `l`, and eliminates auxiliary `a,b` to the conditional graph image
+`{ Arr(x,r) | x ≤ e, x ≤ r, l ≤ r, int ≤ r }`; selected lower records remain
+replay-qualified. Next compare this image against the saved compact/finalized
+Oracle root, then follow independent incoming uses. Details and review limits
 are in
 `notes/progress/2026-09-30-intrusion-bounded-negative-counterexample.md`.
 The Rust integration map is recorded in

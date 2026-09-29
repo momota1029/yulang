@@ -1011,8 +1011,56 @@ positively and negatively: the argument and result fibers are coupled and
 their extrema cannot be combined independently. The positive-result Oracle
 source probe recorded in
 `notes/progress/2026-09-30-intrusion-bounded-negative-counterexample.md`
-motivates this dual graph lemma, but its recursive/effect endpoints have not
-yet been shown to satisfy this theorem's complete graph-class premises.
+motivates this dual graph lemma, but its recursive-call and latent-effect
+constraints have not yet been shown to satisfy this theorem's complete
+graph-class premises.
+
+**Mixed-polarity source fixture relation (characterization only).** In the
+positive-result fixture, write `x` for the shared Function argument/result
+identity, `r` for the result root, `a,b` for the two local replay endpoints,
+and hold outer `e` and `l` fixed. Abstracting only the five selected lower
+records for `r` and four observed upper records for `x` gives this candidate
+finite relation:
+
+```text
+x ≤ e       x ≤ a       x ≤ b       x ≤ r
+a ≤ r       b ≤ r       x ≤ r       l ≤ r       int ≤ r
+```
+
+The repeated `x ≤ r` is one obligation. The source trace establishes the
+record identities and empty weights, but those lower records are replay-
+qualified, so treating the list as a complete selected graph remains a
+conditional abstraction. For that abstraction, the root relation is the joint
+image
+
+```text
+{ Arr(ν(x), ν(r)) | ν satisfies all listed edges, with e and l fixed }
+```
+
+under the same assignment `ν` at both occurrences of `x`. It is not the
+Cartesian product of the argument and result projections: `x ≤ r` couples
+them, while `l ≤ r` remains an environment anchor. Any candidate parent
+transport must preserve this shared assignment and anchor. The trace and this
+relation do not prove that Oracle finalization is denotationally equal to this
+set, that the set has a principal regular Function representative, or that
+parent intrusion preserves it through use and finalization. Establishing those
+facts is the next proof obligation for this fixture.
+
+For the abstract edge list alone, the existential local endpoints can be
+eliminated exactly in any subtype preorder. A satisfying assignment implies
+`x ≤ e`, `x ≤ r`, `l ≤ r`, and `int ≤ r` by the listed edges and transitivity.
+Conversely, given these four inequalities, choose `a = b = x`; reflexivity
+discharges `x ≤ a,b`, and `a,b ≤ r` follow from `x ≤ r`. Thus the projected
+joint image is exactly
+
+```text
+{ Arr(x, r) | x ≤ e, x ≤ r, l ≤ r, int ≤ r }
+```
+
+with the same `x` in the Function argument and in the `x ≤ r` constraint.
+This removes the auxiliary vertices without separating the shared polarity
+fiber. It is a finite graph projection fact only; it does not identify this
+relation with Oracle's saved scheme denotation.
 
 **Selected-edge fiber corollary (conditional).** The interval premise can be
 derived for a restricted selected graph. Let `G` have a finite set of selected

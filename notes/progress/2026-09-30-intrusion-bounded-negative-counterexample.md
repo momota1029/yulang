@@ -407,7 +407,8 @@ identity is `TypeVar(2)`. Actual scheme-collector instrumentation records a
 positive-polarity query for the Function result variable `TypeVar(24)` while
 building `inner`'s compact root. It returns replay-qualified lower records:
 136 (`TypeVar(18)`, the `x` identity), 138 (`TypeVar(2)`, the source `l`), and
-140 (`int`), as well as effect-related endpoints 132 and 134. The compact
+140 (`int`), as well as auxiliary local endpoints 132 (`TypeVar(38)`) and
+134 (`TypeVar(36)`). The compact
 Function result stores `TypeVar(24)` as primary and retains `TypeVar(2)` and
 `Int` among its secondary lower components. The formatted schemes are
 consistent with the enclosing `'a` remaining shared:
@@ -465,3 +466,27 @@ through finalization and independent uses. The finite lower lemma is only a
 single positive-variable fiber and does not discharge this coupled case.
 Ordered root simulation and the general denotation proof remain open;
 implementation remains gated.
+
+## Mixed-polarity relation setup (2026-09-30)
+
+The abstract-semantics draft now records the candidate joint relation induced
+by the compact trace, with `x` shared between `Arr` argument and result paths,
+`r` as the result root, `a,b` as local replay endpoints, and outer `e,l` fixed:
+`x ≤ e,a,b,r`, `a,b ≤ r`, `l ≤ r`, and `int ≤ r`. The duplicate `x ≤ r`
+record is one edge. This makes the coupling explicit and rules out reasoning
+from independent argument/result fibers. The lower records are replay-qualified,
+so this remains conditional: the trace does not establish completeness of that
+selected graph or direct source provenance. The Oracle formatted schemes are
+still observations, and no principal representative has been proved.
+
+The abstract graph's joint image is now reduced algebraically: `a` and `b` can
+be existentially eliminated, leaving exactly
+`{ Arr(x,r) | x ≤ e, x ≤ r, l ≤ r, int ≤ r }`. Necessity follows by
+transitivity; sufficiency sets `a = b = x` and uses reflexivity. This preserves
+the shared `x` and outer anchors. It is a graph projection fact, not evidence
+that Oracle's saved root has this denotation. Next compare it with the
+compact/finalized root, then carry the same source-identity map through two
+independent incoming uses. Do not infer a Function representative by combining
+the marginal least argument and greatest result. No Python model is used as
+evidence; the only runtime characterization cited here is the focused
+Rust-path Oracle probe above.
