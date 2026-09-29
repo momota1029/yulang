@@ -30,13 +30,14 @@ independently reproduced execution.
 | Nested self-recursive lambda source | The accepted source `pub f = \\x -> \\y -> f` formats as `any -> never` in the Oracle. This pure Function-only shape does not retain a recursive scheme bound; it differs from the nominal-guarded mutual Function SCC recorded below. | Probe command: `cargo test -p infer scratch_oracle_guarded_recursive_function_scheme -- --nocapture` in a detached worktree at `a58eefc3`; temporary probe code removed with that worktree. |
 | Source-level recursive nominal and Function roots | A source-level self-recursive nominal value `struct loop 'a { next: 'a }; pub helper = loop { next: helper }` is accepted with scheme `loop 'a`, zero ordinary quantifiers, and one `recursive_bounds` entry. A recursive Function binding `pub helper x = loop { next: helper x }` is accepted with scheme `any -> loop 'a`, one ordinary quantifier, and no `recursive_bounds`. Thus the Oracle demonstrably supports guarded recursive type bounds in general, while this Function-valued witness does not create an R binder. | Probe command: `cargo test -p infer scratch_oracle_recursive_function_bounds_from_source -- --nocapture` in a detached worktree at `a58eefc3`. Probe inspected formatted scheme, `quantifiers.len()`, and `recursive_bounds.len()` for each source. Temporary probe code was removed. |
 | Guarded mutual Function SCC with recursive bounds | The source `struct loop 'a { next: 'a }; pub helper x = loop { next: \\y -> g x }; pub g x = loop { next: \\y -> helper x }` succeeds without diagnostics. Both member schemes format as `any -> loop 'a`, each with 2 ordinary quantifiers and 1 recursive bound. Each recursive lower interval is a union of a variable and a Function whose result is `loop` with a recursive argument bound; the two bounds' upper sides point to the opposite member's recursive variable. This is an actual source-level SCC witness combining Function structure, nominal guarding, cross-member recursion, and R bounds. | Probe command: `cargo test -p infer scratch_oracle_recursive_function_shape_matrix -- --nocapture` in a detached worktree at `a58eefc3`; the probe inspected both members' scheme binder counts and recursive-bound graph nodes. Probe source was temporary and removed after the run. |
+| Local diamond and captured rigid endpoint | The source `my outer x = my inner y = ({left: x, right: x}, y); inner` succeeds without diagnostics. The local scheme is `'a -> ({left: 'b, right: 'b}, 'a)` with one quantifier; the outer scheme is `'a -> 'b -> ({left: 'a, right: 'a}, 'b)` with two. Raw arena checks confirm both local record paths and the outer input use the same `TypeVar`, and that this captured variable is absent from the local scheme's quantifiers. This witnesses a shared diamond, capture avoidance, and one variable crossing from negative outer Function argument position to positive result position. | Probe command: `cargo test -p infer scratch_oracle_local_diamond_keeps_outer_parameter_shared -- --nocapture` in a detached worktree at `a58eefc3`; assertions inspected formatted schemes, binder counts, and exact TypeVar identities. Temporary probe source was removed. |
 
 ## Open rows
 
 This is not yet a complete observable contract. Still to inspect and record:
 
-- a shared diamond and a descendant outside the definition SCC;
-- a nested polarity inversion with a rigid enclosing non-generic variable;
+- a shared diamond whose paths originate from distinct members of one
+  definition SCC and whose common descendant belongs to an enclosing scope;
 - pure Function-only guarded cycles, and additional recursive SCC shapes beyond
   the nominal-guarded mutual witness;
 - exact use independence under interleaved constraints and later generalization
@@ -44,12 +45,12 @@ This is not yet a complete observable contract. Still to inspect and record:
 - whether a behavior is fixed by tests/observable output or only inferred from
   the machine's implementation order.
 
-The successful identity-use, unproductive cycle, and nominal-guarded mutual
-Function probes establish only those exact programs. Recursive Function SCCs
-are therefore part of the Oracle target when guarded by the nominal
-constructor. Whether a pure Function-only cycle can retain a recursive scheme
-binder remains open; do not infer it from the mixed witness or from the
-different F5 implementation.
+The identity-use, unproductive cycle, nominal-guarded mutual Function, and
+local captured-diamond probes establish only those exact programs. Recursive
+Function SCCs are part of the Oracle target when guarded by the nominal
+constructor. A pure Function-only cycle's behavior and a diamond shared across
+distinct members of the same SCC remain open; do not infer them from the mixed
+witnesses or from the different F5 implementation.
 
 ## Research consequence
 
