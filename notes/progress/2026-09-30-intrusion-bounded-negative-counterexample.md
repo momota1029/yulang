@@ -331,3 +331,50 @@ decision and retained outer identities through root preparation; separately
 prove lower-evidence transport if the replacement representation needs it.
 The general denotation, ordered root simulation, use simulation, and
 implementation gates remain open.
+
+## Source-level anchored alias probe (2026-09-30)
+
+An isolated temporary test was added to a detached worktree of frozen Oracle
+`a58eefc3`, in `crates/infer/src/lowering/tests/case_05.rs`, and passed once
+after its final assertions. The source is:
+
+```yulang
+my outer(l: int, sink: 'e -> int) =
+  my inner(x, y) =
+    sink x
+    inner y x
+    inner l y
+    1
+  inner
+```
+
+The probe resolves the outer `l` and `sink` parameters and inner `x` and `y`
+variables from lowered bindings. In the post-lowering solver bounds it finds
+`l ≤ x`, `x ≤ e` (where `e` is the sink function's annotated argument), and
+both raw alias directions `x ≤ y` and `y ≤ x`. The sanctioned scoped query
+after lowering succeeds: it selects the exact `l ≤ x` PosId for `x` and sees
+`x ≤ e` among `x`'s scoped upper records. A second query for `y` does **not**
+select `x ≤ y`, so the evidence does not establish a selected alias cycle or
+the same decisions at `inner`'s original generalization boundary. The bounds
+are matched by endpoint shape, not exact record provenance; source origin is
+therefore not proved. The formatted `inner`/`outer` schemes are also asserted
+in the temporary test, but do not strengthen those claims.
+
+An independent compiler-referee delta review confirmed the scoped API is used
+correctly and these claim limits. Focused command in the isolated worktree:
+`CARGO_TARGET_DIR=/tmp/yulang-intrusion-oracle-target cargo test -p infer
+scratch_source_outer_lower_recursive_alias_cycle -- --nocapture` (1 passed).
+The temporary test is not part of the repository and the frozen Oracle
+checkout was not modified. This is a source-level reachability
+characterization only; lower-evidence transport, root-boundary selection,
+parent/provenance transport, and root/use simulation remain open.
+
+## Next action
+
+Extend the Oracle Rust-path probe to capture exact bound record IDs and the
+projection result at `inner`'s own generalization boundary. In particular,
+find a source construction where both directions of the alias cycle are
+selected for the relevant member roots, or characterize why Oracle selects
+only one direction. Then trace the selected lower evidence and surviving
+outer identities through publication. General denotation, ordered root
+simulation, use simulation, and implementation gates remain open.

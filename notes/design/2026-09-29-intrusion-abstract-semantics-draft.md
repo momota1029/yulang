@@ -1218,6 +1218,29 @@ constraint-graph characterization with an explicit note that it is not a
 source-level Oracle observation. Pure Function-only and nominal-guarded cycle
 witnesses currently establish only their exact observed programs.
 
+A later isolated Rust-path source probe does establish a narrower source
+reachability fact:
+
+```yulang
+my outer(l: int, sink: 'e -> int) =
+  my inner(x, y) =
+    sink x
+    inner y x
+    inner l y
+    1
+  inner
+```
+
+Post-lowering bounds contain both alias directions between `x` and `y`, plus
+`l ≤ x` and `x ≤ e`. A scoped query after lowering selects `l ≤ x` for `x` and
+exposes `x ≤ e`, but the reverse alias edge is not selected for `y`; this does
+not establish an evidence-selected alias cycle, the projection state at
+`inner`'s original generalization boundary, or exact source provenance. This
+single local recursive member is not the failed multi-member local-SCC
+construction above. See
+`notes/progress/2026-09-30-intrusion-bounded-negative-counterexample.md` for
+the temporary Oracle test, command, and independent review limits.
+
 Next, define the polarized bound-graph denotation and principal-solution order,
 then discharge projection congruence, whole root-step simulation, finalization,
 and use-event simulation for the declared envelope. A two-root witness may
