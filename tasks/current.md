@@ -129,7 +129,9 @@ observes shared argument/result identity within each use and distinct exposed
 live identities across the uses. It does not establish general graph-edge
 isolation, intrusion semantics, or principality. Review scope and the focused
 command are recorded in
-`notes/progress/2026-09-30-intrusion-rust-use-characterization.md`. Next prove
-general graph isolation. This witness is current-path characterization, not
-intrusion correctness or source-level Oracle parity. Implementation remains
-gated on the reviewed successor contract and explicit user approval.
+`notes/progress/2026-09-30-intrusion-rust-use-characterization.md`. General
+graph isolation remains another open Gate C obligation. This witness is
+current-path characterization, not intrusion correctness or source-level
+Oracle parity.
+Implementation remains gated on the reviewed successor contract and explicit
+user approval.
