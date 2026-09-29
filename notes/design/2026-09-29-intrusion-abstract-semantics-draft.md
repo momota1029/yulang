@@ -922,7 +922,9 @@ returned query error to a default compact root, but this is not evidence that
 the failed root view is semantically accepted. The replacement must define a
 deterministic failure result and avoid publishing a partially prepared
 component; that is a replacement safety requirement, not an assertion that
-Oracle member-slot writes are atomic.
+Oracle slot writes are atomic. The Oracle gathers all root views before
+exposing collected results to incoming uses, while slot insertion/finalization
+may proceed sequentially behind that visibility barrier.
 
 The Oracle scheduler invokes component quantification, but root generalization
 is sequential and may add merge, subtype, cast, or role constraints and
@@ -1411,12 +1413,21 @@ without conflating it with pure subtype failure, factor the machine-specific
 run into three judgments:
 
 ```text
-Lower_X(P) = (C_X, M_X, E0_X)
+Lower_X(Entry_X, P) = (C_X, M_X, E0_X)
 Infer_X(S0_X, C_X, M_X) = InferReady_X(...) | InferStopped_X(...)
+Dispatch_X(Entry_X, E0_X, InferReady_X(...)) =
+  DispatchSpec_X(...) | DispatchObserve_X(...)
 Spec_X(S_X, Views_X, Ledger_X, M_X) = SpecDone_X(...) | SpecStopped_X(...)
-Observe_X(E0_X, M_X, Trace_X, Outcome_X) = Public_X
-Run_X(S0_X, Lower_X(P)) = (Trace_X, Public_X)
+Observe_X(Entry_X, E0_X, M_X, Trace_X, Outcome_X) = Public_X
+Run_X(S0_X, Entry_X, Lower_X(Entry_X, P)) = (Trace_X, Public_X)
 ```
+
+`Entry_X` names the public operation being compared. The same source `P` can
+have different observable outcomes through check/analyze and runtime-build
+routes: for example, accumulated lowering diagnostics can be returned by the
+former, while runtime readiness can reject them before specialization. The
+eventual support contract must name each compared entrypoint rather than
+silently treating these routes as one result.
 
 Here `S_X` must retain value and effect bounds, weighted row residuals,
 projection/evidence state, and the shared SCC graph. `Views_X` contains the
@@ -1438,12 +1449,18 @@ incoming uses may proceed after the all-member visibility barrier. The
 inference trace must retain the Oracle-related order among root collection,
 slot insertion, and finalization; this signature does not impose a new
 intra-barrier write order. `InferStopped_X` carries its terminal outcome and
-trace when no specialization input exists. `SpecDone_X` and `SpecStopped_X`
+trace when no specialization input exists. After `InferReady_X`, `Dispatch_X`
+applies the public-entrypoint readiness rules using `Entry_X` and lowering
+diagnostics in `E0_X`. It either provides the specialization input or stops
+before specialization with the entrypoint's observed output. This represents
+routes where check/analyze returns accumulated lowering diagnostics while
+runtime readiness rejects them before specialization, without misclassifying
+those diagnostics as an inference failure. `SpecDone_X` and `SpecStopped_X`
 distinguish successful specialization from rejection; the outcome must retain
 whatever published/export state the Oracle exposes on failure. A handled
 default-root fallback is an inference trace event and may continue to either
-inference outcome. Thus specialization is never called after a terminal
-inference stop.
+inference outcome. Thus specialization is called only after a terminal-free
+inference result and a dispatch decision to proceed.
 
 `TraceInfer_X` records root attempts/restarts, ordered projection evidence,
 root finalization/publication, member visibility barriers, internal live-root
@@ -1455,11 +1472,36 @@ source locations and semantic payload when the Oracle exposes them. The
 signatures are interfaces, not operational definitions: in particular, no
 public type normalizer or exact diagnostic projection is selected here.
 
-`Run_X` uses a case split: on `InferStopped_X`, it observes the inference trace
-and terminal state directly; on `InferReady_X`, it runs `Spec_X` and observes
-both traces plus the tagged specialization outcome. This is how the candidate
-relation represents inference failure, handled fallback, specialization
-rejection, and success without collapsing them into one error state.
+`Run_X` first observes `InferStopped_X` directly. On `InferReady_X`, it calls
+`Dispatch_X`; `DispatchObserve_X` is observed without running specialization,
+while `DispatchSpec_X` runs `Spec_X` and observes both traces plus the tagged
+specialization outcome. This represents inference failure, handled fallback,
+entrypoint readiness rejection, specialization rejection, and success without
+collapsing them into one error state.
+
+**Observed Oracle outcome families (source-map facts, candidate tags only).**
+The following distinctions must be representable by `Outcome_X` and the
+ordered trace; this is not a complete public diagnostic contract. Hard lowering
+errors can stop output construction, while expression/body/root diagnostics
+can be accumulated into a built output; a runtime-build entrypoint then rejects
+lowering diagnostics before specialization, whereas check/analyze routes can
+return them. During inference, a fixed cross-kind shape mismatch produces an
+`UnsatisfiedSubtypeShape`; a weighted effect-row filter violation is a
+deduplicated analysis diagnostic while its row residual/evidence remains part
+of inference state. `NominalCastNeeded` eagerly introduces candidate
+constraints, then a later source-boundary activation distinguishes missing,
+unique, ambiguous, and internal/incomplete cases; a unique cast route is not
+itself a public failure. Specialization may reject tuple arity or required
+record-field mismatches, with a source-contextual diagnostic only when
+provenance/selection data identifies one. These outcomes have different owners
+and can carry different source spans, so `Observe_X` must project their actual
+route and emitted order rather than flattening them into one `InferError`.
+
+The supporting source map is
+`notes/progress/2026-09-30-intrusion-oracle-outcome-map.md`. Exact payload
+normalization, public field visibility, and whether every listed family falls
+inside the final supported envelope remain open; no tag here is an approved
+compatibility policy.
 
 The phase-preserving simulation lemma should be rooted at one ordered member
 step. Related pre-root states must yield related evidence selections and

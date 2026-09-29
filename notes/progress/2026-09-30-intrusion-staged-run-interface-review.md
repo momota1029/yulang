@@ -36,7 +36,15 @@ must not run after terminal inference failure. Both reviewers confirmed the
 case split and outcome model. A second narrow review confirmed that
 `SpecDone` means successful specialization and the trace preserves root
 collection, slot insertion, and finalization ordering without imposing an
-unsupported write order.
+unsupported write order. The outcome-family delta then exposed an uncovered
+entrypoint route: runtime readiness can reject accumulated lowering
+diagnostics after inference is ready but before specialization. A
+compiler-referee review classified this as major because `Infer_X` had no
+entrypoint/initial-diagnostics input and `Run_X` always called `Spec_X` from
+`InferReady_X`. The draft now adds `Dispatch_X(Entry_X, E0_X, InferReady_X)`;
+it chooses either specialization input or an observed pre-specialization
+stop. The delta reviewer confirmed this closes the finding and preserves the
+distinction between lowering diagnostics and inference stops.
 
 ## Remaining work
 

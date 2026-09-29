@@ -105,14 +105,23 @@ are now independently reviewed, with tagged terminal outcomes, handled
 fallback, a source-site map threaded through phases, and a deferred proof
 ledger that is not mistaken for Oracle-emitted records. Root finalization and
 the publication barrier sit inside inference; its trace preserves the Oracle-
-related order without imposing a new write schedule. Exact outcome payloads
-and public normalization remain unselected. Next define tags from Oracle
-events, especially weighted effect-row residuals, specialization checks, and
-cast routing, then state the one-root transition simulation. Oracle
-source/root adequacy remains open. See
+related order without imposing a new write schedule. A read-only Oracle map
+now identifies initial outcome families: entrypoint-dependent lowering
+stops/diagnostics, cross-kind infer shape errors, weighted effect-filter
+violations and residuals, deferred specialization failures, and the staged
+nominal-cast route. Their exact public normalization remains open. Next state
+the one-root transition simulation over the existing `R_i` relation, with
+these tagged outcomes and source-map transport. The semantic delta review
+found and closed a major gap: accumulated lowering diagnostics can stop
+runtime readiness after inference but before specialization. The staged
+interface now uses entrypoint-aware `Dispatch_X` with initial diagnostics to
+model that route separately from inference stop. Oracle source/root adequacy
+remains open. See
 `notes/progress/2026-09-30-intrusion-finite-saturation-review.md`. The
 interface review is recorded in
 `notes/progress/2026-09-30-intrusion-staged-run-interface-review.md`. The
+outcome map is in
+`notes/progress/2026-09-30-intrusion-oracle-outcome-map.md`. The
 Oracle's Function/tuple/record/nominal/effect rules and the Yulang3 replacement
 boundary are mapped in
 `notes/progress/2026-09-30-intrusion-structural-rule-and-implementation-map.md`.
