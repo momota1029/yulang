@@ -1231,15 +1231,47 @@ my outer(l: int, sink: 'e -> int) =
   inner
 ```
 
-Post-lowering bounds contain both alias directions between `x` and `y`, plus
-`l ≤ x` and `x ≤ e`. A scoped query after lowering selects `l ≤ x` for `x` and
-exposes `x ≤ e`, but the reverse alias edge is not selected for `y`; this does
-not establish an evidence-selected alias cycle, the projection state at
-`inner`'s original generalization boundary, or exact source provenance. This
-single local recursive member is not the failed multi-member local-SCC
-construction above. See
+The first post-lowering probe was misread: an `x` lower endpoint `y` and a `y`
+upper endpoint `x` are two views of the same inequality `y ≤ x`, so this source
+does not establish an alias cycle. An initial auxiliary query immediately
+before `inner`'s generalizer selected lower records `y ≤ x`, `l ≤ x`, and
+`int ≤ x` for `x`; this was not the generalizer's own query. Instrumenting the
+actual compact collector showed that `x` and `y` occur in negative polarity
+inside `inner`'s Function arguments. It therefore reads upper records `x ≤ e`,
+`y ≤ x`, and `y ≤ e`, but makes no lower-projection query for either argument
+at this root. The saved compact arguments contain `x` with `e`, then `y` with
+`x` and `e`; the enclosing lower `l ≤ x` does not enter this member root.
+Witness capture records the `x ≤ e` upper at the FunctionArgument
+path, not lower record `l ≤ x`. The later lower-query trace is consistent with
+the enclosing `outer` generalization, though the trace does not tag each
+collector call with its root. This source probe therefore demonstrates why
+syntactic solver reachability alone does not establish selected-edge
+transport. The single local recursive member is not the failed multi-member
+local-SCC construction above.
+
+A second source variant reaches an outer lower in positive result polarity:
+
+```yulang
+my outer(l: int, sink: 'e -> int) =
+  my inner(x) =
+    sink x
+    inner l
+    x
+  inner
+```
+
+The actual compact collector queried the Function result variable in positive
+polarity and read replay-qualified lower records for `x`, the source `l`, and
+`int`. Its compact result retained the outer `TypeVar` and `Int`. This is one
+source-to-Oracle-view fixture, not an intrusion-equivalence or principality
+proof. The lower evidence does not appear in generalized-witness capture
+because the current top-level Function path records only the root argument.
+Both examples have one recursive local Function and neither resolves the
+failed multi-member local-SCC construction above. See
 `notes/progress/2026-09-30-intrusion-bounded-negative-counterexample.md` for
-the temporary Oracle test, command, and independent review limits.
+captured record IDs, commands, and limitations. The earlier committed
+source-probe note incorrectly called two views opposite alias directions;
+the progress record explicitly corrects that reading.
 
 Next, define the polarized bound-graph denotation and principal-solution order,
 then discharge projection congruence, whole root-step simulation, finalization,

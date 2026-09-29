@@ -75,14 +75,16 @@ an upper path to an outer anchor, and a local alias cycle. Its successful
 scoped query selects the exact lower endpoint and exposes the upper anchor;
 propagation lowers both local variables, which remain alongside the anchor in
 the negative root with no local quantifiers. This is only graph-level
-characterization: it does not show lower-evidence transport. An isolated
-frozen-Oracle source probe now reaches both raw alias directions plus an
-anchored lower/upper pair; its post-lowering scoped query selects the lower
-`l ≤ x` but does not select the reverse alias edge for `y`. The probe does not
-capture the original member-generalization boundary or exact record
-provenance. Next instrument that boundary and trace selected evidence into
-publication, then prove pure root/use simulation before choosing a production
-representation. Details and review limits are in
+characterization: it does not prove lower-evidence transport generally. The
+first source trace showed a negative Function argument reads upper records
+`x ≤ e`, `y ≤ x`, `y ≤ e`, omitting `l ≤ x` from the local member root. A
+second source variant puts the return variable in positive polarity; the
+actual collector reads lower records for `x`, outer `l`, and `int`, and its
+compact result retains `l` and `int`. The earlier interpretation as two alias
+directions was incorrect: `y`'s upper `x` is the same `y ≤ x` edge. Next
+compare this selected positive-result graph against the intrusion candidate,
+then trace finalization and independent-use behavior. Details and review
+limits are in
 `notes/progress/2026-09-30-intrusion-bounded-negative-counterexample.md`.
 The Rust integration map is recorded in
 `notes/progress/2026-09-29-intrusion-rust-replacement-map.md`: replacing only

@@ -348,33 +348,98 @@ my outer(l: int, sink: 'e -> int) =
   inner
 ```
 
-The probe resolves the outer `l` and `sink` parameters and inner `x` and `y`
-variables from lowered bindings. In the post-lowering solver bounds it finds
-`l ≤ x`, `x ≤ e` (where `e` is the sink function's annotated argument), and
-both raw alias directions `x ≤ y` and `y ≤ x`. The sanctioned scoped query
-after lowering succeeds: it selects the exact `l ≤ x` PosId for `x` and sees
-`x ≤ e` among `x`'s scoped upper records. A second query for `y` does **not**
-select `x ≤ y`, so the evidence does not establish a selected alias cycle or
-the same decisions at `inner`'s original generalization boundary. The bounds
-are matched by endpoint shape, not exact record provenance; source origin is
-therefore not proved. The formatted `inner`/`outer` schemes are also asserted
-in the temporary test, but do not strengthen those claims.
+The first post-lowering probe was misread: an `x` lower endpoint `y` and a `y`
+upper endpoint `x` are two views of the same inequality `y ≤ x`, not opposite
+alias directions. There is no evidence for a cycle in this source. This
+correction supersedes the earlier sentence claiming both raw directions.
 
-An independent compiler-referee delta review confirmed the scoped API is used
-correctly and these claim limits. Focused command in the isolated worktree:
-`CARGO_TARGET_DIR=/tmp/yulang-intrusion-oracle-target cargo test -p infer
-scratch_source_outer_lower_recursive_alias_cycle -- --nocapture` (1 passed).
-The temporary test is not part of the repository and the frozen Oracle
-checkout was not modified. This is a source-level reachability
-characterization only; lower-evidence transport, root-boundary selection,
-parent/provenance transport, and root/use simulation remain open.
+An initial temporary hook in `lowering/expr/tail.rs::generalize_local_binding`
+ran an auxiliary scoped query immediately before `inner`'s generalizer. It
+found `x=TypeVar(18)`, `y=TypeVar(19)`, `l=TypeVar(2)`, `sink=TypeVar(4)`,
+selected lower records 47 (`y ≤ x`), 84 (`l ≤ x`), and 94 (`int ≤ x`) for
+`x`, and upper records 37 (`x ≤ e`), 48 (`y ≤ x`), and 56 (`y ≤ e`). This was
+not the generalizer's own query and must not be described as its edge
+selection.
+
+A second instrumentation moved observation into the actual
+`compact/collect/mod.rs` scheme collector. At `inner`'s compact root, both
+arguments occur in negative polarity, so the collector queries upper records:
+for `x`, it visits record 37 (`x ≤ e`); for `y`, it visits records 48 (`y ≤ x`)
+and 56 (`y ≤ e`). It makes no lower-projection query for `x` or `y` at this
+root. The resulting compact function arguments contain `x` with `e`, then `y`
+with `x` and `e`; `l` is absent. Witness capture for this root records
+`BoundRecordId(37)` at the FunctionArgument path as the UpperBound witness
+(alongside the root's bound record 273). It does not record lower records 47,
+84, or 94. The lower-query trace for those records occurs later in the test;
+given the source lowering order it is consistent with the enclosing `outer`
+generalization, but this trace does not tag each collector call with its root.
+Thus this source fixture reaches the
+anchored lower in the solver, but it does not show that lower entering
+`inner`'s negative argument projection or being transported into that saved
+root. This is the key distinction needed for the intrusion proof.
+
+The environment-gated test and instrumentation were confined to a detached
+Oracle worktree, then removed; frozen `a58eefc3` remained clean. Focused
+command:
+`YULANG_INTRUSION_TRACE_INNER=1 CARGO_TARGET_DIR=/tmp/yulang-intrusion-oracle-target
+cargo test -p infer scratch_inner_generalization_boundary_trace -- --nocapture`
+(1 passed). The captured trace directly observes collector record IDs,
+polarity, compact root, and witness drafts. It is a source-to-Oracle-view
+characterization, not a proof of evidence transport, parent semantics, or
+root/use simulation.
+
+## Positive-result lower projection source probe (2026-09-30)
+
+To put an outer lower endpoint in positive polarity, the source body was
+changed to:
+
+```yulang
+my outer(l: int, sink: 'e -> int) =
+  my inner(x) =
+    sink x
+    inner l
+    x
+  inner
+```
+
+The focused Rust test resolves the source `l` parameter and asserts its solver
+identity is `TypeVar(2)`. Actual scheme-collector instrumentation records a
+positive-polarity query for the Function result variable `TypeVar(24)` while
+building `inner`'s compact root. It returns replay-qualified lower records:
+136 (`TypeVar(18)`, the `x` identity), 138 (`TypeVar(2)`, the source `l`), and
+140 (`int`), as well as effect-related endpoints 132 and 134. The compact
+Function result stores `TypeVar(24)` as primary and retains `TypeVar(2)` and
+`Int` among its secondary lower components. The formatted schemes are
+consistent with the enclosing `'a` remaining shared:
+
+```text
+inner = ('a & 'b & 'c & 'd & 'e) -> ['f, 'g, 'h, 'i, 'j, 'k, 'l, 'm, 'n, 'o, 'p, 'q] 'e | 'd | 'c | 'a | 'r | int
+outer = ('a & int) -> (('a | int) -> ['b] int) -> 'a -> ['b] 'a | int
+```
+
+These strings are printed observations, not expected-value assertions; the
+AST-to-TypeVar assertion and compact-root trace identify the `l` occurrence
+directly. Witness capture omits lower record 138 (and 140): its existing
+top-level Function path deliberately traverses only the root argument, not
+the root return. This omission is separate from compact-root collection and
+does not undo the observed lower inclusion. The replay-qualified records do
+not establish direct source provenance or a complete parent-transport proof.
+Independent compiler-referee review confirmed the polarity and record
+interpretation and this witness-coverage limitation.
+
+Focused command in the isolated worktree:
+`YULANG_INTRUSION_TRACE_INNER=1 CARGO_TARGET_DIR=/tmp/yulang-intrusion-oracle-target
+cargo test -p infer scratch_inner_generalization_boundary_trace -- --nocapture`
+(1 passed). This probe advances source-to-compact characterization for a
+positive Function result. It does not establish equivalence with the
+intrusion candidate, principality, finalization/use simulation, or the broader
+Oracle capability envelope.
 
 ## Next action
 
-Extend the Oracle Rust-path probe to capture exact bound record IDs and the
-projection result at `inner`'s own generalization boundary. In particular,
-find a source construction where both directions of the alias cycle are
-selected for the relevant member roots, or characterize why Oracle selects
-only one direction. Then trace the selected lower evidence and surviving
-outer identities through publication. General denotation, ordered root
-simulation, use simulation, and implementation gates remain open.
+Compare this selected positive-result graph against the candidate intruded
+graph and show the same boundary identity and root denotation after
+finalization. Then cover independent use instantiation and ordered root
+simulation, before continuing to the general denotation proof. The negative
+argument fixture remains useful as the polarity contrast. Implementation
+remains gated.
