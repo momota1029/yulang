@@ -981,8 +981,34 @@ must provide a transport map for source identities and require:
 
 `R_i` must not assume the projection decisions for every future root. That
 would hide the evidence-sensitive selection problem inside the state invariant.
-Prove a separate **projection congruence lemma**: related current inputs for a
-given root yield corresponding ordered visits, evidence/ordinary record
+One useful sublemma is a **conditional query isomorphism** for one frozen
+projection snapshot. Relate the closure of visited bounds, constraints,
+support/formula entries, coverage roots, carriers, and premises by a
+sort-preserving bijection `pi`. Require it to preserve semantic lookup,
+direction/state, evidence-versus-ordinary lanes, each stored vector order,
+support/incidence/dependency links, formula revision and structural-snapshot
+validity. In addition, `pi` must preserve the relative order induced by every
+canonical cursor/key used by support and formula evaluation; numeric equality
+of IDs is unnecessary, but an arbitrary ID bijection is insufficient. Relate
+projection-round state by the same map, including preflight visits, evaluator
+`Visiting`/`Done` states, memo-sharing mode, and cycle-cut behavior. Assume the
+same observable preflight traversal/error precedence and resource-failure
+outcome for the compared finite snapshot.
+
+Under those premises, a deterministic scoped query has the same decision
+(`Included`, `Unclaimed`, `Excluded`, or corresponding semantic failure) on
+both snapshots, and any returned support/evidence payloads correspond under
+`pi`. The proof follows the execution: ordered record enumeration pairs each
+call to `project_lower`; preflight checks read corresponding facts in matching
+order; the canonical cursors visit corresponding formula arms; mapped
+recursion and memo states take matching branches, including cycle cuts; and
+first-included-arm return therefore selects corresponding evidence. This
+sublemma is conditional:
+it does not construct `pi` for Oracle and intrusion states or show root
+mutations preserve the premises.
+
+Then prove the full **projection congruence lemma**: related current inputs for
+a given root yield corresponding ordered visits, evidence/ordinary record
 queries, `Included`/`Unclaimed`/`Excluded` decisions, and corresponding query
 outcomes. The outcome relation must distinguish a compaction-attempt-local
 projection error, a round latch, escalation through the scoped query gateway

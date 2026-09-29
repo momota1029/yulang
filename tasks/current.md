@@ -133,10 +133,16 @@ formula selection uses numeric proof-ID canonical order and returns the first
 included arm as decisive evidence, so graph renaming alone is insufficient.
 The `R_i` relation now requires order-preserving proof transport or a proof
 that changed witnesses cannot affect later observations. Details are in
-`notes/progress/2026-09-30-intrusion-projection-order-map.md`. Next prove that
-projection relation and the ordered one-root simulation while the carrier
-decision remains open. Settle that semantic basis before claiming a
-principal-solution theorem. See
+`notes/progress/2026-09-30-intrusion-projection-order-map.md`. A conditional
+query-isomorphism lemma now explains why that condition suffices for one
+frozen projection snapshot: ordered visits, validation, evaluation, memo/cycle
+state, and resource outcomes must correspond. Compiler-referee review found no
+blocking/major issue, but constructing this relation for actual Oracle and
+intrusion states remains open. Details are in
+`notes/progress/2026-09-30-intrusion-projection-congruence-lemma-review.md`.
+Next relate proof identities and validity across root mutations, then prove
+the ordered one-root simulation while the carrier decision remains open.
+Settle that semantic basis before claiming a principal-solution theorem. See
 `notes/progress/2026-09-30-intrusion-finite-saturation-review.md`. The
 interface review is recorded in
 `notes/progress/2026-09-30-intrusion-staged-run-interface-review.md`. The
