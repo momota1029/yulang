@@ -61,12 +61,16 @@ guarded R; opposite-polarity guarded re-entry with both R bounds; boundary
 equality versus child-level quantification; and interleaved `f`/`g` incoming
 uses with incompatible instantiations followed by an internal-use trace.
 
-## Repository state and constraints
+## Initial repository state
 
-The source authority remains
-`notes/design/2026-09-21-f5-general-function-scheme-foundation-draft.md`,
-especially §§8–9, 23, 25, and 33. The drafts remain non-authoritative. The
-current F5c guarded-cycle capture plans on `yulang3` have consumed their
+At kickoff, the research incorrectly treated
+`notes/design/2026-09-21-f5-general-function-scheme-foundation-draft.md` as
+the semantic target. The user later corrected that direction: the F5 Function
+generalization and closed-scheme architecture is to be withdrawn as the target
+for this redesign. The reviewed protocol above remains only to document the
+mistaken gate and its review findings.
+
+The current F5c guarded-cycle capture plans on `yulang3` have consumed their
 authorized process runs; this research branch will not repeat them.
 
 No code or tests changed in the kickoff. Implementation and any F5
@@ -93,8 +97,40 @@ member; that witness is now included. No production code changed, no tests or
 measurements ran, and the note remains Reviewed but non-authoritative with no
 implementation authority.
 
-Next: manually derive the smallest witnesses, then make the candidate
-parent-transport transition explicit enough to compare against F5 from the
-same pre-insertion input. Finite witness agreement alone cannot establish a
-universal replacement theorem. The consumed guarded-cycle process budgets
-remain untouched.
+Next: build the Oracle behavior ledger and define the new abstract intrusion
+semantics against those observations. The F5 Q/R shape, closed schemes,
+numbering, and F5c resource contract are not acceptance requirements for this
+redesign. Finite examples characterize a candidate but do not alone prove
+soundness or principality.
+
+## User scope correction and Oracle source map
+
+The user clarified that F5 itself is to be abolished from the redesign target,
+not preserved by proving intrusion equivalent to F5. The active scope is now
+to replace F5 Function generalization/closed-scheme architecture on
+`research/simple-sub-intrusion`. This does not authorize deletion from the
+shared `yulang3` branch or modification of frozen `main`; the new design must
+be reviewed and approved before implementation/cutover.
+
+The concrete behavior source is frozen Yulang2 `main` at `a58eefc3`, consistent
+with the repository's Oracle-compatible product priority. Read-only source
+inspection found that Yulang2 `extrude_pos` / `extrude_neg` lower existing
+variable levels during bound insertion. The 2026-09-29 sketch's statement
+that ordinary Yulang2 extrusion creates fresh representatives is not borne out
+by this implementation. The new intrusion semantics must be stated directly
+and compared to Oracle observations rather than copied from that claim.
+
+Useful Oracle locators: `crates/infer/src/constraints/machine/bounds.rs`
+(`extrude_pos` / `extrude_neg` and bound insertion); `crates/infer/src/analysis/session/instantiate.rs`
+(`quantify_component`, per-member scheme preparation); `crates/infer/src/instantiate.rs`
+(per-use Q/recursive-bound freshening); `crates/infer/src/analysis/tests/case_02.rs`
+and `crates/infer/src/generalize/tests.rs` (observable witnesses). The
+Authoritative F4 SCC design remains applicable only to its Integer/resolved
+Name scope; its scheduler and publication barrier are reusable evidence, not
+Function-scheme authority.
+
+The replacement charter is
+`notes/design/2026-09-29-scc-intrusion-redesign-charter.md`. Initial
+architecture review recommends an Oracle ledger, new abstract semantics,
+finite intrusion characterization, representation/resource design, then M3
+review and explicit approval. No code or tests changed and no measurements ran.

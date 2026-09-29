@@ -1,7 +1,7 @@
 # Pure F5 intrusion reference model
 
 Status: Reviewed
-Classification: research protocol; non-authoritative
+Classification: historical research protocol; withdrawn as active gate on 2026-09-29
 Scope: finite pure-Function characterization of SCC-preserving intrusion against current F5
 Approved-by: none
 Approved-at: none
@@ -14,6 +14,11 @@ This note defines the first research gate for the intrusion proposal. It does
 not decide that parent variables are sound, replace F5, change a scheme
 representation, or authorize compiler changes. It defines what a bounded
 paper proof or test-only executable characterization must compare.
+
+**Disposition:** the user later directed that F5 be abolished as the target of
+the redesign. This protocol's F5-equivalence checks are historical review
+evidence and are not a pass condition. The active direction is recorded in
+`2026-09-29-scc-intrusion-redesign-charter.md`.
 
 ## 1. Authority and question
 
