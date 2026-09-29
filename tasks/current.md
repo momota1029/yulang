@@ -102,10 +102,18 @@ distinctions but do not prove port selection or principality.
 The latest Oracle source audit confirms that the root-indexed simulation is
 still only an obligation: the state relation, principal-solution preorder,
 supported graph algebra, diagnostics, and earlier-view stability are
-undefined. Exact lifecycle observations and locators are in
-`notes/progress/2026-09-30-intrusion-root-transition-audit.md`. Next build a
-two-root graph-level characterization where an earlier bounded post-loop pass
-changes shared state, then specify the ordered root-step relation. The first
+undefined. A bounded synthetic-graph probe against an isolated frozen-Oracle
+checkout found no valid two-root post-loop witness; it does not show those
+mutations are redundant. Independent compiler review also required the
+simulation state to include each member root, `B_d`/fetch mode, birth levels,
+and `E_d` lookup correspondence, and to distinguish attempt-local query errors,
+terminal latches, and surface default-root continuation. The draft now records
+these obligations. Exact lifecycle observations and locators are in
+`notes/progress/2026-09-30-intrusion-root-transition-audit.md`. Next define the
+polarized denotation and principal-solution preorder, then prove projection
+congruence, ordered root-step simulation, publication/finalization, and use
+simulation. A two-root characterization remains optional diagnostic evidence.
+The first
 two focused `yu-solver` Rust-path baseline
 probes pass for current identity-Function and productive/unproductive recursion
 behavior; they inspect F5-backed views only and are not intrusion or Oracle

@@ -29,28 +29,37 @@ begins at `:30-60`.
 
 This source audit does not establish a fixture in which a bounded post-loop
 pass changes a later member's result, nor a source-level accepted witness for
-such a two-root interaction.
+such a two-root interaction. A bounded synthetic-graph probe against an
+isolated checkout of the frozen Oracle also found no valid two-root witness;
+it made no Oracle edits and is not evidence that the post-loop mutations are
+redundant. A fixture remains useful diagnostic evidence, but the proof target
+is the ordered root-step simulation for arbitrary finite member lists.
 
 ## Proof status
 
 The current root-indexed simulation in
 `notes/design/2026-09-29-intrusion-abstract-semantics-draft.md` is an obligation,
-not a theorem yet. It does not define the state relation between Oracle and
-intrusion states, the exact supported graph algebra, diagnostic/failure
-observations, the principal-solution preorder, or why an earlier saved view
-remains equivalent when later root steps mutate shared state. The conditional
+not a theorem yet. Independent compiler review found that its minimum state
+relation must include member root, `B_d`/fetch mode, birth levels, and `E_d`
+lookup correspondence; otherwise projection congruence does not follow.
+Failure simulation must distinguish attempt-local errors, round and inference
+terminal latches, and the surface's default-root continuation, including
+downstream public reporting. The draft now records these obligations. It still
+does not establish the exact supported graph algebra, diagnostic/failure
+observations, principal-solution preorder, or why an earlier saved view remains
+equivalent when later root steps mutate shared state. The conditional
 injective-renaming lemma begins after edge selection and does not prove these
 properties.
 
 ## Next Gate C action
 
-Construct a two-root graph-level Rust characterization in which both roots
-share a variable and the first root's bounded post-loop phase adds an edge.
-Record the first saved view, post-root state/epoch, second saved view,
-diagnostics, and incoming-use observations. If a source-level witness is not
-available, keep the source-envelope gap explicit; synthetic graph evidence
-does not establish source-level Oracle parity. Use the fixture to define and
-review the ordered root-step relation and solution preorder before selecting
-the intrusion representation.
+Define the polarized constraint denotation and principal-solution preorder,
+then prove projection congruence and whole root-step simulation over the
+declared envelope, including publication/finalization and incoming uses. Keep a
+two-root characterization as optional diagnostic evidence; the bounded probe
+did not find a valid witness, and no witness is required if the general ordered
+simulation is proved. Preserve the source-envelope gap for any synthetic graph
+evidence. Production representation remains gated on a reviewed successor
+contract and explicit approval.
 
 No compiler code or tests were changed or run for this source audit.

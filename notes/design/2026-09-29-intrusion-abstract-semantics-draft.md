@@ -642,14 +642,98 @@ proof snapshot that validated it. Whether overlays may add constraints after
 publication, and whether a later root projection must see those constraints,
 remains part of the component denotation and is not settled here.
 
+### Ordered root-step simulation obligation
+
+The root-indexed statement in §5 is not proved by observing a two-root example.
+A useful example can expose a missing case, but the Gate C proof must cover an
+arbitrary finite ordered member list. Nor may the proof assume that bounded
+post-loop constraints are denotationally redundant: applying them changes
+canonical solver state and may route events or alter the evidence available to
+a later projection. No such redundancy has been established.
+
+For the declared graph envelope, define a checkable relation `R_i(O, I)` between
+the Oracle state `O` and intrusion state `I` immediately before member `d_i`.
+The relation is over current inputs rather than eventual outputs. At minimum it
+must provide a transport map for source identities and require:
+
+1. Enclosing identities in `E_d` map to the same anchors. Surviving local
+   vertices map injectively to their live or parent representation, with
+   current levels, birth levels, non-generic status, constructor shapes,
+   polarity, weights, and both directed bound relations preserved under the
+   map. The current member root, its `B_d` boundary and fetch mode, and the
+   lookup correspondence for `E_d` are also related explicitly; matching the
+   graph alone does not imply matching quantifier eligibility or root-local
+   selection.
+2. Reachable bound records have corresponding proof carriers and validity
+   dependencies. Evidence-lane and ordinary-lane records remain distinguishable
+   and ordered. Numeric IDs and internal graph node IDs need not match.
+3. Pending subtype obligations, queued events, and the meaning of already
+   applied constraint keys correspond. Epoch numbers need not be equal, but
+   cache/proof validity and invalidation must correspond.
+4. The next member and remaining member order agree. Previously saved member
+   views are related as immutable observations; they are not required to equal
+   a fresh projection of the current, later-mutated solver state.
+
+`R_i` must not assume the projection decisions for every future root. That
+would hide the evidence-sensitive selection problem inside the state invariant.
+Prove a separate **projection congruence lemma**: related current inputs for a
+given root yield corresponding ordered visits, evidence/ordinary record
+queries, `Included`/`Unclaimed`/`Excluded` decisions, and corresponding query
+outcomes. The outcome relation must distinguish a compaction-attempt-local
+projection error, a round latch, escalation through the scoped query gateway
+to an inference-attempt terminal latch, and the surface fallback that converts
+a returned query error to a default compact root and continues. The proof must
+classify errors reachable in the declared envelope, simulate the matching
+continuation and downstream reporting, or prove a fallback path cannot affect
+any public result. The transported selected constraints must preserve
+polarized closure; proof-record identities may differ if their validity and
+selection meaning are preserved.
+
+Then prove a **whole root-step lemma**. Starting from `R_i(O, I)`, simulate the
+complete Oracle preparation of `d_i`: each compaction attempt, restart,
+prepass, alias expansion, stack cleanup, both bounded post-loop applications,
+constraint-event routing, role prerequisites admitted by the envelope, and
+the point where the saved member view is formed. On ordinary success, the
+saved views must be equivalent under the transport map and the successor
+states must satisfy `R_(i+1)`. On a returned query error, the lemma must
+simulate the Oracle's actual latch or default-root continuation and resulting
+diagnostics; it may require a terminal replacement result only when the
+corresponding Oracle path is terminal. It must rule out extra successful
+public results. The lemma must account for the
+fact that the compact snapshot used to form a saved view can predate a
+post-loop solver mutation.
+
+Induction over the ordered member list then proves corresponding collected
+views. A separate component-stage lemma must simulate all-member publication
+and finalization: the Oracle finalizes only after collecting every root view,
+and finalization reads the then-current shared solver state. Finally, induction
+over incoming-use events must preserve member selection, per-use injective
+freshening of `Gen_d ∪ Cycle_d`, stable `Free_d`/`E_d` anchors, `Erase_d`
+projection, resulting obligations, diagnostics, and public type observations.
+Uses may interact through shared environment identities; unconditional
+solution-space product decomposition is not required.
+
+This operational simulation would establish the declared observable parity
+only after its observation relation and envelope are fixed. It does not prove
+type soundness or principality. Those require a separate denotation of
+polarized subtype constraints and a principal-solution preorder, followed by
+proof that root projection and use overlays produce sound principal results.
+The current injective-renaming lemma covers only closure after edge selection;
+none of the projection, root-step, finalization, use, soundness, or principality
+lemmas above is proved. A two-root graph-level characterization remains useful
+as diagnostic evidence, but is not a substitute for these lemmas.
+
 These requirements expose two characterization targets before representation
 selection: compare resulting member-root views, diagnostics, and incoming-use
-behavior at the public solve boundary; and characterize exact round-local edge
-decisions through a trace-capable Rust harness or a separate source proof. The
-public result alone cannot expose query-round identity or selected-edge masks.
-Both targets should use `yu-solver`'s actual graph and solve path and remain
-subordinate to the soundness/principality proof gate. The auxiliary Python
-finite model is not the work product and will not be extended.
+behavior at the public solve boundary through executable runs of the actual
+Oracle and candidate Rust solve paths; and characterize exact round-local edge
+decisions through either a trace-capable Rust harness or a separate source
+proof. Public results alone cannot expose query-round identity or selected-edge
+masks. Rust applies to executable characterization; a source proof remains a
+separate valid route for the edge-decision target. Neither route replaces the
+soundness/principality proof gate. The auxiliary
+Python finite model is historical only and will not be extended or treated as
+implementation evidence.
 
 The Yulang2 audit found in-place level lowering in `extrude_pos` and
 `extrude_neg`, not fresh parent allocation. Therefore this candidate cannot be
@@ -663,7 +747,9 @@ constraint-graph characterization with an explicit note that it is not a
 source-level Oracle observation. Pure Function-only and nominal-guarded cycle
 witnesses currently establish only their exact observed programs.
 
-Next, define the polarized bound-graph denotation and solve relation precisely,
-then work the listed examples against the Rust inference path. Implementation
-and production representation remain gated on a reviewed successor contract
-and explicit approval.
+Next, define the polarized bound-graph denotation and principal-solution order,
+then discharge projection congruence, whole root-step simulation, finalization,
+and use-event simulation for the declared envelope. A two-root witness may
+characterize a case, but the ordered simulation is the proof obligation.
+Implementation and production representation remain gated on a reviewed
+successor contract and explicit approval.
