@@ -107,5 +107,55 @@ field and sidecar, including subtype provenance, while leaving identity/order
 normalization and a complete per-entrypoint public-field audit open. No other
 repair was requested in that delta scope.
 
+## Root mutation and query-round lifecycle
+
+A read-only source pass traced the proof state across one Oracle root attempt.
+Each generalization-loop iteration rebuilds the compact root and its scoped
+projection traversal; a newly applied merge, subtype, cast, or role constraint
+routes events and restarts the loop. The compact cache is keyed by root and
+constraint epoch. Alias expansion and stack cleanup then each have one bounded
+post-loop companion constraint pass. Either can mutate and route events, but
+neither restarts generalization, so a saved view may describe the compact
+snapshot from before those final mutations. A root-step relation must retain
+that saved view as an observation and relate the successor solver state
+separately.
+
+Within one compact attempt, the collector owns a fresh
+`ProjectionEvaluationRound`; restarting creates another. The query's evaluator,
+memo, and cycle-cut state therefore need to correspond within each attempt,
+not be transported across restarts. The active P0 scoped gateway's round reuse
+slot remains `SealingIncomplete`; the persistent `Sealed` form is dormant, so
+the proof must not assume persistent cross-call reuse. Separately, formula
+buckets have per-record structural revisions and certificates that validate
+formula order/membership/support structure. The global proof structural
+snapshot counter is bumped by many proof/constraint mutations and saturates to
+permanently nonreusable, but the inspected P0 production read path does not
+currently use that counter as a cache key or invalidation gate. These are
+distinct clocks and mechanisms.
+
+IDs are not all fresh opaque names: bound records reuse canonical keys or
+append, constraint records append from record-vector length on admission,
+formula/support entries append in accepted event order or reuse exact keys, and
+upper claims append. Bound records and constraint records therefore have
+different reuse rules, and admission/allocation order does not determine
+canonical formula order. Formula selection sorts by category, support,
+carrier/premise, and lineage, with entry ID as an equal-clause tie breaker;
+pending runs are merged by canonical key. A transition proof must preserve
+the resulting cursor order and exact decisive lineage, not merely extend a
+bijection on IDs. Source inspection does not establish that Oracle restarts,
+post-loop mutations, and an intrusion implementation generate corresponding
+mutation batches or preserve these orders. This remains an open root-step
+obligation.
+
+Evidence in frozen source: `analysis/session/generalize.rs:51–190, 465–535,
+582–609`; `compact/surface.rs:14–25`; `compact/collect/mod.rs:80–91,
+350–369, 850–867`; `constraints/structural_kernel/access.rs:125–132,
+318–392, 343–348`; `constraints/structural_kernel/access/sealing.rs:3–31`;
+`constraints/machine/entry.rs:1201, 1392, 1490, 1671`;
+`constraints/proof/mod.rs:206–223, 3205–3230, 3678–3779, 5021–5145,
+7226–7268, 7339–7391, 8064–8115, 8185–8330, 8330–8353, 8485–8509,
+8550–8615, 8990–9028, 9975–10025, 10036–10125, 10555–10610`;
+`constraints/mod.rs:2548–2582`.
+
 No compiler code or tests changed or ran. No Python or measurements were
 used.
