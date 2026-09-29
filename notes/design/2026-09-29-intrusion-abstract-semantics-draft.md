@@ -571,8 +571,8 @@ bipolar vertex, but does not establish parent selection for recursive graphs.
 alone cannot be the per-root result: the negative-only argument variable must
 be projected away. The intrusion design needs a root projection that preserves
 the component graph for other roots while eliminating this member's
-one-sided exposure. A focused temporary test against the frozen Oracle now inspects the first
-`compact_root_for_generalize` result for this source: the Function argument
+one-sided exposure. A focused temporary test against the frozen Oracle now
+inspects the first `compact_root_for_generalize` result for this source: the Function argument
 contains `TypeVar(2)`, and `constraints().bounds().of(TypeVar(2))` is `None`.
 The saved generalized compact root has an empty argument node, matching the
 rendered `any` argument. This establishes the unconstrained-variable premise
@@ -874,6 +874,34 @@ the `k` argument has no stored bounds in the first prepared compact view and
 that the saved compact argument is empty. If `x` has bounds, shares another
 occurrence, or is anchored in `E_d`, this lemma does not apply; the general
 `Erase_d` rule remains unproved.
+
+**Bounded negative variable (conditional counterexample).** Polarity alone is
+not enough to erase a negative-only variable. Assume a subtype preorder with
+`Top ≰ Int` and the Function rule above, and let the local argument variable
+`x` satisfy the selected upper-bound obligation `x ≤ Int`. The candidate root
+relation is
+
+```text
+Pred = ↑{ Arr(A, R) | A ≤ Int }
+```
+
+but the polarity-only erasure relation is `↑{Arr(Top, R)}`. The latter
+contains `Arr(Top, R)` by reflexivity. If that type belonged to `Pred`, some
+`A ≤ Int` would satisfy `Arr(A, R) ≤ Arr(Top, R)`, which by contravariance
+requires `Top ≤ A`; transitivity would imply `Top ≤ Int`, a contradiction.
+Thus these relations differ. This is a counterexample in the candidate
+denotation, not evidence that the Oracle emits this exact graph. A companion
+source probe, `my expect(x: int): int = 1; pub k x = expect x`, observes a
+bounded negative argument: its first compact view contains both the argument
+variable and `Int`, the variable has an upper-bound record, and the saved
+public scheme is `int -> int` with no diagnostics. This is consistent with the
+Oracle compactor expanding negative variables through upper bounds before its
+one-polarity elimination pass
+(`compact/collect/mod.rs::compact_var_side,compact_var_bounds`;
+`compact/analysis/mod.rs::eliminate_polar_variables_with_roles_and_non_generic`).
+It does not establish that this source graph is identical to the abstract
+counterexample. An Oracle-equivalence proof must show how bound expansion and
+evidence selection affect the saved root before applying any erasure argument.
 
 This split follows the audited Oracle path: compaction creates a fresh
 projection round, lower bounds are selected through a scoped evidence query,

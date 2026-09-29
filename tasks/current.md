@@ -126,8 +126,12 @@ contravariant Function assumptions. A focused frozen-Oracle Rust-path probe
 now confirms the premise for the `pub k x = 1` witness: its first compacted
 Function argument is `TypeVar(2)` with no stored bounds, and the saved compact
 argument is empty. This does not prove the general erasure/projection rule.
-Next establish the exact carrier and additional source graphs, then prove
-general erasure/projection correctness and ordered root-step simulation,
+The bounded negative-argument source case is now characterized: when
+`k x = expect x` constrains the argument to `int`, Oracle's first compact view
+contains both the argument variable and `Int`, and the saved scheme is
+`int -> int`. The conditional counterexample still shows why the candidate
+must model upper-bound expansion before root erasure. Prove that correspondence
+including evidence selection, then continue with ordered root-step simulation,
 publication/finalization, and use simulation. A two-root characterization
 remains optional diagnostic evidence. A conditional lemma now shows that
 injective fresh-parent renaming bijects solution assignments when finite
