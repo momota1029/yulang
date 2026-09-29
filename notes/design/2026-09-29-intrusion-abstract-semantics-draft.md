@@ -741,7 +741,12 @@ another property; and (e) how unguarded cycles and polarity-only recursive
 collapse fit that interpretation. No option is selected here. Oracle's
 evidence-sensitive lower-edge choice remains an operational refinement of the
 selected graph, rather than an implicit clause of type satisfaction; its
-correspondence still needs proof.
+correspondence still needs proof. The Oracle's `SchemeRecursiveBound` is a
+side-table TypeVar plus neutral bounds, not a stated equi-recursive type
+equality: each incoming use freshens the recursive variable, projects its
+lower and upper bounds, and reinstalls them as subtype constraints. This
+operational fact constrains the implementation comparison but does not choose
+the denotational interpretation of recursive solutions.
 
 This split follows the audited Oracle path: compaction creates a fresh
 projection round, lower bounds are selected through a scoped evidence query,

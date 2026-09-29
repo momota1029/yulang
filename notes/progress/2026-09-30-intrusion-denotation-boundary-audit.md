@@ -30,6 +30,15 @@ polarity-only recursive collapse. No option is selected here. Oracle's
 evidence-sensitive lower-edge decision belongs in the operational
 correspondence proof, not implicitly in bare graph satisfaction.
 
+The Oracle represents recursive scheme bounds operationally as a side-table
+TypeVar and neutral bound graph. On incoming use, it freshens that variable,
+projects lower/upper bounds, and reinstalls them as subtype constraints. This
+is visible in frozen `a58eefc3` `crates/poly/src/types.rs:17-34`,
+`crates/infer/src/instantiate.rs:620-634` for per-use freshening, and
+`instantiate.rs:1002-1026` for bound projection/reinstallation. It is evidence
+for recursive identity and constraint reinstatement, not a definition of
+equi-recursive type equality or a denotation for recursive solutions.
+
 The Oracle locator check supports this separation: frozen `a58eefc3`
 `compact/surface.rs:12-24` starts a projection round and maps returned query
 errors through a default root; `compact/collect/mod.rs:816-881` selects lower
