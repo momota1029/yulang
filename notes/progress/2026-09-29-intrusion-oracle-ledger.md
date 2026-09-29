@@ -142,3 +142,47 @@ narrowed lemma stays within the Reviewed charter and caught a stale ledger
 sentence that assigned the cache triple to recursive visits; the table above
 now distinguishes the cache triple from the recursion pair. This closes only a
 renaming-equivariance lemma, not Gate B/C or implementation authority.
+
+## Scheme lower-record selection
+
+Source audit at frozen Oracle `a58eefc3` confirms scheme collection asks the
+scoped query for each lower-bound record. `Unclaimed` records remain direct
+inputs. A `project_lower` result of `Excluded` removes that lower record from
+the scheme root. `Included` retains the bound with qualifying support and
+projection-evidence metadata. Missing/inconsistent proof data or resource
+failure returns a projection error instead of silently keeping the edge.
+
+This means an Oracle-compatible intrusion graph needs more than endpoint,
+direction, and weight. Edge selection depends on proof records and evaluation
+state; some carriers contain a `TypeVar` replay pivot as well as bound-record,
+constraint, claim, or derivation IDs. A parent transport must preserve/rewrite
+the type-bearing evidence and keep its proof references valid, select and
+validate the edges on the original graph at freeze and reuse the ordered
+selection after renaming, or show that replacement-owned evidence yields the
+same decisions. The preselection route is viable because structural collection
+consumes the selected bounds after the query; it still needs a proof that the
+selection is frozen at the right boundary and remains valid while member views
+are built. `compact_type_var_for_scheme` creates a fresh projection round and
+scoped query for each requested root, so sharing preselection across member
+roots must preserve the separate per-root decisions and failures; otherwise
+the selected-edge masks remain root-local. This gap is outside the reviewed
+renaming lemma, which starts after scope selection. The first supported
+envelope has not been narrowed to unclaimed bounds; such a restriction would
+need explicit compatibility scope and Oracle fixture coverage.
+
+Locators: `constraints/structural_kernel/access.rs::scheme_projectable_lowers_in_scope`,
+`compact/collect/mod.rs::compact_var_bounds`,
+`compact/surface.rs::compact_type_var_for_scheme`,
+`constraints/proof/mod.rs::project_lower_inner`,
+`constraints/mod.rs::ProjectionProofCarrier,BinaryReplayDerivation`, and
+`constraints/proof/mod.rs::ProjectionEvidence,ProjectionDecision`.
+
+A scoped read-only compiler review confirmed these branches and the replay
+carrier's `TypeVar` pivot. It corrected the transport alternatives: the
+replacement may preselect and validate on the original graph, then reuse the
+selected ordered edges, because structural collection later consumes only
+the bounds. Follow-up review confirmed `compact_type_var_for_scheme` creates a
+fresh round/query per root and that the draft leaves shared-mask equivalence
+as an explicit proof obligation rather than claiming observed divergence. The
+draft now makes the required freeze-boundary and view-lifetime proof explicit
+for that option.

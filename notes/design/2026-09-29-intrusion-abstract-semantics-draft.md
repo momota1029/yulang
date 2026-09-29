@@ -30,11 +30,14 @@ The graph has two kinds of identity:
 - a **boundary port** identifies one independently substitutable exposure of
   that graph at a generalization boundary.
 
-An edge records a polarized type endpoint and its direction. An endpoint is a
-constant, a constructor applied to endpoints, a Function of endpoints, or a
-reference to a type vertex. A lower edge records `endpoint <: vertex`; an upper
-edge records `vertex <: endpoint`. This draft assumes bound closure reaches a
-fixed point before the graph is frozen.
+An edge occurrence records a polarized type endpoint, its direction, stable
+source/proof identity, and any weight annotation. An endpoint is a constant, a
+constructor applied to endpoints, a Function of endpoints, or a reference to a
+type vertex. A lower edge records `endpoint <: vertex`; an upper edge records
+`vertex <: endpoint`. Which lower occurrences are eligible for a scheme root
+is a separate evidence-sensitive projection decision; it is not implied by
+mere presence in the structural bound graph. This draft assumes bound closure
+reaches a fixed point before the graph is frozen.
 
 ### Oracle closure relation for the fragment
 
@@ -256,6 +259,49 @@ provided parent metadata preserves the candidate predicate and the frozen edge
 selection is already correct. It proves renaming invariance for projection,
 not edge selection, the parent set, instantiation overlays, SCC scheduler
 equivalence, or principality.
+
+### Oracle lower-edge selection is evidence-carrying
+
+The frozen Oracle does not project every structural lower-bound record
+unconditionally. In scheme mode, `compact_var_bounds` asks
+`scheme_projectable_lowers_in_scope` for each variable's lower records. That
+query preserves an unclaimed record, discards a record whose `project_lower`
+decision is `Excluded`, and keeps an `Included` record with support/evidence
+metadata. Missing or inconsistent proof state is a fallible projection error,
+not an implicit inclusion.
+
+Consequently an intrusive graph cannot model the full Oracle boundary as only
+`(owner, direction, endpoint, weight)`. The selected edge occurrence also has
+source record/proof identity. Some proof carriers refer to constraints, replay
+derivations, claims, and type-variable pivots. There are three possible
+transport designs to prove: transport and validate these references together
+with type endpoints; select and validate edges on the original graph at the
+component freeze, then reuse the selected ordered edges without re-querying
+after renaming; or define replacement-owned evidence that makes the same
+include/exclude decision. The second route depends on showing selection occurs
+at the correct boundary and that the selected edges remain valid until every
+member root view is built. The collector consumes the selected bounds after
+the query and does not inspect their reason/evidence payload during structural
+collection. Thus copying only final structural edges is justified only after
+the selection decision is frozen with them. The Oracle entry
+`compact_type_var_for_scheme` creates a fresh projection-evaluation round and
+scoped query for each requested root, so a preselection cache shared across
+member roots must also prove that it preserves those per-root decisions and
+failure behavior. Otherwise the selected-edge mask itself must remain
+root-local.
+
+This adds a separate proof obligation before claiming ordinary Oracle
+capability: characterize when lower records are Unclaimed, Included, or
+Excluded in the supported pure input envelope, then show a selected-edge
+transport design preserves that decision and its failure behavior. Restricting
+the first envelope to unclaimed pure edges is a possible research boundary,
+but it is not chosen here; it would need source-level coverage and an explicit
+compatibility limit before implementation. Source locators at `a58eefc3`:
+`constraints/structural_kernel/access.rs::scheme_projectable_lowers_in_scope`,
+`compact/collect/mod.rs::compact_var_bounds`, and
+`constraints/proof/mod.rs::project_lower_inner`; the per-root projection round
+is created by `compact/surface.rs::compact_type_var_for_scheme`. Proof payload
+types are in `constraints/mod.rs` and `constraints/proof/mod.rs`.
 
 ## 4. Instantiation uses overlays
 

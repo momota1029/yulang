@@ -58,9 +58,16 @@ under those assumptions and required the edge-selection boundary to remain
 explicit. The lemma excludes the Oracle's other simplification passes, use
 overlays, and principality. F5's Q/R shape, closed schemes, numbering, and
 resource contract remain historical comparison points, not acceptance
-criteria. Next define the actual boundary-edge selection and root-view
-instantiation semantics, then prove their composition against Oracle member
-uses before selecting the production representation.
+criteria. A source audit now shows Oracle lower-edge selection itself depends
+on proof records and support evidence, including replay pivots that carry type
+variable IDs; copying selected structural edges alone is insufficient as a
+full capability argument. Preselecting on the source graph is viable because
+the Oracle collector consumes selected bounds after querying, but the query
+round is recreated per root. Next compare carrying proof evidence with
+freezing root-local selected-edge masks, including the freeze timing and
+failure behavior, then specify root-view instantiation and prove the
+composition against Oracle member uses before selecting the production
+representation.
 
 The reviewed pure-F5 protocol exposed a mistaken compatibility premise and is
 retained only as historical review evidence. The new lifecycle obligations
