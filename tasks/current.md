@@ -79,12 +79,14 @@ The draft now separates graph-level candidate claims from source
 characterization fixtures and records the current Yulang3 application/lambda
 lowering gap. The effect-free Function fragment is now only a possible
 component lemma; it does not redefine the objective or establish the required
-Oracle-capable envelope. The immediate work now is to define the event/lowering
-alphabet and public observation normalization for the candidate, then specify
-latent-effect bounds, product/nominal recursive interval operations,
-constrained negative projection, annotation-dependent local scheme routing,
-and root-indexed simulation. The candidate and its independent semantic/spec
-delta reviews are recorded in
+Oracle-capable envelope. A canonical source grammar, machine-specific
+lowering relation, generated root/use/publication traces, and candidate public
+observation fields are now drafted and independently delta-reviewed. The
+immediate work is to define the public type normalizer and denotational
+semantics for latent-effect bounds, products, nominal recursive intervals,
+constrained negative projection, and annotation-dependent local scheme
+routing, then prove the source lowering and root-indexed simulation. The
+candidate and its reviews are recorded in
 `notes/progress/2026-09-30-intrusion-end-to-end-capability-matrix.md` and
 `notes/progress/2026-09-30-intrusion-source-envelope-review.md`. It remains
 unselected and unproved; source-lowering implementation and the final
