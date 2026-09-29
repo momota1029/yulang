@@ -2,6 +2,29 @@
 
 Updated: 2026-09-29. Branch: `yulang3`; do not modify frozen `main`.
 
+### Active gate (2026-09-29): replace transient owner sidecar volume
+
+The isolated GuardedCycle D=32/K=32 run authorized below has been consumed:
+it timed out at 120 seconds while still recording path-expanded owner events.
+No host safety floor was breached, but the partial sidecar is not replayable.
+The family-4 SHAPE reduction worked; kinds 54–56 and 116 now dominate because
+they represent repeated short-lived walk vectors and retained reentry paths.
+The exact run evidence and owner attribution are in the
+[`shared-acyclic checkpoint`](../notes/progress/f5c-shared-acyclic-hit-mismatch-checkpoint-2026-09-29.md).
+
+The next gate is M2, with `spec_auditor` checking evidence conformance and
+`performance_auditor` checking observer cost. Review a fixed-size test-only
+online ledger that observes every physical lane transition, preserves checked
+per-lane and global same-time current/peak totals, and keeps owner identity,
+slot, request, lifecycle, and transfer validation. Candidate raw sidecar
+identity suppression is limited to non-transferring WalkerLane kinds 54–56 and
+116; preserve the FlatDraft kinds 12–17 trace in full. First prove the online
+aggregates against the existing offline replay on a small complete witness.
+Then obtain a fresh supervised measurement plan before starting any solver
+process. No replay, diagnostic, matrix row, or other solver process is
+currently authorized. Do not claim corrected-scale completion until those
+gates close.
+
 ### Latest continuation (2026-09-29): raw-walker request-event coalescing
 
 The post-timeout observer repair is implemented in three explicit paths:

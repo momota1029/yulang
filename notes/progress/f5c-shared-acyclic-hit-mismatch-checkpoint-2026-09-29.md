@@ -383,11 +383,53 @@ python3 tools/run_f5c_resource_process.py --timeout-seconds 120 \
   --offline -j 2 -- --ignored --nocapture --test-threads=1
 ```
 
-This is one invocation and 120 seconds plus its 10-second grace, within the
-ordinary measurement window and explicitly reviewed by the performance
-auditor. The preflight reports exact event count/checksum/bytes and removes the
-sidecar on completion. If it times out or crosses a floor, stop and preserve
-the partial artifact; do not increase the cap or launch K=4,000 work from this
-result. If it completes, review its counters and measured event reduction
-before any separate diagnostic or replay budget. The primary's approval relies
-on the user's standing autonomy authorization; no user prompt is needed.
+The compile finished in 0.26 seconds. The isolated case then timed out at 120
+seconds while still generating GuardedCycle events; no assertion or terminal
+event summary ran. The supervisor terminated it after 120.292 seconds with
+status `-15`. No floor was breached. Peak process-group RSS was
+1,358,286,848 bytes, minimum `MemAvailable` was 29,573,771,264 bytes, minimum
+free disk was 666,216,099,840 bytes, and the monitor took 124 samples. The
+partial sidecar contains 352,149,504 bytes, 5,502,335 complete records, and 56
+trailing bytes. It cannot be replayed.
+
+The one-pass operation histogram is 2,352,229 CREATE, 1,558,334 GROW, 1,587,416
+RELEASE, 4,356 SHAPE, no TRANSFER/CHECKPOINT/DECREASE. The family-4
+request-only SHAPE coalescing worked: no kind 551–570 SHAPE event remains. The
+remaining 4,356 SHAPEs are family-1 kinds 512–529, family-3 kinds 530–550, and
+one WalkerLane kind. The four largest kinds are all WalkerLane:
+
+| Kind | Walker lane | CREATE | GROW | RELEASE |
+| --- | --- | ---: | ---: | ---: |
+| 54 | `FlatComparison` | 793,708 | 200,096 | 793,708 |
+| 55 | `FlatPositiveParts` | 193,419 | 193,419 | 193,419 |
+| 56 | `FlatNegativeParts` | 600,289 | 400,192 | 600,289 |
+| 116 | `ReentryPaths` | 763,930 | 763,930 | 0 |
+
+Kinds 54–56 are short-lived physical vectors created in
+`crates/yu-solver/src/f5c_generalization/flat_walk_sink.rs` during repeated
+flat comparisons and part collection; their owner IDs are created/grown/
+released around each operation. Kind 116 comes from
+`F5cGeneralizer::record_reentry` in `crates/yu-solver/src/f5c_generalization.rs`.
+When a guarded path is retained, its `Vec<F5cTraceHop>` and `RawWalkerOwner`
+move together into `reentries` and `reentry_path_owners`; the partial run has
+not reached their release. This is path-expanded retained data, not only
+test-observer churn.
+
+The fresh performance auditor recommends no further solver process yet. The
+architect's evidence ruling is that §§26/34 require exact requested/current
+capacity, retained and simultaneous peak bytes, growth and lifecycle/transfer
+witnesses, but do not require an offline serialized record for every transient
+owner. A fixed-size test-only online ledger is allowed only if it observes
+every lane transition, maintains checked per-lane and global current/peak at
+the same time, preserves owner-local identity/slot/request/lifecycle checks,
+and remains independent from production counters. A four-kind-only aggregate
+cannot preserve cross-family same-time peaks. Full identity evidence for the
+FlatDraft kinds 12–17 transfer remains intact.
+
+Next gate: selected M2. Obtain a `spec_auditor` review of the online ledger
+invariants and a `performance_auditor` review of its cost/sidecar reduction;
+then implement the smallest sound observer slice, prove it against the old
+offline replay on a small complete witness, and obtain a fresh process budget.
+No solver process, replay, K=4,000 diagnostic, or matrix row is currently
+authorized. The user's standing time/memory authorization does not remove this
+review gate.
