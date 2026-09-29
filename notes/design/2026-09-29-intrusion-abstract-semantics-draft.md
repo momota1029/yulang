@@ -1062,6 +1062,30 @@ This removes the auxiliary vertices without separating the shared polarity
 fiber. It is a finite graph projection fact only; it does not identify this
 relation with Oracle's saved scheme denotation.
 
+**Oracle compact-root value projection (one source fixture).** A temporary
+Rust-path probe now captures the actual post-generalization `CompactRoot` and
+finalized local `Scheme` for the source above. The compact Function argument
+contains the unweighted negative meet of `x,e,a,b,r` (TypeVars
+`18,6,36,38,24`); its positive result contains the unweighted join of
+`r,b,a,x,l,int` (TypeVars `24,38,36,18,2` plus `Int`). The finalized compact
+root retains those meets/joins structurally. Under the preceding edge list,
+`x` is a lower bound of every argument member and is itself a member, so the
+argument meet is equivalent to `x`. Every result member is below `r`, and `r`
+is itself a member, so the result join is equivalent to `r`. Thus the selected
+value-position projection of this actual compact root agrees with the joint
+graph image above, in any subtype preorder whose meet/join denote these
+finite bounds. This is a conditional one-fixture correspondence, not a
+principal-scheme or complete Function denotation theorem.
+
+The full finalized Function also carries effects: the argument effect is
+`Bottom`, and its result effect retains a primary variable plus eleven
+secondary variables. This graph fragment does not model those effect
+constraints. Generalization selects no ordinary quantifiers in this fixture;
+the lowering path then adds one forced quantifier for the effect passthrough
+(`TypeVar(21)`). It has no recursive bounds, role predicates, or stack
+quantifiers. No independent incoming uses were examined. Exact capture command
+and review scope are recorded in the progress note.
+
 **Selected-edge fiber corollary (conditional).** The interval premise can be
 derived for a restricted selected graph. Let `G` have a finite set of selected
 variable subtype edges, interpreted as lower/upper obligations in a carrier

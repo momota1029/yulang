@@ -459,13 +459,12 @@ tests changed for this lemma.
 
 ## Next action
 
-Extract the full selected graph for the positive source fixture and state its
-mixed-polarity Function-root denotation, preserving the shared argument/result
-identity and outer `l`. Then compare that relation against parent intrusion
-through finalization and independent uses. The finite lower lemma is only a
-single positive-variable fiber and does not discharge this coupled case.
-Ordered root simulation and the general denotation proof remain open;
-implementation remains gated.
+The compact value graph and its conditional meet/join projection are now
+captured for this fixture. Extend the selected relation to its latent effect
+constraints and determine how the forced effect quantifier is freshened at
+independent incoming uses. The finite lower lemma remains insufficient for
+that full coupled case. Ordered root simulation and the general denotation
+proof remain open; implementation remains gated.
 
 ## Mixed-polarity relation setup (2026-09-30)
 
@@ -483,10 +482,45 @@ The abstract graph's joint image is now reduced algebraically: `a` and `b` can
 be existentially eliminated, leaving exactly
 `{ Arr(x,r) | x ≤ e, x ≤ r, l ≤ r, int ≤ r }`. Necessity follows by
 transitivity; sufficiency sets `a = b = x` and uses reflexivity. This preserves
-the shared `x` and outer anchors. It is a graph projection fact, not evidence
-that Oracle's saved root has this denotation. Next compare it with the
-compact/finalized root, then carry the same source-identity map through two
-independent incoming uses. Do not infer a Function representative by combining
-the marginal least argument and greatest result. No Python model is used as
-evidence; the only runtime characterization cited here is the focused
-Rust-path Oracle probe above.
+the shared `x` and outer anchors. It is a graph projection fact; the following
+focused capture verifies the compact root's value fields against it, while the
+latent effects remain outside the graph. Next include those effect constraints
+and follow source identities through independent incoming uses. Do not infer a
+Function representative by combining the marginal least argument and greatest
+result. No Python model is used as evidence; the runtime characterizations are
+focused Rust-path Oracle probes.
+
+## Finalized compact-root value projection (2026-09-30)
+
+A temporary test and environment-gated instrumentation in an isolated detached
+worktree at frozen Oracle `a58eefc3` captured `GeneralizedCompactRoot` after
+its simplification pass and the local finalized scheme for the same positive
+source fixture. Focused command:
+
+```text
+YULANG_INTRUSION_FINAL_TRACE=1 CARGO_TARGET_DIR=/tmp/yulang-intrusion-oracle-target \
+  cargo test -p infer scratch_capture_intrusion_finalized_local_root -- --nocapture
+```
+
+The generalized compact Function argument is the unweighted negative
+intersection of TypeVars `18,6,36,38,24` (`x,e,a,b,r`). The result is the
+unweighted positive union of TypeVars `24,38,36,18,2` plus `Int`
+(`r,b,a,x,l,Int`). The local finalized scheme retains these same value
+components, formatted as
+`('a & 'b & 'c & 'd & 'e) -> ... 'e | 'd | 'c | 'a | 'r | int`.
+Given the candidate selected edges, `x` is a lower bound of every argument
+member and is included, so their meet is equivalent to `x`; every result
+member is below `r` and `r` is included, so their join is equivalent to `r`.
+This proves the value-position projection of this captured compact root agrees
+with the conditional graph image, assuming subtype meet/join semantics.
+
+The full Function carries an argument effect of `Bottom` and a result effect
+with one primary plus eleven secondary TypeVars. Ordinary generalization
+selected no quantifiers; the lowering path then added forced quantifier
+`TypeVar(21)` for effect passthrough. There are no recursive bounds, role
+predicates, or stack quantifiers. The fixture still does not establish effect
+denotation or independent incoming-use behavior. This capture does not
+establish graph-selection completeness or Oracle principality. The
+`compiler_referee` delta review is limited to the finite value-projection
+derivation and these evidence limits; it found no blocking, major, or minor
+finding and confirmed the forced-quantifier distinction.

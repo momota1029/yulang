@@ -89,9 +89,13 @@ polarity Function root, where argument and result identities are coupled.
 The draft now states a candidate joint edge relation with shared `x` and
 anchored `l`, and eliminates auxiliary `a,b` to the conditional graph image
 `{ Arr(x,r) | x ≤ e, x ≤ r, l ≤ r, int ≤ r }`; selected lower records remain
-replay-qualified. Next compare this image against the saved compact/finalized
-Oracle root, then follow independent incoming uses. Details and review limits
-are in
+replay-qualified. A focused temporary Rust-path capture now shows the saved
+compact value argument/result have these conditional meet/join projections,
+while the result-effect row remains outside the graph theorem; lowering adds
+one forced effect quantifier. Next include the effect constraints and choose a
+polymorphic fixture for independent-use transport. The finite projection and
+its evidence limits passed one compiler-referee delta review. Details and
+review limits are in
 `notes/progress/2026-09-30-intrusion-bounded-negative-counterexample.md`.
 The Rust integration map is recorded in
 `notes/progress/2026-09-29-intrusion-rust-replacement-map.md`: replacing only
