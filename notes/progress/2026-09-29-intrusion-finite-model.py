@@ -57,6 +57,129 @@ def rename_type(ty, renaming):
     return ty
 
 
+def flip(polarity):
+    return "negative" if polarity == "positive" else "positive"
+
+
+def collect_graph_polarities(root_type, lowers, uppers):
+    result = defaultdict(set)
+    seen_sides = set()
+
+    def visit(ty, polarity):
+        tag = ty[0]
+        if tag == "var":
+            v = ty[1]
+            result[v].add(polarity)
+            side = (v, polarity)
+            if side in seen_sides:
+                return
+            seen_sides.add(side)
+            bounds = lowers.get(v, ()) if polarity == "positive" else uppers.get(v, ())
+            for bound in bounds:
+                visit(bound, polarity)
+        elif tag in ("fun+", "fun-"):
+            visit(ty[1], flip(polarity))
+            visit(ty[2], polarity)
+        elif tag == "con+" or tag == "con-":
+            for lower, upper in ty[2]:
+                visit(lower, polarity)
+                visit(upper, flip(polarity))
+        elif tag == "union":
+            visit(ty[1], polarity)
+            visit(ty[2], polarity)
+        elif tag == "intersection":
+            visit(ty[1], polarity)
+            visit(ty[2], polarity)
+
+    visit(root_type, "positive")
+    return result
+
+
+def normalize(ty):
+    tag = ty[0]
+    if tag in ("fun+", "fun-"):
+        return (tag, normalize(ty[1]), normalize(ty[2]))
+    if tag in ("con+", "con-"):
+        return (tag, ty[1], tuple((normalize(p), normalize(n)) for p, n in ty[2]))
+    if tag in ("union", "intersection"):
+        left, right = normalize(ty[1]), normalize(ty[2])
+        if tag == "union":
+            if left == BOT:
+                return right
+            if right == BOT:
+                return left
+            if left == TOP or right == TOP:
+                return TOP
+        else:
+            if left == TOP:
+                return right
+            if right == TOP:
+                return left
+            if left == BOT or right == BOT:
+                return BOT
+        if left == right:
+            return left
+        return (tag, left, right)
+    return ty
+
+
+def variables_in(ty):
+    tag = ty[0]
+    if tag == "var":
+        return {ty[1]}
+    if tag in ("fun+", "fun-"):
+        return variables_in(ty[1]) | variables_in(ty[2])
+    if tag in ("con+", "con-"):
+        return set().union(*(variables_in(p) | variables_in(n) for p, n in ty[2]))
+    if tag in ("union", "intersection"):
+        return variables_in(ty[1]) | variables_in(ty[2])
+    return set()
+
+
+def project_root(root, lowers, uppers, local_vars, rigid_vars=()):
+    """Expand one root through matching bounds, then erase one-sided locals."""
+    rigid_vars = set(rigid_vars)
+    local_vars = set(local_vars)
+    current = var(root)
+    for _ in range(len(local_vars) + 2):
+        polarities = collect_graph_polarities(current, lowers, uppers)
+        active = set()
+
+        def project(ty, polarity):
+            tag = ty[0]
+            if tag == "var":
+                v = ty[1]
+                sides = polarities[v]
+                if v not in local_vars or v in rigid_vars or len(sides) == 2:
+                    return ty
+                side = (v, polarity)
+                if side in active:
+                    return BOT if polarity == "positive" else TOP
+                bounds = lowers.get(v, ()) if polarity == "positive" else uppers.get(v, ())
+                if not bounds:
+                    return BOT if polarity == "positive" else TOP
+                active.add(side)
+                projected = [project(bound, polarity) for bound in bounds]
+                active.remove(side)
+                result = projected[0]
+                for bound in projected[1:]:
+                    result = union_p(result, bound) if polarity == "positive" else intersection_n(result, bound)
+                return normalize(result)
+            if tag in ("fun+", "fun-"):
+                return (tag, project(ty[1], flip(polarity)), project(ty[2], polarity))
+            if tag in ("con+", "con-"):
+                return (tag, ty[1], tuple((project(p, polarity), project(n, flip(polarity))) for p, n in ty[2]))
+            if tag in ("union", "intersection"):
+                return (tag, project(ty[1], polarity), project(ty[2], polarity))
+            return ty
+
+        projected = normalize(project(current, "positive"))
+        if projected == current:
+            return projected, polarities
+        current = projected
+    raise AssertionError("root projection failed to reach a fixed point")
+
+
 def rename_constraints(constraints, renaming):
     return {(rename_type(p, renaming), rename_type(n, renaming)) for p, n in constraints}
 
@@ -187,6 +310,64 @@ def main():
     recursive_rows = close(rename_constraints(recursive, {"r": "r_parent"}))
     assert con_p("Loop", ((var("r_parent"), var("r_parent")),)) in recursive_rows[0]["r_parent"]
 
+    # Root-local projection expands selected bounds and erases one-sided locals.
+    lowers = {"root": {fun_p(var("x"), INT_P)}}
+    projected, polarities = project_root("root", lowers, {}, {"root", "x"})
+    assert projected == fun_p(TOP, INT_P)
+    assert variables_in(projected) == set()
+    identity_lowers = {"root": {fun_p(var("a"), var("a"))}}
+    identity_projection, identity_polarities = project_root(
+        "root", identity_lowers, {}, {"root", "a"})
+    assert identity_polarities["a"] == {"positive", "negative"}
+    assert identity_projection == fun_p(var("a"), var("a"))
+    assert variables_in(identity_projection) == {"a"}
+
+    # A positive-only recursive Function cycle closes at Bottom, while a nominal
+    # invariant argument exposes both polarities and keeps its recursive identity.
+    function_cycle = {"root": {fun_p(TOP, var("root"))}}
+    cycle_projection, cycle_polarities = project_root("root", function_cycle, {}, {"root"})
+    assert cycle_projection == fun_p(TOP, BOT)
+    nested_cycle = {
+        "root": {fun_p(var("x"), var("inner"))},
+        "inner": {fun_p(var("y"), var("root"))},
+    }
+    nested_projection, _ = project_root("root", nested_cycle, {},
+                                         {"root", "inner", "x", "y"})
+    assert nested_projection == fun_p(TOP, fun_p(TOP, BOT))
+    assert variables_in(nested_projection) == set()
+    nominal_cycle = {"root": {con_p("Loop", ((var("root"), var("root")),))}}
+    nominal_projection, nominal_polarities = project_root("root", nominal_cycle, {}, {"root"})
+    assert nominal_projection == var("root")
+    assert nominal_polarities["root"] == {"positive", "negative"}
+
+    # Projection is root-local: one root erases a negative-only variable while
+    # another root sharing it retains the same bipolar identity.
+    shared_lowers = {
+        "f": {fun_p(var("shared"), INT_P)},
+        "g": {fun_p(var("shared"), var("shared"))},
+    }
+    f_projection, _ = project_root("f", shared_lowers, {}, {"f", "g", "shared"})
+    g_projection, _ = project_root("g", shared_lowers, {}, {"f", "g", "shared"})
+    assert f_projection == fun_p(TOP, INT_P)
+    assert g_projection == fun_p(var("shared"), var("shared"))
+    assert variables_in(f_projection) == set()
+    assert variables_in(g_projection) == {"shared"}
+
+    # One-sided projection uses the matching bound direction.
+    lower_result = {"root": {fun_p(TOP, var("x"))}, "x": {INT_P}}
+    positive_projection, _ = project_root("root", lower_result, {}, {"root", "x"})
+    assert positive_projection == fun_p(TOP, INT_P)
+    upper_argument = {"root": {fun_p(var("x"), INT_P)}}
+    negative_projection, _ = project_root(
+        "root", upper_argument, {"x": {INT_N}}, {"root", "x"})
+    assert negative_projection == fun_p(INT_N, INT_P)
+
+    # An enclosing rigid endpoint keeps its identity even at one polarity.
+    rigid_lowers = {"root": {fun_p(var("outer"), INT_P)}}
+    rigid_projection, _ = project_root("root", rigid_lowers, {}, {"root"}, {"outer"})
+    assert rigid_projection == fun_p(var("outer"), INT_P)
+    assert variables_in(rigid_projection) == {"outer"}
+
     # Positive unions and negative intersections retain both branch obligations.
     branching = {(union_p(var("a"), var("b")), var("c")),
                  (var("c"), intersection_n(var("d"), var("e")))}
@@ -210,11 +391,12 @@ def main():
     assert fun_p(TOP, INT_P) in use2[0]["p2"]
     assert "p2" not in use1[0] and "p1" not in use2[0]
 
-    print("finite intrusion closure model: 10 cases passed")
+    print("finite intrusion model: 19 cases passed")
     print("cases: identity, directed flow, Function polarity, invariant constructor,")
     print("       diamond, outer capture, nominal cycle, union/intersection,")
-    print("       non-injective quotient, independent use overlays")
-    print("scope: closure transport only; no principal projection theorem")
+    print("       root-local projection, nested recursive Functions, bound direction,")
+    print("       rigid capture, non-injective quotient, separate overlays")
+    print("scope: finite graph projection fragment; no principal theorem")
 
 
 if __name__ == "__main__":

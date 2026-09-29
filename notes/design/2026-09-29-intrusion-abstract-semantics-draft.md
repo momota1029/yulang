@@ -170,7 +170,39 @@ invariant constructors, a shared diamond, an outer endpoint, and a nominal
 recursive edge. It also checks that a non-injective quotient loses a directed
 edge and that two separate overlays keep their rows separate. This script
 implements the rules above; it is a regression aid for the proof sketch, not an
-independent proof or a model of principal root projection.
+independent proof or a model of principal root projection. It also checks
+one-sided erasure, matching lower/upper expansion, root-local polarity, and
+positive-only recursive collapse. It does not encode the Oracle's recursive
+binder table or prove principality.
+
+### Candidate root-local polarity projection
+
+The Oracle source gives a concrete projection behavior to model. For each
+member root separately, it starts at positive polarity. A variable side is
+expanded through lower bounds when positive and upper bounds when negative;
+recursive visits are detected by `(TypeVar, polarity)` and represented by a
+back-reference plus its recursive bound. Function arguments flip polarity and
+results preserve it; unions are positive joins and intersections are negative
+meets. After that root's reachable regular graph is built, the Oracle collects
+variable polarity over the root and recursive bounds. A generalizable variable
+seen at only one polarity is erased to that polarity's extreme (`Bottom` when
+positive, `Top` when negative); a variable seen at both polarities remains
+shared. Boundary/non-generic variables are excluded from this erasure.
+
+The intrusion candidate must run this projection per member root over an
+immutable shared component graph. Polarity census for one root must not absorb
+occurrences belonging only to another SCC member: the Oracle produces one
+generalized result per member, even though the component is solved together.
+The internal result may remain a regular graph with parent references; it need
+not copy the Oracle's closed scheme encoding. The semantic obligations are to
+preserve the root-local reachability, recursive back-references, one-sided
+extremes, and shared identity of bipolar variables. The finite model exercises
+this rule on identity, constant-function, positive-bound, negative-bound, two
+root-local views sharing a variable, and recursive Function witnesses. It
+reproduces the structural results `'a -> 'a`, `any -> int`, and
+`any -> any -> never` for the recorded identity, constant, and pure recursive
+lambda graphs. It does not encode the Oracle's recursive-binder table or prove
+principality.
 
 ## 4. Instantiation uses overlays
 

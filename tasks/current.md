@@ -45,13 +45,16 @@ per TypeVar with separate lower/upper edge transport. An injective-renaming
 closure-commutation lemma is now stated with a proof sketch. A new Oracle probe
 shows `pub k x = 1` projects to `any -> int` with no binders, so root projection
 must eliminate one-sided exposures while preserving the shared component for
-other roots. A finite executable closure model now passes ten cases, including
-polarity, invariant constructors, sharing, capture, nominal recursion, and the
-non-injective-merge counterexample. It checks closure transport only. Next
-formalize per-root projection and extend the model against Oracle examples
-before stating the simulation theorem. Do not
-make F5's Q/R shape, closed schemes, numbering, or resource contract the pass
-condition.
+other roots. The audited Oracle path confirms projection is computed from
+each member root at positive polarity, expands matching lower/upper bounds,
+tracks recursion by `(TypeVar, polarity)`, then erases one-sided variables and
+retains bipolar identity. The finite model now passes nineteen checks and
+matches three observed shapes: `'a -> 'a`, `any -> int`, and
+`any -> any -> never`. It still omits the Oracle recursive-binder table and
+principality. Next compare projection outputs against more Oracle witnesses
+and define the scheme/component solution ordering before stating the simulation
+theorem. F5's Q/R shape, closed schemes, numbering, and resource contract are
+historical comparison points, not acceptance criteria for this redesign.
 
 The reviewed pure-F5 protocol exposed a mistaken compatibility premise and is
 retained only as historical review evidence. The new lifecycle obligations
