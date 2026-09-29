@@ -134,6 +134,34 @@ particular, `local == parent` is not an allowed interpretation: it would
 identify identities and could reduce intrusion to level lowering without
 establishing that the lower/upper approximations are preserved.
 
+### Edge-transport lemma for an injective parent map
+
+Let `rho` rename every selected local variable to a fresh parent, leave all
+other variables fixed, and map every type-expression node homomorphically while
+memoizing node identities. Require parent IDs to be fresh and pairwise
+distinct. Transport both lower and upper edge sets by `rho`; do not delete the
+original frozen graph. Let `C(S)` be the least closure of a finite set `S` of
+subtype obligations under the fragment's variable, Function, union,
+intersection, and same-head invariant-constructor rules.
+
+**Claim.** `C(rho(S)) = rho(C(S))`.
+
+**Proof sketch.** Every closure rule is local to its endpoint constructors and
+variable IDs. `rho` preserves constructors, polarity, and variable equality;
+freshness prevents a renamed local variable from colliding with an outer or
+rigid variable. Therefore each rule step `S -> S'` maps to the same rule step
+`rho(S) -> rho(S')`. Conversely, `rho` is injective on the renamed graph, so
+each rule step in the image has a unique preimage. Induction over finite closure
+steps gives equality of the two closures. The fast path for
+`Var(v)+ <: Var(v)-` is preserved because injectivity preserves exactly which
+endpoints are the same variable.
+
+This proves that alpha-renaming the bound graph to fresh parents neither loses
+nor adds closure edges. It does **not** prove that the selected parent set is
+the Oracle's generalizable set, that root projection is principal, or that
+retaining both bound directions matches one-sided Oracle approximations. Those
+are separate lemmas and remain the central semantic risks.
+
 ## 4. Instantiation uses overlays
 
 An instantiated use receives a fresh overlay `sigma` for that use's local
@@ -214,6 +242,13 @@ lower edge into the definition root preserves this exact sharing. The Oracle
 accepts `pub id x = x`; its two observed incoming uses produce `int` and a
 Function result independently. This checks an acyclic boundary with one
 bipolar vertex, but does not establish parent selection for recursive graphs.
+
+**One-sided parameter.** The Oracle accepts `pub k x = 1` with scheme
+`any -> int` and no quantified or recursive binders. Thus parent graph closure
+alone cannot be the per-root result: the negative-only argument variable must
+be projected away. The intrusion design needs a root projection that preserves
+the component graph for other roots while eliminating this member's
+one-sided exposure.
 
 **Directed variable flow.** For `a⁺ <: b⁻`, closure stores `a⁺` in `lower(b)`
 and `b⁻` in `upper(a)`. It does not assert `a = b`. A candidate that maps both

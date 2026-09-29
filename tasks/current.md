@@ -41,11 +41,13 @@ other cycle shapes remain open. The first Gate B candidate model is drafted in
 frozen graph, boundary parent ports, outer identity preservation, and
 per-incoming-use overlays. This turn added the Oracle's operational closure
 rules for the pure graph fragment and corrected the candidate to one parent
-per TypeVar with separate lower/upper edge transport; preserving full
-intervals remains an unproved key lemma. Next define the solution ordering,
-build an independent finite graph model, and test the listed polarity/use/cycle
-counterexamples before stating the simulation theorem. Do not make
-F5's Q/R shape, closed schemes, numbering, or resource contract the pass
+per TypeVar with separate lower/upper edge transport. An injective-renaming
+closure-commutation lemma is now stated with a proof sketch. A new Oracle probe
+shows `pub k x = 1` projects to `any -> int` with no binders, so root projection
+must eliminate one-sided exposures while preserving the shared component for
+other roots. Next formalize that projection and test it in a finite graph model
+against polarity/use/cycle cases before stating the simulation theorem. Do not
+make F5's Q/R shape, closed schemes, numbering, or resource contract the pass
 condition.
 
 The reviewed pure-F5 protocol exposed a mistaken compatibility premise and is
