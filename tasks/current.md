@@ -2,7 +2,7 @@
 
 Updated: 2026-09-29. Branch: `yulang3`; do not modify frozen `main`.
 
-### Active gate (2026-09-29): capture and replay corrected D=32/K=32 evidence
+### Active gate (2026-09-29): audit guarded-cycle work after capture timeout
 
 The exact-kind serialization gate is complete. Serialization is suppressed
 only for non-transferring WalkerLane kinds 54–56 and 116; the 219-row online
@@ -12,16 +12,16 @@ rows plus co-temporal owner/session current and peak. The small complete-trace
 oracle matched the hybrid replay. Details and review evidence are in the
 [`transient-owner serialization checkpoint`](../notes/progress/f5c-transient-owner-serialization-checkpoint-2026-09-29.md).
 
-No resource/scale process, diagnostic, or matrix row ran. The prior plan's
-isolated D=32/K=32 invocation is consumed. The new two-process plan is recorded
-in the [`post-serialization measurement plan`](../notes/progress/f5c-post-serialization-measurement-plan-2026-09-29.md)
-and passed pre-write `spec_auditor` and `performance_auditor` review. The exact
-`emit:true` retained-sidecar entrypoint and D=32/K=32-only replay selector are
-implemented and post-write reviewed. A mixed-selector bypass finding was
-repaired and closed with a spec delta review. Next, run the one supervised
-solver process and conditional offline replay in that plan. A timeout or
-failed replay stops the sequence; it grants no retry, K=4,000 diagnostic, or
-matrix row.
+The serialization gate and retained-sidecar measurement tooling are complete
+and reviewed. The new one-process D=32/K=32 capture timed out at 180 seconds,
+before emitting a row. Its partial sidecar is not replayable, so the
+conditional replay was correctly skipped. The run used the budget in the
+[`post-serialization measurement plan`](../notes/progress/f5c-post-serialization-measurement-plan-2026-09-29.md);
+no retry, K=4,000 diagnostic, or matrix row is authorized there. Next, audit
+the guarded-cycle worklist and retained reentry ownership/progress counters
+read-only, then decide whether specifically bounded evidence can answer a
+contract question. Do not run another solver process before a new reviewed
+plan.
 
 The earlier isolated GuardedCycle D=32/K=32 run timed out at 120 seconds while
 recording path-expanded owner events; its partial sidecar is not replayable.
@@ -77,8 +77,11 @@ no-cap addendum §4. Post-write review found one blocking mixed-selector
 early-return hole; it was repaired and closed by a spec delta review. Compile-
 only, synthetic row admission, mixed-selector CLI checks, Python AST, and
 `git diff --check` passed. Total process budget is two invocations / at most
-260 seconds including grace, with no warm-up, retry, or next workload. No
-process has run under this plan yet.
+260 seconds including grace, with no warm-up, retry, or next workload. The
+solver invocation timed out at 180 seconds, producing no row and a sidecar
+with a 56-byte trailing fragment. The conditional replay did not run. No host
+floor was breached. The next step is a read-only audit of guarded-cycle work
+and retained reentry progress before any new plan.
 
 The earlier isolated GuardedCycle D=32/K=32 run timed out at 120 seconds while
 recording path-expanded owner events; its partial sidecar is not replayable.

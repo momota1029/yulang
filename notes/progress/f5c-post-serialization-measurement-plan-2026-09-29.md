@@ -95,3 +95,35 @@ solver work or retained reentry paths.
 If this run and replay pass, stop and review that evidence before selecting
 another tuple or process budget. In particular, this plan does not authorize
 the D=32/K=4,000 diagnostic or any matrix row.
+
+## Run outcome — stopped on solver timeout
+
+Run ID `20260929-post-serialization-d32k32-01` executed the solver invocation
+once. The supervisor stopped it at the 180-second wall timeout, sent TERM, and
+reported exit `-15` after 181.479 seconds. No matrix row completed, so the
+conditional replay process was not run. The preserved log has zero row
+records; the partial sidecar is 393,216 bytes: 6,143 complete 64-byte records
+and a 56-byte trailing fragment. It is not replayable and was not passed to
+the checker.
+
+Supervisor samples: 185; peak process-group RSS 1,977,298,944 bytes; minimum
+`MemAvailable` 29,169,901,568 bytes; minimum free disk 666,056,245,248 bytes;
+peak sidecar 393,216 bytes and peak log 238 bytes. No configured memory or disk
+floor was breached. This does not establish a successful record volume,
+checksum, retained-lane reconciliation, or corrected-scale completion.
+
+The performance auditor's read-only follow-up found the sidecar flat at
+393,216 bytes over the last 12 monitor samples while process-group RSS rose
+from about 1.89 GB to 1.98 GB. This is consistent with solver/reentry work
+continuing after the serialization stream stopped growing, but sampled RSS
+does not identify owners or predict completion. The partial file is roughly
+896 times smaller than the earlier 352,149,504-byte partial trace; the runs
+had different durations/progress, so this is not a controlled reduction ratio
+or a completion estimate. The performance recommendation is to audit
+guarded-cycle worklist and retained-reentry progress before considering any
+new process or timeout.
+
+The plan's stop condition is active: no retry, replay, K=4,000 diagnostic, or
+matrix row is authorized by this attempt. Any next process requires a distinct
+fresh plan based on this timeout, with independent review and primary budget
+approval.
