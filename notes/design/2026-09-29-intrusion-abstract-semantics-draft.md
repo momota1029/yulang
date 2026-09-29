@@ -875,25 +875,41 @@ ordered root step over mutable solver state:
 prepare_member_step(state_i, member_root, environment):
     repeat:
         create projection round/query for this compaction attempt
-        lazily visit (vertex, polarity, weight) in collector order
-        on positive visits, query lower records by evidence lane, then ordinary lane
-        if any projection query fails, return failure without a root result
-        retain Unclaimed and Included; omit Excluded
-        on negative visits, read upper records in the same lane order
-        preserve recursion identity by (vertex, polarity)
-        build this attempt's regular projected root and polarity census
+        outcome = lazily collect the root in (vertex, polarity, weight) order
+        where positive visits query lower records by evidence lane, then ordinary
+            lane, and negative visits read upper records in lane order
+        if outcome is Collected(root, merge_list):
+            use root and merge_list
+        if outcome is ReturnedError(error):
+            the scoped gateway records any required terminal latch
+            the scheme-compaction surface substitutes a default root and
+                empty merge list for the returned error
+            use the fallback root and preserve the latch in solver state
+        retain Unclaimed and Included lower records; omit Excluded records
+        preserve recursion identity by (vertex, polarity) in a collected root
+        build this attempt's regular root and polarity census
         run prepasses required by the declared input envelope
         apply constraints participating in this root's restart loop
     until this root's Oracle restart condition is satisfied
-    run bounded post-loop passes; apply their constraints without assuming restart
-    save the root result produced here and return updated state (state_i_plus_1)
+    finalize role filtering and compact-root simplifications
+    alias-expand the retained compact root; apply its bounded companion
+        constraints and route events without assuming restart
+    stack-clean the alias-expanded root using the current solver; apply its
+        bounded companion constraints and route events without assuming restart
+    build the saved generalized view from that cleaned root and the then-current
+        solver state; return the view and updated state (state_i_plus_1)
 ```
 
 The component preparation result is staged privately. A compaction-attempt
-error is not automatically a component-terminal failure: the replacement must
-simulate the Oracle's round latch, query-gateway escalation, or default-root
-continuation for that error. When the corresponding Oracle path is terminal,
-the replacement aborts preparation, produces no member view for that
+error is not automatically a component-terminal failure: the collector can
+return a query failure, the scoped gateway may record a sticky attempt-terminal
+latch for the applicable failure class, and the scheme-compaction surface
+still substitutes a default compact root plus an empty merge list for the
+returned error. Root generalization then continues with that fallback while
+the latch remains part of solver state. The replacement must simulate this
+actual route, including error precedence and later observations. Other errors
+can stop through their owning boundary. When the corresponding Oracle path is
+terminal, the replacement aborts preparation, produces no member view for that
 component, and prevents partial publication. This is the replacement's
 atomicity rule; it does not describe Oracle's sequential slot finalization.
 

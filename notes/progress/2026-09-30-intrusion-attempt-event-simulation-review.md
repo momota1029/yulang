@@ -56,6 +56,15 @@ closed in the same text repair. Review covered the added lemma and direct
 Oracle control-flow sources; it did not establish any cross-machine mutation
 rule or Oracle equivalence.
 
+A follow-up compiler-referee source check found the adjacent root-step
+pseudocode had collapsed collector failure, terminal latching, and surface
+fallback into one outcome. It now distinguishes a returned collector error,
+the gateway's sticky attempt-terminal latch for applicable failure classes,
+and the scheme-compaction wrapper's `(default root, empty merge list)` fallback
+that continues into root generalization. Review confirmed this route against
+the collector, gateway, and surface code; no remaining mismatch was found in
+that narrow source scope.
+
 ## Remaining obligations
 
 The lemma is a proof plan, not a completed proof. The intrusion state and
