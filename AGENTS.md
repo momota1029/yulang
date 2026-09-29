@@ -49,6 +49,10 @@ measurement budget, and progress-record ownership. Broader reviewer lists in
 older rules describe eligible specialists, not an automatic panel.
 
 Role boundaries and the full matrix are in `rules/agent-orchestration.md`.
+Keep the user-selected primary (normally Luna); actual model/effort settings
+come from `.codex/`, not historical tier names. Only the primary spawns or
+contacts subagents. Children return evidence and recommended handoffs; they do
+not inherit primary orchestration, approval, or Git duties.
 
 Proactively delegate bounded work when task classification identifies a concrete
 role-shaped unit for exploration, production, or independent review; do not
@@ -66,7 +70,7 @@ adjudication, repository-state synchronization, and git integration; using a
 subagent does not transfer those responsibilities.
 
 - Use built-in `explorer` for read-heavy repository mapping.
-- Use `architect` for new decisions, uncertain behavior, and cross-layer work.
+- Use `architect` for unresolved decisions or behavior, including cross-layer questions not already settled by an Authoritative gate.
 - Use `implementer` for confirmed code changes.
 - Use `compiler_referee` for semantics, root cause, soundness, recovery, and IR invariants.
 - Use `spec_auditor` for exact design/spec/test-contract conformance.
@@ -137,13 +141,13 @@ work, makes safe integration impossible, or requires a genuine user decision.
 - Do not repeat broad checks after record-only or comment-only updates.
 - Do not blanket-stash, hard-reset, or clean a working tree that may contain valuable concurrent work.
 - Do not run two write-capable agents in the same working tree.
-- Every agent must explicitly set `fork_turns: "none"` on every
-  `spawn_agent` call, including nested delegation. Do not inherit parent
+- The primary must explicitly set `fork_turns: "none"` on every
+  supported `spawn_agent` call. Children do not re-delegate. Do not inherit parent
   conversation history. Supply the required task scope, governing sources,
   constraints, and file locators in the task message, respecting
   `rules/agent-orchestration.md` information boundaries.
 - Do not call work complete while required task/progress/design records remain silently stale.
-- Do not edit compiler code while performing this repository-policy migration unless a later task explicitly authorizes it.
+- During policy, skill, or configuration maintenance, do not edit compiler code unless the same task explicitly authorizes it. This is not a ban on ordinary authorized compiler implementation.
 
 ## Rule routing
 
