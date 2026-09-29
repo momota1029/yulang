@@ -86,6 +86,11 @@ Details and exclusions are in
 `notes/progress/2026-09-30-intrusion-oracle-instantiation-operation.md`. A
 full review and remaining obligations are in
 `notes/progress/2026-09-30-intrusion-carrier-candidate-review.md`. A
+focused temporary Rust Oracle probe now accepts one interval
+`Bottom ≤ q ≤ Arr(Int,q)`, retaining the recursive Function upper while
+discarding the trivial Bottom lower. It does not test an equation or recursive
+subtype comparison; details and the referee's scope are in
+`notes/progress/2026-09-30-intrusion-recursive-inequality-oracle-probe.md`. A
 first synthetic Oracle graph now combines a compatible outer lower,
 an upper path to an outer anchor, and a local alias cycle. Its successful
 scoped query selects the exact lower endpoint and exposes the upper anchor;

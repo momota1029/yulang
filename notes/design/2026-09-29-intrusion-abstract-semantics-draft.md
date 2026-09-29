@@ -840,6 +840,16 @@ Imported/finalized schemes take a validated path that preloads session-owned
 boundary variables; role-implementation candidate freshening is a separate
 adapter with a different free-variable policy.
 
+**One recursive inequality interval (Oracle characterization).** A temporary
+Rust test against the same Oracle revision instantiated a scheme with interval
+`Bottom ≤ q ≤ Arr(Int,q)`. Use emits no diagnostics; the fresh variable keeps
+the self-referential Function upper, while the trivial `Bottom` lower is
+discarded by constraint insertion. This is consistent with the candidate
+inequality-cycle reading, but does not set `q = Arr(Int,q)`, compare recursive
+types, or test a coinductive subtype rule. Exact assertions, reviewer scope,
+and command are in
+`notes/progress/2026-09-30-intrusion-recursive-inequality-oracle-probe.md`.
+
 This is an operational characterization of the Oracle path, not a
 mathematical scheme denotation. It does not specify the carrier/subtype
 preorder, prove that a scheme's complete set of instances is principal, or
