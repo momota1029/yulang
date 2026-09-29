@@ -162,6 +162,16 @@ the Oracle's generalizable set, that root projection is principal, or that
 retaining both bound directions matches one-sided Oracle approximations. Those
 are separate lemmas and remain the central semantic risks.
 
+An executable characterization of this lemma lives at
+`notes/progress/2026-09-29-intrusion-finite-model.py`. Running
+`python3 notes/progress/2026-09-29-intrusion-finite-model.py` checks closure
+commutation for identity sharing, directed variable flow, Function polarity,
+invariant constructors, a shared diamond, an outer endpoint, and a nominal
+recursive edge. It also checks that a non-injective quotient loses a directed
+edge and that two separate overlays keep their rows separate. This script
+implements the rules above; it is a regression aid for the proof sketch, not an
+independent proof or a model of principal root projection.
+
 ## 4. Instantiation uses overlays
 
 An instantiated use receives a fresh overlay `sigma` for that use's local

@@ -45,8 +45,11 @@ per TypeVar with separate lower/upper edge transport. An injective-renaming
 closure-commutation lemma is now stated with a proof sketch. A new Oracle probe
 shows `pub k x = 1` projects to `any -> int` with no binders, so root projection
 must eliminate one-sided exposures while preserving the shared component for
-other roots. Next formalize that projection and test it in a finite graph model
-against polarity/use/cycle cases before stating the simulation theorem. Do not
+other roots. A finite executable closure model now passes ten cases, including
+polarity, invariant constructors, sharing, capture, nominal recursion, and the
+non-injective-merge counterexample. It checks closure transport only. Next
+formalize per-root projection and extend the model against Oracle examples
+before stating the simulation theorem. Do not
 make F5's Q/R shape, closed schemes, numbering, or resource contract the pass
 condition.
 

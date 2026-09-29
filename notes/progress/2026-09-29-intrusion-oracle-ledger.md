@@ -93,3 +93,19 @@ the mutual probes cover one unproductive pure Function cycle and one
 nominal-guarded productive Function cycle. These are still individual
 observations, not a proof that a parent-based graph has the same principal
 solutions.
+
+## Intrusion finite closure model
+
+Added `notes/progress/2026-09-29-intrusion-finite-model.py`, a small executable
+implementation of the pure closure rules recorded in the abstract-semantics
+draft. `python3 notes/progress/2026-09-29-intrusion-finite-model.py` passes ten
+cases covering injective parent-renaming commutation, identity sharing,
+directed variable flow, Function polarity, invariant constructor arguments,
+shared diamond, outer capture, nominal recursion, union/intersection branches,
+and independent overlays. A non-injective quotient counterexample confirms
+that mapping distinct variables to one parent erases a directed flow edge.
+
+This validates the local edge-transport proof sketch against its executable
+encoding only. The model does not implement Oracle root projection, principal
+solutions, SCC member schemes, or production inference; it does not close the
+central one-sided approximation obligation.
