@@ -165,8 +165,14 @@ endpoints and finalization retains their exact `Neg::Intersection`, matching
 the candidate's meet result for that graph. These are only unweighted synthetic
 characterizations. A third probe observes matching `Con(U)` output for one
 shared-join diamond; it does not expose path-specific replay provenance.
-Source-level reachability, arbitrary shared DAGs, weighted/cyclic paths, and
-general root-order simulation remain open.
+The candidate denotation is now proved for any finite pure variable-bound
+graph with fixed concrete endpoints and compatible fixed lower bounds:
+reachable upper endpoints define a pointwise greatest solution, including
+shared vertices and cycles. Independent compiler-referee delta review closed
+the finite-bound, outer-fiber, and greatest-projection premises. Oracle
+selection/replay correspondence for that general graph class remains open;
+source-level reachability, weighted paths, and general root-order simulation
+also remain open.
 The Oracle collector, one-polarity removal, and finalization path for this
 conditional case now has independent source review. A nested captured-function
 source probe exceeded its 20-second bound inside Oracle `prepare_cold` and is

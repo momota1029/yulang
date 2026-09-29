@@ -953,6 +953,36 @@ It does not derive that set from Oracle evidence, cover endpoints that depend
 on shared variables before fixing a fiber, or handle another occurrence of `x`
 whose constraints couple the assignment to a different root position.
 
+**Finite upper-graph projection (candidate denotation theorem).** Fix an outer
+assignment. Let `V` be finite and let the selected obligations touching `V`
+be a finite set consisting only of variable edges `u ≤ v`, fixed-endpoint
+uppers `v ≤ U_i`, and fixed-endpoint lowers `L_j ≤ v`. Assume all remaining
+obligations are independent of `V` and hold under the fixed outer assignment,
+and that the selected graph has at least one satisfying assignment. The
+carrier is a preorder with all finite meets, including nullary meet `Top`.
+For each `v`, let `Reach_U(v)` contain every upper endpoint `U_i` reached from
+`v` by zero or more variable edges, and set `M_v = ∧ Reach_U(v)`.
+
+Every satisfying assignment `nu` obeys `nu(v) ≤ M_v`, since each reachable
+upper is a transitive upper bound on `v`. If `u ≤ v` is an edge, then
+`Reach_U(v) ⊆ Reach_U(u)`, hence `M_u ≤ M_v`. Each direct upper holds at
+`M_v` by the meet property. For each direct lower `L ≤ v`, any satisfying
+witness gives `L ≤ nu(v) ≤ M_v`, so the lower also holds at `M_v`. Therefore
+the assignment `v ↦ M_v` satisfies the whole selected graph and is pointwise
+greatest up to preorder equivalence, even when the variable graph has shared
+vertices or cycles. In particular, `M_x` is the greatest feasible value of a
+distinguished `x`. The feasible set for `x` need not be the whole lower set
+below `M_x` when lower obligations exist; the greatest element is sufficient.
+
+If the root is `Arr(x,R)`, `x` is its sole negative occurrence, and `R` is
+fixed independently of `V`, Function contravariance yields
+`↑{Arr(nu(x),R) | nu satisfies the selected graph} = ↑{Arr(M_x,R)}`. This is
+a candidate denotation theorem for a finite pure variable-bound graph. It does
+not show that Oracle selects the same obligations, that its replay reaches this
+closure, or that concrete compact views preserve `M_x`; the existing Oracle
+characterizations cover only the specific unweighted path and diamond fixtures
+below.
+
 **Selected-edge fiber corollary (conditional).** The interval premise can be
 derived for a restricted selected graph. Let `G` have a finite set of selected
 variable subtype edges, interpreted as lower/upper obligations in a carrier
