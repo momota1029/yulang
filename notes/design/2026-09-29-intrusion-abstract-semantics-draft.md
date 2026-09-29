@@ -571,7 +571,14 @@ bipolar vertex, but does not establish parent selection for recursive graphs.
 alone cannot be the per-root result: the negative-only argument variable must
 be projected away. The intrusion design needs a root projection that preserves
 the component graph for other roots while eliminating this member's
-one-sided exposure.
+one-sided exposure. A focused temporary test against the frozen Oracle now inspects the first
+`compact_root_for_generalize` result for this source: the Function argument
+contains `TypeVar(2)`, and `constraints().bounds().of(TypeVar(2))` is `None`.
+The saved generalized compact root has an empty argument node, matching the
+rendered `any` argument. This establishes the unconstrained-variable premise
+for this one Oracle witness at the observed root-preparation point; it does not
+establish the general root-projection rule or equivalence for bounded negative
+variables.
 
 **Directed variable flow.** For `a⁺ <: b⁻`, closure stores `a⁺` in `lower(b)`
 and `b⁻` in `upper(a)`. It does not assert `a = b`. A candidate that maps both
@@ -862,11 +869,11 @@ closure. Conversely, assigning `x = Top` is allowed by the unconstrained
 premise, so `Arr(Top, R)` is in the left generator set. Taking upward closures
 proves equality. Thus the candidate principality criterion explains the
 `Top` erasure of a truly unconstrained negative-only argument, such as the
-observed shape `any -> int`. The behavior ledger records that rendered Oracle
-result, but does not by itself establish that this exact prepared graph has no
-additional obligations. If `x` has bounds, shares another occurrence, or is
-anchored in `E_d`, this lemma does not apply; the general `Erase_d` rule remains
-unproved.
+observed shape `any -> int`. The focused Oracle probe above establishes that
+the `k` argument has no stored bounds in the first prepared compact view and
+that the saved compact argument is empty. If `x` has bounds, shares another
+occurrence, or is anchored in `E_d`, this lemma does not apply; the general
+`Erase_d` rule remains unproved.
 
 This split follows the audited Oracle path: compaction creates a fresh
 projection round, lower bounds are selected through a scoped evidence query,

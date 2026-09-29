@@ -122,10 +122,12 @@ and use-site constraints, with disjoint local assignments under one shared
 environment assignment. The carrier, subtype order, and finite-scheme
 representability remain open. A conditional lemma proves `Top` erasure for an
 unconstrained negative-only Function argument under greatest-Top and
-contravariant Function assumptions; the Oracle's `any -> int` fixture is
-explained only if its prepared graph meets that premise. Next establish the
-exact carrier and source graph, then prove general erasure/projection
-correctness and ordered root-step simulation,
+contravariant Function assumptions. A focused frozen-Oracle Rust-path probe
+now confirms the premise for the `pub k x = 1` witness: its first compacted
+Function argument is `TypeVar(2)` with no stored bounds, and the saved compact
+argument is empty. This does not prove the general erasure/projection rule.
+Next establish the exact carrier and additional source graphs, then prove
+general erasure/projection correctness and ordered root-step simulation,
 publication/finalization, and use simulation. A two-root characterization
 remains optional diagnostic evidence. A conditional lemma now shows that
 injective fresh-parent renaming bijects solution assignments when finite
