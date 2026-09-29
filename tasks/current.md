@@ -2,16 +2,64 @@
 
 Updated: 2026-09-29. Branch: `yulang3`; do not modify frozen `main`.
 
-### Active gate (2026-09-29): suppress selected transient owner serialization
+### Active gate (2026-09-29): refresh corrected-scale measurement plan
 
-The global same-time composition gate is now closed. The next bounded code gate
-is to suppress serialization only for non-transferring WalkerLane kinds 54–56
-and 116, while preserving FlatDraft kinds 12–17 and the online owner ledger.
-Keep the change test-and-feature-only and verify that replay still reconciles
-all retained owner rows and the composed session current/peak. Do not run a
-resource/scale process, diagnostic, or matrix row until this serialization
-change has its fresh review and the measurement plan's exact input, sample,
-and stop criteria are rechecked.
+The exact-kind serialization gate is complete. Serialization is suppressed
+only for non-transferring WalkerLane kinds 54–56 and 116; the 219-row online
+ledger still observes every transition, FlatDraft kinds 12–17 retain full
+identity events, and interval/terminal summaries let replay reconcile retained
+rows plus co-temporal owner/session current and peak. The small complete-trace
+oracle matched the hybrid replay. Details and review evidence are in the
+[`transient-owner serialization checkpoint`](../notes/progress/f5c-transient-owner-serialization-checkpoint-2026-09-29.md).
+
+No resource/scale process, diagnostic, or matrix row ran. The measurement plan
+[`f5c-no-cap-scale-measurement-plan`](../notes/progress/f5c-no-cap-scale-measurement-plan-2026-09-28.md)
+was rechecked: its isolated D=32/K=32 invocation is consumed, and it authorizes
+no further process. Next, prepare and independently review a fresh bounded
+measurement plan with exact input, sample/process budget, host floors, timeout,
+and stop criteria. Do not start a scale, diagnostic, or matrix process until
+that plan closes.
+
+The earlier isolated GuardedCycle D=32/K=32 run timed out at 120 seconds while
+recording path-expanded owner events; its partial sidecar is not replayable.
+The family-4 SHAPE reduction worked, leaving kinds 54–56 and 116 dominant
+because they represent repeated short-lived walk vectors and retained reentry
+paths. Exact prior evidence is in the
+[`shared-acyclic checkpoint`](../notes/progress/f5c-shared-acyclic-hit-mismatch-checkpoint-2026-09-29.md).
+
+The global same-time ledger checkpoint is recorded in the
+[`global session composition checkpoint`](../notes/progress/f5c-global-session-composition-checkpoint-2026-09-29.md).
+Do not claim corrected-scale completion until the fresh reviewed measurement
+plan and its scale evidence close.
+
+### Latest continuation (2026-09-29): suppress selected transient owner serialization
+
+The test-and-feature-only event sink skips serialized owner events only for
+WalkerLane kinds 54–56 and 116, after the fixed online shadow receives each
+capacity change. It rejects transfers for those kinds. Fixed-width interval
+certificates carry excluded-lane current and interval maxima to the next
+retained event; four lane summaries and owner/session terminal summaries close
+the replay. FlatDraft kinds 12–17 and all other retained identity events remain
+serialized. The Python replay reconciles all retained physical rows, suppressed
+lane totals, joint owner current/peak, and composed session current/peak.
+
+M2 used pre-write `spec_auditor` and `performance_auditor`, then post-write
+`spec_auditor` and `performance_auditor`; no findings remained. The complete
+small walker trace and live session trace both matched the hybrid replay's
+unsuppressed oracle. Walker sidecars used 412 records / 26,376 bytes with
+suppression and 434 / 27,784 bytes in full mode. The live session used 942 /
+60,296 bytes with suppression and 957 / 61,256 bytes in full mode. The live
+observer retained E=553 owner adjustments/transfers, S=33 samples, and F=3
+finalizers. Mutation checks rejected altered lane/owner terminal records after
+checksum recomputation. Focused tests, both replay modes, Python AST parsing,
+and `git diff --check` passed. The test-side full-sidecar read is O(E) and is
+limited to the small witness. Suppressed individual IDs and their exact
+inter-boundary peak timestamps are not independently reconstructible from a
+large hybrid trace; the complete small oracle establishes parity.
+
+No resource/scale process, diagnostic, matrix row, timing sample, or RSS sample
+ran. The exact measurement plan recheck found its former one-process budget
+consumed and no further run authorized; the next gate is a fresh reviewed plan.
 
 The earlier isolated GuardedCycle D=32/K=32 run timed out at 120 seconds while
 recording path-expanded owner events; its partial sidecar is not replayable.

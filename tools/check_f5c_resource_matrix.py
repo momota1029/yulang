@@ -197,6 +197,14 @@ def replay_f6_events(path, expected_count, expected_checksum):
     family3_transfers = 0
     family2_transfers = set()
     count = checksum = 0
+    excluded_capacity = excluded_bytes = 0
+    excluded_summary = {}
+    owner_terminal = session_terminal = None
+    full_excluded = False
+    owner_current_bytes = owner_peak_bytes = owner_peak_capacity = 0
+    session_other = session_closed = session_route = session_current = session_peak = 0
+    session_samples = finalizer_calls = 0
+    session_started = False
 
     def family_of(kind):
         if 584 <= kind < 612:
@@ -286,6 +294,83 @@ def replay_f6_events(path, expected_count, expected_checksum):
             component, owner_id, op, kind, requested, actual, size, target = EVENT.unpack(block)
             count += 1
             checksum = (checksum + sum(EVENT.unpack(block))) & ((1 << 64) - 1)
+            if op == 10:
+                if (component, owner_id, kind) != (0, 0, 0) or size < requested or target < actual:
+                    raise ValueError(f"{path}: invalid excluded interval")
+                if full_excluded:
+                    current = [sum(lane_current.get(k, [0, 0])[i] for k in (54, 55, 56, 116)) for i in (0, 1)]
+                    if current != [requested, actual]:
+                        raise ValueError(f"{path}: excluded interval differs from full events")
+                else:
+                    retained_capacity = family_current[6][0] - excluded_capacity
+                    retained_bytes = family_current[6][1] - excluded_bytes
+                    if retained_capacity < 0 or retained_bytes < 0:
+                        raise ValueError(f"{path}: negative retained family-6 current")
+                    family_peak[6] = max(family_peak[6], retained_bytes + target)
+                    if session_started:
+                        session_peak = max(session_peak, session_other + owner_current_bytes - excluded_bytes + target + session_closed + session_route)
+                    family_current[6][0] += requested - excluded_capacity
+                    family_current[6][1] += actual - excluded_bytes
+                    if min(family_current[6]) < 0:
+                        raise ValueError(f"{path}: negative family-6 excluded total")
+                    excluded_capacity, excluded_bytes = requested, actual
+                    owner_current_bytes = sum(current[1] for current in family_current.values())
+                    owner_peak_bytes = max(owner_peak_bytes, owner_current_bytes - excluded_bytes + target)
+                    owner_peak_capacity = max(owner_peak_capacity,
+                        sum(current[0] for current in family_current.values()) - excluded_capacity + size)
+                continue
+            if op == 11:
+                if (component, owner_id) != (0, 0) or kind not in (54, 55, 56, 116) or kind in excluded_summary:
+                    raise ValueError(f"{path}: invalid excluded lane summary")
+                excluded_summary[kind] = (requested, actual, size, target)
+                if not full_excluded:
+                    lane_current[kind] = [requested, size]
+                    lane_peak[kind] = [actual, target]
+                    row = row_lane(kind)
+                    row_current[row] = [requested, size]
+                    row_peak[row] = [actual, target]
+                    if requested:
+                        if size % requested:
+                            raise ValueError(f"{path}: excluded lane byte shape")
+                        row_sizes[row] = size // requested
+                    elif actual:
+                        if target % actual:
+                            raise ValueError(f"{path}: excluded lane peak byte shape")
+                        row_sizes[row] = target // actual
+                continue
+            if op == 12:
+                if (component, owner_id, kind) != (0, 0, 0) or owner_terminal is not None:
+                    raise ValueError(f"{path}: invalid owner terminal")
+                owner_terminal = (requested, actual, size, target)
+                continue
+            if op == 13:
+                if (component, owner_id, kind) != (0, 0, 0) or session_terminal is not None:
+                    raise ValueError(f"{path}: invalid session terminal")
+                session_terminal = (requested, actual, size, target)
+                continue
+            if kind in (54, 55, 56, 116):
+                full_excluded = True
+            if op == 8:
+                if owner_id or kind or actual != sum(current[1] for current in family_current.values()):
+                    raise ValueError(f"{path}: session baseline owner mismatch")
+                decomposed = actual + size + target
+                if decomposed > requested:
+                    raise ValueError(f"{path}: invalid session baseline")
+                session_other, session_closed, session_route = requested - decomposed, size, target
+                session_current = requested
+                session_peak = max(session_peak, requested)
+                session_started = True
+                session_samples += 1
+                continue
+            if op == 9:
+                if (component, owner_id, kind, target) != (0, 0, 0, 0) or not session_started or requested != session_closed or size < max(requested, actual):
+                    raise ValueError(f"{path}: invalid finalizer peak")
+                session_peak = max(session_peak, session_other + owner_current_bytes + session_route + size)
+                session_closed = actual
+                session_current = session_other + owner_current_bytes + session_route + actual
+                session_peak = max(session_peak, session_current)
+                finalizer_calls += 1
+                continue
             key = (component, owner_id)
             if op == 6:
                 family = 1 if kind == 512 else 2 if kind == 571 else 3 if kind == 530 else 4 if kind == 551 else 5 if kind == 584 else 8 if kind == 577 else 6 if kind == 0 else None
@@ -389,8 +474,31 @@ def replay_f6_events(path, expected_count, expected_checksum):
                     adjust(kind, actual, actual * size)
                 else:
                     raise ValueError(f"{path}: unknown event operation {op}")
+            owner_current_bytes = sum(current[1] for current in family_current.values())
+            owner_peak_bytes = max(owner_peak_bytes, owner_current_bytes)
+            owner_peak_capacity = max(owner_peak_capacity, sum(current[0] for current in family_current.values()))
+            if session_started:
+                session_current = session_other + owner_current_bytes + session_closed + session_route
+                session_peak = max(session_peak, session_current)
     if count != expected_count or checksum != expected_checksum:
         raise ValueError(f"{path}: event count/checksum mismatch")
+    if set(excluded_summary) != {54, 55, 56, 116} or owner_terminal is None or session_terminal is None:
+        raise ValueError(f"{path}: missing terminal summary")
+    if not full_excluded and (
+        sum(totals[0] for totals in excluded_summary.values()) != excluded_capacity or
+        sum(totals[2] for totals in excluded_summary.values()) != excluded_bytes
+    ):
+        raise ValueError(f"{path}: excluded lane currents differ from interval terminal")
+    for kind, totals in excluded_summary.items():
+        if tuple((*lane_current[kind], *lane_peak[kind])) != (totals[0], totals[2], totals[1], totals[3]):
+            raise ValueError(f"{path}: excluded lane summary differs from replay")
+        if checkpoint_by_kind is not None:
+            checkpoint_by_kind[kind] = [totals[0], totals[2], totals[1], totals[3]]
+    if owner_terminal != (sum(current[0] for current in family_current.values()), owner_peak_capacity,
+                          owner_current_bytes, owner_peak_bytes):
+        raise ValueError(f"{path}: owner terminal differs from replay")
+    if session_terminal != (session_current, session_peak, session_samples, finalizer_calls):
+        raise ValueError(f"{path}: session terminal differs from replay")
     if set(checkpoints) != {1, 2, 3, 4, 5, 6, 8} or any(any(family_current[family]) for family in (1, 4, 5, 6, 8)):
         raise ValueError(f"{path}: missing terminal checkpoint or unreleased owner capacity")
     if any(family_of(kind) == 4 for kind, *_ in owners.values()):
@@ -455,6 +563,10 @@ def check_walker_shadow_witness(sidecar, totals_path):
     rows = {kind: [0, 0, 0, 0] for kind in (*range(12, 18), *range(129, 139), *range(145, 248), *range(512, 612))}
     combined = [0, 0, 0, 0]
     count = checksum = last_id = 0
+    excluded_current = [0, 0]
+    excluded_summary = {}
+    owner_terminal = session_terminal = None
+    full_excluded = False
     staged_transfers = {}
     staged_releases = set()
     term_checkpoint = None
@@ -532,6 +644,42 @@ def check_walker_shadow_witness(sidecar, totals_path):
             count += 1
             checksum = (checksum + sum(EVENT.unpack(block))) & ((1 << 64) - 1)
             key = (component, owner_id)
+            if op == 10:
+                if (component, owner_id, kind) != (0, 0, 0) or size < requested or target < actual:
+                    raise ValueError("invalid excluded interval certificate")
+                retained_capacity = combined[0] - excluded_current[0]
+                retained_bytes = combined[2] - excluded_current[1]
+                if retained_capacity < 0 or retained_bytes < 0:
+                    raise ValueError("excluded interval exceeds replay total")
+                if full_excluded:
+                    if (requested, actual) != tuple(sum(rows[physical_kind(k)][i] for k in (54, 55, 56, 116)) for i in (0, 2)):
+                        raise ValueError("full trace excluded interval current mismatch")
+                else:
+                    combined[0] = retained_capacity + requested
+                    combined[2] = retained_bytes + actual
+                    combined[1] = max(combined[1], retained_capacity + size)
+                    combined[3] = max(combined[3], retained_bytes + target)
+                    excluded_current[:] = [requested, actual]
+                continue
+            if op == 11:
+                if (component, owner_id) != (0, 0) or kind not in (54, 55, 56, 116) or kind in excluded_summary:
+                    raise ValueError("invalid excluded lane terminal")
+                excluded_summary[kind] = (requested, actual, size, target)
+                if not full_excluded:
+                    rows[physical_kind(kind)] = [requested, actual, size, target]
+                continue
+            if op == 12:
+                if (component, owner_id, kind) != (0, 0, 0) or owner_terminal is not None:
+                    raise ValueError("invalid owner terminal")
+                owner_terminal = (requested, actual, size, target)
+                continue
+            if op == 13:
+                if (component, owner_id, kind) != (0, 0, 0) or session_terminal is not None:
+                    raise ValueError("invalid session terminal")
+                session_terminal = (requested, actual, size, target)
+                continue
+            if kind in (54, 55, 56, 116):
+                full_excluded = True
             if op == 6:
                 if kind == 584:
                     if (component, owner_id, requested, target) != (0, 0, 0, 0) or normalization_checkpoint is not None:
@@ -728,6 +876,15 @@ def check_walker_shadow_witness(sidecar, totals_path):
                 raise ValueError(f"unexpected witness op {op}")
     if (count, checksum) != (expected_count, expected_checksum):
         raise ValueError("witness event count/checksum mismatch")
+    if set(excluded_summary) != {54, 55, 56, 116} or owner_terminal != tuple(combined) or session_terminal is None:
+        raise ValueError("witness terminal summary mismatch")
+    if not full_excluded and (
+        sum(totals[0] for totals in excluded_summary.values()) != excluded_current[0] or
+        sum(totals[2] for totals in excluded_summary.values()) != excluded_current[1]
+    ):
+        raise ValueError("witness excluded currents differ from interval terminal")
+    if any(tuple(rows[physical_kind(k)]) != value for k, value in excluded_summary.items()):
+        raise ValueError("witness excluded lane summary mismatch")
     if set(staged_transfers.values()) != set(range(12, 18)) or staged_releases != set(staged_transfers):
         raise ValueError("witness needs six same-ID FlatDraft transfers and adopted-owner releases")
     if (normalization_checkpoint is None or set(normalization_transfers.values()) != set(range(605, 611))
@@ -768,7 +925,7 @@ def check_walker_shadow_witness(sidecar, totals_path):
             or source_releases != set(source_transfers)
             or failed_source_owner is None or not failed_source_released):
         raise ValueError("witness needs source kinds, classification, same-ID transfers, failed growth and releases")
-    print(f"F5c online owner shadow: {count} full sidecar events, 219 exact lane rows and joint total")
+    print(f"F5c online owner shadow: {count} sidecar records, 219 exact lane rows and joint total")
 
 
 def check_joint_session_witness(sidecar, totals_path):
@@ -782,6 +939,10 @@ def check_joint_session_witness(sidecar, totals_path):
     closed_peak = route_peak = other_peak = 0
     other = closed = route = current = peak = 0
     samples = calls = count = checksum = 0
+    excluded_current = 0
+    full_excluded = False
+    excluded_summary = {}
+    owner_terminal = session_terminal = None
     baseline_seen = False
     route_values = []
     other_values = []
@@ -828,6 +989,41 @@ def check_joint_session_witness(sidecar, totals_path):
             boundary, owner_id, op, kind, requested, actual, size, target = words
             count += 1
             checksum = (checksum + sum(words)) & ((1 << 64) - 1)
+            if op == 10:
+                if (boundary, owner_id, kind) != (0, 0, 0) or target < actual:
+                    raise ValueError("invalid joint excluded interval")
+                if full_excluded:
+                    if actual != sum(capacity * slot_size for owner_kind, capacity, slot_size in owners.values()
+                                     if owner_kind in (54, 55, 56, 116)):
+                        raise ValueError("joint excluded interval differs from full trace")
+                else:
+                    retained = owner_current - excluded_current
+                    if retained < 0:
+                        raise ValueError("negative retained owner current")
+                    owner_peak = max(owner_peak, retained + target)
+                    if baseline_seen:
+                        peak = max(peak, other + retained + target + closed + route)
+                    excluded_current = actual
+                    owner_current = retained + actual
+                    current = other + owner_current + closed + route if baseline_seen else current
+                continue
+            if op == 11:
+                if (boundary, owner_id) != (0, 0) or kind not in (54, 55, 56, 116) or kind in excluded_summary:
+                    raise ValueError("invalid joint excluded lane summary")
+                excluded_summary[kind] = (requested, actual, size, target)
+                continue
+            if op == 12:
+                if (boundary, owner_id, kind) != (0, 0, 0) or owner_terminal is not None:
+                    raise ValueError("invalid joint owner terminal")
+                owner_terminal = (requested, actual, size, target)
+                continue
+            if op == 13:
+                if (boundary, owner_id, kind) != (0, 0, 0) or session_terminal is not None:
+                    raise ValueError("invalid joint session terminal")
+                session_terminal = (requested, actual, size, target)
+                continue
+            if kind in (54, 55, 56, 116):
+                full_excluded = True
             if op == 8:
                 if owner_id or kind or boundary > 13 or actual != owner_current:
                     raise ValueError(f"invalid joint baseline ordering or owner subtotal: event {count}, boundary {boundary}, online {actual}, replay {owner_current}")
@@ -926,6 +1122,12 @@ def check_joint_session_witness(sidecar, totals_path):
             if baseline_seen:
                 current = other + owner_current + closed + route
                 peak = max(peak, current)
+    if set(excluded_summary) != {54, 55, 56, 116} or owner_terminal is None or session_terminal != (current, peak, samples, calls):
+        raise ValueError("joint terminal summary mismatch")
+    if not full_excluded and sum(totals[2] for totals in excluded_summary.values()) != excluded_current:
+        raise ValueError("joint excluded currents differ from interval terminal")
+    if owner_terminal[2] != owner_current or owner_terminal[3] != owner_peak:
+        raise ValueError("joint owner terminal differs from replay")
     if (count, checksum, current, peak, samples, calls) != expected[:6] or expected[6] <= 0:
         raise ValueError("joint witness replay differs from online totals")
     if (not baseline_seen or pending_member or calls < 2 or finalizer_overlap < 2

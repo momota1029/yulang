@@ -1703,6 +1703,21 @@ fn f5c_walker_online_shadow_witness() {
         (lane == 16 && *totals == Default::default()) ||
         (lane != 16 && totals.current_capacity == 0 && totals.peak_capacity > 0)));
     let (count, checksum) = crate::f5c_draft_heap::close_f5c_resource_events().unwrap();
+    let sidecar_bytes = std::fs::read(&sidecar).unwrap();
+    assert_eq!(sidecar_bytes.len(), 8 + usize::try_from(count).unwrap() * 64);
+    if std::env::var_os("F5C_FULL_WALKER_EVENTS").is_none() {
+        let mut excluded_intervals = 0;
+        let mut excluded_lanes = 0;
+        for event in sidecar_bytes[8..].chunks_exact(64) {
+            let word = |index: usize| u64::from_le_bytes(event[index * 8..][..8].try_into().unwrap());
+            assert!(word(2) > 7 || !matches!(word(3), 54..=56 | 116),
+                "excluded WalkerLane identity was serialized");
+            excluded_intervals += usize::from(word(2) == 10);
+            excluded_lanes += usize::from(word(2) == 11);
+        }
+        assert!(excluded_intervals > 0);
+        assert_eq!(excluded_lanes, 4);
+    }
     if let Some(path) = std::env::var_os("F5C_WALKER_SHADOW_TOTALS") {
         use std::fmt::Write;
         let mut output = format!("{count} {checksum}\n");

@@ -58,6 +58,13 @@ mod event_sink {
     pub(super) const DECREASE: u64 = 7;
     pub(super) const SESSION_BASELINE: u64 = 8;
     pub(super) const FINALIZER_PEAK: u64 = 9;
+    // Fixed-width interval and terminal records replace only the four omitted owner kinds.
+    // The interval stores excluded end capacity/bytes and maxima before the next retained record.
+    const EXCLUDED_INTERVAL: u64 = 10;
+    const EXCLUDED_LANE: u64 = 11;
+    const OWNER_TERMINAL: u64 = 12;
+    const SESSION_TERMINAL: u64 = 13;
+    const EXCLUDED_LANES: [usize; 4] = [22, 23, 24, 84];
 
     #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
     pub(crate) struct WalkerTotals {
@@ -289,9 +296,31 @@ mod event_sink {
         }
     }
 
-    struct Sink { writer: BufWriter<File>, next_id: u64, count: u64, checksum: u64, failed: bool }
+    struct Sink { writer: BufWriter<File>, next_id: u64, count: u64, checksum: u64, failed: bool,
+        excluded_dirty: bool, excluded_interval_capacity: usize, excluded_interval_bytes: usize,
+        excluded_capacity: usize, excluded_bytes: usize }
+    impl Sink {
+        fn write_words(&mut self, words: [u64; 8]) {
+            for word in words {
+                if self.writer.write_all(&word.to_le_bytes()).is_err() { self.failed = true; }
+                self.checksum = self.checksum.wrapping_add(word);
+            }
+            self.count = self.count.checked_add(1).expect("F5c event count overflow");
+        }
+
+        fn flush_excluded_interval(&mut self) {
+            if !self.excluded_dirty { return; }
+            self.write_words([0, 0, EXCLUDED_INTERVAL, 0, self.excluded_capacity as u64,
+                self.excluded_bytes as u64, self.excluded_interval_capacity as u64,
+                self.excluded_interval_bytes as u64]);
+            self.excluded_interval_capacity = self.excluded_capacity;
+            self.excluded_interval_bytes = self.excluded_bytes;
+            self.excluded_dirty = false;
+        }
+    }
     thread_local! {
         static SINK: RefCell<Option<Sink>> = const { RefCell::new(None) };
+        static FULL_WALKER_EVENTS: Cell<bool> = const { Cell::new(false) };
         static STRUCTURED_PAIR_TOTALS: Cell<(usize, usize, usize)> = const { Cell::new((0, 0, 0)) };
         static COMPONENT_MEMO_TOTALS: Cell<(usize, usize, usize)> = const { Cell::new((0, 0, 0)) };
         static TERM_TOTALS: Cell<(usize, usize, usize)> = const { Cell::new((0, 0, 0)) };
@@ -303,8 +332,11 @@ mod event_sink {
     pub(crate) fn open(path: &Path) -> std::io::Result<()> {
         let mut writer = BufWriter::new(File::create(path)?);
         writer.write_all(MAGIC)?;
+        FULL_WALKER_EVENTS.with(|flag| flag.set(std::env::var_os("F5C_FULL_WALKER_EVENTS").is_some()));
         SINK.with(|slot| *slot.borrow_mut() = Some(Sink {
             writer, next_id: 1, count: 0, checksum: 0, failed: false,
+            excluded_dirty: false, excluded_interval_capacity: 0, excluded_interval_bytes: 0,
+            excluded_capacity: 0, excluded_bytes: 0,
         }));
         STRUCTURED_PAIR_TOTALS.with(|totals| totals.set((0, 0, 0)));
         COMPONENT_MEMO_TOTALS.with(|totals| totals.set((0, 0, 0)));
@@ -408,6 +440,20 @@ mod event_sink {
 
     pub(super) fn adjust_walker(lane: usize, old: usize, new: usize, size: usize) {
         WALKER_LEDGER.with(|ledger| ledger.borrow_mut().adjust(lane, old, new, size));
+        if matches!(lane, 22..=24 | 84) {
+            SINK.with(|slot| {
+                if let Some(sink) = slot.borrow_mut().as_mut() {
+                    sink.excluded_capacity = sink.excluded_capacity.checked_sub(old)
+                        .and_then(|n| n.checked_add(new)).expect("excluded capacity");
+                    sink.excluded_bytes = sink.excluded_bytes.checked_sub(old.checked_mul(size).expect("excluded old bytes"))
+                        .and_then(|n| n.checked_add(new.checked_mul(size).expect("excluded new bytes")))
+                        .expect("excluded bytes");
+                    sink.excluded_interval_capacity = sink.excluded_interval_capacity.max(sink.excluded_capacity);
+                    sink.excluded_interval_bytes = sink.excluded_interval_bytes.max(sink.excluded_bytes);
+                    sink.excluded_dirty = true;
+                }
+            });
+        }
     }
 
     pub(super) fn adjust_component_shadow(lane: usize, old: usize, new: usize, size: usize) {
@@ -458,6 +504,23 @@ mod event_sink {
             let Some(mut sink) = slot.borrow_mut().take() else {
                 return Err(std::io::Error::other("F5c resource sidecar was not opened"));
             };
+            sink.flush_excluded_interval();
+            WALKER_LEDGER.with(|ledger| {
+                let ledger = ledger.borrow();
+                for lane in EXCLUDED_LANES {
+                    let totals = ledger.lanes[lane];
+                    sink.write_words([0, 0, EXCLUDED_LANE, (lane + 32) as u64,
+                        totals.current_capacity as u64, totals.peak_capacity as u64,
+                        totals.current_bytes as u64, totals.peak_bytes as u64]);
+                }
+                let totals = ledger.combined;
+                sink.write_words([0, 0, OWNER_TERMINAL, 0, totals.current_capacity as u64,
+                    totals.peak_capacity as u64, totals.current_bytes as u64,
+                    totals.peak_bytes as u64]);
+                sink.write_words([0, 0, SESSION_TERMINAL, 0, ledger.session_current as u64,
+                    ledger.session_peak as u64, ledger.session_samples as u64,
+                    ledger.finalizer_calls as u64]);
+            });
             sink.writer.flush()?;
             if sink.failed { return Err(std::io::Error::other("F5c resource sidecar write failed")); }
             Ok((sink.count, sink.checksum))
@@ -476,16 +539,17 @@ mod event_sink {
 
     pub(super) fn record(component: usize, id: usize, op: u64, kind: PhysicalOwnerKind,
         requested: usize, capacity: usize, slot_size: usize, target: u64) {
+        if matches!(kind.code(), 54..=56 | 116) {
+            assert_ne!(op, TRANSFER, "suppressed WalkerLane cannot transfer");
+            if !FULL_WALKER_EVENTS.with(Cell::get) { return; }
+        }
         SINK.with(|slot| {
             let mut slot = slot.borrow_mut();
             let Some(sink) = slot.as_mut() else { return; };
+            sink.flush_excluded_interval();
             let words = [component as u64, id as u64, op, kind.code(), requested as u64,
                 capacity as u64, slot_size as u64, target];
-            for word in words {
-                if sink.writer.write_all(&word.to_le_bytes()).is_err() { sink.failed = true; }
-                sink.checksum = sink.checksum.wrapping_add(word);
-            }
-            sink.count = sink.count.checked_add(1).expect("F5c event count overflow");
+            sink.write_words(words);
         });
     }
 
