@@ -576,6 +576,75 @@ separation and the shared-pivot condition on closure derivations. A
 solution-space product and principal-solution theorem require a denotational
 subtype model and remain unproved.
 
+**Conditional joint-use renaming theorem (candidate).** Fix a many-sorted
+identity signature `S` (at least value and latent-effect sorts), a carrier
+interpretation for each sort, and subtype/effect relations for the corresponding
+endpoint positions. An endpoint, assignment, constraint, and observation is
+well-sorted; `rho` below is sort-preserving. A saved member view contains
+finite regular endpoint terms, selected inequality obligations `C_d`, a typed
+root observation tuple `R_d` (value root and any observable effect roots),
+and preserved anchors `A_d`. Recursive bound rows are members of `C_d` as
+inequalities; a variable back-edge evaluates by assignment lookup and is not a
+recursive type equation. Fix a well-sorted shared assignment `eta_d` for all
+identities in the receiver namespace, including anchors, with its admissibility
+domain defined independently of whether the member-local fiber is empty.
+
+For each incoming use `u` targeting `d`, let `L_d` be the complete set of
+surviving member-local identities (ordinary, recursive, and forced-effect
+identities), and choose a sort-preserving bijection `rho_u : L_d -> F_u`.
+Require `F_u` to be disjoint from the entire receiver namespace and from every
+other use range. `rho_u` fixes `A_d`; apply it consistently to root terms, both
+sides of every inequality, effect positions, and all identity-bearing
+constraint/evidence payloads. Assume endpoint evaluation and each
+subtype/effect relation are equivariant under this renaming. This theorem
+assumes each use view is a complete copy: every identity it reads is either in
+`L_d` or the receiver namespace. Any omitted or erased identity must not be
+read by the view, its continuation, or its observations.
+
+Now choose an arbitrary finite, well-sorted joint continuation `W` over the
+receiver namespace and the disjoint use-local copies. `W` may relate roots or
+other observations from different uses, and may contain subtype/effect
+obligations; it must be equivariant under the product renaming and fixed on
+receiver identities. It may read only the identities just enumerated. For a
+family of typed observations `z = (z_u)_u`, define:
+
+```text
+Batch_d(eta_d, W) = {
+  z |
+    there exist assignments nu_u : F_u -> D_sort for all u such that
+      renamed C_d holds for each u under eta_d, nu_u,
+      z_u = eval(renamed R_d, eta_d, nu_u) for every u, and
+      W(z, eta_d, (nu_u)_u) holds
+}
+```
+
+Here `D_sort` is the carrier selected by each identity's sort. The product of
+the per-use assignment renamings is a bijection from assignments of the
+original local identities, with one independent assignment per use, to
+assignments of the fresh ranges. Structural induction on finite endpoint
+syntax preserves each typed root value; each copied inequality and every
+identity-bearing payload has the same identity correspondence. If payload
+validity is part of the selected-view relation, its evaluator must also be
+equivariant under `rho`; otherwise payload validity remains a separate edge-
+selection obligation. Since `W` is equivariant, the full joint continuation
+has the same truth value too.
+Thus the complete batch observation relation is equal under the product
+identity correspondence, including when `W` couples distinct uses. For every
+fixed admissible `eta_d`, an empty original fiber maps to an empty renamed
+fiber. Receiver assignments remain shared and may correlate uses; this
+argument does not split them into per-use environments or assert that the
+batch relation is a Cartesian product.
+
+This conditional theorem assumes an already selected complete member view,
+fixed sorted carrier interpretations, and semantic equivariance. It establishes
+only identity-renaming transport for same-member use batches. It does not prove
+that Oracle root projection selects `C_d`, that different member views compose
+when an identity is free in one and local in another, that either scheme is
+principal, or that the public Oracle observation is preserved. Those remain
+separate Gate C obligations. The theorem also does not add handler hygiene: if
+a later supported envelope admits handlers, their boundary identities and
+evidence need a separate transport relation.
+
 These conditional lemmas do not close Gate C. The full obligation remains to
 define and prove the soundness/principality theorem for the supported graph
 class and envelope, show that Oracle root preparation yields a well-formed

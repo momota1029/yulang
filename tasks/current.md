@@ -82,13 +82,20 @@ component lemma; it does not redefine the objective or establish the required
 Oracle-capable envelope. A canonical source grammar, machine-specific
 lowering relation, generated root/use/publication traces, and candidate public
 observation fields are now drafted and independently delta-reviewed. The
-immediate work is to define the public type normalizer and denotational
-semantics for latent-effect bounds, products, nominal recursive intervals,
-constrained negative projection, and annotation-dependent local scheme
-routing, then prove the source lowering and root-indexed simulation. The
+conditional joint-use renaming theorem now covers many-sorted value/effect
+identities, complete same-member view namespaces, and arbitrary finite joint
+continuations that can relate roots across uses; independent compiler-referee
+and spec-auditor delta reviews closed the theorem's findings. This remains an
+identity-transport lemma, not a carrier or Oracle-projection proof. The
+immediate work is to define the semantic carrier and public type normalizer
+for latent-effect bounds, products, nominal recursive intervals, constrained
+negative projection, and annotation-dependent local scheme routing, then
+prove the source lowering and root-indexed simulation. The
 candidate and its reviews are recorded in
 `notes/progress/2026-09-30-intrusion-end-to-end-capability-matrix.md` and
-`notes/progress/2026-09-30-intrusion-source-envelope-review.md`. It remains
+`notes/progress/2026-09-30-intrusion-source-envelope-review.md`. The
+conditional transport review is in
+`notes/progress/2026-09-30-intrusion-joint-use-renaming-review.md`. It remains
 unselected and unproved; source-lowering implementation and the final
 supported-input limits still need the reviewed successor contract. The
 existing injective
