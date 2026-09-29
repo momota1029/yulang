@@ -157,8 +157,11 @@ extend this beyond the one fixture and characterize selected scoped records
 and root restart/post-loop preservation. The Oracle compactor preserves an
 unweighted upper alias as a secondary variable; its alias-expansion pass adds
 aliases only in positive positions and flips under Function arguments. Thus
-the selected-graph alias-chain lemma still has no Oracle correspondence for a
-negative argument, which is a concrete next proof target.
+negative-argument correspondence depends on solver replay: a focused isolated
+Oracle Rust probe confirms `x <: y`, `y <: U` inserts direct projected upper
+`x <: U` before generalization, whose saved Function argument is exactly `U`.
+This closes one synthetic unweighted chain case only. Source-level reachability,
+weighted/shared/cyclic chains, and general root-order simulation remain open.
 The Oracle collector, one-polarity removal, and finalization path for this
 conditional case now has independent source review. A nested captured-function
 source probe exceeded its 20-second bound inside Oracle `prepare_cold` and is

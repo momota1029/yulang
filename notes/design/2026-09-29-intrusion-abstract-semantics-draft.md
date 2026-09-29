@@ -997,8 +997,26 @@ Thus `U` is the greatest projected argument, and the negative-only root
 extremal-projection lemma. This covers an acyclic alias path to a fixed upper
 endpoint in the selected-graph model, not arbitrary shared intermediates,
 weights, cycles, anchors, or constraints coupling any `v_i` to other local
-vertices. It also does not prove that Oracle's scoped collector follows such a
-path to `U` or retains `U` across root transitions.
+vertices.
+
+**Oracle correspondence for one unweighted alias chain (characterized).** The
+frozen Rust solver has a replay path that materializes the chain's transitive
+upper endpoint before generalization. Decomposing `x ≤ y` records `x` as a
+projection lower of `y` and `y` as an upper of `x`. Inserting `y ≤ U` triggers
+upper-bound replay at `y`, pairing its projection lower `x` with the new upper
+`U` and queuing `x ≤ U`. A focused synthetic Rust-path test checks that `x`
+then has a direct projected upper `U` and that full generalization of a
+positive Function root with negative-only argument `x` drops the eligible
+`x`/`y` occurrences while retaining exactly `U` in that argument position.
+This matches the selected-graph chain projection for this unweighted,
+acyclic, isolated chain and the tested level arrangement. The ordinary compact
+collector itself retains a bare variable upper alias as a secondary
+occurrence; the correspondence here depends on solver replay, not recursive
+alias expansion by the collector. It remains a synthetic characterization,
+not proof of source-level reachability, weighted/shared/cyclic path handling,
+root-order simulation, diagnostics, or principal-solution equivalence for a
+larger graph class. Exact source path and test command are recorded in
+`notes/progress/2026-09-30-intrusion-bounded-negative-counterexample.md`.
 
 **Restricted singleton-root path correspondence (conditional).** Consider a
 pure acyclic member with structural Function root `Arr(x, R)`, where `x` is

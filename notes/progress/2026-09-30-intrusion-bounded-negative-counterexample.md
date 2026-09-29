@@ -144,17 +144,33 @@ it. This is still only a selected-graph theorem: no Oracle evidence selection,
 alias collector behavior, source correspondence, or saved-root stability is
 proved for the chain family.
 
-The Oracle alias path is narrower than the selected-graph alias-chain lemma.
-`compact_upper_bound` retains an unweighted `Neg::Var` upper endpoint as a
-secondary variable occurrence instead of recursively replacing it with that
-variable's upper bounds. The later `expand_positive_aliases_in_scheme_compact`
-walk only adds aliases at positive-polarity positions; it flips polarity under
-Function arguments. Therefore the selected-graph chain theorem does not yet
-correspond to a negative Function-argument collector path. This does not refute
-equivalence, because one-polarity elimination and the rest of finalization may
-still yield the same projection in eligible cases, but that path needs a
-separate proof or a bounded Rust-path witness. Source locators:
-`compact/collect/mod.rs:952-976` and `generalize/mod.rs:283-355,380-430`.
+The frozen Oracle supports one corresponding unweighted chain through solver
+replay. Propagating `x <: y` records `x` as a lower of `y` and `y` as an upper
+of `x`; inserting `y <: U` replays the lower/upper pair at `y` and derives the
+direct upper `x <: U`. The synthetic test asserts that projected upper on `x`,
+then runs the full root generalization path for a positive Function with
+negative-only `x` argument and observes only `U` in the saved argument. The
+compiler-referee review found this source explanation consistent with the
+bounded characterization and requested a direct intermediate assertion; that
+assertion now passes. The collector alone still retains a bare `Neg::Var`
+upper endpoint as a secondary occurrence, and positive alias expansion does
+not run in a negative Function argument. The correspondence therefore relies
+on upper replay materializing `x <: U` before compact projection.
+
+Test command in isolated frozen checkout `a58eefc3`:
+`CARGO_TARGET_DIR=/tmp/yulang-intrusion-oracle-target cargo test -p infer
+scratch_negative_argument_alias_chain_projection -- --nocapture`. It is a
+synthetic unweighted, acyclic, isolated chain with unknown internal origins,
+all vars at `root.child()`, and a quantification boundary one level below;
+the root compacts to a Function argument containing exactly `Con(U)`. It does
+not prove source-level reachability, weighted/shared/cyclic path behavior,
+arbitrary environment anchors, root-order simulation, diagnostics, or
+principal-solution equivalence for a broader graph class. Source locators in
+the frozen checkout: `constraints/machine/propagate.rs:104-145`,
+`constraints/machine/bounds.rs:815-909,3582-3645`,
+`compact/collect/mod.rs:746-844,945-979`,
+`compact/analysis/mod.rs:41-59,506-515`, and
+`generalize/mod.rs:75-134`.
 
 Source locators in frozen Oracle `a58eefc3`: `lowering/expr/lambda.rs:674,
 1244-1280`; `annotation/constraints.rs:124-136,251-281,771-793`;
