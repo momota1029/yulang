@@ -97,11 +97,15 @@ finite saturation presentation is now drafted and independently reviewed: it
 uses a finite monotone closure over subtype obligations and variable
 lower/upper bounds, records irreducible mismatches, keeps recursive references
 as inequality endpoints, and has a conditional renaming-commutation proof. It
-is not a denotation or Oracle adequacy result. The next formalization extends
-the sorted rule algebra to latent-effect bounds, products, records, nominal
-recursive intervals, constrained negative projection, and annotation-dependent
-local scheme routing; then prove Oracle's source/root transitions against it
-and define public type normalization. See
+is not a denotation or Oracle adequacy result. The pure-fragment mismatch set
+cannot be reused globally: Oracle defers tuple arity and missing required
+record checks to specialization, and nominal path differences route through
+`NominalCastNeeded`. The next formalization gives distinct judgments to
+inference saturation, deferred specialization checks, and final ordered public
+observations, then extends them to latent-effect bounds, products, records,
+nominal recursive intervals, constrained negative projection, and
+annotation-dependent local scheme routing. Oracle source/root simulation and
+public type normalization remain open. See
 `notes/progress/2026-09-30-intrusion-finite-saturation-review.md`. The
 Oracle's Function/tuple/record/nominal/effect rules and the Yulang3 replacement
 boundary are mapped in

@@ -217,6 +217,38 @@ Oracle-adequacy theorem must show that the actual root preparation, restart,
 projection, and use operations induce the same selected input state and public
 result. A proof of closure equivariance alone is not that adequacy theorem.
 
+### Full-envelope stage boundary (candidate obligations)
+
+Do not extend the pure-fragment mismatch set `X` by treating every
+constructor-shape difference as an immediate subtype failure. Oracle source
+inspection shows that public behavior crosses multiple phases. Equal-arity
+tuples generate covariant element obligations, but unequal arity can produce
+no inference child and be rejected later by concrete specialization. Closed
+record propagation considers fields required by the upper endpoint and ignores
+extra lower fields; missing required fields are rejected during
+specialization, while a missing optional field is accepted. The inference
+path's optional-field handling also differs from a blanket optionality check
+at concrete specialization. Consequently the full relation needs an explicit
+specialization judgment in addition to inference saturation.
+
+For admitted nominal endpoints, a same-path, same-arity constructor pair
+generates invariant argument obligations. Different paths route through a
+`NominalCastNeeded` outcome; it is not an ordinary member of `X`. Function
+subtyping generates contravariant argument and argument-effect obligations,
+and covariant result and result-effect obligations, with an additional pure-
+argument-effect rule. Effect-row upper bounds carry weighted filter/residual
+behavior. These rules and their exact source-to-public failure paths are not
+part of the finite pure closure above. Oracle locations and the boundary
+between inference and specialization are recorded in
+`notes/progress/2026-09-30-intrusion-structural-rule-and-implementation-map.md`.
+
+A future full relation therefore needs at least separate judgments for
+inference saturation, deferred specialization checks, and the final ordered
+public diagnostics/type observation. This is an obligation extracted from the
+Oracle path, not yet a definition or parity proof. It prevents the pure
+fragment's `X` classification from being reused as an unsound global mismatch
+rule.
+
 ## 2. Enclosing environment and closure
 
 For each member definition `d`, use its own generalization boundary `B_d` and
