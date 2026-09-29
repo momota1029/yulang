@@ -61,27 +61,39 @@ review establishes the source graph or the general root-projection theorem.
 ## Restricted correspondence result
 
 A conditional path theorem is now recorded in the abstract semantics draft.
-It covers a pure acyclic complete root `Arr(x, R)` with one negative occurrence
-of `x`, a successful projection query whose sole effective input is one direct
-concrete upper atom `U`, eligible one-polarity elimination, and later passes
-that leave `U` and `R` unchanged. If the candidate separately stipulates
-`{A | A ≤ U}` as the nonempty admissible assignment set with greatest element
-`U`, both paths produce the same root denotation, `↑{Arr(U,R)}`.
+It covers a pure acyclic structural root `Arr(x, R)` with one negative
+occurrence of `x`, a successful projection query whose sole effective input is
+one direct concrete upper atom `U`, eligible one-polarity elimination, and
+later passes that leave `U` and `R` unchanged. If the candidate separately
+stipulates `{A | A ≤ U}` as the nonempty admissible assignment set with greatest
+element `U`, both paths produce the same root denotation, `↑{Arr(U,R)}`.
 
 This statement was reviewed conditionally by a `compiler_referee` and
-`spec_auditor`. Their required qualifications are explicit in the draft:
-projection must have no weighted, alias, row, recursive, or secondary input;
-the variable must meet the actual elimination eligibility checks; later
-coalescing, ancestor simplification, and post-loop passes must preserve the
-root; and `{A | A ≤ U}` remains an independent denotational premise. The
-`expect`/`k` probe is only an observed `U = Int` instance consistent with the
-path. This is one restricted correspondence, not Gate C closure or proof of
-Oracle equivalence for the source graph family.
+`spec_auditor`. A subsequent semantic review confirmed the interval lemma below
+and required further precision for the Oracle-path premise. The draft now
+requires a successful per-root projection/restart, a non-bipolar occurrence
+census with no other relevant occurrence, the actual level/non-generic
+elimination checks, and evidence that the complete retained argument after
+merging the self variable and projection input denotes exactly `U`; all later
+passes must preserve that argument and `R`. The exact assignment fiber
+`{A | A ≤ U}` remains a separate denotational premise. The `expect`/`k` probe
+is only an observed `U = Int` path consistent with these conditions. The
+structural root `Arr(x,R)` is not claimed to be the complete compact graph:
+Oracle's `compact_var_side` merges the source-variable occurrence with its
+projected bound before elimination. This is one restricted interpreted-root
+correspondence, not diagnostics, later-member state, incoming-use simulation,
+Gate C closure, or Oracle equivalence for the source graph family.
+
+The draft now also records a reviewed interval extension of the pointwise
+extremal lemma. In a fixed fiber where the admissible assignments are exactly
+the nonempty interval cut out by finite lower and upper bounds, the meet of the
+uppers is the greatest admissible assignment; compatible lower bounds do not
+change the projected root. This still assumes the exact selected fiber and
+does not derive it from Oracle evidence or cover shared-variable dependencies.
 
 ## Next action
 
-Extend the correspondence to a graph class where upper constraints interact
-with lower obligations, anchors, or shared occurrences, deriving the candidate
-admissible assignment set from the selected graph rather than stipulating it.
-The general denotation, ordered root simulation, use simulation, and
-implementation gates remain open.
+Derive exact selected assignment fibers from Oracle graph evidence when bounds
+interact with anchors or shared occurrences, and prove the saved root denotes
+their extremum. The general denotation, ordered root simulation, use simulation,
+and implementation gates remain open.

@@ -930,30 +930,59 @@ or that the Oracle's evidence-selected root preparation produces the same
 `m`. It therefore does not prove general `Erase_d`, principal solving, or
 Oracle equivalence.
 
-**Restricted singleton-root path correspondence (conditional).** Consider a
-pure acyclic member whose complete compact root at the final generalization
-iteration is `Arr(x, R)`, where `x` occurs only at this negative argument
-position. Assume the projection query succeeds and has exactly one effective
-negative input: one projection upper record compacted directly to a concrete
-atom `U`, with no weighted alias, row, recursive, or secondary contribution.
-Assume also that `x` is eligible for one-polarity elimination
-(`level_of(x) >= simplification_boundary` and `!non_generic(x)`), that the
-candidate's admissible assignments are stipulated to be exactly
-`{ A | A ≤ U }` and this set is nonempty with greatest element `U`, and that
-all subsequent coalescing, ancestor simplification, and post-loop passes retain
-`U` and `R` unchanged. Under these assumptions, the Oracle path merges the
-sole projected input into the argument and eliminates `x`, leaving `Arr(U,R)`;
-the pointwise extremal-projection lemma gives the candidate relation
-`↑{Arr(A,R) | A ≤ U} = ↑{Arr(U,R)}`. The two paths therefore agree on this
-member root's denotation for this restricted graph class.
+**Bounded interval projection lemma (conditional).** Fix the result type and
+all other local and environment assignments. Assume `D` has finite meets and
+the admissible assignments to a negative-only argument `x` are exactly the
+nonempty set
 
-The premises are substantive. The equation for admissible assignments is a
-denotational assumption, not a consequence proved by the presence of one Oracle
-upper record; lower obligations, anchors, or correlations with other
-occurrences can change that set. The observed `expect`/`k` source program is a
-concrete `U = Int` path consistent with this theorem, but does not establish all
-its premises or the general projection rule. This conditional correspondence
-does not close Gate C.
+```text
+S = { a | for every j, L_j ≤ a, and for every i, a ≤ U_i }
+```
+
+where the endpoint values are fixed in this fiber. Let `m = ∧_i U_i`, using
+`Top` for an empty upper-bound list. Any witness `a₀ ∈ S` gives
+`L_j ≤ a₀ ≤ m` for every `j`, so `L_j ≤ m`; by the meet property `m ≤ U_i`
+for every `i`. Thus `m ∈ S`, and every `a ∈ S` has `a ≤ m`. Therefore `m` is
+the greatest element of `S`, and the pointwise extremal-projection lemma gives
+`↑{Arr(a,R) | a ∈ S} = ↑{Arr(m,R)}`. This includes compatible lower
+obligations; they establish that the upper-bound meet is admissible without
+changing the greatest-element result.
+
+This remains fiberwise and conditional on the exact definition of `S`.
+It does not derive that set from Oracle evidence, cover endpoints that depend
+on shared variables before fixing a fiber, or handle another occurrence of `x`
+whose constraints couple the assignment to a different root position.
+
+**Restricted singleton-root path correspondence (conditional).** Consider a
+pure acyclic member with structural Function root `Arr(x, R)`, where `x` is
+the sole negative argument occurrence and has no other occurrence affecting
+its polarity census, roles, or recursive sides. In the final projection
+iteration, assume the per-root query succeeds and any required restart reaches
+a state where `compact_var_side(x, negative)` has exactly one effective bound
+input: one projection upper record compacted directly to a concrete atom `U`,
+with no weighted alias, row, recursive, or secondary contribution. The
+collector's complete argument side is the merge of the `x` occurrence and
+that `U`; do not assume its pre-elimination compact form is just `x`.
+Assume `x` meets the actual one-polarity elimination checks, including
+`level_of(x) >= simplification_boundary`, `!non_generic(x)`, and a non-bipolar
+occurrence census. Require the complete retained argument after merging the
+self variable and this projection input and eliminating `x` to denote exactly
+`U`; subsequent coalescing, ancestor simplification, and post-loop passes must
+preserve that argument and `R`. Separately stipulate that the candidate's exact
+admissible assignment fiber is the nonempty set `{ A | A ≤ U }`, with greatest
+element `U`. Then the Oracle saved root denotes `Arr(U,R)`, while the candidate
+fiber has upward denotation `↑{Arr(A,R) | A ≤ U} = ↑{Arr(U,R)}` by the
+pointwise extremal-projection lemma. Thus their interpreted root denotations
+agree for this restricted graph class.
+
+The premises are substantive. The exact admissible fiber is a denotational
+assumption, not a consequence proved by the presence of one Oracle upper
+record; lower obligations, anchors, or correlations with other occurrences
+can change that set. The observed `expect`/`k` source program is a concrete
+`U = Int` path consistent with this theorem, but does not establish all its
+premises or the general projection rule. This conditional correspondence does
+not establish diagnostics, later-member state, incoming-use simulation, or
+Gate C.
 
 This split follows the audited Oracle path: compaction creates a fresh
 projection round, lower bounds are selected through a scoped evidence query,

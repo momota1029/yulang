@@ -138,12 +138,15 @@ admissible upper type, not automatically to `Top`. Review found the
 source-level singleton-bound argument insufficient as a general Oracle
 theorem: eligibility, weighted aliases, rows, lower obligations, and anchors
 still matter. A reviewed conditional correspondence now matches Oracle and
-candidate denotations for a pure acyclic complete `Arr(x, R)` root with one
+candidate denotations for a pure acyclic structural `Arr(x, R)` root with one
 direct concrete upper atom `U`, eligible elimination, unchanged later passes,
-and a separately stipulated admissible set `{A | A ≤ U}`. This does not prove
-that premise from Oracle evidence or close Gate C. Extend the graph class to
-derive admissible assignments with lower obligations, anchors, or shared
-occurrences, then continue with ordered root-step simulation,
+and a separately stipulated admissible set `{A | A ≤ U}`; the precise
+projection, elimination, saved-root, and later-pass premises are in the draft.
+This does not prove that fiber from Oracle evidence or close Gate C. A reviewed
+interval lemma shows compatible lower obligations leave the upper-bound meet
+as the greatest assignment, once the exact fiber is fixed. Next derive
+selected fibers from Oracle evidence when anchors or shared occurrences are
+present, then continue with ordered root-step simulation,
 publication/finalization, and use simulation. A two-root characterization
 remains optional diagnostic evidence. A conditional lemma now shows that
 injective fresh-parent renaming bijects solution assignments when finite
