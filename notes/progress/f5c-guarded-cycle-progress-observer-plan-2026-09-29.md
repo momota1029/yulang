@@ -132,3 +132,63 @@ budget is consumed, so the formatting repair was not exercised by another
 capture. The observer data and RSS do not prove allocator ownership or a total
 work bound. No timeout retry, larger tuple, or matrix row is authorized by
 this plan.
+
+## Source adjudication
+
+A read-only `architect` audit connected the measured growth to the current
+path-expanded algorithm. For a completed predicate walk of the exact
+`guarded_cycle(D,K)` builder, with no cyclic-cone summary admissions, each
+cycle step offers argument and result branches. The first wrap to the starting
+row therefore has `2^K` path occurrences. The opposite-polarity half continues
+for a second lap; the audit derives `2^(K-1)(K+3)` guarded captures for a
+completed walk. This is a source derivation for this fixture and implementation
+under those assumptions, not a semantic lower bound for all equivalent
+algorithms. At K=32, the first-wrap count alone is 4,294,967,296, so the
+634,860 captures in the timed-out run are only a prefix. Each recorded trace
+copies and retains its path; the 1.00-GB lane observation is consistent with
+that growth. The 134-million work-meter value also includes other operations
+and cannot be attributed entirely to reentry copying.
+
+The fixed-point owner loop scans the growing reentry list and expands each
+distinct owner at most once, in positive then negative polarity. R filtering
+tests owner traces in insertion order under changing candidate masks and later
+selects the first surviving trace; a single preselected trace per owner would
+not preserve this general contract. A persistent prefix DAG could share path
+storage while still enumerating every occurrence, but would not remove the
+`2^K` traversal count. Avoiding occurrence enumeration would require symbolic
+traversal and a proof for root/polarity namespaces, owner discovery, first
+survivor under every R mask, Q/R ordinals, output/counters, and rollback. No
+such proof or authority exists. The reviewed occurrence-preserving candidate
+explicitly chose per-occurrence expansion to preserve incidence and counter
+order; the no-cap addendum leaves `guarded_cycle` total-work order open and
+requires separate approval for trace sharing or counter reinterpretation.
+
+No semantic contradiction is established by this measurement. If retaining
+the existing occurrence/counter contract is selected, K=32 guarded-cycle
+growth must be treated as an expensive path-sensitive case with no total-work
+bound. Any design that skips occurrences or changes counter/trace semantics
+needs a narrow reviewed addendum and explicit user approval before code.
+
+The same source audit gives a conditional raw-walker bound. For root `r`, let
+`u_r ≤ K` be the number of distinct cyclic reentry owners discovered. The
+predicate makes one positive walk; `build_inner_work` then makes one positive
+and one negative walk for each newly discovered owner, so there are
+`W_r = 1 + 2u_r ≤ 1 + 2K` walks. Conditional on each walk completing without
+cyclic memo admission or early error, it records
+`R_walk(K) = 2^(K-1)(K+3)` guarded traces. This gives the completed raw-walker
+upper bound
+`Σ_r R_r ≤ D(1+2K)2^(K-1)(K+3)`. At K=32, the first-wrap prefix of one walk
+already has `2^32` occurrences. Each active scan and trace copy is O(K), so
+raw scheduled/popped occurrences are O(D K² 2^K), while reentry scan/copy and
+retained trace-hop work can reach O(D K³ 2^K). These are source derivations
+for the exact cycle builder under the stated assumptions, not semantic lower
+bounds for other algorithms or a measured completion result.
+
+This closes only the raw-walker/reentry terms. No-cap §3 still requires
+separate dimensions for candidate masks and R rounds, replay, materialization,
+normalization, and finalization before F5c production acceptance. The
+immediate next gate is a read-only phase-owner audit of those remaining terms
+for `guarded_cycle(D,K)`. No further process is authorized by this plan; any
+new measurement needs its own bounded plan. A symbolic/lazy traversal that
+skips path occurrences remains outside current authority and would require a
+narrow reviewed addendum plus recorded user approval before implementation.

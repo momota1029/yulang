@@ -2,7 +2,7 @@
 
 Updated: 2026-09-29. Branch: `yulang3`; do not modify frozen `main`.
 
-### Active gate (2026-09-29): adjudicate guarded-cycle progress capture
+### Active gate (2026-09-29): derive guarded-cycle phase costs
 
 The exact-kind serialization gate is complete. Serialization is suppressed
 only for non-transferring WalkerLane kinds 54–56 and 116; the 219-row online
@@ -29,8 +29,16 @@ neither 8-GiB floor was breached. The first progress record shared libtest's
 unfinished test line, so this capture fails standalone-line validation. A
 newline repair passed compile-only and focused performance delta review, but
 the plan's one-run budget is consumed and does not authorize another capture.
-Next, adjudicate the sampled growth against the owning reentry path algorithm
-read-only; any further solver process needs a separate reviewed budget.
+The read-only source adjudication derives, conditional on completed walks with
+no cyclic summary admission, `1+2K` raw walks per root and
+`2^(K-1)(K+3)` guarded traces per walk. The raw walker/reentry bound is thus
+`O(D K^3 2^K)` when including active scans and copied path hops. This is not a
+semantic lower bound for alternative algorithms. The remaining no-cap §3
+terms are candidate masks/R rounds, replay, materialization, normalization,
+and finalization. Next, derive those phase-owner costs read-only; any further
+solver process needs a separate reviewed budget. A lazy/shared traversal that
+skips occurrences or changes counter/trace order remains outside authority and
+would need a reviewed addendum and recorded user approval before code.
 
 The earlier isolated GuardedCycle D=32/K=32 run timed out at 120 seconds while
 recording path-expanded owner events; its partial sidecar is not replayable.
