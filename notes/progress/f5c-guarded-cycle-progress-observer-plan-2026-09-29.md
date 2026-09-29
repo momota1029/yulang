@@ -192,3 +192,28 @@ for `guarded_cycle(D,K)`. No further process is authorized by this plan; any
 new measurement needs its own bounded plan. A symbolic/lazy traversal that
 skips path occurrences remains outside current authority and would require a
 narrow reviewed addendum plus recorded user approval before implementation.
+
+The follow-up phase-owner audit gives the remaining dimensions without
+claiming a single D/K coefficient. Let `R` be retained guarded traces, `H` the
+sum of trace-hop lengths, `B` the path-expanded boxed predicate/bound
+occurrences, `C≤K` the current R candidates, and `q≤C+1` the fixed-point
+rounds. Each round's replay/frontier work is separately `P_j`, `G_j`, and
+`F_j`; generic trace filtering is O(q(R+H)). Materialization is O(M_in+M_out)
+in visited source occurrences and emitted nodes/edges. One normalization pass
+spans all D drafts and is O(N+W_desc+C_norm), using its actual finalized
+nodes, descriptor words, and exact comparison count. The selector then uses
+the recursive boxed callback finalizer, not the indexed finalizer: callback
+construction is O(V+E+Q+R_b) in supplied nodes, edges, quantifiers, and bounds;
+the current `yu-types` validator has a conservative
+O(R_b(R_b+Q)+V(Q+R_b)) membership-scan bound before its bounded plan/commit
+passes. Its recursion is also depth-sensitive. These are separate phase terms
+and are not the reviewed indexed-finalizer guarantee.
+
+The current row reports physical lane capacities/retained/peaks and family
+totals, but not `H`, `B`, `N`, `W_desc`, `C_norm`, callback `V/E`, validation
+membership probes, or phase work subtotals. A timed-out run has no completed
+row/replay. Therefore the guarded-cycle full phase equation and empirical
+reconciliation remain open; the raw-walker formula alone does not close
+no-cap §3. The exact matrix code paths, dimensions, and missing row fields are
+captured in this audit record. Any measurement intended to fill them needs a
+new reviewed plan.

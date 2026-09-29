@@ -2,7 +2,7 @@
 
 Updated: 2026-09-29. Branch: `yulang3`; do not modify frozen `main`.
 
-### Active gate (2026-09-29): derive guarded-cycle phase costs
+### Active gate (2026-09-29): scope the next no-cap scale gate
 
 The exact-kind serialization gate is complete. Serialization is suppressed
 only for non-transferring WalkerLane kinds 54–56 and 116; the 219-row online
@@ -29,14 +29,17 @@ neither 8-GiB floor was breached. The first progress record shared libtest's
 unfinished test line, so this capture fails standalone-line validation. A
 newline repair passed compile-only and focused performance delta review, but
 the plan's one-run budget is consumed and does not authorize another capture.
-The read-only source adjudication derives, conditional on completed walks with
-no cyclic summary admission, `1+2K` raw walks per root and
-`2^(K-1)(K+3)` guarded traces per walk. The raw walker/reentry bound is thus
-`O(D K^3 2^K)` when including active scans and copied path hops. This is not a
-semantic lower bound for alternative algorithms. The remaining no-cap §3
-terms are candidate masks/R rounds, replay, materialization, normalization,
-and finalization. Next, derive those phase-owner costs read-only; any further
-solver process needs a separate reviewed budget. A lazy/shared traversal that
+Read-only source audits now give a conditional raw-walker bound of `1+2K`
+walks per root and `2^(K-1)(K+3)` guarded traces per walk, hence
+`O(D K^3 2^K)` for raw traversal plus active scans/copied paths. The remaining
+phase terms are expressed against R candidates/rounds, replay visits,
+path-expanded output, normalization nodes/descriptors/comparisons, and boxed
+callback finalization inputs. The current matrix row does not print several
+of these dimensions, and the indexed-finalizer bound does not apply to its
+callback path. The full no-cap §3 guarded-cycle equation remains open. Next,
+inspect existing scale-plan budgets and scope a fresh gate that advances the
+remaining required evidence without retrying this consumed guarded-cycle run.
+Any new process needs a separate reviewed plan. A lazy/shared traversal that
 skips occurrences or changes counter/trace order remains outside authority and
 would need a reviewed addendum and recorded user approval before code.
 
