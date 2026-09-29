@@ -270,9 +270,9 @@ def replay_f6_events(path, expected_count, expected_checksum):
             peak[0] = max(peak[0], current[0])
             peak[1] = max(peak[1], current[1])
 
-    def check_row_size(kind, size):
+    def check_row_size(kind, size, actual):
         row = row_lane(kind)
-        if row is not None:
+        if row is not None and actual:
             previous = row_sizes.setdefault(row, size)
             if previous != size:
                 raise ValueError(f"{path}: physical row lane {row} combines unequal slot sizes {previous} and {size}")
@@ -329,7 +329,7 @@ def replay_f6_events(path, expected_count, expected_checksum):
                     raise ValueError(f"{path}: invalid create {key}")
                 check_admitted_owner(kind, requested, actual, size)
                 owners[key] = (kind, requested, actual, size)
-                check_row_size(kind, size)
+                check_row_size(kind, size, actual)
                 adjust(kind, actual, actual * size)
             else:
                 if key not in owners:
@@ -385,7 +385,7 @@ def replay_f6_events(path, expected_count, expected_checksum):
                         raise ValueError(f"{path}: cross-family owner transfer {key}")
                     adjust(old_kind, -old_actual, -old_actual * old_size)
                     owners[key] = (kind, requested, actual, size)
-                    check_row_size(kind, size)
+                    check_row_size(kind, size, actual)
                     adjust(kind, actual, actual * size)
                 else:
                     raise ValueError(f"{path}: unknown event operation {op}")
@@ -449,10 +449,10 @@ def check_walker_shadow_witness(sidecar, totals_path):
         if key in expected_rows:
             raise ValueError(f"duplicate walker shadow witness row {key}")
         expected_rows[key] = tuple(map(int, values))
-    if set(expected_rows) != (set(range(12, 18)) | set(range(32, 130)) | set(range(512, 612)) | {"combined"}):
-        raise ValueError("walker shadow witness needs all 204 event lane rows and combined totals")
+    if set(expected_rows) != (set(range(12, 18)) | set(range(129, 139)) | set(range(145, 248)) | set(range(512, 612)) | {"combined"}):
+        raise ValueError("walker shadow witness needs all 219 event lane rows and combined totals")
     owners = {}
-    rows = {kind: [0, 0, 0, 0] for kind in (*range(12, 18), *range(32, 130), *range(512, 612))}
+    rows = {kind: [0, 0, 0, 0] for kind in (*range(12, 18), *range(129, 139), *range(145, 248), *range(512, 612))}
     combined = [0, 0, 0, 0]
     count = checksum = last_id = 0
     staged_transfers = {}
@@ -476,8 +476,31 @@ def check_walker_shadow_witness(sidecar, totals_path):
     normalization_releases = set()
     normalization_shapes = set()
     normalization_growths = set()
+    source_kinds = set()
+    source_transfers = {}
+    source_releases = set()
+    source_classifications = set()
+    source_growths = {}
+    failed_source_owner = None
+    failed_source_released = False
+
+    def physical_kind(kind):
+        if kind == 1:
+            return 129
+        if kind == 2:
+            return 130
+        if kind in (3, 4):
+            return 131
+        if 5 <= kind <= 11:
+            return kind + 127
+        if 18 <= kind <= 22:
+            return kind + 127
+        if 32 <= kind < 130:
+            return kind + 118
+        return kind
 
     def adjust(kind, old, new, size):
+        kind = physical_kind(kind)
         if kind not in rows:
             return
         for totals in (rows[kind], combined):
@@ -490,7 +513,7 @@ def check_walker_shadow_witness(sidecar, totals_path):
 
     def move_staged(source, target, capacity, size):
         # The physical allocation survives this same-ID owner move unchanged.
-        for kind, delta in ((source, -capacity), (target, capacity)):
+        for kind, delta in ((physical_kind(source), -capacity), (physical_kind(target), capacity)):
             totals = rows[kind]
             totals[0] += delta
             totals[2] += delta * size
@@ -584,6 +607,8 @@ def check_walker_shadow_witness(sidecar, totals_path):
                 last_id = owner_id
                 owners[key] = (kind, requested, actual, size)
                 adjust(kind, 0, actual, size)
+                if kind in (*range(1, 12), *range(18, 23)) and actual > 0:
+                    source_kinds.add(kind)
                 continue
             if key not in owners:
                 raise ValueError(f"unknown witness owner {key}")
@@ -620,6 +645,10 @@ def check_walker_shadow_witness(sidecar, totals_path):
                     raise ValueError(f"invalid witness release {key}")
                 if key in staged_transfers:
                     staged_releases.add(key)
+                if key in source_transfers:
+                    source_releases.add(key)
+                if key == failed_source_owner:
+                    failed_source_released = True
                 if normalization_checkpoint_owners is not None and key in normalization_checkpoint_owners:
                     normalization_releases.add(key)
                 if key in term_transfers:
@@ -633,9 +662,11 @@ def check_walker_shadow_witness(sidecar, totals_path):
             elif op in (2, 3, 4, 7):
                 if term_checkpoint is not None and 571 <= old_kind < 577 and op != 4:
                     raise ValueError(f"family-2 witness mutation after checkpoint {key}")
-                if size != old_size:
+                if size != old_size and old_actual != 0:
                     raise ValueError(f"witness slot size changed {key}")
-                if op == 2 and (kind != old_kind or actual != old_actual or target):
+                if op == 2 and (kind != old_kind and old_kind != 0
+                                and (old_kind, kind) != (4, 3)
+                                or actual != old_actual or target):
                     raise ValueError(f"invalid witness shape event {key}")
                 if op == 3 and (kind != old_kind or actual <= old_actual or target):
                     raise ValueError(f"invalid witness growth {key}")
@@ -657,6 +688,18 @@ def check_walker_shadow_witness(sidecar, totals_path):
                     normalization_shapes.add(old_kind)
                 if op == 3 and 584 <= old_kind < 612:
                     normalization_growths.add(old_kind)
+                if op == 3 and kind == 1:
+                    source_growths[key] = source_growths.get(key, 0) + 1
+                    if source_growths[key] >= 2 and failed_source_owner is None:
+                        failed_source_owner = key
+                if op == 2 and (old_kind, kind) == (4, 3) and actual > 0:
+                    source_classifications.add(key)
+                if op == 4 and 32 <= old_kind < 130 and kind in (2, 9, 10):
+                    if key in source_transfers or (requested, actual, size) != (old_requested, old_actual, old_size):
+                        raise ValueError(f"invalid source witness transfer {key}")
+                    source_transfers[key] = kind
+                if kind in (*range(1, 12), *range(18, 23)) and actual > 0:
+                    source_kinds.add(kind)
                 if op == 4 and 584 <= old_kind < 612:
                     if (normalization_checkpoint is None or old_kind not in range(605, 611)
                             or kind != old_kind - 605 + 12
@@ -674,10 +717,12 @@ def check_walker_shadow_witness(sidecar, totals_path):
                     if op != 4 or not (32 <= old_kind < 130 or 605 <= old_kind < 611):
                         raise ValueError(f"invalid staged witness source {key}")
                     move_staged(old_kind, kind, old_actual, size)
+                elif op == 4 and physical_kind(old_kind) == physical_kind(kind):
+                    pass
                 else:
                     adjust(old_kind, old_actual, 0, size)
                 owners[key] = (kind, requested, actual, size)
-                if not (12 <= kind < 18):
+                if not (12 <= kind < 18) and not (op == 4 and physical_kind(old_kind) == physical_kind(kind)):
                     adjust(kind, 0, actual, size)
             else:
                 raise ValueError(f"unexpected witness op {op}")
@@ -715,7 +760,15 @@ def check_walker_shadow_witness(sidecar, totals_path):
     for kind, totals in rows.items():
         if tuple(totals) != expected_rows[kind]:
             raise ValueError(f"lane {kind} shadow mismatch: {totals} != {expected_rows[kind]}")
-    print(f"F5c online owner shadow: {count} full sidecar events, 204 exact lane rows and joint total")
+    if any(rows[k][0] or rows[k][2] or rows[k][1] == 0 or rows[k][3] == 0 for k in (*range(129, 139), *range(145, 150))):
+        raise ValueError("witness needs all 15 released source rows with nonzero peaks")
+    if (source_kinds != set((*range(1, 12), *range(18, 23)))
+            or not source_classifications
+            or set(source_transfers.values()) != {2, 9, 10}
+            or source_releases != set(source_transfers)
+            or failed_source_owner is None or not failed_source_released):
+        raise ValueError("witness needs source kinds, classification, same-ID transfers, failed growth and releases")
+    print(f"F5c online owner shadow: {count} full sidecar events, 219 exact lane rows and joint total")
 
 
 def main():

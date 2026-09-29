@@ -75,6 +75,7 @@ mod event_sink {
         structured_pair_lanes: [WalkerTotals; 21],
         normalization_lanes: [WalkerTotals; 28],
         staged_lanes: [WalkerTotals; 6],
+        source_lanes: [WalkerTotals; 15],
         combined: WalkerTotals,
     }
 
@@ -96,6 +97,12 @@ mod event_sink {
                     current_bytes: 0, peak_bytes: 0 }; 28],
                 staged_lanes: [WalkerTotals { current_capacity: 0, peak_capacity: 0,
                     current_bytes: 0, peak_bytes: 0 }; 6],
+                source_lanes: [WalkerTotals {
+                    current_capacity: 0,
+                    peak_capacity: 0,
+                    current_bytes: 0,
+                    peak_bytes: 0,
+                }; 15],
                 combined: WalkerTotals { current_capacity: 0, peak_capacity: 0,
                     current_bytes: 0, peak_bytes: 0 } }
         }
@@ -138,6 +145,73 @@ mod event_sink {
         fn adjust_staged(&mut self, lane: usize, old: usize, new: usize, size: usize) {
             let lane_totals = self.staged_lanes.get_mut(lane).expect("StagedBuffer index");
             Self::adjust_totals(lane_totals, &mut self.combined, old, new, size);
+        }
+
+        fn source_lane(kind: PhysicalOwnerKind) -> Option<usize> {
+            match kind {
+                PhysicalOwnerKind::SourceOuter => Some(0),
+                PhysicalOwnerKind::SourceSidecar => Some(1),
+                PhysicalOwnerKind::SourceHeldBounds | PhysicalOwnerKind::SourceActiveBounds => {
+                    Some(2)
+                }
+                PhysicalOwnerKind::PositiveFunctionArgument => Some(3),
+                PhysicalOwnerKind::PositiveFunctionResult => Some(4),
+                PhysicalOwnerKind::NegativeFunctionArgument => Some(5),
+                PhysicalOwnerKind::NegativeFunctionResult => Some(6),
+                PhysicalOwnerKind::UnionChildren => Some(7),
+                PhysicalOwnerKind::IntersectionChildren => Some(8),
+                PhysicalOwnerKind::StagedOuter => Some(9),
+                PhysicalOwnerKind::IndexedBuffer(index) => Some(10 + index),
+                _ => None,
+            }
+        }
+
+        fn adjust_source(&mut self, kind: PhysicalOwnerKind, old: usize, new: usize, size: usize) {
+            if let Some(lane) = Self::source_lane(kind) {
+                Self::adjust_totals(
+                    &mut self.source_lanes[lane],
+                    &mut self.combined,
+                    old,
+                    new,
+                    size,
+                );
+            }
+        }
+
+        fn transfer_source(
+            &mut self,
+            from: PhysicalOwnerKind,
+            to: PhysicalOwnerKind,
+            capacity: usize,
+            size: usize,
+        ) {
+            let (Some(from), Some(to)) = (Self::source_lane(from), Self::source_lane(to)) else {
+                return;
+            };
+            if from == to {
+                return;
+            }
+            let bytes = capacity.checked_mul(size).expect("source transfer bytes");
+            let source = &mut self.source_lanes[from];
+            source.current_capacity = source
+                .current_capacity
+                .checked_sub(capacity)
+                .expect("source transfer capacity");
+            source.current_bytes = source
+                .current_bytes
+                .checked_sub(bytes)
+                .expect("source transfer bytes");
+            let target = &mut self.source_lanes[to];
+            target.current_capacity = target
+                .current_capacity
+                .checked_add(capacity)
+                .expect("target transfer capacity");
+            target.current_bytes = target
+                .current_bytes
+                .checked_add(bytes)
+                .expect("target transfer bytes");
+            target.peak_capacity = target.peak_capacity.max(target.current_capacity);
+            target.peak_bytes = target.peak_bytes.max(target.current_bytes);
         }
 
         fn transfer_staged(&mut self, source: PhysicalOwnerKind, lane: usize,
@@ -213,6 +287,23 @@ mod event_sink {
         WALKER_LEDGER.with(|ledger| ledger.borrow().staged_lanes)
     }
 
+    pub(crate) fn source_shadow_totals() -> [WalkerTotals; 15] {
+        WALKER_LEDGER.with(|ledger| ledger.borrow().source_lanes)
+    }
+
+    pub(super) fn adjust_source_shadow(kind: PhysicalOwnerKind, old: usize, new: usize, size: usize) {
+        WALKER_LEDGER.with(|ledger| ledger.borrow_mut().adjust_source(kind, old, new, size));
+    }
+
+    pub(super) fn transfer_source_shadow(
+        from: PhysicalOwnerKind,
+        to: PhysicalOwnerKind,
+        capacity: usize,
+        size: usize,
+    ) {
+        WALKER_LEDGER.with(|ledger| ledger.borrow_mut().transfer_source(from, to, capacity, size));
+    }
+
     pub(super) fn release_staged_shadow(lane: usize, capacity: usize, size: usize) {
         WALKER_LEDGER.with(|ledger| ledger.borrow_mut().adjust_staged(lane, capacity, 0, size));
     }
@@ -263,6 +354,7 @@ mod event_sink {
             if let PhysicalOwnerKind::WalkerLane(lane) = target {
                 next.adjust(lane, 0, capacity, size);
             }
+            next.adjust_source(target, 0, capacity, size);
             *ledger.borrow_mut() = next;
         });
     }
@@ -536,6 +628,8 @@ pub(super) use event_sink::walker_totals as f5c_walker_shadow_totals;
 pub(super) use event_sink::normalization_shadow_totals as f5c_normalization_shadow_totals;
 #[cfg(all(test, feature = "f5c_resource_probe"))]
 pub(super) use event_sink::staged_shadow_totals as f5c_staged_shadow_totals;
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+pub(super) use event_sink::source_shadow_totals as f5c_source_shadow_totals;
 
 #[cfg(all(test, feature = "f5c_resource_probe"))]
 pub(super) fn normalization_event_totals() -> (usize, usize, usize) {
@@ -1462,6 +1556,9 @@ impl DraftHeapMeter {
             .and_then(|current| current.checked_add(bytes)));
         if sample { self.sample_family6_event(); }
         if create {
+            if owner_id != 0 {
+                event_sink::adjust_source_shadow(kind, 0, bytes, 1);
+            }
             event_sink::record(self.0.event_component.get(), owner_id, event_sink::CREATE,
                 kind, 0, bytes, 1, 0);
         }
@@ -1507,6 +1604,14 @@ impl DraftHeapMeter {
         #[cfg(feature = "f5c_resource_probe")]
         if sample_event { self.sample_family6_event(); }
         if !adopting && (capacity != old_capacity || slot_size != old_size) {
+            if handle.id != 0 {
+                if old_capacity != 0 && old_size != slot_size {
+                    event_sink::adjust_source_shadow(kind, old_capacity, 0, old_size);
+                    event_sink::adjust_source_shadow(kind, 0, capacity, slot_size);
+                } else {
+                    event_sink::adjust_source_shadow(kind, old_capacity, capacity, slot_size);
+                }
+            }
             event_sink::record(self.0.event_component.get(), handle.id,
                 if slot_size != old_size { event_sink::SHAPE } else { event_sink::GROW },
                 kind, requested, capacity, slot_size, 0);
@@ -1545,6 +1650,9 @@ impl DraftHeapMeter {
         #[cfg(feature = "f5c_resource_probe")]
         self.sample_family6_event();
         if !owner.adopting {
+            if handle.id != 0 {
+                event_sink::adjust_source_shadow(owner.kind, capacity, 0, slot_size);
+            }
             event_sink::record(self.0.event_component.get(), handle.id, event_sink::RELEASE,
                 owner.kind, 0, 0, slot_size, 0);
         }
@@ -1867,7 +1975,7 @@ impl<'meter, T> TrackedVec<'meter, T> {
     }
 
     #[cfg(test)]
-    fn reserve_with(
+    pub(super) fn reserve_with(
         &mut self,
         additional: usize,
         reserve: impl FnOnce(&mut Vec<T>, usize) -> Result<(), ()>,
@@ -1935,7 +2043,11 @@ impl TrackedAllocation<'_> {
             let mut owners = self.0.meter.0.physical_owners.borrow_mut();
             let owner = owners[handle.slot].as_mut().expect("live physical owner");
             assert_eq!(owner.id, handle.id);
+            let old_kind = owner.kind;
             owner.kind = kind;
+            if handle.id != 0 {
+                event_sink::transfer_source_shadow(old_kind, kind, owner.capacity, owner.slot_size);
+            }
             event_sink::record(self.0.meter.0.event_component.get(), handle.id,
                 event_sink::SHAPE, kind, owner.requested, owner.capacity, owner.slot_size, 0);
         }
@@ -1954,11 +2066,17 @@ impl TrackedAllocation<'_> {
             let owner = owners[handle.slot].as_mut().expect("live physical owner");
             assert_eq!(owner.id, handle.id);
             let old_capacity = owner.capacity;
+            let old_kind = owner.kind;
+            let old_size = owner.slot_size;
             owner.kind = kind;
             owner.requested = requested;
             owner.peak_requested = owner.peak_requested.max(requested);
             owner.capacity = capacity;
             owner.slot_size = slot_size;
+            if handle.id != 0 {
+                event_sink::adjust_source_shadow(old_kind, old_capacity, 0, old_size);
+                event_sink::adjust_source_shadow(kind, 0, capacity, slot_size);
+            }
             self.0.meter.0.family6_source_capacity.set(
                 self.0.meter.0.family6_source_capacity.get()
                     .and_then(|current| current.checked_sub(old_capacity)?

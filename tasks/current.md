@@ -24,19 +24,59 @@ capacity changes occur later and already pass through the existing
 
 Implement this gate in reviewable checkpoints. The fixed-size online shadow
 now covers 98 WalkerLane, 20 ComponentMemoLane, 6 TermLane, 7 InstantiationLane,
-18 LiveVariableLane, 21 StructuredPairLane, 28 normalization-owner rows, and
-six StagedBuffer destination rows: 204 lane rows plus the joint subtotal. The
-normalization witness covers all 27 physical lanes, leaves lane 16 zero, and
-exercises six same-ID transfers into staged kinds 12–17. Those transfers now
-move source and destination rows atomically while leaving combined current and
-peak unchanged; staged releases debit after backing vectors drop. Next compose
-the closed-type finalizer peak and route-growth samples and prove global
-same-time totals. Only after that closes, suppress serialization for exact
-non-transferring WalkerLane kinds 54–56 and 116. Preserve the FlatDraft kinds
-12–17 trace in full throughout. The partial timed-out sidecar is not a replay
-input; no resource/scale process, diagnostic, or matrix row may run before the
-composed ledger and witness receive a fresh measurement review. Do not claim
+18 LiveVariableLane, 21 StructuredPairLane, 28 normalization-owner rows, six
+StagedBuffer destination rows, and 15 source-owner rows: 219 lane rows plus
+the joint subtotal. Source rows cover physical rows 129–138 and 145–149, with
+SourceHeldBounds and SourceActiveBounds sharing row 131. The normalization
+witness covers all 27 physical lanes, leaves lane 16 zero, and exercises six
+same-ID transfers into staged kinds 12–17. Those transfers move source and
+destination rows atomically while leaving combined current and peak unchanged;
+staged releases debit after backing vectors drop. The source-owner checkpoint
+adds O(1) current/peak updates and verifies real Vec growth before a failed
+reserve result, retained peak after release, source classification, and
+same-ID owner transfers. Its exact paths and review evidence are in the
+[`source-owner online-shadow checkpoint`](../notes/progress/f5c-source-owner-online-shadow-checkpoint-2026-09-29.md).
+
+Next compose the closed-type finalizer peak and route-growth samples and prove
+global same-time totals: during finalization replace closed-type current with
+that call's `peak_bytes_during_call()` exactly once, while all other solver
+lanes stay fixed; at later route samples use the exact route current. Keep the
+full owner trace while building and reviewing that composed witness. Only
+after it closes, suppress serialization for exact non-transferring WalkerLane
+kinds 54–56 and 116. Preserve the FlatDraft kinds 12–17 trace in full
+throughout. The partial timed-out sidecar is not a replay input; no
+resource/scale process, diagnostic, or matrix row may run before the composed
+ledger and witness receive a fresh measurement review. Do not claim
 corrected-scale completion until those gates close.
+
+### Latest continuation (2026-09-29): source-owner online-shadow rows
+
+`crates/yu-solver/src/f5c_draft_heap.rs` now adds 15 fixed source-owner rows
+to the online shadow. The rows account for physical matrix rows 129–138 and
+145–149, merging SourceHeldBounds and SourceActiveBounds at row 131. The
+fixed ledger now represents 219 lane rows and its combined current/peak
+subtotal. `crates/yu-solver/src/tests/f5c_resource_probe.rs` extends the
+witness with every source kind, source classification and release, a real
+Vec capacity increase followed by an error return, and same-ID transfers into
+the source families. `tools/check_f5c_resource_matrix.py` now requires these
+event kinds, validates the transfer/release pairs and failed-reserve evidence,
+and compares the 219 rows with the full event replay. The complete trace,
+including staged kinds 12–17, remains serialized.
+
+The M2 pre-write reviews used `spec_auditor` and `performance_auditor`; the
+post-write reviews found missing transfer/release replay requirements and a
+reserve witness that did not actually grow. One batched implementer repair
+closed both. The fresh specification delta review is clean. The performance
+review found no O(n) event work or added serialization; the state grows by
+480 bytes per thread, and the six staged transfers add 2,880 copied bytes per
+batch (5,760 read/write bytes). The focused online-shadow witness passed
+(1 test), and replay accepted 417 complete sidecar events against 219 rows
+and the joint subtotal. Python AST syntax validation and `git diff --check`
+passed. `cargo fmt --all -- --check` still reports repository formatting drift
+in existing Rust regions (including 18 source files); broad formatting was not
+applied to this focused checkpoint. No resource/scale process, diagnostic, or
+matrix row ran. Next: compose the closed-type finalizer and exact route
+currents with this online shadow; the global same-time gate remains open.
 
 ### Latest continuation (2026-09-29): staged destination online shadow
 

@@ -1436,6 +1436,73 @@ fn f5c_walker_online_shadow_witness() {
     crate::f5c_draft_heap::open_f5c_resource_events(&sidecar).unwrap();
     let meter = DraftHeapMeter::default();
     {
+        let source_kinds = [
+            PhysicalOwnerKind::SourceOuter,
+            PhysicalOwnerKind::SourceHeldBounds,
+            PhysicalOwnerKind::SourceActiveBounds,
+            PhysicalOwnerKind::PositiveFunctionArgument,
+            PhysicalOwnerKind::PositiveFunctionResult,
+            PhysicalOwnerKind::NegativeFunctionArgument,
+            PhysicalOwnerKind::NegativeFunctionResult,
+            PhysicalOwnerKind::UnionChildren,
+            PhysicalOwnerKind::IntersectionChildren,
+            PhysicalOwnerKind::StagedOuter,
+            PhysicalOwnerKind::IndexedBuffer(0),
+            PhysicalOwnerKind::IndexedBuffer(1),
+            PhysicalOwnerKind::IndexedBuffer(2),
+            PhysicalOwnerKind::IndexedBuffer(3),
+            PhysicalOwnerKind::IndexedBuffer(4),
+        ];
+        let mut source: Vec<_> = source_kinds
+            .into_iter()
+            .map(|kind| TrackedVec::<u8>::new_with_kind(&meter, kind))
+            .collect();
+        for owner in &mut source {
+            owner.try_reserve_exact(2).unwrap();
+            owner.try_push(1).unwrap();
+        }
+        let before_failed_reserve = source[0].capacity();
+        assert_eq!(
+            source[0].reserve_with(16, |values, n| {
+                values.try_reserve_exact(n).unwrap();
+                Err(())
+            }),
+            Err(())
+        );
+        let failed_reserve_capacity = source[0].capacity();
+        assert!(failed_reserve_capacity > before_failed_reserve);
+        assert_eq!(source[0].accounted_bytes(), failed_reserve_capacity);
+        let source_after_failure = crate::f5c_draft_heap::f5c_source_shadow_totals()[0];
+        let combined_after_failure = crate::f5c_draft_heap::f5c_walker_shadow_totals().6;
+        assert!(source_after_failure.current_capacity >= failed_reserve_capacity);
+        assert!(combined_after_failure.current_capacity >= failed_reserve_capacity);
+        source[0] = TrackedVec::<u8>::new_with_kind(&meter, PhysicalOwnerKind::SourceOuter);
+        let source_after_release = crate::f5c_draft_heap::f5c_source_shadow_totals()[0];
+        let combined_after_release = crate::f5c_draft_heap::f5c_walker_shadow_totals().6;
+        assert_eq!(
+            source_after_release.current_capacity,
+            source_after_failure.current_capacity - failed_reserve_capacity
+        );
+        assert_eq!(
+            combined_after_release.current_capacity,
+            combined_after_failure.current_capacity - failed_reserve_capacity
+        );
+        assert_eq!(
+            source_after_release.peak_capacity,
+            source_after_failure.peak_capacity
+        );
+        assert_eq!(
+            combined_after_release.peak_capacity,
+            combined_after_failure.peak_capacity
+        );
+        let mut active_bounds =
+            TrackedVec::<u8>::new_with_kind(&meter, PhysicalOwnerKind::SourceActiveBounds);
+        active_bounds.try_reserve_exact(2).unwrap();
+        active_bounds.try_push(1).unwrap();
+        let (bounds_values, mut bounds_token) = active_bounds.into_raw_with_token();
+        bounds_token.classify(PhysicalOwnerKind::SourceHeldBounds);
+        drop(bounds_values);
+        drop(bounds_token);
         let mut live = F5cLiveEventLedger::new([1; 10], 2, 2);
         for lane in 0..10 { live.top(lane, 1, 2); }
         for effect in [false, true] {
@@ -1468,8 +1535,9 @@ fn f5c_walker_online_shadow_witness() {
         retained.observe(1, 2);
         ordinary.observe(2, 4);
         let (_, _, _, _, live_lanes, _, simultaneous) = crate::f5c_draft_heap::f5c_walker_shadow_totals();
+        let source_capacity: usize = source.iter().map(TrackedVec::capacity).sum();
         assert_eq!((simultaneous.current_capacity, simultaneous.current_bytes),
-            (68 + live.capacity, 538 + live.retained));
+            (68 + live.capacity + source_capacity, 538 + live.retained + source_capacity));
         assert!(live_lanes.iter().all(|lane| lane.current_capacity > 0));
         let mut pair_owners: Vec<_> = (0..21).filter(|lane| *lane != 1)
             .map(|lane| StructuredPairOwner::new(lane, lane + 1)).collect();
@@ -1489,9 +1557,26 @@ fn f5c_walker_online_shadow_witness() {
         let mut transfer = RawWalkerOwner::new(&meter, 1, 1);
         transfer.observe(values.len(), values.capacity());
         let adopted = TrackedVec::try_adopt_raw_from_walker_with_owner(
-            &meter, values, PhysicalOwnerKind::SourceSidecar, transfer)
-            .unwrap_or_else(|_| panic!("walker owner transfer failed"));
+            &meter,
+            values,
+            PhysicalOwnerKind::SourceSidecar,
+            transfer,
+        )
+        .unwrap_or_else(|_| panic!("walker owner transfer failed"));
         drop(adopted);
+        for kind in [
+            PhysicalOwnerKind::UnionChildren,
+            PhysicalOwnerKind::IntersectionChildren,
+        ] {
+            let mut values = Vec::<u8>::with_capacity(4);
+            values.extend([1, 2]);
+            let mut transfer = RawWalkerOwner::new(&meter, 1, 1);
+            transfer.observe(values.len(), values.capacity());
+            let adopted = TrackedVec::try_adopt_raw_from_walker_with_owner(
+                &meter, values, kind, transfer)
+                .unwrap_or_else(|_| panic!("walker child owner transfer failed"));
+            drop(adopted);
+        }
         // Each exercised normalization owner is tied to a live allocation.
         let mut normalization: Vec<_> = (0..28).map(|_| NormalizationOwner::default()).collect();
         let mut scratch: Vec<Vec<usize>> = (0..28).map(|_| Vec::new()).collect();
@@ -1587,6 +1672,7 @@ fn f5c_walker_online_shadow_witness() {
         drop(memo);
         drop(instantiation);
         drop(ordinary);
+        drop(source);
         drop(comparison);
         drop(positive);
         drop(negative);
@@ -1608,6 +1694,11 @@ fn f5c_walker_online_shadow_witness() {
     assert!(live_lanes.iter().all(|lane| lane.peak_capacity > 0));
     assert!(pair_lanes.iter().all(|lane| lane.peak_capacity > 0));
     let normalization_lanes = crate::f5c_draft_heap::f5c_normalization_shadow_totals();
+    let source_lanes = crate::f5c_draft_heap::f5c_source_shadow_totals();
+    assert!(source_lanes.iter().all(|lane| lane.current_capacity == 0
+        && lane.current_bytes == 0
+        && lane.peak_capacity > 0
+        && lane.peak_bytes > 0));
     assert!(normalization_lanes.iter().enumerate().all(|(lane, totals)|
         (lane == 16 && *totals == Default::default()) ||
         (lane != 16 && totals.current_capacity == 0 && totals.peak_capacity > 0)));
@@ -1616,8 +1707,16 @@ fn f5c_walker_online_shadow_witness() {
         use std::fmt::Write;
         let mut output = format!("{count} {checksum}\n");
         for (lane, totals) in lanes.iter().enumerate() {
-            writeln!(output, "{} {} {} {} {}", lane + 32, totals.current_capacity,
-                totals.peak_capacity, totals.current_bytes, totals.peak_bytes).unwrap();
+            writeln!(
+                output,
+                "{} {} {} {} {}",
+                lane + 150,
+                totals.current_capacity,
+                totals.peak_capacity,
+                totals.current_bytes,
+                totals.peak_bytes
+            )
+            .unwrap();
         }
         for (lane, totals) in component_lanes.iter().enumerate() {
             writeln!(output, "{} {} {} {} {}", lane + 551, totals.current_capacity,
@@ -1646,6 +1745,19 @@ fn f5c_walker_online_shadow_witness() {
         for (lane, totals) in crate::f5c_draft_heap::f5c_staged_shadow_totals().iter().enumerate() {
             writeln!(output, "{} {} {} {} {}", lane + 12, totals.current_capacity,
                 totals.peak_capacity, totals.current_bytes, totals.peak_bytes).unwrap();
+        }
+        for (lane, totals) in source_lanes.iter().enumerate() {
+            let row = if lane < 10 { 129 + lane } else { 145 + lane - 10 };
+            writeln!(
+                output,
+                "{} {} {} {} {}",
+                row,
+                totals.current_capacity,
+                totals.peak_capacity,
+                totals.current_bytes,
+                totals.peak_bytes
+            )
+            .unwrap();
         }
         writeln!(output, "combined {} {} {} {}", combined.current_capacity,
             combined.peak_capacity, combined.current_bytes, combined.peak_bytes).unwrap();
