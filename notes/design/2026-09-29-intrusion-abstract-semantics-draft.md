@@ -849,6 +849,10 @@ inequality-cycle reading, but does not set `q = Arr(Int,q)`, compare recursive
 types, or test a coinductive subtype rule. Exact assertions, reviewer scope,
 and command are in
 `notes/progress/2026-09-30-intrusion-recursive-inequality-oracle-probe.md`.
+A second temporary Rust fixture gives the same fresh variable both lower and
+upper bounds of the guarded `Arr(Int,q)` shape; Oracle retains both shapes
+without diagnostics. This still does not choose a concrete solution or compare
+distinct recursive schemes, so its scope is interval preservation only.
 
 This is an operational characterization of the Oracle path, not a
 mathematical scheme denotation. It does not specify the carrier/subtype

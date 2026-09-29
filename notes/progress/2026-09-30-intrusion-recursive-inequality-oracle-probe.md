@@ -1,4 +1,4 @@
-# Recursive inequality interval: Oracle characterization
+# Recursive bounds and inequality interval: Oracle characterization
 
 Date: 2026-09-30
 Reference: frozen Yulang2 Oracle `a58eefc31e22141574b6f20c6a5748151c6d79f1`
@@ -38,9 +38,33 @@ assignment or assert it as a solver result. The test does not compare two
 recursive structures, enforce `q = Arr(Int,q)`, or establish an
 equi-recursive/coinductive subtype rule. Such claims would overstate the probe.
 
+A second temporary Rust test builds one ordinary scheme with both bound sides
+guarded by the same function shape:
+
+```text
+Arr(Int, q) ≤ q ≤ Arr(Int, q)
+```
+
+It routes one scheme use and asserts no diagnostics, a fresh use variable, at
+least one stored lower Function and one stored upper Function, each with the
+expected `Int` argument/effect polarities and a return pointing to that same
+fresh variable. Its command was:
+
+```text
+CARGO_TARGET_DIR=/tmp/yulang-intrusion-oracle-target \
+  cargo test -p infer accepts_guarded_recursive_function_as_two_sided_bounds -- --nocapture
+```
+
+An independent `compiler_referee` confirmed this exact scope. The test shows
+that the Oracle accepts and retains both matching guarded recursive bound
+shapes on one instantiated variable. It does not establish uniqueness of the
+bounds, select a concrete solution for `q`, compare two distinct recursive
+schemes, or define equi-recursive/coinductive subtyping. Such claims would
+require separate comparison and solution fixtures.
+
 ## Limits and state
 
-The test source exists only in `/tmp/yulang-intrusion-recursive-bound-probe`,
+Both test sources exist only in `/tmp/yulang-intrusion-recursive-bound-probe`,
 a detached scratch worktree at the frozen Oracle revision; neither the frozen
 Oracle worktree nor this research branch was modified. No Python was used. No
 compiler implementation code or durable tests were changed. One focused Rust
