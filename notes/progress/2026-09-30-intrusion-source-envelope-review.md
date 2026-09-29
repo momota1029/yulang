@@ -35,8 +35,12 @@ and guarded-recursion scope gaps. A spec-auditor review found the candidate
 wording compatible with the charter's Gate C and confirmed the HIR caveat.
 Delta review closed the effect/product overclaims, then found and closed the
 missing guardedness/recursive-interval prerequisites and the nominal-rule
-scope ambiguity. No compiler code changed and no tests or measurements were
-run.
+scope ambiguity. This narrowing only identifies a possible effect-free graph
+lemma; it does not narrow the user's full Oracle-capability objective or
+establish the final supported envelope. The next design pass must include the
+observed latent-effect, product, nominal-recursion, use, and diagnostic behavior
+needed by the chosen end-to-end envelope. No compiler code changed and no tests
+or measurements were run.
 
 Sources: `notes/design/2026-09-29-intrusion-abstract-semantics-draft.md` §1;
 `notes/design/2026-09-29-scc-intrusion-redesign-charter.md` §§3–4;

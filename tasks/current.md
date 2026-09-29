@@ -77,9 +77,13 @@ latent Function effect identities, tuple/record subtype rules, and guarded
 recursive interval semantics are missing from the effect-free graph fragment.
 The draft now separates graph-level candidate claims from source
 characterization fixtures and records the current Yulang3 application/lambda
-lowering gap. The immediate work is to choose the first theorem boundary, then
-specify its event lowering and public type/diagnostic normalization before
-proving the root-indexed state simulation. The existing injective
+lowering gap. The effect-free Function fragment is now only a possible
+component lemma; it does not redefine the objective or establish the required
+Oracle-capable envelope. The immediate work is to build that full candidate
+envelope from observed source capabilities, including implicit effect
+identities, products, nominal guarded recursion, incoming-use behavior, and
+observable diagnostics; then identify the semantic lemmas and Rust source-
+lowering work needed to prove and implement it. The existing injective
 graph-transport lemma remains conditional, and recursive subtype observations
 are still only focused Oracle characterizations. Details are in
 `notes/progress/2026-09-30-intrusion-source-envelope-review.md`. The
