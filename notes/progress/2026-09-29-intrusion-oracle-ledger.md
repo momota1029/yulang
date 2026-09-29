@@ -25,19 +25,14 @@ independently reproduced execution.
 | Internal use while an SCC is open | A use whose source and target are already in the same open component is retained as an internal use. Once the target root is known, the use is constrained directly against that live root; if the root is not known yet, the use remains pending until registration. It is not sent through scheme instantiation while the component is open. | `crates/infer/src/scc.rs::add_use` (same-component branch); `crates/infer/src/scc/graph.rs::add_internal_use,open_pending_uses_for`; `crates/infer/src/analysis/tests/case_01.rs::open_scc_use_adds_target_to_use_constraint`. |
 | Cross-component dependency barrier | An open dependency edge from one component to another blocks readiness of the source component. When a target component becomes ready, it is quantified and removed; its incoming uses then become `InstantiateUse` events, and predecessors are reconsidered. Thus the source use switches from a live open root to a use-site scheme instantiation only after target quantification. | `crates/infer/src/scc/graph.rs::is_ready_to_quantify,remove_ready_component`; `crates/infer/src/scc.rs::settle_components`. |
 | Component publication | The scheduler's `QuantifyComponent` event carries aligned member and root vectors. The analysis handler generates a result per member, inserts all member schemes before finalizing any member into the poly arena, then finalizes them. This gives an all-member visibility barrier; it does not establish a shared SCC scheme representation. | `crates/infer/src/scc.rs::settle_components`; `crates/infer/src/analysis/session/instantiate.rs::quantify_component`; fixture `crates/infer/src/analysis/tests/case_01.rs::quantify_component_writes_scheme_to_poly_def`. |
+| Source-level independent polymorphic uses | A temporary test against frozen `main` lowered `pub id x = x`, `pub number = id 1`, and `pub function_value = id (\\x -> x)` with no diagnostics. The resulting schemes formatted as `id: 'a -> 'a`, `number: int`, and `function_value: 'a -> 'a`. This observes one binding instantiated at both an integer and a Function type. | Probe command: `cargo test -p infer scratch_oracle_identity_independent_type_uses -- --nocapture` in a detached worktree at `a58eefc3`; source and output are captured in this row. Probe code was temporary and is not part of the Oracle commit. |
+| Source-level mutual recursive definitions | A temporary public-surface probe for `pub f x = g x; pub g x = f x; pub number = f 1; pub function_value = g (\\z -> z)` completed with no lowering diagnostics. Both member schemes formatted as `any -> never`; both incoming use schemes formatted as `never`. This is an observed result for this unproductive call cycle, not evidence about every guarded/productive SCC shape. | Probe command: `cargo test -p infer scratch_oracle_mutual_scc_independent_incoming_uses -- --nocapture` in a detached worktree at `a58eefc3`; probe code was temporary and is not part of the Oracle commit. The existing committed scheduler fixture `crates/infer/src/lowering/tests/case_06.rs::body_lowering_keeps_forward_cycle_in_one_scc` independently asserts that `my a = b; my b = a` merges and quantifies one component. |
+| Nested self-recursive lambda source | The accepted source `pub f = \\x -> \\y -> f` formats as `any -> never` in the Oracle. This probe therefore does not witness a productive recursive Function scheme with a retained recursive bound; finding a source program that does remains open. | Probe command: `cargo test -p infer scratch_oracle_guarded_recursive_function_scheme -- --nocapture` in the same detached worktree at `a58eefc3`; temporary probe code removed with that worktree. |
 
 ## Open rows
 
 This is not yet a complete observable contract. Still to inspect and record:
 
-- source-level identity and single-use programs through the frozen Oracle's
-  public analysis path. Fixtures exist for `my id x = x` and
-  `my answer = id 42`, but the inspected assertions concern cache/runtime
-  boundary construction and use-level placement. No two-distinct-type uses
-  are established yet;
-- mutually recursive source definitions combining incoming and internal uses.
-  The scheduler tests above establish the component state transitions
-  separately, but do not assert a full source-level mutual-recursion result;
 - a shared diamond and a descendant outside the definition SCC;
 - a nested polarity inversion with a rigid enclosing non-generic variable;
 - guarded and unguarded recursive cycles from full analysis, not only a
@@ -47,8 +42,10 @@ This is not yet a complete observable contract. Still to inspect and record:
 - whether a behavior is fixed by tests/observable output or only inferred from
   the machine's implementation order.
 
-The first two open rows are therefore marked **not established**, rather than
-filled by extrapolating scheduler internals into source-language behavior.
+The successful identity-use and unproductive mutual-cycle probes establish
+only those exact programs. They do not establish independent use behavior for
+all binder shapes, nor scheme results for productive recursive Function SCCs.
+Those remain open instead of being extrapolated from scheduler internals.
 
 ## Research consequence
 

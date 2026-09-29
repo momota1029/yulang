@@ -23,13 +23,14 @@ observable reference. Do not modify frozen `main`.
 ## Active gate
 
 Replacement-design charter: `notes/design/2026-09-29-scc-intrusion-redesign-charter.md`.
-The initial source/test ledger is in
-`notes/progress/2026-09-29-intrusion-oracle-ledger.md`. It confirms in-place
-level aging in Yulang2 and records a few identity/instantiation witnesses;
-source-level and mutual-SCC cases remain open. Next, complete those Oracle
-observations, then define the new abstract intrusion semantics against them.
-Do not make F5's Q/R shape, closed schemes, numbering, or resource contract
-the pass condition.
+The Oracle ledger is in
+`notes/progress/2026-09-29-intrusion-oracle-ledger.md`. It now includes a
+reproduced source-level identity used at both `int` and Function types, plus an
+unproductive mutual-recursion result and the scheduler's forward-cycle
+fixture. Shared diamonds, nested polarity with an enclosing rigid variable,
+and productive recursive Function schemes remain open. Next, characterize
+those cases and state the graph simulation theorem. Do not make F5's Q/R shape,
+closed schemes, numbering, or resource contract the pass condition.
 
 The reviewed pure-F5 protocol exposed a mistaken compatibility premise and is
 retained only as historical review evidence. The new lifecycle obligations
@@ -49,6 +50,6 @@ Effect hygiene and runtime freshness remain a later separate gate.
 Finite examples characterize the candidate but do not alone prove soundness or
 principality. Do not run guarded-cycle resource captures: the current F5c plans
 on `yulang3` have consumed their authorized runs. The immediate work remains
-Oracle characterization: source-level mutual SCCs and independent
-two-distinct-type uses are still missing; then formalize and review the
-intrusion simulation before choosing its production representation.
+Oracle characterization of the open graph cases, then formalization and
+independent review of the intrusion simulation before choosing its production
+representation.
