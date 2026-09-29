@@ -568,3 +568,41 @@ git diff --check
 No scale/resource process, diagnostic, or matrix row ran. Families 1, 3, 5,
 remaining family-6 source/staged rows, closed-type/route composition,
 serialization suppression, and corrected-scale evidence remain open.
+
+### 2026-09-29 family-1 online-ledger extension
+
+The online shadow now covers all 18 family-1 `LiveVariableLane` rows (kinds
+512–529): ten top lanes and eight nested value/effect lanes. Actual owner
+CREATE/GROW/RELEASE transitions update checked per-lane and joint current/peak
+slots and bytes; request-only SHAPE events do not affect capacity. The witness
+uses the real `F5cLiveEventLedger`, overlaps its lanes with other live owners,
+exercises request-only shape, growth and nested truncation, records the family-1
+checkpoint, then releases the checkpointed owners. The replay validates the
+checkpoint against all 18 current rows, rejects family-1 TRANSFER/DECREASE and
+post-checkpoint mutation except RELEASE, and reconciles all 149 lane rows and
+the joint subtotal at EOF. Family-2 and FlatDraft same-ID transfer checks
+remain intact.
+
+Selected M2 for shared-ledger conformance and transfer-copy cost. Prewrite and
+postwrite `spec_auditor` reviews found no issue. The `performance_auditor`
+found no timing decision that needs measurement before global composition;
+updates remain O(1) and probe-only. The state is 4,800 bytes per thread, so
+each atomic WalkerLane transfer copies 4,800 bytes (+576 bytes from the
+previous 131-row state, or +1,152 bytes read/write traffic). The fresh scale
+plan must record observed transfer count and account for `4,800 * transfers`
+copied bytes (`9,600 * transfers` counting reads and writes), along with event
+count, sidecar size, family-1 row counts, peak RSS, elapsed time, and disk use.
+
+The focused feature-enabled witness, complete 214-event replay, Python syntax
+compilation, and `git diff --check` passed. Successful commands:
+
+```text
+F5C_WALKER_SHADOW_SIDECAR=/tmp/f5c-family1-witness.bin F5C_WALKER_SHADOW_TOTALS=/tmp/f5c-family1-witness.txt RUSTC_WRAPPER= cargo test -p yu-solver --features f5c_resource_probe f5c_walker_online_shadow_witness --offline -j 2 -- --nocapture
+python3 tools/check_f5c_resource_matrix.py --walker-shadow-witness /tmp/f5c-family1-witness.bin --walker-shadow-totals /tmp/f5c-family1-witness.txt
+python3 -m py_compile tools/check_f5c_resource_matrix.py
+git diff --check
+```
+
+No scale/resource process, diagnostic, or matrix row ran. Families 3 and 5,
+remaining family-6 source/staged rows, closed-type/route composition,
+serialization suppression, and corrected-scale evidence remain open.

@@ -71,6 +71,7 @@ mod event_sink {
         component_lanes: [WalkerTotals; 20],
         term_lanes: [WalkerTotals; 6],
         instantiation_lanes: [WalkerTotals; 7],
+        live_lanes: [WalkerTotals; 18],
         combined: WalkerTotals,
     }
 
@@ -84,6 +85,8 @@ mod event_sink {
                     current_bytes: 0, peak_bytes: 0 }; 6],
                 instantiation_lanes: [WalkerTotals { current_capacity: 0, peak_capacity: 0,
                     current_bytes: 0, peak_bytes: 0 }; 7],
+                live_lanes: [WalkerTotals { current_capacity: 0, peak_capacity: 0,
+                    current_bytes: 0, peak_bytes: 0 }; 18],
                 combined: WalkerTotals { current_capacity: 0, peak_capacity: 0,
                     current_bytes: 0, peak_bytes: 0 } }
         }
@@ -105,6 +108,11 @@ mod event_sink {
 
         fn adjust_term(&mut self, lane: usize, old: usize, new: usize, size: usize) {
             let lane_totals = self.term_lanes.get_mut(lane).expect("TermLane index");
+            Self::adjust_totals(lane_totals, &mut self.combined, old, new, size);
+        }
+
+        fn adjust_live(&mut self, lane: usize, old: usize, new: usize, size: usize) {
+            let lane_totals = self.live_lanes.get_mut(lane).expect("LiveVariableLane index");
             Self::adjust_totals(lane_totals, &mut self.combined, old, new, size);
         }
 
@@ -149,10 +157,10 @@ mod event_sink {
         Ok(())
     }
 
-    pub(crate) fn walker_totals() -> ([WalkerTotals; 98], [WalkerTotals; 20], [WalkerTotals; 6], [WalkerTotals; 7], WalkerTotals) {
+    pub(crate) fn walker_totals() -> ([WalkerTotals; 98], [WalkerTotals; 20], [WalkerTotals; 6], [WalkerTotals; 7], [WalkerTotals; 18], WalkerTotals) {
         WALKER_LEDGER.with(|ledger| {
             let ledger = ledger.borrow();
-            (ledger.lanes, ledger.component_lanes, ledger.term_lanes, ledger.instantiation_lanes, ledger.combined)
+            (ledger.lanes, ledger.component_lanes, ledger.term_lanes, ledger.instantiation_lanes, ledger.live_lanes, ledger.combined)
         })
     }
 
@@ -170,6 +178,10 @@ mod event_sink {
 
     pub(super) fn adjust_term_shadow(lane: usize, old: usize, new: usize, size: usize) {
         WALKER_LEDGER.with(|ledger| ledger.borrow_mut().adjust_term(lane, old, new, size));
+    }
+
+    pub(super) fn adjust_live_shadow(lane: usize, old: usize, new: usize, size: usize) {
+        WALKER_LEDGER.with(|ledger| ledger.borrow_mut().adjust_live(lane, old, new, size));
     }
 
     pub(super) fn transfer_walker(source: PhysicalOwnerKind, target: PhysicalOwnerKind,
@@ -765,17 +777,22 @@ impl LiveVariableOwner {
         let id = event_sink::next_id();
         event_sink::record(0, id, event_sink::CREATE,
             PhysicalOwnerKind::LiveVariableLane(lane), 0, 0, slot_size, 0);
+        if id != 0 { event_sink::adjust_live_shadow(lane, 0, 0, slot_size); }
         Self { id, lane, requested: 0, capacity: 0, slot_size, released: false }
     }
 
     pub(super) fn observe(&mut self, requested: usize, capacity: usize) -> (isize, isize) {
         assert!(!self.released && requested <= capacity);
+        assert!(capacity >= self.capacity);
         let operation = if self.capacity != capacity { Some(event_sink::GROW) }
             else if self.requested != requested { Some(event_sink::SHAPE) } else { None };
         if let Some(operation) = operation {
             event_sink::record(0, self.id, operation,
                 PhysicalOwnerKind::LiveVariableLane(self.lane), requested, capacity,
                 self.slot_size, 0);
+        }
+        if self.id != 0 && capacity != self.capacity {
+            event_sink::adjust_live_shadow(self.lane, self.capacity, capacity, self.slot_size);
         }
         let capacity_delta = capacity as isize - self.capacity as isize;
         let bytes_delta = capacity_delta * self.slot_size as isize;
@@ -788,6 +805,9 @@ impl LiveVariableOwner {
         assert!(!self.released);
         event_sink::record(0, self.id, event_sink::RELEASE,
             PhysicalOwnerKind::LiveVariableLane(self.lane), 0, 0, self.slot_size, 0);
+        if self.id != 0 {
+            event_sink::adjust_live_shadow(self.lane, self.capacity, 0, self.slot_size);
+        }
         self.released = true;
         let delta = (-(self.capacity as isize),
             -((self.capacity * self.slot_size) as isize));
