@@ -1,15 +1,17 @@
-# Current task: redesign Function inference with SCC intrusion
+# Current task: prove and implement SCC-intrusion Function inference
 
 Updated: 2026-09-29. Branch: `research/simple-sub-intrusion`.
 
 ## Objective
 
-Replace the F5 Function generalization/closed-scheme architecture with a new
-SCC-intrusion design. F5 is legacy comparison material, not the target
-semantics. The observable target is Oracle-compatible behavior on the
-supported envelope, using frozen Yulang2 `main` at `a58eefc3` as the concrete
-reference. This is still a design/research branch; no compiler implementation
-or frozen `main` change is authorized here.
+Prove that the SCC-intrusion redesign can match the frozen Yulang2 Oracle's
+capabilities on an explicit supported input envelope, then implement the
+replacement inference machine on this branch. F5 Function generalization and
+closed schemes are to be removed from the target architecture. The user's
+current objective authorizes completing the proof/design and implementation
+work; unresolved semantic choices still need a reviewed successor contract
+before code depends on them. Frozen Yulang2 `main` at `a58eefc3` remains the
+observable reference. Do not modify frozen `main`.
 
 ## Inputs and existing contracts
 
@@ -30,20 +32,23 @@ Do not make F5's Q/R shape, closed schemes, numbering, or resource contract
 the pass condition.
 
 The reviewed pure-F5 protocol exposed a mistaken compatibility premise and is
-retained only as historical review evidence. Scope correction and current
-research stages are recorded in
-`notes/progress/2026-09-29-intrusion-research-start.md`.
+retained only as historical review evidence. The new lifecycle obligations
+derived from Oracle SCC scheduling are recorded in the ledger. The overall
+goal is proof followed by implementation, not research-only completion.
 
 ## Stop conditions and next action
 
-Do not implement until the proof/characterization is reviewed and any new
-replacement-design decision is explicitly approved. Stop or revise if it
+Before implementation, prove the candidate semantics for its declared graph
+class and supported input envelope, then record the reviewed successor
+contract. Stop or revise if it
 captures an enclosing non-generic variable, merges distinct polarized
 constraints, shares substitutions across independent uses, loses a recursive
 bound, or changes Oracle-observable behavior inside the supported envelope.
 Effect hygiene and runtime freshness remain a later separate gate.
 
-Do not implement before the replacement design is independently reviewed and
-approved. Finite examples characterize the candidate but do not alone prove
-soundness or principality. Do not run guarded-cycle resource captures: the
-current F5c plans on `yulang3` have consumed their authorized runs.
+Finite examples characterize the candidate but do not alone prove soundness or
+principality. Do not run guarded-cycle resource captures: the current F5c plans
+on `yulang3` have consumed their authorized runs. The immediate work remains
+Oracle characterization: source-level mutual SCCs and independent
+two-distinct-type uses are still missing; then formalize and review the
+intrusion simulation before choosing its production representation.

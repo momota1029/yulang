@@ -58,3 +58,29 @@ intrusion as a new candidate semantics and compare observable results, rather
 than presenting parent allocation as a direct refactoring of the inspected
 Yulang2 extrusion procedure. The new design remains free to choose a shared
 SCC graph if its soundness/principality argument and Oracle behavior hold.
+
+## Candidate invariants derived from the lifecycle
+
+These are semantic obligations for a candidate, not a completed equivalence
+proof:
+
+1. An SCC is the recursive **monomorphism** region while it is open: references
+   between its members constrain their live roots. They must not receive
+   independent use-site substitutions before the SCC closes.
+2. The SCC is not automatically one polymorphic binder scope. The Oracle asks
+   for one generalized result per member root. An implementation may retain one
+   shared graph internally, but every member's externally visible scheme and
+   binder ownership must be defined as a projection.
+3. A dependency edge from an open component to another open component delays
+   the source component. Once the target closes, each recorded incoming
+   occurrence is instantiated against the target scheme; independent uses
+   must not share local substitutions. Any outer variables intentionally
+   shared through the session boundary remain shared.
+4. All member schemes are available before incoming uses are instantiated, so
+   a use cannot observe a partially generalized recursive component.
+
+The first and third obligations are supported by scheduler and use-routing
+source/tests, while source-level mutual-recursion scheme results and
+two-distinct-type incoming uses remain unobserved. This separation matters:
+matching the event lifecycle is necessary, but it does not prove that a
+parent-based graph has the same principal solutions.
