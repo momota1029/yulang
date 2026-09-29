@@ -34,8 +34,10 @@ and is not quantified by the inner function. A source probe for a nested local
 SCC sharing such an enclosing variable failed because sequential local `my`
 declarations do not resolve the forward member reference; this exact graph
 case remains open and needs an accepted source construction or graph-level
-characterization. Pure Function-only recursive cycles also remain open. Next,
-characterize those cases and state the graph simulation theorem. Do not make
+characterization. A pure Function guarded mutual cycle was also observed to
+collapse to `any -> any -> never` for both members, without recursive bounds;
+other cycle shapes and the graph simulation theorem remain open. Next,
+characterize those cases and state the theorem. Do not make
 F5's Q/R shape, closed schemes, numbering, or resource contract the pass
 condition.
 
