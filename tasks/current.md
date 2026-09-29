@@ -422,3 +422,16 @@ current-path characterization, not intrusion correctness or source-level
 Oracle parity.
 Implementation remains gated on the reviewed successor contract and explicit
 user approval.
+
+The conditional member-view transition now states an evidence-admissibility
+precondition: selected proof payload support includes transitive TypeVar
+references from the exact root/epoch snapshot; mapped evidence uses an
+injective extension of `Phi_d` and per-use `Psi o Xi`, while pinned evidence
+keeps exact proof identity/dependencies opaque. Independent spec delta review
+closed a port-collision finding after `Xi_d` was extended over `Local_d^+` with
+full namespace freshness and fixed-anchor disjointness. This does not choose
+the evidence route or prove provenance preservation. Details are in
+`notes/progress/2026-09-30-intrusion-evidence-transport-precondition.md`.
+Next instantiate the transition's local commuting rules against an explicit
+carrier and the Oracle root/epoch simulation; do not treat this precondition as
+Gate C closure or implementation authority.

@@ -334,6 +334,104 @@ identity is rejected rather than silently captured; the Oracle validates this
 at `instantiate.rs::validate_imported_scheme_vars` with a per-use-boundary
 collision error.
 
+### Conditional intrusion transition for a classified member view
+
+Take as input an already constructed and simplified member view `H_d`, its
+member-specific partition, environment lookup `E_d`, and selected ordered
+bound/evidence occurrences. This defines an operation only after root
+projection and classification; it does not define or prove those inputs.
+
+Allocate a finite injective map `Phi_d` from `Local_d` into fresh member-owned
+ports, fresh against the complete component/source identity namespace,
+preserved environment identities, and all ports already allocated to other
+members. Require `E_d` to be injective on distinct surviving `Free_d`
+identities. Traverse the already projected root and recursive interval table
+with one memo table for graph nodes and one identity table for TypeVars. The
+polarity projection has already replaced `Erase_d` source occurrences with
+their `Bottom`/`Top` leaves; this transition copies those leaves and does not
+recompute a polarity census. Apply one occurrence transport to surviving
+TypeVar identities:
+
+- a surviving `Gen_d` or `Cycle_d` identity is replaced by its `Phi_d` port;
+- a surviving `Free_d` identity is resolved through `E_d` and remains shared;
+- constructor, edge direction, weight, and bound order are retained. The
+  already selected occurrence order is carried through this transport;
+  evidence must not be re-sorted by fresh port IDs. Any later projection query
+  still has to preserve the Oracle's canonical cursor order and decisive
+  lineage under its own state relation.
+
+If an identity is both generalized and recursive, the identity table maps it
+once, so its occurrences in both roles share one port. Memoized node transport
+preserves DAG sharing and regular back-edges without unfolding. The output
+`J_d` is the intruded member view plus its parent map and selected evidence;
+when mapped evidence needs evidence-only local ports, its evidence parent map
+extends the member's port map with `Local_d^+`. The source SCC graph is not
+destructively rewritten.
+
+Evidence transport has an additional closure obligation because a selected
+proof payload may refer to a TypeVar pivot pruned from the visible graph `H_d`.
+For each selected evidence item `e`, define `Supp_d(e)` as the transitive set
+of TypeVar identities referenced by its payload, referenced proof carriers,
+and validation dependencies in the exact root/epoch snapshot from which `e`
+was selected. A transition input is evidence-admissible only if every `e`
+takes one complete route below. The mapped route must classify every support
+identity; the pinned route keeps its support opaque to the receiving namespace.
+This is a precondition, not a decision about which route a future
+representation must choose.
+
+(a) **Mapped evidence.** Let `Local_d^+` be `Local_d` plus all member-local
+evidence-only identities in the union of `Supp_d(e)` for mapped items. Define
+`Xi_d` on `Local_d^+` and on every preserved environment identity in that
+union. Classification must be consistent for an identity shared by multiple
+payloads. Let `E_d^+` extend `E_d` to the preserved evidence-only identities,
+injectively resolving distinct source identities to fixed anchors. On
+`Local_d^+`, `Xi_d` is one injective extension of `Phi_d`: it agrees with
+`Phi_d` on `Local_d`, and maps each evidence-only local identity to a distinct
+member-owned port. All these ports are fresh against the complete
+component/source identity namespace, preserved environment identities, and
+all other members' ports. Preserved identities resolve through `E_d^+`; the
+anchor image is disjoint from the port image. On preserved identities shared
+with the visible view, require `Xi_d(v) = E_d(v)` for `v in Free_d`. Transport
+proof carriers and validation dependencies along with payload references.
+For use `u`, extend `Psi_(d,u)` to an injective map on all member-owned ports in
+`Local_d^+`, with fresh range against the entire receiving namespace and all
+other uses. The evidence map is the composition
+`Xi_(d,u) = Psi_(d,u) o Xi_d` on member-owned identities, and fixes the
+`E_d^+` anchors. Every payload reference and dependency in `Supp_d(e)` must
+be covered by this map. If transported evidence cannot establish validity,
+the use has an explicit validation-failure outcome before that use publishes.
+
+(b) **Pinned evidence.** Retain an opaque reference to the immutable
+root/epoch proof snapshot, its exact proof identity, and its complete
+validation dependencies, all of which must be present and valid when `J_d` is
+published. Every later consumer must validate the reference against that
+snapshot and may not interpret any referenced TypeVar in the receiving
+namespace. If a dependency is unavailable or invalid at publication, the
+transition fails; if it becomes unavailable or invalid before a later use,
+that use has an explicit validation-failure outcome before it publishes.
+
+If neither route can be validated before publishing `J_d`, the transition
+fails explicitly; it must not drop or partially rewrite evidence. Choosing a
+route, establishing that evidence-only pivots can be classified, and proving
+public provenance behavior remain open. The edge-transport lemma below covers
+closure for its pure graph fragment; it does not establish evidence transport,
+Oracle equivalence, or principality.
+
+For an incoming use `u`, instantiate `J_d` with one injective map
+`Psi_(d,u)` over all member-owned ports in `Local_d^+`. Reuse one fresh
+identity for all occurrences of each port within that use. Its range must be
+fresh against the entire receiving namespace, including caller-local identities
+outside `H_d`, all environment anchors, source identities, and every other
+use's fresh range.
+Fix environment identities resolved through `E_d`; for mapped evidence use the
+composition `Xi_(d,u)` above, and keep pinned evidence opaque. `E_d` must
+preserve distinct surviving free identities injectively. Attach the use's root
+constraint in that use's overlay.
+Internal SCC references bypass `Psi` and continue to refer to the open live
+root. These are transition invariants, not a solution semantics: propagation
+through shared anchors, identity of recursive-bound freshening, and
+principality remain to be proved.
+
 The audited Oracle quantifier predicate requires `level(v) > B_d` and excludes
 non-generic variables; reachability through the member's projected root and
 applicable role constraints also matters. Simplification/pruning can remove a
