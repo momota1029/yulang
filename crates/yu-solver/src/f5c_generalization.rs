@@ -363,6 +363,31 @@ thread_local! {
     pub(super) static F5C_BULK_DRAIN_BOUNDARY: std::cell::Cell<Option<(F5cBulkDrainSite, usize, usize)>> = const { std::cell::Cell::new(None) };
 }
 
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+thread_local! {
+    static F5C_GUARDED_PROGRESS: std::cell::Cell<Option<(usize, usize)>> =
+        const { std::cell::Cell::new(None) };
+}
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+pub(super) struct F5cGuardedProgressGuard;
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+pub(super) fn arm_f5c_guarded_progress() -> F5cGuardedProgressGuard {
+    F5C_GUARDED_PROGRESS.with(|state| {
+        assert!(state.get().is_none(), "F5c guarded progress observer already armed");
+        state.set(Some((0, 1)));
+    });
+    F5cGuardedProgressGuard
+}
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
+impl Drop for F5cGuardedProgressGuard {
+    fn drop(&mut self) {
+        F5C_GUARDED_PROGRESS.with(|state| state.set(None));
+    }
+}
+
 #[cfg(test)]
 pub(super) fn record_bulk_drain_boundary(
     site: F5cBulkDrainSite,
@@ -6338,6 +6363,27 @@ impl<'meter> F5cWalkSink<'meter> for F5cBoxedWalkSink {
 }
 
 impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
+    #[cfg(all(test, feature = "f5c_resource_probe"))]
+    fn observe_guarded_progress(&self, tasks_capacity: usize) {
+        F5C_GUARDED_PROGRESS.with(|state| {
+            let Some((emitted, milestone)) = state.get() else { return; };
+            let work = self.memo.work_meter.get();
+            if work < milestone { return; }
+            let path_capacity = self.memo.walker_resources.lanes
+                [F5cWalkerLaneKind::ReentryPaths as usize].actual_capacity;
+            let path_bytes = path_capacity
+                .checked_mul(F5cWalkerLaneKind::ReentryPaths.slot_size())
+                .expect("F5c guarded progress path bytes");
+            let separator = if emitted == 0 { "\n" } else { "" };
+            eprintln!("{separator}F5C_GUARDED_PROGRESS\tseq={}\twork={}\treentries={}\treentry_path_capacity={}\treentry_path_bytes={}\tpath_depth={}\tactive_depth={}\tframe_depth={}\ttasks_capacity={}",
+                emitted + 1, work, self.reentries.len(), path_capacity, path_bytes,
+                self.path.len(), self.active.len(), self.frames.len(), tasks_capacity);
+            let next = work.checked_next_power_of_two()
+                .and_then(|power| if power <= work { power.checked_mul(2) } else { Some(power) });
+            state.set(if emitted + 1 == 64 { None } else { next.map(|work| (emitted + 1, work)) });
+        });
+    }
+
     fn pure_function_effect(
         &mut self,
         term: Term,
@@ -7158,6 +7204,8 @@ impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
                 let task = tasks.pop().expect("nonempty generalization tasks");
                 #[cfg(all(test, feature = "f5c_resource_probe"))]
                 tasks_owner.observe(tasks.len(), tasks.capacity());
+                #[cfg(all(test, feature = "f5c_resource_probe"))]
+                self.observe_guarded_progress(tasks.capacity());
                 match task {
                     F5cWalkTask::EnterPath(hop) => {
                         let reservation = self.memo.reserve_walker_with_source(

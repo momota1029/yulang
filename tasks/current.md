@@ -2,7 +2,7 @@
 
 Updated: 2026-09-29. Branch: `yulang3`; do not modify frozen `main`.
 
-### Active gate (2026-09-29): audit guarded-cycle work after capture timeout
+### Active gate (2026-09-29): adjudicate guarded-cycle progress capture
 
 The exact-kind serialization gate is complete. Serialization is suppressed
 only for non-transferring WalkerLane kinds 54–56 and 116; the 219-row online
@@ -17,11 +17,20 @@ and reviewed. The new one-process D=32/K=32 capture timed out at 180 seconds,
 before emitting a row. Its partial sidecar is not replayable, so the
 conditional replay was correctly skipped. The run used the budget in the
 [`post-serialization measurement plan`](../notes/progress/f5c-post-serialization-measurement-plan-2026-09-29.md);
-no retry, K=4,000 diagnostic, or matrix row is authorized there. Next, audit
-the guarded-cycle worklist and retained reentry ownership/progress counters
-read-only, then decide whether specifically bounded evidence can answer a
-contract question. Do not run another solver process before a new reviewed
-plan.
+no retry, K=4,000 diagnostic, or matrix row is authorized there. A read-only
+source audit found retained guarded reentry paths and no in-flight work report.
+The test+feature-only fixed-size progress observer was implemented and passed
+compile-only verification plus focused performance review. Its one authorized
+D=32/K=32 process timed out at 120 seconds before a row completed; the
+conditional replay did not run. Twenty-six progress records show work rising
+to 134,217,817, retained reentries to 634,860, and `ReentryPaths` capacity to
+41,862,272 slots (about 1.00 GB). Peak process-group RSS was about 1.29 GB;
+neither 8-GiB floor was breached. The first progress record shared libtest's
+unfinished test line, so this capture fails standalone-line validation. A
+newline repair passed compile-only and focused performance delta review, but
+the plan's one-run budget is consumed and does not authorize another capture.
+Next, adjudicate the sampled growth against the owning reentry path algorithm
+read-only; any further solver process needs a separate reviewed budget.
 
 The earlier isolated GuardedCycle D=32/K=32 run timed out at 120 seconds while
 recording path-expanded owner events; its partial sidecar is not replayable.
@@ -80,8 +89,11 @@ only, synthetic row admission, mixed-selector CLI checks, Python AST, and
 260 seconds including grace, with no warm-up, retry, or next workload. The
 solver invocation timed out at 180 seconds, producing no row and a sidecar
 with a 56-byte trailing fragment. The conditional replay did not run. No host
-floor was breached. The next step is a read-only audit of guarded-cycle work
-and retained reentry progress before any new plan.
+floor was breached. Source audit localized retained reentry vectors to
+component-lifetime storage and found the distinct-state assertion only after
+the solve. At that checkpoint the observer plan was recorded; its subsequent
+implementation and single timed-out attempt are summarized above and in the
+linked plan.
 
 The earlier isolated GuardedCycle D=32/K=32 run timed out at 120 seconds while
 recording path-expanded owner events; its partial sidecar is not replayable.
