@@ -73,7 +73,13 @@ Effect hygiene and runtime freshness remain a later separate gate.
 
 Finite examples characterize the candidate but do not alone prove soundness or
 principality. Do not run guarded-cycle resource captures: the current F5c plans
-on `yulang3` have consumed their authorized runs. The immediate work remains
-Oracle characterization of the open graph cases, then formalization and
-independent review of the intrusion simulation before choosing its production
-representation.
+on `yulang3` have consumed their authorized runs. The immediate work is to
+formalize the component/member-root denotation and use semantics, characterize
+remaining open graph cases against the Oracle, then obtain independent review
+of the intrusion simulation before choosing its production representation.
+The Rust integration map is recorded in
+`notes/progress/2026-09-29-intrusion-rust-replacement-map.md`: replacing only
+F5 draft generalization is insufficient because publication, incoming-use
+instantiation, and retained root projection are coupled. Further work should
+use the actual Rust inference path as its characterization boundary; the
+Python finite model is not implementation evidence and will not be expanded.
