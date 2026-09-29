@@ -930,6 +930,31 @@ or that the Oracle's evidence-selected root preparation produces the same
 `m`. It therefore does not prove general `Erase_d`, principal solving, or
 Oracle equivalence.
 
+**Restricted singleton-root path correspondence (conditional).** Consider a
+pure acyclic member whose complete compact root at the final generalization
+iteration is `Arr(x, R)`, where `x` occurs only at this negative argument
+position. Assume the projection query succeeds and has exactly one effective
+negative input: one projection upper record compacted directly to a concrete
+atom `U`, with no weighted alias, row, recursive, or secondary contribution.
+Assume also that `x` is eligible for one-polarity elimination
+(`level_of(x) >= simplification_boundary` and `!non_generic(x)`), that the
+candidate's admissible assignments are stipulated to be exactly
+`{ A | A ≤ U }` and this set is nonempty with greatest element `U`, and that
+all subsequent coalescing, ancestor simplification, and post-loop passes retain
+`U` and `R` unchanged. Under these assumptions, the Oracle path merges the
+sole projected input into the argument and eliminates `x`, leaving `Arr(U,R)`;
+the pointwise extremal-projection lemma gives the candidate relation
+`↑{Arr(A,R) | A ≤ U} = ↑{Arr(U,R)}`. The two paths therefore agree on this
+member root's denotation for this restricted graph class.
+
+The premises are substantive. The equation for admissible assignments is a
+denotational assumption, not a consequence proved by the presence of one Oracle
+upper record; lower obligations, anchors, or correlations with other
+occurrences can change that set. The observed `expect`/`k` source program is a
+concrete `U = Int` path consistent with this theorem, but does not establish all
+its premises or the general projection rule. This conditional correspondence
+does not close Gate C.
+
 This split follows the audited Oracle path: compaction creates a fresh
 projection round, lower bounds are selected through a scoped evidence query,
 and returned query errors can become a default root at the surface. Therefore

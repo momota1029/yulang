@@ -69,9 +69,11 @@ Effect hygiene and runtime freshness remain a later separate gate.
 Finite examples characterize the candidate but do not alone prove soundness or
 principality. Do not run guarded-cycle resource captures: the current F5c plans
 on `yulang3` have consumed their authorized runs. The immediate work is to
-close independent semantic/spec review of the sequential root-transition
-candidate, then prove the pure root/use simulation and characterize open cases
-through Rust's real solver path before selecting a production representation.
+extend the reviewed restricted bounded-projection correspondence to graphs
+with lower obligations, anchors, or shared occurrences, deriving the
+admissible assignment set from selected graph evidence. Then prove the pure
+root/use simulation and characterize open cases through Rust's real solver
+path before selecting a production representation.
 The Rust integration map is recorded in
 `notes/progress/2026-09-29-intrusion-rust-replacement-map.md`: replacing only
 F5 draft generalization is insufficient because publication, incoming-use
@@ -135,8 +137,13 @@ extremal-projection lemma show that a bounded variable projects to its greatest
 admissible upper type, not automatically to `Top`. Review found the
 source-level singleton-bound argument insufficient as a general Oracle
 theorem: eligibility, weighted aliases, rows, lower obligations, and anchors
-still matter. Establish the exact correspondence for an explicit graph class,
-then continue with ordered root-step simulation,
+still matter. A reviewed conditional correspondence now matches Oracle and
+candidate denotations for a pure acyclic complete `Arr(x, R)` root with one
+direct concrete upper atom `U`, eligible elimination, unchanged later passes,
+and a separately stipulated admissible set `{A | A ≤ U}`. This does not prove
+that premise from Oracle evidence or close Gate C. Extend the graph class to
+derive admissible assignments with lower obligations, anchors, or shared
+occurrences, then continue with ordered root-step simulation,
 publication/finalization, and use simulation. A two-root characterization
 remains optional diagnostic evidence. A conditional lemma now shows that
 injective fresh-parent renaming bijects solution assignments when finite

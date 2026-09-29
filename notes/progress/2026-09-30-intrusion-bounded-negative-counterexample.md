@@ -58,8 +58,30 @@ stated preorder and Function rule. Independent `spec_auditor` review confirmed
 that its scope is conditional and it makes no Oracle-semantic decision. Neither
 review establishes the source graph or the general root-projection theorem.
 
+## Restricted correspondence result
+
+A conditional path theorem is now recorded in the abstract semantics draft.
+It covers a pure acyclic complete root `Arr(x, R)` with one negative occurrence
+of `x`, a successful projection query whose sole effective input is one direct
+concrete upper atom `U`, eligible one-polarity elimination, and later passes
+that leave `U` and `R` unchanged. If the candidate separately stipulates
+`{A | A ≤ U}` as the nonempty admissible assignment set with greatest element
+`U`, both paths produce the same root denotation, `↑{Arr(U,R)}`.
+
+This statement was reviewed conditionally by a `compiler_referee` and
+`spec_auditor`. Their required qualifications are explicit in the draft:
+projection must have no weighted, alias, row, recursive, or secondary input;
+the variable must meet the actual elimination eligibility checks; later
+coalescing, ancestor simplification, and post-loop passes must preserve the
+root; and `{A | A ≤ U}` remains an independent denotational premise. The
+`expect`/`k` probe is only an observed `U = Int` instance consistent with the
+path. This is one restricted correspondence, not Gate C closure or proof of
+Oracle equivalence for the source graph family.
+
 ## Next action
 
-Use the exact saved-root observation to prove or refute the bounded-variable
-projection rule for a clearly stated graph class. The general denotation,
-ordered root simulation, use simulation, and implementation gates remain open.
+Extend the correspondence to a graph class where upper constraints interact
+with lower obligations, anchors, or shared occurrences, deriving the candidate
+admissible assignment set from the selected graph rather than stipulating it.
+The general denotation, ordered root simulation, use simulation, and
+implementation gates remain open.
