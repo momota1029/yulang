@@ -69,9 +69,16 @@ Effect hygiene and runtime freshness remain a later separate gate.
 Finite examples characterize the candidate but do not alone prove soundness or
 principality. Do not run guarded-cycle resource captures: the current F5c plans
 on `yulang3` have consumed their authorized runs. The immediate work is to
-define the candidate scheme-instantiation relation for Gate C, then test
-recursive subtype rules against Oracle and continue ordered root-step/use-event
-simulation. The candidate environment convention now assigns preserved
+define the graph operation's observable result function and prove the
+candidate's injective graph transport, then test recursive subtype rules
+against Oracle and continue ordered root-step/use-event simulation. The
+unselected graph-boundary operation keeps the SCC graph authoritative and
+gives each use a member-scoped local map plus stable shared anchors. A focused
+compiler-referee review caught and closed specific freshness, evidence-map,
+imported-anchor, and memoization-scope gaps; source partition coverage and
+cross-member composition remain unproved. Details are in
+`notes/progress/2026-09-30-intrusion-graph-boundary-operation-review.md`. The
+candidate environment convention now assigns preserved
 `Free_d`/outer identities through one shared map, assigns `Gen_d ∪ Cycle_d`
 through a fresh per-use map, and keeps empty fibers empty. A compiler-referee
 delta review found that partition coherent after the draft required every

@@ -936,9 +936,8 @@ sharing. This matches the Oracle fixture where per-use binders freshen and
 imported/free identities remain shared, but does not prove equality with that
 fixture's use relation. `Member(H_d, eta_d, nu_u)` abbreviates satisfaction of
 every selected obligation in the saved view under those assignments. This
-formula covers a batch targeting one member; composition across different
-member targets, where one source identity can be quantified in one member view
-and free in another, remains open. One-sided erasure also remains open: the
+formula covers a batch targeting one member; different-member composition is
+specified only by the following unselected candidate operation. One-sided erasure also remains open: the
 observed `any -> int`
 requires proving, under the chosen order and Function interpretation, that
 replacing a negative-only local variable by `Top` preserves `Pred_d`; that
@@ -951,6 +950,68 @@ uses must choose independent Q/R assignments while sharing the imported B
 anchor; and the guarded recursive Function fixture must be representable with
 its recursive assignment fresh per use. A candidate carrier/order that fails
 any of these observations cannot satisfy the Oracle target.
+
+**Candidate graph-boundary instantiation operation (unselected).** This
+operation keeps the generalized SCC and its member views as graphs; it does
+not make a closed per-member type tree authoritative. Its precondition is that
+ordered member preparation has produced valid saved views `H_d` and the
+all-member visibility barrier has completed. For an incoming use `u` targeting
+member `d`, first resolve each `Free_d` source identity through the stable
+environment lookup `beta_d : E_d -> A_d`. Every `beta_d` is a restriction of
+one component resolver `beta_C`; a source identity free in multiple views maps
+to the same anchor. Ordinary enclosing identities map to themselves; imported
+unit binders map through the once-seeded unit boundary map. Only after this
+lookup, choose an injective per-use map
+`sigma_(d,u) : L_d -> Fresh_(d,u)`. Let
+`A_C = union_d A_d` be all preserved anchors in the component. Fresh ranges
+must be disjoint from the complete identity set `I_recv` in the receiving
+solver graph and every incoming-use constraint, as well as pairwise disjoint
+across all uses, including uses targeting different members. This includes
+`A_C`, component source identities, and caller variables outside the
+component. Thus if one source identity is local in one member view but free in
+another, the first view receives a fresh identity and the second resolves it
+to its preserved anchor. A globally fresh allocator is one way to enforce the
+noncollision condition.
+
+Apply the composed identity map consistently to the view root, selected edge
+endpoints, recursive-bound payloads, and every type-variable occurrence in
+evidence/proof payloads. A proof carrier keyed to a renamed identity must itself
+be transported with its validity dependencies or revalidated before use;
+stable proof IDs alone do not establish that validity. Memoize cloned graph
+nodes within one `(d,u,sigma_(d,u))` operation, never across uses. Add the
+use's root constraint `Use_u` against that renamed root. Internal SCC
+references during collection remain open live-root edges and do not pass
+through this use operation.
+
+For a batch targeting one member, the resulting constraint graph is the union
+of the shared environment graph, each renamed view, and each use constraint.
+For a batch targeting different members, apply each member's own identity
+partition and renaming before taking the union over resolved shared anchors.
+No component-wide quantification bit is used. The intended operational
+relation is `G --Use(u,d)--> G'`, where
+`G'` records the fresh map, renamed graph, root, and use constraint; a solver
+then returns success with observable roots/diagnostics or its defined failure.
+
+Conditional solution semantics for `G'` quantify one assignment to each
+preserved identity and a separate assignment to each use's fresh identities;
+all copied edge obligations and use constraints must hold together. An empty
+fiber stays empty. This transition can specify identity freshness, edge/root
+transport, and use insertion without selecting a type carrier. Claims about
+the set of possible root types, subsumption, soundness, or principality still
+require an explicit carrier `D`, endpoint evaluation, subtype relation `≤`, and
+an adequacy theorem connecting solver output to that relation.
+
+The candidate's required proof obligations are: (i) each saved view is related
+to the corresponding Oracle view at its actual ordered root epoch; (ii)
+injective renaming preserves selected-constraint satisfaction and evidence
+meaning; (iii) member-specific maps compose without capture when one source
+identity is `Free` in one view and local in another; (iv) direct-lower and
+general subtype use paths induce the same stated use observation; (v) empty
+fibers and failures are preserved; and (vi) recursive bounds remain interval
+inequalities rather than being silently converted into recursive equations.
+The source `Free`/local partition coverage, cross-member batch relation,
+observable result function, and carrier remain unproved. This operation is a
+research candidate, not a selected representation or implementation contract.
 
 **Unconstrained negative-parameter lemma.** A small erasure case follows from
 the candidate relation. Assume `D` has a greatest element `Top` and a Function
