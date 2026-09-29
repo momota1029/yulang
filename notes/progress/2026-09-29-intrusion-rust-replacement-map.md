@@ -74,3 +74,24 @@ operation. Then state the simulation/principality property and prove it for a
 declared finite graph class before choosing which existing Rust owners survive.
 The executable Python characterization is not implementation evidence and
 does not close any of these obligations.
+
+## Current Rust-path baseline probes
+
+On 2026-09-30, two focused tests in `yu-solver` were run against the current
+Yulang3 inference path:
+
+- `tests::f5d_parameter_alpha_rename_shadows_module_name_and_does_not_leak`
+- `tests::f5d_productive_function_recursion_and_unproductive_names`
+
+Both pass with `RUSTC_WRAPPER= cargo test -p yu-solver <test-name>`. The first
+observes identity-Function aliasing and current quantified-binder reuse through
+the retained closed-scheme view; the second observes the current productive
+recursive scheme shape and unproductive-name results. These tests characterize
+the existing F5-backed implementation only. They do not prove Oracle
+equivalence, validate intrusion semantics, or make Q/R and closed schemes part
+of the replacement contract. They give Rust-side baseline evidence at the
+current solver path while the replacement remains unimplemented.
+
+The configured `sccache` wrapper failed to start in this environment with
+`Operation not permitted`; setting `RUSTC_WRAPPER=` let Cargo invoke `rustc`
+directly. No compiler source or test was changed for these probes.

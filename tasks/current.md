@@ -101,6 +101,11 @@ issue in this parent-port/recursive-freshness delta; they support the evidence
 distinctions but do not prove port selection or principality.
 Next prove root-indexed boundary factorization, including per-use generalized
 and recursive identities versus shared unit-boundary identities, and preserve
-the actual diagnostics. Then characterize it through `yu-solver`'s Rust path.
-Implementation remains gated on the reviewed successor contract and explicit
-user approval.
+the actual diagnostics. The first two focused `yu-solver` Rust-path baseline
+probes pass for current identity-Function and productive/unproductive recursion
+behavior; they inspect F5-backed views only and are not intrusion or Oracle
+equivalence evidence. The exact tests and limits are recorded in
+`notes/progress/2026-09-29-intrusion-rust-replacement-map.md`. Extend
+characterization with Oracle-backed boundaries and uses without treating F5
+representation as the target. Implementation remains gated on the reviewed
+successor contract and explicit user approval.
