@@ -955,8 +955,17 @@ proposed using guarded regular type terms modulo alpha and equi-recursive
 unfolding, with `Bottom`/`Top`, finite union/intersection, polarized Functions,
 and invariant same-head nominal constructors. Local graph cycles would remain
 inequalities over direct assignment lookup; they would not become recursive
-type equations. This is only an option: no current Authoritative source defines
-that carrier or its nominal/recursive laws, and no choice is made here.
+type equations. This was only an option, and Oracle source inspection now rules
+out importing equi-recursive comparison as an assumed subtype rule for the
+frozen Oracle: its public polarity AST has no recursive type constructor,
+and its subtype worklist compares finite shapes while variable cycles are
+handled through bound propagation and deduplication. Recursive bounds are
+recorded later as variable intervals during compact collection. This evidence
+does not yet select a replacement denotation or prove that no mathematical
+regular-tree model can characterize Oracle observations; it does require any
+such model to prove observational correspondence rather than importing
+coinductive/equi-recursive comparison as an assumed subtype law. Details and
+scope are in `notes/progress/2026-09-30-intrusion-oracle-subtype-map.md`.
 
 A compiler-referee review found a blocking gap for Gate C certification: the
 option does not yet define a scheme's instantiation relation or prove that

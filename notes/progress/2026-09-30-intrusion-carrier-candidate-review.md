@@ -101,3 +101,23 @@ contract and implementation.
 
 No compiler code or committed tests were changed. The review was read-only; no
 performance measurements were run.
+
+## Follow-up: Oracle subtype implementation map
+
+Read-only source mapping of frozen Oracle `a58eefc31` found no explicit
+equi-recursive type node or coinductive subtype-pair rule. The Oracle uses
+finite polarized syntax, worklist subtype decomposition, variable-bound
+propagation/deduplication, and recursive interval records produced during
+compaction. See `notes/progress/2026-09-30-intrusion-oracle-subtype-map.md` for
+entrypoints and scope.
+
+This removes the basis for using equi-recursive comparison as the default
+Oracle-faithful Gate C foundation; it does not disprove a regular-tree model
+that separately proves conservativity for public observations. An architect's
+focused route recommends formalizing first a finite, many-sorted polarized
+constraint presentation with inductive derivations, variable references as
+inequality endpoints, shared anchors, and joint result relations. That is a
+candidate proof object, not an approved carrier. Its adequacy to Oracle bound
+propagation—including recursive accepted/rejected uses—remains unproved. The
+next formalization must define structural decomposition and inconsistency
+rules before claiming even selected-graph completeness.

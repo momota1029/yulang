@@ -87,15 +87,25 @@ identities, complete same-member view namespaces, and arbitrary finite joint
 continuations that can relate roots across uses; independent compiler-referee
 and spec-auditor delta reviews closed the theorem's findings. This remains an
 identity-transport lemma, not a carrier or Oracle-projection proof. The
-immediate work is to define the semantic carrier and public type normalizer
-for latent-effect bounds, products, nominal recursive intervals, constrained
-negative projection, and annotation-dependent local scheme routing, then
-prove the source lowering and root-indexed simulation. The
+Oracle source map found no explicit equi-recursive/coinductive subtype rule:
+the Oracle uses finite polarized types, variable-bound propagation, and
+recursive interval records. The unselected equi-recursive carrier cannot serve
+as the Oracle basis without a separate conservativity proof. The immediate
+formalization candidate is a many-sorted finite constraint presentation with
+inductively generated subtype consequences, recursive references left as
+inequality endpoints, shared outer anchors, and joint type/effect result
+relations. Its adequacy to Oracle propagation remains unproved. Then define
+public type normalization for latent-effect bounds, products, nominal
+recursive intervals, constrained negative projection, and annotation-dependent
+local scheme routing, and prove source lowering and root-indexed simulation.
+The
 candidate and its reviews are recorded in
 `notes/progress/2026-09-30-intrusion-end-to-end-capability-matrix.md` and
 `notes/progress/2026-09-30-intrusion-source-envelope-review.md`. The
 conditional transport review is in
-`notes/progress/2026-09-30-intrusion-joint-use-renaming-review.md`. It remains
+`notes/progress/2026-09-30-intrusion-joint-use-renaming-review.md`; the Oracle
+subtype map is in
+`notes/progress/2026-09-30-intrusion-oracle-subtype-map.md`. It remains
 unselected and unproved; source-lowering implementation and the final
 supported-input limits still need the reviewed successor contract. The
 existing injective
