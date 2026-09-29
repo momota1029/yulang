@@ -267,6 +267,29 @@ temporary test and worktree were removed, and no frozen Oracle files changed.
 This is not evidence about the source program's type or language acceptance;
 do not use it as a fixture or repeat it without a bounded execution plan.
 
+## Oracle alias-cycle probe
+
+An isolated frozen-Oracle probe characterizes one two-variable alias cycle:
+`x ≤ y`, `y ≤ x`, `y ≤ U`. It asserts replay creates a direct projected
+`x ≤ U` bound, generalized compact projection removes both local variables
+and contains exactly `U`, and finalization produces exactly `Neg::Con(U)` in
+the negative Function argument. In the candidate graph, `x ≤ y ≤ x`
+identifies the two values in the subtype preorder, so the projection onto `x`
+is `{a | a ≤ U}`. A compiler referee found no assertion flaw for this narrow
+output claim. The Function is only an acyclic wrapper; the cycle itself
+contains variable aliases, so this does not characterize productive recursive
+Function SCCs. It also does not establish selected scoped-record identity or
+behavior for broader cyclic graphs.
+
+Focused command in isolated frozen checkout `a58eefc3`:
+`CARGO_TARGET_DIR=/tmp/yulang-intrusion-oracle-target cargo test -p infer
+scratch_negative_argument_alias_cycle_projection -- --nocapture` (1 passed).
+Source locators: `constraints/machine/propagate.rs:104-131`,
+`constraints/machine/bounds.rs:888-900,3582-3645`,
+`compact/collect/mod.rs:816-845`, `compact/analysis/mod.rs:41-57`, and
+`compact/finalize.rs:415-425,802-820`. The temporary test worktree was removed;
+the frozen Oracle checkout remains clean.
+
 ## Next action
 
 Extend the source-to-view proof beyond this single `expect`/`k` instance, with

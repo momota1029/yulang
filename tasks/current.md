@@ -165,6 +165,10 @@ endpoints and finalization retains their exact `Neg::Intersection`, matching
 the candidate's meet result for that graph. These are only unweighted synthetic
 characterizations. A third probe observes matching `Con(U)` output for one
 shared-join diamond; it does not expose path-specific replay provenance.
+An isolated synthetic Oracle probe now also observes exact `Con(U)` output for
+the alias cycle `x ≤ y`, `y ≤ x`, `y ≤ U`; this only characterizes that
+unweighted variable-alias cycle and does not cover productive recursive
+Function SCCs or selected scoped-record identity.
 The candidate denotation is now proved for any finite pure variable-bound
 graph with fixed concrete endpoints and compatible fixed lower bounds:
 reachable upper endpoints define a pointwise greatest solution, including

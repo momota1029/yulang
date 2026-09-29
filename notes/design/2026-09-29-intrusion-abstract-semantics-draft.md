@@ -1048,6 +1048,17 @@ root-order simulation, diagnostics, or principal-solution equivalence for a
 larger graph class. Exact source path and test command are recorded in
 `notes/progress/2026-09-30-intrusion-bounded-negative-counterexample.md`.
 
+**One unweighted variable-alias cycle (bounded output characterization).**
+For `x ≤ y`, `y ≤ x`, and `y ≤ U`, feasibility makes `x` and `y`
+equivalent under the subtype preorder, and the projection onto `x` is
+`{a | a ≤ U}`. A focused synthetic Oracle Rust-path probe places `x` as the
+sole negative argument of an acyclic Function root and observes the finalized
+argument `Con(U)`. This characterizes that two-variable alias cycle's output;
+the cycle contains no Function structure and therefore says nothing about
+productive recursive Function SCCs. Scoped record identity and broader cyclic
+graphs remain open. Probe details and review scope are recorded in
+`notes/progress/2026-09-30-intrusion-bounded-negative-counterexample.md`.
+
 **Two independent alias paths to an upper meet (conditional; one Oracle
 characterization).** Let each path `j` have only the obligations
 `x = v_{j,0} ≤ v_{j,1} ≤ ... ≤ v_{j,n_j} ≤ U_j`; intermediate vertices from
