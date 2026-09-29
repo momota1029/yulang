@@ -1059,6 +1059,24 @@ productive recursive Function SCCs. Scoped record identity and broader cyclic
 graphs remain open. Probe details and review scope are recorded in
 `notes/progress/2026-09-30-intrusion-bounded-negative-counterexample.md`.
 
+**One anchored alias cycle with a compatible outer lower (synthetic Oracle
+characterization).** The selected constraints are `l ≤ e`, `l ≤ x`,
+`x ≤ y`, `y ≤ x`, and `y ≤ e`, where `l` and `e` are fixed outer identities
+and `l ≤ e` holds in the chosen environment fiber. The selected-graph
+projection onto `x` has greatest value `e`: every solution has `x ≤ e`, and
+the assignment `x = y = e` satisfies the local edges. A focused frozen Rust
+probe confirms one successful scheme projection query selects the exact lower
+endpoint record `l ≤ x` and exposes upper endpoint `e`; propagation lowers
+`x` and `y` to the outer level. The compact negative Function argument and
+finalized root retain `x`, `y`, and `e` as free identities, with no local
+quantifiers; `l` does not occur in that negative argument. This records the
+Oracle's retained graph view, not a claim that the lower endpoint is
+transported into the argument or causes retention of `e`. It is synthetic,
+not a source-level witness, and does not prove parent/provenance transport,
+later-root stability, or a general anchored projection rule. The focused test,
+review scope, and source locators are in
+`notes/progress/2026-09-30-intrusion-bounded-negative-counterexample.md`.
+
 **Two independent alias paths to an upper meet (conditional; one Oracle
 characterization).** Let each path `j` have only the obligations
 `x = v_{j,0} ≤ v_{j,1} ≤ ... ≤ v_{j,n_j} ≤ U_j`; intermediate vertices from

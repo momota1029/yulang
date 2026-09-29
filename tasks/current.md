@@ -69,11 +69,16 @@ Effect hygiene and runtime freshness remain a later separate gate.
 Finite examples characterize the candidate but do not alone prove soundness or
 principality. Do not run guarded-cycle resource captures: the current F5c plans
 on `yulang3` have consumed their authorized runs. The immediate work is to
-extend the reviewed restricted bounded-projection correspondence to graphs
-with lower obligations, anchors, or shared occurrences, deriving the
-admissible assignment set from selected graph evidence. Then prove the pure
-root/use simulation and characterize open cases through Rust's real solver
-path before selecting a production representation.
+extend the restricted projection correspondence through selected graph
+evidence. A first synthetic Oracle graph now combines a compatible outer lower,
+an upper path to an outer anchor, and a local alias cycle. Its successful
+scoped query selects the exact lower endpoint and exposes the upper anchor;
+propagation lowers both local variables, which remain alongside the anchor in
+the negative root with no local quantifiers. This is only graph-level
+characterization: it does not show lower-evidence transport or source
+reachability. Next find a source-level witness or strengthen the direct
+root-view/provenance relation for this graph class, then prove pure root/use
+simulation before choosing a production representation.
 The Rust integration map is recorded in
 `notes/progress/2026-09-29-intrusion-rust-replacement-map.md`: replacing only
 F5 draft generalization is insufficient because publication, incoming-use

@@ -290,11 +290,44 @@ Source locators: `constraints/machine/propagate.rs:104-131`,
 `compact/finalize.rs:415-425,802-820`. The temporary test worktree was removed;
 the frozen Oracle checkout remains clean.
 
+## Oracle anchored alias/lower probe
+
+An isolated frozen-Oracle Rust test characterizes the synthetic graph
+`l ≤ e`, `l ≤ x`, `x ≤ y`, `y ≤ x`, `y ≤ e`, with `l` and `e` registered at
+the outer level and `x`,`y` initially one level inside. It checks that a
+successful `scheme_projectable_lowers_in_scope` query selects the exact
+`PosId` for `l ≤ x`, and the same scoped view exposes upper endpoint `e` for
+`x`. The solver lowers `x` and `y` to the outer level. Generalization then
+retains `x`,`y`,`e` in the compact and finalized negative Function argument,
+with no local quantifiers; `l` is absent from that negative argument. Under a
+fixed outer assignment satisfying `l ≤ e`, the selected graph's projection
+onto `x` has greatest value `e` (assign `x = y = e`).
+
+An independent compiler-referee delta review closed the earlier vacuous
+quantifier and mistaken nominal-lower assertions. It confirmed this is only a
+synthetic current-path characterization: lower selection and upper-anchor
+visibility coexist in a successful scoped query, while final argument
+retention follows the upper alias path. The test does not show lower evidence
+is transported into the final argument, that it causes retention of `e`, or
+that provenance is carried through an intrusion parent map. It also has no
+source-level witness, diagnostics-path assertion, or later-root stability
+claim.
+
+Focused command in isolated frozen checkout `a58eefc3`:
+`CARGO_TARGET_DIR=/tmp/yulang-intrusion-oracle-target cargo test -p infer
+scratch_negative_argument_alias_path_to_outer_anchor_with_lower -- --nocapture`
+(1 passed). Frozen-source locators: lower selection in
+`constraints/structural_kernel/access.rs:862-890`, upper-record visibility in
+the same file `:897-905`, negative scheme collection in
+`compact/collect/mod.rs:833-845,941-949`, and quantifier selection in
+`generalize/mod.rs:900-915`. Temporary test worktree removed; frozen Oracle
+remains clean.
+
 ## Next action
 
-Extend the source-to-view proof beyond this single `expect`/`k` instance, with
-particular attention to how a successful per-root query selects upper records
-and how restart/post-loop transitions preserve the saved projection. Then
-extend the graph class to anchored or shared endpoints. The general denotation,
-ordered root simulation, use simulation, and implementation gates remain
-open.
+Find a source-level witness for the anchored lower/upper graph, or establish
+which source restriction prevents that graph shape. Trace its selected lower
+decision and retained outer identities through root preparation; separately
+prove lower-evidence transport if the replacement representation needs it.
+The general denotation, ordered root simulation, use simulation, and
+implementation gates remain open.
