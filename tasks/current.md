@@ -146,9 +146,12 @@ This does not prove that fiber from Oracle evidence or close Gate C. A reviewed
 interval lemma shows compatible lower obligations leave the upper-bound meet
 as the greatest assignment, once the exact fiber is fixed. Next derive
 the fiber directly from selected variable edges when other assignments are
-fixed; this remains a candidate-graph result. The next bridge is to prove that
-ordinary source constraints produce the stipulated scoped upper-record view,
-and that root restarts/post-loop passes preserve its singleton-`U` argument.
+fixed; this remains a candidate-graph result. The `expect`/`k` source-to-view
+bridge is now traced conditionally through frozen Oracle lowering, application,
+Function decomposition, and scheme instantiation; the Rust probe supplies the
+actual `U = Int` view and saved root for that fixture. The next bridge is to
+extend this beyond the one fixture and characterize selected scoped records
+and root restart/post-loop preservation.
 The Oracle collector, one-polarity removal, and finalization path for this
 conditional case now has independent source review. A nested captured-function
 source probe exceeded its 20-second bound inside Oracle `prepare_cold` and is

@@ -114,7 +114,30 @@ review found no issue in this derivation for the stipulated sole-`U` fragment.
 This explains the Oracle side of that conditional path; it still assumes the
 query view contains exactly the stipulated record and later passes retain the
 result. The source program's creation of that view and saved-root stability
-remain the bridge to prove.
+remain the general bridge to prove.
+
+The concrete `expect`/`k` source construction is now traced through the frozen
+Oracle Rust lowering and constraint path. The annotated `int` parameter goes
+through `connect_parameter_computation_detailed` to `connect_value_detailed`,
+which inserts both `Int <: expect_param` and `expect_param <: Int`. Application
+lowering inserts `expect_value <: Arr(k_arg, result)`, and Function
+decomposition derives the contravariant argument obligation
+`expect_param_inst <: k_arg`. Instantiation clones the finalized scheme and
+routes its predicate through the direct-lower or subtype insertion path. Given
+the finalized scheme's annotated argument relation, these constraints derive
+`k_arg <: Int`. A compiler-referee review accepted this as a conditional
+source derivation and emphasized that the scheme premise must be backed by the
+actual probe. Together with that probe, this closes the source-construction
+bridge for this one `U = Int` fixture. It does not establish the selected
+scoped query record solely from source code, prove the result for a family of
+schemes, or show that restarts and post-loop passes preserve the result in
+other fixtures.
+
+Source locators in frozen Oracle `a58eefc3`: `lowering/expr/lambda.rs:674,
+1244-1280`; `annotation/constraints.rs:124-136,251-281,771-793`;
+`lowering/expr/tail.rs:94-124,535-566,630-646`;
+`constraints/machine/propagate.rs:213-244`; and
+`analysis/session/instantiate.rs:385-519`.
 
 Source locators in the frozen checkout: `compact/collect/mod.rs:166-183,
 746-782,816-846,952-976,1132-1155`,
@@ -137,9 +160,9 @@ do not use it as a fixture or repeat it without a bounded execution plan.
 
 ## Next action
 
-Prove that ordinary source constraints produce exactly the stipulated scoped
-upper-record view, and that root restarts and post-loop passes preserve the
-saved singleton-`U` argument. The existing `expect`/`k` source probe confirms one
-`U = Int` instance, not the graph class. Then extend the graph class to anchored
-or shared endpoints. The general denotation, ordered root simulation, use
-simulation, and implementation gates remain open.
+Extend the source-to-view proof beyond this single `expect`/`k` instance, with
+particular attention to how a successful per-root query selects upper records
+and how restart/post-loop transitions preserve the saved projection. Then
+extend the graph class to anchored or shared endpoints. The general denotation,
+ordered root simulation, use simulation, and implementation gates remain
+open.

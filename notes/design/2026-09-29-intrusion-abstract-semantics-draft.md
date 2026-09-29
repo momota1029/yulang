@@ -1014,6 +1014,26 @@ premises or the general projection rule. This conditional correspondence does
 not establish diagnostics, later-member state, incoming-use simulation, or
 Gate C.
 
+**Concrete source path for the `expect`/`k` observation (fixture only).** In
+the frozen Oracle, lowering `expect`'s annotated parameter routes through
+`connect_parameter_computation_detailed` to `connect_value_detailed`. For the
+`int` annotation, the latter inserts both `Int <: expect_param` and
+`expect_param <: Int`. Lowering `expect x` creates an application constraint
+`expect_value <: Arr(k_arg, result)`; decomposing Function subtyping enqueues
+the contravariant argument obligation `expect_param_inst <: k_arg`. Scheme
+instantiation clones the finalized global scheme and submits its predicate by
+the direct-lower or routed-subtype path. Thus, conditional on the finalized
+scheme retaining the annotated argument relation, these source constraints
+derive `k_arg <: Int`. The isolated Oracle Rust-path probe supplies the
+remaining observed facts for this one fixture: the first compact view contains
+the argument variable with an upper-bound record and `Int`, and the saved root
+contains only `Int` in that position. This closes the concrete `U = Int`
+source-construction example by combining source tracing with that probe; it
+does not prove the premise for all finalized schemes, identify the exact
+scoped query edge without the probe, establish saved-root stability for other
+fixtures, or generalize to multiple bounds, aliases, anchors, and shared
+occurrences.
+
 The Oracle half follows this audited Rust path under those premises. In
 `CompactBoundMode::SchemeProjection` with negative polarity,
 `compact_var_bounds` reads the scoped view's generalized projection upper
