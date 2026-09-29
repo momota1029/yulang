@@ -95,3 +95,23 @@ current solver path while the replacement remains unimplemented.
 The configured `sccache` wrapper failed to start in this environment with
 `Operation not permitted`; setting `RUSTC_WRAPPER=` let Cargo invoke `rustc`
 directly. No compiler source or test was changed for these probes.
+
+## Oracle source witness is outside current Yulang3 HIR
+
+A focused Rust test attempted the exact frozen-Oracle two-use source
+`pub id x = x; pub number = id 1; pub function_value = id (\\x -> x)`.
+The test compiled but failed at HIR diagnostics: the backslash lambda is not
+accepted, and `id 1` becomes `UnsupportedExpression`. The temporary test was
+removed rather than weakening the source or expected result.
+
+The source limitation is visible in `yu-hir`: `ResolvedExpr` has no call or
+application node, and `lower_simple_chain` accepts only a leaf Integer or
+Identifier after it rejects `HirExpr::Apply`. The current Yulang3 path therefore
+cannot replay this source-level Oracle witness, even though the frozen Oracle
+accepts it. This is a language/HIR boundary gap, separate from intrusion
+correctness. For Gate C, a test-only semantic batch can characterize the graph
+and independent incoming-use mechanism; it cannot prove source-level parity.
+Before Gate E, the successor contract must explicitly include expression
+application in the source envelope or record that source-level behavior as a
+compatibility delta. A broad Oracle-capability claim requires adding the source
+path before calling the work complete.
