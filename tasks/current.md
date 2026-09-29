@@ -36,38 +36,20 @@ declarations do not resolve the forward member reference; this exact graph
 case remains open and needs an accepted source construction or graph-level
 characterization. A pure Function guarded mutual cycle was also observed to
 collapse to `any -> any -> never` for both members, without recursive bounds;
-other cycle shapes remain open. The first Gate B candidate model is drafted in
-`notes/design/2026-09-29-intrusion-abstract-semantics-draft.md`: immutable
-frozen graph, boundary parent ports, outer identity preservation, and
-per-incoming-use overlays. This turn added the Oracle's operational closure
-rules for the pure graph fragment and corrected the candidate to one parent
-per TypeVar with separate lower/upper edge transport. An injective-renaming
-closure-commutation lemma is now stated with a proof sketch. A new Oracle probe
-shows `pub k x = 1` projects to `any -> int` with no binders, so root projection
-must eliminate one-sided exposures while preserving the shared component for
-other roots. The audited Oracle path confirms projection is computed from
-each member root at positive polarity, expands matching lower/upper bounds,
-keys the collector cache by `(TypeVar, polarity, weight)` and recursion by
-`(TypeVar, polarity)`, then erases one-sided variables and retains bipolar
-identity. The small auxiliary model passes nineteen checks and
-matches three recorded shapes, but is not implementation evidence. A narrow
-Oracle-source lemma now states that injective parent renaming commutes with
-root collection and one-sided elimination on an already scope-filtered,
-ordered pure graph. A scoped compiler-referee review found no counterexample
-under those assumptions and required the edge-selection boundary to remain
-explicit. The lemma excludes the Oracle's other simplification passes, use
-overlays, and principality. F5's Q/R shape, closed schemes, numbering, and
-resource contract remain historical comparison points, not acceptance
-criteria. A source audit now shows Oracle lower-edge selection itself depends
-on proof records and support evidence, including replay pivots that carry type
-variable IDs; copying selected structural edges alone is insufficient as a
-full capability argument. Preselecting on the source graph is viable because
-the Oracle collector consumes selected bounds after querying, but the query
-round is recreated per root. Next compare carrying proof evidence with
-freezing root-local selected-edge masks, including the freeze timing and
-failure behavior, then specify root-view instantiation and prove the
-composition against Oracle member uses before selecting the production
-representation.
+other cycle shapes remain open. The first Gate B candidate is in
+`notes/design/2026-09-29-intrusion-abstract-semantics-draft.md`: parent ports,
+outer identity preservation, and independent use overlays. It includes Oracle
+closure rules for a pure graph fragment and an injective-renaming lemma after
+edge selection. A source audit found that lower-edge selection depends on
+projection evidence, and that each member root is generalized sequentially;
+root prepasses may advance the constraint epoch, while bounded post-loop passes
+can mutate the solver without restarting the saved root result. The draft now
+models a candidate versioned shared graph and states a root-indexed simulation
+theorem rather than assuming one frozen snapshot or one equal internal graph.
+This candidate remains unapproved. F5's Q/R shape, closed schemes, numbering,
+and resource contract remain historical comparison points, not acceptance
+criteria. The auxiliary Python model remains historical characterization only;
+it is not implementation evidence and will not be expanded.
 
 The reviewed pure-F5 protocol exposed a mistaken compatibility premise and is
 retained only as historical review evidence. The new lifecycle obligations
@@ -87,9 +69,9 @@ Effect hygiene and runtime freshness remain a later separate gate.
 Finite examples characterize the candidate but do not alone prove soundness or
 principality. Do not run guarded-cycle resource captures: the current F5c plans
 on `yulang3` have consumed their authorized runs. The immediate work is to
-formalize the component/member-root denotation and use semantics, characterize
-remaining open graph cases against the Oracle, then obtain independent review
-of the intrusion simulation before choosing its production representation.
+close independent semantic/spec review of the sequential root-transition
+candidate, then prove the pure root/use simulation and characterize open cases
+through Rust's real solver path before selecting a production representation.
 The Rust integration map is recorded in
 `notes/progress/2026-09-29-intrusion-rust-replacement-map.md`: replacing only
 F5 draft generalization is insufficient because publication, incoming-use
@@ -97,10 +79,14 @@ instantiation, and retained root projection are coupled. Further work should
 use the actual Rust inference path as its characterization boundary; the
 Python finite model is not implementation evidence and will not be expanded.
 The abstract semantics draft now records a root-local preparation protocol
-from the frozen Rust Oracle: each member view gets an independent projection
-round/query per compaction attempt and lazy edge selection, while component-wide
-preselection remains unproved. Independent review caught and corrected claims
-about atomic Oracle publication, shared snapshots, error scope, and record
-ordering. Next characterize member views and use overlays at `yu-solver`'s
-Rust solve boundary; exact query behavior needs source proof or instrumentation.
-Implementation remains gated on successor design approval.
+from the frozen Rust Oracle. Source review found that component roots are
+generalized sequentially, may mutate/restart at a later constraint epoch, and
+can apply bounded post-loop constraints after the saved root result. The draft
+replaces its single-snapshot premise with a candidate versioned shared-graph
+transition and a root-indexed observable simulation theorem. Compiler-referee
+and spec-auditor reviews of this lifecycle delta found and closed the epoch,
+root-order, state, failure, and record-sync findings; they did not certify the
+principality theorem or authorize implementation. Next define and prove the
+pure root/use simulation, then characterize it through `yu-solver`'s Rust
+path. Implementation remains gated on the reviewed successor contract and
+explicit user approval.

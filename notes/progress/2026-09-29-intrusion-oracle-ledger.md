@@ -202,3 +202,35 @@ equivalence proof. Likewise, all-member failure atomicity is a replacement
 safety requirement, not an Oracle publication fact. Public solve results
 cannot reveal query-round identities or edge masks; exact protocol
 characterization needs source proof or an instrumented Rust trace harness.
+
+The next semantic object is now a sequential root transition, not one
+component-wide frozen snapshot. Oracle `quantify_component` generalizes roots
+in vector order and may add constraints/restart while preparing each root;
+only after all root results are collected does it install member schemes, then
+it finalizes them. The candidate draft therefore proposes versioned shared SCC
+state: a root step reads the current state, saves the member result at the
+point Oracle returns it, then carries forward later bounded post-loop graph
+mutations and per-member prerequisite state. The saved result need not
+correspond to the resulting solver epoch. Incoming uses select that member
+result only after the all-member visibility barrier and receive disjoint
+overlays. Projection failure must terminate replacement preparation without a
+partial published component; Oracle's compact-surface default is not a valid
+result-equivalence claim. This remains a research candidate. The proof must
+show observable equivalence to the Oracle's ordered root generalizers,
+including cross-root constraint effects; if earlier results cannot remain
+valid when later roots update shared state, the versioned-component premise
+fails. The Rust-native characterization seam is the in-crate `yu-solver` test
+module: real source/HIR collection plus private session solve access can observe
+member scheme views and routed use facts; the public `SolvedModule` root-value
+projection erases most Function detail.
+
+Independent compiler-referee and spec-auditor delta reviews of the sequential
+root-transition clauses found and closed three major issues: the theorem had
+conflated the saved root result with the later solver epoch, omitted state
+needed by later roots, and demanded order independence despite Oracle's ordered
+mutation. A follow-up semantic review also caught a failure-branch placement
+error; the revised protocol aborts before saving a view and stages component
+publication. The spec review verified the first proof fragment remains distinct
+from the full replacement objective. These reviews cover this lifecycle delta
+only; they do not prove boundary-port selection, principality, or the successor
+contract and do not authorize implementation.

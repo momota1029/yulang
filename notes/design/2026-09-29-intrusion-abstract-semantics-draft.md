@@ -36,8 +36,13 @@ constructor applied to endpoints, a Function of endpoints, or a reference to a
 type vertex. A lower edge records `endpoint <: vertex`; an upper edge records
 `vertex <: endpoint`. Which lower occurrences are eligible for a scheme root
 is a separate evidence-sensitive projection decision; it is not implied by
-mere presence in the structural bound graph. This draft assumes bound closure
-reaches a fixed point before the graph is frozen.
+mere presence in the structural bound graph. The initial graph `G₀` is the
+closed SCC state at the quantification boundary. Root generalization may then
+add constraints and restart. Each member result is tied to the point where the
+Oracle produces it; later roots may advance the shared solver state. The final
+component publication boundary follows completion of all ordered root
+preparation. The precise relation among the saved result, later constraints,
+and proof state remains to be defined.
 
 ### Oracle closure relation for the fragment
 
@@ -93,14 +98,31 @@ that exact outer identity. It must not receive a fresh local parent merely
 because the path crosses the boundary. Reachability includes recursive and
 shared back-edges and is graph traversal, not path enumeration.
 
-An SCC is frozen only after all its member constraints have reached closure and
-all dependency components needed by its roots are finalized. While open,
-references among SCC members point to their live roots. No internal use gets a
-use-site substitution. After freeze, each member root has a published view of
-the same immutable component graph. All member views become visible before any
-external incoming use is instantiated. This matches the Oracle scheduler
-observations recorded in the ledger, without requiring a particular scheme
-encoding.
+While an SCC is open, references among its members point to their live roots;
+an internal use gets no use-site substitution. The Oracle then processes
+member roots sequentially during component quantification. A root's generalizer
+can add constraints and restart before producing that root's result, so a later
+member can be processed at a newer constraint epoch. The root results are
+collected before member schemes are installed, and incoming uses are routed
+only after that collection. The Oracle therefore supplies an all-member
+visibility barrier, but does not establish one immutable graph snapshot shared
+by every member view.
+
+The semantics must account for this sequential preparation behavior, but a
+replacement need not reproduce Oracle's internal mutation protocol. One
+sufficient candidate is a versioned shared SCC graph: each root step reads
+the current version, performs root-local projection/prepasses, saves the member
+result at the point Oracle produces it, and passes the updated state to the
+next member step. The saved result need not describe the final solver epoch:
+Oracle has bounded post-loop passes that can add constraints without
+restarting that root's generalization. After every view is prepared, install
+all member views before processing incoming uses; final slot writes may remain
+sequential behind that visibility barrier. Incoming uses select the matching
+member view and allocate independent overlays. A different implementation may use another schedule if
+it proves the same observable member results, later-root behavior, and
+incoming-use behavior. Whether graph versions can share all unchanged SCC
+vertices without losing an Oracle-observable update remains unproved. This
+candidate replaces the earlier single-snapshot assumption and is not selected.
 
 ## 3. Parent ports are not aliases
 
@@ -275,20 +297,20 @@ Consequently an intrusive graph cannot model the full Oracle boundary as only
 source record/proof identity. Some proof carriers refer to constraints, replay
 derivations, claims, and type-variable pivots. There are three possible
 transport designs to prove: transport and validate these references together
-with type endpoints; select and validate edges on the original graph at the
-component freeze, then reuse the selected ordered edges without re-querying
-after renaming; or define replacement-owned evidence that makes the same
-include/exclude decision. The second route depends on showing selection occurs
-at the correct boundary and that the selected edges remain valid until every
-member root view is built. The collector consumes the selected bounds after
-the query and does not inspect their reason/evidence payload during structural
-collection. Thus copying only final structural edges is justified only after
-the selection decision is frozen with them. The Oracle entry
+with type endpoints; select and validate edges on the original graph for each
+root/epoch attempt, then pin the selected ordered edges to that view while
+parent-renaming; or define replacement-owned evidence that makes the same
+include/exclude decision. The second route depends on retaining the graph and
+proof snapshot queried for that root view. The collector consumes the selected
+bounds after the query and does not inspect their reason/evidence payload
+during structural collection. Thus copying only final structural edges is
+justified only when the selection decision and snapshot remain attached. The Oracle entry
 `compact_type_var_for_scheme` creates a fresh projection-evaluation round and
-scoped query for each requested root, so a preselection cache shared across
-member roots must also prove that it preserves those per-root decisions and
-failure behavior. Otherwise the selected-edge mask itself must remain
-root-local.
+scoped query for each compaction attempt. Root generalization can repeat at
+newer constraint epochs, so a preselection cache shared across member roots
+must prove that it preserves each root's ordered decisions, failures, and
+epoch-specific graph view. Otherwise selected-edge decisions remain attached
+to each root attempt.
 
 This adds a separate proof obligation before claiming ordinary Oracle
 capability: characterize when lower records are Unclaimed, Included, or
@@ -324,26 +346,29 @@ runtime representation, or serialization format.
 
 ## 5. Candidate correctness statement
 
-For a finite frozen component `G`, enclosing environment `E`, member root `r`,
-and incoming uses `u₁ … uₙ`, the intended theorem is:
+For a finite initial component graph `G₀`, enclosing environment `E`, ordered
+member roots `r₁ … rₘ`, and incoming uses `u₁ … uₙ`, the intended theorem is:
 
 1. each open internal reference resolves to the live SCC root and contributes
-   the same constraints as the pre-freeze graph;
-2. each external use is equivalent to solving one fresh copy of the
-   boundary-relevant degrees of freedom of `G`, with every outer/rigid vertex
-   shared through `E`;
-3. the overlay solver returns a principal solution for that use, and constraints
+   the same constraints as the pre-quantification graph;
+2. each ordered member step produces the same observable root result and
+   leaves a successor state related to the Oracle state for preparing the next
+   member, including root-local projection, prepasses, restarts, and bounded
+   post-loop constraints; this relation need not identify internal graphs;
+3. the collected root views become visible before any external incoming use;
+4. each external use is equivalent to solving one fresh copy of the
+   boundary-relevant degrees of freedom of that member view, with every
+   outer/rigid vertex shared through `E`;
+5. the overlay solver returns a principal solution for that use, and constraints
    from `uᵢ` cannot change the solution space of `uⱼ` for `i != j` except through
    identities explicitly shared by `E`;
-4. projecting any member root from the shared component gives the same
-   observable type constraints as generalizing that member under the Oracle's
-   SCC lifecycle;
-5. cycles and shared descendants remain regular graph edges and do not require
+6. cycles and shared descendants remain regular graph edges and do not require
    path duplication to state the result.
 
 This statement is not yet a theorem: “equivalent”, “principal”, the exact
-boundary-relevant port criterion, and the supported type constructor algebra
-need definitions. It deliberately says nothing about matching F5 binder shape.
+boundary-relevant port criterion, the state transition relation, and the
+supported type constructor algebra need definitions. It deliberately says
+nothing about matching F5 binder shape.
 
 For the first graph comparison, “same observable constraints” means that after
 applying each use overlay and closing subtype obligations, the positive and
@@ -365,7 +390,8 @@ Before choosing a runtime representation, the proof must cover:
 - an SCC with an internal reference plus an external incoming use;
 - productive nominal-guarded recursive Function bounds, retaining all cycles;
 - an unproductive Function-only cycle, matching its observed collapse;
-- different root-processing orders, proving alpha/order independence;
+- the Oracle's actual root-processing order, including a characterization of
+  when swapping roots changes later views and when the steps commute;
 - failure during preparation, proving no member is partially published.
 
 The first essential lemma is a lossless boundary factorization: every
@@ -419,29 +445,49 @@ round has preflight state, proof-evaluation memo, cycle handling, and a
 terminal failure. This is per compaction attempt, not a claim that all work
 for one root or SCC shares one immutable snapshot.
 
-A source-compatible preparation operation must currently be specified as
-root-indexed:
+A source-compatible preparation operation must currently be specified as an
+ordered root step over mutable solver state:
 
 ```text
-prepare_member_view(frozen_graph, member_root, environment):
-    create projection round and scoped query for this root attempt
-    lazily visit (vertex, polarity, weight) in Oracle collector order
-    on positive visits, query lower records in lane order:
-        evidence records, then ordinary records; preserve order within each lane
-    retain Unclaimed and Included records; omit Excluded records
-    on negative visits, read upper records in the same lane order
-    preserve recursion identity by (vertex, polarity)
-    build this root's regular projected view and polarity census
+prepare_member_step(state_i, member_root, environment):
+    repeat:
+        create projection round/query for this compaction attempt
+        lazily visit (vertex, polarity, weight) in collector order
+        on positive visits, query lower records by evidence lane, then ordinary lane
+        if any projection query fails, return failure without a root result
+        retain Unclaimed and Included; omit Excluded
+        on negative visits, read upper records in the same lane order
+        preserve recursion identity by (vertex, polarity)
+        build this attempt's regular projected root and polarity census
+        run prepasses required by the declared input envelope
+        apply constraints participating in this root's restart loop
+    until this root's Oracle restart condition is satisfied
+    run bounded post-loop passes; apply their constraints without assuming restart
+    save the root result produced here and return updated state (state_i_plus_1)
 ```
 
-The pseudo-operation describes an observable protocol, not the chosen
-production representation. In particular, the root view may refer to the
-shared frozen component instead of copying it, but its selected lower-edge
-occurrences are local to that compaction attempt. Any later parent renaming
-must transport the type graph without changing those already-established
-choices; the renaming lemma applies only after this selection step. A
-component-wide mask is an optimization candidate only if it proves identical
-per-root, per-epoch decisions and traversal-reachable failures.
+The component preparation result is staged privately. Any terminal projection
+failure aborts preparation, produces no member view for that component, and
+prevents partial publication. This is the replacement's atomicity rule; it does
+not describe Oracle's sequential slot finalization.
+
+`state_i` must eventually include every input that can affect a later root,
+not only the bound graph: proof/projection state, relevant role or cast inputs,
+already-applied constraint identities, and the enclosing environment. The
+first theorem fragment uses pure inputs with no effects, rows, methods, roles,
+or casts. It does not establish behavior for those features; expanding the
+supported envelope requires adding their state transitions and proof
+obligations. This staged proof does not narrow the overall replacement
+objective.
+
+The pseudo-operation describes a source-derived protocol, not the chosen
+production representation. Each compaction attempt has its own selected
+lower-edge occurrences; the root step may add constraints and restart before
+the view is complete. A later parent renaming must transport each successful
+attempt's graph without changing its selected edges; the renaming lemma applies
+only after that selection step. A component-wide mask is an optimization
+candidate only if it proves identical per-root, per-epoch decisions and
+traversal-reachable failures.
 
 Failure has multiple scopes in the Oracle. `project_lower` latches a failure
 within its evaluation round, and the scoped query gateway can escalate certain
