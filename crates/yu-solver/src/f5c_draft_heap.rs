@@ -73,6 +73,7 @@ mod event_sink {
         instantiation_lanes: [WalkerTotals; 7],
         live_lanes: [WalkerTotals; 18],
         structured_pair_lanes: [WalkerTotals; 21],
+        normalization_lanes: [WalkerTotals; 28],
         combined: WalkerTotals,
     }
 
@@ -90,6 +91,8 @@ mod event_sink {
                     current_bytes: 0, peak_bytes: 0 }; 18],
                 structured_pair_lanes: [WalkerTotals { current_capacity: 0, peak_capacity: 0,
                     current_bytes: 0, peak_bytes: 0 }; 21],
+                normalization_lanes: [WalkerTotals { current_capacity: 0, peak_capacity: 0,
+                    current_bytes: 0, peak_bytes: 0 }; 28],
                 combined: WalkerTotals { current_capacity: 0, peak_capacity: 0,
                     current_bytes: 0, peak_bytes: 0 } }
         }
@@ -121,6 +124,11 @@ mod event_sink {
 
         fn adjust_structured_pair(&mut self, lane: usize, old: usize, new: usize, size: usize) {
             let lane_totals = self.structured_pair_lanes.get_mut(lane).expect("StructuredPairLane index");
+            Self::adjust_totals(lane_totals, &mut self.combined, old, new, size);
+        }
+
+        fn adjust_normalization(&mut self, lane: usize, old: usize, new: usize, size: usize) {
+            let lane_totals = self.normalization_lanes.get_mut(lane).expect("NormalizationLane index");
             Self::adjust_totals(lane_totals, &mut self.combined, old, new, size);
         }
 
@@ -172,6 +180,14 @@ mod event_sink {
         })
     }
 
+    pub(crate) fn normalization_shadow_totals() -> [WalkerTotals; 28] {
+        WALKER_LEDGER.with(|ledger| ledger.borrow().normalization_lanes)
+    }
+
+    pub(super) fn adjust_normalization_shadow(lane: usize, old: usize, new: usize, size: usize) {
+        WALKER_LEDGER.with(|ledger| ledger.borrow_mut().adjust_normalization(lane, old, new, size));
+    }
+
     pub(super) fn adjust_walker(lane: usize, old: usize, new: usize, size: usize) {
         WALKER_LEDGER.with(|ledger| ledger.borrow_mut().adjust(lane, old, new, size));
     }
@@ -200,6 +216,9 @@ mod event_sink {
         capacity: usize, size: usize) {
         WALKER_LEDGER.with(|ledger| {
             let mut next = *ledger.borrow();
+            if let PhysicalOwnerKind::NormalizationLane(lane) = source {
+                next.adjust_normalization(lane, capacity, 0, size);
+            }
             if let PhysicalOwnerKind::WalkerLane(lane) = source {
                 next.adjust(lane, capacity, 0, size);
             }
@@ -476,6 +495,9 @@ pub(super) use event_sink::{close as close_f5c_resource_events, open as open_f5c
 pub(super) use event_sink::walker_totals as f5c_walker_shadow_totals;
 
 #[cfg(all(test, feature = "f5c_resource_probe"))]
+pub(super) use event_sink::normalization_shadow_totals as f5c_normalization_shadow_totals;
+
+#[cfg(all(test, feature = "f5c_resource_probe"))]
 pub(super) fn normalization_event_totals() -> (usize, usize, usize) {
     event_sink::normalization_totals()
 }
@@ -522,6 +544,7 @@ impl NormalizationOwner {
         if self.id != 0 && capacity != self.capacity {
             let delta = capacity.checked_sub(self.capacity).expect("normalization capacity grows");
             event_sink::adjust_normalization(delta as isize, (delta * slot_size) as isize);
+            event_sink::adjust_normalization_shadow(lane, self.capacity, capacity, slot_size);
         }
         self.requested = requested;
         self.capacity = capacity;
@@ -533,6 +556,7 @@ impl NormalizationOwner {
             PhysicalOwnerKind::NormalizationLane(self.lane), 0, 0, self.slot_size, 0);
         event_sink::adjust_normalization(-(self.capacity as isize),
             -((self.capacity * self.slot_size) as isize));
+        event_sink::adjust_normalization_shadow(self.lane, self.capacity, 0, self.slot_size);
         self.id = 0;
         self.capacity = 0;
         self.requested = 0;
@@ -893,6 +917,7 @@ impl FlatDraftOwner {
             && capacity != self.capacity {
             let delta = capacity.checked_sub(self.capacity).expect("normalization output grows");
             event_sink::adjust_normalization(delta as isize, (delta * self.slot_size) as isize);
+            event_sink::adjust_normalization_shadow(self.lane, self.capacity, capacity, self.slot_size);
         }
         self.capacity = capacity;
         self.requested = requested;
@@ -912,6 +937,7 @@ impl Drop for FlatDraftOwner {
             if self.id != 0 && matches!(self.kind, PhysicalOwnerKind::NormalizationLane(_)) {
                 event_sink::adjust_normalization(-(self.capacity as isize),
                     -((self.capacity * self.slot_size) as isize));
+                event_sink::adjust_normalization_shadow(self.lane, self.capacity, 0, self.slot_size);
             }
         }
     }
@@ -1133,6 +1159,7 @@ impl DraftHeapMeter {
                 event_sink::transfer_walker(owner.kind, kind, owner.capacity, owner.slot_size);
             }
             if owner.id != 0 && matches!(owner.kind, PhysicalOwnerKind::NormalizationLane(_)) {
+                event_sink::transfer_walker(owner.kind, kind, owner.capacity, owner.slot_size);
                 event_sink::adjust_normalization(-(owner.capacity as isize),
                     -((owner.capacity * owner.slot_size) as isize));
             }

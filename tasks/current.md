@@ -24,17 +24,31 @@ capacity changes occur later and already pass through the existing
 
 Implement this gate in reviewable checkpoints. The fixed-size online shadow
 now covers 98 WalkerLane, 20 ComponentMemoLane, 6 TermLane, 7 InstantiationLane,
-18 LiveVariableLane, and 21 StructuredPairLane rows: 170 lane rows plus the
-joint subtotal. Raw, six-buffer FlatDraft, six TermLane same-ID, and kind-549
-same-ID transfers are covered. Next add event-backed family-5 normalization
-outputs and the remaining family-6 source/staged rows, then compose the
-closed-type finalizer peak and route-growth samples and prove global same-time
-totals. Only after that closes, suppress serialization for exact
+18 LiveVariableLane, 21 StructuredPairLane, and 28 normalization-owner rows:
+198 lane rows plus the joint subtotal. The normalization witness covers all 27
+physical lanes, leaves lane 16 zero, and exercises the six output-owner
+same-ID transfers into staged kinds 12–17. The combined online subtotal still
+omits those staged destination rows after transfer. Next add the remaining
+staged-buffer rows 12–17 and make each 605–610 to 12–17 handoff an atomic
+source debit/destination credit, then compose the closed-type finalizer peak
+and route-growth samples and prove global same-time totals. Only after that
+closes, suppress serialization for exact
 non-transferring WalkerLane kinds 54–56 and 116. Preserve the FlatDraft kinds
 12–17 trace in full throughout. The partial timed-out sidecar is not a replay
 input; no resource/scale process, diagnostic, or matrix row may run before the
 composed ledger and witness receive a fresh measurement review. Do not claim
 corrected-scale completion until those gates close.
+
+### Latest continuation (2026-09-29): normalization-output online shadow
+
+Normalization owner rows 584–611 are now in the fixed ledger, including all
+27 live lanes and ownerless lane 16. The witness covers backed allocations,
+the exact six same-ID output-to-staged transfers, and checkpoint-only owner
+lifecycle; M2 specification and performance review are closed. The ledger now
+holds 198 rows plus its joint subtotal (6,368 bytes per thread). Staged
+destination rows 12–17 are not yet in that subtotal, so the global same-time
+gate remains open. Exact paths, repairs, checks, and costs are in the
+[`normalization-output checkpoint`](../notes/progress/f5c-shared-acyclic-hit-mismatch-checkpoint-2026-09-29.md).
 
 ### Latest continuation (2026-09-29): WalkerLane online-shadow witness
 

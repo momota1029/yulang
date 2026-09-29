@@ -1426,7 +1426,9 @@ fn matrix_source(family: F5cMatrixFamily, count: usize) -> String {
 fn f5c_walker_online_shadow_witness() {
     use crate::f5c_draft_heap::{DraftHeapMeter, FlatDraftOwner, PhysicalOwnerKind,
         RawWalkerOwner, TrackedVec, ComponentMemoEvents, InstantiationEvents,
-        StructuredPairOwner, StructuredPairChildOwner};
+        StructuredPairOwner, StructuredPairChildOwner, NormalizationOwner};
+    use crate::f5c_draft::{FlatDraft, PositiveNode, NegativeNode, PositiveId, NegativeId,
+        RecursiveBound, NodeRef};
 
     let sidecar = std::env::var_os("F5C_WALKER_SHADOW_SIDECAR")
         .map(std::path::PathBuf::from).unwrap_or_else(|| std::env::temp_dir().join(format!(
@@ -1490,24 +1492,62 @@ fn f5c_walker_online_shadow_witness() {
             &meter, values, PhysicalOwnerKind::SourceSidecar, transfer)
             .unwrap_or_else(|_| panic!("walker owner transfer failed"));
         drop(adopted);
-        let mut staged_owners = std::array::from_fn(|lane| {
-            FlatDraftOwner::new_with_component(meter.event_component(), lane + 2, lane + 1)
-        });
-        let sizes = std::array::from_fn(|lane| lane + 1);
-        let capacities = [2; 6];
-        let requested = [1; 6];
-        let bytes = std::array::from_fn(|lane| capacities[lane] * sizes[lane]);
-        for owner in &mut staged_owners {
-            owner.observe(1, 2);
+        // Each exercised normalization owner is tied to a live allocation.
+        let mut normalization: Vec<_> = (0..28).map(|_| NormalizationOwner::default()).collect();
+        let mut scratch: Vec<Vec<usize>> = (0..28).map(|_| Vec::new()).collect();
+        for lane in 0..28 {
+            if lane == 16 || (21..27).contains(&lane) { continue; }
+            scratch[lane].reserve_exact(2);
+            scratch[lane].push(lane);
+            normalization[lane].observe(0, lane, scratch[lane].len(),
+                scratch[lane].capacity(), std::mem::size_of_val(&scratch[lane][0]));
         }
-        let (before_transfer, _, _, _, _, _, _) = crate::f5c_draft_heap::f5c_walker_shadow_totals();
-        assert!(before_transfer[2..8].iter().all(|lane| lane.current_capacity == 2));
-        let staged = meter.claim_existing_batch_with_owners(bytes, 0, &mut staged_owners,
-            requested, capacities, sizes).expect("flat draft owner transfer failed");
-        let (after_transfer, _, _, _, _, _, _) = crate::f5c_draft_heap::f5c_walker_shadow_totals();
-        assert!(after_transfer[2..8].iter().all(|lane| lane.current_capacity == 0));
-        drop(staged_owners);
+        scratch[0].push(0);
+        normalization[0].observe(0, 0, scratch[0].len(), scratch[0].capacity(),
+            std::mem::size_of_val(&scratch[0][0]));
+        scratch[0].reserve_exact(2);
+        normalization[0].observe(0, 0, scratch[0].len(), scratch[0].capacity(),
+            std::mem::size_of_val(&scratch[0][0]));
+        let mut draft = FlatDraft::default();
+        draft.attach_normalization_owners(meter.event_component());
+        draft.positive_nodes.reserve_exact(2);
+        draft.negative_nodes.reserve_exact(2);
+        draft.positive_children.reserve_exact(2);
+        draft.negative_children.reserve_exact(2);
+        draft.recursive_bounds.reserve_exact(2);
+        draft.insertion_order.reserve_exact(2);
+        draft.sync_owners();
+        draft.positive_nodes.push(PositiveNode::Int);
+        draft.negative_nodes.push(NegativeNode::Int);
+        draft.positive_children.push(PositiveId(0));
+        draft.negative_children.push(NegativeId(0));
+        draft.recursive_bounds.push(RecursiveBound {
+            ordinal: 0, lower: PositiveId(0), upper: NegativeId(0),
+        });
+        draft.insertion_order.push(NodeRef::Positive(PositiveId(0)));
+        draft.sync_owners();
+        let normalization_lanes = crate::f5c_draft_heap::f5c_normalization_shadow_totals();
+        assert_eq!(normalization_lanes[16].current_capacity, 0);
+        assert!(normalization_lanes.iter().enumerate().all(|(lane, totals)|
+            lane == 16 || totals.current_capacity > 0));
+        let (norm_capacity, norm_bytes, _) = crate::f5c_draft_heap::normalization_event_totals();
+        crate::f5c_draft_heap::checkpoint_normalization_events(norm_capacity, norm_bytes);
+        let capacities = draft.capacities();
+        let requested = [1; 6];
+        let sizes = [std::mem::size_of::<PositiveNode>(),
+            std::mem::size_of::<NegativeNode>(), std::mem::size_of::<PositiveId>(),
+            std::mem::size_of::<NegativeId>(), std::mem::size_of::<RecursiveBound>(),
+            std::mem::size_of::<NodeRef>()];
+        let bytes = std::array::from_fn(|lane| capacities[lane] * sizes[lane]);
+        let staged = meter.claim_existing_batch_with_owners(bytes, 0,
+            draft.owners.as_mut().unwrap(), requested, capacities, sizes)
+            .expect("flat draft owner transfer failed");
+        assert!(crate::f5c_draft_heap::f5c_normalization_shadow_totals()[21..27]
+            .iter().all(|lane| lane.current_capacity == 0));
+        drop(draft);
         drop(staged);
+        drop(scratch);
+        for owner in &mut normalization { owner.release(); }
         let lineage = crate::term::TermBuilder::new().unwrap().seal().unwrap();
         let mut terms = crate::term::BranchTermArena::new(lineage);
         terms.begin_route();
@@ -1553,6 +1593,10 @@ fn f5c_walker_online_shadow_witness() {
     assert!(instantiation_lanes.iter().all(|lane| lane.peak_capacity > 0));
     assert!(live_lanes.iter().all(|lane| lane.peak_capacity > 0));
     assert!(pair_lanes.iter().all(|lane| lane.peak_capacity > 0));
+    let normalization_lanes = crate::f5c_draft_heap::f5c_normalization_shadow_totals();
+    assert!(normalization_lanes.iter().enumerate().all(|(lane, totals)|
+        (lane == 16 && *totals == Default::default()) ||
+        (lane != 16 && totals.current_capacity == 0 && totals.peak_capacity > 0)));
     let (count, checksum) = crate::f5c_draft_heap::close_f5c_resource_events().unwrap();
     if let Some(path) = std::env::var_os("F5C_WALKER_SHADOW_TOTALS") {
         use std::fmt::Write;
@@ -1579,6 +1623,10 @@ fn f5c_walker_online_shadow_witness() {
         }
         for (lane, totals) in pair_lanes.iter().enumerate() {
             writeln!(output, "{} {} {} {} {}", lane + 530, totals.current_capacity,
+                totals.peak_capacity, totals.current_bytes, totals.peak_bytes).unwrap();
+        }
+        for (lane, totals) in normalization_lanes.iter().enumerate() {
+            writeln!(output, "{} {} {} {} {}", lane + 584, totals.current_capacity,
                 totals.peak_capacity, totals.current_bytes, totals.peak_bytes).unwrap();
         }
         writeln!(output, "combined {} {} {} {}", combined.current_capacity,

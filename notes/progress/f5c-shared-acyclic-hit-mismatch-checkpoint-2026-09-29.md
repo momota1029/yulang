@@ -654,3 +654,57 @@ git diff --check
 No resource/scale process, diagnostic, or matrix row ran. Family-5 normalization
 outputs, remaining family-6 source/staged rows, closed-type/route composition,
 serialization suppression, and corrected-scale evidence remain open.
+
+### 2026-09-29 normalization-output online-ledger extension
+
+The online shadow now includes all 28 normalization-owner rows (event kinds
+584–611; physical matrix lanes 101–128), bringing the tracked table to 198 lane
+rows plus its joint subtotal. The sidecar's `family5_event` compatibility name
+still denotes semantic §34 family 6, `closed_normalization_index`. Lane
+16/kind 600 remains ownerless. The witness
+backs the 21 scratch lanes with live `Vec<usize>` allocations and uses actual
+typed `FlatDraft` vectors for output lanes 21–26. It checkpoints exactly one
+owner for each live row, exercises a request-only shape and growth, transfers
+the six output owners with the same IDs and unchanged shapes to staged kinds
+12–17, drops the vectors before staged release, then releases the other 21
+buffers. Those staged destination rows remain outside the online subtotal
+after transfer; this slice does not claim a global same-time total yet.
+
+Selected M2 for shared-ledger conformance and transfer-copy cost. Prewrite
+`spec_auditor` review found no blocker. The first postwrite specification
+review found a blocking gap because the synthetic transfer claimed unbacked
+buffers, plus a major gap because the checker allowed family-5 replacement
+owners after checkpoint. The repair ties output owner IDs to actual typed
+`FlatDraft` allocations and the other exercised lanes to live buffers. The
+checker freezes the exact 27-owner checkpoint, rejects post-checkpoint
+normalization creation/mutation except the six specified transfers and
+releases, rejects transfers into normalization rows, and requires release of
+every checkpoint owner. A fresh specification delta review closed both
+findings. The performance review found O(1) probe-only row updates and no
+blocking issue; it did not require timing evidence at this stage.
+
+The ledger is 6,368 bytes per thread, +896 bytes over the prior 170-row state.
+Each atomic transfer copies 6,368 bytes (+1,792 bytes of read/write traffic).
+The six output transfers add up to about 76,416 bytes of read/write traffic per
+staged batch if the state copies materialize. The next scale plan must count
+transfer events by source and target and include `6,368 * transfers` copied
+bytes (`12,736 * transfers` counting reads and writes). No timing or scale
+measurement was run.
+
+The focused feature-enabled witness passed (1 test); the complete 356-event
+replay matched all 198 rows and the joint subtotal. Python syntax validation,
+three mutated-sidecar checks (duplicate checkpoint, post-checkpoint shape,
+and transfer into a normalization row), and `git diff --check` passed. Exact
+primary verification commands:
+
+```text
+F5C_WALKER_SHADOW_SIDECAR=/tmp/f5c-family5-witness-final.bin F5C_WALKER_SHADOW_TOTALS=/tmp/f5c-family5-witness-final.txt RUSTC_WRAPPER= cargo test -p yu-solver --features f5c_resource_probe f5c_walker_online_shadow_witness --lib --offline -j 2 -- --test-threads=1
+python3 tools/check_f5c_resource_matrix.py --walker-shadow-witness /tmp/f5c-family5-witness-final.bin --walker-shadow-totals /tmp/f5c-family5-witness-final.txt
+python3 -c 'import ast, pathlib; ast.parse(pathlib.Path("tools/check_f5c_resource_matrix.py").read_text())'
+git diff --check
+```
+
+No resource/scale process, diagnostic, or matrix row ran. The staged-buffer
+online rows 12–17 and transfer reconciliation, closed-type/route composition,
+exact serialization suppression, global
+same-time witness, and corrected-scale evidence remain open.
