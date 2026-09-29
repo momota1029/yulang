@@ -99,9 +99,14 @@ draft now proposes member-indexed
 compiler-referee and spec-auditor reviews found no remaining blocking or major
 issue in this parent-port/recursive-freshness delta; they support the evidence
 distinctions but do not prove port selection or principality.
-Next prove root-indexed boundary factorization, including per-use generalized
-and recursive identities versus shared unit-boundary identities, and preserve
-the actual diagnostics. The first two focused `yu-solver` Rust-path baseline
+The latest Oracle source audit confirms that the root-indexed simulation is
+still only an obligation: the state relation, principal-solution preorder,
+supported graph algebra, diagnostics, and earlier-view stability are
+undefined. Exact lifecycle observations and locators are in
+`notes/progress/2026-09-30-intrusion-root-transition-audit.md`. Next build a
+two-root graph-level characterization where an earlier bounded post-loop pass
+changes shared state, then specify the ordered root-step relation. The first
+two focused `yu-solver` Rust-path baseline
 probes pass for current identity-Function and productive/unproductive recursion
 behavior; they inspect F5-backed views only and are not intrusion or Oracle
 equivalence evidence. The exact tests and limits are recorded in
@@ -125,6 +130,6 @@ live identities across the uses. It does not establish general graph-edge
 isolation, intrusion semantics, or principality. Review scope and the focused
 command are recorded in
 `notes/progress/2026-09-30-intrusion-rust-use-characterization.md`. Next prove
-exact root preparation and the soundness/principality theorem, including
-general graph isolation. Implementation remains gated on the reviewed
-successor contract and explicit user approval.
+general graph isolation. This witness is current-path characterization, not
+intrusion correctness or source-level Oracle parity. Implementation remains
+gated on the reviewed successor contract and explicit user approval.
