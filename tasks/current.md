@@ -116,7 +116,15 @@ found and closed a major gap: accumulated lowering diagnostics can stop
 runtime readiness after inference but before specialization. The staged
 interface now uses entrypoint-aware `Dispatch_X` with initial diagnostics to
 model that route separately from inference stop. Oracle source/root adequacy
-remains open. See
+remains open. A read-only architecture investigation narrowed Gate C's
+recursive denotation choice: Oracle recursive bounds are reinstalled as
+inequalities, with no Oracle evidence for a recursive type constructor or
+coinductive subtype rule. A carrier is still needed to prove soundness and
+principality; candidate foundations and the approval boundary are recorded in
+`notes/progress/2026-09-30-intrusion-recursive-denotation-options.md`. The
+next action is to settle that semantic basis before claiming a principal
+solution theorem; operational root/use simulation remains independently
+available but cannot close Gate C alone. See
 `notes/progress/2026-09-30-intrusion-finite-saturation-review.md`. The
 interface review is recorded in
 `notes/progress/2026-09-30-intrusion-staged-run-interface-review.md`. The
