@@ -67,13 +67,15 @@ SERIES.add(("GuardedCycle", "D", "4000"))
 SERIES.add(("GuardedCycle", "K", "8"))
 
 
-def parse_line(line, source, diagnostic=False):
+def parse_line(line, source, diagnostic=False, guarded_cycle_32_32=False):
     fields = dict(part.split("=", 1) for part in line[len(PREFIX):].split("\t"))
     if set(fields) != {"family", "dimension", "size", "companion", "family_ends", "family_totals", "family1_event", "family2_event", "family3_event", "family4_event", "closed_type_event", "closed_type_checkpoint_peak", "family5_event", "family5_growths", "family8_event", "family6_event", "semantic_retained", "semantic_peak", "session_retained", "session_peak", "lanes"}:
         raise ValueError(f"{source}: unexpected or missing row fields")
     key = (fields["family"], fields["dimension"], fields["companion"])
     size = int(fields["size"])
-    if not (diagnostic and key == ("GuardedCycle", "D", "4000") and size == 32) and (key not in SERIES or size not in SIZES):
+    isolated = ((diagnostic and key == ("GuardedCycle", "D", "4000") and size == 32)
+                or (guarded_cycle_32_32 and key == ("GuardedCycle", "D", "32") and size == 32))
+    if not isolated and (key not in SERIES or size not in SIZES):
         raise ValueError(f"{source}: unexpected row {key} size {size}")
     ends = tuple(int(n.strip()) for n in fields["family_ends"].strip("[]").split(","))
     totals = tuple(tuple(int(n) for n in family.split(","))
@@ -537,6 +539,7 @@ def replay_f6_events(path, expected_count, expected_checksum):
         row_current,
         row_peak,
         row_sizes,
+        session_terminal,
     )
 
 
@@ -1151,8 +1154,15 @@ def main():
                         help="online joint totals emitted by the live-session witness")
     parser.add_argument("--diagnostic-cycle-32-4000", action="store_true",
                         help="replay only the isolated guarded_cycle(D=32,K=4000) row")
+    parser.add_argument("--guarded-cycle-32-32", action="store_true",
+                        help="replay only the retained guarded_cycle(D=32,K=32) row")
     parser.add_argument("logs", type=Path, nargs="*", help="captured matrix process logs")
     args = parser.parse_args()
+    if args.guarded_cycle_32_32 and (args.diagnostic_cycle_32_4000
+            or args.walker_shadow_witness is not None or args.walker_shadow_totals is not None
+            or args.joint_session_witness is not None or args.joint_session_totals is not None
+            or len(args.logs) != 1):
+        parser.error("guarded cycle D=32 K=32 replay requires exactly one log and no other selector")
     if args.joint_session_witness is not None or args.joint_session_totals is not None:
         if args.joint_session_witness is None or args.joint_session_totals is None or args.logs:
             parser.error("joint session witness requires both paths and no matrix logs")
@@ -1190,10 +1200,12 @@ def main():
             raise ValueError(f"{path}: expected exactly one matrix row, found 0")
         if sidecar is None:
             raise ValueError(f"{path}: missing resource sidecar")
-        key, size, ends, totals, aggregate, lanes, family1_event, family2_event, family3_event, family4_event, family5_event, family5_growths, family8_event, family6_event = parse_line(record, path, args.diagnostic_cycle_32_4000)
+        key, size, ends, totals, aggregate, lanes, family1_event, family2_event, family3_event, family4_event, family5_event, family5_growths, family8_event, family6_event = parse_line(record, path, args.diagnostic_cycle_32_4000, args.guarded_cycle_32_32)
         if (key, size) in rows:
             raise ValueError(f"{path}: duplicate matrix row {key} size {size}")
-        folded, by_kind, folded_family1, folded_family2, term_by_kind, folded_family3, folded_family4, folded_family5, normalization_by_kind, normalization_growth, folded_family8, instantiation_by_kind, row_current, row_peak, row_sizes = replay_f6_events(sidecar, family6_event[4], family6_event[5])
+        folded, by_kind, folded_family1, folded_family2, term_by_kind, folded_family3, folded_family4, folded_family5, normalization_by_kind, normalization_growth, folded_family8, instantiation_by_kind, row_current, row_peak, row_sizes, session_terminal = replay_f6_events(sidecar, family6_event[4], family6_event[5])
+        if args.guarded_cycle_32_32 and session_terminal[:2] != aggregate[2:]:
+            raise ValueError(f"{path}: composed session terminal differs from matrix row")
         if folded != family6_event[:3]:
             raise ValueError(f"{path}: family-6 event fold differs from matrix row")
         if folded_family1 != family1_event:
@@ -1246,12 +1258,16 @@ def main():
                 raise ValueError(f"{path}: family-8 lane {lane} owner shape differs from matrix row")
         owner_aggregates[key, size] = by_kind
         rows[key, size] = ends, totals, aggregate, tuple(canonical_lanes)
-    expected = ({(("GuardedCycle", "D", "4000"), 32)} if args.diagnostic_cycle_32_4000
+    expected = ({(("GuardedCycle", "D", "32"), 32)} if args.guarded_cycle_32_32
+                else {(("GuardedCycle", "D", "4000"), 32)} if args.diagnostic_cycle_32_4000
                 else {(key, size) for key in SERIES for size in SIZES})
     if set(rows) != expected:
         raise ValueError(f"missing={sorted(expected - set(rows))}; unexpected={sorted(set(rows) - expected)}")
     if args.diagnostic_cycle_32_4000:
         print("F5c guarded cycle diagnostic: one D=32 K=4000 row replayed; 158 event-backed physical rows reconciled")
+        return
+    if args.guarded_cycle_32_32:
+        print("F5c guarded cycle capture: one D=32 K=32 row replayed; 261 physical lanes reconciled")
         return
     for key in sorted(SERIES):
         for small, large in zip(SIZES, SIZES[1:]):

@@ -2562,6 +2562,21 @@ fn f5c_guarded_cycle_32_32_preflight() {
 
 #[cfg(feature = "f5c_resource_probe")]
 #[test]
+#[ignore = "isolated F5c guarded cycle D=32 K=32 retained-sidecar capture"]
+fn f5c_guarded_cycle_32_32_capture() {
+    assert!(std::env::var_os("F5C_FULL_WALKER_EVENTS").is_none(),
+        "capture requires suppressed transient WalkerLane serialization");
+    matrix_run(F5cMatrixCase {
+        family: F5cMatrixFamily::GuardedCycle,
+        dimension: 'D',
+        size: 32,
+        companion: Some(32),
+        emit: true,
+    });
+}
+
+#[cfg(feature = "f5c_resource_probe")]
+#[test]
 #[ignore = "approved F5c resource matrix case"]
 fn f5c_resource_matrix_case() {
     matrix_run(F5cMatrixCase::from_env());

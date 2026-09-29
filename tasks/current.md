@@ -2,7 +2,7 @@
 
 Updated: 2026-09-29. Branch: `yulang3`; do not modify frozen `main`.
 
-### Active gate (2026-09-29): refresh corrected-scale measurement plan
+### Active gate (2026-09-29): capture and replay corrected D=32/K=32 evidence
 
 The exact-kind serialization gate is complete. Serialization is suppressed
 only for non-transferring WalkerLane kinds 54–56 and 116; the 219-row online
@@ -12,13 +12,16 @@ rows plus co-temporal owner/session current and peak. The small complete-trace
 oracle matched the hybrid replay. Details and review evidence are in the
 [`transient-owner serialization checkpoint`](../notes/progress/f5c-transient-owner-serialization-checkpoint-2026-09-29.md).
 
-No resource/scale process, diagnostic, or matrix row ran. The measurement plan
-[`f5c-no-cap-scale-measurement-plan`](../notes/progress/f5c-no-cap-scale-measurement-plan-2026-09-28.md)
-was rechecked: its isolated D=32/K=32 invocation is consumed, and it authorizes
-no further process. Next, prepare and independently review a fresh bounded
-measurement plan with exact input, sample/process budget, host floors, timeout,
-and stop criteria. Do not start a scale, diagnostic, or matrix process until
-that plan closes.
+No resource/scale process, diagnostic, or matrix row ran. The prior plan's
+isolated D=32/K=32 invocation is consumed. The new two-process plan is recorded
+in the [`post-serialization measurement plan`](../notes/progress/f5c-post-serialization-measurement-plan-2026-09-29.md)
+and passed pre-write `spec_auditor` and `performance_auditor` review. The exact
+`emit:true` retained-sidecar entrypoint and D=32/K=32-only replay selector are
+implemented and post-write reviewed. A mixed-selector bypass finding was
+repaired and closed with a spec delta review. Next, run the one supervised
+solver process and conditional offline replay in that plan. A timeout or
+failed replay stops the sequence; it grants no retry, K=4,000 diagnostic, or
+matrix row.
 
 The earlier isolated GuardedCycle D=32/K=32 run timed out at 120 seconds while
 recording path-expanded owner events; its partial sidecar is not replayable.
@@ -60,6 +63,22 @@ large hybrid trace; the complete small oracle establishes parity.
 No resource/scale process, diagnostic, matrix row, timing sample, or RSS sample
 ran. The exact measurement plan recheck found its former one-process budget
 consumed and no further run authorized; the next gate is a fresh reviewed plan.
+
+### Latest continuation (2026-09-29): bounded post-suppression evidence plan
+
+The previous D=32/K=32 `emit:false` run budget is consumed and its partial
+sidecar is unusable. A fresh plan now covers one exact D=32/K=32 `emit:true`
+retained-sidecar run (180-second timeout) and one conditional offline replay
+(60-second timeout), each with a 10-second TERM grace, 8-GiB memory/disk floors,
+and one-second process-group monitoring. Pre-write `spec_auditor` and
+`performance_auditor` reviews approved the scope and budget; an `architect`
+confirmed the exact new probe/checker plumbing stays within F5 §§26/34 and the
+no-cap addendum §4. Post-write review found one blocking mixed-selector
+early-return hole; it was repaired and closed by a spec delta review. Compile-
+only, synthetic row admission, mixed-selector CLI checks, Python AST, and
+`git diff --check` passed. Total process budget is two invocations / at most
+260 seconds including grace, with no warm-up, retry, or next workload. No
+process has run under this plan yet.
 
 The earlier isolated GuardedCycle D=32/K=32 run timed out at 120 seconds while
 recording path-expanded owner events; its partial sidecar is not replayable.
