@@ -96,3 +96,11 @@ F5 draft generalization is insufficient because publication, incoming-use
 instantiation, and retained root projection are coupled. Further work should
 use the actual Rust inference path as its characterization boundary; the
 Python finite model is not implementation evidence and will not be expanded.
+The abstract semantics draft now records a root-local preparation protocol
+from the frozen Rust Oracle: each member view gets an independent projection
+round/query per compaction attempt and lazy edge selection, while component-wide
+preselection remains unproved. Independent review caught and corrected claims
+about atomic Oracle publication, shared snapshots, error scope, and record
+ordering. Next characterize member views and use overlays at `yu-solver`'s
+Rust solve boundary; exact query behavior needs source proof or instrumentation.
+Implementation remains gated on successor design approval.

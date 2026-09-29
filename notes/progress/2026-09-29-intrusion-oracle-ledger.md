@@ -186,3 +186,19 @@ fresh round/query per root and that the draft leaves shared-mask equivalence
 as an explicit proof obligation rather than claiming observed divergence. The
 draft now makes the required freeze-boundary and view-lifetime proof explicit
 for that option.
+
+The abstract draft now states the conservative root-view preparation protocol
+in Rust-oriented terms: each compact attempt gets its own projection round,
+scoped query, and collector; root generalization may repeat at later constraint
+epochs. Reachable lower records are selected lazily, with evidence records
+visited before ordinary records and stable order retained within each lane.
+The projection round latches errors, while the query gateway can escalate
+failures to inference-attempt scope; the compact surface's default fallback is
+not evidence of semantic acceptance. A shared component-wide edge mask remains
+an optimization obligation, not an assumed equivalence. Oracle root
+generalization is sequential and can add constraints/restart, so a single
+snapshot for all member views is a replacement design candidate that needs an
+equivalence proof. Likewise, all-member failure atomicity is a replacement
+safety requirement, not an Oracle publication fact. Public solve results
+cannot reveal query-round identities or edge masks; exact protocol
+characterization needs source proof or an instrumented Rust trace harness.

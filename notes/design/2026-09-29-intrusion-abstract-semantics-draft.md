@@ -407,6 +407,71 @@ enclosing environment intentionally shares it.
 
 ## 7. Known gaps and next step
 
+### Projection evidence and member-root preparation
+
+The Rust implementation cannot treat an SCC as one global compact root. In
+the frozen Oracle, each call to `compact_type_var_for_scheme` creates a fresh
+projection-evaluation round, scoped query, and collector. During root
+generalization, this compaction may be repeated after constraints change; the
+Oracle caches the compact result by root and constraint epoch. Each attempt
+then asks for lower records only as it reaches a variable from that root. The
+round has preflight state, proof-evaluation memo, cycle handling, and a
+terminal failure. This is per compaction attempt, not a claim that all work
+for one root or SCC shares one immutable snapshot.
+
+A source-compatible preparation operation must currently be specified as
+root-indexed:
+
+```text
+prepare_member_view(frozen_graph, member_root, environment):
+    create projection round and scoped query for this root attempt
+    lazily visit (vertex, polarity, weight) in Oracle collector order
+    on positive visits, query lower records in lane order:
+        evidence records, then ordinary records; preserve order within each lane
+    retain Unclaimed and Included records; omit Excluded records
+    on negative visits, read upper records in the same lane order
+    preserve recursion identity by (vertex, polarity)
+    build this root's regular projected view and polarity census
+```
+
+The pseudo-operation describes an observable protocol, not the chosen
+production representation. In particular, the root view may refer to the
+shared frozen component instead of copying it, but its selected lower-edge
+occurrences are local to that compaction attempt. Any later parent renaming
+must transport the type graph without changing those already-established
+choices; the renaming lemma applies only after this selection step. A
+component-wide mask is an optimization candidate only if it proves identical
+per-root, per-epoch decisions and traversal-reachable failures.
+
+Failure has multiple scopes in the Oracle. `project_lower` latches a failure
+within its evaluation round, and the scoped query gateway can escalate certain
+failures to an inference-attempt terminal failure. The surface wrapper maps a
+returned query error to a default compact root, but this is not evidence that
+the failed root view is semantically accepted. The replacement must define a
+deterministic failure result and avoid publishing a partially prepared
+component; that is a replacement safety requirement, not an assertion that
+Oracle member-slot writes are atomic.
+
+The Oracle scheduler invokes component quantification, but root generalization
+is sequential and may add merge, subtype, cast, or role constraints and
+restart. A later member root can therefore be compacted at a newer constraint
+epoch. The replacement must specify its own freeze boundary and prove how it
+simulates these root-specific prepasses and epoch changes; requiring every
+member view to use one shared snapshot is a design candidate, not an observed
+Oracle invariant. A selected-edge cache cannot outlive or detach from the
+proof snapshot that validated it. Whether overlays may add constraints after
+publication, and whether a later root projection must see those constraints,
+remains part of the component denotation and is not settled here.
+
+These requirements expose two characterization targets before representation
+selection: compare resulting member-root views, diagnostics, and incoming-use
+behavior at the public solve boundary; and characterize exact round-local edge
+decisions through a trace-capable Rust harness or a separate source proof. The
+public result alone cannot expose query-round identity or selected-edge masks.
+Both targets should use `yu-solver`'s actual graph and solve path and remain
+subordinate to the soundness/principality proof gate. The auxiliary Python
+finite model is not the work product and will not be extended.
+
 The Yulang2 audit found in-place level lowering in `extrude_pos` and
 `extrude_neg`, not fresh parent allocation. Therefore this candidate cannot be
 described as a proved optimization of that operation. It is a new semantics to
@@ -420,6 +485,6 @@ source-level Oracle observation. Pure Function-only and nominal-guarded cycle
 witnesses currently establish only their exact observed programs.
 
 Next, define the polarized bound-graph denotation and solve relation precisely,
-then work the listed examples by hand or with an independent finite model.
-Implementation and production representation remain gated on a reviewed
-successor contract and explicit approval.
+then work the listed examples against the Rust inference path. Implementation
+and production representation remain gated on a reviewed successor contract
+and explicit approval.
