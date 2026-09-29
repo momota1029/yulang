@@ -92,14 +92,14 @@ anchored `l`, and eliminates auxiliary `a,b` to the conditional graph image
 replay-qualified. A focused temporary Rust-path capture now shows the saved
 compact value argument/result have these conditional meet/join projections,
 while the result-effect row remains outside the graph theorem; lowering adds
-one forced effect quantifier. Next include the effect constraints and choose a
-polymorphic fixture for independent-use transport. A focused Rust test also
-shows the forced effect quantifier freshens while eleven unquantified effect
-identities remain shared across two direct scheme instantiations; source-level
-incoming uses and full effect denotation remain open. For unannotated parent
-bindings, local reads keep the live value when forced quantifiers are present.
-The finite projection
-passed one compiler-referee delta review. Details and review limits are in
+one forced effect quantifier. An annotated-parent source fixture now exercises
+two independent uses of the same one-member recursive local scheme: the forced
+effect identity freshens at each use while eleven unquantified effect
+identities remain shared. Multi-member SCC use scheduling and full effect
+denotation remain open; the two uses had the same call shape. For unannotated
+parents, local reads keep the live value when forced quantifiers are present.
+The finite value and local-use characterizations passed compiler-referee delta
+review. Details and review limits are in
 `notes/progress/2026-09-30-intrusion-bounded-negative-counterexample.md`.
 The Rust integration map is recorded in
 `notes/progress/2026-09-29-intrusion-rust-replacement-map.md`: replacing only

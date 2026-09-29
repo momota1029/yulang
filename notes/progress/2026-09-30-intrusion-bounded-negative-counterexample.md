@@ -546,8 +546,48 @@ quantified variables while leaving unquantified variables anchored. This is a
 direct scheme-API characterization, not a pair of source-level incoming uses.
 For the unannotated parent in this fixture, the lowering path suppresses the
 saved local scheme when forced quantifiers are present and keeps local reads on
-the live value. An annotated parent takes a different branch and may retain the
-scheme. A source fixture exercising two independent incoming uses of this same
-local scheme is still missing. Effect subtype denotation and transport through
-SCC publication are also open. The scratch test and instrumentation were
-removed with the isolated worktree; frozen Oracle remains unchanged.
+the live value. An annotated parent takes a different branch and retains the
+scheme.
+
+## Two annotated-parent source uses (2026-09-30)
+
+A second focused source probe adds an `: int` result annotation to the outer
+binding and reads the same local recursive `inner` scheme twice:
+
+```yulang
+my outer(l: int, sink: 'e -> int): int =
+  my inner(x) =
+    sink x
+    inner l
+    x
+  my first = inner l
+  my second = inner l
+  second
+```
+
+The temporary Rust test passed with no diagnostics. Environment-gated tracing
+inside `instantiate_local_value` observes two uses of the same `DefId(3)`
+scheme, each with quantifier `TypeVar(21)`:
+
+```text
+LOCAL_USE def=DefId(3) quantified=[TypeVar(21)] effect_vars=[23,39,28,25,29,37,33,30,34,31,45,35]
+LOCAL_USE def=DefId(3) quantified=[TypeVar(21)] effect_vars=[23,39,28,25,29,37,33,30,34,31,53,35]
+```
+
+Thus this source path freshens the forced effect identity independently
+(`45` versus `53`) while preserving the other eleven unquantified identities
+across uses. The two uses have the same call shape, so they do not test
+differently constrained later uses. This is a one-member self-recursive local
+component, not a multi-member SCC publication test. It characterizes identity
+transport only; effect constraints' denotation and handler hygiene remain
+unproved. The compiler-referee delta review found no blocking or major finding
+and confirmed the use-path claim and limitations. Focused command:
+
+```text
+YULANG_INTRUSION_SOURCE_USES=1 CARGO_TARGET_DIR=/tmp/yulang-intrusion-oracle-target \
+  cargo test -p infer scratch_forced_effect_scheme_has_two_annotated_parent_source_uses -- --nocapture
+```
+
+The temporary test and instrumentation were removed with detached scratch
+worktree `/tmp/yulang-intrusion-source-use-probe`; the frozen Oracle worktree
+remains unchanged.

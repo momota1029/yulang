@@ -1088,10 +1088,17 @@ through Oracle's `instantiate_scheme`: each result-effect row preserves the
 same eleven unquantified identities, while the forced TypeVar `21` maps to
 distinct fresh variables (`TypeVar(0)` and `TypeVar(1)` in the target arena).
 This characterizes the scheme-instantiation API's per-use map for this one
-effect identity. It does not show two source-level incoming uses: because the
-forced quantifier exists, this unannotated-parent lowering path keeps the live
-value instead of reading the saved scheme at local references. Exact capture
-command and review scope are recorded in the progress note.
+effect identity. A second source probe adds an `: int` annotation to the outer
+binding and uses `inner l` twice after generalization. In this annotated-parent
+path, both local references instantiate the saved scheme: the forced effect
+identity becomes `TypeVar(45)` and `TypeVar(53)` respectively, while the other
+eleven result-effect identities remain shared. This covers two independent
+source-level incoming uses of a one-member recursive local component with the
+same call shape. It does not cover differently constrained uses, multi-member
+SCC publication/use scheduling, effect constraint denotation, or handler
+hygiene. Without the outer annotation, this lowering path instead keeps the
+live value when the forced quantifier is present. Exact capture command and
+review scope are recorded in the progress note.
 
 **Selected-edge fiber corollary (conditional).** The interval premise can be
 derived for a restricted selected graph. Let `G` have a finite set of selected
