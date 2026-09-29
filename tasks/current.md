@@ -22,12 +22,13 @@ capacity changes occur later and already pass through the existing
 `IncomingRoute` O(1) sample path. See the exact source audit in the
 [`shared-acyclic checkpoint`](../notes/progress/f5c-shared-acyclic-hit-mismatch-checkpoint-2026-09-29.md).
 
-Implement this gate in reviewable checkpoints. The first fixed-size online
-shadow ledger for all 98 WalkerLane rows now closes with raw adoption and
-six-buffer same-ID transfer coverage; the full sidecar remains enabled. Next
-extend the ledger across the other event-backed families, compose the closed-
-type finalizer peak and route-growth samples, and prove the global same-time
-totals. Only after that closes, suppress serialization for exact
+Implement this gate in reviewable checkpoints. The fixed-size online shadow
+now covers all 98 WalkerLane rows and 20 ComponentMemoLane rows, with a checked
+same-time subtotal and raw plus six-buffer same-ID transfer coverage; the full
+sidecar remains enabled. Next extend the ledger across the other event-backed
+families, compose the closed-type finalizer peak and route-growth samples, and
+prove the global same-time totals. Only after that closes, suppress
+serialization for exact
 non-transferring WalkerLane kinds 54–56 and 116. Preserve the FlatDraft kinds
 12–17 trace in full throughout. The partial timed-out sidecar is not a replay
 input; no resource/scale process, diagnostic, or matrix row may run before the
@@ -58,6 +59,24 @@ Cargo invocation hit the existing sccache `EPERM`; the identical focused test
 passed with `RUSTC_WRAPPER=`. No scale/resource process or matrix row ran.
 Other event-backed families, closed-type/route composition, exact-kind
 serialization suppression, and corrected-scale evidence remain open.
+
+### Latest continuation (2026-09-29): family-4 online ledger
+
+The fixed shadow ledger now includes all 20 family-4 `ComponentMemoLane`
+rows (event kinds 551–570) alongside the 98 WalkerLane rows. Capacity create,
+growth, decrease, and release update checked lane and joint current/peak slots
+and bytes; request-only observations and event serialization are unchanged.
+The 88-event witness overlaps family-4 growth/decrease/release with live
+Walker owners, exercises all six same-ID FlatDraft transfers/releases, and
+compares every one of the 118 lane records plus the joint subtotal through
+offline replay. M2 post-write spec and performance reviews are clean; the
+ledger occupies 3,808 bytes per thread and adds about 1.28 KiB of copy traffic
+per transfer. This fixed observer cost did not block the focused witness; the
+fresh scale plan still needs observed transfer counts and total copied bytes.
+The focused feature-enabled test, replay, Python syntax check, and diff check
+passed. No scale/resource process ran. Families 1–3, 5–8, closed-type/route
+composition, serialization suppression, and corrected-scale evidence remain
+open.
 
 ### Latest continuation (2026-09-29): raw-walker request-event coalescing
 

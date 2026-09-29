@@ -477,3 +477,25 @@ checker reconciliation. No additional process budget is set; the focused
 witness was allowed, while resource/scale processes, partial-sidecar replay,
 the diagnostic, and matrix rows remain gated on the composed online evidence
 and a fresh performance plan.
+
+### 2026-09-29 family-4 online-ledger extension
+
+The test-only online ledger now tracks family-4 `ComponentMemoLane` kinds
+551–570 beside the 98 WalkerLane kinds 32–129. CREATE/GROW/DECREASE/RELEASE
+updates each exact lane and the joint same-time subtotal with checked capacity
+and byte arithmetic. The 88-event complete witness exercises family-4 growth,
+decrease, and release while Walker owners remain live; its offline replay
+compares all 118 lanes and joint current/peak totals, verifies no live owner at
+EOF, and preserves the six FlatDraft same-ID transfer/release checks.
+
+Selected M2 for the shared test-only ledger. The prewrite `spec_auditor` found
+the plan clean. Postwrite `spec_auditor` found exact conformance; the
+`performance_auditor` found no blocker for this bounded witness. The fixed
+ledger occupies 3,808 bytes per thread; each transfer copies it, adding about
+1.28 KiB of memory traffic per transfer over the previous 98-row version.
+Include observed transfer counts and total copied bytes in the next reviewed
+scale plan. The feature-enabled focused witness, 88-event Python replay,
+Python syntax compilation, and `git diff --check` passed. No resource/scale
+process, diagnostic, or matrix row ran. The online ledger still lacks the
+other event-backed families and the separately reviewed closed-type/route
+composition; serialization suppression remains gated on those closures.

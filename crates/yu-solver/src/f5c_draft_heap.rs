@@ -68,6 +68,7 @@ mod event_sink {
     #[derive(Clone, Copy)]
     struct WalkerLedger {
         lanes: [WalkerTotals; 98],
+        component_lanes: [WalkerTotals; 20],
         combined: WalkerTotals,
     }
 
@@ -75,15 +76,27 @@ mod event_sink {
         const fn new() -> Self {
             Self { lanes: [WalkerTotals { current_capacity: 0, peak_capacity: 0,
                 current_bytes: 0, peak_bytes: 0 }; 98],
+                component_lanes: [WalkerTotals { current_capacity: 0, peak_capacity: 0,
+                    current_bytes: 0, peak_bytes: 0 }; 20],
                 combined: WalkerTotals { current_capacity: 0, peak_capacity: 0,
                     current_bytes: 0, peak_bytes: 0 } }
         }
 
         fn adjust(&mut self, lane: usize, old: usize, new: usize, size: usize) {
             let lane_totals = self.lanes.get_mut(lane).expect("WalkerLane index");
+            Self::adjust_totals(lane_totals, &mut self.combined, old, new, size);
+        }
+
+        fn adjust_component(&mut self, lane: usize, old: usize, new: usize, size: usize) {
+            let lane_totals = self.component_lanes.get_mut(lane).expect("ComponentMemoLane index");
+            Self::adjust_totals(lane_totals, &mut self.combined, old, new, size);
+        }
+
+        fn adjust_totals(lane_totals: &mut WalkerTotals, combined: &mut WalkerTotals,
+            old: usize, new: usize, size: usize) {
             let old_bytes = old.checked_mul(size).expect("WalkerLane old bytes");
             let new_bytes = new.checked_mul(size).expect("WalkerLane new bytes");
-            for totals in [lane_totals, &mut self.combined] {
+            for totals in [lane_totals, combined] {
                 totals.current_capacity = totals.current_capacity.checked_sub(old)
                     .and_then(|value| value.checked_add(new)).expect("WalkerLane capacity");
                 totals.current_bytes = totals.current_bytes.checked_sub(old_bytes)
@@ -120,15 +133,19 @@ mod event_sink {
         Ok(())
     }
 
-    pub(crate) fn walker_totals() -> ([WalkerTotals; 98], WalkerTotals) {
+    pub(crate) fn walker_totals() -> ([WalkerTotals; 98], [WalkerTotals; 20], WalkerTotals) {
         WALKER_LEDGER.with(|ledger| {
             let ledger = ledger.borrow();
-            (ledger.lanes, ledger.combined)
+            (ledger.lanes, ledger.component_lanes, ledger.combined)
         })
     }
 
     pub(super) fn adjust_walker(lane: usize, old: usize, new: usize, size: usize) {
         WALKER_LEDGER.with(|ledger| ledger.borrow_mut().adjust(lane, old, new, size));
+    }
+
+    pub(super) fn adjust_component_shadow(lane: usize, old: usize, new: usize, size: usize) {
+        WALKER_LEDGER.with(|ledger| ledger.borrow_mut().adjust_component(lane, old, new, size));
     }
 
     pub(super) fn transfer_walker(source: PhysicalOwnerKind, target: PhysicalOwnerKind,
@@ -510,6 +527,7 @@ impl ComponentMemoEvents {
                 let id = event_sink::next_id();
                 event_sink::record(0, id, event_sink::CREATE, kind, requested, capacity, size, 0);
                 event_sink::adjust_component_memo(capacity as isize, (capacity * size) as isize);
+                event_sink::adjust_component_shadow(lane, 0, capacity, size);
                 self.owners[lane] = Some((id, requested, capacity, size));
             }
             Some((id, old_requested, old_capacity, old_size)) => {
@@ -527,6 +545,7 @@ impl ComponentMemoEvents {
                     let bytes_delta = delta.checked_mul(isize::try_from(size).expect("family-4 slot size"))
                         .expect("family-4 bytes delta");
                     event_sink::adjust_component_memo(delta, bytes_delta);
+                    event_sink::adjust_component_shadow(lane, *old_capacity, capacity, size);
                 }
                 *old_requested = requested;
                 *old_capacity = capacity;
@@ -543,6 +562,7 @@ impl ComponentMemoEvents {
             event_sink::record(0, id, event_sink::RELEASE,
                 PhysicalOwnerKind::ComponentMemoLane(lane), 0, 0, size, 0);
             event_sink::adjust_component_memo(-(capacity as isize), -((capacity * size) as isize));
+            event_sink::adjust_component_shadow(lane, capacity, 0, size);
         }
     }
 }
