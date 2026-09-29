@@ -164,6 +164,59 @@ preserves this closure relation after projecting each component root. It must
 not replace the two variable-bound insertions with an equality edge merely
 because both mention the same graph vertices.
 
+### Finite saturation presentation (candidate)
+
+The preceding rules can be given a source-independent, order-free
+presentation for the pure fragment without assigning recursive variables a
+recursive-type equation. Let `N⁺` and `N⁻` be the finite sets of positive and
+negative endpoint nodes in the input and their subterms, and let `V` be its
+finite set of variable identities. A saturation state is
+`S = (Q, L, U, X)`, where `Q ⊆ N⁺ × N⁻` is the set of pending/derived subtype
+obligations, `L(v) ⊆ N⁺` stores known lower endpoints of `v`,
+`U(v) ⊆ N⁻` stores known upper endpoints, and `X ⊆ Q` records obligations
+whose outer constructors mismatch. Initialize `Q` with the input obligations,
+every bound set empty, and `X` empty. `X != ∅` is a failed closure, not a
+successful state with an ignored residual obligation.
+
+Define `F(S)` by retaining all entries and adding every conclusion licensed
+by the audited rules above: variable insertion updates `L`/`U`; each newly
+available pair `p ∈ L(v)`, `n ∈ U(v)` adds `(p,n)` to `Q`; `Bottom`/`Top`
+trivialities add no obligation; union/intersection and pure Function
+decomposition add their component obligations. After those cases, matching
+atomic constructors close successfully; any other irreducible constructor
+pair is added to `X`. In this fragment that includes distinct atomic
+constructors, atom-versus-Function pairs, incompatible Function shapes, and
+nontrivial `Top`/`Bottom` comparisons such as `Top <: Int`. Thus a mismatch
+derived by combining variable lower and upper bounds is not silently treated
+as success. Every conclusion endpoint is already in `N⁺ ∪ N⁻`; thus the state
+space is finite. The least fixed point `lfp(F, S₀)`
+is the least closed state containing the input, including its mismatch set.
+Equivalently, define it as the union of the finite stages `Fⁿ(S₀)`.
+Monotonicity and finiteness give termination and make the result independent
+of which eligible rule an implementation processes first. A repeated variable
+reference is looked up as an endpoint in `L`/`U`; the definition adds no rule
+that unfolds it or turns it into an equation.
+
+For a sort-preserving injective renaming `rho` that fixes preserved anchors,
+extend `rho` pointwise to endpoints, obligations, bound maps, and `X`. If every
+enabled rule is equivariant under `rho`, induction on `n` gives
+`rho(Fⁿ(S₀)) = Fⁿ(rho(S₀))`; mismatch classification is preserved because
+renaming variables does not change outer constructor forms. Taking the finite
+fixed-point union gives `rho(lfp(F,S₀)) = lfp(F,rho(S₀))`, including equal
+transported mismatch sets. This is a conditional closure-transport lemma for
+the pure rules stated above; it preserves failure classification, not
+diagnostic order or source locations. It does not cover evidence-sensitive
+edge selection, ordered diagnostic payloads, latent effects, products,
+records, nominal variance, or recursive source schemes. Nor does it prove that
+the frozen Oracle's implementation computes this least closure for every
+source context; the source/trace simulation remains separate.
+
+The candidate intentionally distinguishes two claims: this finite closure is
+a declarative abstraction of the recorded pure propagation rules, while an
+Oracle-adequacy theorem must show that the actual root preparation, restart,
+projection, and use operations induce the same selected input state and public
+result. A proof of closure equivariance alone is not that adequacy theorem.
+
 ## 2. Enclosing environment and closure
 
 For each member definition `d`, use its own generalization boundary `B_d` and

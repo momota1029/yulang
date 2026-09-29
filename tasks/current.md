@@ -90,15 +90,17 @@ identity-transport lemma, not a carrier or Oracle-projection proof. The
 Oracle source map found no explicit equi-recursive/coinductive subtype rule:
 the Oracle uses finite polarized types, variable-bound propagation, and
 recursive interval records. The unselected equi-recursive carrier cannot serve
-as the Oracle basis without a separate conservativity proof. The immediate
-formalization candidate is a many-sorted finite constraint presentation with
-inductively generated subtype consequences, recursive references left as
-inequality endpoints, shared outer anchors, and joint type/effect result
-relations. Its adequacy to Oracle propagation remains unproved. Then define
-public type normalization for latent-effect bounds, products, nominal
+as the Oracle basis without a separate conservativity proof. The pure-fragment
+finite saturation presentation is now drafted and independently reviewed: it
+uses a finite monotone closure over subtype obligations and variable
+lower/upper bounds, records irreducible mismatches, keeps recursive references
+as inequality endpoints, and has a conditional renaming-commutation proof. It
+is not a denotation or Oracle adequacy result. The next formalization extends
+the sorted rule algebra to latent-effect bounds, products, records, nominal
 recursive intervals, constrained negative projection, and annotation-dependent
-local scheme routing, and prove source lowering and root-indexed simulation.
-The
+local scheme routing; then prove Oracle's source/root transitions against it
+and define public type normalization. See
+`notes/progress/2026-09-30-intrusion-finite-saturation-review.md`. The
 candidate and its reviews are recorded in
 `notes/progress/2026-09-30-intrusion-end-to-end-capability-matrix.md` and
 `notes/progress/2026-09-30-intrusion-source-envelope-review.md`. The
