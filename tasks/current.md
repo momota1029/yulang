@@ -20,10 +20,11 @@ slot, request, lifecycle, and transfer validation. Candidate raw sidecar
 identity suppression is limited to non-transferring WalkerLane kinds 54–56 and
 116; preserve the FlatDraft kinds 12–17 trace in full. First prove the online
 aggregates against the existing offline replay on a small complete witness.
-Then obtain a fresh supervised measurement plan before starting any solver
-process. No replay, diagnostic, matrix row, or other solver process is
-currently authorized. Do not claim corrected-scale completion until those
-gates close.
+Then obtain a fresh supervised measurement plan before starting another
+resource or scale process. A focused in-memory/offline witness is part of the
+online-ledger gate; the partial timed-out sidecar, diagnostics, and matrix rows
+are not authorized for replay/execution. Do not claim corrected-scale
+completion until those gates close.
 
 ### Latest continuation (2026-09-29): raw-walker request-event coalescing
 
