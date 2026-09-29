@@ -79,14 +79,22 @@ The draft now separates graph-level candidate claims from source
 characterization fixtures and records the current Yulang3 application/lambda
 lowering gap. The effect-free Function fragment is now only a possible
 component lemma; it does not redefine the objective or establish the required
-Oracle-capable envelope. The immediate work is to build that full candidate
-envelope from observed source capabilities, including implicit effect
-identities, products, nominal guarded recursion, incoming-use behavior, and
-observable diagnostics; then identify the semantic lemmas and Rust source-
-lowering work needed to prove and implement it. The existing injective
+Oracle-capable envelope. The immediate work now is to define the event/lowering
+alphabet and public observation normalization for the candidate, then specify
+latent-effect bounds, product/nominal recursive interval operations,
+constrained negative projection, annotation-dependent local scheme routing,
+and root-indexed simulation. The candidate and its independent semantic/spec
+delta reviews are recorded in
+`notes/progress/2026-09-30-intrusion-end-to-end-capability-matrix.md` and
+`notes/progress/2026-09-30-intrusion-source-envelope-review.md`. It remains
+unselected and unproved; source-lowering implementation and the final
+supported-input limits still need the reviewed successor contract. The
+existing injective
 graph-transport lemma remains conditional, and recursive subtype observations
 are still only focused Oracle characterizations. Details are in
-`notes/progress/2026-09-30-intrusion-source-envelope-review.md`. The
+`notes/progress/2026-09-30-intrusion-source-envelope-review.md` and the
+end-to-end source/solver gap inventory in
+`notes/progress/2026-09-30-intrusion-end-to-end-capability-matrix.md`. The
 unselected graph-boundary operation keeps the SCC graph authoritative and
 maps source-local identities through member-owned ports to fresh per-use IDs,
 while resolving preserved identities through injective shared anchors. A

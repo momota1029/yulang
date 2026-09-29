@@ -35,16 +35,19 @@ and guarded-recursion scope gaps. A spec-auditor review found the candidate
 wording compatible with the charter's Gate C and confirmed the HIR caveat.
 Delta review closed the effect/product overclaims, then found and closed the
 missing guardedness/recursive-interval prerequisites and the nominal-rule
-scope ambiguity. This narrowing only identifies a possible effect-free graph
-lemma; it does not narrow the user's full Oracle-capability objective or
-establish the final supported envelope. The next design pass must include the
-observed latent-effect, product, nominal-recursion, use, and diagnostic behavior
-needed by the chosen end-to-end envelope. No compiler code changed and no tests
-or measurements were run.
+scope ambiguity. The subsequent Gate C candidate now lists the observed
+end-to-end source families and the latent effect, product, recursive interval,
+use, and diagnostic behavior they require. Independent compiler-referee and
+spec-auditor review found and closed annotation/scheme-selection, constrained
+negative projection, and public observation-field gaps. The candidate remains
+unselected: its denotation, theorem, lowering bridge, and final compatibility
+limits are open. This does not narrow the user's full Oracle-capability
+objective. No compiler code changed and no tests or measurements were run.
 
 Sources: `notes/design/2026-09-29-intrusion-abstract-semantics-draft.md` §1;
 `notes/design/2026-09-29-scc-intrusion-redesign-charter.md` §§3–4;
 `notes/progress/2026-09-29-intrusion-oracle-ledger.md`;
 `notes/progress/2026-09-30-intrusion-bounded-negative-counterexample.md`;
 `notes/progress/2026-09-29-intrusion-rust-replacement-map.md` § “Oracle source
-witness is outside current Yulang3 HIR”.
+witness is outside current Yulang3 HIR”; and
+`notes/progress/2026-09-30-intrusion-end-to-end-capability-matrix.md`.

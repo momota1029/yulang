@@ -39,7 +39,9 @@ needs nominal closure, and Function source observations need latent effect
 behavior. They remain characterization fixtures, not evidence that the
 fragment covers those cases. Annotations, imports, arbitrary nominal families,
 explicit effects, handlers, stacks, rows, methods, variants, roles/casts, and
-failed local forward references are outside this source characterization set.
+failed local forward references are outside this initial set of source probes;
+the following candidate separately admits the exact annotations used by the
+forced local effect-binder fixture.
 
 Expanding the theorem to cover these source fixtures requires product subtype
 rules for tuple arity and record fields, nominal constructor compatibility and
@@ -52,6 +54,50 @@ lambda/application path, so its Rust path cannot yet establish source-level
 parity. Graph-level characterization and source-level Oracle parity must be
 reported separately until both a lowering bridge and the required semantic
 extensions are defined and proved.
+
+### Candidate end-to-end source envelope (unselected)
+
+The effect-free graph above is only a possible lemma. The current Oracle
+characterizations require a wider candidate envelope before an end-to-end
+parity claim is meaningful:
+
+- top-level `pub` definitions, resolvable sequential local `my` definitions,
+  and mutually recursive top-level SCCs;
+- variables, integer literals, one-parameter lambdas, and the multi-parameter
+  definitions used by the observed fixtures, with expression application and
+  the call shapes used to form and consume recursive members;
+- the bounded annotation forms used by the forced local effect-binder fixture:
+  an annotated outer definition with `l: int`, `sink: 'e -> int`, and result
+  `int`. This annotated parent selects local reads that instantiate the saved
+  scheme; without it the reads stay on the live value;
+- finite tuples and the closed required-field records used by the witnesses;
+- the observed unary invariant nominal constructors `wrap` and `loop`, with
+  nominally guarded regular recursion;
+- ordinary implicit Function/evaluation/result effect identities, effect
+  bounds, forced effect quantification, and per-use freshening while preserving
+  unquantified environment identities;
+- per-member value/computation fetch boundaries, ordered root preparation,
+  open internal uses, all-member publication, and independent incoming uses;
+- public success/failure status, exported type observations, and ordered
+  diagnostics with source locations and semantic payload.
+
+This candidate covers the recorded identity/two-use, constant Function,
+negative-argument projection, captured-diamond, nested/self and mutual
+unproductive recursion, nominal-guarded Function SCC, anchored alias, forced
+local effect-binder, and three-incoming-use characterizations. Those fixtures
+do not establish the general rules. In particular, full record and tuple
+subtyping, nominal guardedness, recursive interval semantics, latent-effect
+algebra, forced-binder selection, ordered root simulation, transitive use
+isolation, and public normalization remain to be defined and proved.
+
+Explicit effect-row syntax, handlers/hygiene, imports, arbitrary nominal
+families, rows, methods, variants, and roles are not represented by the current
+fixture set. Their exclusion here is only a limit of this candidate gate; it
+does not reduce the overall Oracle-capability objective. Any eventual
+supported-input limit or observable compatibility delta requires its own
+successor-contract review and approval. The candidate may be expanded as Oracle
+evidence and the proof require; it is not yet a selected compatibility
+boundary.
 
 The graph has two kinds of identity:
 
