@@ -85,12 +85,21 @@ because both mention the same graph vertices.
 
 ## 2. Enclosing environment and closure
 
-At a boundary `B`, divide vertices into:
+For each member definition `d`, use its own generalization boundary `B_d` and
+enclosing environment `E_d`. The Oracle derives `B_d` from the member's
+`BindingFetch`: `FetchValue` uses the root boundary, while `FetchComputation`
+uses its child. SCC membership alone does not imply identical fetch or
+boundary state. Relative to `(d, B_d, E_d)`, divide vertices into:
 
 - **local** vertices allocated in the SCC being generalized;
 - **outer** vertices owned by an enclosing environment;
 - **rigid** vertices whose identity must remain shared and cannot be selected
   by this generalization.
+
+`E_d` also includes identities retained at a unit boundary. Oracle's computed
+fetch fixture carries such a variable through the unit cache interface as a
+boundary binder rather than a per-use quantifier. When imported into a unit,
+that boundary identity is mapped once and then shared by uses in that unit.
 
 The environment is part of the semantic input, not copied into the SCC. A local
 vertex that reaches an outer/rigid vertex through either bound direction keeps
@@ -126,38 +135,91 @@ candidate replaces the earlier single-snapshot assumption and is not selected.
 
 ## 3. Parent ports are not aliases
 
-The operation under study is a boundary map, not variable equality. The
-candidate parent map is `P: selected local TypeVar -> boundary TypeVar`, with
-one parent per selected local vertex, independent of whether an occurrence is
-positive, negative, or both. This is necessary to retain one type identity for
-a variable used in both Function argument and result positions, as in the
-Oracle's identity Function.
+The operation under study is a boundary map, not variable equality. Oracle
+generalization uses member-specific boundaries. In separate sessions, the same
+child-level identity-Function graph is quantified under `FetchValue` and
+retained at the unit boundary under `FetchComputation`. It is not yet
+established that one accepted SCC can expose the same TypeVar to members with
+both fetch modes; a computed-fetch cycle can diagnose. If that mixed member
+topology is admitted by the supported envelope, a synthetic shared vertex is
+a counterexample to a single component-wide quantification bit. The root
+lifecycle must preserve diagnostics that reject computed-fetch cycles.
 
-Intrusion transports lower and upper edges separately through `P`. Every
-selected local endpoint is renamed by the same map; every outer/rigid endpoint
-keeps its existing identity. A local variable not selected by `P` remains
-component-local. Distinct local vertices get distinct parents unless a separate
-quotient proof justifies merging them. Polarity belongs to each transported
-edge and to later root projection; it does not create a second parent for one
-TypeVar.
+The candidate therefore indexes port selection by member:
 
-This full-interval transport is a candidate, not an established equivalence.
-The key lemma must show that preserving both bound directions on the parent
-graph does not add constraints where Oracle generalization would retain only a
-positive or negative approximation, or eliminate a one-sided variable. If it
-fails, the design must refine the parent relation and explain how it still
-retains shared identity for bipolar variables.
+```text
+Gen_d = this member's surviving quantified variables after root projection,
+        role reachability, and final pruning
+Free_d = surviving non-quantified variables, including unit-boundary identities
+Erase_d = one-sided variables replaced by the root projection's polarity extreme
+Cycle_d = member-local recursive identities needed to preserve regular bounds
+Local_d = Gen_d ∪ Cycle_d
+Phi_d : Local_d -> fresh member-owned ports
+P_d = Phi_d restricted to Gen_d; C_d = Phi_d restricted to Cycle_d
+```
 
-An outer/rigid vertex remains an outer/rigid endpoint, with no local parent.
-A local vertex with no boundary-relevant exposure remains component-local.
-The closure criterion that selects ports is not yet proved: syntactic
-reachability may over-generalize, while a criterion based only on root
-occurrences may miss a bound reachable through a cycle.
+The map's domain is the source identity, not the role-tagged pair: if `v` is
+both in `Gen_d` and a recursive root in `Cycle_d`, then `P_d(v) = C_d(v)`.
+Distinct source identities still receive distinct ports. `Free_d` and `Erase_d`
+must be disjoint from `Local_d` in a valid member view. On imported views, a
+boundary identity that collides with a per-use generalized or recursive
+identity is rejected rather than silently captured; the Oracle validates this
+at `instantiate.rs::validate_imported_scheme_vars` with a per-use-boundary
+collision error.
 
-The parent relation does not erase the original graph vertex or its edges. In
-particular, `local == parent` is not an allowed interpretation: it would
-identify identities and could reduce intrusion to level lowering without
-establishing that the lower/upper approximations are preserved.
+The audited Oracle quantifier predicate requires `level(v) > B_d` and excludes
+non-generic variables; reachability through the member's projected root and
+applicable role constraints also matters. Simplification/pruning can remove a
+candidate that does not survive in the member result. The source path is
+`generalize/mod.rs::quantified_vars_in_root_and_roles` and its caller in
+`analysis/session/generalize.rs`.
+
+Within one member view, `P_d` is injective: every occurrence of the same
+quantified TypeVar, including both Function polarities, maps to one port.
+Different members own distinct semantic ports even when they select the same
+source TypeVar. `Free_d` variables remain anchored through `E_d` to their
+shared/session identity. `Erase_d` occurrences follow the root's polarity
+projection and disappear to `Bottom` or `Top`; they do not become free ports.
+The Oracle's separate-session observation is in
+`analysis/tests/case_03.rs::computed_fetch_def_does_not_quantify_binding_level_root`.
+Whether the corresponding same-SCC topology is source-valid remains open.
+
+The Oracle separately freshens recursive-bound identities on each use. A
+nominal-guarded source SCC with zero ordinary quantified variables and one
+recursive bound is recorded in the ledger. Separately, the manual scheme
+fixture `analysis/tests/case_02.rs::oracle_a1_stage_3_exit_preserves_q_r_and_b_lifetimes_across_imported_uses`
+checks that Q and recursive-bound R identities are fresh across two uses while
+B remains shared. The zero-Q/one-R source shape has not yet been exercised
+with two incoming uses. The replacement therefore needs `Cycle_d` ports or a
+proof that its regular graph back-edges provide the same per-use freshness
+without separate binders. `Phi_d` maps each source identity only once, so if
+one identity appears in both `Gen_d` and as a recursive root, both roles use
+the same port. It is injective on distinct source identities. Each incoming
+use freshens member-local `Local_d` identities independently; non-quantified
+boundary identities continue through the environment mapping shared by the
+compilation unit.
+
+An implementation may intern backing storage for parent vertices across
+members, but eligibility and lookup must remain keyed by member. A single
+component-wide `TypeVar -> port` decision cannot express the distinction among
+`Gen_d`, `Free_d`, and `Erase_d`. Lower and upper edges still transport
+separately through each `P_d`; recursive edges preserve `C_d`; an outer/rigid
+or free endpoint keeps its anchored identity. The closure criterion that
+selects these sets is not proved: it must account for root reachability,
+polarity elimination, the member's boundary, recursive projection, and later
+evidence/role projection. The parent relation does not erase the original
+graph vertex or its edges. In particular, `local == parent` is not an allowed
+interpretation: it would identify identities without establishing that
+lower/upper approximations are preserved.
+
+`Gen_d`, `Free_d`, `Erase_d`, and `Cycle_d` describe distinct behaviors even
+if an implementation stores some of them in one table. For a type-variable
+occurrence, a `Gen_d` member uses `P_d`, a surviving `Free_d` member uses
+`E_d`, and an `Erase_d` occurrence becomes its polarity extreme. A recursive
+back-edge uses the corresponding `C_d` identity. An identity may serve more
+than one structural role; `Phi_d` and the per-use map must preserve that
+aliasing while freshening all member-local generalized and recursive
+identities.
 
 ### Edge-transport lemma for an injective parent map
 
@@ -327,27 +389,30 @@ types are in `constraints/mod.rs` and `constraints/proof/mod.rs`.
 
 ## 4. Instantiation uses overlays
 
-An instantiated use receives a fresh overlay `sigma` for that use's local
-boundary ports. All occurrences of one port in that use consult the same
-overlay entry; another incoming use receives a disjoint overlay. Outer/rigid
-endpoints resolve to their shared environment identities. The frozen component
-graph is read-only during use instantiation.
+An instantiated use of member `d` receives a fresh overlay `sigma_(d,u)` for
+that member's `Gen_d` and `Cycle_d` identities. All occurrences of one identity
+in that use consult the same overlay entry; another incoming use gets disjoint
+generalized and recursive substitutions. A non-quantified boundary identity
+resolves through `E_d`, retaining the sharing the Oracle gives free variables
+and imported unit binders. Each selected member view is read-only during use
+instantiation.
 
-Constraints produced by the use are attached to the overlay and its use-local
-endpoints, not written into the frozen graph. Otherwise two uses can constrain
-the same stored local vertex with incompatible choices and cease to be
-independent. This is the current isolation invariant for the candidate model;
-it still needs a formal preservation proof against the Oracle's use behavior.
+Constraints produced by the use are attached to generalized or recursive
+overlay endpoints; they must not mutate another use's overlay or the selected
+member view. Constraints reaching identities in `E_d` remain intentionally
+shared. This is the current isolation invariant for the candidate model; it
+still needs a formal preservation proof against the Oracle's use behavior.
 
 Monomorphization may later choose concrete values for overlay ports and
-specialize the frozen graph through the same lookup. It must preserve any
-recursive edges and outer identities. This draft does not specify a cache key,
+specialize the selected member graph through the same lookup. It must preserve
+recursive edges and `E_d` identities. This draft does not specify a cache key,
 runtime representation, or serialization format.
 
 ## 5. Candidate correctness statement
 
-For a finite initial component graph `G₀`, enclosing environment `E`, ordered
-member roots `r₁ … rₘ`, and incoming uses `u₁ … uₙ`, the intended theorem is:
+For a finite initial component graph `G₀`, member-specific boundaries and
+environments `(B_d, E_d)`, ordered member roots `r₁ … rₘ`, and incoming uses
+`u₁ … uₙ`, the intended theorem is:
 
 1. each open internal reference resolves to the live SCC root and contributes
    the same constraints as the pre-quantification graph;
@@ -356,12 +421,12 @@ member roots `r₁ … rₘ`, and incoming uses `u₁ … uₙ`, the intended th
    member, including root-local projection, prepasses, restarts, and bounded
    post-loop constraints; this relation need not identify internal graphs;
 3. the collected root views become visible before any external incoming use;
-4. each external use is equivalent to solving one fresh copy of the
-   boundary-relevant degrees of freedom of that member view, with every
-   outer/rigid vertex shared through `E`;
+4. each external use of member `d` receives fresh substitutions for `Gen_d` and
+   the recursive identities in `Cycle_d`, while surviving `Free_d` variables
+   retain their identity through `E_d` and `Erase_d` occurrences stay erased;
 5. the overlay solver returns a principal solution for that use, and constraints
    from `uᵢ` cannot change the solution space of `uⱼ` for `i != j` except through
-   identities explicitly shared by `E`;
+   identities explicitly shared by their environments;
 6. cycles and shared descendants remain regular graph edges and do not require
    path duplication to state the result.
 

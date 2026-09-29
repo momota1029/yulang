@@ -86,7 +86,21 @@ replaces its single-snapshot premise with a candidate versioned shared-graph
 transition and a root-indexed observable simulation theorem. Compiler-referee
 and spec-auditor reviews of this lifecycle delta found and closed the epoch,
 root-order, state, failure, and record-sync findings; they did not certify the
-principality theorem or authorize implementation. Next define and prove the
-pure root/use simulation, then characterize it through `yu-solver`'s Rust
-path. Implementation remains gated on the reviewed successor contract and
-explicit user approval.
+principality theorem or authorize implementation. A subsequent Oracle audit
+found per-member `FetchValue`/`FetchComputation` boundaries: the same
+identity-Function graph shape is generalized under FetchValue and retained as
+a unit-boundary identity under FetchComputation in separate sessions. If a
+mixed-fetch topology sharing one TypeVar is admitted within one SCC, a
+synthetic graph refutes one component-wide quantification bit; the accepted
+source witness is not established and computed-fetch cycles can diagnose. The
+draft now proposes member-indexed
+`Gen_d`/`P_d`, separates surviving free vars from erased variables, and adds
+`Cycle_d` freshness through one source-identity map `Phi_d`. Independent
+compiler-referee and spec-auditor reviews found no remaining blocking or major
+issue in this parent-port/recursive-freshness delta; they support the evidence
+distinctions but do not prove port selection or principality.
+Next prove root-indexed boundary factorization, including per-use generalized
+and recursive identities versus shared unit-boundary identities, and preserve
+the actual diagnostics. Then characterize it through `yu-solver`'s Rust path.
+Implementation remains gated on the reviewed successor contract and explicit
+user approval.

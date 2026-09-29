@@ -224,6 +224,32 @@ module: real source/HIR collection plus private session solve access can observe
 member scheme views and routed use facts; the public `SolvedModule` root-value
 projection erases most Function detail.
 
+A further Oracle source audit shows that generalization boundary is per member,
+not per SCC: `generalize_boundary(def)` delegates to that def's
+`BindingFetch`, and `FetchValue` and `FetchComputation` select different levels.
+`quantify_component` invokes the root generalizer separately for each member;
+quantified variables are selected from that member's projected root/roles and
+pruned within its own result. The Oracle fixture in `analysis/tests/case_03.rs`
+uses the same identity-Function graph shape in separate sessions and observes a
+quantifier for FetchValue but a unit-boundary variable for FetchComputation.
+This is not a source-level mixed-fetch SCC witness; computed-fetch edges inside
+a cycle can diagnose. If such a mixed-fetch topology is admitted by the
+supported SCC envelope, it is a graph-level counterexample to a single
+component-wide quantification decision. Member-indexed `Gen_d`/`P_d` port
+selection remains a candidate; each use must freshen member-local generalized
+and recursive identities while preserving surviving non-quantified
+unit-boundary identity and eliminating one-sided variables. A source nominal
+SCC with zero ordinary quantifiers and one recursive bound is observed, while a
+separate manual Q/R/B scheme fixture proves both Q and recursive R identities
+freshen per use and B remains shared; their combination has not been directly
+probed. The draft now uses one `Phi_d` map keyed by source identity, with `P_d`
+and `C_d` as role views, and states that imports reject a boundary identity
+collision with a per-use identity. Independent compiler-referee and spec-auditor
+delta reviews found no remaining blocking or major issue in this port and
+recursive-freshness delta. This supports the recorded evidence boundary, not the
+port-selection, closure, or principality theorem. The exact paired mixed-fetch
+SCC source behavior and zero-Q/R two-use behavior remain open.
+
 Independent compiler-referee and spec-auditor delta reviews of the sequential
 root-transition clauses found and closed three major issues: the theorem had
 conflated the saved root result with the later solver epoch, omitted state
