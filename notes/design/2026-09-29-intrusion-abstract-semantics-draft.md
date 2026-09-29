@@ -1096,9 +1096,23 @@ eleven result-effect identities remain shared. This covers two independent
 source-level incoming uses of a one-member recursive local component with the
 same call shape. It does not cover differently constrained uses, multi-member
 SCC publication/use scheduling, effect constraint denotation, or handler
-hygiene. Without the outer annotation, this lowering path instead keeps the
-live value when the forced quantifier is present. Exact capture command and
-review scope are recorded in the progress note.
+hygiene. A separate pure source probe now covers one top-level, nominally
+guarded two-member Function SCC. Oracle jointly quantifies both member roots;
+both member schemes expose one shared quantifier vector while retaining
+distinct recursive-bound roots. Two later source uses of the same member pass
+`int` and an identity Function; their use-value constraint graphs are
+disjoint, and their generalized argument binders receive the corresponding
+different bounds. An environment-gated production-instantiator trace reports
+disjoint maps for the component binder vector. That trace is sequential rather
+than keyed by parent/use, so it is run evidence paired with the SCC events,
+not a durable assertion of each map entry. This adds Oracle characterization
+for one multi-member publication/use path; it does not establish candidate
+intrusion equivalence, principality, effect constraint denotation, or handler
+hygiene. It is a top-level SCC witness and does not resolve the separately
+failed local multi-member source construction above. Without the outer
+annotation, the earlier one-member lowering path instead keeps the live value
+when the forced quantifier is present. Exact capture command and review scope
+are recorded in the progress note.
 
 **Selected-edge fiber corollary (conditional).** The interval premise can be
 derived for a restricted selected graph. Let `G` have a finite set of selected

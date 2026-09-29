@@ -70,8 +70,8 @@ Finite examples characterize the candidate but do not alone prove soundness or
 principality. Do not run guarded-cycle resource captures: the current F5c plans
 on `yulang3` have consumed their authorized runs. The immediate work is to
 extend the restricted projection correspondence through selected graph
-evidence and characterize member binder maps across independent incoming uses
-of a multi-member recursive component. A first synthetic Oracle graph now combines a compatible outer lower,
+evidence and then discharge root-step and use-event simulation for the declared
+graph envelope. A first synthetic Oracle graph now combines a compatible outer lower,
 an upper path to an outer anchor, and a local alias cycle. Its successful
 scoped query selects the exact lower endpoint and exposes the upper anchor;
 propagation lowers both local variables, which remain alongside the anchor in
@@ -99,14 +99,15 @@ effect identity freshens at each use while eleven unquantified effect
 identities remain shared. A separate Rust-path source fixture confirms a
 nominally guarded two-member Function SCC is quantified jointly and then used
 at `int` and identity-Function argument types; the events expose separate use
-slots, and both member schemes share the component quantifier identities while
-retaining member-specific recursive roots. The multi-member instantiated
-binder maps and later-constraint isolation remain unobserved. For unannotated
-parents, local reads keep the live value when forced quantifiers are present.
-The finite value and one-member local-use characterizations passed
-compiler-referee delta review; the new multi-member characterization is not
-independently reviewed and makes no equivalence claim. Details and review
-limits are in
+slots, both member schemes share a three-binder quantifier vector, and their
+recursive roots remain distinct. The two use constraint graphs are disjoint,
+and their argument binders receive the `Int` and identity-Function bounds. A
+production-instantiator trace reports disjoint maps for the shared binder
+vector, though those map lines are not keyed by use identity. A
+compiler-referee delta review found no blocking or major issue in this narrow
+Oracle characterization; it makes no intrusion-equivalence claim. For
+unannotated parents, local reads keep the live value when forced quantifiers
+are present. Details and review limits are in
 `notes/progress/2026-09-30-intrusion-bounded-negative-counterexample.md`.
 The Rust integration map is recorded in
 `notes/progress/2026-09-29-intrusion-rust-replacement-map.md`: replacing only

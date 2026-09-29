@@ -600,30 +600,45 @@ two-member recursive Function SCC and then called `helper` at both `int` and
 identity-Function argument types:
 
 ```yulang
-struct loop 'a { next: 'a }
-pub helper x = loop { next: \y -> g x }
-pub g x = loop { next: \y -> helper x }
+struct wrap 'a { value: 'a }
+pub helper x = wrap { value: (x, \y -> g x) }
+pub g x = wrap { value: (x, \y -> helper x) }
 pub number = helper 1
 pub function_value = helper (\z -> z)
 ```
 
 The focused test completed without diagnostics. Oracle SCC events show `helper`
-and `g` in one `QuantifyComponent`, preceded by their open internal uses. Both
-member schemes expose the same quantifier identities (`TypeVar(81)` and
-`TypeVar(82)`); their recursive-bound roots differ (`81` for `helper`, `82`
-for `g`). After the joint quantification, the `number` and `function_value`
-definitions each have a distinct `InstantiateUse` edge to `helper`, with use
-values `TypeVar(64)` and `TypeVar(72)`. This is source-level Oracle evidence
-for publication of a multi-member guarded SCC followed by two differently
-typed incoming calls. It does not yet show the instantiated binder mapping at
-each use, prove those mappings are disjoint, compare later constraints on the
-two instances, or establish candidate intrusion equivalence. The test and
-instrumentation remain only in the detached scratch worktree; the frozen
-Oracle checkout and research branch compiler code are unchanged.
+and `g` in one `QuantifyComponent`, after two internal open uses and before
+external incoming uses. The two member schemes assert the same three-binder
+quantifier vector, but each has a distinct recursive-bound binder. The test
+also asserts that the two incoming use-value constraint graphs have disjoint
+TypeVar sets. Their argument binders receive different later bounds: the
+`number` use receives `Int`, while `function_value` receives a Function whose
+domain and result share one variable. Thus the two actual source uses exercise
+independent specialization under different argument constraints.
+
+An environment-gated trace inside Oracle's production scheme instantiator
+prints two maps for the component's same source binder vector:
+
+```text
+{TypeVar(11): TypeVar(89), TypeVar(87): TypeVar(90), TypeVar(88): TypeVar(91)}
+{TypeVar(11): TypeVar(92), TypeVar(87): TypeVar(93), TypeVar(88): TypeVar(94)}
+```
+
+The trace is emitted during the two source uses and their target sets are
+disjoint. The map lines are not keyed by `(parent, use_value)`, so that linkage
+is inferred from their position in this focused run together with the two
+recorded helper-use events; the test asserts use-graph disjointness but does
+not assert each production map entry. A compiler-referee delta review found no
+blocking or major flaw in this narrow observation and confirmed these limits.
+This is Oracle characterization only; it does not establish candidate
+intrusion equivalence, principality, effect denotation, or handler hygiene.
+The test and instrumentation remain only in the detached scratch worktree; the
+frozen Oracle checkout and research branch compiler code are unchanged.
 
 Focused command:
 
 ```text
-CARGO_TARGET_DIR=/tmp/yulang-intrusion-oracle-target \
+YULANG_INTRUSION_SCHEME_MAPS=1 CARGO_TARGET_DIR=/tmp/yulang-intrusion-oracle-target \
   cargo test -p infer scratch_guarded_mutual_scc_two_differently_typed_incoming_uses -- --nocapture
 ```
