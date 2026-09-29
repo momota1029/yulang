@@ -144,14 +144,21 @@ and a separately stipulated admissible set `{A | A ≤ U}`; the precise
 projection, elimination, saved-root, and later-pass premises are in the draft.
 This does not prove that fiber from Oracle evidence or close Gate C. A reviewed
 interval lemma shows compatible lower obligations leave the upper-bound meet
-as the greatest assignment, once the exact fiber is fixed. Next derive
-the fiber directly from selected variable edges when other assignments are
-fixed; this remains a candidate-graph result. The `expect`/`k` source-to-view
+as the greatest assignment, once the exact fiber is fixed. A selected-edge
+corollary derives that fiber for direct fixed-endpoint inequalities. A reviewed
+acyclic upper-alias chain corollary extends the graph result to `{a | a ≤ U}`
+when only the chain edges involve its
+vertices and all other locals have a fixed satisfying assignment. The
+`expect`/`k` source-to-view
 bridge is now traced conditionally through frozen Oracle lowering, application,
 Function decomposition, and scheme instantiation; the Rust probe supplies the
 actual `U = Int` view and saved root for that fixture. The next bridge is to
 extend this beyond the one fixture and characterize selected scoped records
-and root restart/post-loop preservation.
+and root restart/post-loop preservation. The Oracle compactor preserves an
+unweighted upper alias as a secondary variable; its alias-expansion pass adds
+aliases only in positive positions and flips under Function arguments. Thus
+the selected-graph alias-chain lemma still has no Oracle correspondence for a
+negative argument, which is a concrete next proof target.
 The Oracle collector, one-polarity removal, and finalization path for this
 conditional case now has independent source review. A nested captured-function
 source probe exceeded its 20-second bound inside Oracle `prepare_cold` and is

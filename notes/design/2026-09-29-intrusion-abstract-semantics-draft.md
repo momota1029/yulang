@@ -983,6 +983,23 @@ upper-bound collection retains their meet at the saved root, or that the
 fiberwise extrema combine into a finite principal member view as
 `nu_-x` varies.
 
+**Acyclic upper-alias chain projection (conditional).** Extend the selected
+graph fragment with local vertices `x = v_0, v_1, ..., v_n` and fixed endpoint
+`U`, where the only selected obligations involving these vertices are
+`v_0 ≤ v_1 ≤ ... ≤ v_n ≤ U`. Fix the result `R` and all environment values;
+fix a satisfying assignment to every other local vertex; and assume every
+remaining obligation is independent of these vertices and holds under those
+fixed assignments. The feasible projection onto `x` is exactly
+`{a | a ≤ U}`. Necessity follows by transitivity. For every `a ≤ U`, assigning
+each intermediate vertex `v_i = U` satisfies the chain, proving sufficiency.
+Thus `U` is the greatest projected argument, and the negative-only root
+`Arr(x,R)` has upward denotation `↑{Arr(U,R)}` by the pointwise
+extremal-projection lemma. This covers an acyclic alias path to a fixed upper
+endpoint in the selected-graph model, not arbitrary shared intermediates,
+weights, cycles, anchors, or constraints coupling any `v_i` to other local
+vertices. It also does not prove that Oracle's scoped collector follows such a
+path to `U` or retains `U` across root transitions.
+
 **Restricted singleton-root path correspondence (conditional).** Consider a
 pure acyclic member with structural Function root `Arr(x, R)`, where `x` is
 the sole negative argument occurrence and has no other occurrence affecting

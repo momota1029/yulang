@@ -133,6 +133,29 @@ scoped query record solely from source code, prove the result for a family of
 schemes, or show that restarts and post-loop passes preserve the result in
 other fixtures.
 
+The selected-graph fiber analysis now includes a reviewed acyclic upper-alias
+chain case. With only `x = v0 ≤ v1 ≤ ... ≤ vn ≤ U` involving the path
+vertices, fixed `U`, and a fixed satisfying assignment for all other locals,
+the projected feasible set for `x` is exactly `{a | a ≤ U}`; assigning each
+intermediate to `U` proves sufficiency. The negative-only Function root then
+projects to `Arr(U,R)`. A compiler referee found no blocking or major issue and
+requested that the other-local assignment be explicit; the draft now states
+it. This is still only a selected-graph theorem: no Oracle evidence selection,
+alias collector behavior, source correspondence, or saved-root stability is
+proved for the chain family.
+
+The Oracle alias path is narrower than the selected-graph alias-chain lemma.
+`compact_upper_bound` retains an unweighted `Neg::Var` upper endpoint as a
+secondary variable occurrence instead of recursively replacing it with that
+variable's upper bounds. The later `expand_positive_aliases_in_scheme_compact`
+walk only adds aliases at positive-polarity positions; it flips polarity under
+Function arguments. Therefore the selected-graph chain theorem does not yet
+correspond to a negative Function-argument collector path. This does not refute
+equivalence, because one-polarity elimination and the rest of finalization may
+still yield the same projection in eligible cases, but that path needs a
+separate proof or a bounded Rust-path witness. Source locators:
+`compact/collect/mod.rs:952-976` and `generalize/mod.rs:283-355,380-430`.
+
 Source locators in frozen Oracle `a58eefc3`: `lowering/expr/lambda.rs:674,
 1244-1280`; `annotation/constraints.rs:124-136,251-281,771-793`;
 `lowering/expr/tail.rs:94-124,535-566,630-646`;
