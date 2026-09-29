@@ -903,6 +903,32 @@ It does not establish that this source graph is identical to the abstract
 counterexample. An Oracle-equivalence proof must show how bound expansion and
 evidence selection affect the saved root before applying any erasure argument.
 
+**Pointwise extremal projection lemma (conditional).** Let `S ⊆ D` be the
+nonempty set of admissible assignments to an argument variable after fixing
+the result type and all other local/environment assignments. If `S` has a
+greatest element `m`, then the Function rule gives
+
+```text
+↑{ Arr(a, R) | a ∈ S } = ↑{ Arr(m, R) }
+```
+
+For every `a ∈ S`, `a ≤ m`; contravariance gives
+`Arr(m, R) ≤ Arr(a, R)`, so `↑{Arr(a, R)} ⊆ ↑{Arr(m, R)}`. Since `m ∈ S`,
+the right generator occurs on the left, proving the reverse inclusion. A
+preorder suffices. In particular, if `D` has finite meets and the constraints
+on `x` are lower bounds `l_j ≤ x` and upper bounds `x ≤ u_i`, the admissible
+set has greatest element `m = ∧_i u_i` whenever it is nonempty; for no upper
+bounds, the empty meet is `Top`. Thus the `x ≤ Int` example projects to
+`Arr(Int, R)`, not `Arr(Top, R)`, when `Int` is its greatest admissible
+argument.
+
+This is a fiberwise result only. It does not show that a variable has an
+independent admissible set when it occurs elsewhere, that the extremum has a
+finite representable graph expression when bounds depend on other variables,
+or that the Oracle's evidence-selected root preparation produces the same
+`m`. It therefore does not prove general `Erase_d`, principal solving, or
+Oracle equivalence.
+
 This split follows the audited Oracle path: compaction creates a fresh
 projection round, lower bounds are selected through a scoped evidence query,
 and returned query errors can become a default root at the surface. Therefore
