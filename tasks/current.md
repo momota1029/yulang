@@ -39,9 +39,12 @@ collapse to `any -> any -> never` for both members, without recursive bounds;
 other cycle shapes remain open. The first Gate B candidate model is drafted in
 `notes/design/2026-09-29-intrusion-abstract-semantics-draft.md`: immutable
 frozen graph, boundary parent ports, outer identity preservation, and
-per-incoming-use overlays. It is exploratory and proves no theorem. Next define
-the polarized graph denotation and solve relation, then work counterexamples
-and the simulation theorem. Do not make
+per-incoming-use overlays. This turn added the Oracle's operational closure
+rules for the pure graph fragment and corrected the candidate to one parent
+per TypeVar with separate lower/upper edge transport; preserving full
+intervals remains an unproved key lemma. Next define the solution ordering,
+build an independent finite graph model, and test the listed polarity/use/cycle
+counterexamples before stating the simulation theorem. Do not make
 F5's Q/R shape, closed schemes, numbering, or resource contract the pass
 condition.
 

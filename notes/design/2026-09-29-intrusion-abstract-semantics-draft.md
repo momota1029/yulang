@@ -36,6 +36,45 @@ reference to a type vertex. A lower edge records `endpoint <: vertex`; an upper
 edge records `vertex <: endpoint`. This draft assumes bound closure reaches a
 fixed point before the graph is frozen.
 
+### Oracle closure relation for the fragment
+
+The Oracle's constraint entry takes a positive endpoint `p` and a negative
+endpoint `n`, and records the obligation `p <: n`. In the variable-only cases,
+the audited closure rules are:
+
+```text
+Var(v)+ <: Var(w)-, v != w:
+    add Var(v)+ to lower(w)
+    add Var(w)- to upper(v)
+
+Var(v)+ <: n, n not Var:
+    add n to upper(v)
+
+p, p not Var <: Var(w)-:
+    add p to lower(w)
+
+Var(v)+ <: Var(v)-:
+    no new bound
+```
+
+Bounds are installed before propagation continues. Structural constraints add
+subtype obligations until the worklist reaches its fixed point. For pure
+Functions, `Fun⁺(a⁻, r⁺) <: Fun⁻(a⁺, r⁻)` adds `a⁺ <: a⁻` and `r⁺ <: r⁻`;
+the argument obligation reverses direction and the result obligation keeps it.
+For the finite core used here, `Bottom <: n` and `p <: Top` close immediately;
+`(p₁ ∪ p₂) <: n` adds both branch obligations; `p <: (n₁ ∩ n₂)` adds both
+upper-branch obligations; and equal nominal constructor heads add the
+declared invariant argument obligations. Mismatched nominal heads and all
+effect/row cases are excluded from this first graph class.
+This records the Oracle's operational constraint relation for the fragment,
+not a denotational model of all possible runtime types. The source audit and
+the SCC scheduling observations are recorded in the behavior ledger.
+
+The candidate intrusion proof must show that parent/overlay construction
+preserves this closure relation after projecting each component root. It must
+not replace the two variable-bound insertions with an equality edge merely
+because both mention the same graph vertices.
+
 ## 2. Enclosing environment and closure
 
 At a boundary `B`, divide vertices into:
@@ -62,13 +101,27 @@ encoding.
 
 ## 3. Parent ports are not aliases
 
-The operation under study is a boundary map, not variable equality. A candidate
-port key is `(local vertex, polarized exposure)`; the polarity component is
-provisional and exists to prevent silently merging lower/upper approximations.
-For every selected exposure, intrusion allocates one boundary parent and
-records a relation from the graph endpoint to that parent. Repeated references
-to the same selected exposure reuse the same port. Distinct exposures may share
-a parent only after a proof that their polarized constraints are equivalent.
+The operation under study is a boundary map, not variable equality. The
+candidate parent map is `P: selected local TypeVar -> boundary TypeVar`, with
+one parent per selected local vertex, independent of whether an occurrence is
+positive, negative, or both. This is necessary to retain one type identity for
+a variable used in both Function argument and result positions, as in the
+Oracle's identity Function.
+
+Intrusion transports lower and upper edges separately through `P`. Every
+selected local endpoint is renamed by the same map; every outer/rigid endpoint
+keeps its existing identity. A local variable not selected by `P` remains
+component-local. Distinct local vertices get distinct parents unless a separate
+quotient proof justifies merging them. Polarity belongs to each transported
+edge and to later root projection; it does not create a second parent for one
+TypeVar.
+
+This full-interval transport is a candidate, not an established equivalence.
+The key lemma must show that preserving both bound directions on the parent
+graph does not add constraints where Oracle generalization would retain only a
+positive or negative approximation, or eliminate a one-sided variable. If it
+fails, the design must refine the parent relation and explain how it still
+retains shared identity for bipolar variables.
 
 An outer/rigid vertex remains an outer/rigid endpoint, with no local parent.
 A local vertex with no boundary-relevant exposure remains component-local.
@@ -123,13 +176,22 @@ This statement is not yet a theorem: “equivalent”, “principal”, the exac
 boundary-relevant port criterion, and the supported type constructor algebra
 need definitions. It deliberately says nothing about matching F5 binder shape.
 
+For the first graph comparison, “same observable constraints” means that after
+applying each use overlay and closing subtype obligations, the positive and
+negative bound reachability at that use and at every shared outer vertex is
+isomorphic up to fresh internal vertex renaming. Agreement only after rendering
+a formatted scheme is too weak: it could hide lost edges, merged independent
+uses, or captured outer identity. This graph isomorphism is a proof aid, not a
+proposed public scheme contract.
+
 ## 6. Required counterexamples and proof obligations
 
 Before choosing a runtime representation, the proof must cover:
 
 - a diamond with two paths to one local vertex, proving one port is shared;
 - a local diamond ending at an outer rigid vertex, proving capture is avoided;
-- a nested Function where the same vertex is exposed at both polarities;
+- a nested Function where the same vertex is exposed at both polarities,
+  proving one parent identity while retaining both directional edge sets;
 - two incoming uses constrained differently, proving overlay disjointness;
 - an SCC with an internal reference plus an external incoming use;
 - productive nominal-guarded recursive Function bounds, retaining all cycles;
@@ -143,6 +205,29 @@ exposure crosses exactly the selected boundary ports, while paths to outer/
 rigid vertices remain anchored in `E`. The second is overlay isolation. The
 third is principal solving for the chosen finite regular graph class. None has
 been proved here.
+
+### Worked closure facts
+
+**Identity root.** The body graph contains one `Function⁺` node whose argument
+references `a` negatively and result references the same `a` positively. Its
+lower edge into the definition root preserves this exact sharing. The Oracle
+accepts `pub id x = x`; its two observed incoming uses produce `int` and a
+Function result independently. This checks an acyclic boundary with one
+bipolar vertex, but does not establish parent selection for recursive graphs.
+
+**Directed variable flow.** For `a⁺ <: b⁻`, closure stores `a⁺` in `lower(b)`
+and `b⁻` in `upper(a)`. It does not assert `a = b`. A candidate that maps both
+vertices to one parent would turn these obligations into self-edges and erase
+the distinction. Unless a separate theorem justifies that quotient, the safe
+candidate retains distinct ports and both directed bounds.
+
+**Use separation.** Two identity uses create overlays `sigma₁` and `sigma₂`.
+The observed Oracle program instantiates one at `int` and one at a Function
+type. If both overlays wrote into one mutable component graph, either choice
+could constrain the other use. The immutable graph plus disjoint overlays
+avoids that direct mutation, but a proof must still show propagation cannot
+escape from one overlay through a shared outer endpoint except where the
+enclosing environment intentionally shares it.
 
 ## 7. Known gaps and next step
 
