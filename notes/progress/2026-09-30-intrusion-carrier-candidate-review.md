@@ -71,14 +71,33 @@ mixed-polarity roots, Oracle evidence selection, ordered root preparation,
 finalization, diagnostics, or incoming-use parity. These are open proof
 obligations, not observed Oracle mismatches.
 
+## Delta review: environment and identity partition
+
+A follow-up `compiler_referee` review found the empty-fiber convention coherent
+but identified a missing assignment for retained `Free_d` identities in the
+joint-use relation, plus an implicit mismatch between `Env` and `Shared`.
+The candidate definition now assigns preserved `Free_d` and imported/outer
+identities through one `eta_d`, assigns `Gen_d ∪ Cycle_d` through a disjoint
+per-use `nu_d`, defines `Env_d` as exactly the shared-only satisfying
+assignments, and preserves empty local fibers as empty instance relations.
+The joint-use formula is explicitly for uses targeting the same member. The
+reviewer found no remaining blocking issue in that narrow definition, with the
+condition that every identity remaining in a saved root/obligation is covered
+by `E_d ∪ L_d` or erased. The candidate now states that coverage as a view
+well-formedness condition. This is still a conditional relational convention;
+it does not define the carrier or prove Oracle parity. Composing simultaneous
+use batches targeting different members remains open, especially where one
+source identity is free in one view and generalized in another.
+
 ## Gate status and next work
 
-Gate C remains open. The next semantics work is to define a scheme's observable
-instantiation/subsumption relation and its environment-fiber domain, then
-analyze the recursive comparison rule using actual Oracle behavior. Do not use
-the option to justify root erasure or to claim the existing finite graph
-lemmas cover recursive Function schemes. The overall objective remains proof
-followed by an approved successor contract and implementation.
+Gate C remains open. The environment-fiber and identity-partition convention is
+now explicit, but the candidate scheme's observable instantiation/subsumption
+relation is still undefined. Next, define that relation and test recursive
+comparison using actual Oracle behavior. Do not use the option to justify root
+erasure or to claim the existing finite graph lemmas cover recursive Function
+schemes. The overall objective remains proof followed by an approved successor
+contract and implementation.
 
 No compiler code or committed tests were changed. The review was read-only; no
 performance measurements were run.

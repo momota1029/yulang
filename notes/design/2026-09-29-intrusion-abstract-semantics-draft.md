@@ -850,53 +850,82 @@ details are evidence for the replacement's use-site simulation obligation,
 not permission to copy F5's scheme architecture.
 
 **Candidate principality criterion.** Once a carrier `D` and subtype preorder
-`≤` have been fixed, a saved member view `H_d` and environment assignment `eta`
-induce the set of root types realized by satisfying local assignments:
+`≤` have been fixed, a saved member view `H_d` and environment assignment
+`eta_d`
+induce the set of root types realized by satisfying per-use local assignments.
+For uses targeting member `d`, let `E_d = Free_d` contain the identities
+preserved across those uses, including outer/imported boundary identities, and
+let `L_d = Gen_d ∪ Cycle_d` contain the member-owned identities freshened per
+use. A valid view has `E_d ∩ L_d = ∅`, and every identity remaining in its
+saved root or selected obligations belongs to `E_d ∪ L_d`; projected-away
+`Erase_d` identities do not occur in `H_d`. Write `eta_d : E_d -> D` and
+`nu_d : L_d -> D`.
 
 ```text
-Root_d(eta) = {
-    eval(root_d, eta, nu)
-    | nu assigns H_d's local vertices and satisfies every selected obligation
+Root_d(eta_d) = {
+    eval(root_d, eta_d, nu_d)
+    | nu_d assigns L_d and satisfies every selected obligation of H_d
 }
-Pred_d(eta) = { T in D | exists t in Root_d(eta): t ≤ T }
+Pred_d(eta_d) = { T in D | exists t in Root_d(eta_d): t ≤ T }
 ```
+
+**Environment-fiber convention (candidate clarification).** Let `Env_d` be
+assignments to `E_d` satisfying the shared-only constraints for uses targeting
+`d`; `Shared_d(eta_d)` means exactly `eta_d ∈ Env_d`. Shared-only constraints
+include all relevant obligations whose identities are all in `E_d`; obligations
+involving `L_d` remain in the member view. Do not restrict `Env_d` to
+assignments for which the member has a local solution. For every
+`eta_d ∈ Env_d`,
+including one whose local fiber is empty, `Root_d(eta_d)` and
+`Pred_d(eta_d)` are defined by the set comprehensions above; an empty fiber
+therefore denotes the empty instantiation relation. A combined family of incoming uses has no
+satisfying joint instance when any required use fiber is empty under the same
+`eta_d`. This keeps infeasibility observable instead of repairing or dropping
+it. The convention resolves the environment-domain ambiguity identified in
+review, but does not choose `D`, `≤`, or the meaning of the Oracle's constraint
+graph.
 
 The upward closure is appropriate if the public typing relation admits
 ordinary subsumption, where a root type may be used at any supertype; matching
 that rule to the Oracle remains an obligation. A finite member scheme `S_d` is
 principal under this candidate when its instantiation-and-subsumption relation
-at every admissible `eta` is exactly `Pred_d(eta)`. This states soundness and
+at every `eta_d ∈ Env_d` is exactly `Pred_d(eta_d)`. This states soundness and
 completeness together, rather than
 assuming that the projected graph is principal because it is finite. The
 definition remains conditional: `D`, `≤`, `eval`, admissible environments, and
 the denotation of scheme instantiation are not yet fixed, and it has not been
 shown that a finite regular scheme can represent `Pred_d`.
 
-For several incoming uses, the environment assignment `eta` is shared while
-each use gets an independent assignment to the member's local generalized and
-recursive identities. Let `Use_u(t, eta)` be the constraints and observations
-at incoming use `u` after receiving root value `t`; let `Shared(eta)` encode the
-pre-existing shared-environment constraints. The joint relation must retain
-the use-site obligations and root results:
+For several incoming uses targeting the same member `d`, the environment
+assignment `eta_d` is shared while each use gets an independent assignment to
+the member's local generalized and recursive identities. Let `Use_u(t, eta_d)`
+be the constraints and observations at incoming use `u` after receiving root
+value `t`. The joint relation must retain the use-site obligations and root
+results:
 
 ```text
-exists eta . Shared(eta) and
+exists eta_d ∈ Env_d .
   for every u, exists nu_u, t_u .
-    Member(H_d, eta, nu_u) and
-    t_u = eval(root_d, eta, nu_u) and
-    Use_u(t_u, eta)
+    nu_u assigns L_d and
+    Member(H_d, eta_d, nu_u) and
+    t_u = eval(root_d, eta_d, nu_u) and
+    Use_u(t_u, eta_d)
 ```
 
-Each `nu_u` assigns that use's disjoint fresh identities for the member's local
-generalized and recursive variables. When checking a particular environment
-fiber, `eta` is fixed and its existential quantifier is omitted. A single
-shared `eta` permits use constraints to interact through environment variables;
-distinct local assignments prevent direct local-variable sharing. This matches
-the Oracle fixture where Q/R identities are fresh per use and imported B
-identities are shared, but does not prove equality with that fixture's use
-relation. `Member(H_d, eta, nu_u)` abbreviates satisfaction of every selected
-obligation in the saved view under those assignments. One-sided erasure also
-remains open: the observed `any -> int`
+Each `nu_u` assigns that use's disjoint fresh identities in `L_d`. Every
+`Free_d` identity is assigned through the same `eta_d` at every use, matching
+the Oracle behavior that retains unmapped free variables. When checking a
+particular environment fiber, `eta_d` is fixed and its existential quantifier
+is omitted. A single shared `eta_d` permits use constraints to interact through
+preserved identities; distinct local assignments prevent direct local-variable
+sharing. This matches the Oracle fixture where per-use binders freshen and
+imported/free identities remain shared, but does not prove equality with that
+fixture's use relation. `Member(H_d, eta_d, nu_u)` abbreviates satisfaction of
+every selected obligation in the saved view under those assignments. This
+formula covers a batch targeting one member; composition across different
+member targets, where one source identity can be quantified in one member view
+and free in another, remains open. One-sided erasure also remains open: the
+observed `any -> int`
 requires proving, under the chosen order and Function interpretation, that
 replacing a negative-only local variable by `Top` preserves `Pred_d`; that
 equality does not follow from closure or renaming transport.
