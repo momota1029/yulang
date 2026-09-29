@@ -961,7 +961,17 @@ must provide a transport map for source identities and require:
    selection.
 2. Reachable bound records have corresponding proof carriers and validity
    dependencies. Evidence-lane and ordinary-lane records remain distinguishable
-   and ordered. Numeric IDs and internal graph node IDs need not match.
+   and ordered. Relate formula revisions, support/coverage roots, carrier and
+   premise identities, row states, and structural-snapshot validity. The
+   Oracle's canonical formula order compares raw proof IDs, and lower
+   projection returns the first included canonical arm as decisive evidence;
+   therefore preserving evidence payloads without preserving relevant order
+   is insufficient. The relation must preserve this order under an explicit
+   proof-identity transport or prove that any changed witness is unobservable
+   in all later selection and reporting. Projection-round cycle-cut and memo
+   state, plus error precedence/latches, also belong to the query relation.
+   Numeric IDs and internal graph node IDs need not match only when these
+   order, validity, and observation conditions are met.
 3. Pending subtype obligations, queued events, and the meaning of already
    applied constraint keys correspond. Epoch numbers need not be equal, but
    cache/proof validity and invalidation must correspond.
@@ -1113,6 +1123,45 @@ the use-value upper by a subtype constraint. Role predicates are installed separ
 Imported/finalized schemes take a validated path that preloads session-owned
 boundary variables; role-implementation candidate freshening is a separate
 adapter with a different free-variable policy.
+
+**Candidate recursive-interval restoration transport (selected-view lemma).**
+Represent every recursive interval row as an ordered triple
+`(q, lower_q, upper_q)`, where `q` is the shared recursive identity and the
+two finite polarized endpoints may themselves contain references to `q` or
+other interval identities. A row endpoint may also contain stack weights and
+subtractability payloads. Let `rho` be an injective use renaming on the
+complete TypeVar domain of the rows, identity on preserved TypeVar anchors;
+every row TypeVar must be either mapped as local or included in that preserved
+domain. Let `tau` freshen listed stack-quantifier IDs injectively and fix
+preserved/unlisted subtraction IDs, matching the ordinary non-imported scheme
+adapter. The fresh TypeVar range avoids the receiver's TypeVar namespace; the
+fresh subtraction-ID range avoids its subtraction-ID namespace and every
+fixed unlisted subtraction ID. Write
+`theta = (rho, tau)` and apply it throughout the endpoint syntax, including
+TypeVar payloads nested in subtractability filters. Define an interval's
+Oracle restoration sequence as
+`[(lower_q, q), (q, upper_q)]`, with each pair interpreted as a subtype
+obligation. For an ordered list of rows `R`, concatenate these two-obligation
+sequences in row order. Because `rho` is one memoized map, every ordinary or
+recursive occurrence of `q` has the same image. Then
+
+```text
+Restore(theta(R)) = map_ends(theta, Restore(R))
+```
+
+as ordered obligation sequences. The proof is structural: the two memoized
+maps assign one target to each TypeVar and subtraction ID; polarized
+projection commutes with `(rho, tau)` by induction over finite `Neu`/`Pos`/
+`Neg` syntax, `StackWeight`, and `Subtractability`; and the Oracle emits the
+lower obligation before the upper obligation for each row. A back-edge is renamed
+as a variable endpoint lookup. No step unfolds the interval into a recursive
+type equation. This establishes only that recursive interval installation
+commutes with an already selected graph renaming before constraint
+canonicalization. It does not prove that Oracle projection selects that graph,
+that the solver's event/canonicalization trace is identical, or that either
+graph is sound or principal under a semantic carrier. The source behavior is
+at frozen `instantiate.rs` lines 620–648, 763–775, 850–943, 983–1028, and
+1062–1118.
 
 **One recursive inequality interval (Oracle characterization).** A temporary
 Rust test against the same Oracle revision instantiated a scheme with interval

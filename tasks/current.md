@@ -122,9 +122,21 @@ inequalities, with no Oracle evidence for a recursive type constructor or
 coinductive subtype rule. A carrier is still needed to prove soundness and
 principality; candidate foundations and the approval boundary are recorded in
 `notes/progress/2026-09-30-intrusion-recursive-denotation-options.md`. The
-next action is to settle that semantic basis before claiming a principal
-solution theorem; operational root/use simulation remains independently
-available but cannot close Gate C alone. See
+selected-view proof now includes a conditional renaming lemma for recursive
+interval restoration, including the separate TypeVar and stack-subtraction
+maps. A compiler-referee delta review closed its stack-weight coverage gap.
+This remains before canonicalization and proves neither Oracle projection nor
+principality; details are in
+`notes/progress/2026-09-30-intrusion-recursive-interval-transport-review.md`.
+The next projection-congruence source map found a further invariant: Oracle
+formula selection uses numeric proof-ID canonical order and returns the first
+included arm as decisive evidence, so graph renaming alone is insufficient.
+The `R_i` relation now requires order-preserving proof transport or a proof
+that changed witnesses cannot affect later observations. Details are in
+`notes/progress/2026-09-30-intrusion-projection-order-map.md`. Next prove that
+projection relation and the ordered one-root simulation while the carrier
+decision remains open. Settle that semantic basis before claiming a
+principal-solution theorem. See
 `notes/progress/2026-09-30-intrusion-finite-saturation-review.md`. The
 interface review is recorded in
 `notes/progress/2026-09-30-intrusion-staged-run-interface-review.md`. The
