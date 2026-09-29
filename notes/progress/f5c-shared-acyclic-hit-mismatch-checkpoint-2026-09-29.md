@@ -606,3 +606,51 @@ git diff --check
 No scale/resource process, diagnostic, or matrix row ran. Families 3 and 5,
 remaining family-6 source/staged rows, closed-type/route composition,
 serialization suppression, and corrected-scale evidence remain open.
+
+### 2026-09-29 family-3 online-ledger extension
+
+The online shadow now includes all 21 family-3 `StructuredPairLane` rows
+(kinds 530–550). `StructuredPairOwner` and `StructuredPairChildOwner`
+CREATE/GROW/RELEASE capacity changes update exact rows and the checked joint
+same-time subtotal; request-only SHAPE and same-ID transfer keep capacity
+unchanged. The complete witness covers top lanes, two distinct overlapping
+kind-531 child owners with independent release, request-only shape, growth,
+and kind-549 `errors` transfer after the family-3 checkpoint. The terminal
+kind-549 release is witness cleanup; production still transfers that owner
+into `SolvedModule`. Replay checks all 170 rows and the joint subtotal, the
+family-3 checkpoint, transfer/release identity, grow-only owner shape, and
+zero witness owners at EOF. Family-1/2 and FlatDraft transfer checks remain.
+
+Selected M2 for shared-ledger conformance and transfer-copy cost. The initial
+postwrite `spec_auditor` review found a major hole allowing external owners to
+transfer into family-3 rows; it also noted the totals parser overwrote
+duplicate row keys. A fresh implementer repair now rejects transfers into or
+out of family 3 except the exact postcheckpoint 549-to-549 same-ID transfer,
+and rejects malformed headers/rows and duplicate keys. The spec delta review
+closed both findings. A focused mutated sidecar was rejected at the offending
+transfer; a duplicate totals row was rejected. The mutation changed a
+FlatDraft transfer event's destination kind and target to 530, and the checker
+rejected event 170 with `invalid family-3 witness transfer (0, 82)` before
+checksum/final-row checks. `performance_auditor` found no blocking asymptotic
+issue or timing decision at this bounded observer stage.
+
+The ledger is 5,472 bytes per thread; each atomic WalkerLane transfer copies
+that state (+672 bytes over 149 lane rows, or +1,344 bytes of read/write
+traffic). The fresh scale plan must account for `5,472 * transfers` copied
+bytes (`10,944 * transfers` counting reads and writes), by source and target,
+and record family-3 owner/event counts including child growth and release.
+The focused feature-enabled witness passed; the complete 284-event replay
+matched all 170 rows. Python AST validation, malformed transfer and duplicate
+row checks, and `git diff --check` passed. Exact commands:
+
+```text
+F5C_WALKER_SHADOW_SIDECAR=/tmp/f5c-family3-witness-final.bin F5C_WALKER_SHADOW_TOTALS=/tmp/f5c-family3-witness-final.txt RUSTC_WRAPPER= cargo test -p yu-solver --features f5c_resource_probe f5c_walker_online_shadow_witness --lib --offline -j 2 -- --test-threads=1
+python3 tools/check_f5c_resource_matrix.py --walker-shadow-witness /tmp/f5c-family3-witness-final.bin --walker-shadow-totals /tmp/f5c-family3-witness-final.txt
+python3 -c 'import ast, pathlib; ast.parse(pathlib.Path("tools/check_f5c_resource_matrix.py").read_text())'
+python3 -c 'import pathlib, subprocess, sys, tempfile; source=pathlib.Path("/tmp/f5c-family3-witness-final.txt"); lines=source.read_text().splitlines(); assert len(lines)>1; script="tools/check_f5c_resource_matrix.py"; sidecar="/tmp/f5c-family3-witness-final.bin"; d=tempfile.TemporaryDirectory(); duplicate=pathlib.Path(d.name)/"duplicate-totals.txt"; duplicate.write_text("\n".join(lines+[lines[1]])+"\n"); result=subprocess.run([sys.executable,script,"--walker-shadow-witness",sidecar,"--walker-shadow-totals",str(duplicate)],capture_output=True,text=True); assert result.returncode != 0 and "duplicate" in (result.stdout+result.stderr).lower(), result; print("duplicate totals row rejected"); d.cleanup()'
+git diff --check
+```
+
+No resource/scale process, diagnostic, or matrix row ran. Family-5 normalization
+outputs, remaining family-6 source/staged rows, closed-type/route composition,
+serialization suppression, and corrected-scale evidence remain open.

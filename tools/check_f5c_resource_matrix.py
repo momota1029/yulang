@@ -435,15 +435,24 @@ def replay_f6_events(path, expected_count, expected_checksum):
 def check_walker_shadow_witness(sidecar, totals_path):
     """Replay the complete witness sidecar with the matrix replay's owner rules."""
     expected = totals_path.read_text(encoding="ascii").splitlines()
-    expected_count, expected_checksum = map(int, expected[0].split())
+    header = expected[0].split()
+    if len(header) != 2:
+        raise ValueError("walker shadow witness needs count and checksum")
+    expected_count, expected_checksum = map(int, header)
     expected_rows = {}
     for line in expected[1:]:
-        key, *values = line.split()
-        expected_rows[key if key == "combined" else int(key)] = tuple(map(int, values))
-    if set(expected_rows) != (set(range(32, 130)) | set(range(512, 530)) | set(range(551, 584)) | {"combined"}):
-        raise ValueError("walker shadow witness needs all 149 event lane rows and combined totals")
+        fields = line.split()
+        if len(fields) != 5:
+            raise ValueError("walker shadow witness row needs a key and four totals")
+        key, *values = fields
+        key = key if key == "combined" else int(key)
+        if key in expected_rows:
+            raise ValueError(f"duplicate walker shadow witness row {key}")
+        expected_rows[key] = tuple(map(int, values))
+    if set(expected_rows) != (set(range(32, 130)) | set(range(512, 584)) | {"combined"}):
+        raise ValueError("walker shadow witness needs all 170 event lane rows and combined totals")
     owners = {}
-    rows = {kind: [0, 0, 0, 0] for kind in (*range(32, 130), *range(512, 530), *range(551, 584))}
+    rows = {kind: [0, 0, 0, 0] for kind in (*range(32, 130), *range(512, 584))}
     combined = [0, 0, 0, 0]
     count = checksum = last_id = 0
     staged_transfers = {}
@@ -455,6 +464,12 @@ def check_walker_shadow_witness(sidecar, totals_path):
     live_checkpoint = None
     live_checkpoint_owners = None
     live_releases = set()
+    pair_checkpoint = None
+    pair_checkpoint_owners = None
+    pair_releases = set()
+    pair_transfer = None
+    pair_shapes = set()
+    pair_growths = set()
 
     def adjust(kind, old, new, size):
         if kind not in rows:
@@ -478,6 +493,20 @@ def check_walker_shadow_witness(sidecar, totals_path):
             checksum = (checksum + sum(EVENT.unpack(block))) & ((1 << 64) - 1)
             key = (component, owner_id)
             if op == 6:
+                if kind == 530:
+                    if (component, owner_id, requested, target) != (0, 0, 0, 0) or pair_checkpoint is not None:
+                        raise ValueError("invalid family-3 witness checkpoint shape")
+                    if not all(rows[lane_kind][0] > 0 for lane_kind in range(530, 551)):
+                        raise ValueError("family-3 witness checkpoint lacks a live lane")
+                    if (actual, size) != (sum(rows[k][0] for k in range(530, 551)),
+                                           sum(rows[k][2] for k in range(530, 551))):
+                        raise ValueError("family-3 witness checkpoint differs from live rows")
+                    pair_checkpoint = (actual, size)
+                    pair_checkpoint_owners = {key for key, (owner_kind, *_rest) in owners.items()
+                                              if 530 <= owner_kind < 551}
+                    if len([key for key in pair_checkpoint_owners if owners[key][0] == 531]) < 2:
+                        raise ValueError("family-3 witness needs overlapping child owners")
+                    continue
                 if kind == 512:
                     if (component, owner_id, requested, target) != (0, 0, 0, 0) or live_checkpoint is not None:
                         raise ValueError("invalid family-1 witness checkpoint shape")
@@ -504,6 +533,8 @@ def check_walker_shadow_witness(sidecar, totals_path):
             if requested > actual or size == 0:
                 raise ValueError(f"invalid witness shape {key}")
             if op == 1:
+                if pair_checkpoint is not None and 530 <= kind < 551:
+                    raise ValueError("family-3 witness creation after checkpoint")
                 if live_checkpoint is not None and 512 <= kind < 530:
                     raise ValueError("family-1 witness creation after checkpoint")
                 if term_checkpoint is not None and 571 <= kind < 577:
@@ -517,6 +548,17 @@ def check_walker_shadow_witness(sidecar, totals_path):
             if key not in owners:
                 raise ValueError(f"unknown witness owner {key}")
             old_kind, old_requested, old_actual, old_size = owners[key]
+            if op == 4 and (530 <= old_kind < 551 or 530 <= kind < 551):
+                if (pair_checkpoint is None or old_kind != 549 or kind != 549
+                        or pair_transfer is not None or
+                        (requested, actual, size, target) !=
+                        (old_requested, old_actual, old_size, old_kind)):
+                    raise ValueError(f"invalid family-3 witness transfer {key}")
+            if 530 <= old_kind < 551:
+                if op == 7:
+                    raise ValueError(f"family-3 witness decrease {key}")
+                if pair_checkpoint is not None and op not in (4, 5):
+                    raise ValueError(f"family-3 witness mutation after checkpoint {key}")
             if 512 <= old_kind < 530 and op in (4, 7):
                 raise ValueError(f"family-1 witness has invalid transfer/decrease {key}")
             if live_checkpoint is not None and 512 <= old_kind < 530 and op != 5:
@@ -530,6 +572,8 @@ def check_walker_shadow_witness(sidecar, totals_path):
                     term_releases.add(key)
                 if live_checkpoint is not None and key in live_checkpoint_owners:
                     live_releases.add(key)
+                if pair_checkpoint is not None and key in pair_checkpoint_owners:
+                    pair_releases.add(key)
                 adjust(kind, old_actual, 0, size)
                 del owners[key]
             elif op in (2, 3, 4, 7):
@@ -549,6 +593,12 @@ def check_walker_shadow_witness(sidecar, totals_path):
                     if term_checkpoint is None or key in term_transfers or (kind, requested, actual, size) != (old_kind, old_requested, old_actual, old_size):
                         raise ValueError(f"invalid family-2 witness transfer {key}")
                     term_transfers.add(key)
+                if op == 4 and 530 <= old_kind < 551:
+                    pair_transfer = key
+                if op == 2 and 530 <= old_kind < 551 and requested != old_requested:
+                    pair_shapes.add(key)
+                if op == 3 and 530 <= old_kind < 551:
+                    pair_growths.add(key)
                 if op == 4 and 32 <= old_kind < 130 and 12 <= kind < 18:
                     if kind in staged_transfers.values():
                         raise ValueError(f"duplicate staged witness transfer for kind {kind}")
@@ -566,6 +616,12 @@ def check_walker_shadow_witness(sidecar, totals_path):
         raise ValueError("witness needs all family-2 same-ID transfers and releases")
     if live_checkpoint is None or not live_checkpoint_owners or live_releases != live_checkpoint_owners:
         raise ValueError("witness needs family-1 checkpoint and release-only owner suffix")
+    if (pair_checkpoint is None or pair_transfer is None or pair_transfer not in pair_checkpoint_owners
+            or pair_transfer not in pair_releases or pair_releases != pair_checkpoint_owners
+            or not pair_shapes or not pair_growths):
+        raise ValueError("witness needs family-3 checkpoint, kind-549 transfer, and exact releases")
+    if any(rows[kind][1] == 0 or rows[kind][0] != 0 for kind in range(530, 551)):
+        raise ValueError("witness needs all 21 released family-3 physical lanes")
     if any(rows[kind][1] == 0 or rows[kind][0] != 0 for kind in range(512, 530)):
         raise ValueError("witness needs all 18 released family-1 physical lanes")
     if any(rows[kind][1] == 0 for kind in range(571, 577)):
@@ -575,7 +631,7 @@ def check_walker_shadow_witness(sidecar, totals_path):
     for kind, totals in rows.items():
         if tuple(totals) != expected_rows[kind]:
             raise ValueError(f"lane {kind} shadow mismatch: {totals} != {expected_rows[kind]}")
-    print(f"F5c online owner shadow: {count} full sidecar events, 149 exact lane rows and joint total")
+    print(f"F5c online owner shadow: {count} full sidecar events, 170 exact lane rows and joint total")
 
 
 def main():

@@ -1425,7 +1425,8 @@ fn matrix_source(family: F5cMatrixFamily, count: usize) -> String {
 #[test]
 fn f5c_walker_online_shadow_witness() {
     use crate::f5c_draft_heap::{DraftHeapMeter, FlatDraftOwner, PhysicalOwnerKind,
-        RawWalkerOwner, TrackedVec, ComponentMemoEvents, InstantiationEvents};
+        RawWalkerOwner, TrackedVec, ComponentMemoEvents, InstantiationEvents,
+        StructuredPairOwner, StructuredPairChildOwner};
 
     let sidecar = std::env::var_os("F5C_WALKER_SHADOW_SIDECAR")
         .map(std::path::PathBuf::from).unwrap_or_else(|| std::env::temp_dir().join(format!(
@@ -1464,10 +1465,19 @@ fn f5c_walker_online_shadow_witness() {
         negative.observe(1, 2);
         retained.observe(1, 2);
         ordinary.observe(2, 4);
-        let (_, _, _, _, live_lanes, simultaneous) = crate::f5c_draft_heap::f5c_walker_shadow_totals();
+        let (_, _, _, _, live_lanes, _, simultaneous) = crate::f5c_draft_heap::f5c_walker_shadow_totals();
         assert_eq!((simultaneous.current_capacity, simultaneous.current_bytes),
             (68 + live.capacity, 538 + live.retained));
         assert!(live_lanes.iter().all(|lane| lane.current_capacity > 0));
+        let mut pair_owners: Vec<_> = (0..21).filter(|lane| *lane != 1)
+            .map(|lane| StructuredPairOwner::new(lane, lane + 1)).collect();
+        for owner in &mut pair_owners { owner.observe(1, 2); }
+        pair_owners[0].observe(2, 2); // Request-only top shape.
+        pair_owners[0].observe(3, 4); // Grow the same top allocation.
+        let mut first_child = StructuredPairChildOwner::new_with_shape(3, 1, 2);
+        let mut second_child = StructuredPairChildOwner::new_with_shape(3, 1, 4);
+        first_child.observe_shape(2, 2, 3);
+        first_child.observe_growth(3, 4, 3);
         comparison.observe(3, 4); // Request-only update keeps the owner shape.
         negative.observe(0, 0);
         negative.observe(1, 4);
@@ -1490,11 +1500,11 @@ fn f5c_walker_online_shadow_witness() {
         for owner in &mut staged_owners {
             owner.observe(1, 2);
         }
-        let (before_transfer, _, _, _, _, _) = crate::f5c_draft_heap::f5c_walker_shadow_totals();
+        let (before_transfer, _, _, _, _, _, _) = crate::f5c_draft_heap::f5c_walker_shadow_totals();
         assert!(before_transfer[2..8].iter().all(|lane| lane.current_capacity == 2));
         let staged = meter.claim_existing_batch_with_owners(bytes, 0, &mut staged_owners,
             requested, capacities, sizes).expect("flat draft owner transfer failed");
-        let (after_transfer, _, _, _, _, _) = crate::f5c_draft_heap::f5c_walker_shadow_totals();
+        let (after_transfer, _, _, _, _, _, _) = crate::f5c_draft_heap::f5c_walker_shadow_totals();
         assert!(after_transfer[2..8].iter().all(|lane| lane.current_capacity == 0));
         drop(staged_owners);
         drop(staged);
@@ -1511,27 +1521,38 @@ fn f5c_walker_online_shadow_witness() {
         drop(terms);
         crate::f5c_draft_heap::checkpoint_live_variable_events(live.capacity, live.retained);
         live.release_all();
+        let (pair_capacity, pair_bytes, _) = crate::f5c_draft_heap::structured_pair_event_totals();
+        crate::f5c_draft_heap::checkpoint_structured_pair_events(pair_capacity, pair_bytes);
+        first_child.release(3);
+        second_child.release(3);
+        for (index, owner) in pair_owners.iter_mut().enumerate() {
+            if index != 18 { owner.release(); }
+        }
+        pair_owners[18].transfer_same_id();
+        pair_owners[18].release();
         drop(memo);
         drop(instantiation);
         drop(ordinary);
         drop(comparison);
         drop(positive);
         drop(negative);
-        let (lanes, component_lanes, term_lanes, instantiation_lanes, live_lanes, combined) = crate::f5c_draft_heap::f5c_walker_shadow_totals();
+        let (lanes, component_lanes, term_lanes, instantiation_lanes, live_lanes, pair_lanes, combined) = crate::f5c_draft_heap::f5c_walker_shadow_totals();
         assert_eq!((lanes[116 - 32].current_capacity, combined.current_bytes), (2, 32));
         assert!(component_lanes.iter().all(|lane| lane.current_capacity == 0));
         assert!(term_lanes.iter().all(|lane| lane.current_capacity == 0));
         assert!(instantiation_lanes.iter().all(|lane| lane.current_capacity == 0));
         assert!(live_lanes.iter().all(|lane| lane.current_capacity == 0));
+        assert!(pair_lanes.iter().all(|lane| lane.current_capacity == 0));
         drop(retained);
     }
-    let (lanes, component_lanes, term_lanes, instantiation_lanes, live_lanes, combined) = crate::f5c_draft_heap::f5c_walker_shadow_totals();
+    let (lanes, component_lanes, term_lanes, instantiation_lanes, live_lanes, pair_lanes, combined) = crate::f5c_draft_heap::f5c_walker_shadow_totals();
     assert_eq!((combined.current_capacity, combined.current_bytes), (0, 0));
     assert!(combined.peak_bytes >= 480);
     assert!(component_lanes.iter().all(|lane| lane.peak_capacity > 0));
     assert!(term_lanes.iter().all(|lane| lane.peak_capacity > 0));
     assert!(instantiation_lanes.iter().all(|lane| lane.peak_capacity > 0));
     assert!(live_lanes.iter().all(|lane| lane.peak_capacity > 0));
+    assert!(pair_lanes.iter().all(|lane| lane.peak_capacity > 0));
     let (count, checksum) = crate::f5c_draft_heap::close_f5c_resource_events().unwrap();
     if let Some(path) = std::env::var_os("F5C_WALKER_SHADOW_TOTALS") {
         use std::fmt::Write;
@@ -1554,6 +1575,10 @@ fn f5c_walker_online_shadow_witness() {
         }
         for (lane, totals) in live_lanes.iter().enumerate() {
             writeln!(output, "{} {} {} {} {}", lane + 512, totals.current_capacity,
+                totals.peak_capacity, totals.current_bytes, totals.peak_bytes).unwrap();
+        }
+        for (lane, totals) in pair_lanes.iter().enumerate() {
+            writeln!(output, "{} {} {} {} {}", lane + 530, totals.current_capacity,
                 totals.peak_capacity, totals.current_bytes, totals.peak_bytes).unwrap();
         }
         writeln!(output, "combined {} {} {} {}", combined.current_capacity,

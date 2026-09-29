@@ -72,6 +72,7 @@ mod event_sink {
         term_lanes: [WalkerTotals; 6],
         instantiation_lanes: [WalkerTotals; 7],
         live_lanes: [WalkerTotals; 18],
+        structured_pair_lanes: [WalkerTotals; 21],
         combined: WalkerTotals,
     }
 
@@ -87,6 +88,8 @@ mod event_sink {
                     current_bytes: 0, peak_bytes: 0 }; 7],
                 live_lanes: [WalkerTotals { current_capacity: 0, peak_capacity: 0,
                     current_bytes: 0, peak_bytes: 0 }; 18],
+                structured_pair_lanes: [WalkerTotals { current_capacity: 0, peak_capacity: 0,
+                    current_bytes: 0, peak_bytes: 0 }; 21],
                 combined: WalkerTotals { current_capacity: 0, peak_capacity: 0,
                     current_bytes: 0, peak_bytes: 0 } }
         }
@@ -113,6 +116,11 @@ mod event_sink {
 
         fn adjust_live(&mut self, lane: usize, old: usize, new: usize, size: usize) {
             let lane_totals = self.live_lanes.get_mut(lane).expect("LiveVariableLane index");
+            Self::adjust_totals(lane_totals, &mut self.combined, old, new, size);
+        }
+
+        fn adjust_structured_pair(&mut self, lane: usize, old: usize, new: usize, size: usize) {
+            let lane_totals = self.structured_pair_lanes.get_mut(lane).expect("StructuredPairLane index");
             Self::adjust_totals(lane_totals, &mut self.combined, old, new, size);
         }
 
@@ -157,10 +165,10 @@ mod event_sink {
         Ok(())
     }
 
-    pub(crate) fn walker_totals() -> ([WalkerTotals; 98], [WalkerTotals; 20], [WalkerTotals; 6], [WalkerTotals; 7], [WalkerTotals; 18], WalkerTotals) {
+    pub(crate) fn walker_totals() -> ([WalkerTotals; 98], [WalkerTotals; 20], [WalkerTotals; 6], [WalkerTotals; 7], [WalkerTotals; 18], [WalkerTotals; 21], WalkerTotals) {
         WALKER_LEDGER.with(|ledger| {
             let ledger = ledger.borrow();
-            (ledger.lanes, ledger.component_lanes, ledger.term_lanes, ledger.instantiation_lanes, ledger.live_lanes, ledger.combined)
+            (ledger.lanes, ledger.component_lanes, ledger.term_lanes, ledger.instantiation_lanes, ledger.live_lanes, ledger.structured_pair_lanes, ledger.combined)
         })
     }
 
@@ -182,6 +190,10 @@ mod event_sink {
 
     pub(super) fn adjust_live_shadow(lane: usize, old: usize, new: usize, size: usize) {
         WALKER_LEDGER.with(|ledger| ledger.borrow_mut().adjust_live(lane, old, new, size));
+    }
+
+    pub(super) fn adjust_structured_pair_shadow(lane: usize, old: usize, new: usize, size: usize) {
+        WALKER_LEDGER.with(|ledger| ledger.borrow_mut().adjust_structured_pair(lane, old, new, size));
     }
 
     pub(super) fn transfer_walker(source: PhysicalOwnerKind, target: PhysicalOwnerKind,
@@ -638,7 +650,7 @@ impl StructuredPairOwner {
     }
 
     pub(super) fn observe(&mut self, requested: usize, capacity: usize) {
-        assert!(!self.released && requested <= capacity);
+        assert!(!self.released && requested <= capacity && capacity >= self.capacity);
         let operation = if self.capacity != capacity { Some(event_sink::GROW) }
             else if self.requested != requested { Some(event_sink::SHAPE) } else { None };
         if let Some(operation) = operation {
@@ -649,6 +661,7 @@ impl StructuredPairOwner {
                 let capacity_delta = capacity as isize - self.capacity as isize;
                 let retained_delta = capacity_delta * self.slot_size as isize;
                 event_sink::adjust_structured_pair(capacity_delta, retained_delta);
+                event_sink::adjust_structured_pair_shadow(self.lane, self.capacity, capacity, self.slot_size);
             }
         }
         self.requested = requested;
@@ -664,6 +677,7 @@ impl StructuredPairOwner {
                 -(self.capacity as isize),
                 -((self.capacity * self.slot_size) as isize),
             );
+            event_sink::adjust_structured_pair_shadow(self.lane, self.capacity, 0, self.slot_size);
         }
         self.requested = 0;
         self.capacity = 0;
@@ -709,6 +723,7 @@ impl StructuredPairChildOwner {
                 capacity as isize,
                 (capacity * slot_size) as isize,
             );
+            event_sink::adjust_structured_pair_shadow(1, 0, capacity, slot_size);
         }
         Self { id, capacity }
     }
@@ -724,6 +739,7 @@ impl StructuredPairChildOwner {
             PhysicalOwnerKind::StructuredPairLane(1), requested, capacity, slot_size, 0);
         let delta = (capacity - self.capacity) as isize;
         event_sink::adjust_structured_pair(delta, delta * slot_size as isize);
+        event_sink::adjust_structured_pair_shadow(1, self.capacity, capacity, slot_size);
         self.capacity = capacity;
     }
 
@@ -755,6 +771,7 @@ impl StructuredPairChildOwner {
             -(self.capacity as isize),
             -((self.capacity * slot_size) as isize),
         );
+        event_sink::adjust_structured_pair_shadow(1, self.capacity, 0, slot_size);
         self.capacity = 0;
         self.id = 0;
     }
