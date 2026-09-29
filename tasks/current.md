@@ -47,14 +47,20 @@ shows `pub k x = 1` projects to `any -> int` with no binders, so root projection
 must eliminate one-sided exposures while preserving the shared component for
 other roots. The audited Oracle path confirms projection is computed from
 each member root at positive polarity, expands matching lower/upper bounds,
-tracks recursion by `(TypeVar, polarity)`, then erases one-sided variables and
-retains bipolar identity. The finite model now passes nineteen checks and
-matches three observed shapes: `'a -> 'a`, `any -> int`, and
-`any -> any -> never`. It still omits the Oracle recursive-binder table and
-principality. Next compare projection outputs against more Oracle witnesses
-and define the scheme/component solution ordering before stating the simulation
-theorem. F5's Q/R shape, closed schemes, numbering, and resource contract are
-historical comparison points, not acceptance criteria for this redesign.
+keys the collector cache by `(TypeVar, polarity, weight)` and recursion by
+`(TypeVar, polarity)`, then erases one-sided variables and retains bipolar
+identity. The small auxiliary model passes nineteen checks and
+matches three recorded shapes, but is not implementation evidence. A narrow
+Oracle-source lemma now states that injective parent renaming commutes with
+root collection and one-sided elimination on an already scope-filtered,
+ordered pure graph. A scoped compiler-referee review found no counterexample
+under those assumptions and required the edge-selection boundary to remain
+explicit. The lemma excludes the Oracle's other simplification passes, use
+overlays, and principality. F5's Q/R shape, closed schemes, numbering, and
+resource contract remain historical comparison points, not acceptance
+criteria. Next define the actual boundary-edge selection and root-view
+instantiation semantics, then prove their composition against Oracle member
+uses before selecting the production representation.
 
 The reviewed pure-F5 protocol exposed a mistaken compatibility premise and is
 retained only as historical review evidence. The new lifecycle obligations

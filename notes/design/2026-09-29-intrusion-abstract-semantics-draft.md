@@ -204,6 +204,59 @@ reproduces the structural results `'a -> 'a`, `any -> int`, and
 lambda graphs. It does not encode the Oracle's recursive-binder table or prove
 principality.
 
+### Alpha-renaming commutes with the pure root projection
+
+Here `Project` means `compact_root_for_scheme` graph collection followed by the
+polarity census and one-sided-variable elimination described above. It does
+not include the Oracle's other simplification passes such as coalescing,
+pinned-interval collapse, sandwiching, or role processing.
+
+The audited Oracle projection path provides a stronger lemma for the first
+pure graph fragment. Let `G` be the already scope-filtered, frozen lower/upper
+graph for one generalization boundary; this lemma does not prove that
+`scheme_projectable_lowers_in_scope` selects the right edges. Let `rho` be an
+injective renaming from selected local variable IDs to fresh parent IDs. Assume
+it preserves each variable's generalization-candidate predicate
+(`level >= boundary && !non_generic`), maps the selected root, and renames
+every edge occurrence in `G` without changing its direction, constructor,
+weight, stable source record/evidence, or iteration order. The already selected
+edge occurrences and their order are part of this lemma's input: the Oracle
+collector processes lower-bound records in order, and recursive-side bounds
+are stored by `(TypeVar, polarity)` even though cache keys also include weight.
+`rho` is the identity on outer/environment variables.
+Then the Oracle root projection commutes with `rho`, up to alpha-equivalence
+of recursive-side ordering:
+
+```text
+Project(rho(G), rho(root), rho(environment))
+    = alpha(rho(Project(G, root, environment)))
+```
+
+Reason: the collector cache is keyed by `(TypeVar, polarity, weight)`, while
+recursive re-entry and the recursive-side set are keyed by `(TypeVar,
+polarity)`. Injectivity preserves equality and inequality of variable IDs in
+both key spaces; keeping annotations, source record decisions, and iteration
+order fixed maps every structural descent to the same polarity descent and
+preserves which weighted visit records each recursive side. Thus cache hits,
+recursive re-entries, and recursive-side membership commute with renaming,
+and the root and recursive-side table are renamed homomorphically. The
+following polarity census also commutes with renaming. Finally, its
+elimination predicate is `level >= boundary && !non_generic`, so preserving
+that predicate preserves exactly which occurrences are eligible; one-sided
+versus bipolar status is unchanged. Recursive-side serialization order may
+differ because the Oracle sorts by numeric TypeVar ID, which alpha-equivalence
+deliberately ignores.
+
+The implementation evidence is
+`compact/collect/mod.rs::compact_root_for_scheme,compact_var_side` and
+`compact/analysis/mod.rs::eliminate_polar_variables_with_roles_and_non_generic,
+is_simplification_candidate` in the frozen Oracle at `a58eefc3`. This lemma
+supports preallocating injective parents before visiting roots in any order,
+provided parent metadata preserves the candidate predicate and the frozen edge
+selection is already correct. It proves renaming invariance for projection,
+not edge selection, the parent set, instantiation overlays, SCC scheduler
+equivalence, or principality.
+
 ## 4. Instantiation uses overlays
 
 An instantiated use receives a fresh overlay `sigma` for that use's local
