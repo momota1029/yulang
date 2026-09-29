@@ -983,6 +983,37 @@ closure, or that concrete compact views preserve `M_x`; the existing Oracle
 characterizations cover only the specific unweighted path and diamond fixtures
 below.
 
+**Finite lower-graph projection (candidate denotation theorem).** Fix an outer
+assignment. Let `V` be finite, and suppose the selected obligations touching
+`V` are only variable edges `u ≤ v`, fixed-endpoint lowers `L_j ≤ v`, and
+fixed-endpoint uppers `v ≤ U_i`. Assume every remaining obligation is
+independent of `V` and holds under the fixed outer assignment, and that the
+selected graph has a satisfying assignment. The carrier is a preorder with
+all finite joins, including nullary join `Bottom`. For each `v`, let
+`Reach_L(v)` be the lower endpoints `L_j` whose owner is connected to `v` by
+zero or more variable edges directed from owner to target, and set
+`J_v = ⋁ Reach_L(v)`.
+
+Every satisfying assignment `nu` obeys `J_v ≤ nu(v)`: each reachable lower
+endpoint is a transitive lower bound on `v`, and finite join is its least
+upper bound. If `u ≤ v` is an edge, `Reach_L(u) ⊆ Reach_L(v)`, hence
+`J_u ≤ J_v`. Each direct lower holds at `J_v` by the join property. For each
+direct upper `v ≤ U_i`, choose a satisfying witness `nu`; then
+`J_v ≤ nu(v) ≤ U_i`, so the upper holds at `J_v`. Therefore `v ↦ J_v`
+satisfies the whole selected graph and is pointwise least up to preorder
+equivalence, including shared vertices and cycles. For a root consisting of
+the positive variable `v`, `↑{nu(v) | nu satisfies the graph} = ↑{J_v}`.
+
+This result concerns an already-selected finite bound graph. It does not say
+that the compact collector selects these edges, nor does the positive-variable
+corollary directly solve a Function root where one identity occurs both
+positively and negatively: the argument and result fibers are coupled and
+their extrema cannot be combined independently. The positive-result Oracle
+source probe recorded in
+`notes/progress/2026-09-30-intrusion-bounded-negative-counterexample.md`
+motivates this dual graph lemma, but its recursive/effect endpoints have not
+yet been shown to satisfy this theorem's complete graph-class premises.
+
 **Selected-edge fiber corollary (conditional).** The interval premise can be
 derived for a restricted selected graph. Let `G` have a finite set of selected
 variable subtype edges, interpreted as lower/upper obligations in a carrier

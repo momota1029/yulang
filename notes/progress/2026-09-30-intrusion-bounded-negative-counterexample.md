@@ -435,11 +435,33 @@ positive Function result. It does not establish equivalence with the
 intrusion candidate, principality, finalization/use simulation, or the broader
 Oracle capability envelope.
 
+## Conditional finite lower-graph lemma (2026-09-30)
+
+The abstract-semantics draft now states the lower dual of its finite
+upper-graph projection theorem. For a finite selected graph with variable
+edges `u ≤ v`, fixed lower endpoints `L ≤ v`, and fixed upper endpoints
+`v ≤ U`, define `J_v` as the join of every lower endpoint that reaches `v`
+along variable edges. Under a carrier with finite joins including `Bottom`, a
+satisfying witness shows `J_v` obeys every fixed upper; join and edge
+monotonicity show it satisfies every lower and variable edge. It is therefore
+the pointwise least satisfying assignment. A standalone positive variable
+root `v` has upward denotation `↑{J_v}`.
+
+An independent compiler-referee review checked edge direction, the upper-bound
+argument, cycles, and the denotation equation; it found no issue within the
+stated assumptions. This is conditional graph algebra, not proof that Oracle
+selects this graph or that its result applies directly to a Function root.
+The positive source fixture has a shared variable in both Function argument
+and result positions plus recursive/effect endpoints, so its full member-root
+denotation still requires coupled polarity reasoning. No compiler code or
+tests changed for this lemma.
+
 ## Next action
 
-Compare this selected positive-result graph against the candidate intruded
-graph and show the same boundary identity and root denotation after
-finalization. Then cover independent use instantiation and ordered root
-simulation, before continuing to the general denotation proof. The negative
-argument fixture remains useful as the polarity contrast. Implementation
-remains gated.
+Extract the full selected graph for the positive source fixture and state its
+mixed-polarity Function-root denotation, preserving the shared argument/result
+identity and outer `l`. Then compare that relation against parent intrusion
+through finalization and independent uses. The finite lower lemma is only a
+single positive-variable fiber and does not discharge this coupled case.
+Ordered root simulation and the general denotation proof remain open;
+implementation remains gated.
