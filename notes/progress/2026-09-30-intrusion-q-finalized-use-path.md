@@ -46,23 +46,130 @@ The ordinary post-publication path is separate:
    (`analysis/session/instantiate.rs:505–524,717–729`). The batch commits its
    queued edges at `:325–335`.
 
-These source facts explain the intended ordinary-use identity policy, but they
-do not yet prove fixture-specific use behavior. The available source capture
-does not record the exact finalized scheme fields, stack-quantifier count,
-free-anchor set, witness paths, or an actual incoming use of this exact `f`.
-The direct-lower branch for this Function scheme is inferred from its formatted
-shape; a fixture-specific instantiation trace has not confirmed the branch.
+These source facts explain the ordinary-use identity policy; fixture-specific
+scheme and use observations follow below. They do not prove the q
+rewrite/prune or source-to-scheme theorems.
+
+## Two incoming-use probe
+
+A temporary Rust characterization test first used two unconstrained incoming
+uses, then replaced their definitions with annotations to force distinct
+result types. The final discriminating source was:
+
+```text
+pub f x = x f
+pub use_int: int = f 1
+pub use_bool: bool = f 2
+```
+
+It ran in the disposable Oracle worktree at `a58eefc31`, with temporary
+environment-gated tracing in `instantiate.rs` and
+`analysis/session/instantiate.rs`. Command:
+
+```text
+YULANG_INTRUSION_USE_TRACE=1 YULANG_TRACE_SCHEME_DEFS=0 \
+  CARGO_TARGET_DIR=/tmp/yulang-intrusion-qscheme-use-target \
+  cargo test -p infer --lib scratch_intrusion_q_scheme_two_uses -- --nocapture
+```
+
+Result: 1 passed. The finalized scheme is recorded exactly as:
+
+```text
+quantifiers: [TypeVar(8), TypeVar(13)]
+stack_quantifiers: []
+recursive_bounds: []
+predicate: Fun {
+  arg: Top,
+  arg_eff: Bot,
+  ret_eff: Var(TypeVar(13)),
+  ret: Var(TypeVar(8)),
+}
+```
+
+Both later references resolve to target `DefId(0)` and enter the ordinary
+scheme path. The first use (`parent DefId(1)`, `use_value TypeVar(17)`) maps
+the quantifiers to `TypeVar(32)` and `TypeVar(33)` and attaches `PosId(36)` by
+the `direct-lower` route in the unannotated probe. In the final annotated run,
+the first use maps them to `TypeVar(32)` and `TypeVar(33)` and attaches
+`PosId(39)`; the second (`parent DefId(2)`, `use_value TypeVar(25)`) maps them
+to `TypeVar(34)` and `TypeVar(35)` and attaches `PosId(42)`. Both use the same
+`direct-lower` route. The resulting public bindings format as `int` and
+`bool`, respectively, with no lowering errors. Thus the dump reports distinct
+result types for this captured pair of ordinary incoming uses, and the two
+quantified type identities are fresh and disjoint across these two use calls.
+This particular scheme has no unmapped type or stack identity in its predicate,
+so it does not test shared
+outer anchors. It has no stack quantifier or recursive bound; consequently
+there is no per-use stack freshening or q-row reinstallation in this fixture.
+
+In the earlier unannotated run each call received eleven witness inputs. The
+projection retained four mappings (two root mappings and two argument
+mappings); seven structural witnesses remained incomplete. The annotated
+run did not change or fully re-audit those provenance mappings. Neither run
+tests shared outer anchors. The annotated observations constrain result types,
+not the quantified latent return-effect identity, and the partial witness
+projection is not a provenance-preservation proof. Temporary instrumentation
+and the scratch test are uncommitted changes in the disposable Oracle
+worktree; they are not part of frozen commit `a58eefc31`.
+
+## Shared outer anchor with two local scheme uses
+
+A second disposable-worktree Rust probe used:
+
+```text
+my outer x =
+  my inner y = ({left: x, right: x}, y)
+  (inner 1, inner 2)
+```
+
+The local `inner` scheme formats as `'a -> ({left: 'b, right: 'b}, 'a)`.
+It has one quantified identity, `TypeVar(10)`, while the traced `x`
+occurrences use free `TypeVar(2)`. Each of the two local uses targets
+`DefId(2)`. The first creates use value `TypeVar(27)`, maps the quantified
+identity to `TypeVar(28)`, and clones the unmapped `TypeVar(2)` to itself. The
+second creates use value `TypeVar(35)`, maps the quantifier to `TypeVar(36)`,
+and again clones `TypeVar(2)` to itself. This establishes independent local
+identity freshening and a shared identity at the clone operation for these two
+local uses.
+
+The outer binding formats as
+`'a -> (({left: 'a, right: 'a}, int), ({left: 'a, right: 'a}, int))`; the
+dump shows the same outer parameter `x` in both returned record pairs. This is
+an accepted source fixture with no lowering errors. These are local block
+uses through `instantiate_local_value` and the subtype-route path, not the
+earlier top-level `UseResolved` direct-lower path. Both arguments are integers,
+so this does not show distinct local choices under later constraints. The
+trace also does not print a raw instantiated predicate or the complete
+post-constraint graph, and does not prove general contextual preservation,
+effect behavior, diagnostics/provenance equality, or q-erasure.
+
+Command:
+
+```text
+YULANG_INTRUSION_USE_TRACE=1 \
+  CARGO_TARGET_DIR=/tmp/yulang-intrusion-qscheme-use-target \
+  cargo test -p infer --lib scratch_intrusion_q_scheme_two_uses -- --nocapture
+```
+
+Result: 1 passed. Temporary changes remain uncommitted in the disposable Oracle
+worktree and are not part of frozen commit `a58eefc31`. Independent
+compiler-referee review checked the source, trace, and limits; it found no
+blocking or major issue.
 
 ## Next proof obligation
 
-Add a concrete incoming-use context for the generalized `f`, and record the
-actual finalized scheme fields and one `UseResolved` instantiation: type and
-stack quantifier maps, shared free anchors, witness paths, cloned predicate,
-and installed use constraints. Then state the exact `Obs_scheme` relation for
-that use, including type result, latent effects, diagnostics, and any exposed
-provenance. The proof must show independent local identities across two uses
-and preservation of intentionally shared anchors. Keep that separate from the
+Construct an effect-sensitive incoming-use context for the quantified latent
+return-effect identity. Trace its scheme-instantiation constraints and final
+observations to show that local effect choices stay independent. Then state
+the exact `Obs_scheme` relation for those uses, including type result, latent
+effects, diagnostics, and exposed provenance. Keep this separate from the
 unproved pre-view `q` rewrite/prune preservation theorem and from the
 source-generated constraint graph's regular-presentation correspondence.
 
-This is a read-only source audit; no Oracle files or tests were changed or run.
+The source-path mapping above was read-only. Subsequent disposable-worktree
+Rust probes modified only the temporary Oracle checkout and ran the focused
+scratch tests recorded above; no Oracle commit or repository source was
+changed. A compiler-referee reviewed the q-use trace and shared-anchor delta in
+two scoped passes against the captures and source. The review found
+documentation wording issues that were corrected. Its scope was these
+fixtures, not the q-projection or intrusion theorem.

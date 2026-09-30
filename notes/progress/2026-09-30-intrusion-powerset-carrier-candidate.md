@@ -711,8 +711,8 @@ immediate fixture-level Gate B/C work. A later focused collector trace now
 closes one selected, empty-weight q-incidence cycle, but not the complete
 root-epoch graph. Closing this one fixture would not
 close the charter's multi-member epochs, publication/failure, internal-use,
-and independent incoming-use obligations across the supported envelope. No
-tests ran and no Oracle files changed.
+and independent incoming-use obligations across the supported envelope. That
+source audit ran no tests and changed no Oracle files.
 
 The finalized ordinary-scheme instantiation path has now been source-audited
 separately. The `f` in the body `x f` is a live named-self value, not an
@@ -722,9 +722,16 @@ map and separate stack map; unmapped free type/stack identities remain shared,
 and only surviving recursive rows are reinstalled. Since this fixture's
 finalized scheme has no recursive rows, its q interval is not reinstalled.
 The exact finalized fields and an actual incoming-use trace for this fixture
-remain unrecorded. See
+are now recorded for two no-anchor incoming uses: both quantifiers map to
+disjoint TypeVars and the Function predicate uses the direct-lower insertion
+route. A later annotated run constrains these two use results separately to
+`int` and `bool`, but does not test effect independence or shared free anchors;
+seven structural provenance witnesses remain incomplete. See
 `notes/progress/2026-09-30-intrusion-q-finalized-use-path.md` for source
-locators and the next proof obligation.
+locators, the exact scheme and use maps, and the next proof obligation.
+A separate local-binding fixture in that record also traces one captured free
+anchor unchanged across two uses while its local quantifier is independently
+freshened; it is not an SCC or an intrusion proof.
 
 ### Symbolic lowering inventory for the fixture
 

@@ -652,15 +652,15 @@ internal uses, and independent incoming uses remain charter-wide requirements.
 No compiler implementation is authorized by this result; the reviewed
 successor contract and explicit approval remain prerequisites.
 
-The finalized ordinary-use path is now source-audited in
-`notes/progress/2026-09-30-intrusion-q-finalized-use-path.md`: body `f` is a
-live named-self value, while incoming `UseResolved` after publication creates a
-new scheme-instantiator with per-use TypeVar/stack maps, preserves unmapped
-free identities, and reinstalls only surviving recursive rows. For this
-fixture q is absent from the finalized recursive bounds, so ordinary use does
-not reinstall q's interval. Still missing: exact final Scheme fields and one
-fixture-specific incoming-use trace (including stack quantifiers, free
-anchors, witness paths, cloned predicate, and installed use constraints).
-That is the immediate next action, alongside the still-open source graph to
-regular-presentation and q-erasure proofs; this source audit ran no tests and
-changed no Oracle files.
+The finalized ordinary-use path is now characterized in
+`notes/progress/2026-09-30-intrusion-q-finalized-use-path.md`. A temporary
+Rust-only frozen-Oracle probe records the exact `f` scheme and two incoming
+uses: the two quantifiers map to disjoint identities, the Function predicate
+uses direct-lower insertion, and no recursive q row is reinstalled. The dump
+reports `int` and `bool` for annotated uses; effect independence and a shared
+free-anchor case for `f` remain open, as do seven structural provenance
+witnesses. A separate local-binding fixture traces one free outer identity
+shared across two uses while its local binder freshens per use; it does not
+cover an SCC. Next add an effect-sensitive context, then relate these use
+observations to the source graph and q projection. These probes changed no
+frozen Oracle files.
