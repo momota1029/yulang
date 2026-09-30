@@ -1150,3 +1150,35 @@ source constraints until a preservation argument justifies any elimination.
 This follows the user's direction without making q-erasure an implementation
 requirement or claiming Oracle inference-stage parity. Numeric IDs and bound
 record counts are local to this fixture/run.
+
+### Explanation provenance for those live bounds
+
+A focused disposable Rust probe queried `why_upper_bound` for all eight upper
+records on `TypeVar(28)` and `TypeVar(35)`. Every query returned
+`completeness = Complete` with no truncation. The three complete-handler
+weighted records each had Annotation source leaves at
+`OriginId(2)/SourceBoundaryId(0)` and
+`OriginId(3)/SourceBoundaryId(1)`. The four incomplete-handler weighted records
+each cited `OriginId(4)/SourceBoundaryId(2)`; its unweighted row upper cited
+that leaf plus `OriginId(5)/SourceBoundaryId(3)`. The explanation graphs include
+weighted residual and binary replay derivations; some also contain internal
+nodes, so these are the reported source leaves, not a claim that every graph
+node is an annotation.
+
+The source-path audit maps boundaries 0 and 1 to the `complete` parameter's
+`x: [_] _` annotation and its generated wildcard-row subtract fact
+(`SubtractFactRecordId(0)`, `SubtractId(0)`, declared `All`). Boundaries 2 and
+3 map to the corresponding `incomplete` parameter annotation and generated
+fact (`SubtractFactRecordId(1)`, `SubtractId(1)`, declared `All`). The annotation
+constraints are lowered by `connect_lambda_pattern_annotation` through
+`AnnConstraintLowerer::with_vars_and_closed_effect_rows`; wildcard facts are
+registered by `effect_row_stack` / `register_stack_facts`, which allocates an
+Annotation origin. This mapping follows this fixture's source/lowering order:
+`SourceBoundaryRecord` retains origin and whether a location was recorded, but
+not the annotation span, so boundary numbers alone do not encode source text.
+
+This links the live upper records to the parameter annotation, its generated
+wildcard-row fact, and row/replay derivations. It still does not identify the
+row family in the retained `NegId(13)` / `NegId(58)` endpoint, prove constraint
+necessity, establish principality or final-acceptance impact, or show that
+removing the weighted occurrences preserves behavior.

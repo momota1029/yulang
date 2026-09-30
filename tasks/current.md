@@ -975,10 +975,14 @@ bounds, then shows both occurrences disappear in the combined alias-
 simplification stage via `TypeVar -> None`; final roots retain unweighted
 residual variables and the same formatted scheme. Independent compiler-
 referee review confirms the root mapping and bound shapes, but not constraint
-necessity or semantic preservation. Next relate these actual weighted bounds
-to source row derivations and the retained final residual. This is an
-operational distinction, not a soundness counterexample or a principality
-result. The successor retains
+necessity or semantic preservation. The source audit maps complete-handler
+boundaries 0/1 to its parameter annotation and generated wildcard-row subtract
+fact, and incomplete-handler boundaries 2/3 to the corresponding pair; source
+spans are not stored in boundary records, so the mapping is fixture/lowering
+order specific. Next decode the retained `NegId(13)` / `NegId(58)` row endpoint
+and relate its derivation and the weighted bounds to final residual behavior.
+This is an operational distinction, not a soundness counterexample or a
+principality result. The successor retains
 meaningful source constraints; polarity-only `q` erasure is not required.
 Yulang2 inference-stage scheme
 formatting/acceptance parity is not required, while final well-typed program
