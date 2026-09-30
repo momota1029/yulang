@@ -1034,6 +1034,54 @@ coupling. A later control-IR implementation still needs a separate
 mono-runtime-to-control-IR simulation; this ghost-tag lemma does not identify
 mono runtime values with Control-IR `ExprId`s.
 
+#### Latent-row transport invariant for whole value facts (candidate)
+
+An origin set or family row by itself is insufficient for higher-order effect
+soundness: the same family can be offered under different handler snapshots,
+and a value can carry a computation that has not run yet. Keep latent effects
+inside the correlated whole `ValueFact#` / `Snapshot#` relation. For a concrete
+value `v` related to whole fact `F`, `LatentCover(v,F)` means every deferred
+call, force, or resume reachable through `v` is paired with its effect upper
+row, nested whole-value references, captured environment, ordered wrapper,
+and route/scope evidence, or the complete corresponding top fact. This is an
+invariant over future eliminations of `v`, not a row charged immediately just
+because the value is returned, stored, or copied.
+
+| Value-flow event | Required row/provenance transfer |
+|---|---|
+| Create or copy a closure | Retain its body-call row and the same correlated capture snapshot. A later call reads captured facts from that snapshot; it does not reconstruct them from site-wide unions. |
+| Create `Thunk::Expr` or `Thunk::Value` | Retain the deferred body's or saved value's facts and latent rows. Binding, returning, or storing the thunk does not charge them immediately. |
+| Apply an effect operation or continuation | Retain its family or saved-continuation row in the resulting thunk and preserve the creation marker/snapshot. Emit no request or resumed-suffix offer until the concrete force/re-entry event. |
+| Wrap with `Marked`, `FunctionAdapter`, or `Thunk::Adapter` | Preserve the entire underlying fact and append the ordered wrapper/boundary transform. If the row or transform cannot be related across the adaptation, widen the entire value/control/effect fact to top. |
+| Project, return, copy, bind, or store without forcing | Transfer the selected whole fact, including nested latent rows and snapshots, to the destination. Keep its row latent and emit no offer solely because the value moved. |
+| Apply `Closure` or `RecursiveClosure` | Account for the function body's evaluation in the application computation bound and preserve the returned value's whole fact. The relation from that bound to source `ret_eff` remains to be proved. Do not force a thunk-valued result unless a concrete force site does so. Argument evaluation versus thunk construction follows the still-open source-to-elaboration mode relation for `arg_eff`; do not guess from row emptiness. |
+| Force `Thunk::Value` | Return the saved whole value fact; emit no request merely for forcing this variant. If the returned value is itself thunk-like and the concrete force site forces again, account for that separate force. |
+| Force `Thunk::Expr`, `Thunk::Effect`, `Thunk::Continuation`, or `Thunk::Adapter` | Evaluate the saved body, emit the saved operation request, resume the saved continuation and recursively force a thunk-valued resume result, or recursively force/adapt the inner thunk, respectively. Transfer the matching latent row and captured wrapper facts; emit request observations only on request-producing steps. |
+| Unknown call/force/resume target or lost capture relation | Use `⊤Eff`, `TopKont`, and `TopObs` at every compatible handler slot, and preserve the top summary through the returned value. |
+| Instantiate a local binder | Apply the use's effect-binder substitution consistently through the whole value and evidence payload, while freshening local hygiene binders independently. Unknown ownership/mapping takes the top fallback. |
+
+Conditional invariant: if each concrete event above is represented by these
+transfers, then packaging, returning, copying, and escaping preserve
+`LatentCover`; a later call/force/resume exposes the retained bound and route
+facts rather than silently consuming them. The top alternative is absorbing,
+so loss of a wrapper, latent row, target, or correlation cannot authorize
+`Drop`. This uses no continuation-use count and does not claim exact trace
+support: an arm can retain the whole pre-handler bound on raw `k` even when
+its concrete suffix does nothing. Exact finite traces remain the soundness
+reference, and principality remains relative to this compositional
+abstraction.
+
+This invariant is not yet established by the listed runtime-local erasure
+lemmas. In particular, source `arg_eff` / `ret_eff` constraints do not yet
+define whether an application evaluates an argument now or stores it in a
+thunk; a source-to-elaboration mode relation must prove that split. The
+ordinary application bridge, adapter row transport, use-site substitution,
+and coupling of each latent contribution to offers versus matched raw
+continuations remain open. See
+`notes/progress/2026-09-30-intrusion-oracle-latent-effects.md`, “Candidate
+mode-indexed application obligation”; that Oracle characterization does not
+select this successor rule.
+
 #### Conservative unknown-call consequence (conditional)
 
 For an open or unresolved callable target that has no proved finite

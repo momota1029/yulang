@@ -1719,6 +1719,18 @@ body, environment, and bind-continuation state. It preserves the Oracle's
 `UnhandledEffect` conversion when an instance body returns a request; this is
 runtime characterization, not successor effect authority. Exhaustive
 provenance instrumentation and source-step simulation remain open. Next prove
-those transfers together with latent-row coupling;
+those transfers together with latent-row coupling. The candidate now states a
+`LatentCover` invariant over whole value/snapshot facts: moves preserve latent
+rows, only producer-specific call/force/resume steps expose them, and unknown
+shape or route widens to top. A compiler-referee delta review found no major
+issue after splitting out operation/continuation application and
+`Thunk::Value` force; its minor omission of recursive forcing after a
+thunk-valued continuation result is now recorded in the table. An architect
+review identified ordinary application as a critical open bridge: source
+`arg_eff`/`ret_eff` still lack a proved relation to strict evaluation versus
+deferred thunk construction. The mode-indexed Oracle characterization remains
+evidence only; prove a sound source-to-elaboration call/force relation and its
+latent-row/route preservation before selecting successor rules or beginning
+implementation.
 route/scope quotient, principal solver, and a positive `Drop` certificate
 remain open.
