@@ -1855,3 +1855,20 @@ closed-delay/force lemma under these premises; preservation through source
 lowering, mutable/opaque captures, and nested latent values remains unproved.
 This is still trace-denotational and conditional, not an inference solver or
 accepted Yulang3 language rule.
+
+The next candidate slice now separates finite family support from typed effect
+constraints. A support projection may over-approximate request families, while
+operation identity, family arguments, payload/result constraints, and scoped
+handler/grant evidence remain coupled and must transport through intrusion and
+instantiation. A schematic `F<Int>.op` versus `F<String>.op` conflict shows why
+support equality alone cannot authorize subtraction. The candidate now names
+the erased constructor key `FamHead` separately from typed `FamInst` and
+projects only request evidence. This does not settle source syntax: syntax-v0
+defines only the effect-row CST, and the inspected HIR has no effect lowering.
+The architect recommends this split conditionally; exact-source review is
+clean. Compiler-referee review found a family-key ambiguity, and a focused
+delta review confirmed the `FamHead`/`FamInst` clarification closes it without
+making the erased key authoritative for matching. Next prove source elaboration
+and binder transport preserve typed evidence, and establish leastness for
+coupled constraints or a staged fixed-eligibility analysis. The current finite-
+lattice result still assumes fixed `Drop`.

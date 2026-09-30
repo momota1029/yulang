@@ -3302,3 +3302,70 @@ stored body, while capture effects are separately bounded by `E_make`; the
 conditional lemma is sound under its stated premises. Neither review proves
 capture substitution for source lowering, mutable or opaque captures. No rule
 has been selected or authorized for implementation.
+
+#### Family support is a projection, not the effect constraint itself
+
+A bounded architecture review examined whether the finite support domain must
+encode operation payload and family type arguments directly. The smallest
+candidate distinguishes the erased support head `FamHead` (a canonical family
+constructor identity with type arguments omitted) from a typed family instance
+`FamInst = (FamHead, type_arguments)`. The canonical resolver and the meaning of
+family constructor identity remain unselected. It keeps
+
+```text
+support : TypedRequestEvidence -> P(FamHead) ∪ {TopEff}
+```
+
+as a support projection over request evidence only. A coupled typed-constraint/
+evidence layer keeps the full `FamInst`, operation identity and signature,
+payload/result constraints, and handler/grant eligibility. Typed annotations
+and grants are checked against this full identity; equality after erasure to
+`FamHead` cannot establish type matching or handler eligibility. Both layers
+must be generated, solved, and transported together through generalization and
+each independent instantiation. This is a representation candidate, not a
+proof that the current finite-row solver can be composed with the typed layer.
+
+For example, a request at `F<Int>.op` and a grant for `F<String>.op` both
+project to support `{FHead}`. A rule that subtracts `FHead` using that
+projection alone would erase a request that does not satisfy invariant
+family-argument matching. The support projection may bound possible request
+families, but it cannot type the payload, identify a covered operation, or
+authorize `Drop`.
+The typed matching constraints must remain meaningful source constraints, and
+failed or unknown matching must retain the residual family. This schematic
+conflict is not a claim about currently accepted Yulang3 syntax; the syntax
+authority has not selected effect declaration or handler semantics.
+
+The source boundary needed by this candidate is therefore an elaboration
+relation from source declarations/annotations and operation uses to canonical
+family and operation identities, typed arguments/signatures, payload/result
+constraints, support rows, and scoped handler/grant evidence. The syntax-v0
+`EffectRowType` page supplies only direct `TypeExpression` CST items; it leaves
+tail interpretation, row classification, and effect lowering undefined.
+Current HIR retains generic expression values and treats the annotation tail
+as an association barrier; it has no effect-row or operation-lowering object.
+These are concrete missing bridges, not evidence for any particular source
+rule. The existing Yulang2 `EffectFamily` argument behavior is characterization
+only and cannot supply the successor's identity or matching semantics.
+
+The next proof must establish that source elaboration preserves operation,
+payload, and family-argument constraints; that SCC intrusion and independent
+instantiation apply one capture-avoiding binder map consistently to request,
+grant, and typed constraints; and that a family is dropped only when every
+possible typed request offered to the handler is covered and eligible. Then
+prove least solutions either for the coupled row/evidence domain or for a
+staged analysis whose fixed eligibility evidence is already sound. The earlier
+finite-lattice result applies only with `Drop` fixed and does not prove
+monotonicity or principality for this coupling. No exact continuation-use
+tracking is introduced: support may over-approximate traces, with principality
+relative to the selected compositional abstraction. These obligations remain
+open, and this representation has no implementation authority.
+
+The exact-source delta review found no discrepancy with the syntax/HIR
+authority. Compiler-referee review required an explicit distinction between
+typed family instances and erased support heads; the text now defines
+`FamHead`, `FamInst`, and a request-only support projection. A focused
+compiler-referee closure review confirmed that this resolves the ambiguity and
+that annotations/grants cannot use erased equality to authorize `Drop`. This
+closes only the notation gap; source elaboration, coupled leastness, and all
+semantic and implementation gates remain open.
