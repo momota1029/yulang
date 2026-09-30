@@ -168,6 +168,20 @@ Rust dump test passed. The captured stage data shows:
    no q recursive row, and no recursive sandwich; finalization emits no
    recursive bound.
 
+### Operational pruning lemma for this one-row case
+
+Let the post-rewrite state be a root `T`, roles `P`, and exactly one
+recursive row for q. If q is absent from the free variables of `T` and `P`,
+`prune_unreachable_recursive_bounds` removes that row. Its reachability set
+starts with `FV(T) ∪ FV(P)`. The closure loop can visit the q row only if q is
+already in that set; since there are no other rows, the loop cannot add q.
+The final retain keeps only rows whose variable is in the resulting closure,
+so q is discarded. The captured fixture satisfies these premises: the
+polarity rewrite removes q from the root, there are no reachable role rows,
+and the saved recursive table initially has only q. This proves the *code's
+reachability-prune result* for this captured shape; it says nothing about
+whether removing q preserves typing or principal observations.
+
 The trace also shows that polarity rewrite does not finish the whole compact
 view: the intermediate Function result still has two `SubtractId(0)`-weighted
 value occurrences. The separate final-root capture has one unweighted result
