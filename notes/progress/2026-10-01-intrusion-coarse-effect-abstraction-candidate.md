@@ -1055,10 +1055,10 @@ because the value is returned, stored, or copied.
 | Wrap with `Marked`, `FunctionAdapter`, or `Thunk::Adapter` | Preserve the entire underlying fact and append the ordered wrapper/boundary transform. If the row or transform cannot be related across the adaptation, widen the entire value/control/effect fact to top. |
 | Project, return, copy, bind, or store without forcing | Transfer the selected whole fact, including nested latent rows and snapshots, to the destination. Keep its row latent and emit no offer solely because the value moved. |
 | Evaluate an application's callee | Simulate callee evaluation first and charge its actual computation bound/offers before dispatching the resulting value. |
-| Strict argument mode | Evaluate the argument before entering the closure; include its computation row and offers at that caller context, then bind its returned whole value fact. |
-| Deferred argument mode | Construct `Thunk::Expr` without evaluating its body; retain the body's row, origin, captured environment, and wrapper/scope snapshot as latent facts. A later force relates that retained snapshot and ordered wrapper transforms to the force-site active handler/receiving context; unknown relation widens to top. |
+| Adapt argument computation to a value domain | Evaluate an unsuspended argument or force/adapt a suspended one before entering the closure. Include its evaluation/force computation row and offers at the actual argument/adaptation context, then bind the resulting whole value fact. |
+| Adapt argument computation to a suspended domain | Preserve an existing thunk or wrap the argument computation without evaluating its body. Retain its row, origin, captured environment, and wrapper/scope snapshot as latent facts. A later force relates that retained snapshot and ordered wrapper transforms to the force-site active handler/receiving context; unknown relation widens to top. |
 | Apply `Closure` or `RecursiveClosure` | Account for the function body's evaluation in the application computation bound and preserve the returned value's whole fact. The relation from that bound to source `ret_eff` remains to be proved. Do not force a thunk-valued result unless a concrete force site does so. |
-| Unknown or assignment-dependent argument mode | Join strict and deferred transfers for all admissible modes, keeping immediate and latent routes distinct. If their correlation cannot be retained, widen to the whole top fact; do not choose a mode from row denotation or a frozen Oracle syntax branch. |
+| Unknown or assignment-dependent accepted domain/adaptation | Join value-domain and suspended-domain transfers for all admissible adaptations, keeping immediate and latent routes distinct. If their correlation cannot be retained, widen to the whole top fact; do not choose an adaptation from row denotation or a frozen Oracle syntax branch. |
 | Force `Thunk::Value` | Return the saved whole value fact; emit no request merely for forcing this variant. If the returned value is itself thunk-like and the concrete force site forces again, account for that separate force. |
 | Force `Thunk::Expr`, `Thunk::Effect`, `Thunk::Continuation`, or `Thunk::Adapter` | Evaluate the saved body, emit the saved operation request, resume the saved continuation and recursively force a thunk-valued resume result, or recursively force/adapt the inner thunk, respectively. Transfer the matching latent row and captured wrapper facts; emit request observations only on request-producing steps. |
 | Unknown call/force/resume target or lost capture relation | Use `⊤Eff`, `TopKont`, and `TopObs` at every compatible handler slot, and preserve the top summary through the returned value. |
@@ -1076,9 +1076,15 @@ reference, and principality remains relative to this compositional
 abstraction.
 
 This invariant is not yet established by the listed runtime-local erasure
-lemmas. In particular, source `arg_eff` / `ret_eff` constraints do not yet
-define whether an application evaluates an argument now or stores it in a
-thunk; a source-to-elaboration mode relation must prove that split. The
+lemmas. The value-domain and suspended-domain rows describe an already
+determined argument boundary adaptation; they do not select that adaptation
+from the argument row or claim that every call has one of these modes. The
+candidate still does not establish which source constraints determine the
+callee's accepted domain, where an adapter is introduced, or how those source
+steps correspond to the specializer's materialized shape. In particular,
+source `arg_eff` / `ret_eff` constraints do not yet prove whether an
+effectful input is forced before a closure body or preserved as a thunk; a
+source-to-elaboration boundary relation must prove that distinction. The
 ordinary application bridge, adapter row transport, use-site substitution,
 and coupling of each latent contribution to offers versus matched raw
 continuations remain open. See
