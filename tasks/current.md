@@ -1406,3 +1406,15 @@ the updated premises and confirmed they do not establish `Drop#` or authorize
 implementation. It noted and the progress note corrected the wording that
 described frozen Oracle callback documentation as a successor “source
 contract.”
+
+A further narrow characterization now defines `NameTargets(s)` as all
+same-named local/global effect-method definitions. In frozen `main`, the effect
+method resolver filters those finite tables by collected effect paths and
+returns only a singleton candidate, so every target from that resolver branch
+lies in this row-independent superset. An independent compiler-referee review
+confirmed the argument for known scope and complete finite registries,
+including local shadowing and ambiguity. Method-value fallback targets other
+than this effect-method branch and open registries remain uncovered; the next
+step is to bound those fallback callable targets or widen them to unknown, then
+prove row-to-offer coupling. This is Oracle resolver characterization, not
+successor method-selection authority.

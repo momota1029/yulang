@@ -402,6 +402,48 @@ remains deferred. Its minor wording finding was repaired above. The review
 closed only this formulation and handoff; it did not establish a sound
 `Drop#`, concrete finite transition machine, or implementation authority.
 
+#### Candidate target superset for the frozen effect-method branch
+
+The frozen resolver exposes a simple finite **characterization** for just its
+effect-method branch. At a selection site `s` with method name `n` and known
+local scope `m`, define `NameTargets(s)` as the union of every definition
+registered under `n` in the local-scope effect-method table and the global
+effect-method table. `probe_effect_select_pos` first collects effect paths
+from the receiver's effect component, then `effect_method_for_paths` filters
+same-name local candidates by exact path and returns a target only for a
+singleton; if that does not resolve, it tries same-name global candidates the
+same way (`main` at `a58eefc3`,
+`crates/infer/src/analysis/session/selection.rs:438-448,864-888`; the local and
+global tables are exposed at `crates/infer/src/methods.rs:244-255,316-331`,
+and singleton conversion is at `crates/infer/src/analysis/mod.rs:775-783`).
+Therefore every target returned by this effect-method branch under any effect
+row assignment lies in `NameTargets(s)`: path filtering can remove candidates,
+but cannot introduce a definition outside the name tables. This gives a
+row-independent finite superset for that branch when the source and imported
+method registries are closed and finite. It deliberately keeps candidates that
+no particular row assignment selects, so this only establishes target
+coverage, not precision, principality, or final acceptance equivalence.
+
+The subsequent method-value fallback may itself reach this same effect-method
+helper through a function's argument-effect row, which is still covered by
+`NameTargets(s)`. This characterization does not cover its other callable
+targets, such as value/ref or role method lookup, or open imported method
+registries.
+Such a site needs a separate sound callable-target superset; until that is
+established, it contributes `UnknownValueP`/top offers to all compatible
+handler slots. The result describes frozen Oracle's resolver for
+the narrow dependency only. It does not adopt Oracle's row collection,
+weight interpretation, method selection, or later role/implementation
+semantics as successor authority, and it does not settle how much this
+over-approximation changes final annotation acceptance.
+
+A focused compiler-referee review confirmed the `NameTargets(s)` superset for
+the frozen effect-method helper with a known scope and complete finite
+registries. It found that method-value fallback can also reach that helper, so
+only the other callable fallback targets remain outside this characterization.
+The review did not establish successor callable-target coverage or soundness
+of the phase-one transition relation.
+
 If these premises hold and `→#` is independent of inferred effect rows, freeze
 `Drop#` and solve the effect lattice with `F_Drop#`. The reviewed leastness
 result then applies, subject to source derivations matching its inequalities.
