@@ -1111,6 +1111,15 @@ language justification. The two-request case keeps `[choose]` and both VMs
 report the second request unhandled, as shallow resumption predicts. No
 left/right-weight cause is isolated.
 
+The coarse candidate also records handler-relative route alternatives for
+each contribution: current offer, forwarded offer, raw-only suffix through
+matched `k`, or unknown. Mixed routes preserve both obligations; exact trace
+support remains a soundness reference, not the inference target. This is still
+only a representation candidate: finite route transfer, activation quotient,
+higher-order preservation, and source-constraint correspondence remain open.
+An M3 compiler-referee and spec-auditor delta review found no issue in this
+formalization; it certifies neither the transfer nor the finite quotient.
+
 The helper-boundary mismatch is now characterized through `invoke` scheme
 finalization and caller application. `invoke`'s callback call contributes a
 `push(choose)` lower edge, then its return endpoint carries a matching

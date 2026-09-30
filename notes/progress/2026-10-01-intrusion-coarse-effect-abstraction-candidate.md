@@ -1757,6 +1757,54 @@ inference about the candidate's proof premise, not a new Oracle behavior or a
 counterexample to the conditional effect formula. Uniform transfer, finite
 quotient construction, and source-constraint correspondence remain open.
 
+##### Handler-relative route alternatives (candidate representation)
+
+The route classification can be made explicit without identifying route
+support with exact trace support. For each static handler slot `h`, abstract
+family contribution `c`, and possible activation class, retain a set of
+handler-relative alternatives:
+
+```text
+OfferNow(operation, origin, lineage, scope_evidence)
+OfferForwarded(operation, origin, lineage, scope_evidence)
+RawOnly(matched_operation, raw_k, latent_effect_destination)
+Unknown
+```
+
+`OfferNow` and `OfferForwarded` describe requests that may be presented to
+`h`; the latter includes suffixes re-entering `h` after an outer context
+resumes a forwarded continuation. `RawOnly` means that this contribution is
+reachable solely through the raw continuation of a request matched by this
+activation of `h`, without automatically reinstating that activation. It is
+not a global property of the contribution: classify it separately relative to
+outer or independently installed handlers. A join unions alternatives. If
+lost correlation prevents ruling out another route, add `Unknown`; a mixed
+offer/raw contribution therefore keeps both the offer and latent obligations.
+These labels denote sets of dynamic activations, not dynamic identities; equal
+source-site labels alone never establish equal activation or scope.
+
+For a finite row, `f` may be removed at `h` only when the route evidence is
+complete for every contribution of `f` and every represented activation:
+every offer alternative is covered and visible, every raw-only alternative
+is preserved through `k`'s latent row and any value that invokes or exports
+it, and no contribution is unknown or unclassified. The raw-only condition
+does not create an offer to `h`; a route that may be both offered and reached
+through raw `k` must satisfy both conditions. This is a finite proof-object
+shape, not a construction theorem: completeness, sound transfer through
+forwarding and higher-order values, and a finite activation quotient remain
+open. If source constraints cannot maintain this route distinction, retain
+unknown/top rather than infer a drop from the family row.
+
+Exact finite-trace semantics remains the reference used to prove this
+abstraction sound. Its row need not equal exact trace support: the shallow
+one-request/resume example can retain a family in `k`'s latent row even when
+the concrete suffix has no request. No continuation-use count, linear or
+affine continuation typing, or exact continuation-sensitive inference is
+required by this candidate. Any principality claim concerns least solutions
+of the explicitly chosen compositional abstraction, after source derivability
+and the fixed-`Drop` transfer are proved equivalent; it does not claim a least
+exact-trace row.
+
 A source-derivation audit for the eventual construction should classify every
 effect-family contribution before closure, rather than infer origins from the
 solved row alone:
