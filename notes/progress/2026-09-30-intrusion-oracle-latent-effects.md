@@ -1278,3 +1278,43 @@ projection. The reviewer cautions that Q11 is already present in the initial
 argument-row tail, so the complete edge's necessity is unproved, and indirect
 influences of the incomplete row split were not exhaustively ruled out. Neither
 path establishes row denotation, preservation, soundness, or principality.
+
+### Minimal countermodel to dropping a shared row residual
+
+The weighted row rule and a frozen Oracle unit test support a small
+set-row countermodel to *naively deleting* a residual variable and its
+obligations. Let the family universe be `{choose, other}`, fix source row
+`alpha = {choose, other}`, and add two upper constraints with the same source
+and row head `{choose}` but distinct tails `beta1` and `beta2`, each under
+`push(s, Set({choose}))`. The rule computes
+`J = {choose} ∩ Common(push(s, Set({choose}))) = {choose}` and residual weight
+`push(s, Empty)`. Its obligations are:
+
+```text
+alpha <: {choose | gamma}
+gamma @ push(s, Empty) <: beta1
+gamma @ push(s, Empty) <: beta2
+```
+
+The row-residual key is `(source, J, residual_weight)` and excludes the target
+tail, so the two constraints share one `gamma`. Under finite-set row inclusion,
+the first obligation forces `other ∈ gamma`; the `take(Empty)` residual
+obligations then force `other ∈ beta1` and `other ∈ beta2`. Therefore the
+valuation `beta1 = beta2 = {}` has no extension to `gamma` in the original
+graph. If a transformation deletes `gamma` and all three obligations without
+adding equivalent projected constraints, that valuation becomes spuriously
+admissible. The frozen Oracle test
+`var_to_effect_row_upper_reuses_weighted_residual_for_same_source_across_tails`
+passes and checks one shared residual with both tail obligations. An
+independent compiler-referee review confirms the countermodel under the stated
+set-row reading and emphasizes that it only refutes deletion without an
+equivalent projection.
+
+This is a countermodel to dropping the obligations, conditional on the stated
+set-row interpretation. It does not show that Oracle's specific compact
+simplification makes this mistake, nor a source-level acceptance mismatch.
+An implementation may eliminate `gamma` only through an existential
+projection that preserves the shared residual requirements for every tail.
+The remaining proof task is to characterize and verify that projection for
+the weighted row algebra, including row fan-out and replay, then relate it to
+the root-specific gamma eliminations above.

@@ -994,11 +994,17 @@ separate route: scrutinee effect 34 is constrained to result effect 43, then
 generalization maps 43 -> 34; row split gamma 53 -> rest 52 is a different
 path. Complete uses result effect 14 as its rest; gamma 28 -> 14 is the
 weighted edge, and selected 14 -> Q11. The selected `All` occurrence on source
-35 and the split's `AllExcept(choose)` weight are distinct. Next prove or
-refute preservation for these gamma eliminations from the weighted row rule.
-This remains operational graph evidence, not a row denotation, preservation,
-soundness, or principality result. The successor retains
-meaningful source constraints; polarity-only `q` erasure is not required.
+35 and the split's `AllExcept(choose)` weight are distinct. A finite set-row
+countermodel now refutes naive deletion of a shared gamma and all its tail
+obligations: it loses the requirement that each target tail contain the
+source's unhandled `other` family. This is conditional on ordinary set-row
+inclusion and does not show Oracle compaction is wrong. Next define the
+existential projection needed to eliminate gamma while preserving every
+shared-tail constraint, then check it against the root-specific complete and
+incomplete traces. This remains a proof obligation, not a row denotation
+theorem, source acceptance mismatch, soundness, or principality result. The
+successor retains meaningful source constraints; polarity-only `q` erasure is
+not required.
 Yulang2 inference-stage scheme
 formatting/acceptance parity is not required, while final well-typed program
 acceptance remains the compatibility target. Any later constraint erasure
