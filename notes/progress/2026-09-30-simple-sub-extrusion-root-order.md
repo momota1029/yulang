@@ -64,9 +64,58 @@ relation under explicit side conditions. If the side conditions fail for a
 structural counterexample, the Oracle root order must remain part of the
 semantics.
 
+## Conditional adjacent-swap argument
+
+The variable-only witness suggests a stronger statement for the extrusion
+operation itself, under a deliberately closed-world condition. Fix one level
+boundary `B` and one initial bound graph. Consider a finite sequence of
+extrusion calls that each use a fresh private cache, and assume no constraints
+or non-extrusion mutations arrive between calls. Each call receives a root
+drawn from that graph. Source variables and their original structural bounds
+are shared; each call's fresh representatives are disjoint and have level
+`B`.
+
+An earlier call can change a later call's source-bound snapshot only by
+prepending its representatives to source lower/upper lists. Every such
+representative is at level `B`, so the later `extrude` returns it immediately
+without traversing it or creating new representatives. For each source `v`,
+same-polarity representatives are inserted on the side the same-polarity
+extrusion does **not** copy. Opposite-polarity representatives are inserted
+on exactly the side the later opposite-polarity extrusion copies. Let `i+`
+denote a call that extrudes `v` positively and `j-` one that extrudes it
+negatively. Whichever call occurs second copies the earlier representative
+into its own opposite bound. In either order this records the same subtype
+relation:
+
+```text
+parent(v,-,j-) ≤ parent(v,+,i+)
+```
+
+The location differs (upper bound of the negative representative versus lower
+bound of the positive representative), but both rows denote that same
+inequality. This applies pointwise to every shared source identity and every
+opposite-polarity pair. Same-polarity pairs produce no cross constraint in
+either order. Since the inserted boundary representatives do not affect the
+discovery of above-`B` nodes, the each-call traversal of original constructors
+and bounds is unchanged; only these cross-polarity inequalities move between
+equivalent bound rows. Thus adjacent call swaps preserve the conjunction of
+all bound inequalities, and by adjacent transpositions so does any permutation
+of the calls.
+
+This is a conditional proof for assignment-fiber invariance of
+independent Simple-sub extrusion calls. It predicts that raw graph
+alpha-equivalence is too strong while the induced interval relation can be
+order-independent. It depends on private per-call caches, globally fresh
+representatives, one common boundary level, frozen original bounds, and no
+intervening constraints. It does not cover two Yulang member preparations that
+advance shared constraints, selected-edge evidence, polarity projection,
+effects, level changes, or public scheme observations.
+
 Independent compiler-referee review confirmed both transition traces and the
-equality of their induced assignment fibers. It found no semantic issue; it
-noted only that the inequality conjunction is equivalent even though the raw
-edge sets differ, now stated explicitly above. Review scope: these two calls
-and this conclusion only; no broader commutation claim was reviewed and no
+adjacent-swap argument within the stated assumptions: source-side links are the
+only mutations to original variables; boundary-level parents stop recursive
+discovery; and each opposite-polarity pair contributes the same inequality
+regardless of call order. Raw edge sets differ, but the induced assignment
+fibers agree. The reviewer found no semantic issue within scope. This does not
+prove Yulang member-preparation/root-order or public scheme equivalence. No
 tests were run.

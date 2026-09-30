@@ -108,7 +108,10 @@ A possible proof route is:
    [`2026-09-30-simple-sub-extrusion-root-order.md`](../progress/2026-09-30-simple-sub-extrusion-root-order.md).
    The proof criterion must therefore be the scheme/assignment relation, not
    graph alpha-equivalence. Prove adjacent root-transition swaps preserve that
-   relation under explicit side conditions, or retain the Oracle's order.
+   relation under explicit side conditions, or retain the Oracle's order. A
+   reviewed conditional swap argument covers independent Simple-sub extrusion
+   calls on a frozen graph; it does not model Yulang root preparations that
+   advance shared constraints. See the linked progress record.
 5. **Generalization simulation.** Generalizing the intruded component and then
    instantiating it with fresh parent substitutions has the same constraint
    consequences as re-establishing the original monomorphic SCC at a fresh use

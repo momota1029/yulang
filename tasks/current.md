@@ -504,9 +504,12 @@ raw graphs but the same assignment fiber; this narrows the proof criterion
 from graph alpha-equivalence to the scheme relation. Details are in
 `notes/progress/2026-09-30-simple-sub-extrusion-root-order.md`. The sketch now
 records that distinction. Independent compiler-referee review confirmed both
-traces and the fiber equality within the stated variable-only scope. Next prove
-or refute adjacent-transition swaps with structural bounds, then resolve the
-exact Oracle negative-intersection projection, including latent Function/effect
+traces and the fiber equality within the stated variable-only scope. A
+conditional adjacent-swap argument for independent extrusion calls on a
+frozen graph also passed compiler-referee review under its stated assumptions.
+It does not establish Yulang root-order behavior with shared constraints or
+Oracle projection. Next resolve the exact
+Oracle negative-intersection projection, including latent Function/effect
 identities, before resuming other source environments, interacting uses, and
 OCast observations. The source
 audit's polarity-sharing discriminator uses internal `L(v)=[Int]`,
