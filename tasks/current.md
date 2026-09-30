@@ -491,9 +491,13 @@ the full instance relation remains unproved. The complete Simple-sub paper and
 `mlsub-compare` audit is recorded in
 `notes/progress/2026-09-30-simple-sub-paper-mlsub-audit.md`; the audited source
 uses `(variable, polarity)` extrusion keys, so pure intrusion must first recover
-that baseline. Next resolve the exact negative-intersection projection,
-including latent Function/effect identities, then resume other source
-environments, interacting uses, and OCast observations.
+that baseline. The audit records the immediate lemma: represent copied
+identities by `(variable, polarity, boundary)`, retain each source-side link
+and copied opposite bound, and compare memoized on-demand allocation with
+preallocation on a cycle and a shared diamond. Then resolve the exact
+negative-intersection projection, including latent Function/effect identities,
+before resuming other source environments, interacting uses, and OCast
+observations.
 Details are in
 `notes/progress/2026-09-30-intrusion-powerset-carrier-candidate.md`. The run-local observations are
 recorded in
