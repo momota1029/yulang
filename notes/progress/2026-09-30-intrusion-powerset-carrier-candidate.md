@@ -530,6 +530,34 @@ field. The outer call then returns and caches an empty-weight q occurrence.
 This is exactly the frozen code's state transition and the captured weights
 meet its same-key condition.
 
+A second disposable Rust trace now records the enclosing source-arena path for
+both q calls. The collector enters from `PosId(19)::Fun.arg` to
+`NegId(4)::Var(TypeVar(2))`. While expanding q's selected upper
+`BoundRecordId(7)`, it follows `NegId(12)::Fun.arg` to
+`PosId(8)::Var(TypeVar(1))`; the selected lower bounds for that variable
+include `BoundRecordId(4) -> PosId(4)::Fun.arg -> NegId(4)::Var(TypeVar(2))`,
+which is the recursive re-entry. The other selected lower,
+`BoundRecordId(2) -> PosId(5)::Var(TypeVar(4))`, is a sibling branch and is not
+the q cycle. The synthetic q passed directly to `merge_types` when constructing
+`with_self` has no arena node ID. The enclosing paths distinguish the root
+occurrence, synthetic self, and selected-bound re-entry in this execution
+trace, even though compaction serializes q occurrences as the same
+Primary/Empty variable shape. Thus source edge identities can be recovered
+as run-local traversal paths and selected-bound provenance for this fixture;
+the shared leaf `NegId(4)` alone does not identify an occurrence, and these
+parent paths are not retained in the compact occurrences themselves.
+
+This trace came from another temporary Rust test lowering the same exact
+source in a disposable worktree at frozen Oracle commit `a58eefc31`. The
+focused command was
+`YULANG_QEDGE_TRACE=1 CARGO_TARGET_DIR=/tmp/yulang-intrusion-qedge-target cargo test -p infer --lib scratch_qedge_self_application -- --nocapture`;
+it passed. The path log is at
+`/tmp/yulang-intrusion-qedge-trace.log`. Neither the frozen Oracle checkout
+nor this branch's compiler source was changed. A compiler-referee delta review
+matched the recorded paths and selected-bound IDs to the raw trace and
+collector source; its scope was this run only, not other roots or graph
+classes.
+
 This fact does **not** prove that the compact row is a lossless encoding of an
 unbounded unfolding of the selected source-bound graph. In particular,
 `with_self` can contain indistinguishable q occurrences for the synthetic

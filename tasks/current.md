@@ -579,14 +579,20 @@ term to the recursive-side upper row and returns q on the recursive edge;
 this does not yet prove regular-unfolding completeness. Review rejected an
 earlier finite-prefix claim because the emitted `CompactVar`s do not identify
 the synthetic self q separately from the q inside the selected Function
-bound. Source-edge/occurrence identity must be recovered before claiming that
-the row is a lossless finite graph presentation. Simple-sub's `TypeSimplifier`
+bound. The second trace records this run's recursive q path as upper record 7
+through `NegId(12).Fun.arg` / `PosId(8)` to `TypeVar(1)`, then lower record 4
+through `PosId(4).Fun.arg` to q; lower record 2 is a separate
+`TypeVar(4)` branch. Both q visits share leaf `NegId(4)`, so the path and
+bound-record provenance distinguish the visits, not their arena leaf ID. These
+identities are visible in the traversal trace but are not stored on compact
+occurrences. A candidate graph must retain the bound and parent-path
+identities explicitly. Simple-sub's `TypeSimplifier`
 also explicitly preserves recursive variables during polar-only removal,
 whereas the Oracle removes this negative-only q and prunes its row. That
 specific behavior is a Yulang extension; its contextual preservation is a new
-conjecture, not supplied by Simple-sub §4.3.1. Next reconstruct selected
-source-edge identities through compact collection, prove the
-finite-regular-presentation and q-erasure bridges, then use
+conjecture, not supplied by Simple-sub §4.3.1. Next define an identity-
+preserving selected-bound graph before compact merging, prove its
+finite-regular-presentation correspondence and q-erasure bridge, then use
 `Root_d`/`Pred_d`. General weighted-cycle reconstruction remains open. See
 `notes/progress/2026-09-30-intrusion-powerset-carrier-candidate.md`.
 The rule distinction is recorded in
