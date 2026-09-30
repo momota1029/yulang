@@ -837,6 +837,14 @@ constraint from the declarative source rule, excludes the erased
 the stated pure carrier assumptions. Focused compiler-referee/spec-auditor
 review found and closed the missing least-`Bottom` premise and imprecise
 erasure description; no issue remains in the pure singleton corollary. This
-does not certify effects, complete Oracle behavior, or implementation. Next
-extend source/graph assignment adequacy beyond this singleton example and
-toward the full Oracle final-acceptance objective.
+does not certify effects, complete Oracle behavior, or implementation. The
+parent-map composition candidate received M3 semantic/specification review;
+the repair now transports a complete joint relation containing base SCC
+validity, every independent use copy, caller constraints, and cross-use
+obligations while fixing all outer/context identities. The reviewed theorem is
+conditional on the pure source/group adequacy result and does not cover the
+full Oracle pipeline. See
+`notes/progress/2026-09-30-intrusion-parent-transport-composition.md`. Next
+extend the source/group adequacy and parent operation beyond this pure
+constraint fragment, then carry the proof toward complete Oracle
+final-acceptance capability.
