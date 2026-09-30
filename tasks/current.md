@@ -490,11 +490,16 @@ unreachable recursive interval is pruned. The reason this erasure preserves
 the full instance relation remains unproved. The complete Simple-sub paper and
 `mlsub-compare` audit is recorded in
 `notes/progress/2026-09-30-simple-sub-paper-mlsub-audit.md`; the audited source
-uses `(variable, polarity)` extrusion keys, so pure intrusion must first recover
-that baseline. The audit records the immediate lemma: represent copied
-identities by `(variable, polarity, boundary)`, retain each source-side link
-and copied opposite bound, and compare memoized on-demand allocation with
-preallocation on a cycle and a shared diamond. Then resolve the exact
+uses `(variable, polarity)` extrusion keys. Its reference writes, order-sensitive
+bound snapshots, conditional preallocation simulation, and cycle/diamond traces
+are recorded in
+`notes/progress/2026-09-30-simple-sub-extrusion-preallocation-lemma.md`.
+Independent compiler-referee review closed the nested-map-continuation proof
+gap; its minor Top/Bottom representation finding was fixed by using an empty
+upper-bound list whose meet denotes Top. The lemma covers preallocating names
+only while replaying the same first-visit transitions; it does not prove
+root-order independence, polarity merging, or Oracle projection. The sketch's
+root-order-independence claim is now explicitly open. Next resolve the exact
 negative-intersection projection, including latent Function/effect identities,
 before resuming other source environments, interacting uses, and OCast
 observations. The source audit also yields a discriminator: with `v` bounded

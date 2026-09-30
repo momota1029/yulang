@@ -56,7 +56,13 @@ This can be viewed as a batched version of Simple-sub extrusion: ordinary
 extrusion discovers a cyclic reachable bound graph recursively and memoizes
 fresh low-level representatives. If the SCC is already known, intrusion
 pre-allocates the relevant representatives and then rewrites/relates the graph
-against that fixed map.
+against that fixed map. This is only a structural analogy so far. Simple-sub
+indexes representatives by `(variable, polarity)` and mutates source-side
+bounds as it discovers them. A valid batching simulation must preserve those
+polarity-specific representatives, link writes, bound snapshots, and first-
+visit order; an endpoint rename through one SCC vertex map is not enough.
+Details are recorded in
+[`2026-09-30-simple-sub-extrusion-preallocation-lemma.md`](../progress/2026-09-30-simple-sub-extrusion-preallocation-lemma.md).
 
 ## 3. Cost hypothesis
 
@@ -83,16 +89,21 @@ ordinary extrusion, not as a new semantic rule.
 
 A possible proof route is:
 
-1. **Preallocation lemma.** Preallocating all parent variables for the frozen SCC
-   is alpha-equivalent to allocating each extrusion representative at first
-   recursive visit.
+1. **Preallocation lemma.** Preallocating fresh names keyed by `(VarId,
+   polarity, boundary)` and replaying the exact first-visit transition sequence
+   is alpha-equivalent to on-demand allocation. This conditional statement is
+   now characterized for Simple-sub's operation. It does not establish that
+   SCC root order can change, that polarities can share a parent, or that the
+   proposed Yulang boundary rewrite is equivalent.
 2. **Edge preservation lemma.** Rewriting/relating each relevant bound edge
    through the parent map produces exactly the constraints that recursive
    extrusion would produce.
 3. **Cycle closure lemma.** A back edge in the SCC returns to the already
    allocated parent representative, so no duplicate representative is created.
-4. **Root-order independence.** Because the parent map is fixed before
-   traversal, processing SCC roots in any order yields alpha-equivalent output.
+4. **Root-order independence.** Still open. A fixed name map alone does not
+   establish order independence: extrusion mutates source bounds, and later
+   polarity visits can observe earlier link writes. Show the final relation is
+   invariant under changed root order, or retain the Oracle's order.
 5. **Generalization simulation.** Generalizing the intruded component and then
    instantiating it with fresh parent substitutions has the same constraint
    consequences as re-establishing the original monomorphic SCC at a fresh use
