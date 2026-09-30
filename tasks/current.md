@@ -883,6 +883,18 @@ argument contribution is joined with callee and return effects, and deferred
 arguments preserve their latent effect for any later force. Compiler-referee
 delta review closed its return-effect, purity-predicate, and mode-principality
 wording findings; the inference-to-shape relation remains unproved. A
+disposable frozen-Oracle probe now compares unused `int` versus
+`[_] int` parameters applied to `out::read(())`: the plain-value specialization
+forces the argument's `[out]` thunk, while the thunk-parameter specialization
+wraps it in a `MakeThunk` and leaves the force inside. This establishes a
+shape/evaluation distinction in generated mono structure only; no program was
+executed, and the probe does not establish inference-effect adequacy. Its
+independent compiler-referee review confirms only the generated shape
+distinction and points out that `thunk[any, int]` is the adapted runtime
+parameter shape, not evidence about the inference `arg_eff` denotation. Next
+capture finalized effect endpoints for both roots, then trace a surviving
+exact-pure effect and an eligible nested unannotated local `Def::Arg` push/pop
+path. A
 conditional zero-consumption
 lemma may reduce the handler-free, no-family fragment: Oracle's weighted row
 rule uses `J = K ∩ Common(L)`, so empty row heads force no row consumption;
@@ -893,8 +905,8 @@ the candidate carrier must define `Bot ≤ e ≤ Row([], Top)` before calling it
 exact-pure. The frozen effect spec and these gaps are in the latent-effects
 record. The successor must also account for scoped, noncommutative
 `SubtractId` push/pop transport; those identities cannot be erased as mere
-effect-family labels without contextual preservation. Derive discriminating
-source fixtures, then prove soundness, principality, and source-lowering
+effect-family labels without contextual preservation. Then prove soundness,
+principality, and source-lowering
 adequacy for fixed outer assignments. Do not assume a four-coordinate product
 or infer an effect algebra from renaming. In parallel, complete ordered
 member-root lifecycle

@@ -322,6 +322,46 @@ eligible nested unannotated local call through its selected frame's
 `SubtractId` push/pop. Existing thunk-specialization coverage establishes
 only shape preservation, not the source typing derivation or general bridge.
 
+### Temporary plain-value versus thunk-parameter probe
+
+A temporary focused test in a disposable worktree at frozen Oracle commit
+`a58eefc31e22141574b6f20c6a5748151c6d79f1` compared:
+
+```yu
+act out:
+  our read: unit -> int
+
+my strict(x: int) = 1
+strict(out::read(()))
+```
+
+with the same source using `my defer(x: [_] int) = 1` and
+`defer(out::read(()))`. The command was
+`CARGO_TARGET_DIR=/tmp/yulang-intrusion-oracle-target cargo test -p specialize
+scratch_oracle_argument_mode_pair -- --nocapture`; it passed both
+specializations. The strict instance had signature `int -> int` and emitted a
+root `ForceThunk` for the `[out]` read computation. The deferred instance had
+signature `thunk[any, int] -> int` and emitted a root `MakeThunk` whose body
+contains the `[out]` `ForceThunk`. Since both functions ignore their argument,
+this is a concrete specialization distinction: the plain-value boundary
+forces the effectful argument, while the thunk-parameter boundary leaves it
+suspended in a thunk.
+
+This inspects generated mono structure; it does not execute the program or
+prove its operational semantics. It also does not inspect finalized inference
+effect endpoints, a surviving exact-pure variable, the application result
+effect in a non-inlined call, or an unannotated local `Def::Arg` push/pop.
+The temporary test and worktree were removed, and the frozen Oracle checkout
+was not changed. Independent compiler-referee review confirms the narrow
+shape/adaptation distinction and notes that runtime `MakeThunk` stores its
+body for later evaluation, while `ForceThunk` evaluates it. The run itself did
+not execute either program. The `thunk[any, int]` signature is the callee's
+runtime parameter shape after boundary adaptation; it does not show that the
+inference argument-effect slot denoted `Any` (the generated `MakeThunk` has
+source effect `[out]` and target effect `any`). The review found no defect in
+this fixture and does not establish exact effect accounting or the general
+inference-to-runtime theorem.
+
 An independent compiler-referee review of this candidate section found and
 closed three local issues: the total result effect must include `εret`; the
 runtime purity predicate accepts both `Never` and `EffectRow([])` after
