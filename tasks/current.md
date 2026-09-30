@@ -1210,8 +1210,13 @@ insufficient for handler visibility and powerset rows alone insufficient to
 establish principality. Capture evidence must be scoped to its boundary and
 active handler; call/force, closure escape, and scheme instantiation must not
 widen it. Annotation forms (absent, concrete nonempty/empty, wildcard, and
-wildcard-by-skeleton) need separate successor semantics. Details are in the
-candidate record above. A compiler-referee delta review also found that
+wildcard-by-skeleton) need separate successor semantics. A finite-core
+principality target now formulates effect slots as a finite powerset lattice
+with a monotone constraint operator and fixed proof-carrying `Drop`; its
+finite-lattice least-solution step was independently confirmed conditional on
+derivations matching the lower-bound constraints. The dynamic origin quotient,
+handler scope, and transfer correspondence remain unproved. Details are in
+the candidate record above. A compiler-referee delta review also found that
 subtraction must quantify over all reachable request/activation states,
 including forwarded continuations resumed by an outer handler; recursive
 request trees need a finite-trace or finite-approximation induction. A fresh

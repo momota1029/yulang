@@ -100,20 +100,84 @@ scheme instantiation, or a source/runtime correspondence theorem. In
 particular, equal `[choose]` rows can have different handler visibility; rows
 alone cannot justify `M`.
 
+## Relative principality target for the finite effect core
+
+The selected abstraction should have a least-solution theorem, rather than
+claiming that finite rows are principal by themselves. A first target fixes a
+source program and its annotation contracts, with finite family set `Fam`, a
+finite set `Slots` of static immediate and latent effect positions, and fixed
+provenance/eligibility input:
+
+```text
+L = (P(Fam))^Slots
+```
+
+Order assignments componentwise by subset. Generate a lower-bound constraint
+operator `F : L -> L` from the compositional rules. Operation nodes contribute
+their family; sequencing, calls, and thunk forcing use union with operand and
+latent effects; a shallow catch uses `(E \ Drop) ∪ arm_bounds`, with each raw
+continuation assigned the whole scrutinee `E`. `Drop` and callback contracts
+are fixed inputs for this judgment, so these transfers are monotone. Define
+abstract solutions as the pre-fixed points `Sol(F) = {ρ | F(ρ) ≤ ρ}`. Derivability
+must be defined by, or proved equivalent to, these generated inequalities
+before calling the least solution principal.
+
+For each handler/family pair, let `Origins(H,f)` be a sound over-approximation
+of request-occurrence and handler-activation/provenance configurations that
+can reach that handler, not just syntactic operation sites. It must cover every
+activation, environment, use-site instantiation, recursive unfolding,
+closure/thunk invocation, operation result, and forwarded continuation suffix
+relevant to the static handler slot. A finite `Slots` set does not make these
+dynamic configurations finite; constructing a sound finite quotient or
+symbolic summary is a separate proof obligation. Define `Drop(H)` only from
+families whose every configuration in this over-approximation is covered and
+eligible at that activation. Unknown configurations are treated as
+ineligible and prevent subtraction. `Origins` and `Drop` must be valid
+uniformly for all admissible assignments and configurations in the claimed
+soundness domain, not only snapshots visited by Kleene iteration. If eligibility
+depends on inferred effect slots, monotonicity must be proved again rather
+than assumed.
+
+Concrete callback annotations are part of the fixed source-contract input and
+can change `Drop` and therefore `F`; this theorem compares solutions only for
+the same annotated program. Concrete result annotations are separate upper
+filter checks `ρ(slot) ⊆ U`, not operations that clip or alter `F`.
+
+Under monotonicity, the finite lattice gives a least fixed point
+`lfp(F) = ⋃ₙ Fⁿ(⊥)`. For every `ρ ∈ Sol(F)`, `lfp(F) ≤ ρ`; therefore, if any
+solution satisfies a separate concrete result filter `ρ(slot) ⊆ U`, the least
+solution satisfies it too. This establishes principality only if derivations
+of the selected effect core are exactly characterized by `Sol(F)` and its
+separate filters. Principality here means least derivable finite-family bounds
+for this effect core. It does not mean least exact trace support, and it does
+not establish principal value types, higher-order subtyping, scheme/SCC
+generalization, or final program acceptance for the full language. If the
+request-configuration summary is coarse, the result may retain extra families
+and lose acceptance precision; soundness additionally requires complete
+configuration coverage, correct eligibility, sound transfer simulation, and
+latent-effect preservation.
+
+This fixed-point argument is a proof target, not yet a theorem for the current
+candidate: source-origin completeness, handler-scope stability, and the full
+construct interpretation still require proof and independent review.
+
 ## Adversarial review result
 
 Independent architect and compiler-referee reviews agree on the following:
 
 - **Blocking for a general rule:** define provider identity and handler
-  eligibility independently of family labels. A family may be removed only
-  when each possible request in it is covered and eligible; otherwise retain
-  it conservatively. Prove that source inference and runtime handler search
-  implement the same relation.
-- **Major:** state principality as a least-solution property of explicit
-  compositional rules with the whole-scrutinee continuation summary. A finite
-  powerset codomain by itself does not make the coarse one-request result
-  principal. Open rows, higher-order subtyping, SCC schemes, and final
-  acceptance remain outside the present argument.
+  eligibility independently of family labels. The candidate now separates
+  request provenance, ordered boundary instances, handler activations, and
+  grants; a family may be removed only when every reachable configuration is
+  covered and eligible, otherwise retain it conservatively. The activation
+  transport and source/runtime correspondence remain unproved.
+- **Major, narrowed:** the finite-core candidate now states principality as
+  leastness among pre-fixed solutions of explicit compositional lower-bound
+  constraints, with result filters checked separately. Independent review
+  confirms the finite-lattice step under those premises. A finite powerset
+  codomain alone is insufficient: derivation correspondence, complete dynamic
+  origin summaries, higher-order subtyping, SCC schemes, and final acceptance
+  remain outside the proved result.
 - **Major:** incomplete handlers and residual operations must remain in the
   bound. Non-resumption removes a family only under complete eligible
   coverage. Nested outer handlers and callback ownership need explicit rules.
@@ -178,10 +242,10 @@ eligible(request, handler) iff
 ```
 
 The last condition is intentionally unspecified. Treating a capture contract
-as a transferable Boolean attached to a family is unsafe: if it escapes in a
-returned closure, a later handler without a matching receiving-boundary
-contract may steal the request. The converse shortcut—dropping every grant at
-a helper return—could prevent a contract that composes through a helper from
+as a transferable Boolean attached to a family is unsafe: if that bit escapes
+in a returned closure, it could authorize an unrelated inner handler outside
+the introducing receiving scope. The converse shortcut—dropping every grant
+at a helper return—could prevent an explicitly permitted nested handler from
 working. The evidence must therefore be scoped to its introducing boundary
 and active handler, and its call, force, closure-escape, and scheme-instantiation
 transport must be proved without widening its scope. This is a challenge
@@ -549,11 +613,34 @@ raw `k`, with `k` assigned latent row `May(C)`. If an arm returns a callable
 or thunk that captures `k`, its result-value typing must separately preserve
 that latent row. The following simulation targets immediate trace effects:
 
+The source-grounded eligibility hypothesis above decomposes the predicates:
+
+```text
+Eligible(q, H, κ) = Active(H, κ)
+                    and Covered(H, κ, q.operation)
+                    and Visible(q, H, κ)
+
+Visible(q, H, κ) =
+    for every boundary b in q.ordered_boundary_lineage:
+        outside(H.activation, b, κ)
+        or matching_grant(b, q.family, H.activation, κ)
+    and no_other_active_boundary_masks(q, H, κ)
+```
+
+Here `κ` must contain the active handler identities, the specific receiving
+activation and its nesting relation to each handler, the ordered request
+lineage, and explicit contract evidence. `outside` is evaluated at the
+request's current activation, including closure re-entry; it is not inferred
+from the source location where a closure was created. These predicates remain
+conditional because the successor's scope transport and runtime correspondence
+are unproved. If any premise cannot be established, `Visible` is false for
+subtraction purposes and the family remains in the bound.
+
 ```text
 T_{H,κ}(Return(v)) = value_arm(v)
 
 T_{H,κ}(Request(q, k)) = operation_arm(q, k)
-    if Covered(H, κ, q.operation) and Visible(q, H, κ)
+    if Eligible(q, H, κ)
 
 T_{H,κ}(Request(q, k)) = Request(q, x -> T_{H,κ'}(k(x)))
     otherwise
