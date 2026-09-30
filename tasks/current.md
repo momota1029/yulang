@@ -779,10 +779,14 @@ in `notes/progress/2026-09-30-intrusion-pure-source-typing-rules.md`. It does
 not yet cover let-polymorphism or recursive SCCs; the candidate SCC extension
 is recorded below and remains conditional.
 
-A candidate recursive-group rule now allocates one monomorphic root per SCC
-member, generates every body against the shared root environment, and retains
-the full finite constraint graph as a generalized component. Each external use
-freshens the component-owned identities together while fixing enclosing
-anchors. Its conditional root principality argument is in
+A candidate recursive-group rule now gives each member a distinct monomorphic
+self placeholder and exposed root, generates every body against the shared
+self environment, and retains the full finite constraint graph as a
+generalized component. Each external use freshens the component-owned
+identities together while fixing enclosing anchors. Its conditional root
+principality argument is in
 `notes/progress/2026-09-30-intrusion-scc-constraint-scheme-rules.md`; source
-constraint generation, SCC ownership, and Yulang effects remain unproved.
+constraint generation, SCC ownership, and Yulang effects remain unproved. The
+`pub f x = x f` pure projection yields a nonempty retained graph and proves
+that `f 1` has no satisfying instance in the candidate carrier, matching the
+recorded Oracle final specialization rejection for that fixture.

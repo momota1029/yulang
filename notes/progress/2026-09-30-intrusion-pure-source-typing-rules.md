@@ -120,8 +120,9 @@ equivalence.
 
 ## Next extension
 
-Add recursive definition groups with a single monomorphic identity per member
-inside the SCC, then state which identities become per-use ports and which
-remain shared anchors. Prove the corresponding joint assignment relation
-before adding any projection or simplification. The parent-transport fiber
-lemma applies after this ownership partition and complete graph are fixed.
+Add recursive definition groups with a monomorphic self placeholder per member
+and a distinct exposed root where required by the source rule. State which
+identities become per-use ports and which remain shared anchors. Prove the
+joint assignment relation before adding projection or simplification. The
+parent-transport fiber lemma applies after this ownership partition and
+complete graph are fixed.
