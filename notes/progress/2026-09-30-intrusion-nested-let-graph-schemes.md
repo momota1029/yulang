@@ -38,33 +38,33 @@ disjoint fresh ranges and may share only the fixed anchors.
 ## Declarative let rule
 
 Extend a semantic environment `Γ` so each source name maps either to one
-monomorphic value (`Mono(T)`) or to a graph scheme (`Poly(S)`). A monomorphic
-variable occurrence has exactly its mapped type; a polymorphic occurrence may
-choose any `T ∈ Inst_S(η)`. Each occurrence makes its choice independently.
-All expression rules from the pure source-typing note remain unchanged, with
-the variable rule interpreted through this environment.
+monomorphic value (`Mono(T)`) or to a polymorphic type set (`Poly(P)`, where
+`P⊆D` is upward closed under `≤`). A monomorphic variable occurrence has
+exactly its mapped type; a polymorphic occurrence may choose any `T∈P`. Each
+occurrence makes its choice independently. A graph scheme `S` represents the
+semantic entry `Poly(Inst_S(η|A_S))`; it is not itself the declarative entry. All expression
+rules from the pure source-typing note remain unchanged, with the variable
+rule interpreted through this environment.
 
 For fixed outer anchor assignment `η`, write
-`Types_(Γ,η)(e) = { T | Γ,η ⊢ e : T }`. A graph scheme `S₁` is a valid
-principal scheme for `e₁` under `Γ,η` exactly when
+`Types_(Γ,η)(e) = { T | Γ,η ⊢ e : T }`. A graph scheme `S₁` is an exact
+principal representation for `e₁` under `Γ,η` when
 `Inst_S₁(η|A₁) = Types_(Γ,η)(e₁)`, where `η|A₁` is restricted to the
-scheme's free anchors. For `let x=e₁ in e₂`, use that scheme in the
-continuation:
+scheme's free anchors. The declarative judgment is indexed by `η` throughout.
+Its `Let` rule uses the independently defined source type set:
 
 ```text
-Inst_S₁(η|A₁) = Types_(Γ,η)(e₁) ≠ ∅
-Γ[x↦Poly(S₁)],η ⊢ e₂ : T
+P₁ = Types_(Γ,η)(e₁) ≠ ∅
+Γ[x↦Poly(P₁)],η ⊢ e₂ : T
 ──────────────────────────────────────────── Let
 Γ,η ⊢ let x=e₁ in e₂ : T
 ```
 
-The equality premise says the RHS scheme captures exactly the declarative
-typing relation, rather than defining that relation from the generator. Its
-nonempty condition requires a valid RHS binding even if `x` is unused. Every
-occurrence of `x` may choose a different satisfying assignment to the
-scheme-local graph. This gives let-polymorphism directly in the declarative
-relation; it does not reuse Yulang's inference-stage scheme format or
-acceptance phase.
+The rule depends only on source typing, not on a graph scheme or generator.
+Its nonempty condition requires a valid RHS binding even if `x` is unused.
+Every occurrence of `x` may choose a different type from `P₁`. This gives
+let-polymorphism directly in the declarative relation; it does not reuse
+Yulang's inference-stage scheme format or acceptance phase.
 
 ## Generation and generalization boundary
 
@@ -111,8 +111,7 @@ fixed `A₁` anchors but do not share `Q₁` assignments.
 Relate generator and semantic environments by `Ξ ≈_η Γ`:
 
 - `Ξ(x)=Mono(u)` iff `Γ(x)=Mono(eval(u,η))`;
-- `Ξ(x)=Poly(S)` and `Γ(x)=Poly(S')` iff
-  `Inst_S(η|A_S)=Inst_{S'}(η|A_{S'})`.
+- `Ξ(x)=Poly(S)` and `Γ(x)=Poly(P)` iff `Inst_S(η|A_S)=P`.
 
 The source-name domains must agree. `η` assigns every identity in
 `Anch(Ξ)` and every anchor exposed by the corresponding semantic environment.
@@ -122,15 +121,13 @@ monomorphic endpoint and makes outer identity sharing explicit. Poly entries
 are related by denotation, not by syntax or binder IDs.
 
 **Environment extensionality.** If two semantic environments have the same
-monomorphic values and extensionally equal `Inst` sets for each polymorphic
-name at the fixed anchor assignment, then they assign the same type set to
-every expression. Induct on the expression: variable lookup uses the equal
-sets; integer, lambda, application, and subsumption preserve equality; a `Let`
-RHS has the same `Types` set by induction, so any scheme satisfying the exact
-equality premise for one environment satisfies it for the other, and the
-extended environments remain extensionally equal in the body. This lemma
-allows one graph scheme to represent any declaratively equivalent principal
-scheme.
+monomorphic values and equal polymorphic sets `P` for each name at the fixed
+anchor assignment, then they assign the same type set to every expression.
+Induct on the expression: variable lookup uses the equal sets; integer,
+lambda, application, and subsumption preserve equality; a `Let` RHS has the
+same `Types` set by induction, so the resulting `Poly(P₁)` extension is also
+equal in both environments. This lets a graph scheme representation replace
+a direct semantic type set once `Inst_S=P` has been proved.
 
 Assume the monomorphic expression-generation correspondence from
 `2026-09-30-intrusion-pure-source-typing-rules.md`. A structural induction on
@@ -157,15 +154,12 @@ parameter identity in the enclosing expression's local set. Application
 combines the two disjoint local assignments and uses the Function subtyping
 law to match the generated application obligation.
 
-For `Let`, apply the induction hypothesis to `e₁` first. Its exact scheme
-equation proves the declarative premise
-`Inst_{S₁}(η|A₁)=Types_(Γ,η)(e₁)`. The nonempty condition is equivalent to
-existence of a satisfying base assignment for `C₁`. For completeness, a
-declarative derivation may use any principal scheme `S_d` whose `Inst` set is
-that same `Types` set. Environment extensionality relates
-`Γ[x↦Poly(S₁)]` to `Γ[x↦Poly(S_d)]`, so the extended generator and semantic
-environments satisfy `Ξ≈_ηΓ` even when the scheme graphs or binder IDs differ.
-Apply the induction hypothesis to `e₂`. In the forward direction, a satisfying
+For `Let`, apply the induction hypothesis to `e₁` first. It proves
+`Inst_{S₁}(η|A₁)=Types_(Γ,η)(e₁)`, so the generator's `Poly(S₁)` entry
+represents the declarative `Poly(P₁)` entry. The nonempty condition is
+equivalent to existence of a satisfying base assignment for `C₁`. Apply the
+induction hypothesis to `e₂` under these extensionally equal environments.
+In the forward direction, a satisfying
 assignment for `C₁∪C₂` contains both the base witness for `C₁` and one witness
 for each fresh scheme-use copy in `C₂`. In the reverse direction, the
 declarative let derivation supplies a base RHS witness and each occurrence

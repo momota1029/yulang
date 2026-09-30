@@ -813,6 +813,16 @@ schemes can be supplied as polymorphic environment entries, but no combined
 recursive-group-plus-nested-let theorem is claimed. See
 `notes/progress/2026-09-30-intrusion-nested-let-graph-schemes.md`. This remains
 unapproved and does not cover recursive groups nested inside expressions,
-effects, or Oracle final acceptance. Next prove the combined pure
-recursive-group / nested-let rule, then compare its source envelope and
-observations with the frozen Oracle before expanding to fetch/effect behavior.
+effects, or Oracle final acceptance. The combined-rule candidate and its
+current review status follow.
+A first composition theorem is now drafted in
+`notes/progress/2026-09-30-intrusion-recgroup-let-composition.md`: it treats
+the recursive group graph as a base validity witness and clones it per
+continuation member use. It extends recursive-body adequacy to outer
+polymorphic names through the nested-let theorem, with declarative `LetRec`
+defined from source member-type sets independently of the graph generator.
+Compiler-referee and spec-auditor M3 review closed concrete circularity,
+environment-domain, simultaneous-update, and set-binder findings within this
+pure scope. No Oracle final-capability result or implementation authority
+follows yet. Next characterize final Oracle outcomes for this exact combined
+source fragment.
