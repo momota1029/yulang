@@ -867,11 +867,23 @@ temporary focused probe for `pub id x = x` found one quantifier and finalized
 eliminated before runtime materialization, which therefore leaves a plain
 return shape. The probe did not identify which generalization pass removes it
 or cover other Functions. The inference branch separately tests syntactic
-`Neg::Bot`. This major bridge obligation was found by independent
+`Neg::Bot`. A subsequent static trace identifies polar simplification as the
+first conditional candidate for the `id` elimination: the effect is
+positive-only after compaction, and an eligible one-polarity variable can be
+removed before quantifier selection. No intermediate compact snapshot was
+captured, so eligibility and absence of hidden opposite-polarity obligations
+remain premises; this does not justify dropping source constraints in the
+successor. This major bridge obligation was found by independent
 compiler-referee review and is recorded in the latent-effects note. The next
 proof must define an explicit inference-to-runtime evaluation-mode judgment;
 inference-stage parity is waived, so a source-derived mode is allowed only
-with a proof of equivalent final behavior. A conditional zero-consumption
+with a proof of equivalent final behavior. A candidate mode-indexed rule is
+now recorded: runtime purity is `Never` or the empty effect row, the strict
+argument contribution is joined with callee and return effects, and deferred
+arguments preserve their latent effect for any later force. Compiler-referee
+delta review closed its return-effect, purity-predicate, and mode-principality
+wording findings; the inference-to-shape relation remains unproved. A
+conditional zero-consumption
 lemma may reduce the handler-free, no-family fragment: Oracle's weighted row
 rule uses `J = K ∩ Common(L)`, so empty row heads force no row consumption;
 arbitrary heads require `Common(L) = Empty` at every split. A vacuous

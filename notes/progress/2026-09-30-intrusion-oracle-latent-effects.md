@@ -198,6 +198,27 @@ test lowering::tests::case_01::scratch_oracle_runtime_effect_path_for_identity .
 test result: ok. 1 passed; 0 failed; 1393 filtered out
 ```
 
+### Candidate cause of this fixture's effect elimination
+
+A subsequent static trace identifies polar simplification as the first pass
+that can account for this `id` result. `lower_name` creates the exact-pure
+effect variable; lambda lowering places it in positive `Fun.ret_eff`;
+compaction preserves a self occurrence even when its selected lower is only
+`Bot`; generalization then runs alias expansion followed by simplification.
+Alias expansion adds occurrences, while simplification eliminates eligible
+variables seen at only one polarity before quantifier selection. An empty
+positive effect slot finalizes to `Pos::Bot`, consistent with the captured
+scheme.
+
+This is a conditional causal explanation, not an observed intermediate
+snapshot: it depends on this effect variable being eligible at the
+generalization boundary and having no hidden negative occurrence, selected
+non-`Bot` lower, or other role/recursive use. It establishes neither that
+`Bot ≤ e ≤ Row([], Top)` denotes only the empty effect nor that polarity-only
+elimination preserves source constraints. The successor may retain this
+identity and its constraints; Oracle's simplification is characterization
+evidence only.
+
 The useful candidate is thus a two-mode *runtime application* judgment:
 shapes with pure extracted effects are evaluated strictly and their actual
 effect is charged to the call result; shapes with non-pure extracted effects
@@ -237,6 +258,78 @@ variable's runtime conversion. A nested call through an unannotated local
 `Def::Arg` is additionally needed to exercise the selected-frame push/pop
 path. These fixtures and their independent declarative typing derivations
 remain unestablished.
+
+### Candidate mode-indexed application obligation
+
+The smallest adequate source judgment cannot choose a mode from the denotation
+of an effect variable alone. For an elaborated runtime argument shape `S`,
+define `split(S) = (A, ε)` as follows: `split(Thunk(ε,A)) = (A,ε)` and
+`split(A) = (A, ∅)`. Oracle's source path then has two application cases:
+
+```text
+Strict:
+  pure_mono(ε) = true
+  evaluate argument to value A, obtaining its actual computation effect εeval
+  argument contribution to result effect = εeval
+  pass A to the callee
+
+Deferred:
+  pure_mono(ε) = false
+  pass Thunk(ε,A) to the callee
+  argument contribution to result effect = ∅
+  retain ε as the thunk's latent effect, to be accounted for if forced
+
+Both:
+  total application result effect = εret ⊔ εcallee ⊔ argument contribution
+```
+
+Here `pure_mono(ε)` is the runtime predicate: it holds for `Never` and
+`EffectRow([])`. The split returns the effect stored by any thunk, including a
+syntactically pure one; mode selection applies the runtime predicate to that
+extracted effect rather than testing for an empty-row constructor alone.
+
+This is a candidate *specialization judgment*, not a declarative typing rule
+or a successor decision. It reflects `apply_known_function_arg`'s branch on
+the effect extracted from the runtime computation shape, and its result joins
+the callee effect with the strict argument's actual effect. The non-pure case
+passes `runtime_shape(ε,A)` and uses a pure immediate argument effect. Boundary
+adaptation and any later force must be included before claiming whole-program
+effect preservation. The extracted return effect `εret` is also joined by
+`call_result_shape`; it is included above so the argument-mode rule is not
+mistaken for the whole result-effect rule.
+
+The successor proof therefore needs a relation
+`Shape(Γ,C,A,ε,m,S)` connecting a source computation and its inference graph to
+its elaborated runtime shape and mode. For each fixed outer assignment it
+must show that inference lowering plus materialization selects a legal mode,
+that the selected runtime adaptation preserves evaluation and effect behavior,
+and that constraints retained on shared effect identities remain visible
+through that transport. It must establish principality for the overall typing
+and root relation, and coherence if more than one elaborated shape can realize
+the same source computation. The mode itself is deterministic for a fixed
+materialized shape; there is no separate ordering on `Strict` versus
+`Deferred`. No such relation is
+proved here. In particular, a candidate `m = (⟦ε⟧ = ∅)` is not justified:
+Oracle branches on the materialized runtime shape, while bounded pure
+views and open effect variables can have different materializations.
+
+The minimum discriminating characterization remains: compare an effectful
+argument passed to a function whose parameter expects a plain value with one
+whose parameter expects an effectful thunk; inspect finalized argument
+effects, generated `MakeThunk`/`ForceThunk`, and final behavior. Separately
+trace a surviving exact-pure effect variable through materialization and an
+eligible nested unannotated local call through its selected frame's
+`SubtractId` push/pop. Existing thunk-specialization coverage establishes
+only shape preservation, not the source typing derivation or general bridge.
+
+An independent compiler-referee review of this candidate section found and
+closed three local issues: the total result effect must include `εret`; the
+runtime purity predicate accepts both `Never` and `EffectRow([])` after
+splitting a thunk/plain shape; and mode determinism is not a separate
+principality order. The repaired statement is still only a specialization
+characterization. The reviewer did not certify the source-to-shape relation,
+the effect carrier, weighted transport, or the overall soundness/principality
+claim.
 
 The runtime-shape rule and explicit inference-to-runtime bridge are therefore
 source-grounded candidates for ordinary application, not a selected carrier
