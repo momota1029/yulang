@@ -714,6 +714,18 @@ close the charter's multi-member epochs, publication/failure, internal-use,
 and independent incoming-use obligations across the supported envelope. No
 tests ran and no Oracle files changed.
 
+The finalized ordinary-scheme instantiation path has now been source-audited
+separately. The `f` in the body `x f` is a live named-self value, not an
+incoming use of the finalized scheme; ordinary `UseResolved` happens after
+publication. Each such use gets a fresh `SchemeInstantiator`, a per-use type
+map and separate stack map; unmapped free type/stack identities remain shared,
+and only surviving recursive rows are reinstalled. Since this fixture's
+finalized scheme has no recursive rows, its q interval is not reinstalled.
+The exact finalized fields and an actual incoming-use trace for this fixture
+remain unrecorded. See
+`notes/progress/2026-09-30-intrusion-q-finalized-use-path.md` for source
+locators and the next proof obligation.
+
 ### Symbolic lowering inventory for the fixture
 
 A separate source trace now narrows `Csrc` for the exact unannotated binding.

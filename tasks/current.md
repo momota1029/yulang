@@ -651,3 +651,16 @@ This is one fixture-level obligation; multi-member epochs, publication/failure,
 internal uses, and independent incoming uses remain charter-wide requirements.
 No compiler implementation is authorized by this result; the reviewed
 successor contract and explicit approval remain prerequisites.
+
+The finalized ordinary-use path is now source-audited in
+`notes/progress/2026-09-30-intrusion-q-finalized-use-path.md`: body `f` is a
+live named-self value, while incoming `UseResolved` after publication creates a
+new scheme-instantiator with per-use TypeVar/stack maps, preserves unmapped
+free identities, and reinstalls only surviving recursive rows. For this
+fixture q is absent from the finalized recursive bounds, so ordinary use does
+not reinstall q's interval. Still missing: exact final Scheme fields and one
+fixture-specific incoming-use trace (including stack quantifiers, free
+anchors, witness paths, cloned predicate, and installed use constraints).
+That is the immediate next action, alongside the still-open source graph to
+regular-presentation and q-erasure proofs; this source audit ran no tests and
+changed no Oracle files.
