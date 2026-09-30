@@ -470,9 +470,13 @@ bound-replay ancestry. This explains the incomplete classification locally,
 without claiming subtype acceptance or identifying the origin's source.
 The endpoint-bound trace now connects the producer's fresh payload lower bound
 through the selector's invariant `step` comparison to the public `int` / `bool`
-root. Next define a concrete carrier and scheme-instance relation accounting
-for that endpoint path and the separate incomplete OCast route; then prove
-this fixture's public-output relation. The run-local observations are
+root. An unselected powerset carrier candidate now interprets the fixture and
+the pure Function variance axioms while preserving inequality-versus-equation
+distinctions. Next formalize its tagged constructor encoding and test the
+principal-root claim against polarity-reversing guarded cycles; then define
+environment-indexed scheme instances and relate both endpoint and incomplete
+OCast observations to the Oracle. Details are in
+`notes/progress/2026-09-30-intrusion-powerset-carrier-candidate.md`. The run-local observations are
 recorded in
 `notes/progress/2026-09-30-intrusion-recursive-root-epoch-capture.md`. The
 exact cases and test limits are in
