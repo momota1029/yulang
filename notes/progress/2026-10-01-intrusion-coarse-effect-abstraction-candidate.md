@@ -808,6 +808,47 @@ wrappers, prove route summaries complete, or track handler visibility; those
 remain separate obligations. Repeated continuation invocation clones this
 same suffix and adds no usage count.
 
+##### Ordered wrapper transfer for the bounded request-tree fragment
+
+For one request step, represent an exact pending wrapper spine as an
+inner-to-outer list of activation references:
+
+```text
+W = [h₁,...,hₙ]   // denotes Hₙ(...H₁(C)...)
+```
+
+The references are dynamic identities tied to the live/captured scope snapshot,
+not static handler sites. At a request `Request(q,k)`, the transfer scans `W`
+from `h₁` outward and emits the offer observation for each `hᵢ` before testing
+whether that activation forwards or matches:
+
+- If every `hᵢ` forwards, return `Request(q, λx. W(k(x)))`; the immutable
+  wrapper spine is retained in the continuation slot and cloned on each
+  resume.
+- If the first matching-and-eligible activation is `hⱼ`, split
+  `W = I · [hⱼ] · O`. Run its arm under outer spine `O`, passing raw
+  continuation `λx. I(k(x))`. The current `hⱼ` is absent from that continuation;
+  inner forwarded wrappers remain, and outer handlers remain around arm
+  execution.
+- If a reference is lost, a join merges distinct dynamic identities, or the
+  spine exceeds the represented bound, widen the entire ambiguous request step
+  to `TopControl`/`UnknownKont`: current offers, possible matching arms and
+  their effects, and every resulting continuation/value receive top
+  observations and effects under the `UnknownKont` obligations above. Do not
+  reconstruct identity from source-site or stack-position equality, and do not
+  widen only the future continuation while leaving the current branch precise.
+
+On the fragment with an exact `W` of length at most the bound and no identity
+merge, this transfer is a restatement of the finite-nesting equation: scanning
+advances precisely over the forwarding prefix, and the first match performs
+the same prefix/handler/suffix split. It therefore simulates that one concrete
+request-transformer result and emits the same handler offers, assuming
+`Eligible` and scope evidence agree. This is a bounded-fragment transfer
+lemma, not a proof that
+the proposed finite quotient can retain exact references across helper calls,
+closure escape/re-entry, or scheme instantiation. The conservative widening
+also still needs its full concretization proof.
+
 For observations, record an offer to `H_i` before testing its coverage or
 eligibility. Thus an all-forwarded `q` is offered in inner-to-outer order
 `H_1,...,H_n`. If the first matching-and-eligible handler is `H_j`, the

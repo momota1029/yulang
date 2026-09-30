@@ -1241,7 +1241,13 @@ corollary distinguishes `RawOnly` relative to inner `I` from an offer to outer
 `H`. Initial M3 review found the arm behavior too broad; the witness now fixes
 a pure direct-resume arm and limits the abort case to the source suffix through
 `k`; fresh M3 delta review closed that finding. Source/abstract transfer and
-effect-slot coupling remain open. Independent
+effect-slot coupling remain open. An exact-reference ordered wrapper transfer
+is now stated for the bounded request-tree fragment. M3 compiler-referee
+review confirmed its one-step equations and required top widening to cover the
+entire ambiguous request step (offers, branch/arm, effects, and continuations),
+not just future continuations; this clarification is now recorded. Quotient and
+runtime completeness remain unproved.
+Independent
 architect, compiler-referee, and spec-auditor reviews found family rows alone
 insufficient for handler visibility and powerset rows alone insufficient to
 establish principality. Capture evidence must be scoped to its boundary and
