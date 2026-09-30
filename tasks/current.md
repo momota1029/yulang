@@ -1656,3 +1656,17 @@ dynamic callable and latent-effect flows are covered by this abstraction;
 route/scope quotient and joint fixed point remain separate obligations. This
 candidate is not yet a sound `Drop` certificate, principal effect solver, or
 implementation authority.
+
+A source audit of frozen runtime `apply_value`/`force_thunk` corrected the
+candidate transfer: applying an operation or continuation value constructs a
+latent thunk; request emission or resumption occurs on force, implicit force,
+or continuation re-entry. Offer/route facts therefore attach to the captured
+force context, not the application site. This is recorded in the candidate
+note with exact source locators. The next source-step simulation slice should
+cover thunk creation, marker propagation through returned values, force, and
+request/resumption endpoint preservation. Until that closes, operation offers
+must not be used as positive `Drop` evidence. A bounded independent
+compiler-referee audit confirmed the lazy split and the marker propagation at
+handler-frame closure and force; it also clarified that callee/argument
+evaluation may itself have immediate effects and that continuation wrappers
+transform markers. No finite route simulation or `Drop` certificate follows.

@@ -602,23 +602,26 @@ The proposed transfer is the least closure of positive inclusion edges:
 | pattern / case / block | recursively project aggregate slots into bound definitions; union possible branch/tail results; let and ref reads/writes use version-insensitive cell slots; `Or`/`As` patterns union/copy; list-shape uncertainty widens binders to top |
 | record-pattern default / guard | include each default's value and effect even when it is conditionally executed; include guard effects and all arm result alternatives |
 | application of a known body origin | flow the argument into its formal slot and the body result into the application result; recursive edges use the same finite slots |
-| thunk / force | flow the thunk body's result into the force result; retain its latent-effect slot separately |
+| thunk / force | flow the thunk body's result into the force result; transfer its latent-effect slot into immediate effects only at force |
 | adapter | preserve the wrapped target set and attach ordered adapter-boundary evidence in a separate slot |
 | selection | use a target only if uniform across assignments; otherwise include all finite local origins, or top for open registries; projecting `TopValue` remains top |
 | catch / continuation | union value/arm results; assign each continuation a finite source slot and use top when captured control cannot be represented; keep raw/forwarded route tags separately |
 
-`App` must also dispatch producer-specific rules: operation origins create a
-request at their exact path and an offer fact for every in-scope handler
-candidate, with unknown visibility unless separately proved; constructor
-application packages its argument slots; known primitives use a proved finite
-value-shape summary (including origins carried inside returned arguments),
-while an unmodelled primitive result widens to `TopValue`. This is needed for
-primitives such as indexing that can return a callable stored in an input
-aggregate. Until its protocol is proved, `RefSet` also uses the conservative
-unknown-call rule: the runtime path projects and invokes `update_effect`, so a
-cell-write edge alone does not cover its effects or returned value. An
-unknown or external callee adds `⊤Eff`, `Unknown` route/blocker facts, and top
-value/continuation flow at every active or exported handler slot in scope.
+`App` must also dispatch producer-specific rules. In particular, an operation
+origin application produces a thunk with a latent request effect; it does not
+by itself emit the request. Offer facts arise when that thunk is forced (or
+implicitly forced), under the captured boundary/marker context. Continuation
+application likewise produces a continuation thunk; its resumed effects and
+re-entry route arise on force. Constructor application packages its argument
+slots; known primitives use a proved finite value-shape summary (including
+origins carried inside returned arguments), while an unmodelled primitive
+result widens to `TopValue`. This is needed for primitives such as indexing
+that can return a callable stored in an input aggregate. Until its protocol is
+proved, `RefSet` also uses the conservative unknown-call rule: the runtime path
+projects and invokes `update_effect`, so a cell-write edge alone does not
+cover its effects or returned value. An unknown or external callee adds
+`⊤Eff`, `Unknown` route/blocker facts, and top value/continuation flow at every
+active or exported handler slot in scope.
 Handler coverage metadata remains separate and seeds no offer. Adapter target
 identity, binder substitution,
 boundary history, and handler visibility are distinct components; joining
@@ -640,6 +643,37 @@ effect to `Pt` plus route evidence. Until that simulation closes, the least
 points-to solution is not a sound `Drop` certificate or a principal effect
 solution. The universal source-origin set remains the fallback for unresolved
 local dispatch; its acceptance cost still needs measurement.
+
+#### Source-step correction: operation and continuation application are lazy
+
+The frozen Oracle runtime's value-flow code sharpens the preceding transfer:
+applying `Value::EffectOp` constructs `Thunk::Effect`; `force_thunk` emits the
+request. Applying `Value::Continuation` constructs `Thunk::Continuation`, and
+forcing it invokes the saved resumption. Therefore operation/continuation
+application contributes a latent effect/value-flow fact, while direct offer
+and resumed-route facts belong to force, implicit force, or continuation
+re-entry. The thunk must retain the captured marker/boundary evidence when it
+escapes the creating call. A candidate that emits an offer at the original
+application site could falsely associate a later force with the wrong handler
+activation and cannot authorize `Drop` until a captured-context simulation is
+proved. The updated table records this split, based on `main` at `a58eefc3`,
+`crates/mono-runtime/src/runtime/flow.rs::apply_value` and
+`crates/mono-runtime/src/runtime/thunk.rs::force_thunk`. This is a correction
+to the abstract transfer candidate, not a finding that the frozen runtime is
+unsound; marker creation/closing, implicit force sites, and end-to-end
+source/row coupling remain to be audited. Application evaluation still
+includes the immediate effects of evaluating its callee and argument before
+the producer-specific application step. Captured route evidence must model
+marker transformations on wrapper calls and continuation resumes; a creation
+site path alone is not a sufficient activation identity.
+
+A bounded compiler-referee audit against the cited frozen runtime found no
+major discrepancy in this lazy split. It confirmed that marked callables and
+marked thunk forces route through marker frames, handler-frame closure wraps
+returned values and request resumptions, and continuation calls/resumes apply
+distinct marker transformations. This closes only the source locator and
+transfer correction; it does not prove finite abstract route simulation or
+permit positive `Drop` evidence.
 
 #### Conservative unknown-call consequence (conditional)
 
