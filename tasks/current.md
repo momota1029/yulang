@@ -582,14 +582,20 @@ the synthetic self q separately from the q inside the selected Function
 bound. The second trace records this run's recursive q path as upper record 7
 through `NegId(12).Fun.arg` / `PosId(8)` to `TypeVar(1)`, then lower record 4
 through `PosId(4).Fun.arg` to q; lower record 2 is a separate
-`TypeVar(4)` branch. Both q visits share leaf `NegId(4)`, so the path and
+`TypeVar(4)` branch. A third focused Rust trace now directly confirms the
+record-2 endpoint: the selected lower is `Qualified` with uncovered claim 1,
+`PosId(5)` is `Pos::Var(TypeVar(4))`, and bound collection emits a secondary,
+empty-weight occurrence of TypeVar4. Record 4 is separately selected for the
+same source and claim and leads through `PosId(4)` to the Function whose arg
+is the shared q leaf. Both q visits share leaf `NegId(4)`, so the path and
 bound-record provenance distinguish the visits, not their arena leaf ID. These
 identities are visible in the traversal trace but are not stored on compact
 occurrences. A candidate graph must retain the bound and parent-path
 identities explicitly. The q-cycle slice now records a collector-generated
 `SelfOccurrence(v2-)` separately from the selected bound edges, with an
 explicit forgetting map to compact syntax left to prove. Its lower weights,
-effect endpoints, and the rest of `v4+` remain untraced. Simple-sub's
+remaining effect endpoints and the bounds reachable from TypeVar4 remain
+untraced. Simple-sub's
 `TypeSimplifier` also explicitly preserves recursive variables during
 polar-only removal,
 whereas the Oracle removes this negative-only q and prunes its row. That
@@ -599,17 +605,25 @@ identity-preserving selected-bound graph and prove its graph-to-collector map,
 finite-regular-presentation correspondence, and q-erasure bridge, then use
 `Root_d`/`Pred_d`. General weighted-cycle reconstruction remains open. See
 `notes/progress/2026-09-30-intrusion-powerset-carrier-candidate.md`.
-An independent source review of a second disposable Oracle collector trace
-confirms only additional metadata: root lower records 22/24 have empty weights
-and uncovered upper claim 14; q's selected upper and the q→TypeVar1→q cycle
-remain empty-weighted; return effect variables TypeVar7/8 are reached through
-`SubtractId(0)` pop-one weights, while the matching push-Empty upper records
-and several qualified lower records are logged. This trace is incomplete:
-variable-bound endpoints bypass the typed-node wrapper, and qualified records
-do not by themselves establish accepted edges. It therefore does not complete
-the selected graph or establish interval restoration. In particular, this
-trace confirms only `BoundRecordId(2) → PosId(5)`, not its endpoint; the
-TypeVar4 endpoint remains supported only by the earlier trace.
+An independent review of the second trace confirmed root lower records 22/24
+are qualified by uncovered claim 14, and the q upper plus q→TypeVar1→q cycle
+remain empty-weighted. The third trace fixes that earlier trace's missing
+variable-bound endpoint: record 2 reaches the secondary TypeVar4 occurrence.
+The traces also observe return-effect TypeVar7/8 occurrences under inherited
+`SubtractId(0)` pop-one weights and several qualified lower records, but do not
+resolve every effect endpoint. Projection evidence now identifies the exact
+local proof records: TypeVar1 lower record 2 is a standalone original from
+constraint 2; record 4 is a replay conjunction at pivot TypeVar4 from lower
+record 1 and upper record 3 (`UpperBoundAdded`, result constraint 3). Likewise,
+root TypeVar0 records 22/24 share claim 14: record 22 is original constraint
+16, while record 24 is a replay conjunction at TypeVar14 from records 21/23,
+result constraint 17. An independent review matched these evidence variants to
+the proof constructors. This gives identity-preserving derivation links for
+those selected records, not their premise endpoints, proof completeness, or
+causal source-syntax paths. The event trace also has no full parent-call tree.
+Neither trace includes the finalized `CompactRoot`/scheme quantifiers or
+interval restoration, so the selected graph and q-erasure preservation proof
+remain incomplete.
 The rule distinction is recorded in
 `notes/progress/2026-09-30-simple-sub-paper-mlsub-audit.md`.
 This is one fixture-level obligation; multi-member epochs, publication/failure,
