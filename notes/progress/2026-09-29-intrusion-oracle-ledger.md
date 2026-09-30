@@ -379,6 +379,18 @@ subtype carrier, or establish the SCC-intrusion replacement relation. In
 particular, keep the conservative OCast diagnostic result and this inferred-type
 observation as separate public observations.
 
-Next compare the candidate carrier and scheme-instance relation against both
-observations, including a proof of root simulation and principality for the
-supported source envelope. The F5 shape remains withdrawn as the target.
+A follow-up raw-scheme print showed both outer schemes format identically as
+`int -> step int 'a`, while the raw quantified inner intervals are
+`q ∪ int ≤ q` and `q ∪ bool ≤ q`; the distinct productive recursive root
+interval is a separate binder. The exact extracted nodes and the conditional
+join calculation are recorded in
+`notes/progress/2026-09-30-intrusion-recursive-selector-adequacy.md`. This
+confirms that formatted scheme text alone is too weak to characterize this
+Oracle behavior.
+
+Next close the fixture-level adequacy calculation for these intervals: relate
+the selected roots at their actual epochs to the source view, define their
+fresh instance relation with shared anchors, and show how the nominal selector
+projects the least endpoint payload to the public `int` / `bool` results. Then
+continue toward envelope-wide root simulation and principality. The F5 shape
+remains withdrawn as the target.

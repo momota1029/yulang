@@ -453,11 +453,18 @@ The full explanation contains source leaves and an `UnknownInternal` origin that
 blocks OCast eligibility. The sentinel is traced to the variable-to-variable
 internal SCC edge from `AnalysisSession::constrain_open_use`. Separately, a
 polymorphic nominal field selector preserves distinct recursive endpoint
-payloads as inferred `int` and `bool` results without diagnostics. This closes
-the source-observable payload gap, but neither that observation nor the
-diagnostic route proves subtype acceptance or principality. Next relate both
-public observations to a concrete candidate carrier and scheme-instance
-relation, then extend the proof to the declared Oracle outcomes. The exact
+payloads as inferred `int` and `bool` results without diagnostics, even though
+the formatted outer schemes are identical. The raw intervals are respectively
+`q ∪ int ≤ q` and `q ∪ bool ≤ q`; their conditional least-value calculation is
+recorded in
+`notes/progress/2026-09-30-intrusion-recursive-selector-adequacy.md`. This
+narrows the next proof to source root projection and selector adequacy for
+these concrete intervals. It does not select a carrier or prove general
+principality. The diagnostic route remains a separate `UnknownOrigin`
+observation, not subtype acceptance. The conditional algebra is reviewed; its
+major overclaim about these exact bounds was narrowed and delta-closed. Next
+capture the two roots' selected views at their actual epochs and prove the
+scheme-instance/selector relation before generalizing the result. The exact
 cases and test limits are in
 `notes/progress/2026-09-29-intrusion-oracle-ledger.md`. The concrete carrier,
 scheme instance relation, and replacement proof remain open; implementation
