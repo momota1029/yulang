@@ -71,7 +71,8 @@ introduced rather than the innermost frame. The selected frame keeps one
 `SubtractId` per local `Def`; the first call allocates it, marks that call's
 effect as `Empty`-subtractable, and registers the matching `pop` on that frame.
 Each call, including later calls reusing the same ID, wraps its own call-effect
-endpoint with `StackWeight::push(δ, Empty)` (`tail.rs:769–796`). Thus the
+endpoint with `StackWeight::push(δ, Subtractability::Empty)`
+(`tail.rs:769–796`). Thus the
 empty-subtract fact is per first call-effect, while the push identity is
 reused per selected frame/local binding.
 
@@ -273,6 +274,49 @@ non-`Bot` lower, or other role/recursive use. It establishes neither that
 elimination preserves source constraints. The successor may retain this
 identity and its constraints; Oracle's simplification is characterization
 evidence only.
+
+### Exact-pure source effects in small finalized schemes
+
+A focused test in a disposable worktree at frozen Oracle commit
+`a58eefc31e22141574b6f20c6a5748151c6d79f1` lowered three sources:
+
+```yu
+my make = \x -> 1
+```
+
+```yu
+my apply(f) = f ()
+my use = apply (\x -> 1)
+```
+
+```yu
+my apply(f) = f ()
+my make = \x -> 1
+my use = apply make
+```
+
+All three lowered without errors. The finalized schemes were `make: any ->
+int`, `apply: (() -> ['a] 'b) -> ['a] 'b`, and `use: int`. For both `make`
+schemes, the outer Function had no quantifiers and finalized
+`arg_eff = Bot`, `ret_eff = Bot`. The callback effect variables in `apply`
+belong to its independently inferred argument/result relation; this probe does
+not identify either as the bounded exact-pure variable introduced by the
+lambda literal.
+
+These cases do not show a bounded exact-pure variable at the finalized outer
+Function effect endpoints; those endpoints are `Bot`. They do not establish
+whether the source variable survives elsewhere in the complete predicate.
+Positive scheme collection starts from a self-variable occurrence and reads
+selected lower records; it does not itself erase that identity, and the upper
+empty-row bound is not directly included by that projection. Later
+polar simplification may erase the variable if it is eligible. No intermediate
+graph or full raw predicate traversal was captured, so these probes do not
+prove the elimination point or the denotation of
+`Bot ≤ e ≤ Row([], Top)`. Under the user's successor direction, Oracle's
+polarity-based simplification is not a required behavior: preserve the source
+interval until a semantics proof justifies replacing it with a pure effect.
+The focused probe and this static source-path review were independently
+checked; neither proves the runtime behavior or principality of the successor.
 
 The useful candidate is thus a two-mode *runtime application* judgment:
 shapes with pure extracted effects are evaluated strictly and their actual

@@ -909,7 +909,20 @@ direct-call path crosses an active inner skeleton and selects the introduced
 outer call frame; compiler-referee review required explicit predicate evidence
 to distinguish this from a sub-syntax fallback, which the follow-up trace
 provides. This still does not prove weighted cancellation. Next find a source
-path where bounded exact-pure effect constraints survive finalization. A
+path where a source exact-pure identity has both polarities and inspect its
+complete raw finalized predicate. Three focused fixtures (`make = \x -> 1`,
+an inline lambda passed to `apply`, and a named `make` passed to `apply`) all
+finalized; `make` exposed `arg_eff = Bot` and `ret_eff = Bot`, with no
+quantifiers, while `apply` retained its unrelated callback effect binder.
+These probes do not show the exact-pure variable elsewhere in the full
+predicate and do not establish its erasure point. A source audit confirms
+positive collection keeps a self-variable occurrence but projects selected
+lower records; later polar simplification may erase it. Do not use this as
+permission for successor q-erasure: retain the source interval until a
+denotation/preservation proof justifies solving it to purity. Details and
+review limits are in the latent-effects note. Next find a dual-polarity source
+use or establish that exact-pure variables are only evaluation effects in the
+supported source envelope. A
 conditional zero-consumption
 lemma may reduce the handler-free, no-family fragment: Oracle's weighted row
 rule uses `J = K ∩ Common(L)`, so empty row heads force no row consumption;
