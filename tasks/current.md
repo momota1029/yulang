@@ -470,12 +470,24 @@ bound-replay ancestry. This explains the incomplete classification locally,
 without claiming subtype acceptance or identifying the origin's source.
 The endpoint-bound trace now connects the producer's fresh payload lower bound
 through the selector's invariant `step` comparison to the public `int` / `bool`
-root. An unselected powerset carrier candidate now interprets the fixture and
-the pure Function variance axioms while preserving inequality-versus-equation
-distinctions. Next formalize its tagged constructor encoding and test the
-principal-root claim against polarity-reversing guarded cycles; then define
-environment-indexed scheme instances and relate both endpoint and incomplete
-OCast observations to the Oracle. Details are in
+root. An unselected powerset carrier candidate now has an explicit tagged
+universe and conditional proofs of the pure Function variance, invariant
+nominal comparison, lattice, and constructor-mismatch axioms; this encoding is
+independently reviewed with two notation/type gaps closed. A reviewed witness
+shows that its full assignment fiber need not have a pointwise least tuple,
+while the isolated local-root and
+fixed-anchor projections have finite scheme representations under the
+candidate subsumption relation. A pure carrier calculation now covers one
+guarded negative self-cycle: its root relation is upward closed and represented
+by the same finite SCC graph despite having no least full assignment; the
+calculation is independently reviewed. A Rust probe for the surface form
+`pub f x = x f` produced two ordinary binders and no recursive-bound entry, so
+it does not establish that the Oracle source graph is this direct negative
+self-cycle. Next derive the actual source root projection for such recursive
+uses, then extend the finite relations to source-induced environments and
+interacting uses. Relate endpoint and incomplete OCast observations before
+choosing representation.
+Details are in
 `notes/progress/2026-09-30-intrusion-powerset-carrier-candidate.md`. The run-local observations are
 recorded in
 `notes/progress/2026-09-30-intrusion-recursive-root-epoch-capture.md`. The
