@@ -568,6 +568,79 @@ the existential-provenance limitation now stated above. Call-specific
 reachability, handler routes, adapter eligibility/hygiene, and effect-family
 substitution remain outside both reviews.
 
+#### Candidate source-level value-flow closure
+
+The finite origin set can feed a row-independent inclusion analysis rather
+than assigning every local body to every call. For a fixed finite source
+closure `S`, define finite `Slot(S)` keys for expression results, definitions
+and parameters, tuple positions, record fields, reference cells, thunk results,
+lambda captures, call arguments/results, handler results, and continuation
+sites. Let `Pt : Slot(S) -> P(Origin(S))`, where `Origin(S)` uses `BodySrc(S)`
+and the primitive/constructor/operation origins already defined above. The
+finite value domain must also have a distinct `TopValue`, meaning an arbitrary
+value with arbitrary nested callable fields; projection, destructuring,
+forcing, or application of `TopValue` stays top unless a sound shape summary
+proves otherwise. Every unconstrained value entering through an exported
+parameter or bodyless imported/host interface is seeded with `TopValue`,
+including aggregate parameters whose nested fields may contain client-supplied
+callbacks. A narrower seed requires a sound shape summary for that interface.
+Unknown patterns, open record spreads,
+unresolved references, or unmodelled interface edges widen the affected slot
+to top; they must not be treated as empty.
+Seed analysis from every runtime root and every exported function entry, with
+all of its externally supplied parameter values seeded as above under the
+permitted client contexts.
+
+The proposed transfer is the least closure of positive inclusion edges:
+
+| Source form | Candidate value-flow transfer |
+|---|---|
+| literal / primitive / operation / constructor | literal adds no callable origin; the other forms add their finite producer origin |
+| resolved variable or local binding | copy the referenced definition slot to the expression result |
+| lambda / named definition | add the source body origin; copy captured environment slots into closure capture slots |
+| tuple / record / variant | copy each element into its finite position/field slot; spreads union known fields or widen unknown fields; projecting `TopValue` gives `TopValue` |
+| pattern / case / block | recursively project aggregate slots into bound definitions; union possible branch/tail results; let and ref reads/writes use version-insensitive cell slots; `Or`/`As` patterns union/copy; list-shape uncertainty widens binders to top |
+| record-pattern default / guard | include each default's value and effect even when it is conditionally executed; include guard effects and all arm result alternatives |
+| application of a known body origin | flow the argument into its formal slot and the body result into the application result; recursive edges use the same finite slots |
+| thunk / force | flow the thunk body's result into the force result; retain its latent-effect slot separately |
+| adapter | preserve the wrapped target set and attach ordered adapter-boundary evidence in a separate slot |
+| selection | use a target only if uniform across assignments; otherwise include all finite local origins, or top for open registries; projecting `TopValue` remains top |
+| catch / continuation | union value/arm results; assign each continuation a finite source slot and use top when captured control cannot be represented; keep raw/forwarded route tags separately |
+
+`App` must also dispatch producer-specific rules: operation origins create a
+request at their exact path and an offer fact for every in-scope handler
+candidate, with unknown visibility unless separately proved; constructor
+application packages its argument slots; known primitives use a proved finite
+value-shape summary (including origins carried inside returned arguments),
+while an unmodelled primitive result widens to `TopValue`. This is needed for
+primitives such as indexing that can return a callable stored in an input
+aggregate. Until its protocol is proved, `RefSet` also uses the conservative
+unknown-call rule: the runtime path projects and invokes `update_effect`, so a
+cell-write edge alone does not cover its effects or returned value. An
+unknown or external callee adds `⊤Eff`, `Unknown` route/blocker facts, and top
+value/continuation flow at every active or exported handler slot in scope.
+Handler coverage metadata remains separate and seeds no offer. Adapter target
+identity, binder substitution,
+boundary history, and handler visibility are distinct components; joining
+`Pt` sets must not merge their evidence.
+
+For finite `Slot(S)` and `Origin(S)`, `Pt` plus the one `TopValue` element is a
+finite product of powersets. If each `Pt` transfer is a fixed inclusion edge,
+its closure operator is monotone, so the least fixed point exists and is
+reached after finitely many strict increases. This lfp claim is only for
+value-origin facts. It does not include handler scope, ordered adapter history,
+route evidence, or effect rows. Those components may have unbounded recursive
+histories and need a separately proved finite quotient and monotone coupling
+before a joint fixed point can be claimed. The transfer table is not yet
+executable or complete: source-step simulation must cover stores, nested
+aggregate projections, conditional defaults, guards, callback escape/re-entry,
+selection fallback, thunk force, handler arms, and resumed continuations. Then
+prove a concretization relation mapping every dynamic callable and latent
+effect to `Pt` plus route evidence. Until that simulation closes, the least
+points-to solution is not a sound `Drop` certificate or a principal effect
+solution. The universal source-origin set remains the fallback for unresolved
+local dispatch; its acceptance cost still needs measurement.
+
 #### Conservative unknown-call consequence (conditional)
 
 For an open or unresolved callable target that has no proved finite

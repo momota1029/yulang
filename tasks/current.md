@@ -1635,3 +1635,24 @@ unknown offer routes blocking subtraction. They found no new issue in that
 bounded scope. The reviews do not prove the finite route quotient, source
 lowering, higher-order preservation, or final acceptance; no full effect proof
 or successor-rule approval follows.
+
+The user clarified that exact continuation-sensitive trace support is a
+soundness reference, not a required inference precision target when it would
+need linear/affine continuation typing, usage tracking, or a substantially
+richer type system. Principality is relative to the selected expressible
+effect abstraction; prefer a conservative sound approximation to adding linear
+typing without independent language-design grounds. The candidate
+`notes/progress/2026-10-01-intrusion-coarse-effect-abstraction-candidate.md`
+now sketches a finite source-level points-to/value-origin closure with
+`TopValue` for open or unmodeled shapes, including nested callable aggregates,
+conditional defaults and guards, producer-specific application transfer, and
+the current `RefSet` effectful runtime path. A first compiler-referee review
+found major coverage gaps; the candidate was repaired to widen those cases and
+to restrict the finite-lfp claim to points-to facts only. Delta compiler-
+referee review confirms the repair closes the findings in that bounded scope,
+including nested callbacks entering through exported aggregate parameters.
+The next gate is a source-step simulation showing that
+dynamic callable and latent-effect flows are covered by this abstraction;
+route/scope quotient and joint fixed point remain separate obligations. This
+candidate is not yet a sound `Drop` certificate, principal effect solver, or
+implementation authority.
