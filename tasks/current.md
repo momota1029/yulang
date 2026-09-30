@@ -498,17 +498,24 @@ Independent compiler-referee review closed the nested-map-continuation proof
 gap; its minor Top/Bottom representation finding was fixed by using an empty
 upper-bound list whose meet denotes Top. The lemma covers preallocating names
 only while replaying the same first-visit transitions; it does not prove
-root-order independence, polarity merging, or Oracle projection. The sketch's
-root-order-independence claim is now explicitly open. Next resolve the exact
-negative-intersection projection, including latent Function/effect identities,
-before resuming other source environments, interacting uses, and OCast
-observations. The source audit also yields a discriminator: with `v` bounded
-by `Int ≤ v ≤ Top`, positive extrusion permits its parent to be `Top`, while
-negative extrusion permits its distinct parent to be `Bottom`; identifying
-those parents loses that independent assignment pair under Simple-sub's
-extrusion relation. This rules out calling one polarity-erasing parent map
-ordinary Simple-sub extrusion equivalence, while leaving a separately proved
-Yulang quotient open.
+root-order independence, polarity merging, or Oracle projection. A variable-
+only adjacent-order probe shows that opposite orders can produce different
+raw graphs but the same assignment fiber; this narrows the proof criterion
+from graph alpha-equivalence to the scheme relation. Details are in
+`notes/progress/2026-09-30-simple-sub-extrusion-root-order.md`. The sketch now
+records that distinction. Independent compiler-referee review confirmed both
+traces and the fiber equality within the stated variable-only scope. Next prove
+or refute adjacent-transition swaps with structural bounds, then resolve the
+exact Oracle negative-intersection projection, including latent Function/effect
+identities, before resuming other source environments, interacting uses, and
+OCast observations. The source
+audit's polarity-sharing discriminator uses internal `L(v)=[Int]`,
+`U(v)=[]` (whose meet denotes Top): positive extrusion permits its parent to
+be Top, while negative extrusion permits its distinct parent to be Bottom;
+identifying those parents loses that independent assignment pair under
+Simple-sub's extrusion relation. This rules out calling one polarity-erasing
+parent map ordinary Simple-sub extrusion equivalence, while leaving a
+separately proved Yulang quotient open.
 Details are in
 `notes/progress/2026-09-30-intrusion-powerset-carrier-candidate.md`. The run-local observations are
 recorded in

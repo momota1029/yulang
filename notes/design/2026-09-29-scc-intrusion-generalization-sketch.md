@@ -102,8 +102,13 @@ A possible proof route is:
    allocated parent representative, so no duplicate representative is created.
 4. **Root-order independence.** Still open. A fixed name map alone does not
    establish order independence: extrusion mutates source bounds, and later
-   polarity visits can observe earlier link writes. Show the final relation is
-   invariant under changed root order, or retain the Oracle's order.
+   polarity visits can observe earlier link writes. In a two-call variable-only
+   probe, opposite root orders produce different raw bound graphs but the same
+   assignment fiber; see
+   [`2026-09-30-simple-sub-extrusion-root-order.md`](../progress/2026-09-30-simple-sub-extrusion-root-order.md).
+   The proof criterion must therefore be the scheme/assignment relation, not
+   graph alpha-equivalence. Prove adjacent root-transition swaps preserve that
+   relation under explicit side conditions, or retain the Oracle's order.
 5. **Generalization simulation.** Generalizing the intruded component and then
    instantiating it with fresh parent substitutions has the same constraint
    consequences as re-establishing the original monomorphic SCC at a fresh use
