@@ -550,6 +550,11 @@ rewrite/prune result = candidate H_d observations = actual finalized-scheme
 use observations`. The transient recursive side table's meaning must be
 explicit; do not treat it as independent interval constraints without proving
 that interpretation. The complete root-epoch event inventory remains open.
+The source-lowering constraint/effect shape for this fixture is now symbolically
+recorded; it uses a named-self skeleton (no `SccEvent::OpenUse`), has no
+unannotated-parameter call erasure, and records a subtraction fact for the
+latent return-effect stack. Exact TypeVar/origin IDs, selected edge evidence,
+and the compact `q` correspondence remain to be reconstructed.
 The `H_d` bridge includes selected evidence and post-loop root state. Its type
 component must match realized roots to `Root_d` and accepted supertypes to
 `Pred_d`; diagnostics, provenance, and effects need separate observation

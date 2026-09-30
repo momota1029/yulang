@@ -421,8 +421,9 @@ For a fixed source derivation of `pub f x = x f`, root/epoch, preserved outer
 anchors `eta`, and an admissible incoming-use context `U`, name these objects:
 
 - `Csrc`: the actual source-generated constraint/event graph, including the
-  lambda Function shape, open recursive-SCC use, application, latent effect
-  edges, and their origin/epoch data;
+  defined-lambda Function skeleton, recursive self identity/connection,
+  application, latent effect edges, and their origin/epoch data (including an
+  SCC use event only if the exact lowering path emits one);
 - `Vpre`: the Oracle's selected finite regular compact presentation for the
   member root, including its transient recursive side table;
 - `Pi(Vpre)`: polarity rewrite, variable substitution, and unreachable-row
@@ -474,3 +475,70 @@ immediate fixture-level Gate B/C work. Closing this one fixture would not
 close the charter's multi-member epochs, publication/failure, internal-use,
 and independent incoming-use obligations across the supported envelope. No
 tests ran and no Oracle files changed.
+
+### Symbolic lowering inventory for the fixture
+
+A separate source trace now narrows `Csrc` for the exact unannotated binding.
+Let `R` be the public definition root, `S` the local internal-self variable,
+`X` the bare parameter value, `F` the defined-lambda skeleton function value,
+`Oe/Ov` its output effect/value, `Be/Bv` the skeleton body effect/value,
+`W` the returned lambda value, and `V/E/C/Ec/Ea` the application result,
+result effect, call effect, callee evaluation effect, and argument evaluation
+effect variables. `Ea` appears in the function's argument-effect slot.
+Let `Fe` be the skeleton lambda's computation effect and `We` the returned
+lambda's computation effect. Use `Eff(e)` for a fresh exact-pure effect
+variable (`Bottom ≤ e ≤ EmptyRow`),
+and `δ` for the fresh subtraction identity used by the unannotated callee's
+return-effect frame. The directly observed source shape induces these core
+polarized subtype constraints:
+
+```text
+Pos::Fun{arg: Neg::Var(X), arg_eff: Neg::Bot,
+         ret_eff: Pos::Var(Oe), ret: Pos::Var(Ov)} <: Neg::Var(F)
+Pos::Var(F) <: Neg::Var(S)
+Pos::Var(X) <: Neg::Fun{arg: Pos::Var(S), arg_eff: Pos::Var(Ea),
+    ret_eff: Neg::Stack{inner: Neg::Var(C), weight: push(δ, Empty)},
+    ret: Neg::Var(V)}
+Pos::Var(Ec) <: Neg::Var(E)
+Pos::Stack{inner: Pos::Var(C), weight: push(δ, Empty)} <: Neg::Var(E)
+Pos::Var(E) <: Neg::Var(Be)
+Pos::Var(V) <: Neg::Var(Bv)
+Pos::Fun{arg: Neg::Var(X), arg_eff: Neg::Bot,
+    ret_eff: NonSubtract(Pos::Var(Be), pop(δ)),
+    ret: NonSubtract(Pos::Var(Bv), pop(δ))} <: Neg::Var(W)
+Pos::Var(W) <: Neg::Var(R)
+```
+
+Here `Pos::`/`Neg::` name the arena constructors and `::` is the subtype
+relation. The first two constraints are the defined-lambda skeleton shape and
+its connection to internal self; the third is application of `x` to the local
+self value; the next four wire application and body effects/results; the last
+two are the returned lambda and its public root. For this unannotated
+parameter, `KnownBeforeBody` does not connect an empty skeleton predicate, so
+the skeleton outputs `Oe/Ov` must not be silently identified with body outputs
+`Be/Bv`. `Eff(Ea)`, `Eff(Ec)`,
+`Eff(Fe)`, and `Eff(We)` contribute exact-pure bounds with
+`UnknownInternal` origins. In the displayed effect edges, `E` flows into
+`Be`; `C` and `Oe` occur in Function/effect stack endpoints without a direct
+identity edge between them. In addition to those edges, lowering records the
+declared fact `(C, δ, Empty)` and appends `pop(δ)` to the active defined-lambda
+frame; this is part of effect evidence/state, not another subtype edge. It
+explains the matching push/pop occurrences in the application and wrapper
+types. `connect_lambda_pattern_annotation` supplies no call predicate or
+erased upper, so the parameter call-projection branch is inactive. The body
+reference `f` resolves to `S` from the named-self local binding; it does **not**
+take the separate `SccEvent::OpenUse` path. Thus this fixture exercises recursive
+type-variable bounds inside a defined self-lambda, not the charter's
+open-internal-SCC-use invariant.
+
+This inventory follows `lower_single_binding_with_context`,
+`lower_binding_body_with_args_to_named_self`,
+`lower_defined_lambda_params_with_anchors`,
+`constrain_defined_lambda_skeleton_shape`, `make_app_with_origins`,
+`unannotated_local_callee_return_effect`, and `wrap_lambda_param` in the frozen
+source. `constrain_open_use` is cited only for the explicitly excluded path.
+It is symbolic lowering evidence,
+not the complete root-epoch projection graph: selected lower edges, proof
+evidence, generated closure bounds, exact origin/TypeVar IDs, and the captured
+compact `q=TypeVar2` correspondence still require a reproducible trace or a
+separate source proof. No test or Oracle file was changed in this audit.
