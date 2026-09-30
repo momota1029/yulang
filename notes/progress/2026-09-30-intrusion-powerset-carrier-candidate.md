@@ -775,6 +775,41 @@ not establish that quotient. A successful Gate C proof must now choose and
 justify one of these meanings against finalized scheme instantiation and
 source uses; the earlier unrestricted-q recovery cannot serve as that bridge.
 
+### Public-use witness for the Oracle projection
+
+The existing two-use characterization supplies a direct public witness for
+which side of the operational boundary the Oracle takes. It checks:
+
+```text
+pub f x = x f
+pub use_int: int = f 1
+pub use_bool: bool = f 2
+```
+
+Both uses finish without lowering errors and expose result types `int` and
+`bool`. The finalized `f` predicate has `arg=Top` and no q recursive bound;
+each use freshens its result/effect binders. These are recorded observations,
+not inferred from the display string alone; see
+`2026-09-30-intrusion-q-finalized-use-path.md`.
+
+Under an ordinary assignment-projection reading, the `f 1` use would require
+an instance in which the source parameter q accepts `int`, while the captured
+application edge imposes `q ≤ Fun(S, ..., V)`. Since `int` is not a subtype of
+a Function constructor, those two requirements cannot both hold. Therefore
+the successful Oracle use is incompatible with preserving that q upper bound
+as a quantified assignment obligation. The Oracle's observable generalization
+for this fixture crosses that boundary: the nontrivial q row is used during
+compact projection, then absent from the published scheme and its ordinary
+instantiations.
+
+This closes the *operational choice* for the fixture, not its justification.
+It does not establish runtime safety, a source-level semantic quotient, or a
+general rule for other SCCs. The replacement must model and prove the Oracle's
+projection/instantiation behavior that admits these uses; ordinary solution
+projection is refuted as the bridge for this case. Whether the resulting rule
+has a separate soundness interpretation remains open and must not be claimed
+from these inference traces.
+
 ### Next semantic gate
 
 ### Exact source-to-scheme theorem target

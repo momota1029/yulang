@@ -587,10 +587,13 @@ treating the row as an independent obligation triggers the reviewed powerset
 no-go. Prove the actual source-to-presentation fiber and Top feasibility next.
 The exact source application also contributes a direct Function upper bound on
 q, so ordinary source-constraint assignment semantics excludes `Top` and
-cannot justify the projection. The next proof must define whether pre-root
-observations quotient away that constraint, then relate the quotient to
-finalized scheme instantiation and source uses; see the conditional no-go in
-`notes/progress/2026-09-30-intrusion-powerset-carrier-candidate.md`.
+cannot justify the projection. The captured `f 1` / `f 2` uses succeed under
+the finalized q-free scheme, so ordinary source-solution projection is
+refuted for this fixture. Define and justify the Oracle-specific projection
+that explains this result, then relate it to candidate intrusion and retain
+the separate soundness question. Details are in
+`notes/progress/2026-09-30-intrusion-powerset-carrier-candidate.md` and
+`notes/progress/2026-09-30-intrusion-q-finalized-use-path.md`.
 The `H_d` bridge includes selected evidence and post-loop root state. Its type
 component must match realized roots to `Root_d` and accepted supertypes to
 `Pred_d`; diagnostics, provenance, and effects need separate observation
