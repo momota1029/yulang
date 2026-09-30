@@ -271,6 +271,23 @@ request unhandled. This shows that effect-row erasure and runtime marker
 routing coexist in this case, but does not prove whether the caller handler is
 eligible in the successor's declarative semantics.
 
+The frozen runtime source gives a conditional route derivation for the plain
+caller catch. A function call decrements `AddId.depth`; when a depth-zero
+own-path marker is active as the callback emits `choose`, the request records
+that guard and a `CarriedGuard` exposure snapshot. Function-adapter marker
+frames pop while `guard_ids` and `carried_guards` remain on the forwarded
+request. A plain `Catch` adds no handler frame, and the missing-handler route
+uses the carried guard to skip its arm. The rules are in
+`crates/mono-runtime/src/lib.rs:471-484`,
+`crates/mono-runtime/src/runtime/flow.rs:135-180,296-376,391-412,438-553`,
+and `crates/mono-runtime/src/runtime/eval.rs:360-380,449-477` in the frozen
+checkout. This explains the observed result when those conditions hold. The
+lowered IR alone does not identify which marker instance reaches this exact
+request or its `exposed_guard_ids` value; symbolically evaluating the nested
+adapter/value-marker composition remains necessary for a complete fixture
+trace. This runtime route also does not, by itself, define successor source
+semantics.
+
 A second control makes the callback itself return the effectful closure:
 
 ```yu

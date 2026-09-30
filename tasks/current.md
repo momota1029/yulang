@@ -1162,10 +1162,15 @@ closure carrying `add_id` markers, while the absent/wildcard/empty controls
 retain an effectful thunk and a marked caller force. A returning-callback
 control also checks, lowers, and then fails unhandled with the same pure rows;
 its IR carries markers through the returned function shape. These lowering
-plans plus runtime outcomes still do not provide the dynamic `GuardId`/handler
-trace or settle whether the successor caller handler may consume the escaped
-request. The successor must retain `choose` in the returned closure's latent
-effect. The concrete Oracle case (pure caller accepted, both runtimes
+plans plus runtime outcomes still do not provide the exact `GuardId` and
+exposure state for the fixture. Frozen runtime source gives a conditional
+route: a depth-zero own-path marker attaches a carried guard to the request;
+adapter frames pop while the request retains it; the plain caller catch has no
+handler frame and skips on that carried guard. Evaluating the full nested
+adapter/value-marker state for this fixture remains open, as does whether the
+successor caller handler may consume the escaped request. The successor must
+retain `choose` in the returned closure's latent effect. The concrete Oracle
+case (pure caller accepted, both runtimes
 unhandled) cannot be copied as a validated rule; final caller acceptance stays
 open until declarative eligibility and source/runtime correspondence are
 proved. The frozen contract limits `[choose]` visibility to handlers inside
