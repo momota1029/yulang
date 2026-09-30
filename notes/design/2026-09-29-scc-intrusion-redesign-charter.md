@@ -131,6 +131,20 @@ the successor design, then obtain explicit user approval before
 implementation. Implement only on the redesign branch; keep the existing F5
 branch available until a coherent replacement gate passes.
 
+### Later gate — Method selection, roles, and implementation resolution
+
+Method selection, role constraints, and implementation resolution are outside
+the current ordinary effect/handler proof gate. They remain mandatory before
+the successor semantics can be called complete or implementation-ready. Do
+not begin this gate until ordinary effect and handler semantics are
+sufficiently settled, unless the current proof discovers a dependency on
+method selection, roles, or implementation resolution that must be handled
+earlier. If such a dependency appears, record the concrete dependency and
+narrow the early work to resolving it. The later gate must state the
+supported source envelope and prove soundness, principality, and final
+well-typed-program acceptance for the included selection/resolution behavior
+before Gate E can close.
+
 ## 5. Stop conditions
 
 Return to design if the parent relation captures an enclosing variable,

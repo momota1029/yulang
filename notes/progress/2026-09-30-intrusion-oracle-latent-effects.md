@@ -1064,3 +1064,89 @@ preservation proof.
 
 The source files and captured outputs were temporary files under `/tmp`; no
 Oracle checkout or compiler source was changed.
+
+### Source rule behind the complete/incomplete runtime difference
+
+Read-only inspection of `crates/infer/src/lowering/control.rs` explains the
+structural source distinction. `CatchHandledEffects::is_complete` checks that
+every declared operation in each handled family has an unguarded, total payload
+pattern. `lower_catch_with_scrutinee` then chooses the row tail as follows:
+for a complete handler it uses the handler's result-effect variable directly;
+for an incomplete handler it allocates a fresh rest-effect variable. Both
+constrain the scrutinee effect against the handled family row plus that tail.
+Only the incomplete case also adds a direct scrutinee-effect-to-result-effect
+subtype constraint. Each arm body effect flows to the same result-effect
+variable. The complete `choose` fixture covers both operations, while the
+incomplete fixture leaves `reject` uncovered; its `_` arm covers ordinary
+values, not unhandled effect requests. This agrees with the observed runtime
+outcome and explains why both sources can be accepted while only one handles
+the `reject` request.
+
+This source rule does not yet identify the pre-simplification
+`AllExcept(choose)` / `All` occurrences with a particular generated row
+constraint, establish whether their simplification preserves the source
+effect relation, or prove a sound/principal effect interpretation. The
+remaining query is to transport the actual scrutinee-effect constraints and
+their derivations through row propagation, projection selection, and
+specialization for each fixture. The inference-stage scheme equality is not
+required by the successor; final well-typed program acceptance remains the
+compatibility observation.
+
+### Exact pass that removes the selected-view weights
+
+A temporary Rust trace in a separate worktree at the frozen Oracle commit
+captured each function's compact root immediately before and after
+generalization's alias-expansion/simplification boundary. The focused command
+was:
+
+```text
+CARGO_TARGET_DIR=/tmp/yulang-intrusion-oracle-target cargo test -p infer scratch_trace_complete_incomplete_choose_roots -- --nocapture
+```
+
+For this run, complete's selected `ret_eff` included `TypeVar(28)` with
+`SubtractId(0)` / `AllExcept(choose)`; incomplete's included `TypeVar(35)` with
+`SubtractId(1)` / `All`. The aliases-only snapshot preserved both occurrences
+and weights. The subsequent call to
+`simplify_compact_root_with_role_variance_table_and_non_generic` removed each
+occurrence: its substitutions list maps `TypeVar(28)` and `TypeVar(35)` to
+`None`. The next snapshots have the respective residual variable (11 and 34 in
+this run) shared by the argument-effect row tail and return effect, and
+generalization publishes no stack quantifiers. The function schemes remain
+alpha-equivalent. These numeric IDs are local to this run.
+
+This localizes where the Oracle's formatted-scheme equality arises: selected
+weights survive positive-alias expansion and are removed by the following
+compact simplification. It does not prove that the removed constraints were
+semantically redundant; the complete/incomplete runtime distinction remains
+because the published handler bodies have different arms. Both programs still
+pass Oracle check and mono generation. The disposable worktree and all trace
+instrumentation were removed after capture; the frozen Oracle worktree and
+repository compiler sources were not modified. Independent compiler-referee
+review confirms this per-pass observation and its limits. The trace does not
+isolate an internal simplification subpass, establish that all source
+constraints or provenance were removed, or prove semantic preservation of the
+weight erasure.
+
+### Live source bounds on the selected weighted occurrences
+
+A follow-up single-run Rust probe mapped each selected root and queried its
+live `VarBounds` before finalization. It captured `complete = DefId(3)` at root
+`TypeVar(2)` and `incomplete = DefId(4)` at root `TypeVar(31)`, removing the
+cross-run ownership ambiguity. The selected `ret_eff` occurrence of
+`TypeVar(28)` in the complete root has no lower bounds and three ordinary
+weighted upper bounds, each to another variable (`TypeVar(14)`, `TypeVar(11)`,
+and `TypeVar(9)`) with `SubtractId(0)` / `AllExcept(choose)`. The selected
+`ret_eff` occurrence of `TypeVar(35)` in the incomplete root also has no lower
+bounds. It has four ordinary weighted upper bounds to variables (34, 43, 40,
+and 38) with `SubtractId(1)` / `All`, plus one ordinary unweighted upper
+bound whose endpoint is an effect row. These are concrete live source-induced
+constraint records, not only compact-root occurrences.
+
+An independent compiler-referee review confirms the root-to-variable mapping
+and exact bound shapes. The probe does not establish that these constraints
+change final acceptance or are semantically necessary; their `Constraint`
+derivations do not identify source spans. The successor should retain such
+source constraints until a preservation argument justifies any elimination.
+This follows the user's direction without making q-erasure an implementation
+requirement or claiming Oracle inference-stage parity. Numeric IDs and bound
+record counts are local to this fixture/run.

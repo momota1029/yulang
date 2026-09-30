@@ -966,12 +966,21 @@ Runtime source confirms `EffectOp` application constructs a thunk and
 `force_thunk` emits the effect request. Interpreter execution of the explicit
 thunk pair now shows the complete handler exits successfully while the
 incomplete handler propagates `choose::reject` as `yulang.unhandled-effect`;
-both share alpha-equivalent finalized function schemes. This is an operational
-distinction, not a soundness counterexample or a principality result. Next
-trace how source constraints and selected roots account for this behavior and
-whether the pre-simplification weight distinction has any semantic acceptance
-consequence. The successor retains meaningful source constraints; polarity-
-only `q` erasure is not required. Yulang2 inference-stage scheme
+both share alpha-equivalent finalized function schemes. Read-only lowering
+inspection confirms complete coverage directs the scrutinee row to the result
+effect; incomplete coverage introduces a fresh rest effect and an additional
+scrutinee-to-result constraint. A focused same-run trace maps the selected
+`AllExcept(choose)` / `All` weights to live variables with ordinary upper
+bounds, then shows both occurrences disappear in the combined alias-
+simplification stage via `TypeVar -> None`; final roots retain unweighted
+residual variables and the same formatted scheme. Independent compiler-
+referee review confirms the root mapping and bound shapes, but not constraint
+necessity or semantic preservation. Next relate these actual weighted bounds
+to source row derivations and the retained final residual. This is an
+operational distinction, not a soundness counterexample or a principality
+result. The successor retains
+meaningful source constraints; polarity-only `q` erasure is not required.
+Yulang2 inference-stage scheme
 formatting/acceptance parity is not required, while final well-typed program
 acceptance remains the compatibility target. Any later constraint erasure
 needs a preservation proof. No soundness/principality failure is established
@@ -1002,5 +1011,10 @@ member-root lifecycle
 simulation (epochs, saved roots, bounded post-loop mutations, and atomic
 publication) before asserting Oracle SCC adequacy. Then extend the parent
 operation across those effects and lifecycle transitions toward complete
-Oracle final-acceptance capability. No compiler implementation is authorized
-by the conditional transport result alone.
+Oracle final-acceptance capability. Method selection, roles, and implementation
+resolution are a required later gate before successor semantics are complete
+or implementation-ready. Do not start that gate until ordinary effect/handler
+semantics are sufficiently settled, unless the current effect proof discovers
+a concrete dependency that requires resolving it earlier. This gate is
+recorded in the redesign charter. No compiler implementation is authorized by
+the conditional transport result alone.
