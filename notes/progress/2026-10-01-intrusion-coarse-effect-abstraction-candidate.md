@@ -771,6 +771,43 @@ expansion. It confirmed the `I:u → H:u → I:p → H:g` offer order and the ra
 only the source-calculus wrapper trace; finite transfer, row-to-offer coupling,
 and runtime correspondence remain unproved.
 
+##### Finite nested-forwarding equation
+
+The same calculation generalizes to a finite nesting of shallow handlers.
+Write `H_j ∘ ... ∘ H_1` for nested application with `H_1` innermost. If every
+`H_i` forwards the request `q`, repeated expansion of the forwarding clause
+gives the equation below. An empty prefix or suffix denotes the identity
+transformer.
+
+```text
+(H_n ∘ ... ∘ H_1)(Request(q,k))
+    = Request(q, λx. (H_n ∘ ... ∘ H_1)(k(x)))
+```
+
+If instead the first matching-and-eligible handler is `H_j`, assume all inner
+`H_i` for `i < j` forward `q`. Their wrappers compose into the continuation
+received by `H_j`; the handler result remains under every outer handler:
+
+```text
+H_n(... H_{j+1}(H_j(H_{j-1}(... H_1(Request(q,k)) ...))) ...)
+  = H_n(... H_{j+1}(
+      arm_j(payload, λx. (H_{j-1} ∘ ... ∘ H_1)(k(x)))
+    ) ...)
+```
+
+The resumed suffix therefore retains the inner forwarded wrappers, but not
+`H_j` itself. The outer handlers surround `arm_j` execution, including any
+raw-continuation invocation made there; the raw continuation does not capture
+those outer handlers if the arm exports it and it is called later. Induction on
+the number of wrappers proves the first equation; expanding the inner prefix,
+applying the matching clause once at `H_j`, then retaining the outer context
+proves the second.
+This is a source-calculus equation under explicit forwarding/eligibility
+premises. It does not give the bounded machine a way to represent these
+wrappers, prove route summaries complete, or track handler visibility; those
+remain separate obligations. Repeated continuation invocation clones this
+same suffix and adds no usage count.
+
 An independent compiler-referee delta review confirms this top-control fallback
 closes the lost-`I` omission at the candidate level and does not introduce exact
 continuation inference or usage tracking. The review's remaining finite-domain

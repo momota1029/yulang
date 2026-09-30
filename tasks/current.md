@@ -1228,7 +1228,11 @@ continuation summary. A new source-calculus expansion traces an outer-resumed
 forwarded request through inner `I` and outer `H`, exposing a `g` request that
 is lost if the `I` wrapper is omitted. M3 compiler-referee review confirmed
 the offer order and raw-versus-forwarded distinction; finite transfer and
-runtime correspondence remain unproved. Independent
+runtime correspondence remain unproved. A finite-nesting equation now
+generalizes wrapper order to all-forwarded prefixes and a first matching
+handler. M3 compiler-referee review confirmed both equations and corrected a
+minor wording point: outer handlers surround arm execution but are not
+captured automatically by an exported raw continuation. Independent
 architect, compiler-referee, and spec-auditor reviews found family rows alone
 insufficient for handler visibility and powerset rows alone insufficient to
 establish principality. Capture evidence must be scoped to its boundary and
