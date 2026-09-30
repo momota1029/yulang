@@ -2087,6 +2087,65 @@ positive source of successor `May(C)`; whether source lowering and solver
 constraints can implement that separation is unresolved. This checklist does
 not select a transfer or authorize implementation.
 
+#### Conditional soundness of route-certified shallow subtraction
+
+The direct-tree transformer above gives a general soundness target beyond the
+four individual witnesses, while remaining independent of any weight
+representation. Fix one shallow activation `H`, a finite source tree `C`, and
+`E = supp(C)`. Let `A` be a uniform sound immediate-effect bound for every
+value- and operation-arm execution at every reachable activation, including
+arm continuations after their own emitted requests. Applying any raw
+continuation contributes its declared latent bound `E`; if an arm returns or
+stores a continuation, the result-value summary must retain that latent bound
+for later calls. A route certificate for family `f` is admissible for
+subtraction only when it is complete for every contribution of `f` and every
+reachable visit to `H`:
+
+1. every current or forwarded offer of `f` is covered by the exact operation
+   arm and eligible at that activation;
+2. every raw-continuation route, including the raw side of a mixed route, is
+   represented by the matched raw `k` latent bound and is contributed to `A`
+   on invocation; returned continuations retain that latent bound for later
+   calls; and
+3. no contribution has an unknown or unclassified route.
+
+Let `Drop_H` contain only families with such certificates. Then the candidate
+subtraction law has the conditional immediate-trace soundness property
+
+```text
+supp(H(C)) ⊆ (E \ Drop_H) ∪ A.
+```
+
+Proof sketch by induction on finite executions of the shallow transformer.
+At an unmatched or ineligible request, that request is forwarded, so its
+family cannot be removed by condition 1; forwarding keeps `H` around the
+suffix, and the induction hypothesis applies after an outer handler resumes
+it. At a matched request, condition 1 permits removing its covered request
+from the residual. The arm runs outside `H`, and its trace is covered by `A`.
+If it invokes the raw continuation, the uniform arm bound `A` charges the
+whole pre-handler bound `E`, which covers every request in that suffix without
+reinstalling `H`; if it does not invoke `k`, that suffix contributes no
+immediate trace. Unknown routes fail condition 3 and therefore remain in the
+residual. The `Return` case contributes only the value-arm bound in `A`.
+Finite-prefix induction handles any finite number of forwarded resumptions.
+
+This establishes soundness only for the declared direct request-tree
+semantics, provided the route certificate and arm/latent bounds satisfy the
+premises. It does not construct certificates from source constraints, prove
+that route evidence is finite under calls/escape/re-entry, prove leastness or
+derivation correspondence, or establish Oracle-equivalent final acceptance.
+In particular, `E` on a raw `k` is intentionally coarse: it may retain a
+family after an exact suffix that emits no request. That is allowed by the
+chosen abstraction and requires no continuation-use tracking.
+
+A focused compiler-referee review found no finite-trace counterexample under
+these premises. It required the uniformity now stated for `A` across reachable
+activations and arm continuations, and clarified that mixed offer/raw routes
+must satisfy both obligations. This review covers only the conditional direct-
+tree lemma; source lowering, route-certificate construction, the finite
+quotient, visibility correctness, and returned-callable correspondence remain
+open.
+
 The direct exact-trace lemma in
 `2026-09-30-intrusion-shallow-handler-trace-calculus.md` isolates the first
 handler-coverage table row: covered-operation metadata does not itself emit a

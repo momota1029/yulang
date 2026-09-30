@@ -1439,6 +1439,27 @@ affine continuation usage are not requirements; exact traces remain the
 soundness reference and principality is relative to the chosen expressible
 effect abstraction.
 
+A conditional direct-tree soundness lemma now states the invariant needed by
+route-certified subtraction: current/forwarded offers must be covered and
+eligible; every raw-continuation route, including the raw side of mixed routes,
+must remain in `k`'s latent bound and arm/result summary; unknown routes cannot
+justify a drop. Under those premises,
+`supp(H(C)) ⊆ (E \ Drop_H) ∪ A` by finite execution induction. This is a
+written proof sketch in
+`notes/progress/2026-10-01-intrusion-coarse-effect-abstraction-candidate.md`,
+not independently reviewed and not a source-to-constraint result. The next
+proof step remains constructing those route certificates for source
+contributions, including calls and external entries, before using them to
+compute a fixed `Drop`.
+
+The compiler-referee delta review found no finite-trace counterexample under
+the direct-tree premises. The lemma now requires `A` to be uniform over
+reachable activations and arm continuations, charges every raw `k` invocation
+with full `E` (including mixed offer/raw routes), and requires route evidence
+to cover forwarded re-entry. This closes only that conditional direct-tree
+inclusion; source lowering, visibility proof, finite quotient, latent summary
+construction, and source-to-constraint derivation remain open.
+
 That dependency is now concrete in frozen Oracle evidence: `flip` resolves
 after a receiver effect-row lower bound and is reprobed after a transitive row
 fact is added (`main` at `a58eefc3`,
