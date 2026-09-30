@@ -1081,3 +1081,24 @@ construct the paired inner-owned callback with a controlled creation/force
 boundary, then write the declarative provider/activation transition rules before
 trying to derive or simplify any weights. Details and exact commands are in
 `notes/progress/2026-09-30-intrusion-oracle-latent-effects.md`.
+
+## Shallow-handler trace candidate
+
+The first independent direct-effect calculus is drafted in
+`notes/progress/2026-09-30-intrusion-shallow-handler-trace-calculus.md`. It uses
+free resumable request trees and a shallow Catch transformer; it does not yet
+model provider ownership or weights. The one-request fixture exposes a concrete
+acceptance/principal-bound candidate: the exact continuation is `Return`, but
+Oracle gives `k` the whole scrutinee effect, infers `[choose]`, and rejects an
+explicit `[]` function effect; both runtimes return `[1]`. Under the draft's
+finite-trace support order, `Empty` is least. This is not an unsoundness claim,
+and the principality divergence is still bounded to this candidate semantics.
+The two-request case keeps `[choose]` and both VMs report the second request
+unhandled, as shallow resumption predicts. No left/right-weight cause is
+isolated.
+
+Next: close the finite direct trace fragment with exact row-order and
+continuation proofs, then add callback/thunk provider ownership and derive
+weight transport. Repeated pushes/shared pop, nested frames, incomplete
+handlers, and residual fan-out remain mandatory cases before method/role work.
+No implementation is authorized yet.
