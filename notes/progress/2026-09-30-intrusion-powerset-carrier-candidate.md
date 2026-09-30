@@ -215,36 +215,27 @@ the public relation. The exact commands were the focused Rust tests
 worktree. Both temporary Rust probes were removed after capturing the
 observations; no Oracle source or committed test changed.
 
-### Candidate projection explanation for this trace
+### Rejected projection explanation for this trace
 
-The selected compact interval has lower `Bottom` and upper `q ∪ K`, where
-`K` is the observed Function endpoint containing another occurrence of `q`.
-If the pure candidate interprets `∪` as join, then for every assignment `Q`
-and every value `X` of `K`, both interval constraints hold:
-`Bottom ⊆ Q` and `Q ⊆ Q ∪ X`. The recursive occurrence inside `K` therefore
-does not restrict `Q` through this interval. In the captured compact root body,
-the occurrence inventory places `q` only in the outer Function argument; its
-other occurrences are in the recursive interval. Under that inventory premise,
-the effect-free carrier model sees a negative-only root occurrence.
+An earlier candidate calculation treated the selected upper endpoint as a
+positive union `q ∪ K`, and concluded that `Bottom ≤ q ≤ q ∪ K` is assignment
+vacuous. That interpretation was wrong. `CompactBounds::Interval.upper` is
+collected through `compact_neg_id`; `CompactType` is finalized on that side by
+`finalize_neg_type`, which combines its components with negative intersection.
+The observed upper is therefore `q ∩ K`, not `q ∪ K`. Its upper inequality is
+`q ≤ q ∩ K`, equivalent to `q ≤ K`; it is not tautological. The previous
+fiberwise `Pred` explanation based on `q ∪ K` is withdrawn and must not be used
+as evidence for Oracle equivalence.
 
-For any such `Q`, the candidate Function encoding satisfies
-`Fun(Top,R) ⊆ Fun(Q,R)` because its negative argument channel is empty.
-Also `Q=Top` is an allowed interval assignment. For each fixed assignment to
-the other identities, yielding fixed `R`, the original root set is
-`Root_original = {Fun(Q,R) | Q ⊆ N}`, and its upward closure is therefore
-`Pred_original = ↑{Fun(Top,R)}`. Replacing the negative-only local argument
-with `Top` gives `Root_projected = {Fun(Top,R)}` and
-`Pred_projected = ↑{Fun(Top,R)}`. Thus the original and projected views have
-the same `Pred` relation in that fiber, even though their `Root` sets differ.
-Taking the union over satisfying assignments to the other identities
-preserves this equality when their feasible range is independent of `q`.
-This gives a candidate principality explanation for saving the argument as
-`Top`; it does not derive the Oracle's implementation choice or cover its
-latent effect identities. The argument is conditional on the interval being
-the only constraint on `q`, the captured occurrence inventory being complete,
-the other identities' feasible range being independent of `q`, and the
-candidate's join/subsumption semantics; the independent review disposition
-is recorded below.
+The captured compact root body still places `q` only in the outer Function
+argument, with its other occurrences in the recursive interval. The Oracle
+polarity trace and pruning path remain valid operational observations. What
+remains unproved is whether eliminating this negative-only variable while
+discarding its nontrivial upper constraint preserves the scheme's full
+instance relation. The earlier independent review checked the proposed
+set-theoretic calculation under its stated join premise, but did not audit the
+compact endpoint's polarity; it therefore does not review or validate the
+withdrawn explanation.
 
 The Oracle's representation path is also now localized. A temporary focused
 Rust trace reported `TypeVar2` at level/birth level `TypeLevel(1)`, equal to
@@ -280,18 +271,24 @@ judgment must remain separate until their relation is specified.
 
 ## Required next work
 
-1. Extend the fiberwise projection proof to the source's latent Function/effect
-   identities and verify that their feasible ranges are independent of
-   TypeVar2. The current carrier calculation is effect-free.
-2. Extend the finite `Root`/`Pred` calculations from isolated graphs to those
+1. Use the paper/implementation audit in
+   `2026-09-30-simple-sub-paper-mlsub-audit.md` to restate the pure intrusion
+   obligation against Simple-sub's actual polarity-indexed extrusion. Preserve
+   separate positive/negative representatives until a sharing theorem proves
+   otherwise.
+2. Define the denotation and projected `Root`/`Pred` relation for the actual
+   negative upper endpoint `q ∩ K`, and determine whether dropping `q` can
+   preserve that relation. Then include the source's latent Function/effect
+   identities in the same calculation.
+3. Extend the finite `Root`/`Pred` calculations from isolated graphs to those
    source-induced environments and interactions between uses.
-3. Relate the selected root/epoch snapshots and the separate incomplete OCast
+4. Relate the selected root/epoch snapshots and the separate incomplete OCast
    outcome to public Oracle observations; the endpoint value trace does not
    explain why those OCast checks remain incomplete.
-4. Define and review the observable scheme-instance relation for the admitted
+5. Define and review the observable scheme-instance relation for the admitted
    source envelope, including fresh local identities and fixed outer anchors.
    The current finite calculations are not yet that relation.
-5. Only after those obligations close, decide whether this candidate is
+6. Only after those obligations close, decide whether this candidate is
    adequate or must be replaced. It is not a selected carrier or
    implementation instruction.
 
@@ -327,4 +324,13 @@ adequacy or latent-effect claim. A final compiler-referee delta review checked
 the polarity trace and both cited Oracle code paths. It confirmed the eligible
 one-sided variable is rewritten away and the now-unreachable recursive record
 is pruned, while keeping trace facts separate from source-based causal
-inference. No source behavior tests or edits were made by the reviewer.
+inference. No source behavior tests or edits were made by the reviewer. A
+follow-up audit of `compact_neg_id` and `finalize_neg_type` then found that the
+candidate projection paragraph treated `CompactBounds::Interval.upper` as a
+positive union. Its actual negative intersection makes `q ≤ q ∩ K` nontrivial;
+the earlier `Pred` calculation has been explicitly withdrawn. The previous
+review did not cover that endpoint-polarity premise, so the full projection
+claim is again open.
+The paper/implementation audit now records that Simple-sub extrusion itself is
+indexed by `(variable, polarity)`; this is the baseline the next candidate proof
+must recover before proposing any stronger parent sharing.
