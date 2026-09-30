@@ -706,8 +706,10 @@ installation at `analysis/session/instantiate.rs:4–12`, application and effect
 edges at `lowering/expr/tail.rs` around lines 580–635, and lambda Function
 shape/effect fields at `lowering/expr/lambda.rs` around lines 350–368. These
 snippets do not yet enumerate the complete `pub f x = x f` root-epoch graph;
-that inventory and the denotations of `Vpre`, `Pi(Vpre)`, and `H_d` are the
-immediate fixture-level Gate B/C work. Closing this one fixture would not
+that inventory and the denotations of `Vpre`, `Pi(Vpre)`, and `H_d` remain the
+immediate fixture-level Gate B/C work. A later focused collector trace now
+closes one selected, empty-weight q-incidence cycle, but not the complete
+root-epoch graph. Closing this one fixture would not
 close the charter's multi-member epochs, publication/failure, internal-use,
 and independent incoming-use obligations across the supported envelope. No
 tests ran and no Oracle files changed.
@@ -778,3 +780,26 @@ not the complete root-epoch projection graph: selected lower edges, proof
 evidence, generated closure bounds, and exact origin/TypeVar mappings beyond
 the captured root/q correspondence still require a reproducible trace or a
 separate source proof. No test or Oracle file was changed in this audit.
+
+### Selected q-cycle endpoint trace
+
+A later fixture-local trace directly linked the selected bounds to their
+Function argument endpoints:
+
+```text
+TypeVar(2)- --upper record 7--> Fun.arg TypeVar(1)+
+TypeVar(1)+ --lower record 4--> Fun.arg TypeVar(2)-
+```
+
+All traversed bound and node weights are empty. Root lower record 24 enters at
+the same `NegId(4) = TypeVar(2)-` node. Lower record 4 has a recorded
+`ReplayConjunction` via `TypeVar(4)` lower record 1 and upper record 3; the
+upper bound's endpoint is `TypeVar(1)+`. This closes the finite typed-bound
+incidence cycle for the captured collector run. It is distinct from a
+proof-provenance cycle: upper record 7 has no proof parent in this trace, and
+the trace does not map every bound record to a source origin. The selected
+`CompactRoot`, polarity erasure, finalized scheme, and use-site relation remain
+separate stages. See
+`notes/progress/2026-09-30-intrusion-q-finite-bound-cycle-trace.md` for the
+command, independent review, and limits. This trace did not add effect,
+epoch, or multi-use coverage.
