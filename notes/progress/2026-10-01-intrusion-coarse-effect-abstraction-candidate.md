@@ -568,6 +568,63 @@ the existential-provenance limitation now stated above. Call-specific
 reachability, handler routes, adapter eligibility/hygiene, and effect-family
 substitution remain outside both reviews.
 
+#### Candidate source-origin transport across specialization
+
+The frozen specialization audit supports a finite *relation*, not a
+recoverable one-to-one identity map, from emitted runtime expression
+occurrences to stable source origins. For a fixed finite checked source/import
+closure `S`, let `SrcOrigin(S)` contain arena-qualified source `PolyExprId`s,
+module-qualified source `DefId`s, and explicit `UnknownOrigin` and
+`ExternalTop` elements. A side relation `OriginOf_S(m) ⊆ SrcOrigin(S)` maps
+each mono occurrence `m` to all source origins that could have produced or
+be executed through it. Every ordinary emitted expression inherits the source
+expression currently being traversed; each emitted instance body also maps
+to its source definition. A generated node may carry the triggering source
+site plus any separately executed generated body. For example, a generated
+cast `Apply` must include the cast `DefId` as a possible body origin, not only
+the adapted source expression (`specialize2/emit.rs:1029-1068`). If a
+generated constructor or rewrite has no proved owner, map it to
+`UnknownOrigin`; bodyless imported or host code maps
+to `ExternalTop`. `UnknownOrigin` is not an inert singleton target: its
+concretization contains every source body and producer origin in `S`, plus
+external and continuation origins. Any value containing it widens to
+`TopValue`; projecting, calling, forcing, adapting, or routing that value uses
+the full top transfer, including `⊤Eff`, `TopKont`, and top request/blocker
+observations at every compatible handler destination. Thus it cannot produce
+positive `Drop` evidence. `ExternalTop` has the same conservative transfer
+unless a closed external summary is separately proved.
+
+Both frozen emitters recursively lower source expressions, lambda bodies,
+aggregates, spreads, guards, and pattern defaults
+(`specialize/src/lib_support/specializer.rs:173-287,434-466,621-710`;
+`specialize/src/specialize2/emit.rs:233-372,479-509,559-614,706-763`), and
+instance allocation retains its source definition
+(`specializer.rs:95-153`; `emit.rs:167-205`). Mono-to-control lowering
+traverses these occurrences (`control-ir/src/lower.rs:109-261,319-345`).
+This gives the relation a finite codomain across successful
+specializations even when instance counts and mono IDs differ. However, the
+current executable artifacts do not carry this total relation: the newer
+emitter records only sparse application/selection provenance
+(`emit.rs:340-362`; `mono/src/lib.rs:176-243`), the legacy emitter creates
+untagged nodes (`specializer.rs:276`), control lowering transports only those
+sparse tags (`lower.rs:237-260`), and marker rewrites recreate nodes while
+restoring only application and selection tags (`specialize2/marker.rs:145-263`).
+Therefore an analysis that needs `OriginOf_S` must instrument both emitters,
+every generated wrapper/rewrite, and control lowering with a side table, or
+conservatively widen unaccounted nodes to `UnknownOrigin` and the corresponding
+whole value/effect/control fact to top.
+This is a finite-relation construction target, not an implementation already
+present in the Oracle and not yet a proof that every generated node has been
+accounted for. In particular, it does not define method/role/implementation
+selection; generated cast bodies are included only as an explicit target
+dependency of the adaptation site.
+
+A read-only audit of both frozen emitters and the mono-to-control and marker
+passes supports this bounded characterization. It found no total source
+identity in the existing IR and confirmed the generated-cast body exception.
+Exact construction still needs exhaustive generated-node coverage and a
+source-step simulation review.
+
 #### Candidate source-level value-flow closure
 
 The finite origin set can feed a row-independent inclusion analysis rather

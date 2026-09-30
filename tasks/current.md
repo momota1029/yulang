@@ -1702,7 +1702,12 @@ candidate base case, not a proven `γP` relation. The bounded ghost-tag erasure
 claim for closure/thunk creation, application, force, and adapter re-entry is
 now recorded in that candidate and its first compiler-referee delta review is
 clean. The review explicitly leaves recursive-closure construction and
-instance-cache marker stripping for a full inductive simulation. Next prove
-complete source-origin transport across specializations and latent-row
-coupling; route/scope quotient, principal solver, and a positive `Drop`
-certificate remain open.
+instance-cache marker stripping for a full inductive simulation. A finite
+source-origin transport relation across specializations is now drafted in the
+same note and independently delta-reviewed: current IR lacks a total map, so
+both emitters/rewrites need side provenance or must widen unknown origins to
+whole-value/effect/control top. Review closed the conservative unknown-origin
+transfer but leaves exhaustive generated-node coverage and source-step
+simulation open. Next prove those transfers together with latent-row coupling;
+route/scope quotient, principal solver, and a positive `Drop` certificate
+remain open.
