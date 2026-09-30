@@ -649,6 +649,48 @@ polar erasure preserves the same contextual observations through use and
 effect handling. The rule classification delta is also recorded in
 `notes/progress/2026-09-30-simple-sub-paper-mlsub-audit.md`.
 
+### Conditional no-go for conjunctive interpretation of the q cycle
+
+The exact q-cycle trace gives a stronger conditional falsification test for a
+candidate interpretation of `Vpre`. Name its negative member-local variable
+`q`, the positive member-local variable on the other side of the cycle `y`,
+and freeze all other Function positions. If the selected records are treated
+as ordinary assignment obligations, they include
+
+```text
+q ≤ Fun(y, R₁)
+Fun(q, R₂) ≤ y
+```
+
+and the root contains `Fun(q, R₀)`. Under the tagged powerset carrier above,
+every encoded Function is a proper subset of `N`: its head and argument/result
+channels use disjoint tags, leaving all other atom tags absent. The first
+obligation therefore forces `q ≠ Top`. For the post-erasure root
+`Fun(Top, R₀)` to lie in the hypothetical pre-erasure upward closure
+`Pred_pre(η)` at the same fixed outer assignment `η`, some realized root
+`Fun(q, R)` would have to subtype it. Function contravariance requires
+`Top ≤ q`, hence `q = Top`, contradiction. The second edge witnesses the
+cycle but is not needed for this exclusion. After erasure, the retained root
+itself belongs to `Pred_post(η)` by reflexivity, provided the remaining
+projected view has a satisfying assignment at that same `η`.
+
+Thus, in this carrier, q-erasure changes `Pred_pre(η)` to `Pred_post(η)` if
+both traced q-cycle edges are independently conjoined as semantic obligations
+and the erased view is feasible. This is a conditional no-go, not an Oracle
+defect claim: the trace
+establishes typed-bound incidence and edge provenance, but not that the
+collector's transient `rec_vars` row adds an independent constraint to
+`Obs_pre`. The collector builds that row as a finite back-reference
+presentation, removes q during polarity rewriting, and prunes the now
+unreachable row; only surviving rows are restored as scheme inequalities.
+The exact source/effect observation relation and completeness of this
+presentation remain open. An independent architect review confirmed the
+conditional derivation and this boundary. See
+`notes/progress/2026-09-30-intrusion-q-finite-bound-cycle-trace.md` for the
+record identities and
+`notes/design/2026-09-29-intrusion-abstract-semantics-draft.md` for the
+current `Root_d`/`Pred_d` criterion.
+
 ### Next semantic gate
 
 ### Exact source-to-scheme theorem target

@@ -536,12 +536,15 @@ the rule-by-rule provenance table is in
 paper/reference ingredients as Simple-sub original, Yulang behavior/lifecycle
 as extension, and intrusion/effect-hygiene proposals as new conjectures.
 
-The powerset carrier has a reviewed conditional counterexample to one possible
-pre/post projection bridge: if the pre-projection recursive interval is an
-enforced obligation, erasing its negative-only variable and pruning the row
-changes the pre-projection `Pred`. This does not refute the draft's
+The powerset carrier has a reviewed conditional no-go for treating the
+pre-projection q-cycle as independent subtype obligations: those edges exclude
+`Top` for the negative-only argument, while erasure publishes a root with that
+argument. If the projected view remains feasible, the pre/post `Pred` sets
+differ. This does not refute the draft's
 post-projection `Root_d`/`Pred_d` definition, whose `H_d` excludes erased
-identities, and it is not a public Oracle bug claim. Next gate: define source
+identities, and it is not a public Oracle bug claim. Details and assumptions
+are in `notes/progress/2026-09-30-intrusion-powerset-carrier-candidate.md`.
+Next gate: define source
 typing/use observations before and after projection for the single
 `pub f x = x f` view, including latent Function/effect identities, fixed
 anchors, and the recursive interval's relation to the source derivation. Then
