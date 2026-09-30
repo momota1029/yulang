@@ -282,6 +282,56 @@ important: a static handler site may denote one activation inside an ungranted
 boundary and another outside it. The outside activation cannot clear the
 inside activation's blocker.
 
+#### Stack projection and primitive transfer lemma
+
+The stack carrier itself can be made explicit independently of handler
+eligibility. Let `Tag` be the finite set of frame descriptors `(kind, site,
+grant-heads)` plus `UnknownFrame`, and fix `K ≥ 1`. A concrete delimiter
+stack is a word `w = P · S`, where `S` is its newest suffix of length at most
+`K`; `P` is the older prefix. Define:
+
+```text
+count(P) ∈ {Zero, One, Many}   // Many means at least two
+tags(P)  ⊆ Tag
+αK(w) = (tag(suffixK(w)), count(P), tags(P))
+```
+
+An abstract stack state is a finite set of these triples; control-flow join is
+set union. `Many` stores no unbounded count or order. Abstract push of tag `x`
+is exact when `|S| < K` (then `P = ε`), and when `|S| = K` it shifts the first
+tag of `S` into `P`, appends `x`, and updates `count(P)` by saturating
+`Zero→One→Many→Many` and unions the shifted tag into `tags(P)`.
+
+Abstract pop removes the top of the abstract suffix `S`. If `|S| < K`, `P`
+is empty and the suffix simply shrinks. If `|S| = K` and `count(P)=Zero`, the
+suffix shrinks to `K−1`. If `count(P)=One`, any possible tag in `tags(P)` is
+exposed at the front of the new suffix and the prefix becomes empty. If
+`count(P)=Many`, the new suffix prepends any tag in `tags(P)` to the first
+`K−1` retained tags, and the remaining prefix count may be `One` or `Many`.
+For each choice of exposed tag, `step#` enumerates all nonempty remaining tag
+sets `T' ⊆ tags(P)`; when the remaining count is `One`, it enumerates singleton
+`T'` only. This can add impossible combinations but includes the exact tag set
+after every concrete pop. These rules never infer a frame identity from its
+tag.
+
+For concrete stack push/pop, the primitive simulation condition
+`αK(step(w)) ∈ step#(αK(w))` follows by cases on `|S|` and
+`count(P)`. The only information discarded is older-frame order, multiplicity
+beyond two, and dynamic identity; that loss can cause `Unknown`, but cannot
+prove an inside/granted or outside relation. This is a stack-operation lemma
+only. It does not prove that source handler eligibility is determined by this
+stack, nor does it cover captured snapshots, request-lineage correlation,
+source values, or row/provenance coupling. Those require a concrete source
+activation semantics and separate observation simulation.
+
+An independent compiler-referee delta review checked the concrete push/pop
+membership cases. For `K=1` and concrete `[a,b,c]`, `αK([a,b,c])` is
+`([c],Many,{a,b})`; pop enumerates `([b],One,{a})`, the exact projection of
+`[a,b]`. Zero and One prefix cases are direct, while Many covers both a
+two-frame prefix (becoming One) and longer prefixes (remaining Many). Extra
+tag subsets add only abstract paths. This closes the primitive stack
+projection check, not the handler-scope or source-transition simulation.
+
 The target step-simulation obligation is:
 
 ```text

@@ -1291,3 +1291,11 @@ pair and admit `Drop` only when every possible scope class is in
 coverage remains separate. These close the finite-carrier and quantifier
 findings only. The source-level expiry rule and the concrete-to-abstract step
 simulation remain open, so the quotient is not selected or authoritative.
+
+A compiler-referee checked the bounded top-`K` stack's primitive push/pop
+simulation after repairing the tag projection and `Many`-pop alternatives. The
+`K=1` `[a,b,c]` pop case is included exactly; extra tag subsets only add
+abstract paths. This closes only the stack data-structure lemma. Next compose
+it with handler activation, snapshots, request lineage, and captured values,
+then prove the observation invariant and row/provenance coupling end to end.
+The one-step source simulation and supported-envelope precision remain open.
