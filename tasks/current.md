@@ -963,12 +963,18 @@ not runtime handler behavior or weight redundancy. A follow-up named effectful
 thunk is passed to both functions; mono shows its `EffectOp` expression builds
 `thunk[[choose], unit]`, and each callee forces it inside the catch marker.
 Runtime source confirms `EffectOp` application constructs a thunk and
-`force_thunk` emits the effect request. This removes the evaluation-order
-ambiguity for that path, but no runtime execution or handler result was
-observed. Next characterize the final effect path and determine whether the
-pre-simplification weight distinction has any semantic acceptance consequence.
-The successor retains meaningful source constraints; polarity-only
-`q` erasure is not required. No soundness/principality failure is established
+`force_thunk` emits the effect request. Interpreter execution of the explicit
+thunk pair now shows the complete handler exits successfully while the
+incomplete handler propagates `choose::reject` as `yulang.unhandled-effect`;
+both share alpha-equivalent finalized function schemes. This is an operational
+distinction, not a soundness counterexample or a principality result. Next
+trace how source constraints and selected roots account for this behavior and
+whether the pre-simplification weight distinction has any semantic acceptance
+consequence. The successor retains meaningful source constraints; polarity-
+only `q` erasure is not required. Yulang2 inference-stage scheme
+formatting/acceptance parity is not required, while final well-typed program
+acceptance remains the compatibility target. Any later constraint erasure
+needs a preservation proof. No soundness/principality failure is established
 by the `f()` fixture; do not
 restore Oracle phase parity as a goal. The probe details and command are in the
 latent-effects note. A separate accepted effect-handler source,

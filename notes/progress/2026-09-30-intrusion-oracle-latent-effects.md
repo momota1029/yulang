@@ -1023,13 +1023,44 @@ without requesting the effect (`crates/mono-runtime/src/runtime/flow.rs`),
 and `force_thunk` emits the request (`runtime/thunk.rs`). Thus the bound
 computation is a thunk passed to each function, and the displayed force occurs
 under the catch marker. This closes the prior uncertainty about this exact
-explicit-binding path. No runtime execution was performed, so this is still
-not evidence of handler invocation, which arm runs, or the final value. It
-also does not establish that the pre-simplification weight distinction is
-necessary, survives type publication, or is correctly modeled by a successor.
+explicit-binding path. The later runtime probe below confirms which program
+handles the request and which propagates it; this mono inspection alone does
+not establish those operational outcomes. It also does not establish that the
+pre-simplification weight distinction is necessary, survives type publication,
+or is correctly modeled by a successor.
 
 Both the source file and all disposable traces stayed outside the repository;
 the source was removed after the CLI probes. The reviewer also corrected the
 broader inference: evaluating an effect-operation expression itself
 constructs a thunk rather than immediately issuing the effect, though any
 other adaptation path must still be inspected before extending that claim.
+
+### Runtime outcome of the explicit thunk pair
+
+The exact complete/incomplete source pair above was then run with the frozen
+Oracle interpreter. `complete` handles `choose::reject()` and exits 0 with no
+output. `incomplete` accepts the program through inference and mono generation,
+then exits 1 with `yulang.unhandled-effect` for `choose::reject`. The commands
+were:
+
+```text
+yulang --no-prelude --no-cache run --interpreter /tmp/yulang-choose-complete-run.yu
+yulang --no-prelude --no-cache run --interpreter /tmp/yulang-choose-incomplete-run.yu
+```
+
+An independent compiler-referee review confirms these exact operational
+outcomes. Since the finalized function schemes are alpha-equivalent while the
+handler bodies differ, equal schemes do not imply observational equivalence.
+This is a concrete acceptance/runtime distinction between complete and
+incomplete handling, but it is not an unsoundness counterexample: both programs
+are accepted, and a conservative shared residual effect can coexist with the
+different handler bodies. It proves neither source-to-inference adequacy,
+principality, the meaning of the pre-simplification weights, nor what a
+successor should erase. Under the user's priority, the successor must retain
+meaningful source constraints; inference-stage scheme formatting and its
+acceptance phase need not match Yulang2, while final well-typed program
+acceptance remains the compatibility target. Any later erasure requires a
+preservation proof.
+
+The source files and captured outputs were temporary files under `/tmp`; no
+Oracle checkout or compiler source was changed.
