@@ -2974,3 +2974,33 @@ This is a candidate successor rule inferred from the declared trace semantics,
 not a fact about Oracle routing and not an approved implementation decision.
 The exact impact on supported final acceptance and the lowering/solver
 correspondence remain open.
+
+#### Architecture delta: source annotation does not yet select a stable domain
+
+A bounded architecture review of the source-to-domain bridge found that the
+frozen Oracle facts above do not establish a general rule
+`ordinary annotation → Value(A)` or `AnnType::Effectful → Susp(U,A)`. The
+lowering path creates effect endpoints/stacks; lambda specialization binds a
+runtime shape from a materialized graph effect; `runtime_shape` chooses plain
+versus thunk by syntactic materialized purity; application then adapts based on
+the actual argument shape. The missing invariant is a relation carrying one
+stable accepted boundary from source annotation through constraints,
+generalization/instantiation, shape solving, and adaptation. The explicit
+`int` / `[_] int` result is evidence for those two characterized cases only.
+
+The bounded trace theorem remains conditional on a boundary already selected:
+for suspension `C` with `supp(C) ⊆ U`, strict adaptation emits
+`supp(C)` before body entry; an ignored deferred argument emits nothing; a
+forced deferred argument emits `supp(C)` in the body. A reusable
+`ret_eff ≥ U` is sufficient only when every admissible suspended input is
+uniformly bounded by `U` and the force path does not locally handle away part
+of that bound. It is neither necessary nor shown principal. A concrete open
+bridge to check is that semantically pure constraints may materialize as an
+empty row or an open variable even though `runtime_shape` distinguishes them
+syntactically; subtype, instantiation, or adapters may likewise alter the
+boundary. No exact continuation-sensitive inference, linear/affine typing, or
+usage tracking follows from this gap. The next safe proof is restricted
+source-to-elaboration correspondence for the annotated pair through
+materialization and adaptation, followed by the parameterized force-bound
+lemma. This review changes no candidate rule and grants no implementation
+authority.

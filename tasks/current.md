@@ -1767,3 +1767,17 @@ then extend source-to-elaboration and handler-route simulation to higher-order
 uses without introducing continuation usage tracking.
 route/scope quotient, principal solver, and a positive `Drop` certificate
 remain open.
+
+A bounded architecture review confirms that Oracle annotation lowering and
+runtime-shape specialization do not establish a general source rule selecting
+`Value(A)` versus `Susp(U,A)`: the source-to-materialized-boundary invariant is
+missing, and the observed `int` / `[_] int` pair covers only those annotations.
+Conditional traces for an already-selected boundary remain valid: strict
+adaptation emits the suspension support before body entry, ignore emits no
+deferred support, and force emits it in the body. A reusable `ret_eff ≥ U` is
+only sufficient under a uniform admissible-input bound and no locally handled
+part; it is neither necessary nor proved principal. Continue with source-to-
+elaboration correspondence for that restricted pair, then the parameterized
+force-bound lemma. This proof remains relative to the conservative expressible
+effect abstraction; exact traces are the soundness reference, not a precision
+requirement, and no linear/affine continuation tracking is introduced.
