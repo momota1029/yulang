@@ -776,10 +776,10 @@ This inventory follows `lower_single_binding_with_context`,
 `unannotated_local_callee_return_effect`, and `wrap_lambda_param` in the frozen
 source. `constrain_open_use` is cited only for the explicitly excluded path.
 It is symbolic lowering evidence,
-not the complete root-epoch projection graph: selected lower edges, proof
-evidence, generated closure bounds, and exact origin/TypeVar mappings beyond
-the captured root/q correspondence still require a reproducible trace or a
-separate source proof. No test or Oracle file was changed in this audit.
+not the complete root-epoch projection graph. A later collector/provenance
+trace resolves the q-cycle's selected bounds and source-origin kind; other
+selected lower edges, generated closure bounds, and exact origin/TypeVar
+mappings outside that q fragment remain open. No Oracle file was changed.
 
 ### Selected q-cycle endpoint trace
 
@@ -795,11 +795,16 @@ All traversed bound and node weights are empty. Root lower record 24 enters at
 the same `NegId(4) = TypeVar(2)-` node. Lower record 4 has a recorded
 `ReplayConjunction` via `TypeVar(4)` lower record 1 and upper record 3; the
 upper bound's endpoint is `TypeVar(1)+`. This closes the finite typed-bound
-incidence cycle for the captured collector run. It is distinct from a
-proof-provenance cycle: upper record 7 has no proof parent in this trace, and
-the trace does not map every bound record to a source origin. The selected
-`CompactRoot`, polarity erasure, finalized scheme, and use-site relation remain
-separate stages. See
+incidence cycle for the captured collector run. Bound record 4's local
+provenance is a replay conjunction at TypeVar4 from records 1/3, whose
+constraints have `UnknownInternal` roots; upper record 7 is directly produced
+by constraint 6 with `ApplicationArgument` origin. A source-boundary trace
+ties constraint 6 to `x f` at byte range 10..14, with callee TypeVar2 and
+argument TypeVar1. This is a finite acyclic provenance fragment, not a proof
+cycle. It does not link the replay to the application constraint or identify
+resolved HIR/DefId binders behind the internal-origin premise constraints. The
+selected `CompactRoot`, polarity erasure, finalized scheme, and use-site
+relation remain separate stages. See
 `notes/progress/2026-09-30-intrusion-q-finite-bound-cycle-trace.md` for the
 command, independent review, and limits. This trace did not add effect,
 epoch, or multi-use coverage.
