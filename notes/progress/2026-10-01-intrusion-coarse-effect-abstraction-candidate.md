@@ -690,8 +690,11 @@ application site's handler identity.
 | Evaluate `Apply(callee, arg)`'s callee and argument | Simulate their evaluation steps first; retain any immediate effects/offers they produce. The producer-specific row below covers only applying the resulting values. |
 | Apply an `EffectOp(path)` to its payload | Add an effect-thunk fact to the result slot with latent family/path and the marker transform on the returned value; emit no offer on this application step. |
 | Apply a continuation | Add a continuation-thunk fact referencing the saved continuation/wrapper and its latent effect summary, plus the distinct continuation-call marker transform attached to the returned thunk; emit no resumed-suffix offer on this application step. |
+| Force `Thunk::Expr` | Evaluate its stored body in its captured environment; simulate that body's steps, including any immediate effects/offers, and preserve its endpoint relation. |
+| Force `Thunk::Value` | Return the stored value without adding an offer; transfer the stored value facts and latent rows to the result slot. |
 | Force an effect thunk, including a marked thunk | Interpret its captured marker transform, emit a request observation before dispatch, and preserve the resulting request endpoint. If exact activation/scope/blocker labels cannot be represented, emit `TopObs` and retain top continuation/effect facts. |
 | Force a continuation thunk | Invoke the represented saved continuation, preserve its raw/forwarded wrapper mode and endpoint, and recursively account for a thunk-valued resume result. If the saved continuation state is not exact, use `TopKont`/`TopControl` with `TopObs` on every possible request edge. |
+| Force `Thunk::Adapter` | Recursively force its inner thunk, then transfer the result through the source/target adaptation; preserve any marker and nested latent-value evidence across both steps. |
 | Implicit force (thunk callee, thunk adaptation, case scrutinee, or reference operation) | Reuse the same force transfer at that concrete force point; do not silently treat the thunk as an ordinary value. |
 | Catch body returns a thunk value | Do not invent a force at catch entry. The returned thunk passes through the value-arm path with its latent effect and captured wrapper intact, unless a later concrete operation forces it. |
 | Pattern/default binding | Transfer the bound value and any latent thunk/continuation facts into the bound slot. Binding alone is not a force; retain latent evidence until a concrete force or invocation site. |
@@ -704,7 +707,9 @@ covering every request offered on that edge. This follows case-by-case from
 the runtime constructors: operation application constructs the effect thunk;
 effect force calls request emission; continuation application constructs its
 thunk; continuation force invokes the saved resumption and forces a thunk
-result. For a marked continuation, application applies
+result. For `Thunk::Expr`, force evaluates its stored body/environment;
+`Thunk::Value` returns its saved value; `Thunk::Adapter` recursively forces
+then adapts. For a marked continuation, application applies
 `markers_for_continuation_call`, and closing that marker frame marks the
 returned continuation thunk; forcing the thunk later reactivates those
 transformed markers in addition to consulting the saved continuation wrapper.
@@ -715,16 +720,30 @@ a preceding sequence of steps, not hidden by the application case.
 This conditional local argument still does not construct the source-to-slot
 relation, prove captured-wrapper summaries finite and complete, establish
 endpoint preservation for every continuation state, or show that effect-row
-slots receive every thunk latent row. The cited Oracle force sites also need a
-complete inventory before this case table can be generalized: explicit
-`ForceThunk`, thunk callees, thunk adaptation, reference operations, case
-scrutinees, handler-body results, and continuation resume. Catch entry
-dispatches an `EvalResult::Value` directly to its value-arm path; it does not
-force a returned thunk. Record-pattern defaults are evaluated during binding,
-but `continue_value_as_bind` does not
-itself force a returned thunk; their result and latent evidence must flow to
-the bound slot. No offer from these cases may authorize `Drop` until that
-inventory and the global handler-scope simulation close.
+slots receive every thunk latent row. The current frozen-runtime force-site
+inventory is:
+
+| Oracle site (main at `a58eefc3`) | Force / non-force behavior relevant to the transfer |
+|---|---|
+| `runtime/eval.rs::ExprKind::ForceThunk` | Explicitly force the evaluated value once; if the declared target is not a thunk, force the result too when it is thunk-like. |
+| `runtime/flow.rs::apply_value` | A thunk used as callee is forced before applying the resulting value. Applying `EffectOp`/`Continuation` instead creates a latent thunk. |
+| `runtime/thunk.rs::adapt_value`, `force_thunk` | Adapting thunk to a non-thunk forces it; `Thunk::Adapter` recursively forces then adapts. Thunk-to-thunk adaptation remains latent. `force_thunk` also evaluates `Thunk::Expr` bodies and returns `Thunk::Value` contents. |
+| `runtime/eval.rs::ExprKind::RefSet`, `resolve_ref_set_value` | Force reference and assigned value, invoke `update_effect`, and recursively inspect aggregates; nested thunk-like values encountered during ref-set resolution are forced. |
+| `runtime/eval.rs::ExprKind::Case` | Force the scrutinee before pattern matching. |
+| `runtime/eval.rs::eval_handler_body` | Force the operation-arm or continuation-arm body's returned value. |
+| `runtime/thunk.rs::force_thunk` continuation case | Invoke the saved resumption and recursively force a thunk-valued result. Effect thunks emit requests here. |
+| `runtime/eval.rs::eval_catch`, `handle_catch_value` | Do not force a returned thunk; route the `Value` directly through catch value arms. |
+| `runtime/bind.rs::bind_record_pat`, `runtime/thunk.rs::continue_value_as_bind` | Evaluate a missing-field default, then bind its returned value without forcing a thunk result. Preserve latent evidence in the bound value. |
+| `runtime/eval.rs::eval_block_step` | Let/expression steps pass returned values onward without a general force. |
+
+This inventory is over runtime call sites found by enumerating every direct
+`force_thunk` / `force_value_if_thunk` call in the frozen runtime, plus the
+recursive ref-set visitor and the marker wrapper around force. It corrects the
+earlier mistaken catch-entry force classification. It does not prove that
+source-to-slot lowering reaches each site soundly, or that all nested values,
+callbacks, and latent rows flow to the right slots. No offer from these cases
+may authorize `Drop` until those transfer and global handler-scope proofs
+close.
 
 #### Conservative unknown-call consequence (conditional)
 

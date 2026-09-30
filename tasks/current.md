@@ -1674,5 +1674,9 @@ Independent delta review caught and the candidate corrected two concrete
 omissions: catch-value dispatch does not force a returned thunk, and applying a
 marked continuation attaches a distinct transformed marker wrapper to its
 returned thunk. Delta review confirms these repairs and the bounded local
-table; source-to-slot coverage, the complete force-site inventory, latent-row
-coupling, finite route simulation, and any `Drop` certificate remain open.
+table. Enumerating all direct force calls exposed the remaining thunk variants:
+`Expr`, `Value`, and `Adapter`; their body-evaluation, value-return, and
+recursive force/adaptation cases are now explicit, and the `ForceThunk`
+second-force condition is precise. Delta review closes the local table and
+inventory. Source-to-slot coverage, latent-row coupling, finite route
+simulation, and any `Drop` certificate remain open.
