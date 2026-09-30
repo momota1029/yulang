@@ -1737,12 +1737,35 @@ observation.
 
 Execution is split into an internal transition trace and a public observation.
 For the successor, inference-stage scheme formatting and the phase at which a
-program is accepted are not parity requirements. The decisive compatibility
-claim is that final well-typed programs in the supported envelope remain
-accepted, while soundness and principality hold. Intermediate Oracle outputs
-and phase outcomes remain useful trace evidence, but differences there alone
-do not violate the target. The exact final-acceptance relation still needs a
-reviewed definition.
+program is accepted are not parity requirements. The compatibility target is
+the completed pipeline's accepted-program capability, subject to soundness
+and principality. Intermediate Oracle outputs and phase outcomes remain trace
+evidence, but differences there alone do not violate the target.
+
+### Final-acceptance obligation
+
+For a declared supported envelope `E`, let `Accept_O(P)` mean that the frozen
+Oracle's completed compile/specialization pipeline accepts `P`, and let
+`Accept_I(P)` mean that the completed intrusion pipeline accepts it. The
+successor needs an independent declarative typing judgment `WellTyped(P)`;
+it must not define well-typedness as “whatever the new inference machine
+accepts.” The target obligations are:
+
+```text
+soundness:     P ∈ E ∧ Accept_I(P)  => WellTyped(P)
+completeness:  P ∈ E ∧ WellTyped(P) => Accept_I(P)
+Oracle audit:  P ∈ E ∧ Accept_O(P) ≠ WellTyped(P)
+               => record a concrete counterexample and the chosen policy
+```
+
+Thus the final accepted sets agree on `E` wherever Oracle acceptance agrees
+with the declarative typing judgment. If a concrete conflict shows Oracle
+accepts an ill-typed program or rejects a well-typed one, soundness/principality
+take priority and that exact difference is recorded. The user's 2026-09-30
+decision additionally waives matching inference-stage scheme formatting and
+the phase of acceptance. `WellTyped`, `E`, the Oracle comparison harness, and
+the conflict record format still need independent review before this becomes
+theorem statement or an implementation contract.
 
 ```text
 Run_X(Entry_X, state_X, Lower_X(Entry_X, P)) = (trace_X, public_X)
@@ -1778,18 +1801,18 @@ IR. Their identity/order normalization remains to be specified.
 Type-variable names and internal node IDs may be alpha-normalized if that
 matches the public type surface. Anchor identity, polarity, recursive interval
 bounds, and latent effect positions belong to the semantic root relation; they
-are not assumed to be public fields. Whether public type equality follows the
-Oracle formatter or equality of denoted principal solution sets remains
-unresolved and must be fixed before claiming parity.
+are not assumed to be public fields. Oracle formatter equality is not a
+successor requirement. The semantic comparison is principal solution
+relations and final acceptance, as stated above; any public field that changes
+final acceptance still belongs in the proof.
 
-The candidate parity claim is that every final well-typed program in the
-supported source envelope is accepted by the successor, with soundness and
-principality; inference-stage exported scheme formatting need not equal the
-Oracle's. The richer `public_X` relation remains useful for diagnosing
-differences and for fields that affect final acceptance, but equality of all
-intermediate observations is not the acceptance criterion. Their internal
-traces need not be equal; a root/use simulation relation must justify the
-acceptance result and its continuation. This quantifies over
+The candidate capability claim is the soundness/completeness obligation above
+for every program in the supported source envelope. The richer `public_X`
+relation remains useful for diagnosing differences and for fields that
+affect final acceptance, but equality of all intermediate observations is not
+the acceptance criterion. Internal traces need not be equal; a root/use
+simulation relation must justify the acceptance result and its continuation.
+This quantifies over
 interleaved later constraints, root preparation, publication, and uses, not
 only their immediate result at one use root. The root-indexed initial-state
 invariant, source-lowering relation, effect/product/recursive interval

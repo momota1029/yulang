@@ -748,3 +748,15 @@ cover an SCC. Seven structural provenance witnesses remain incomplete. Next
 relate selected bound graphs and q projection to source-generated constraints,
 then extend the observation relation to provenance, diagnostics, and SCC uses.
 These probes changed no frozen Oracle files.
+
+The user has waived inference-stage scheme-format and acceptance-phase parity;
+the target is a sound and principal successor with the Oracle's final
+well-typed-program capability. A candidate acceptance contract now separates
+independent declarative `WellTyped` from machine acceptance and records
+soundness/completeness obligations in
+`notes/progress/2026-09-30-intrusion-final-acceptance-contract.md`. Its exact
+typing judgment and envelope remain undefined. Next define that judgment from
+source-generated constraints and prove one frozen member's root denotation /
+principality with retained one-polarity bounds over a fixed outer environment.
+This is still a design/proof gate; no compiler implementation is authorized
+until the exact successor contract is independently reviewed and approved.
