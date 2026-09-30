@@ -468,8 +468,11 @@ The classifier's exact query now traces each `step <: int` event through the
 recursive second invariant argument to an `UnknownInternal` root on its
 bound-replay ancestry. This explains the incomplete classification locally,
 without claiming subtype acceptance or identifying the origin's source.
-Next trace the endpoint-bound ancestry that yields `int` / `bool`, then prove
-this fixture's scheme-instance and public-output relation. The run-local observations are
+The endpoint-bound trace now connects the producer's fresh payload lower bound
+through the selector's invariant `step` comparison to the public `int` / `bool`
+root. Next define a concrete carrier and scheme-instance relation accounting
+for that endpoint path and the separate incomplete OCast route; then prove
+this fixture's public-output relation. The run-local observations are
 recorded in
 `notes/progress/2026-09-30-intrusion-recursive-root-epoch-capture.md`. The
 exact cases and test limits are in

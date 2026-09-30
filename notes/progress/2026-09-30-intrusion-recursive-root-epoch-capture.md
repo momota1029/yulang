@@ -126,6 +126,32 @@ endpoints. `u` has lower endpoints `p`, `a`, and `Int`, and upper endpoint
 same endpoint shape holds with `p=TypeVar(148)`, `a=TypeVar(155)`,
 `u=TypeVar(133)`, `r=TypeVar(123)`, and `Bool` replacing `Int`.
 
+A Rust `why_lower_bound` trace now connects the `ints` root's `Int` endpoint to
+the selector comparison. Bound 967 records `Int ≤ TypeVar(110)` through
+constraint 633. One replay parent of 633 uses the `Int ≤ a` lower bound
+(Bound 956 / constraint 623) and an upper bound for `a ≤ TypeVar(110)`;
+constraint 623 is branch 1 of `Union(TypeVar(145), Int) ≤ a` (constraint 614).
+Constraint 614 is the lower-to-upper direction of invariant constructor
+argument 0 from the same-head `step` comparison (constraint 610). A separate
+replay parent of 633 also uses the call intermediate `TypeVar(120)`. The
+producer scheme's inner payload binder `TypeVar(138)` maps to `TypeVar(145)`,
+and its lower endpoint contains `TypeVar(145) ∪ Int`; the getter's result
+binder maps to `a = TypeVar(154)`.
+
+The mixed trace has the corresponding `Bool ≤ TypeVar(123)` path: constraint
+638 replays from `Bool ≤ TypeVar(155)` (constraint 627), which is branch 1 of
+`Union(TypeVar(148), Bool) ≤ TypeVar(155)` (constraint 618). Constraint 618
+comes from lower-to-upper invariant argument 0 of comparison 612. The fresh
+producer payload is `TypeVar(148)` and the getter result binder is
+`TypeVar(155)`.
+
+This identifies a concrete source of the lower constant that reaches the
+public result root. Constraint 633 also has a separate replay parent through
+the call intermediate `u`; the capture is a graph with multiple parents, not
+a single linear derivation. The opposite invariant direction and recursive
+nominal event remain separate constraints. The exact output and per-use map
+remain observations for this fixture, not a general projection theorem.
+
 Conditionally interpret each captured lower/upper endpoint as an ordinary
 inequality in a preorder. For this endpoint subgraph alone, assigning every
 vertex `Int` (respectively `Bool`) satisfies the inequalities, and every
@@ -143,11 +169,11 @@ This separates two simultaneous Oracle observations: the selector result is
 inferred as `int` / `bool`, while the nominal event classifier cannot establish
 source-boundary eligibility because recursive unknown-origin edges remain in
 the explanation. The latter is not evidence that all subtype constraints
-succeeded. The remaining local proof step is to trace which instantiated
-constraints produce the endpoint result, then relate that path and the exact
-incomplete classifier route to candidate inference and diagnostics. The
-broader Gate C carrier, root-step simulation, and principality obligations
-remain open.
+succeeded. The endpoint trace identifies how the recursive payload's lower
+constant reaches the public result root in this fixture. The remaining local
+proof step is to define a concrete carrier and scheme-instance relation that
+accounts for both this path and the separate incomplete classifier route. The
+broader Gate C root-step simulation and principality obligations remain open.
 
 No compiler source or test in the redesign worktree changed. All temporary
 instrumentation was confined to the Oracle probe worktree; it emitted
@@ -162,4 +188,9 @@ the trace and identified the mismatch between full and classifier-specific
 explanations. A follow-up review of the classifier-specific trace confirms the
 UnknownInternal ancestry for both producers. The source of that origin and the
 upstream creation of records 610/612 remain uninspected; this is not an
-acceptance or soundness result. Reviewers made no edits or ran tests.
+acceptance or soundness result. A separate bounded review validates the
+`Int` endpoint route through constraints 633 → 623 → 614 → 610 and confirms
+that `TypeVar(120)` is an alternate replay parent, not the immediate lower
+premise of the `TypeVar(154)` replay. The source bound freshening matches the
+observed type variables. The review does not establish a general projection
+theorem or scheme principality. Reviewers made no edits or ran tests.
