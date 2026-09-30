@@ -249,3 +249,42 @@ publication. The spec review verified the first proof fragment remains distinct
 from the full replacement objective. These reviews cover this lifecycle delta
 only; they do not prove boundary-port selection, principality, or the successor
 contract and do not authorize implementation.
+
+## New Rust-native recursive-scheme probe (2026-09-30)
+
+In a detached scratch worktree at frozen Oracle revision `a58eefc3`, a focused
+unit probe sent this source through `dump_source`:
+
+```yulang
+struct step 'value 'next { value: 'value, next: 'next }
+my ints(seed: int) = step { value: seed, next: step { value: 1, next: ints seed } }
+my mixed(seed: int) = step { value: seed, next: step { value: "s", next: mixed seed } }
+my ints_a = ints 0
+my ints_b = ints 1
+my mixed_a = mixed 0
+```
+
+The source lowered without diagnostics. Both `ints` and `mixed` have finalized
+schemes with at least one recursive bound. The same `ints` source scheme was
+then instantiated twice through `AnalysisSession::instantiate_use`; the
+recursive binder recovered through each instantiated root was distinct, and
+distinct from the binder from `mixed`. The focused command
+`cargo test -p infer --lib source_recursive_function_interval_schemes_and_use_freshening_probe -- --nocapture`
+passed in `/tmp/yulang-intrusion-recursive-comparison-probe`.
+
+This closes a source-construction and use-freshening fixture gap for
+nominal-guarded recursive Function schemes. It does not show that the two
+recursive intervals are mutually subtype-compatible or incompatible. A first
+attempt to compare the recovered source binders alone produced no diagnostics
+and no pending nominal-cast request; that observation is not a subtype result,
+because the source-generated binders expose only part of their interval through
+that projection. Keep it out of carrier adequacy claims. A separate hand-built
+interval probe with explicit matching lower and upper recursive bounds does
+route distinct nominal guards to pending OCast requests in both directions,
+but that remains a test-only internal construction, not source-level behavior.
+
+Next, characterize the exact lower and upper recursive-bound payloads of the
+source schemes and find a source-level operation whose observable result
+depends on their comparison. Only then can the carrier relation be tested
+against these recursive intervals. This work used Rust tests against the
+Oracle implementation; no auxiliary Python model was used.
