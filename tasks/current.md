@@ -1232,7 +1232,11 @@ runtime correspondence remain unproved. A finite-nesting equation now
 generalizes wrapper order to all-forwarded prefixes and a first matching
 handler. M3 compiler-referee review confirmed both equations and corrected a
 minor wording point: outer handlers surround arm execution but are not
-captured automatically by an exported raw continuation. Independent
+captured automatically by an exported raw continuation. The lemma now records
+offers before branch selection, so a first matching handler cuts off outer
+offers while arm requests remain separate. This observation consequence is
+covered by M3 compiler-referee review; it found and resolved a minor ambiguity
+by making the cutoff per request in each resumed suffix. Independent
 architect, compiler-referee, and spec-auditor reviews found family rows alone
 insufficient for handler visibility and powerset rows alone insufficient to
 establish principality. Capture evidence must be scoped to its boundary and

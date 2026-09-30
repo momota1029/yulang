@@ -808,6 +808,23 @@ wrappers, prove route summaries complete, or track handler visibility; those
 remain separate obligations. Repeated continuation invocation clones this
 same suffix and adds no usage count.
 
+For observations, record an offer to `H_i` before testing its coverage or
+eligibility. Thus an all-forwarded `q` is offered in inner-to-outer order
+`H_1,...,H_n`. If the first matching-and-eligible handler is `H_j`, the
+original `q` is offered through `H_j` and not to outer `H_{j+1},...,H_n`;
+requests emitted by `arm_j` are distinct observations under those still-active
+outer handlers. If `q` is forwarded by all wrappers and an outer context
+resumes it, the suffix re-enters the same ordered wrapper composition. Each
+request in that suffix is offered through its forwarding prefix up to its own
+first matching-and-eligible handler; requests emitted by those arms are
+observed separately. This follows from the same equations and keeps handler
+offers distinct from whole-computation family support and arm effects.
+
+A focused compiler-referee delta review confirmed the offer-before-branch
+order, inner-to-outer forwarding, cutoff at the first match, and separate arm
+observations. It found one ambiguity about repeated suffix offers; the wording
+now scopes the cutoff to each request in the suffix.
+
 An independent compiler-referee delta review confirms this top-control fallback
 closes the lost-`I` omission at the candidate level and does not introduce exact
 continuation inference or usage tracking. The review's remaining finite-domain
