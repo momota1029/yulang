@@ -1698,7 +1698,11 @@ facts and widens the complete tuple to top before any route or `Drop`
 decision. Independent delta review closed these findings in the bounded
 candidate relation, including clarification that list-element unions and
 partial arguments are read within the same parent fact. This remains a
-candidate base case, not a proven `γP` relation. The immediate next proof
-obligation is the ghost-tag erasure simulation for closure/thunk creation and
-re-entry, followed by the complete source-origin transport across
-specializations and latent-row coupling.
+candidate base case, not a proven `γP` relation. The bounded ghost-tag erasure
+claim for closure/thunk creation, application, force, and adapter re-entry is
+now recorded in that candidate and its first compiler-referee delta review is
+clean. The review explicitly leaves recursive-closure construction and
+instance-cache marker stripping for a full inductive simulation. Next prove
+complete source-origin transport across specializations and latent-row
+coupling; route/scope quotient, principal solver, and a positive `Drop`
+certificate remain open.

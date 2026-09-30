@@ -859,6 +859,59 @@ must use the broad `BodySrc(S)`/`TopValue` fallback. This relation is a
 proposed base case for the `γP` source/runtime invariant, not a soundness
 theorem or a positive `Drop` certificate.
 
+#### Conditional ghost-tag erasure lemma for closure/thunk re-entry
+
+For one fixed `mono::Program P`, define `decorate(P)` by assigning each root,
+instance body, and nested `Expr` occurrence its unique `MonoSite(P)` structural
+path. Child paths follow the actual `ExprKind` field/vector position, including
+lambda and thunk bodies, pattern defaults, case/catch arms, guards, block
+statements, and record/tuple/variant payloads. A tagged closure stores the
+original body plus its body site and one correlated capture snapshot; a tagged
+`Thunk::Expr` stores the original body plus its body site and capture snapshot.
+The tag is ghost state and is erased before every Oracle operation on `Value`.
+
+Write `erase(κ#)` for the Oracle runtime configuration obtained by deleting
+all `MonoSite`, `ValueFact#`, and `Snapshot#` metadata from a tagged
+configuration. The local lemma is:
+
+```text
+κ# --closure/thunk step--> κ'#
+    implies
+erase(κ#) --Oracle step--> erase(κ'#)
+```
+
+for the following finite cases, provided every stored body has the site
+assigned by `decorate(P)` and every captured environment snapshot erases to
+the exact raw `CapturedEnv`:
+
+| Tagged case | Erasure argument |
+|---|---|
+| Evaluate a lambda | The tagged closure stores the same `param`, cloned `body`, and raw environment as `eval_expr`; erasing its metadata yields the Oracle `Value::Closure`. |
+| Evaluate `MakeThunk` | The tagged `Thunk::Expr` stores the same cloned body and environment as the Oracle constructor; body site and capture summary erase. |
+| Read `Local` or `InstanceRef` | Apply the same raw `mark_active_value` operation as Oracle and attach its marker transform to the correlated metadata. Instance evaluation uses the same finite `InstanceId` cache and raw body; cache hits do not create a new body origin. |
+| Apply `Closure` or `RecursiveClosure` | The raw parameter binding/body evaluation is unchanged. A recursive call inserts the same self value at `DefId`; the tagged environment adds its paired closure fact and erases to that same updated environment. The stored body site, rather than structural equality of the clone, selects the re-entry slot. |
+| Force `Thunk::Expr` | The tagged evaluator evaluates the stored raw body and environment at its saved `MonoSite`; erasing the result yields the same Oracle body evaluation. |
+| Construct/copy through `Marked` or `FunctionAdapter` | The raw wrapper/marker/adaptation step remains the Oracle one; metadata follows it as a correlated fact and cannot change marker dispatch. |
+| `adapt_value`: thunk to thunk | Oracle creates `Thunk::Adapter` around the same raw inner thunk. The tagged adapter records the same source/target wrapper and its inner correlated fact; erasure yields the Oracle adapter. |
+| `adapt_value`: value to thunk | Oracle recursively adapts the raw value and creates `Thunk::Value`. The tagged form stores that same adapted raw value and its correlated fact; erasure yields the Oracle thunk. |
+| Force `Thunk::Value` | Oracle returns the saved raw value. The tagged transition returns that same raw value and associated fact, which erases away. |
+| Force `Thunk::Adapter` | Oracle recursively forces the inner thunk, then applies the same `adapt_value` to the result. The tagged transition uses the corresponding inner fact and wrapper relation; each recursive force/adaptation is one of these listed cases, and any `continue_with` callback keeps the same raw callback and carries only correlated metadata. |
+| `adapt_value`: thunk to non-thunk | Oracle forces the thunk before adapting the result. The tagged path delegates to the listed force cases, then applies the same raw adaptation; nested aggregate adaptation is covered only where it reduces to those same value/adaptation cases. |
+
+Proof for these cases is by inspecting the corresponding constructors and
+transfers in frozen `eval_expr`, `apply_closure`, `apply_recursive_closure`,
+`force_thunk`, `adapt_value`, and marker wrapping: each raw field and raw
+transition is identical after erasure. The `Thunk::Adapter` case is conditional
+on the recursive inner force/adaptation using the same relation; it does not
+assume that recursion terminates. The result establishes only tag erasure for these
+operations, not that the generated `ValueFact#` relation covers every source
+step. In particular, it does not prove primitive output summaries, aggregate
+projection completeness, the source-to-mono specialization map, continuation
+snapshot coverage, the finite wrapper quotient, or the effect-row/offer
+coupling. A later control-IR implementation still needs a separate
+mono-runtime-to-control-IR simulation; this ghost-tag lemma does not identify
+mono runtime values with Control-IR `ExprId`s.
+
 #### Conservative unknown-call consequence (conditional)
 
 For an open or unresolved callable target that has no proved finite
