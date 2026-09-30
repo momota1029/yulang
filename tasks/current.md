@@ -553,8 +553,10 @@ that interpretation. The complete root-epoch event inventory remains open.
 The source-lowering constraint/effect shape for this fixture is now symbolically
 recorded; it uses a named-self skeleton (no `SccEvent::OpenUse`), has no
 unannotated-parameter call erasure, and records a subtraction fact for the
-latent return-effect stack. Exact TypeVar/origin IDs, selected edge evidence,
-and the compact `q` correspondence remain to be reconstructed.
+latent return-effect stack. The root/q correspondence and q visit weights are
+captured for this source. Exact origin/TypeVar mappings beyond that pair,
+selected edge evidence, and generated closure bounds remain to be
+reconstructed.
 The `H_d` bridge includes selected evidence and post-loop root state. Its type
 component must match realized roots to `Root_d` and accepted supertypes to
 `Pred_d`; diagnostics, provenance, and effects need separate observation
@@ -568,15 +570,17 @@ empty at a positive Function argument and propagate incoming weight at a
 negative Function argument. The saved `CompactRoot` capture at run-local root
 `TypeVar(0)`/epoch 27 contains one q=`TypeVar(2)` row and three serialized q
 occurrences, all with empty weight; another effect variable carries
-`SubtractId(0)`. Its output does not preserve every incoming recursive-call
-weight, so visit-level closure remains open. Simple-sub's `TypeSimplifier`
+`SubtractId(0)`. A focused Rust probe on exact source `pub f x = x f` then
+logged both `TypeVar(2)` collector visits as Negative/empty and showed the
+selected upper record's left, right, and outer weights all empty. Visit-level
+q-weight closure is therefore established only for this captured source/root
+shape. Simple-sub's `TypeSimplifier`
 also explicitly preserves recursive variables during polar-only removal,
 whereas the Oracle removes this negative-only q and prunes its row. That
 specific behavior is a Yulang extension; its contextual preservation is a new
-conjecture, not supplied by Simple-sub §4.3.1. Next derive visit weights from
-selected upper-bound records and prove the finite-presentation and q-erasure
-bridges before using `Root_d`/`Pred_d`. General weighted-cycle reconstruction
-remains open. See
+conjecture, not supplied by Simple-sub §4.3.1. Next prove the
+finite-regular-presentation and q-erasure bridges before using
+`Root_d`/`Pred_d`. General weighted-cycle reconstruction remains open. See
 `notes/progress/2026-09-30-intrusion-powerset-carrier-candidate.md`.
 The rule distinction is recorded in
 `notes/progress/2026-09-30-simple-sub-paper-mlsub-audit.md`.

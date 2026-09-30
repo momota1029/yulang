@@ -461,33 +461,46 @@ other weighted occurrences are distinct effect variables, including
 `TypeVar(13)` under `SubtractId(0)`; no q occurs in those weighted effect
 positions. Thus every q occurrence in the *serialized selected root/row* is
 unweighted, and it has one recursive row, keyed operationally by
-`(TypeVar(2), Negative)`. This closes the output-graph census, but not the
-weight of every `compact_var_side` call while that row was built: after
-recording a recursive side, the collector returns an empty-weight occurrence,
-and the final compact output does not retain each incoming visit weight. In
-particular, the direct q in the row does not distinguish the collector's
-`with_self` occurrence from a possible q endpoint in the selected upper
-records. A visit-level different-weight proof still needs either a trace of
-those calls or a source proof from the selected bound weights. The capture
-also does not cover cycles through Function results, other latent-effect
-identities, row tails, or stack subtraction.
+`(TypeVar(2), Negative)`. The final compact output alone cannot establish the
+weight of every `compact_var_side` call: after recording a recursive side, the
+collector returns an empty-weight occurrence and drops the incoming weight.
+The focused visit trace below supplies that missing evidence for this source:
+both q visits are Negative/empty, and the selected q upper-bound record has
+empty outer/left/right weights. The capture also does not cover cycles through
+Function results, other latent-effect identities, row tails, or stack
+subtraction.
 
 This is a run-local capture, not an invariant about stable numeric IDs. The
 original focused command was
 `YULANG_INTRUSION_ROOT_TRACE=1 CARGO_TARGET_DIR=/tmp/yulang-intrusion-oracle-target cargo test -p infer --lib scratch_negative_recursive_self_application_root_probe -- --nocapture`;
 its selected `CompactRoot` trace is the source of the complete q census above.
-The test and instrumentation were temporary in the detached Oracle checkout;
-no Oracle source or test file was changed in this turn.
+The remaining visit-weight question was then traced directly in a fresh
+detached worktree at frozen Oracle commit `a58eefc31e22141574b6f20c6a5748151c6d79f1`.
+A temporary Rust unit test lowered exactly `pub f x = x f`, and temporary
+instrumentation logged every `compact_var_side` entry for run-local
+`TypeVar(2)` plus each selected upper-bound record traversed for that variable.
+The focused command was
+`YULANG_QWEIGHT_TRACE=1 CARGO_TARGET_DIR=/tmp/yulang-intrusion-qweight-target cargo test -p infer --lib scratch_qweight_self_application -- --nocapture`.
+It passed and recorded exactly two visits to `TypeVar(2)`, both Negative with
+empty weight. The selected upper-bound traversal had empty outer weight and
+empty left/right record weights; its endpoint was a Function. Together with
+the serialized-root census, this closes the q visit-weight question for this
+exact source/root shape: neither the direct recursive occurrence nor the
+Function-argument descent reaches q with a non-empty weight. The scratch test
+and instrumentation existed only in the disposable detached worktree; the
+frozen Oracle checkout and this branch's compiler sources were not changed.
 
 Source anchors: frozen `compact/collect/mod.rs::compact_var_side` and
 `compact_var_bounds`; `compact/collect/type_nodes.rs::record_recursive_side`;
 `compact/mod.rs::CompactRoot`; and
-`generalize/core/prune.rs::prune_unreachable_recursive_bounds`. This source
-reading changes the next step: resolve visit-level q weights from selected
-upper-bound records, then state and prove the finite-regular-presentation
-lemma for this captured graph before using `Root_d`/`Pred_d` to compare
-projection results. Weighted cycles outside this fixture remain a separate
-envelope obligation. No tests ran in this turn; no Oracle files changed.
+`generalize/core/prune.rs::prune_unreachable_recursive_bounds`. With visit-level
+q weights closed for this fixture, the next step is to state
+and prove the finite-regular-presentation lemma for its selected source-bound
+graph, then prove that recursive negative-only q erasure preserves the
+source/use observation through projection and instantiation. This does not
+close weighted cycles outside this fixture, cycles through other Function
+positions, latent effects, row tails, or stack subtraction. The focused Rust
+probe passed; no frozen Oracle source or test file changed.
 
 ### Simple-sub boundary on recursive polar elimination
 
@@ -640,6 +653,6 @@ This inventory follows `lower_single_binding_with_context`,
 source. `constrain_open_use` is cited only for the explicitly excluded path.
 It is symbolic lowering evidence,
 not the complete root-epoch projection graph: selected lower edges, proof
-evidence, generated closure bounds, exact origin/TypeVar IDs, and the captured
-compact `q=TypeVar2` correspondence still require a reproducible trace or a
+evidence, generated closure bounds, and exact origin/TypeVar mappings beyond
+the captured root/q correspondence still require a reproducible trace or a
 separate source proof. No test or Oracle file was changed in this audit.
