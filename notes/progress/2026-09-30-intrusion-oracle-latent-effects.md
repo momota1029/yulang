@@ -1191,3 +1191,56 @@ row derivations and ties it to each annotation's generated subtract fact.
 This still does not prove constraint necessity, establish principality or
 final-acceptance impact, or show that removing the weighted occurrences
 preserves behavior. The endpoint IDs and record IDs are local to this probe.
+
+### Row-residual endpoints through root projection
+
+A second disposable instrumentation captured the two obligations emitted by
+the `WeightedResidual` row split and the compact/generalization snapshots in
+the same source fixture. For `complete`, source `TypeVar(6)` creates residual
+`gamma = TypeVar(28)` while retaining `choose`. The solver emits the unweighted
+`TypeVar(6) <: Row([choose], gamma)` obligation, then
+`gamma <: TypeVar(14)` with `push(SubtractId(0), AllExcept(choose))`. The first
+obligation's generated row is `NegId(33)`; the second's tail is
+`NegId(21) = Var(TypeVar(14))`. The pre-simplification compact root contains
+`TypeVar(28)` as the selected weighted return-effect occurrence and contains
+`TypeVar(14)` in the argument-effect row tail. After alias expansion and stack
+cleanup, both the argument-effect row tail and return effect use `TypeVar(11)`;
+generalization records `14 -> 11` and `28 -> None`, with quantifier 11.
+This gives a structural trace across distinct artifacts: a weighted subtype
+obligation reaches tail 14, a selected occurrence of 14 is substituted by
+11, and the final scheme quantifies 11. Gamma 28 itself is eliminated. This
+does not prove the weighted obligation causes or is necessary for quantifier
+11, nor that eliminating gamma preserves the weighted relation's meaning.
+
+For `incomplete`, source `TypeVar(35)` creates a different residual
+`gamma = TypeVar(53)`, again retaining `choose`. It emits
+`TypeVar(35) <: Row([choose], gamma)` unweighted, then
+`gamma <: TypeVar(52)` with `push(SubtractId(1), AllExcept(choose))`.
+`TypeVar(53)` is absent from the captured initial compact root; that root has
+row tail `TypeVar(52)` and a selected return-effect occurrence `TypeVar(35)`
+with `push(SubtractId(1), All)`. After simplification the compact root has a
+closed `choose` row plus return-effect quantifier `TypeVar(34)`; substitutions
+include `52 -> None` and `35 -> None`, while other selected variables 40 and
+43 merge into 34. The observed split edge reaches tail 52, whose selected
+occurrence is eliminated; no path from this edge to quantifier 34 was traced.
+The `All` weighted occurrence on source 35 is not the
+`AllExcept(choose)` residual weight on the generated split. Catch lowering
+also gives incomplete coverage a fresh rest effect and a direct
+scrutinee-effect-to-result constraint, while complete coverage uses the result
+effect as the rest (`lowering/control.rs:961-973`). The trace therefore does
+not attribute quantifier 34 to gamma 53 or this row split.
+
+The focused Oracle command
+`CARGO_TARGET_DIR=/tmp/yulang-intrusion-oracle-target cargo test -p infer
+scratch_trace_choose_retained_row_to_final_effect_root -- --nocapture` passed
+in the disposable worktree. All temporary test/source instrumentation was
+removed; the frozen Oracle checkout was unchanged. These observations close
+the endpoint-to-projection mapping only for the complete path. For the
+incomplete path they explicitly expose a missing causal link. Neither path
+establishes row denotation, preservation, soundness, principality, or runtime
+handler hygiene; the previously observed runtime difference remains explained
+by differing handler-arm coverage, independently of this row-residual trace.
+An independent compiler-referee delta review confirms the structural
+complete-path wording and cautions that it proves neither causation nor
+preservation; it also confirms that no gamma-53-to-quantifier-34 path was
+captured.

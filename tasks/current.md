@@ -983,10 +983,19 @@ order specific. A same-fixture endpoint trace resolves `NegId(13)` to the
 `choose` effect-family head and `NegId(58)` to `TypeVar(53)`. The complete and
 incomplete `WeightedResidual` derivations both retain that family head and cite
 their respective generated subtract facts; the complete path's source row
-relation carries `push(SubtractId(0), All)`. Next relate these retained row
-derivations and weighted bounds to final residual behavior. This remains an
-operational distinction, not a soundness counterexample or a principality
-result. The successor retains
+relation carries `push(SubtractId(0), All)`. A same-run emission/projection trace
+now shows complete's generated gamma 28 constrained to tail variable 14 under
+`AllExcept(choose)`; a selected 14 occurrence is substituted by final
+quantifier 11, while gamma 28 is eliminated. This is structural traceability,
+not proof the weighted edge causes Q11 or that erasing gamma preserves it.
+Incomplete's gamma 53 is constrained to tail 52, whose selected occurrence is
+eliminated; no path from this edge to final quantifier 34 was shown. Incomplete
+lowering also adds a separate scrutinee-to-result constraint, a competing
+route whose endpoint has not been mapped to Q34. The selected `All` occurrence on source 35
+and the split's `AllExcept(choose)` weight are distinct. Next investigate the
+incomplete result-quantifier path and the proof obligation for the complete
+gamma elimination. This remains operational graph evidence, not a row
+denotation, preservation, soundness, or principality result. The successor retains
 meaningful source constraints; polarity-only `q` erasure is not required.
 Yulang2 inference-stage scheme
 formatting/acceptance parity is not required, while final well-typed program
