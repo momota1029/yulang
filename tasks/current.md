@@ -657,16 +657,16 @@ The finalized ordinary-use path is now characterized in
 Rust-only frozen-Oracle probes record the exact `f` scheme and incoming uses:
 type and latent return-effect quantifiers map to disjoint identities, the
 Function predicate uses direct-lower insertion, and no recursive q row is
-reinstalled. A caught-use probe traces each fresh return-effect identity to
-different `ask` / `tick` family rows, but does not show handler consumption or
-normalized final catch effects. The earlier two-handler probe reports
-different `ask int` / `ask bool` context rows. Neither establishes complete
-choice-set independence. The dump reports
-`int` and `bool` for annotated uses; seven structural provenance witnesses
-remain incomplete. A separate local-binding fixture traces one free outer
-identity shared across two uses while its local binder freshens per use; it
-does not cover an SCC. Next trace each fresh effect through handler subtraction
-to final observations, then relate use observations to the source graph and q
-projection. Next trace late-lower row-reduction replay and final catch-effect
-observations before stating `Obs_scheme`. These probes changed no frozen
-Oracle files.
+reinstalled. A non-resuming caught-use probe now follows distinct `ask` and
+`tick` uses: each scheme instantiation gives `f` fresh effect identities,
+initial reduction consumes both matching rows with empty residual, late replay
+also consumes `ask`, and the two published wrapper schemes have `ret_eff =
+Bot`. Independent review confirmed these fixture-level observations, while
+noting that live catch effect variables still lack empty-row upper bounds. The
+earlier `ask int` / `ask bool` handler probe remains only contextual-row
+evidence. A separate local-binding fixture traces one free outer identity
+shared across two uses while its local binder freshens per use; it does not
+cover an SCC. Seven structural provenance witnesses remain incomplete. Next
+relate selected bound graphs and q projection to source-generated constraints,
+then extend the observation relation to provenance, diagnostics, and SCC uses.
+These probes changed no frozen Oracle files.

@@ -262,3 +262,61 @@ Result: 1 passed. Capture:
 `/tmp/yulang-intrusion-distinct-effects-replay.log`. All temporary Oracle
 instrumentation and the scratch test were restored; the frozen checkout is
 clean at `a58eefc31e22141574b6f20c6a5748151c6d79f1`.
+
+## Non-resuming distinct-family observation
+
+To make each handled effect independently observable without resuming its
+continuation, a follow-up fixture wraps the catches in exported functions:
+
+```yu
+pub act ask 'a:
+    pub get: () -> 'a
+pub act tick:
+    pub ping: () -> bool
+pub f action = action ()
+pub use_int = \() -> catch f (\() -> ask::get()):
+    ask::get(), k -> 1
+    v -> v
+pub use_bool = \() -> catch f (\() -> tick::ping()):
+    tick::ping(), k -> true
+    v -> v
+```
+
+The focused Oracle scratch test passes with no lowering errors. Instrumented
+instantiation maps `f`'s quantified variables `(TypeVar(11), TypeVar(17))`
+to `(80, 81)` at one use and `(83, 84)` at the other, so the two incoming
+uses do not share the callback's latent effect identity. Initial row reduction
+consumes the matching `ask` item at TypeVars 31 and 32 and the matching `tick`
+item at TypeVars 61 and 62, each with empty residual. Late-lower replay also
+consumes `ask` with empty residual at TypeVars 31 and 32.
+
+The raw finalized output schemes for `use_int` and `use_bool` have no
+quantifiers, and their Function predicates use `ret_eff = Bot`. The compact
+schemes print `() -> int` and `() -> bool`. The formatter prints an unknown
+positive effect variable by name, so these published positive schemes do not
+hide a live effect variable. Independent compiler-referee review confirmed
+that this closes the prior fixture's missing tick-reduction and exported-effect
+observations.
+
+Scope remains fixture-local. Positive `Bot` is a lower/bottom effect, not a
+closed empty-row upper bound on internal catch result variables (TypeVars 39
+and 69); those live variables still have lower bounds and no upper bounds in
+the capture. Therefore this does not establish normalized purity along every
+internal path or general `Obs_scheme`, arbitrary handler preservation, q
+rewrite/prune preservation, or diagnostic/provenance equality. The next proof
+work returns to the selected-bound graph/q-erasure bridge and the remaining
+source-to-scheme relation; retain the internal-effect caveat.
+
+Command:
+
+```text
+YULANG_INTRUSION_USE_TRACE=1 YULANG_INTRUSION_EFFECT_TRACE=1 \
+  CARGO_TARGET_DIR=/tmp/yulang-intrusion-qscheme-use-target \
+  cargo test -p infer --lib scratch_intrusion_q_caught_nonresuming_effects -- --nocapture
+```
+
+Result: 1 passed. Capture: `/tmp/yulang-intrusion-nonresume-initial.log`.
+The reviewer also inspected raw finalized schemes in that capture and the
+formatter/reduction implementation. All temporary Oracle instrumentation and
+the scratch test were restored; the frozen checkout is clean at
+`a58eefc31e22141574b6f20c6a5748151c6d79f1`.
