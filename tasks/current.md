@@ -1217,9 +1217,14 @@ must account for carried markers as possible masks; typed family arguments in
 grants must follow the same binder substitution as callback effects; and
 forwarded resumption must restore boundary order while raw matched
 continuations stay outside their shallow handler. These are unclosed proof
-obligations, not candidate counterexamples. Then prove trace soundness and
-least-derivable bounds for the compositional whole-scrutinee continuation
-summary. Independent
+obligations, not candidate counterexamples. A small conditional transport
+lemma now states that invariant argument-constraint generation commutes with a
+common capture-avoiding type renaming; it proves neither scope nor solver
+solution reflection. M3 compiler-referee and spec-auditor review confirmed its
+limited scope; a minor wording issue about same-path family operations was
+repaired. Then prove trace
+soundness and least-derivable bounds for the compositional whole-scrutinee
+continuation summary. Independent
 architect, compiler-referee, and spec-auditor reviews found family rows alone
 insufficient for handler visibility and powerset rows alone insufficient to
 establish principality. Capture evidence must be scoped to its boundary and

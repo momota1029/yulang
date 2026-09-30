@@ -1341,6 +1341,39 @@ handler eligibility still need proof. They must not be inferred from
 `StackWeight` or runtime marker code; that code conflicts with the marker spec
 on own-path coloring.
 
+#### Typed family evidence transport (conditional lemma)
+
+When same-path family heads meet in the frozen specification's set, split,
+filter, or stack-check operations, their arguments receive invariant ordinary
+constraints; two unrelated occurrences in separate rows do not constrain one
+another. Path equality alone never discards payload types. As a conditional
+candidate grant check, same-path, same-arity heads generate:
+
+```text
+InvMatch(F<α₁,...,αₙ>, F<β₁,...,βₙ>)
+    = ⋀ᵢ (αᵢ <: βᵢ  and  βᵢ <: αᵢ)
+```
+
+Different family constructors do not match. For a capture-avoiding type
+renaming `θ`, applying the *same* `θ` to request, callback effect, and grant
+evidence maps each generated argument constraint to its renamed constraint:
+
+```text
+θ(InvMatch(F<α>, F<β>)) = InvMatch(F<θ(α)>, F<θ(β)>)
+```
+
+This establishes only syntactic commutation of constraint generation with a
+common renaming/substitution. It does not prove that a grant is in scope, that
+solving preserves its evidence, or that independently freshening grant and
+request arguments is sound. A scheme-instantiation proof must use the same
+binder map for family arguments in effect rows and their associated grant
+evidence, while preserving separate binder ownership where the source
+semantics requires it. Alpha-renaming invariance follows conditionally for
+injective capture-avoiding renamings; solution reflection for general solved
+substitutions and principality remain separate obligations. This transport
+lemma is a small dependency of the intrusion/hygiene composition, not an
+eligibility or grant-lifetime decision.
+
 Until those scope rules are proved, the conservative effect abstraction
 retains the family whenever eligibility is unknown. This is compatible with
 the user's precision decision: the bound may over-approximate exact trace
