@@ -988,14 +988,16 @@ now shows complete's generated gamma 28 constrained to tail variable 14 under
 `AllExcept(choose)`; a selected 14 occurrence is substituted by final
 quantifier 11, while gamma 28 is eliminated. This is structural traceability,
 not proof the weighted edge causes Q11 or that erasing gamma preserves it.
-Incomplete's gamma 53 is constrained to tail 52, whose selected occurrence is
-eliminated; no path from this edge to final quantifier 34 was shown. Incomplete
-lowering also adds a separate scrutinee-to-result constraint, a competing
-route whose endpoint has not been mapped to Q34. The selected `All` occurrence on source 35
-and the split's `AllExcept(choose)` weight are distinct. Next investigate the
-incomplete result-quantifier path and the proof obligation for the complete
-gamma elimination. This remains operational graph evidence, not a row
-denotation, preservation, soundness, or principality result. The successor retains
+Incomplete's gamma 53 is constrained to fresh rest 52, whose selected
+occurrence is eliminated. A same-run catch-lowering trace resolves Q34's
+separate route: scrutinee effect 34 is constrained to result effect 43, then
+generalization maps 43 -> 34; row split gamma 53 -> rest 52 is a different
+path. Complete uses result effect 14 as its rest; gamma 28 -> 14 is the
+weighted edge, and selected 14 -> Q11. The selected `All` occurrence on source
+35 and the split's `AllExcept(choose)` weight are distinct. Next prove or
+refute preservation for these gamma eliminations from the weighted row rule.
+This remains operational graph evidence, not a row denotation, preservation,
+soundness, or principality result. The successor retains
 meaningful source constraints; polarity-only `q` erasure is not required.
 Yulang2 inference-stage scheme
 formatting/acceptance parity is not required, while final well-typed program

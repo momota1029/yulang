@@ -1244,3 +1244,37 @@ An independent compiler-referee delta review confirms the structural
 complete-path wording and cautions that it proves neither causation nor
 preservation; it also confirms that no gamma-53-to-quantifier-34 path was
 captured.
+
+### Catch result-effect route to the incomplete quantifier
+
+A follow-up single-run lowering probe records the catch-level effect variables
+before the row split. For `complete`, the scrutinee effect is `TypeVar(5)`, the
+result effect is `TypeVar(14)`, and the complete handler reuses that result
+effect as the row rest. The row-split obligation from gamma 28 therefore points
+to the result-effect variable 14; compact generalization then substitutes a
+selected 14 occurrence with quantifier 11 and removes gamma 28.
+
+For `incomplete`, the scrutinee effect is `TypeVar(34)`, the result effect is
+`TypeVar(43)`, and the row uses a fresh rest `TypeVar(52)`. The incomplete
+lowering path separately emits `scrutinee.effect <: result.effect`;
+generalization substitutes `43 -> 34`, and the final quantifier is 34. The
+row-split edge instead sends gamma 53 to the fresh rest 52, whose selected
+occurrence is eliminated. The direct scrutinee/result edge supplies the
+surviving Q34 identity in this captured projection; source 35, scrutinee 34,
+and gamma 53 are distinct variables. This does not rule out indirect effects
+of the eliminated row split through other bound/replay paths.
+
+The focused Oracle test
+`CARGO_TARGET_DIR=/tmp/yulang-intrusion-oracle-target cargo test -p infer
+scratch_trace_choose_catch_result_effect_root -- --nocapture` passed in the
+disposable worktree. This closes the missing endpoint mapping for this fixture.
+It does not establish that eliminating gamma 28 or the fresh-rest path
+preserves row meaning, nor prove soundness, principality, or runtime handler
+hygiene. An independent compiler-referee delta review confirms these as
+constraint/projection paths: complete's weighted edge targets result/rest 14,
+whose selected occurrence becomes Q11; incomplete's direct scrutinee 34 to
+result 43 edge, followed by 43 -> 34, accounts for Q34 in the captured
+projection. The reviewer cautions that Q11 is already present in the initial
+argument-row tail, so the complete edge's necessity is unproved, and indirect
+influences of the incomplete row split were not exhaustively ruled out. Neither
+path establishes row denotation, preservation, soundness, or principality.
