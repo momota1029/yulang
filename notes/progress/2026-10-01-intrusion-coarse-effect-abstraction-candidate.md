@@ -194,20 +194,21 @@ helper-call composition, delayed thunk force, closure escape, and repeated
 callback request before relating the judgment to a runtime representation or
 weight calculation.
 
-## Parameterized one-step soundness target
+## Parameterized one-step soundness lemma
 
 The coarse row rule can be isolated from the still-open hygiene semantics by
 parameterizing the handler transformer with two independent predicates:
 
 ```text
-Covered(H, operation)
-Visible(request, H)
+Covered(H, activation, operation)
+Visible(request, H, activation)
 ```
 
 `Visible` must refer to the request's provenance and the active handler
-activation. It is not defined by family equality. Keep the exact request
-occurrence on each trace path; do not aggregate different paths that share a
-family into one node-local visibility value.
+activation. It is not defined by family equality. A configuration `κ` records
+the active activation and relevant provenance/guard state. Keep the exact
+request occurrence on each trace path; do not aggregate different paths that
+share a family into one node-local visibility value.
 
 For a request tree `C`, write `May(C)` for a sound family-set upper bound on
 the union of supports of all finite traces through `C`, including every
@@ -219,40 +220,88 @@ or thunk that captures `k`, its result-value typing must separately preserve
 that latent row. The following simulation targets immediate trace effects:
 
 ```text
-T_H(Return(v)) = value_arm(v)
+T_{H,κ}(Return(v)) = value_arm(v)
 
-T_H(Request(q, k)) = operation_arm(q, k)
-    if Covered(H, q.operation) and Visible(q, H)
+T_{H,κ}(Request(q, k)) = operation_arm(q, k)
+    if Covered(H, κ, q.operation) and Visible(q, H, κ)
 
-T_H(Request(q, k)) = Request(q, x -> T_H(k(x)))
+T_{H,κ}(Request(q, k)) = Request(q, x -> T_{H,κ'}(k(x)))
     otherwise
 ```
 
-Let `Drop(H, C)` be a proof-carrying set of families, not a function of the
-family row alone. A family `f` may enter `Drop(H, C)` only if every reachable
-execution configuration for a request of family `f` is covered and visible.
-A configuration includes the request occurrence, active handler activation,
-and provenance/guard state. This quantification must account for forwarding:
-an outer handler may resume a forwarded continuation zero, one, or multiple
-times, producing different active `H` instances. The abstract result is:
+In the forwarded case, `κ'` ranges over the successor configurations allowed
+when that request is resumed by its surrounding context. Those transitions
+are part of the still-open source semantics.
+
+Let `Reach(H, C, κ0)` contain every request/activation/provenance
+configuration reachable from the initial configuration `κ0` while evaluating
+the transformed tree, including tails reached after any allowed operation
+result and any handler re-entry induced by forwarding. Let `A(H, C, κ0)` be
+one uniform upper bound for value and operation arm effects across every
+configuration in `Reach(H, C, κ0)`, with raw `k` assigned latent `May(C)`. Let
+`Drop(H, C, κ0)` be a proof-carrying set of families, not a
+function of the family row alone. A family `f` may enter `Drop(H, C, κ0)` only if
+every reachable configuration in `Reach(H, C, κ0)` for a request of family
+`f` is covered and visible at that activation. This quantification must
+account for forwarding: an outer handler may resume a forwarded continuation
+zero, one, or multiple times, producing different configurations. The
+abstract result is:
 
 ```text
-(May(C) \ Drop(H, C))
-    ∪ May(value arm)
-    ∪ ⋃ May(operation arm under latent k effect May(C))
+(May(C) \ Drop(H, C, κ0))
+    ∪ A(H, C, κ0)
 ```
 
-Then prove by induction on finite trace length (equivalently, finite
-approximants of an infinite request tree) that every immediate effect on a
-trace of `T_H(C)` is in that abstract result. Forwarded requests are
-covered by the residual term; matched-arm effects are covered by arm
-judgments; any raw continuation invocation is covered by `k`'s
-whole-scrutinee latent bound. The induction is conditional on sound arm
-judgments and the external `Visible` relation. It does not prove `Visible`,
-least derivability, principal schemes, or higher-order transport. A separate
-value-correspondence lemma is required to show that a returned closure or
-thunk cannot drop or widen a captured continuation's latent row or visibility
-scope.
+### Conditional statement
+
+Assume:
+
+1. `May(C)` includes the request at each node and all suffix requests for every
+   operation result, with the bound valid for every finite trace.
+2. The arm judgments soundly bound immediate arm execution with raw `k` typed
+   at latent effect `May(C)`, including any finite number of invocations.
+3. `Drop(H, C, κ0)` excludes every family that occurs at any reachable
+   uncovered/ineligible request configuration, including configurations
+   reached after forwarding and outer resumption.
+
+Then every immediate family on every finite trace of `T_{H,κ0}(C)` is in the
+abstract result above. This statement covers recursive/infinite request trees
+by considering each finite trace prefix. It is conditional: it does not prove
+`Visible`, validity or existence of `Drop` certificates, sound arm judgments,
+least derivability, or principal schemes. To extend this immediate-trace
+result to higher-order soundness, prove separately that every returned
+callable/thunk capturing `k` preserves its latent row and visibility evidence
+in its result value type.
+
+### Proof sketch
+
+Induct on finite trace length with the uniform invariant that every reachable
+transformed suffix from `Reach(H,C,κ0)` is bounded by the original result
+`May(C) \ Drop(H,C,κ0) ∪ A(H,C,κ0)`.
+
+- For `Return(v)`, the transformed trace evaluates the value arm, whose
+  immediate families are in the value-arm term of the abstract result.
+- For an uncovered or ineligible request `q` of family `f`, premise 3 gives
+  `f ∉ Drop(H,C,κ0)`. The forwarded request itself is in
+  `May(C) \ Drop(H,C,κ0)`. Its continuation resumes in a configuration in
+  `Reach(H,C,κ0)`; the remaining finite trace is shorter, so the induction
+  hypothesis using the same original global bound covers its later families.
+- For a covered and eligible request, the transformed trace evaluates the
+  matching operation arm. The uniform arm judgment in `A(H,C,κ0)` bounds its
+  immediate effects, including any raw `k` calls. Every suffix reached by
+  such a call is bounded by `May(C)` under premise 1 and included through
+  `k`'s latent effect in the same arm summary. The shallow rule does not apply
+  `H` again to that raw continuation.
+
+The compiler-referee delta review found no finite-trace counterexample under
+these conditions. It noted that the induction must retain the original global
+bound and arm union across every reachable suffix, rather than recomputing a
+new bound for each suffix. The sketch now states that uniform invariant and
+quantifies arm bounds over all reachable activations. This is a wording-level
+repair, not a proof certification. In particular, a returned closure's later
+invocation needs the separate value-correspondence proof; immediate trace
+inclusion alone does not establish higher-order soundness. Nor does this proof
+establish a least-solution property or principal schemes.
 
 The quantifier in `Drop` exposes an important limitation: a family-set row
 alone cannot prove that *all* contributing requests are visible. A solver
@@ -261,9 +310,3 @@ conservatively leave the family residual whenever that evidence is absent.
 This is an abstract proof requirement, not a choice of graph representation.
 The unresolved closure-escape and helper-composition cases determine whether
 such evidence can be transported soundly.
-
-A fresh compiler-referee delta review found no finite-trace counterexample to
-this conditional transfer after the activation quantifier and finite-trace
-induction were made explicit. This closes only the wording review of the
-parameterized target. It does not prove the induction, define `Visible`, prove
-arm judgment soundness, or establish higher-order transport and principality.

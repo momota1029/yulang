@@ -1154,8 +1154,11 @@ subtraction must quantify over all reachable request/activation states,
 including forwarded continuations resumed by an outer handler; recursive
 request trees need a finite-trace or finite-approximation induction. A fresh
 compiler-referee delta review found no direct finite-trace counterexample once
-those premises were explicit; the conditional proof itself is still open. Then
-prove or replace each weight transport rule against that abstraction,
+those premises were explicit, and flagged a minor proof gap about reusing one
+global arm/effect bound across forwarded suffixes. The sketch now states that
+uniform induction invariant; this still leaves the conditional proof and its
+semantic premises open. Then prove or replace each weight transport rule
+against that abstraction,
 including repeated pushes with one pop, nested frames, complete/incomplete
 handlers, and residual fan-out. Do not require exact trace precision or
 linear/affine usage tracking. No implementation is authorized yet.
