@@ -571,13 +571,14 @@ substitution remain outside both reviews.
 #### Candidate source-origin transport across specialization
 
 The frozen specialization audit supports a finite *relation*, not a
-recoverable one-to-one identity map, from emitted runtime expression
-occurrences to stable source origins. For a fixed finite checked source/import
-closure `S`, let `SrcOrigin(S)` contain arena-qualified source `PolyExprId`s,
-module-qualified source `DefId`s, and explicit `UnknownOrigin` and
-`ExternalTop` elements. A side relation `OriginOf_S(m) ⊆ SrcOrigin(S)` maps
-each mono occurrence `m` to all source origins that could have produced or
-be executed through it. Every ordinary emitted expression inherits the source
+recoverable one-to-one identity map, from emitted runtime expression and
+pattern sites to stable source origins. For a fixed finite checked source/import
+closure `S`, let `SrcOrigin(S)` contain arena-qualified source expression
+`ExprId`s, arena-qualified source pattern `PatId`s, module-qualified source
+`DefId`s, and explicit `UnknownOrigin` and `ExternalTop` elements. A side
+relation `OriginOf_S(site) ⊆ SrcOrigin(S)` maps each expression or pattern execution
+site to all source origins that could have produced or be executed through
+it. Every ordinary emitted expression inherits the source
 expression currently being traversed; each emitted instance body also maps
 to its source definition. A generated node may carry the triggering source
 site plus any separately executed generated body. For example, a generated
@@ -622,8 +623,42 @@ dependency of the adaptation site.
 A read-only audit of both frozen emitters and the mono-to-control and marker
 passes supports this bounded characterization. It found no total source
 identity in the existing IR and confirmed the generated-cast body exception.
-Exact construction still needs exhaustive generated-node coverage and a
-source-step simulation review.
+The exact source relation still needs implementation and source-step simulation
+review.
+
+A constructor-site sweep at frozen `a58eefc3` now narrows that remaining
+coverage obligation. All production `mono::Expr::new` sites in the two
+specialization paths are in legacy `lib_support/{specializer,boundary}.rs`
+and new `specialize2/{emit,runtime_shape,marker}.rs`; no direct `mono::Expr`
+struct construction appeared. Ordinary recursive emission is attributed to
+the current arena-qualified `PolyExprId`, and instance bodies to their source
+`DefId`. Force/thunk/adapter/coerce wrappers inherit the wrapped expression's
+origin and its source root, statement, or body trigger. Marker rewrites copy
+the replaced node's origin; inserted `MarkerFrame`s carry their wrapped body
+and enclosing instance origin, or `UnknownOrigin` if that relation was lost.
+Control lowering creates one control expression per mono expression and
+traverses pattern defaults.
+
+The audit also widens the target relation beyond expression constructors:
+variable and method/typeclass selection, and pattern references, can enqueue
+executable instances without a new expression node. When the actual runtime
+instance body is known, pair its `DefId` with the triggering expression or
+pattern origin. A source `DefId` alone is insufficient for the new emitter's
+bodyless `PolyPat::Ref` branch: it constructs
+`Pat::Ref(InstanceId(convert_def(def).0))` without allocating an instance
+(`specialize2/emit.rs:527-545`), while runtime pattern matching evaluates that
+numeric instance ID (`mono-runtime/src/runtime/bind.rs:82-85`). If the target
+cannot be proved to name the intended body, the pattern execution site maps to
+`UnknownOrigin` and takes the whole top transfer. Thus the relation includes
+an explicit pattern-match event edge, not only expression nodes. A generated
+cast `Apply` similarly carries both its adapted-expression trigger and its
+cast-rule `DefId`. This is only runtime-origin coverage; it does not define
+selection semantics, and unresolved selection stays top until the later
+mandatory method/role/implementation gate. The sweep supports a finite total
+relation with the stated fallback, conditional on carrying these labels
+through every emission and rewrite. It does not prove that this instrumentation
+has been implemented or that the resulting abstract transitions simulate all
+source steps.
 
 #### Candidate source-level value-flow closure
 
@@ -805,12 +840,13 @@ close.
 #### Candidate runtime-value coverage for one ghost-tagged mono executable
 
 The concrete runtime audit supports a structural slot relation for one frozen
-mono executable `P`, provided expression execution is ghost-tagged with its
-static occurrence. Let `MonoSite(P)` be the finite structural paths through
-the root and instance expression trees, including child, arm, statement,
-pattern-default, and payload positions. A logical tagged evaluation carries
-the current `MonoSite` when it enters an expression and preserves the creator
-site when a closure or thunk stores a cloned body for later re-entry. Erasing
+mono executable `P`, provided expression execution and pattern matching are
+ghost-tagged with their static occurrences. Let `MonoSite(P)` be the finite
+structural paths through the root and instance expression and pattern trees,
+including child, arm, statement, pattern, pattern-default, and payload
+positions. A logical tagged evaluation carries the current `MonoSite` when it
+enters an expression or pattern match and preserves the creator site when a
+closure or thunk stores a cloned body for later re-entry. Erasing
 these ghost tags must recover exactly the frozen runtime steps; that erasure
 simulation is a proof obligation, not an existing runtime field. It does not
 supply source identity across a family of polymorphic specializations. Define

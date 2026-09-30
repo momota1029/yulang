@@ -1707,7 +1707,14 @@ source-origin transport relation across specializations is now drafted in the
 same note and independently delta-reviewed: current IR lacks a total map, so
 both emitters/rewrites need side provenance or must widen unknown origins to
 whole-value/effect/control top. Review closed the conservative unknown-origin
-transfer but leaves exhaustive generated-node coverage and source-step
-simulation open. Next prove those transfers together with latent-row coupling;
+transfer and a constructor-site sweep covered both specialization paths,
+wrappers, marker rewrites, control lowering, and non-expression instance
+targets. Review caught and closed a bodyless `PolyPat::Ref` case: its numeric
+runtime instance target is not justified by the source `DefId`, so the pattern
+event takes the full unknown/top transfer unless the allocated body is proved.
+The finite relation is still only instrumentable, not present in current IR;
+ghost-tag erasure through pattern binding, exhaustive provenance transport,
+and source-step simulation remain open. Next prove those transfers together
+with latent-row coupling;
 route/scope quotient, principal solver, and a positive `Drop` certificate
 remain open.
