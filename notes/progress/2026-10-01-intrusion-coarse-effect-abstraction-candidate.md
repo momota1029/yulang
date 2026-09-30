@@ -1778,9 +1778,10 @@ This table is a proof checklist, not a transfer definition. In particular,
 and higher-order quantification may need `TopCall#`; either can change final
 acceptance. It remains to prove the table's transfers preserve the source
 request semantics and that their resulting origin set is finite (or has a
-sound finite quotient). The handler-coverage contribution to successor
-`May(C)` is deliberately unresolved; this checklist does not select a transfer
-or authorize implementation.
+sound finite quotient). This candidate excludes handler coverage as a direct
+positive source of successor `May(C)`; whether source lowering and solver
+constraints can implement that separation is unresolved. This checklist does
+not select a transfer or authorize implementation.
 
 The direct exact-trace lemma in
 `2026-09-30-intrusion-shallow-handler-trace-calculus.md` isolates the first
@@ -1806,8 +1807,8 @@ of that family is covered and visible. The exact-trace Lemma 4 establishes
 that clause coverage emits no concrete request; excluding coverage as a
 positive source in this coarser abstraction is a candidate rule choice
 consistent with the lemma, not a consequence forced by it. Other abstraction
-steps may still add spurious families, which require matching possible-offer
-provenance or unknown/top. A successor constraint lowering that places the
+steps may still add spurious families, which require route provenance (offer,
+raw-latent, or unknown/top). A successor constraint lowering that places the
 handler's coverage upper `[handled; residual]` in the positive source of
 `May(C)` would not implement this candidate rule. Its source-to-constraint
 proof must show that the upper bound constrains admissible rows without
