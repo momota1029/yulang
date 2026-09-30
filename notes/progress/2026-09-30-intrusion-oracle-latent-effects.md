@@ -452,6 +452,40 @@ scratch_capture_catch_simplification_trace -- --nocapture`; both passed. All
 temporary instrumentation and tests were restored from the disposable Oracle
 worktree, which is clean at the frozen commit.
 
+### Separate residual-effect final-acceptance witness
+
+A second complete source fixture exercises a different effect obligation:
+
+```yu
+act signal:
+  our ping: () -> never
+act io:
+  our read: () -> int
+
+my judge(x: [_] _) = catch x:
+  signal::ping(), _ -> true
+  _ -> false
+judge(io::read())
+```
+
+The frozen Oracle's `specialize` accepted this through mono construction. The
+emitted instance signature was
+`Thunk{[signal, io], int} -> Thunk{[io], bool}`; the body carried a
+`[signal]` marker, made a thunk for the argument under `[signal, io]`, and
+forced it with `[io]` remaining. The root forced the result under `[io]`.
+This is a concrete source-to-mono witness that specialization preserves an
+unhandled residual effect while compiling a handler that accounts for
+`signal`. It was inspected as generated IR only; no program was executed.
+This fixture does not identify the catch-1 `TypeVar(3)` upper rows or show
+that they are meaningful. It supplies a nearby acceptance fixture for future
+source-constraint and effect-transport proofs, not evidence for the intrusion
+successor.
+
+The temporary test and changes were restored from the disposable frozen
+Oracle worktree. Focused command:
+`CARGO_TARGET_DIR=/tmp/yulang-intrusion-oracle-target cargo test -p specialize
+scratch_specialize_residual_handler_effect_use -- --nocapture`.
+
 The useful candidate is thus a two-mode *runtime application* judgment:
 shapes with pure extracted effects are evaluated strictly and their actual
 effect is charged to the call result; shapes with non-pure extracted effects

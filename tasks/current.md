@@ -945,7 +945,13 @@ Next determine whether those omitted constraints distinguish another complete
 source program. No soundness/principality failure is established by the `f()`
 fixture; do not
 restore Oracle phase parity as a goal. The probe details and command are in the
-latent-effects note. A
+latent-effects note. A separate accepted effect-handler source,
+`judge(io::read())`, specializes to an instance accepting `[signal, io]` and
+returning `[io]`, with a `[signal]` marker and an `[io]` residual force in
+the emitted IR. This is a useful source-to-mono witness that unrelated
+residual effects survive handler specialization; it does not connect the prior
+`TypeVar(3)` rows or establish runtime behavior. Reuse it as an acceptance
+fixture when deriving source effect constraints and transport. A
 conditional zero-consumption
 lemma may reduce the handler-free, no-family fragment: Oracle's weighted row
 rule uses `J = K ∩ Common(L)`, so empty row heads force no row consumption;
