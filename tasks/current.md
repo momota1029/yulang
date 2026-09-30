@@ -1084,7 +1084,7 @@ boundary candidate. Details are in
 `notes/progress/2026-09-30-intrusion-oracle-latent-effects.md` and
 `notes/progress/2026-09-30-intrusion-weight-routing-counterexample-search.md`.
 
-## Shallow-handler trace candidate
+## Shallow-handler trace and soundness conflict
 
 The first independent direct-effect calculus is drafted in
 `notes/progress/2026-09-30-intrusion-shallow-handler-trace-calculus.md`. It uses
@@ -1101,45 +1101,39 @@ language justification. The two-request case keeps `[choose]` and both VMs
 report the second request unhandled, as shallow resumption predicts. No
 left/right-weight cause is isolated.
 
-The next probe found a candidate contradiction at a helper boundary:
-`invoke(f: () -> [choose] int) = f ()` and a caller that catches `invoke(f)`
-pass an explicit pure-result annotation, but runtime reports an unhandled
-`choose::reject`. The source contract supports compositional capture, though no
-exact double-boundary example is specified. Independent spec and compiler
-reviews treat it as a likely defect, with precise weighted cause still open.
-Source-level pipeline inspection localizes the pure effect to `invoke`'s
-finalized scheme, before caller catch specialization. The adapter emits a
-body guard and argument resume marker, while the helper catch body has no
-direct catch marker. Annotation lowering creates the relevant concrete push
-and negative filter, but the CLI cannot expose the exact constraint/parent
-chain or its left/right weights. Thus runtime marker shape and subtract-ID
-counts do not yet prove a weight-routing cause. The same inspection confirms
-that concrete `[choose]` and wildcard `[_]` callback annotations take distinct
-lowering paths; this matches the observed rejection control without settling
-the candidate.
-The paired two-call callback case behaves consistently with shallow semantics:
-its scheme retains stack-weighted `choose`, and resumption escapes on the
-second call; an aborting arm handles the first call. Details are in
+The helper-boundary mismatch is now characterized through `invoke` scheme
+finalization and caller application. `invoke`'s callback call contributes a
+`push(choose)` lower edge, then its return endpoint carries a matching
+`NonSubtract` pop; the closed scheme is `Bot`. At the helper use, the pure
+instantiated return effect enters the call-result slot unweighted, and the
+caller body has no `choose` row to subtract. This pinpoints where effect
+information disappears, but Oracle's cancellation remains characterization,
+not a sound rule. Details and bound-record evidence are in
 `notes/progress/2026-09-30-intrusion-weight-routing-counterexample-search.md`.
 
-Next: instrument a focused frozen-Oracle trace from concrete callback
-annotation lowering through application bounds, weighted row residuals, and
-`invoke` finalization, recording both directed weights and provenance; compare
-with wildcard `[_]` and the direct-handler control. The first env-gated bounds
-trace shows only left-side `push(choose)` weights for two annotation stack IDs,
-but lacks bound-record parents/origins and source-slot mapping; treat this as
-Oracle characterization only. Add a disposable test-only trace to map those
-slots to bound and row-derivation records. A scratch infer test now maps
-`invoke`'s `f ()` source application to a left `push(choose)` bound and its
-return endpoint to a matching `NonSubtract` pop for the same ID; the closed
-scheme is `Bot`. The explanation path has no row-residual edge. This narrows
-the Oracle cancellation path but does not prove the weight law or isolate the
-runtime inconsistency. Next map the helper call result and caller catch through
-row subtraction and guard search, then adjudicate the candidate end to end.
-Choose a sound expressible effect
-abstraction, and define
-principality relative to it. Exact trace support remains the semantic
-soundness reference, not an inference precision mandate; do not add
-linear/affine usage tracking without independent language justification. Keep
-testing nested frames, complete/incomplete handlers, residual fan-out, and the
-repeated-push/shared-pop case. No implementation is authorized yet.
+A repeated-operation callback witness establishes the soundness conflict:
+`two_requests` has type `() -> [choose] int` but performs two sequential
+requests. Oracle accepts generic `via_helper(f: () -> [choose] int): [] int`
+which catches one request and resumes its raw continuation. The second request
+is outside the shallow handler, so a sound finite-family abstraction retains
+`choose` and rejects this `[]` annotation. This deliberately drops one exact
+Oracle acceptance because it is unsound; the source, transition argument, and
+compatibility impact are recorded in
+`notes/progress/2026-09-30-intrusion-weight-routing-counterexample-search.md`.
+
+Temporary runtime tracing confirms a separate adapter-guard failure: the
+first request reaches the matching catch with no handler boundary, and
+`request_guard_for_path` skips it using the first carried provider guard. The
+declarative source contract says the explicit capture contract makes this
+caller handler eligible. The successor must define this eligibility
+independently and not inherit the Oracle runtime guard route automatically.
+The Oracle's current run therefore errors on the first request; the declarative
+shallow trace would handle it, resume, then expose the second request.
+
+Remaining gate: define and prove soundness/principality for a finite-family
+effect abstraction that retains possible repeated continuation requests;
+formalize provider/handler eligibility; prove or replace every weight
+transport rule against that abstraction. Continue checking repeated pushes
+with one pop, nested frames, complete/incomplete handlers, and residual
+fan-out. Do not require exact trace precision or linear/affine usage tracking.
+No implementation is authorized yet.

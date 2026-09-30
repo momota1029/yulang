@@ -1,8 +1,9 @@
 # Effect routing counterexample search: helper boundary
 
 Date: 2026-09-30
-Status: source characterization plus candidate semantic contradiction; not an
-accepted soundness proof or implementation authority
+Status: source-level soundness conflict and compatibility delta established for
+the repeated shallow-callback slice; not a complete effect proof or
+implementation authority
 Frozen Oracle: Yulang2 `main` at `a58eefc31e22141574b6f20c6a5748151c6d79f1`
 
 ## Purpose
@@ -82,12 +83,8 @@ A read-only source trace narrows the candidate further:
   not establish how a particular weight reaches the application result.
 
 The effect is absent from `invoke`'s finalized scheme before the caller's
-catch is specialized. The remaining causal gap is the constraint/parent chain
-from the annotated callback return effect through application and
-generalization, including each constraint's lower/upper endpoint, left/right
-weight, origin, and row-residual derivation. Existing CLI dumps do not expose
-that chain; this candidate is not yet a proven unsoundness finding or an
-approved compatibility delta.
+catch is specialized. At this point the CLI evidence alone did not expose the
+constraint chain; the disposable bound-record trace below narrows it further.
 
 An environment-gated bounds trace is a first partial view of that chain. On
 the combined direct/helper fixture, `YULANG_TRACE_VAR_BOUNDS=0,...,120` with a
@@ -129,11 +126,98 @@ an argument resume marker; the candidate runtime escape is therefore still a
 cross-phase inconsistency, not proof that this exact cancellation rule is the
 sole defect.
 
-The mapped trace covers the callback application and `invoke` return endpoint,
-but does not yet map the helper call's result-effect slot through caller catch
-subtraction or runtime guard search. Compare those remaining links with
-wildcard `[_]` and direct catch. Do not change Oracle production code or infer
-a weight law from this candidate alone.
+The same disposable test mapped the call to `invoke` and its caller effect
+slots. The call's pure instantiated return-effect variable enters the
+application result-effect variable unweighted, with a
+`FunctionArgumentEffect { pure_passthrough: true }` structural derivation and
+an `ApplicationArgument` source at `invoke(f)`. That result-effect variable
+flows unweighted into the `via_helper` body effect; no `choose` family or
+`RowDerivation` edge appears on this path. Therefore the caller catch does not
+subtract this `choose`: it is already absent from the helper's use-site
+effect. A separate temporary runtime trace below maps the first catch skip.
+This is a precise frozen-Oracle mechanism trace, not a proof that its weight
+transformations are sound.
+
+### Repeated-operation callback witness
+
+The generic-callback soundness risk is now concrete. This source type-checks in
+the frozen Oracle:
+
+```yu
+my two_requests() =
+  my first = choose::reject()
+  choose::reject()
+
+my invoke(f: () -> [choose] int) = f ()
+my via_helper(f: () -> [choose] int): [] int = catch invoke(f):
+  choose::reject(), k -> k 3
+  v -> v
+
+via_helper(two_requests)
+```
+
+The checked `two_requests` scheme has `ret_eff = [choose]`; both `invoke` and
+`via_helper` still have pure (`Bot`) return effects. In the declarative shallow
+trace semantics above, the caller catch receives the first request and its
+arm resumes the raw callback continuation. That continuation reaches the
+second `choose`, outside the shallow catch. The exact outward support therefore
+contains `choose`, so `via_helper` cannot soundly promise `[]` for every
+callback satisfying its annotation. This does not require exact inference of
+request counts: a conservative finite-family abstraction retains `choose`.
+
+Both Oracle execution backends currently report an unhandled `choose::reject`
+at the first request, before the intended catch can resume it. That runtime
+result is consistent with the emitted adapter guard blocking the caller
+handler, but differs from the source-level eligibility rule: the explicit
+callback capture contract exposes `choose` to this handler. Thus two issues
+must stay distinct: inference erases the callback's effect at the `invoke`
+scheme boundary, and the current adapter guard also prevents the caller from
+handling the first request.
+
+This is now a concrete Oracle compatibility conflict with soundness. The
+successor rule for this source envelope is to propagate `choose` out of
+`invoke` because its body calls an effectful callback without a handler, then
+retain `choose` from `via_helper` because resuming a shallow handler may reach
+another request in the raw continuation. Consequently the explicit `[]`
+annotation on this generic `via_helper` must be rejected. This records a loss
+of frozen-Oracle acceptance for a source it accepts today; the source is not
+well-typed under the successor's sound finite-family effect abstraction.
+The contract/weight cancellation path and adapter-marker issue remain
+characterization findings only: neither `push/pop` nor the runtime guard is
+accepted as a semantic rule on Oracle authority alone.
+
+Focused commands on the frozen checkout were:
+
+```text
+target/debug/yulang --no-prelude --no-cache check /tmp/yulang-intrusion-weight-repeated-callback-body.yu
+target/debug/yulang --no-prelude --no-cache dump /tmp/yulang-intrusion-weight-repeated-callback-body.yu --poly-raw
+target/debug/yulang --no-prelude --no-cache run --interpreter --print-roots /tmp/yulang-intrusion-weight-repeated-callback-body.yu
+target/debug/yulang --no-prelude --no-cache run --evidence-vm --print-roots /tmp/yulang-intrusion-weight-repeated-callback-body.yu
+```
+
+The check and dump exit successfully; both runs exit with
+`yulang.unhandled-effect` at the first `two_requests` operation.
+
+A temporary runtime trace confirms why the current operational path skips the
+caller catch on that first request. The request reaches `eval_catch` with
+`handler_boundary = None`, guard IDs `[3, 0, 1, 2, 4]`, and carried guards in
+that order. The first carried guard (ID 3) has `entry_frame_len = 0` and no
+exposed IDs; later preserve-enabled guards expose prior marker IDs, but none
+introduces the catch activation. `request_guard_for_path` therefore returns
+`Preserve(GuardId(3))`, and the matching `choose::reject` arm is skipped.
+This matches the earlier source flow: function-adapter argument markers are
+combined with body markers, while ordinary `eval_catch` has no registered
+handler activation for `push_contract_matching_handler_ids_at_marker_entry`
+to expose. The trace is direct runtime characterization; the Yulang3
+successor should define handler eligibility from the declarative semantics
+and must not copy this routing behavior by default.
+
+With the declarative callback contract honored, the first request is eligible
+for the visible caller catch. Resuming its raw shallow continuation reaches
+the second operation outside that catch. The sound finite-family effect
+approximation still includes `choose`; the pure annotation is rejected. The
+runtime's current first-request escape is a separate guard bug and does not
+make the pure type sound.
 
 The source-contract basis is stronger than runtime behavior alone:
 
@@ -161,9 +245,7 @@ parameter has an explicit capture contract:
 
 This confirms that operation-family equality and nearest dynamic activation do
 not determine eligibility by themselves. The annotation changes the visible
-capture budget. It does not settle how that budget composes through the extra
-`invoke` FunctionAdapter in the candidate above. The original no-budget probe
-and its trace are recorded in
+capture budget. The original no-budget probe and its trace are recorded in
 `notes/progress/2026-09-30-intrusion-oracle-latent-effects.md`.
 
 An independent `spec_auditor` found that these rules strongly support
@@ -172,16 +254,14 @@ example. An independent `compiler_referee` confirmed the accepted pure scheme,
 unhandled runtime request, and direct-handler control. Both cautioned that the
 precise source of the mismatch is not yet localized to weight routing alone.
 
-This is a **candidate soundness/handler-visibility counterexample**, not yet a
-proved violation of the complete frozen contract. If the intended declarative
-rule permits the explicit `[choose]` budget to cross `invoke`, the successor
-should route this one request to the catch and return `3`. If the helper
-boundary instead prevents this catch from consuming the callback effect, then
-`choose` must remain in the outward effect bound and the `[]` annotation must
-be rejected. The frozen checker currently accepts the pure annotation while
-runtime leaks the request. This precise accepted-source/runtime difference is
-the compatibility behavior that must be resolved before choosing either
-successor rule; no behavior was changed here.
+The repeated-operation witness establishes the compatibility conflict for
+this callback slice: the frozen checker accepts a pure scheme while a
+well-typed callback can leave a request outside the shallow handler. The
+successor should honor the explicit capture contract for handler eligibility,
+handle the first request, and retain `choose` in the outward approximation
+because resumption may reach another request. The frozen runtime's first
+request escape remains a separate handler-guard defect; neither runtime
+behavior nor the current weight cancellation defines the successor rule.
 
 Relevant source ownership candidates are frozen
 `crates/infer/src/lowering/expr/tail.rs` application-effect construction,
