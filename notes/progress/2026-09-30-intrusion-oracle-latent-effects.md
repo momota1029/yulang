@@ -982,11 +982,10 @@ two functions: one effect quantifier, `arg_eff = Row([choose], tail: 'a)`,
 finalized type schemes. This does not establish that all selected-view data is
 erased: provenance sidecars and other publication fields were not compared.
 Nor does it prove that the earlier weight was semantically redundant or that
-the two effect computations execute with different outcomes. The source passes
-an effect operation at the argument, so evaluation/adaptation order matters;
-the mono dump is acceptance evidence, not a runtime trace. Compiler-referee
-review confirmed these boundaries and cautioned that the direct operation may
-be evaluated before either handler, depending on argument adaptation.
+the two effect computations execute with different outcomes. The direct mono
+root's exact adaptation was not isolated in that probe, so it remained unclear
+whether the operation thunk was forced before or inside the handler. A follow-up
+uses a named thunk binding to remove that ambiguity; see the next section.
 
 The exact CLI commands were:
 
@@ -999,3 +998,38 @@ Both commands completed successfully with the prebuilt binary from the
 disposable Oracle checkout. This proves final mono acceptance for those exact
 source programs only. The disposable source and all instrumentation were kept
 outside the repository and removed/restored after the probe.
+
+### Explicit thunk binding inside complete/incomplete handlers
+
+To make the use-site staging visible, the same program was rerun with a named
+effectful computation:
+
+```yu
+my rejected = choose::reject()
+my complete_use = complete(rejected)
+my incomplete_use = incomplete(rejected)
+```
+
+The CLI `check` and `dump --mono` commands both succeed. Mono output makes the
+staging explicit: `m4` has type `thunk[[choose], unit]` and body
+`(<effect-op choose::reject> ())`; the two uses pass `m4` as the argument to
+`m3` and `m5`. Each callee body forces its argument inside
+`catch marker[choose](force-thunk[…])`. The complete body has branch and reject
+arms; the incomplete body has branch only.
+
+The compiler-referee traced the runtime implementation as corroboration:
+applying `Value::EffectOp` constructs `Value::Thunk(Thunk::Effect { .. })`
+without requesting the effect (`crates/mono-runtime/src/runtime/flow.rs`),
+and `force_thunk` emits the request (`runtime/thunk.rs`). Thus the bound
+computation is a thunk passed to each function, and the displayed force occurs
+under the catch marker. This closes the prior uncertainty about this exact
+explicit-binding path. No runtime execution was performed, so this is still
+not evidence of handler invocation, which arm runs, or the final value. It
+also does not establish that the pre-simplification weight distinction is
+necessary, survives type publication, or is correctly modeled by a successor.
+
+Both the source file and all disposable traces stayed outside the repository;
+the source was removed after the CLI probes. The reviewer also corrected the
+broader inference: evaluating an effect-operation expression itself
+constructs a thunk rather than immediately issuing the effect, though any
+other adaptation path must still be inspected before extending that claim.
