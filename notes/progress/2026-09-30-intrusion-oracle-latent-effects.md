@@ -859,3 +859,33 @@ polarity-only `q` erasure is not required, and any later erasure needs a
 preservation proof. Oracle inference-stage scheme formatting and its
 acceptance phase need not match the successor; compatibility is measured by
 final well-typed program acceptance, subject to soundness and principality.
+
+### Bound provenance for the selected residual view
+
+A second disposable test queried the four admitted lower records while the
+`judge` inference session was still alive. Their endpoints and raw derivations
+were:
+
+| Record | Owner / endpoint | Derivation | Explanation source leaves |
+| --- | --- | --- | --- |
+| 39 | `11 <- 14` | `Constraint(33)` | none |
+| 43 | `11 <- 19` | `Constraint(35)` | none |
+| 45 | `11 <- 22` | `Constraint(36)` | none |
+| 47 | `11 <- 23`, weighted `AllExcept(signal)` | `Constraint(37)` | annotation origins 2 and 3, boundaries 0 and 1 |
+
+The source-free explanations report `UnknownInternal` derivation roots; the
+weighted record's explanation is complete and reaches two `Annotation`
+source leaves. In the same run, `TypeVar(14)` has lower endpoints 19, 22, and
+23, and upper endpoints 11 and 9. This exposes the selected residual's local
+constraint graph and confirms that the weighted path is attached to that
+graph. The provenance API does not resolve annotation spans, and those leaves
+do not identify the `io` call or prove the semantic effect contribution of
+any one path. In particular, the selected record IDs are session-local
+insertion indices, not durable source identities; reproducing them requires
+the same session and insertion order.
+
+The trace was run with a focused crate-local test in the disposable Oracle
+checkout and then restored. It narrows the next source-origin question to the
+two annotation boundaries and the internal/replay derivations, while leaving
+the candidate semantics, effect preservation, and principality obligations
+open.

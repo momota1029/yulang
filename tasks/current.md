@@ -946,9 +946,12 @@ The selected `judge` root is now traced through its finalized scheme:
 return effect, and has four admitted lower records, including an
 `AllExcept(signal)` weighted record. This licenses a same-identity residual
 scheme characterization, not naming the records `io`, proving weighted
-preservation through simplification, or proving principality. Continue by
-mapping those record origins and comparing the complete/incomplete handler
-roots. The successor retains meaningful source constraints; polarity-only
+preservation through simplification, or proving principality. Provenance
+queries map the four records to `Constraint(33,35,36,37)`; three have only
+`UnknownInternal` source roots, while the weighted path reaches two unresolved
+annotation boundaries. These IDs are session-local. Continue by resolving
+those source constraints and comparing complete/incomplete handler roots. The
+successor retains meaningful source constraints; polarity-only
 `q` erasure is not required. No soundness/principality failure is established
 by the `f()` fixture; do not
 restore Oracle phase parity as a goal. The probe details and command are in the
