@@ -1162,20 +1162,23 @@ closure carrying `add_id` markers, while the absent/wildcard/empty controls
 retain an effectful thunk and a marked caller force. A returning-callback
 control also checks, lowers, and then fails unhandled with the same pure rows;
 its IR carries markers through the returned function shape. These lowering
-plans plus runtime outcomes still do not provide the exact `GuardId` and
-exposure state for the fixture. Frozen runtime source gives a conditional
-route: a depth-zero own-path marker attaches a carried guard to the request;
-adapter frames pop while the request retains it; the plain caller catch has no
-handler frame and skips on that carried guard. Evaluating the full nested
-adapter/value-marker state for this fixture remains open, as does whether the
-successor caller handler may consume the escaped request. The successor must
-retain `choose` in the returned closure's latent effect. The concrete Oracle
-case (pure caller accepted, both runtimes
+plans plus runtime outcomes do not provide an instrumented runtime state.
+Source-derived symbolic execution now accounts for G0-G7: G6/G7 are consumed
+by the callback adapter even though scalar `()` drops their markers, while
+the request route carries the relevant earlier marker IDs through adapter
+frame exits. The frozen mono-runtime implementation's plain Catch skips using
+a carried guard and the root host reports the unhandled request. Independent
+review found this implementation route conflicts with the frozen marker spec:
+the spec's path-prefix condition excludes own-path coloring, while the code
+allows it. Therefore this is code characterization only, not successor
+eligibility authority; it needs source/spec adjudication before semantic use.
+The exact trace, its limitations, and source locators are in the candidate
+record above. The successor must retain `choose` in the returned closure's
+latent effect. The concrete Oracle case (pure caller accepted, both runtimes
 unhandled) cannot be copied as a validated rule; final caller acceptance stays
 open until declarative eligibility and source/runtime correspondence are
-proved. The frozen contract limits `[choose]` visibility to handlers inside
-the receiving function, and the runtime marker spec carries markers across
-returned functions; automatic grant expiry at return is unsupported.
+proved. Automatic grant expiry at return is unsupported by the current
+returned-marker evidence.
 On the callback-returns-a-closure control, the no-contract explicit-pure
 caller is rejected for `choose`; with inferred effects it retains `[choose]`
 and its handler returns `[3]`. The concrete-contract inferred variant has

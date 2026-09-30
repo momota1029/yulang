@@ -6,6 +6,20 @@ Scope: ordinary shallow effects and handler residuals; no weight encoding yet
 Implementation authority: none
 Reviewed-by: architect, compiler_referee (multiple delta reviews), spec_auditor (multiple delta reviews)
 
+## User constraint on precision and principality
+
+The user has explicitly ruled out exact continuation-sensitive effect inference
+as a successor requirement when it would require linear/affine continuation
+typing, usage tracking, or a substantially richer type system without an
+independent language-design justification. Exact trace semantics remains the
+semantic reference for soundness. The inference language may choose a
+conservative compositional abstraction, and principality must be defined
+relative to the solutions expressible in that chosen abstraction. This does
+not waive soundness or justify dropping effects; it permits a sound
+over-approximation when exact trace support is not expressible. The shallow
+one-request/resume example is evidence that Oracle rows over-approximate exact
+trace support, not a requirement to make successor rows exact.
+
 ## Question
 
 Can a sound compositional effect abstraction conservatively account for
@@ -254,8 +268,9 @@ must preserve the unconsumed callback effect in the returned closure; capture
 evidence transport across returned functions remains open. Frozen runtime
 guard notes describe result-marker propagation across returned functions, so
 an unconditional rule that closes every grant at function return would be
-premature. A returning-callback control is documented below; a dynamic
-request/marker trace is still needed before choosing that boundary rule.
+premature. A source-derived symbolic marker trace for the returning-callback
+control is recorded below; it characterizes frozen implementation code but
+does not choose the successor's boundary rule.
 
 The frozen runtime IR narrows the mechanism without settling the source rule.
 The concrete-contract variant lowers the callback argument with
@@ -272,21 +287,50 @@ routing coexist in this case, but does not prove whether the caller handler is
 eligible in the successor's declarative semantics.
 
 The frozen runtime source gives a conditional route derivation for the plain
-caller catch. A function call decrements `AddId.depth`; when a depth-zero
-own-path marker is active as the callback emits `choose`, the request records
-that guard and a `CarriedGuard` exposure snapshot. Function-adapter marker
-frames pop while `guard_ids` and `carried_guards` remain on the forwarded
-request. A plain `Catch` adds no handler frame, and the missing-handler route
-uses the carried guard to skip its arm. The rules are in
+caller catch, but its own-path coloring condition conflicts with the frozen
+runtime marker specification. The implementation's `mark_request` path can,
+under its `guard_own_path` condition, record a guard and `CarriedGuard`
+exposure snapshot for an own-path request; adapter marker frames then pop
+while `guard_ids` and `carried_guards` remain on the forwarded request. A
+plain `Catch` adds no handler frame, and the missing-handler route can use a
+carried guard to skip its arm. However, the frozen marker specification says
+that `add_id[0,path,id]` colors a request only when the marker path is not a
+prefix of the request path; it therefore requires an own-path request to
+remain readable at that boundary. The code-derived route is characterization
+of the frozen implementation and a code/spec conflict, not a normative rule
+for the successor. It needs an approved specification resolution before any
+semantic adoption. The relevant implementation rules are in
 `crates/mono-runtime/src/lib.rs:471-484`,
 `crates/mono-runtime/src/runtime/flow.rs:135-180,296-376,391-412,438-553`,
 and `crates/mono-runtime/src/runtime/eval.rs:360-380,449-477` in the frozen
-checkout. This explains the observed result when those conditions hold. The
-lowered IR alone does not identify which marker instance reaches this exact
-request or its `exposed_guard_ids` value; symbolically evaluating the nested
-adapter/value-marker composition remains necessary for a complete fixture
-trace. This runtime route also does not, by itself, define successor source
-semantics.
+checkout; the conflicting path-prefix condition is in
+`spec/2026-06-13-runtime-guard-markers.md:117-130`. A source-derived symbolic
+execution of the nested adapter/value-marker composition is recorded below,
+but no dynamic request-state instrumentation was performed. The exact
+implementation route does not resolve the normative code/spec conflict or
+define successor source semantics.
+
+The source-derived allocation trace accounts for adapter calls during
+top-level `m0`: A (the outer `m0` adapter) allocates G0/G1 for argument depths
+1/2; C (the `maker` adapter) allocates G2/G3 for body depths 0/1, then G4/G5
+for argument depths 1/2; B (the callback adapter invoked by `d6()`) allocates
+G6/G7 for argument depths 1/2. `apply_adapter` allocates markers before
+marking the argument value, so G6/G7 are consumed even though scalar `()` does
+not retain them. After the callback returns its closure, the relevant carried
+markers are G0-G5. Calls decrement positive depths; forcing the marked effect
+thunk re-enters marker frames, and frame exit preserves request guard and
+carried-guard data in the implementation. The initial carried G0 exposure
+snapshot is empty in this root; later snapshots reflect guards active before
+each marker frame, rather than every previously allocated ID. Re-entry of an
+existing marker does not allocate a new ID. The plain catch has no marker
+frame, so the frozen implementation's missing-handler path selects a carried
+guard and skips the arm; the root host then reports the unhandled request.
+This is source-derived symbolic execution, not an instrumented runtime log,
+and the own-path skip remains in conflict with the marker specification.
+Independent source audit confirmed the G6/G7 allocation and that outer
+marker stripping does not remove markers nested inside returned adapters or
+thunks. The trace is limited to frozen mono-runtime; it proves neither VM
+parity nor declarative handler eligibility.
 
 A second control makes the callback itself return the effectful closure:
 
