@@ -931,14 +931,19 @@ instance with empty argument/return effects. This proves Oracle inference-to-
 mono acceptance for that exact source, not runtime execution or successor
 adequacy; see the latent-effects note. A wasm runtime-test attempt was stopped
 before execution because the build script was compiling both embedded stdlibs
-and reached about 1 GiB RSS after 2m46s. Next run one bounded probe at the
-actual uncached `f`-root projection query: capture selected lower/upper records
-and the pre-simplification `CompactRoot` for the verified source effect ID in
-the same query round; if present, also capture post-alias/post-simplification
-polarity and eligibility. This resolves only fixture-level selected-view
-correspondence. Then determine whether omitted constraints can affect another
-complete source program; a negative result does not itself establish
-unsoundness. Do not restore Oracle phase parity as a goal. A
+and reached about 1 GiB RSS after 2m46s. A focused disposable-Oracle
+instrumentation now confirms that the actual positive `f`-root projection
+visited the source effect variable with an empty projectable-lower list while
+two upper rows were available; the pre-simplification root kept the positive
+self occurrence and the post-alias/simplification root had no return-effect
+variables. Independent review confirms this is selected-view characterization,
+not evidence that the upper rows are semantically meaningful, nor a proof that
+polarity alone caused their later disappearance. Next determine whether those
+omitted constraints distinguish another complete source program, and separately
+trace the exact simplification substitution if attributing the final erasure.
+No soundness/principality failure is established by the `f()` fixture; do not
+restore Oracle phase parity as a goal. The probe details and command are in the
+latent-effects note. A
 conditional zero-consumption
 lemma may reduce the handler-free, no-family fragment: Oracle's weighted row
 rule uses `J = K ∩ Common(L)`, so empty row heads force no row consumption;

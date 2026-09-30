@@ -413,6 +413,38 @@ constraints until a denotation and preservation argument justifies solving
 or removing them. No code or frozen Oracle file was changed for this mapping,
 and no additional check was run.
 
+### Selected-view probe for the catch fixture
+
+A temporary instrumented test at frozen Oracle commit
+`a58eefc31e22141574b6f20c6a5748151c6d79f1` captured the actual `f` root
+projection in the same scoped query. The run-local identities were `f =
+DefId(2)`, root `TypeVar(1)`, and source effect `TypeVar(3)`. The positive
+collector visited `TypeVar(3)` in `Fun.ret_eff`; its actual
+`scheme_projectable_lowers_in_scope` result was empty. Two upper rows were
+available in that same query (`BoundRecordId(1)` and `BoundRecordId(25)`), but
+the positive collector path asks for projectable lowers only. The returned
+pre-simplification `CompactRoot` retained `TypeVar(3)` as a positive
+self-occurrence alongside `TypeVar(11)`. The post-alias/simplification root
+had no `ret_eff` variables.
+
+This establishes a fixture-level polarity-selected projection gap: the two
+available upper rows did not enter `f`'s compact root at that positive visit.
+It does not establish that the later disappearance was caused only by
+polarity; the exact simplification substitution/eligibility trace was not
+captured. An independent compiler-referee review confirmed the upper-record
+read is observational and does not mutate projection-round state, while
+warning that an extra lower projection query could contaminate it; this probe
+reported the collector's own lower result. Neither soundness nor principality
+failure follows from this fixture, and the already recorded `f()` mono
+acceptance still passes. The successor requirement remains to retain
+meaningful source constraints and justify any solving/removal by its own
+denotation and preservation proof; matching Oracle's selected view is not a
+goal. The focused command was
+`CARGO_TARGET_DIR=/tmp/yulang-intrusion-oracle-target cargo test -p infer
+scratch_capture_selected_catch_effect_view -- --nocapture`; it passed. All
+temporary instrumentation and the test were restored from the disposable
+Oracle worktree, which is clean at the frozen commit.
+
 The useful candidate is thus a two-mode *runtime application* judgment:
 shapes with pure extracted effects are evaluated strictly and their actual
 effect is charged to the call result; shapes with non-pure extracted effects
