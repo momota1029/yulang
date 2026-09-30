@@ -123,20 +123,65 @@ must be defined by, or proved equivalent to, these generated inequalities
 before calling the least solution principal.
 
 For each handler/family pair, let `Origins(H,f)` be a sound over-approximation
-of request-occurrence and handler-activation/provenance configurations that
-can reach that handler, not just syntactic operation sites. It must cover every
-activation, environment, use-site instantiation, recursive unfolding,
-closure/thunk invocation, operation result, and forwarded continuation suffix
-relevant to the static handler slot. A finite `Slots` set does not make these
-dynamic configurations finite; constructing a sound finite quotient or
-symbolic summary is a separate proof obligation. Define `Drop(H)` only from
-families whose every configuration in this over-approximation is covered and
-eligible at that activation. Unknown configurations are treated as
-ineligible and prevent subtraction. `Origins` and `Drop` must be valid
-uniformly for all admissible assignments and configurations in the claimed
-soundness domain, not only snapshots visited by Kleene iteration. If eligibility
-depends on inferred effect slots, monotonicity must be proved again rather
-than assumed.
+of request-occurrence and handler-activation/provenance configurations offered
+to that handler by shallow evaluation. It must cover every activation,
+environment, use-site instantiation, recursive unfolding, closure/thunk
+invocation, operation result, and forwarded continuation suffix relevant to
+the static handler slot. A matched operation's raw continuation is not resumed
+under this handler: its suffix is instead covered by the whole-scrutinee
+latent effect assigned to `k` when the arm invokes or exports it. A forwarded
+unmatched request is different: if an outer context resumes it, this handler
+is re-applied to the forwarded suffix, so those configurations belong in
+`Origins`. A finite `Slots` set does not make these dynamic configurations
+finite; constructing a sound finite quotient or symbolic summary is a separate
+proof obligation. Define `Drop(H)` only from families whose every configuration
+in this handler-offered over-approximation is covered and eligible at that
+activation. Unknown configurations are treated as ineligible and prevent
+subtraction. `Origins` and `Drop` must be valid uniformly for all admissible
+assignments and configurations in the claimed soundness domain, not only
+snapshots visited by Kleene iteration. If eligibility depends on inferred
+effect slots, monotonicity must be proved again rather than assumed. In
+addition, each family in a scrutinee row must have a corresponding request
+fact in `Origins` or an explicit unknown fact; otherwise a missing origin
+could make the coverage check vacuously succeed.
+
+### Finite may-block provenance domain (conditional construction)
+
+A possible finite quotient keeps effect rows coarse while tracking only enough
+information to justify a handler drop. For one static handler slot, abstract
+request facts can have the form:
+
+```text
+ReqFact = (family, exact_operation | UnknownOp,
+           origin_site | UnknownOrigin, may_blockers)
+may_blockers ⊆ BoundarySite ∪ {UnknownMask}
+```
+
+The abstract request set joins by union. `Drop(H,f)` is permitted only when
+there is positive evidence that `H` is active, every fact for `f` names an
+operation covered by an exact arm, and every fact has no possible blocker.
+`UnknownOp`, `UnknownOrigin`, `UnknownMask`, or an absent family-to-origin
+fact prevents the drop. Static sites name possible origins and boundaries;
+equal site labels do not prove equal dynamic activations. A concrete callback
+contract may discharge a blocker only when a separate scope proof establishes
+that the handler activation is inside the receiving activation introduced by
+that contract. Helper calls, force, return, closure escape, scheme
+instantiation, recursive re-entry, and forwarded-continuation resumption need
+explicit monotone transfer rules. Any transfer that cannot establish the
+activation relation adds `UnknownMask`.
+
+This is a finite-domain candidate, not a construction theorem. Its simulation
+must prove that all concrete request/handler configurations map to abstract
+facts, including requests carried through closures and requests reached after
+forwarding. Its row/provenance coupling must prove that every family in each
+scrutinee row has an abstract request fact or unknown fact. The unknown
+fallback is sound only under those coverage premises and can reduce final
+acceptance; its precision over the supported envelope remains unmeasured. The
+least-bound argument above assumes `Drop` and callback contracts are fixed
+inputs. One possible phase order is to compute a sound may-block summary first
+and then solve effect rows. If origin discovery depends on inferred rows, or
+the two analyses run together, monotonicity of the combined operator must be
+proved; the separate finite-lattice theorem does not establish it.
 
 Concrete callback annotations are part of the fixed source-contract input and
 can change `Drop` and therefore `F`; this theorem compares solutions only for
@@ -164,18 +209,20 @@ construct interpretation still require proof and independent review.
 ## Worked least bounds for the shallow witnesses
 
 Take `Fam = {choose}`, one fixed handler activation, and a closed direct
-request tree with no other effects. In both one-request cases, the only
-request reaching the handler is covered and eligible, so `Drop = {choose}`.
-In the two-request case, the second request is in the raw continuation suffix
-and occurs outside this shallow handler activation; in the final case, a
-reachable `choose` operation is uncovered. Both prevent a proof to drop the
-family, so `Drop = ∅` there. Each scrutinee has bound `E = {choose}`.
+request tree with no other effects. For both one-request cases, and for the
+first request of the two-request case, every request offered to the handler is
+covered and eligible, so `Drop = {choose}`. The second request in the
+two-request case is in the raw continuation: it does not reach this handler,
+but invoking `k` has latent bound `E = {choose}`, so the arm bound restores
+`choose`. In the final case a reachable, uncovered `choose` operation is
+offered to the handler, so `Drop = ∅`. Each scrutinee has bound
+`E = {choose}`.
 
 | Witness | Exact trace support after the catch | `Drop` | Arm bound with `k : E` | Candidate result `(E \ Drop) ∪ arms` | Least row |
 |---|---:|---:|---:|---:|---:|
 | One request, arm ignores `k` | `∅` | `{choose}` | `∅` | `∅` | `∅` |
 | One request, arm invokes `k` once | `∅` | `{choose}` | `{choose}` | `{choose}` | `{choose}` |
-| Two requests, arm resumes first request | `{choose}` | `∅` | `{choose}` | `{choose}` | `{choose}` |
+| Two requests, arm resumes first request | `{choose}` | `{choose}` | `{choose}` | `{choose}` | `{choose}` |
 | Reachable uncovered `choose` operation | `{choose}` | `∅` | `∅` | `{choose}` | `{choose}` |
 
 In the non-resuming case, merely giving `k` latent bound `E` adds no effect;
@@ -681,16 +728,24 @@ are part of the still-open source semantics.
 
 Let `Reach(H, C, κ0)` contain every request/activation/provenance
 configuration reachable from the initial configuration `κ0` while evaluating
-the transformed tree, including tails reached after any allowed operation
-result and any handler re-entry induced by forwarding. Let `A(H, C, κ0)` be
-one uniform upper bound for value and operation arm effects across every
-configuration in `Reach(H, C, κ0)`, with raw `k` assigned latent `May(C)`. Let
-`Drop(H, C, κ0)` be a proof-carrying set of families, not a
-function of the family row alone. A family `f` may enter `Drop(H, C, κ0)` only if
-every reachable configuration in `Reach(H, C, κ0)` for a request of family
-`f` is covered and visible at that activation. This quantification must
-account for forwarding: an outer handler may resume a forwarded continuation
-zero, one, or multiple times, producing different configurations. The
+the transformed tree, including arm execution, raw-continuation calls, tails
+reached after any allowed operation result, and handler re-entry induced by
+forwarding. Let `Offered(H, C, κ0)` be the subset of request configurations
+actually offered to this handler while evaluating the scrutinee: include the
+initial scrutinee path and suffixes revisited after a forwarded request is
+resumed, but exclude raw-continuation suffixes executed by a matching operation
+arm because that continuation is not wrapped by this handler. Let `A(H, C,
+κ0)` be one uniform upper bound for value and operation arm effects across
+every applicable handler configuration in `Reach(H, C, κ0)`, with raw `k`
+assigned latent `May(C)`. Let `Drop(H, C, κ0)` be a proof-carrying set of
+families, not a function of the family row alone. A family `f` may enter
+`Drop(H, C, κ0)` only if every configuration in `Offered(H, C, κ0)` for a
+request of family `f` is covered and visible at that activation, with positive
+evidence that the handler is active. This quantification must account for
+forwarding: an outer handler may resume a forwarded continuation zero, one,
+or multiple times, producing different configurations. A row/provenance
+coupling premise must ensure each family in `May(C)` has a corresponding
+request fact in `Offered` or is conservatively retained as unknown. The
 abstract result is:
 
 ```text
@@ -706,9 +761,11 @@ Assume:
    operation result, with the bound valid for every finite trace.
 2. The arm judgments soundly bound immediate arm execution with raw `k` typed
    at latent effect `May(C)`, including any finite number of invocations.
-3. `Drop(H, C, κ0)` excludes every family that occurs at any reachable
-   uncovered/ineligible request configuration, including configurations
-   reached after forwarding and outer resumption.
+3. `Drop(H, C, κ0)` excludes every family that occurs at any uncovered or
+   ineligible request configuration in `Offered(H, C, κ0)`, including
+   configurations reached after forwarding and outer resumption. Requests in
+   raw-continuation suffixes of matched operations are instead bounded through
+   `May(C)` at `k` whenever an arm calls or exports it.
 
 Then every immediate family on every finite trace of `T_{H,κ0}(C)` is in the
 abstract result above. This statement covers recursive/infinite request trees

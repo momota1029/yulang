@@ -1,6 +1,6 @@
 # Current task: prove and implement SCC-intrusion Function inference
 
-Updated: 2026-09-30. Branch: `research/simple-sub-intrusion`.
+Updated: 2026-10-01. Branch: `research/simple-sub-intrusion`.
 
 The user's current priority is soundness, then principality, then Oracle
 compatibility. A concrete graph-level q-erasure conflict, proposed Oracle
@@ -1233,3 +1233,29 @@ against that abstraction,
 including repeated pushes with one pop, nested frames, complete/incomplete
 handlers, and residual fan-out. Do not require exact trace precision or
 linear/affine usage tracking. No implementation is authorized yet.
+
+A spec-auditor delta review found that the previous two-request witness
+explained `Drop = ∅` using a second request in a matched request's raw
+continuation, which is not offered back to the shallow handler. The candidate
+now separates handler-offered configurations from all transformed execution:
+forwarded suffixes revisited after outer resumption count for `Drop`, while
+matched raw-continuation suffixes are bounded through `k : May(C)`. Thus the
+two-request witness has `Drop = {choose}` and still yields `{choose}` when its
+arm resumes. A conditional finite may-block provenance quotient and an
+explicit row/provenance coupling obligation are also recorded. Architect and
+spec reviews agree the quotient is only a proof target; dynamic activation
+scope, transport simulation, and supported-envelope precision remain open.
+An independent compiler-referee delta review confirmed the distinction: the
+two-request case drops the family at this handler and gets it back from the
+arm's `k : May(C)` bound; forwarded unmatched requests still belong in
+`Origins`. The review also confirmed that any joint origin/row fixed point
+would need a new combined-monotonicity proof; the existing finite-lattice
+argument applies only with fixed `Drop`.
+The exact delta is in
+`notes/progress/2026-10-01-intrusion-coarse-effect-abstraction-candidate.md`;
+this focused semantic delta is reviewed and recorded. The finite provenance
+analysis remains unproved; next define its concrete-to-abstract transfer for
+helper calls, force, closure escape/re-entry, scheme instantiation, and
+forwarded resumption, then prove row/provenance coupling and measure whether
+unknown fallback loses supported final acceptance. No implementation is
+authorized.
