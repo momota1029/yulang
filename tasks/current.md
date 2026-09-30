@@ -449,10 +449,12 @@ The source-generated recursive Function scheme payloads are now characterized
 through their quantified inner bounds. A source call through those bounds emits
 nominal mismatch events that all classify as `UnknownOrigin`, leaving the check
 report without diagnostics; direct and acyclic controls do report diagnostics.
-This records an Oracle behavior and a provenance gap, not a subtype acceptance
-proof. Next trace why the recursive path loses its source origin, then seek a
-source context whose public inferred result distinguishes the interval
-payloads. The exact cases and test limits are in
+This records Oracle diagnostic behavior and mixed provenance, not a subtype
+acceptance proof: the full explanation is complete and contains source leaves,
+but it also contains an `UnknownInternal` origin that blocks OCast eligibility.
+Next isolate which recursive/generalization proof edge contributes that
+sentinel, then seek a source context whose public inferred result distinguishes
+the interval payloads. The exact cases and test limits are in
 `notes/progress/2026-09-29-intrusion-oracle-ledger.md`. The concrete carrier,
 scheme instance relation, and replacement proof remain open; implementation
 stays gated on a reviewed successor contract and explicit approval.

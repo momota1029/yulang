@@ -293,7 +293,9 @@ Oracle implementation; no auxiliary Python model was used.
 
 The same Rust-native fixture was extended with a source-level consumer whose
 parameter is `step int (step int T)`, then calls it with `ints 0` or `mixed 0`
-for `T = int`, `bool`, and a distinct nominal `label`. The Oracle check report
+for `T = int`, `bool`, and a distinct nominal `label`. In this extended run,
+`mixed` uses `true` as its nested value so the scheme's changed endpoint is
+the builtin `bool`. The Oracle check report
 has no diagnostics for all six recursive calls. Each case does route one or
 more nominal mismatch events, but every captured eligibility result is
 `Incomplete { reason: UnknownOrigin(OriginId(1)) }`; none is eligible for a
@@ -316,6 +318,14 @@ of its recursive variable and a guarded `step` node, with upper side `Top`.
 Thus the observed pending mismatch travels through quantified payloads below a
 recursive bound, and its explanation reaches an unknown origin before the
 diagnostic gate can decide it.
+
+An additional query at the same OCast producer using `why_constraint` (which
+retains scheme-instantiation proof edges) is complete and contains both source
+leaves and an `UnknownInternal` origin node. Thus the evidence is mixed: source
+provenance exists in the full explanation, while the OCast eligibility query
+still rejects the producer because an unknown-origin branch remains. This is
+not explained by query truncation. The exact recursive/generalization edge
+that contributes the sentinel remains to be isolated.
 
 Focused command: `cargo test -p infer --lib source_recursive_ -- --nocapture`
 passed 2 source-level tests in the detached Oracle worktree
