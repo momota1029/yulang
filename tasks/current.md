@@ -861,10 +861,12 @@ gives thunk arguments a pure immediate effect. This does not establish how
 inference `arg_eff` determines the runtime shape: a Function conversion wraps
 non-syntactically-pure effects such as `OpenVar`, while a variable with only
 the `Bot` lower and empty-row upper materializes to the empty row if that bound
-view remains available. These materializer paths are source-verified; the
-exact source-generated Function path into runtime materialization remains
-untraced. The
-inference branch separately tests syntactic
+view remains available. These materializer paths are source-verified. A
+temporary focused probe for `pub id x = x` found one quantifier and finalized
+`arg_eff = Bot`, `ret_eff = Bot`; this source's exact-pure body effect is
+eliminated before runtime materialization, which therefore leaves a plain
+return shape. The probe did not identify which generalization pass removes it
+or cover other Functions. The inference branch separately tests syntactic
 `Neg::Bot`. This major bridge obligation was found by independent
 compiler-referee review and is recorded in the latent-effects note. The next
 proof must define an explicit inference-to-runtime evaluation-mode judgment;

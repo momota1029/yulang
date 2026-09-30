@@ -128,11 +128,75 @@ to the empty row when its bounds remain available: `materialize_neu` omits a
 and row materialization yields `EffectRow([])`
 (`types/materialize.rs:163–175,193–213`). By contrast, an unquantified,
 unsubstituted variable occurrence materializes as `OpenVar`
-(`materialize.rs:266–280`). Both facts are directly established. The exact
-source-generated path into runtime Function materialization has not been
-traced, so the report does not claim which representation reaches application.
-That conversion path must be tracked before assigning a source meaning to
-either mode.
+(`materialize.rs:266–280`). Both facts are directly established. Outside the
+focused identity fixture below, source-generated paths into runtime Function
+materialization have not been traced, so the report does not claim which
+representation reaches application in general. Those paths must be tracked
+before assigning a source meaning to either mode.
+
+### Focused identity source capture
+
+A temporary probe in a disposable worktree at frozen Oracle commit
+`a58eefc31e22141574b6f20c6a5748151c6d79f1` lowered `pub id x = x` and read its
+finalized scheme predicate. The focused command was
+`CARGO_TARGET_DIR=/tmp/yulang-intrusion-oracle-target cargo test -p infer
+scratch_oracle_runtime_effect_path_for_identity -- --nocapture`. It reported
+one quantifier (`TypeVar(2)`), formatted scheme `'a -> 'a`, `arg_eff = Bot`,
+and `ret_eff = Bot`. Thus this source's exact-pure body effect does not survive
+as either a bounded effect variable or an `OpenVar` in the final scheme
+predicate; runtime materialization receives `Never` at this return-effect
+slot, which `runtime_shape` leaves plain. The probe did not isolate which
+generalization/simplification pass turns the source effect into `Bot`, nor
+trace the specialized application itself. This closes the source-to-scheme
+question for one identity fixture only. The temporary test and worktree were
+removed; no frozen Oracle file changed.
+
+The temporary test body, appended to `crates/infer/src/lowering/tests/case_01.rs`
+after its existing `use super::*;`, was:
+
+```rust
+#[test]
+fn scratch_oracle_runtime_effect_path_for_identity() {
+    let root = parse("pub id x = x\n");
+    let lower = lower_module_map(&root);
+    let module = lower.modules.root_id();
+    let def = binding_def_and_order(&lower.modules, module, "id").0;
+    let output = lower_binding_bodies(&root, lower);
+    assert!(output.errors.is_empty(), "{:?}", output.errors);
+    let scheme = match output.session.poly.defs.get(def) {
+        Some(Def::Let { scheme: Some(scheme), .. }) => scheme,
+        _ => panic!("expected finalized id scheme"),
+    };
+    let types = &output.session.poly.typ;
+    eprintln!("quantifiers={:?}", scheme.quantifiers);
+    eprintln!("scheme={} ", poly::dump::format_scheme(types, scheme));
+    match types.pos(scheme.predicate) {
+        Pos::Fun { arg_eff, ret_eff, .. } => {
+            eprintln!("arg_eff={:?}", types.neg(*arg_eff));
+            eprintln!("ret_eff={:?}", types.pos(*ret_eff));
+            if let Pos::Var(var) = types.pos(*ret_eff) {
+                eprintln!("ret_eff_var={var:?}");
+                eprintln!("ret_eff_bounds={:?}",
+                    output.session.infer.constraints().bounds().of(*var));
+                eprintln!("ret_eff_is_quantified={}", scheme.quantifiers.contains(var));
+            }
+        }
+        _ => panic!("expected Function predicate"),
+    }
+}
+```
+
+The captured output was:
+
+```text
+quantifiers=[TypeVar(2)]
+scheme='a -> 'a
+arg_eff=Bot
+ret_eff=Bot
+test lowering::tests::case_01::scratch_oracle_runtime_effect_path_for_identity ... ok
+
+test result: ok. 1 passed; 0 failed; 1393 filtered out
+```
 
 The useful candidate is thus a two-mode *runtime application* judgment:
 shapes with pure extracted effects are evaluated strictly and their actual
