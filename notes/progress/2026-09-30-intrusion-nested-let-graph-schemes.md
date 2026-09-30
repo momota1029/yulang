@@ -1,0 +1,239 @@
+# Nested let-polymorphism with retained graph schemes
+
+Date: 2026-09-30
+Status: candidate declarative extension and conditional adequacy proof; reviewed within the stated pure fragment; not implementation authority
+Scope: pure `Var`/`Int`/`Lambda`/`Apply` plus non-recursive `let`; no effects or recursive groups inside the let RHS
+Governing records: `2026-09-30-intrusion-pure-source-typing-rules.md`, `2026-09-30-intrusion-pure-recursive-group-adequacy.md`, `2026-09-30-intrusion-parent-transport-fiber-lemma.md`
+
+## Graph scheme
+
+A graph scheme is a finite regular constraint graph with a root and an explicit
+ownership split:
+
+```text
+S = (C, root, Q, A)
+Q ∩ A = ∅
+```
+
+`Q` is the set of scheme-local identities. `A` is the set of fixed outer
+anchor identities referenced by the graph. For a fixed `η : A → D`, define
+
+```text
+Inst_S(η) = {
+  T | ∃ν : Q→D. Sat(C,η,ν) ∧ eval(root,η,ν) ≤ T
+}
+```
+
+This relation, rather than a rendered type tree, is the scheme meaning. Local
+identities that affect the root only through bounds remain quantified even if
+they do not occur syntactically in `root`. No polarity-only erasure is part of
+this rule.
+
+Instantiation chooses a fresh set `Q_u` disjoint from all current identities
+and a bijection `ρ_u : Q→Q_u`, fixes every anchor in `A`, and returns the
+renamed graph `ρ_u(C)` and root `ρ_u(root)`. The parent-transport fiber lemma
+shows this preserves `Inst_S(η)` exactly. Distinct uses choose pairwise
+disjoint fresh ranges and may share only the fixed anchors.
+
+## Declarative let rule
+
+Extend a semantic environment `Γ` so each source name maps either to one
+monomorphic value (`Mono(T)`) or to a graph scheme (`Poly(S)`). A monomorphic
+variable occurrence has exactly its mapped type; a polymorphic occurrence may
+choose any `T ∈ Inst_S(η)`. Each occurrence makes its choice independently.
+All expression rules from the pure source-typing note remain unchanged, with
+the variable rule interpreted through this environment.
+
+For fixed outer anchor assignment `η`, write
+`Types_(Γ,η)(e) = { T | Γ,η ⊢ e : T }`. A graph scheme `S₁` is a valid
+principal scheme for `e₁` under `Γ,η` exactly when
+`Inst_S₁(η|A₁) = Types_(Γ,η)(e₁)`, where `η|A₁` is restricted to the
+scheme's free anchors. For `let x=e₁ in e₂`, use that scheme in the
+continuation:
+
+```text
+Inst_S₁(η|A₁) = Types_(Γ,η)(e₁) ≠ ∅
+Γ[x↦Poly(S₁)],η ⊢ e₂ : T
+──────────────────────────────────────────── Let
+Γ,η ⊢ let x=e₁ in e₂ : T
+```
+
+The equality premise says the RHS scheme captures exactly the declarative
+typing relation, rather than defining that relation from the generator. Its
+nonempty condition requires a valid RHS binding even if `x` is unused. Every
+occurrence of `x` may choose a different satisfying assignment to the
+scheme-local graph. This gives let-polymorphism directly in the declarative
+relation; it does not reuse Yulang's inference-stage scheme format or
+acceptance phase.
+
+## Generation and generalization boundary
+
+Let `Anch(Ξ)` be the union of (a) identities in monomorphic endpoint entries
+of the generation environment and (b) anchors exposed by polymorphic scheme
+entries. Every scheme lookup clones all of its `Q` identities freshly and
+retains its `A` anchors. Precisely, if `Ξ(x)=Poly(C,r,Q,A)`, a lookup
+allocates a fresh bijection `ρ:Q→Q'`, returns root `ρ(r)`, and contributes
+`ρ(C)` with anchors fixed. A monomorphic lookup returns its endpoint and no
+new obligations. Lambda parameters and application results also use fresh
+identities; the other syntax cases use the pure source-generation rules. For
+an RHS generation result `(t₁,C₁)`, define:
+
+```text
+Q₁ = Identities(C₁,t₁) \ Anch(Ξ)
+A₁ = Anch(Ξ) ∩ Identities(C₁,t₁)
+S₁ = (C₁,t₁,Q₁,A₁)
+```
+
+Identities in `Anch(Ξ)` that do not occur in the RHS are omitted from `A₁`.
+Freshness requires `Q₁` to be disjoint from every identity in the receiving
+context. Thus a lambda parameter or a shared outer inference variable cannot
+be generalized by an inner let, while every RHS-local graph identity is
+quantified. Nested scheme instantiation identities created while generating
+the RHS are RHS-local and therefore enter `Q₁`; anchors inherited from those
+schemes remain in `A₁`.
+
+The generator for `let x=e₁ in e₂` works as follows:
+
+1. Generate `(t₁,C₁)` for `e₁` under `Ξ`, using fresh local identities for
+   each polymorphic lookup.
+2. Form `S₁` using the partition above.
+3. Generate `(t₂,C₂)` for `e₂` under `Ξ[x↦Poly(S₁)]`. Each occurrence of `x`
+   inserts a separately renamed copy of `C₁` and uses its renamed root.
+4. Return `(t₂, C₁ ∪ C₂)`.
+
+Retaining the original `C₁` checks that the binding itself has a typing,
+including when `x` is unused. Its scheme lookups use disjoint fresh copies,
+so each use can choose a different local assignment. Repeated uses share the
+fixed `A₁` anchors but do not share `Q₁` assignments.
+
+## Conditional adequacy theorem
+
+Relate generator and semantic environments by `Ξ ≈_η Γ`:
+
+- `Ξ(x)=Mono(u)` iff `Γ(x)=Mono(eval(u,η))`;
+- `Ξ(x)=Poly(S)` and `Γ(x)=Poly(S')` iff
+  `Inst_S(η|A_S)=Inst_{S'}(η|A_{S'})`.
+
+The source-name domains must agree. `η` assigns every identity in
+`Anch(Ξ)` and every anchor exposed by the corresponding semantic environment.
+All identities generated by an expression are fresh from those anchors. This
+rules out assigning different semantic types to the same
+monomorphic endpoint and makes outer identity sharing explicit. Poly entries
+are related by denotation, not by syntax or binder IDs.
+
+**Environment extensionality.** If two semantic environments have the same
+monomorphic values and extensionally equal `Inst` sets for each polymorphic
+name at the fixed anchor assignment, then they assign the same type set to
+every expression. Induct on the expression: variable lookup uses the equal
+sets; integer, lambda, application, and subsumption preserve equality; a `Let`
+RHS has the same `Types` set by induction, so any scheme satisfying the exact
+equality premise for one environment satisfies it for the other, and the
+extended environments remain extensionally equal in the body. This lemma
+allows one graph scheme to represent any declaratively equivalent principal
+scheme.
+
+Assume the monomorphic expression-generation correspondence from
+`2026-09-30-intrusion-pure-source-typing-rules.md`. A structural induction on
+the full extended syntax (`Var`, `Int`, `Lam`, `App`, `Let`) proves, for every
+`Ξ ≈_η Γ`, that if generation returns `(t,C)`, with
+`Q=Identities(C,t)\Anch(Ξ)` and
+`A=Anch(Ξ)∩Identities(C,t)`, then:
+
+```text
+Sat(C,η|A,ν) => Γ,η ⊢ e : eval(t,η,ν)
+Γ,η ⊢ e : T => ∃ν. Sat(C,η|A,ν) ∧ eval(t,η,ν) ≤ T
+```
+
+Consequently `S_e=(C,t,Q,A)` satisfies the exact equation
+`Inst_{S_e}(η|A)=Types_(Γ,η)(e)`. This is the strengthened invariant needed
+for generalization; it is not assumed from scheme validity.
+
+The base cases are as follows. A monomorphic variable uses `Ξ≈_ηΓ` and
+subsumption; a polymorphic variable clones its scheme and uses the
+parent-transport fiber bijection to preserve the scheme denotation; an
+integer uses its fixed root. Lambda extends both environments with the same
+fresh parameter value, applies the body induction hypothesis, then puts that
+parameter identity in the enclosing expression's local set. Application
+combines the two disjoint local assignments and uses the Function subtyping
+law to match the generated application obligation.
+
+For `Let`, apply the induction hypothesis to `e₁` first. Its exact scheme
+equation proves the declarative premise
+`Inst_{S₁}(η|A₁)=Types_(Γ,η)(e₁)`. The nonempty condition is equivalent to
+existence of a satisfying base assignment for `C₁`. For completeness, a
+declarative derivation may use any principal scheme `S_d` whose `Inst` set is
+that same `Types` set. Environment extensionality relates
+`Γ[x↦Poly(S₁)]` to `Γ[x↦Poly(S_d)]`, so the extended generator and semantic
+environments satisfy `Ξ≈_ηΓ` even when the scheme graphs or binder IDs differ.
+Apply the induction hypothesis to `e₂`. In the forward direction, a satisfying
+assignment for `C₁∪C₂` contains both the base witness for `C₁` and one witness
+for each fresh scheme-use copy in `C₂`. In the reverse direction, the
+declarative let derivation supplies a base RHS witness and each occurrence
+chooses a type in `Inst_{S₁}`; the definition of `Inst` supplies a witness for
+that occurrence's copy. All local ranges are disjoint and every shared anchor
+uses the same `η`, so these witnesses combine into one assignment for
+`C₁∪C₂`.
+
+Thus the generated scheme's denotation equals the independently defined
+declarative type relation for every fixed anchor assignment. Root principality
+follows from this equality and ordinary upward subsumption, not from defining
+`Inst` alone. No least simultaneous value for all graph identities is
+required.
+
+## Ownership witnesses
+
+For `let id = λx.x in id 1`, RHS generation yields
+`root=Fun(a,a)`, `C=∅`, `Q={a}`, and `A=∅`. The lookup in `id 1` gets a fresh
+`a'`; its application obligation is
+`Fun(a',a') ≤ Fun(Int,b)`. Choosing `a'=Int` and `b=Int` satisfies it. A
+second occurrence of `id` gets a distinct identity, so it can choose a
+different argument type without changing the first use.
+
+For `λy. let k=λx.y in k 1`, the inner RHS root is `Fun(a,y)` with
+`Q={a}` and `A={y}`. Each lookup freshens `a` and fixes `y`. Thus the inner
+let cannot capture the enclosing lambda parameter, even though the scheme
+retains all RHS-local identities. The argument `a` is kept explicitly in the
+root relation; removing it to a polarity extreme would be an optional
+optimization requiring a separate preservation proof.
+
+## Boundary and composition consequences
+
+For a pure non-recursive let, the partition is derived rather than guessed:
+`Q₁` contains all fresh RHS identities and `A₁` contains precisely the RHS
+identities already owned by the environment. In particular:
+
+- an inner let cannot capture a lambda parameter or a shared outer variable;
+- an outer polymorphic scheme's local identities are freshly copied into the
+  RHS and may be generalized by the inner let, while its anchors remain fixed;
+- two uses of one local scheme share outer anchors but receive disjoint local
+  assignments;
+- unused bindings still have to admit a satisfying RHS assignment;
+- nested lets compose by carrying each binding's base constraints in the
+  enclosing graph and cloning its scheme constraints for every use.
+
+This also gives the recursive-group subcase a clean composition point: once
+the recursive SCC has produced member graph schemes, they enter `Ξ` as
+`Poly(S_d)`. An ordinary let RHS that uses a member receives fresh copies of
+the complete member graph; its own local variables can then be generalized
+without capturing the SCC scheme's fixed anchors.
+
+## Limits
+
+This is a candidate proof for a custom pure declarative system, not yet proof
+that the rule matches Yulang's full source semantics. It excludes effects,
+handler hygiene, roles, value/computation fetch distinctions, recursive
+groups nested in expressions, diagnostics, failure scheduling, and runtime
+entrypoint checks. It assumes graph schemes carry all constraints needed to
+characterize their root relation. The final accepted-program comparison with
+the frozen Oracle and the implementation design remain open.
+
+## Review record
+
+On 2026-09-30, this M3 semantic-contract slice received a compiler-referee
+review and a spec-auditor review. They found and closed environment-coherence,
+extended-induction, anchor-notation, and scope-wording gaps. The final delta
+review found no remaining concrete issue within this artifact's stated
+pure-fragment scope. These reviews did not assess the
+full Yulang type/effect semantics, an implementation, runtime soundness, or
+Oracle final-acceptance equivalence. This note remains a candidate proof and
+does not authorize implementation.

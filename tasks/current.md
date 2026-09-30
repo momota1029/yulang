@@ -801,7 +801,18 @@ separate binders; per-use renaming preserves the root relation. This removes
 mixed local/free ownership from that fragment, but does not solve it when
 nested boundaries or member-specific fetch kinds are admitted. The theorem
 and limits are in
-`notes/progress/2026-09-30-intrusion-pure-recursive-group-adequacy.md`. Next
-extend the independent typing rule to nested non-recursive let-polymorphism
-and derive its free-variable boundary partition before adding fetch/effect
-semantics.
+`notes/progress/2026-09-30-intrusion-pure-recursive-group-adequacy.md`. A
+nested-let graph-scheme rule now defines scheme meaning by
+existential graph denotation, derives `Q` from fresh RHS identities minus
+environment anchors, retains binding constraints even when unused, and
+clones local graph identities per lookup. Its reviewed M3 adequacy argument
+states the `Γ`/`Ξ` coherence invariant, proves exact root-relation equality by
+structural induction, and uses environment extensionality when the declarative
+rule chooses a different but denotationally equal scheme. Recursive member
+schemes can be supplied as polymorphic environment entries, but no combined
+recursive-group-plus-nested-let theorem is claimed. See
+`notes/progress/2026-09-30-intrusion-nested-let-graph-schemes.md`. This remains
+unapproved and does not cover recursive groups nested inside expressions,
+effects, or Oracle final acceptance. Next prove the combined pure
+recursive-group / nested-let rule, then compare its source envelope and
+observations with the frozen Oracle before expanding to fetch/effect behavior.
