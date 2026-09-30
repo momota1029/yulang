@@ -564,8 +564,13 @@ for `R/S/X`, the defined-lambda skeleton, application, and wrapper in
 `notes/progress/2026-09-30-intrusion-source-identity-map.md`; the q-cycle
 vertices resolve to `X⁻` and `S⁺`. A follow-up trace maps every named source
 effect variable and confirms the parameter's Bottom effect slot. This does not
-resolve the complete root epoch, stack-subtraction correspondence through the
-selected root, or the replay's full source provenance.
+resolve the source's pre-root constraint/event construction or the
+stack-subtraction correspondence through the selected root. A focused root
+attempt trace shows this fixture begins at epoch 27, settles in one attempt
+without mutations/restarts in either companion pass, and saves two
+quantifiers/zero recursive sandwiches; it still does not link those saved
+fields through projection to the public scheme. The replay's complete source
+provenance also remains open.
 The `H_d` bridge includes selected evidence and post-loop root state. Its type
 component must match realized roots to `Root_d` and accepted supertypes to
 `Pred_d`; diagnostics, provenance, and effects need separate observation

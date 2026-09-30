@@ -72,6 +72,39 @@ cycle's `BoundRecordId(4)` remains a replay conjunction at `TypeVar(4)` with
 premises rooted at unknown-internal constraints. This run-level ID alignment
 does not establish stable numeric identities across runs.
 
+## Root-preparation attempt for this fixture
+
+A second disposable worktree added trace-only epoch/restart logging to
+`generalize_root_with_prepasses_and_metrics` and ran the exact source through
+the production dump path:
+
+```text
+YULANG_INTRUSION_EXACT_ROOT_TRACE=1 \
+  CARGO_TARGET_DIR=/tmp/yulang-intrusion-root-epoch-target \
+  cargo test -p infer --lib scratch_exact_root_epoch_self_application -- --nocapture
+```
+
+The focused Rust test passed. For `DefId(0)` / `R=TypeVar(0)`, root
+preparation began at `ConstraintEpoch(27)`. It completed one attempt: the root
+compaction returned at epoch 27 with zero merge constraints; no merge,
+subtype, cast, or role restart occurred; both post-alias and post-cleanup
+companion passes reported `changed=false` at epoch 27. The saved generalized
+root had two ordinary quantifiers and zero recursive sandwiches. These IDs
+and counts describe that captured run only.
+
+The source identity map and this root-attempt log came from separate runs.
+Their shared `DefId(0)` / `TypeVar(0)` labels are run-local correspondences
+for the same first source definition, not persistent identity claims.
+
+This establishes that this source fixture's *root preparation* is a single
+non-mutating attempt once it starts at epoch 27. It does not trace the earlier
+source constraint/event construction that reached that epoch, prove the
+selected compact view equals a candidate `H_d`, or connect its two
+quantifiers and zero sandwiches through polarity rewrite to the public scheme.
+The q upper/lower evidence, latent stack relation, selected-root observation,
+and final use relation remain separate obligations. The instrumentation was
+discarded with the disposable worktree; frozen Oracle remains clean.
+
 The follow-up effect-role trace printed the callee and argument computation
 effects and the lambda parameter effect slots. Together with the earlier
 skeleton and wrapper trace, it resolves every named effect variable in the
@@ -83,5 +116,6 @@ relationship is governed by subtraction evidence, not assumed to be plain
 equality. Proving that relation through the selected-root and scheme stages
 remains required for the source-to-scheme theorem.
 
-No compiler code in this branch changed. The only test was the focused
-temporary Oracle trace above; no broad suite or performance measurement ran.
+No compiler code in this branch changed. The focused source-map and root
+preparation scratch tests ran only in disposable Oracle worktrees; no broad
+suite or performance measurement ran.
