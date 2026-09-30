@@ -1087,18 +1087,34 @@ trying to derive or simplify any weights. Details and exact commands are in
 The first independent direct-effect calculus is drafted in
 `notes/progress/2026-09-30-intrusion-shallow-handler-trace-calculus.md`. It uses
 free resumable request trees and a shallow Catch transformer; it does not yet
-model provider ownership or weights. The one-request fixture exposes a concrete
-acceptance/principal-bound candidate: the exact continuation is `Return`, but
-Oracle gives `k` the whole scrutinee effect, infers `[choose]`, and rejects an
-explicit `[]` function effect; both runtimes return `[1]`. Under the draft's
-finite-trace support order, `Empty` is least. This is not an unsoundness claim,
-and the principality divergence is still bounded to this candidate semantics.
-The two-request case keeps `[choose]` and both VMs report the second request
-unhandled, as shallow resumption predicts. No left/right-weight cause is
-isolated.
+model provider ownership or weights. The one-request fixture shows Oracle
+effect rows over-approximate exact finite trace support: its continuation is
+`Return`, but Oracle gives `k` the whole scrutinee effect, infers `[choose]`, and
+rejects an explicit `[]` function effect; both runtimes return `[1]`. This is
+not a required successor divergence. Exact traces are a soundness reference;
+the successor may use a coarser sound effect abstraction, and principality must
+be defined relative to the chosen abstraction. Exact continuation-sensitive
+inference and linear/affine usage tracking are not requirements absent separate
+language justification. The two-request case keeps `[choose]` and both VMs
+report the second request unhandled, as shallow resumption predicts. No
+left/right-weight cause is isolated.
 
-Next: close the finite direct trace fragment with exact row-order and
-continuation proofs, then add callback/thunk provider ownership and derive
-weight transport. Repeated pushes/shared pop, nested frames, incomplete
-handlers, and residual fan-out remain mandatory cases before method/role work.
-No implementation is authorized yet.
+The next probe found a candidate contradiction at a helper boundary:
+`invoke(f: () -> [choose] int) = f ()` and a caller that catches `invoke(f)`
+pass an explicit pure-result annotation, but runtime reports an unhandled
+`choose::reject`. The source contract supports compositional capture, though no
+exact double-boundary example is specified. Independent spec and compiler
+reviews agree it is a likely defect, with precise weighted cause still open.
+The paired two-call callback case behaves consistently with shallow semantics:
+its scheme retains stack-weighted `choose`, and resumption escapes on the
+second call; an aborting arm handles the first call. Details are in
+`notes/progress/2026-09-30-intrusion-weight-routing-counterexample-search.md`.
+
+Next: resolve and trace the helper-boundary candidate from source annotation
+through weighted constraints, `FunctionAdapter` planning, and runtime guard
+unwind; then choose a sound expressible effect abstraction and define
+principality relative to it. Exact trace support remains the semantic
+soundness reference, not an inference precision mandate; do not add
+linear/affine usage tracking without independent language justification. Keep
+testing nested frames, complete/incomplete handlers, residual fan-out, and the
+repeated-push/shared-pop case. No implementation is authorized yet.

@@ -1,7 +1,7 @@
 # Shallow handler trace semantics: first candidate
 
 Date: 2026-09-30
-Status: exploratory semantic candidate; non-authoritative; proof incomplete
+Status: exploratory semantic reference; non-authoritative; proof incomplete
 Scope: ordinary algebraic effect requests, shallow catch, exact finite traces
 Implementation authority: none
 Oracle: frozen Yulang2 `main` at `a58eefc3`
@@ -16,10 +16,14 @@ shallow resumption may expose an operation again after one request has been
 handled.
 
 This note defines a small trace model for the direct, non-higher-order fragment.
-It does not define provider ownership / hygiene, a finite principal row syntax,
-SCC transport, or a sound/principal weight calculus. It is a proof target for
-those extensions, not a change to the language contract or implementation
-instruction.
+It is a semantic reference for checking soundness. It does not require the
+successor's inference abstraction to recover exact continuation support. A
+coarser effect abstraction may conservatively retain a family when exact trace
+support is empty, provided that the chosen abstraction has a soundness theorem
+and principality is defined relative to what that abstraction can express. No
+linear/affine continuation typing or usage tracking is required by this note.
+Provider ownership / hygiene, SCC transport, and a sound/principal weight
+calculus remain open.
 
 ## 2. Semantic objects
 
@@ -139,17 +143,15 @@ The more precise annotation
 `my shallow_one(): [] int = ...` is rejected with
 `effect filter mismatch: choose is not allowed by []`. By Lemma 1, an exact
 finite-trace support semantics gives this closed computation an empty residual.
-Under the finite-trace support order defined in §2, `Row([choose])` is strictly
-above the least valid support `Empty`: this continuation has no later request.
-This is a concrete counterexample to principal projection relative to this
-candidate order and the source-level shallow semantics. It is not an
-unsoundness claim; Oracle's overapproximation remains a valid upper bound. The
-compatibility difference is precise: frozen Oracle rejects
-`shallow_one(): [] int`, while the successor should accept it if the
-occurrence-sensitive continuation analysis is proved. Source lowering at
-`control.rs:1603–1629` assigns the continuation the whole scrutinee effect,
-which explains this overapproximation; no left/right weight transformation is
-isolated as its cause.
+Thus Oracle's row is an over-approximation of exact trace support in this
+example. This is semantic characterization, not by itself a soundness or
+principality failure: the successor may intentionally use a coarser
+continuation abstraction, and its principal result must be measured against
+that abstraction's expressible bounds. Exact finite-trace rows would choose
+`Empty`; a coarser sound abstraction may retain `choose`. No compatibility
+delta is adopted here. Source lowering at `control.rs:1603–1629` assigns the
+continuation the whole scrutinee effect, which explains this over-approximation;
+no left/right weight transformation is isolated as its cause.
 
 The rejected annotation is important. A previous top-level binding annotation
 such as `my result: int = ...` constrains the stored value type, not the
@@ -216,30 +218,31 @@ Characterized in the frozen Oracle source:
 
 Not established:
 
-- A formal soundness or principality theorem for the successor.
-- That the counterexample extends beyond the finite direct fragment or proves a
-  global Oracle principality failure. It depends on the candidate order in §2
-  and exact suffix denotation; higher-order effects remain open.
+- A formal soundness theorem for the successor or a principality theorem
+  relative to its chosen effect abstraction.
+- That the over-approximation proves a principality failure in the successor.
+  Such a claim needs the successor's effect domain and expressibility order;
+  higher-order effects remain open.
 - Any unsoundness in Oracle weight propagation or any causal role for a
   left/right weight transformation in these examples.
 - The provider-ownership rule for callbacks, thunks, nested handler activations,
   or runtime guard identities.
 - Projection of shared residual variables for arbitrary weights.
 
-If the successor adopts exact finite-trace support for this fragment, record
-its compatibility difference precisely: accept a pure (`[]`) effect annotation
-for `shallow_one`, which frozen Oracle rejects as `choose`-effectful; continue
-to expose `choose` for `shallow_two`. Preserve shallow request semantics in
-both cases. This delta improves final well-typed acceptance without changing
-runtime handler behavior. It becomes authoritative only after independent
-semantic/specification review and a proof of the stated envelope.
+If the successor adopts exact finite-trace support for this fragment, it can
+accept a pure (`[]`) effect annotation for `shallow_one`, which frozen Oracle
+rejects as `choose`-effectful, while retaining `choose` for `shallow_two`. That
+is a possible compatibility delta, not a requirement. A coarser sound
+abstraction may keep the Oracle row. Preserve shallow request semantics under
+either choice, and justify principality relative to the selected abstraction.
 
 ## 7. Next proof obligations
 
-1. Define path/suffix denotation and an effect order for values, operations,
-   latent functions, thunks, and open outer assignments.
-2. Prove that projection from trace sets to finite family rows returns a least
-   representable bound for the finite direct fragment.
+1. Define path/suffix denotation and candidate effect abstractions for values,
+   operations, latent functions, thunks, and open outer assignments; state the
+   expressive order used for principality.
+2. Prove trace soundness of each chosen abstraction. Least bounds are required
+   only relative to that abstraction, not necessarily exact trace support.
 3. State the exact source/lowering relation that constructs the request tree and
    continuation suffix; prove correspondence for one, repeated, and
    non-resuming operation clauses.
@@ -248,7 +251,10 @@ semantic/specification review and a proof of the stated envelope.
    an outer-owned callback crossing an inner same-family catch, and an
    inner-owned callback.
 5. Only then define any weight as an encoding of this visibility/suffix
-   relation. Prove every left/right transformation preserves it, including
+   relation. Prefer a conservative sound abstraction if exact continuation
+   support would require linear/affine usage tracking or a richer type system;
+   such tracking needs independent language justification. Prove every
+   left/right transformation preserves the chosen abstraction, including
    repeated pushes with one shared pop, nested frames, incomplete handlers, and
    shared residual fan-out.
 6. Compare the encoding against the Oracle characterizations and record each

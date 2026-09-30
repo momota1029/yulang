@@ -198,3 +198,27 @@ compiler implementation. Those remain research obligations under the active
 successor-design gate. The current status of the candidate semantics and
 counterexample search is recorded in
 `notes/progress/2026-09-30-intrusion-oracle-latent-effects.md`.
+
+## 9. User-directed effect-abstraction amendment (2026-09-30)
+
+The user clarified that exact continuation-sensitive trace support is a
+semantic reference for soundness, not a mandatory precision target for
+inference. The shallow one-request fixture shows Oracle effect rows can
+over-approximate exact trace support; that observation alone is not a successor
+principality failure.
+
+- Do not require the successor to infer exact continuation-sensitive effects
+  if doing so requires linear/affine continuation typing, usage tracking, or a
+  substantially richer type system without independent language justification.
+- A conservative sound effect abstraction is acceptable. State its expressive
+  bounds and define principality relative to that abstraction.
+- Keep exact trace semantics as the reference against which soundness is proved.
+- If a coarser abstraction causes a concrete Oracle acceptance difference,
+  record the exact behavior, the successor's bound/acceptance rule, and its
+  final well-typed-program compatibility effect before treating the difference
+  as intentional.
+
+This amendment does not settle helper-boundary capture, provider ownership,
+weight meaning, or left/right preservation. It does not authorize compiler
+implementation. The active evidence and next proof step are in
+`notes/progress/2026-09-30-intrusion-weight-routing-counterexample-search.md`.
