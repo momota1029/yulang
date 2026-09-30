@@ -1466,6 +1466,16 @@ implementation authority follows yet.
 The candidate now classifies the source families that the coupling proof must
 handle: direct requests, assignment-uniform known targets, open/imported calls,
 higher-order arguments, joins/continuation summaries, forwarded re-entry, and
-annotation filters. Missing origin evidence must widen to unknown/top. This is
-a proof checklist only; the transfers, finite quotient, and acceptance cost
-remain unproved.
+annotation filters. An accepted compiler-referee major finding identified
+three missing distinctions in that checklist. Handler clause coverage and the
+scrutinee upper `[handled; residual]` must have their own source row: mentioning
+a family alone creates neither a request offer nor `Drop` evidence. Whether
+that bound can enter successor `May(C)` remains open; if it can, matching offer
+provenance or unknown/top is required. Value and operation arm effects belong
+in `A`, with their emitted requests tracked for outer handlers rather than this
+shallow handler's scrutinee `Drop`. The annotation/filter row applies only to
+result-position upper filtering; callable interface latent bounds require
+call/formal target evidence or unknown/top. The candidate checklist now records
+these proof obligations, closing the major finding at the record level only.
+The successor transfer, finite quotient, acceptance cost, and row-to-offer
+proof remain open. No Oracle authority or implementation authorization follows.

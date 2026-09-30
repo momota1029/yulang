@@ -1731,16 +1731,20 @@ solved row alone:
 | Source of a family bound | Required offer/provenance action |
 |---|---|
 | Direct operation request | Add its exact family, operation, and origin fact before handler matching. |
+| Handler clause operation coverage and scrutinee upper `[handled; residual]` | Track the mentioned family as coverage or an upper bound only. Mere mention creates neither a scrutinee request offer nor `Drop` evidence. Prove whether and how this bound contributes to successor `May(C)`; if it does, provide matching offer provenance or retain unknown/top. |
 | Known call, force, or callable value | Include offers from every target admissible under the current type/effect assignment; preserve latent facts across storage and re-entry. |
 | Open/imported callable or row | Add unknown/top offer facts at every compatible handler unless a closed interface summary bounds them. |
 | Higher-order formal or callback argument | Quantify over all admissible supplied values, or use an interface summary/top; the annotation's family set alone does not identify the concrete request origin or target. |
 | Row join or whole-scrutinee continuation summary | Union the derivation provenance; if no compatible offer can be established for an admitted family, retain it as unknown/top. |
 | Forwarded request resumed by an outer context | Re-enter the captured handler wrapper and include the resulting offers; raw matched-continuation resumption remains separately summarized through `k`. |
-| Result-effect annotation/filter | Constrain the inferred row but do not invent an effect origin or prove that an admitted family is offered. |
+| Value and operation arm effects | Count these effects in `A`; track requests emitted by the arms for outer handlers. An arm request is not an offer to this shallow handler's scrutinee `Drop`. |
+| Result-position effect annotation/filter | Constrain the inferred result row but do not invent an effect origin or prove that an admitted family is offered. Callable interface latent bounds belong to the call/formal source rules above; absent target offer proof, retain unknown/top. |
 
 This table is a proof checklist, not a transfer definition. In particular,
 "known call" requires a target superset uniform over admissible assignments,
 and higher-order quantification may need `TopCall#`; either can change final
 acceptance. It remains to prove the table's transfers preserve the source
 request semantics and that their resulting origin set is finite (or has a
-sound finite quotient).
+sound finite quotient). The handler-coverage contribution to successor
+`May(C)` is deliberately unresolved; this checklist does not select a transfer
+or authorize implementation.
