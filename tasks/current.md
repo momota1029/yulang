@@ -605,7 +605,9 @@ specializer checks `f : (unit -> unit) -> unit`; the recursive `f` occurrence
 is passed to `id : unit -> unit`, producing `(unit -> unit) <: unit`.
 `check` and `run` on the first source did not terminate
 within the observation window and were interrupted, so they give no final
-entrypoint result. The replacement draft now treats Oracle polarity erasure
+entrypoint result. `dump-poly` succeeds on that same source, prints
+`main : never`, and marks `main` as a runtime root; `dump-mono` then rejects
+its concrete instance. The replacement draft now treats Oracle polarity erasure
 as an observed projection transition, not a proved solution-preserving
 simplification; scheme inference and later specialization are separate
 observations. Temporary traces confirm the body check rejects both a concrete

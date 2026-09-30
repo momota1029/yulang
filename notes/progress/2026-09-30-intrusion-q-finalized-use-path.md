@@ -190,6 +190,28 @@ result for this source, not a general proof that specialization reconstructs
 every erased recursive constraint or that an intrusion solver has the same
 accepted-use relation.
 
+## Inference dump versus mono dump for `f 1`
+
+The exact `pub f x = x f; pub main = f 1` source has a successful
+`dump-poly` observation:
+
+```text
+pub d0:f: any -> ['a] 'b = ...
+pub d1:main: never = ...
+runtime roots d1:main
+```
+
+The command exits successfully with no diagnostic, while `dump-mono` rejects
+the later `f : int -> unit` body instance as recorded above. Therefore the
+Oracle's inference-stage public observation admits `main : never` and marks it
+as a runtime root, but mono specialization does not produce a complete mono
+program for this source. This is an observed phase difference; it does not
+establish whether the runtime entrypoint can execute or how `check` and `run`
+terminate. It makes the successor proof obligation precise: compare inference
+results and specialization outcomes as separate components of the public
+observation, and do not equate a successful `dump-poly` with successful
+end-to-end compilation.
+
 ## Shared outer anchor with two local scheme uses
 
 A second disposable-worktree Rust probe used:

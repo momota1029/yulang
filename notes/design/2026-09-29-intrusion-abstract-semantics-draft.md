@@ -606,18 +606,26 @@ negative-only parameter variable q. The Oracle then erases q, prunes its
 recursive row, and publishes a `Top` Function argument with no such bound. Its
 inference-stage two-use probe reports `int` and `bool` for `f 1` and `f 2`, but
 a frozen-Oracle `dump-mono` run rejects `f 1` later with an unsatisfied
-`int <: Function` constraint. Source tracing found a per-use definition-body
-recheck path that could produce this, but the CLI capture did not identify its
-failing instance or signature. Thus
-this projection is not established as a solution-preserving simplification
-of the entire source-bound assignment relation, and the q-free scheme alone
-does not establish end-to-end use success. The parity theorem must relate the
+`int <: Function` constraint. A temporary trace identifies the exact
+specialized `f` instance as `int -> unit`; `emit_var` passes its per-use
+signature to the definition-body check, which rejects that body. A second
+source, `pub id x = x; pub use id = f id`, is rejected with `f` instantiated
+as `(unit -> unit) -> unit` and `(unit -> unit) <: unit` at the recursive
+`f` occurrence. These observations establish two rejected concrete uses, not
+that specialization rejects every use outside the erased q relation. Thus
+the projection is not established as a solution-preserving simplification of
+the entire source-bound assignment relation, and the q-free scheme alone does
+not establish end-to-end use success. The parity theorem must relate the
 complete entrypoint-indexed source-to-projection-to-specialization pipeline,
 rather than silently identifying `Csrc` solutions with post-projection scheme
 instances. The focused probe details and conditional assignment-fiber no-go
 are recorded in
 `notes/progress/2026-09-30-intrusion-powerset-carrier-candidate.md` and
-`notes/progress/2026-09-30-intrusion-q-finalized-use-path.md`.
+`notes/progress/2026-09-30-intrusion-q-finalized-use-path.md`. In particular,
+`dump-poly` succeeds on `pub f x = x f; pub main = f 1`, prints `main : never`,
+and marks `main` as a runtime root, while `dump-mono` rejects the later
+`int -> unit` instance. The entrypoint-indexed observation must preserve this
+phase distinction; inference success is not mono-program success.
 
 ### Alpha-renaming commutes with the pure root projection
 
