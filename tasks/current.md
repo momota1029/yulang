@@ -1418,3 +1418,16 @@ than this effect-method branch and open registries remain uncovered; the next
 step is to bound those fallback callable targets or widen them to unknown, then
 prove row-to-offer coupling. This is Oracle resolver characterization, not
 successor method-selection authority.
+
+Source inspection narrowed the residual fallback paths: a function upper may
+probe its argument effect row (already covered by `NameTargets`), then its
+argument value; unresolved sites can later use role-method or record-field
+fallback. Those other callable bodies can also emit offers, so the effect gate
+needs a sound finite callable superset or top offers for them. This records
+only the may-origin dependency and does not begin the later resolver semantics.
+A conditional effect-only corollary is now explicit: an unresolved/open call
+may contribute `⊤Eff` and top offers at every compatible handler, and the
+fixed-`Drop` law leaves `⊤Eff` unchanged. This prevents unknown call effects
+from being erased, but it is not yet a selected typing rule or an end-to-end
+soundness proof; call-entry, returned-value, captured-wrapper, and re-entry
+simulation still need proof.

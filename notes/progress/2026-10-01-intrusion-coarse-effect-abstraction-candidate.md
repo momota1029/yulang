@@ -444,6 +444,33 @@ only the other callable fallback targets remain outside this characterization.
 The review did not establish successor callable-target coverage or soundness
 of the phase-one transition relation.
 
+Primary source inspection further locates the uncovered fallback: the Oracle's
+`probe_method_upper` checks a function's argument-effect component, then its
+argument value; after receiver probes, unresolved sites can resolve through a
+role method, then fall back to a record-field constraint (`main` at
+`a58eefc3`,
+`crates/infer/src/analysis/session/selection.rs:412-435,732-773,890-910`;
+`crates/infer/src/analysis/session/lifecycle.rs:846-935`). Each selected body
+may contribute offers. Until a source-level callable superset covers these
+paths, the effect gate needs unknown/top offer coverage at every compatible
+handler. This accounts for the dependency without defining successor role or
+record selection semantics; those remain in the later required gate.
+
+#### Conservative unknown-call consequence (conditional)
+
+For an open or unresolved callable target that has no proved finite
+`FallbackTargets(s)` superset, one candidate is to assign the call's immediate
+and latent effect summary `⊤Eff`, and place top offer/blocker facts at every
+compatible handler slot. The existing effect lattice defines
+`remove(⊤Eff, Drop) = ⊤Eff`; therefore no finite handler drop can erase any
+effect contributed through that call. The top observation also prevents the
+call from supplying positive eligibility evidence for a finite `Drop#`.
+This is a conservative fallback corollary, not a selected source typing rule:
+it is sound only if every concrete target/effect is represented by `⊤Eff` and
+the top offers simulate call entry, returned values, captured wrappers, and
+later re-entry. Unknown target typing and annotation acceptance remain outside
+this effect-only statement.
+
 If these premises hold and `→#` is independent of inferred effect rows, freeze
 `Drop#` and solve the effect lattice with `F_Drop#`. The reviewed leastness
 result then applies, subject to source derivations matching its inequalities.
