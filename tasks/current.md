@@ -1362,3 +1362,13 @@ trace semantics as the soundness reference
 and principality relative to the chosen expressible abstraction; exact
 continuation support and use counts are not requirements absent independent
 language-design justification.
+
+The fixed-`Drop` principality proof cannot yet be combined directly with
+may-origin discovery. A compiler-referee delta review confirmed that
+`remove(E, Drop(Q))` is nonmonotone over the unrestricted product when `Drop`
+requires positive origin evidence, and that the row/provenance-coupled subset
+is not automatically closed under componentwise meet. This does not reject a
+coupled construction; it makes the next effect-solver gate explicit: either
+compute and freeze a source-sound `Drop` before effect solving, or prove a
+monotone coupled domain with its own least-solution theorem. Details are in
+`notes/progress/2026-10-01-intrusion-coarse-effect-abstraction-candidate.md`.

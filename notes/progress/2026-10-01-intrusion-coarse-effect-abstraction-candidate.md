@@ -160,6 +160,41 @@ addition, each family in a scrutinee row must have a corresponding request
 fact in `Origins` or an explicit unknown fact; otherwise a missing origin
 could make the coverage check vacuously succeed.
 
+#### `Drop` complicates joint monotonicity with may-origin evidence
+
+Write `Q(H,f)` for the request facts currently known for one handler/family
+pair, ordered by set inclusion, and let
+`T(E,Q) = remove(E, Drop(Q))`. The positive-evidence condition makes this
+composition non-monotone over the unrestricted product: for `E = {f}`, start
+with `Q₀ = ∅`, so `Drop(Q₀) = ∅` and `T(E,Q₀) = {f}`. Add one fully covered,
+eligible fact `q_ok`; then `Q₁ = {q_ok}`, `Drop(Q₁) = {f}`, and
+`T(E,Q₁) = ∅`. Adding that evidence decreased the result. Now add a blocked
+fact `q_blocked`; `Q₂ = {q_ok,q_blocked}` revokes the drop and gives
+`T(E,Q₂) = {f}`. Thus `T` is neither monotone nor antitone in the unrestricted
+may-fact powerset order. The first state violates row/provenance coupling when
+`E = {f}`, so it is not by itself a counterexample on the coupled admissible
+states. But that invariant does not automatically give a complete lattice:
+`({f},{q₁})` and `({f},{q₂})` can each be admissible for two covered eligible
+origins, while their componentwise meet `({f},∅)` violates the invariant.
+Therefore Tarski/Kleene leastness cannot be applied to the restricted state
+space without proving a suitable lattice or closure construction.
+
+This is not a counterexample to a coupled operator whose order and transfer
+rules prove monotonicity, or to a staged analysis. It shows that the current
+finite-lattice leastness result applies directly only after a sound
+`Drop`/callback input is fixed. A clean candidate phase order is to compute a
+source-sound may-origin and may-block over-approximation first, freeze its
+conservative `Drop`, then solve effect rows. If origins depend on inferred rows
+or a joint worklist is used, prove monotonicity on the actual coupled domain and
+construct a complete-lattice or alternative least-solution argument for its
+admissible states.
+
+A focused compiler-referee delta review confirmed the two product-order
+comparisons and the componentwise-meet counterexample. It confirmed only that
+the fixed-`Drop` theorem does not automatically lift to the proposed joint
+product/coupled state space; it did not rule out a separately constructed
+monotone coupled domain or certify the staged provenance analysis.
+
 ### Finite may-block provenance domain (conditional construction)
 
 A possible finite quotient keeps effect rows coarse while tracking only enough
