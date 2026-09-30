@@ -155,10 +155,14 @@ activation. Unknown configurations are treated as ineligible and prevent
 subtraction. `Origins` and `Drop` must be valid uniformly for all admissible
 assignments and configurations in the claimed soundness domain, not only
 snapshots visited by Kleene iteration. If eligibility depends on inferred
-effect slots, monotonicity must be proved again rather than assumed. In
-addition, each family in a scrutinee row must have a corresponding request
-fact in `Origins` or an explicit unknown fact; otherwise a missing origin
-could make the coverage check vacuously succeed.
+effect slots, monotonicity must be proved again rather than assumed. Row /
+provenance coupling must distinguish route: contributions that may be offered
+to this handler require a corresponding request fact in `Origins` or an
+explicit unknown fact; contributions known to occur only after a matched
+request's raw continuation are instead coupled to `k`'s latent row and the
+arm/value result that invokes or exports it. Joined paths or unknown
+provenance that prevent this distinction must retain both possible routes or
+use unknown, so the coverage check cannot pass vacuously.
 
 #### `Drop` complicates joint monotonicity with may-origin evidence
 
@@ -227,10 +231,13 @@ activation relation adds `UnknownMask`.
 This is a finite-domain candidate, not a construction theorem. Its simulation
 must prove that all concrete request/handler configurations map to abstract
 facts, including requests carried through closures and requests reached after
-forwarding. Its row/provenance coupling must prove that every family in each
-scrutinee row has an abstract request fact or unknown fact. The unknown
-fallback is sound only under those coverage premises and can reduce final
-acceptance; its precision over the supported envelope remains unmeasured. The
+forwarding. Its route-sensitive row/provenance coupling must map each family
+contribution that may be offered to this handler to an abstract request fact
+or unknown fact, and separately preserve matched raw-continuation
+contributions in the latent effect of `k` and any value that captures or
+invokes it. The unknown fallback is sound only under those coverage premises
+and can reduce final acceptance; its precision over the supported envelope
+remains unmeasured. The
 least-bound argument above assumes `Drop` and callback contracts are fixed
 inputs. One possible phase order is to compute a sound may-block summary first
 and then solve effect rows. If origin discovery depends on inferred rows, or
@@ -342,12 +349,15 @@ full set of possible scope classes for each concrete
 eligibility mask. Any `InsideDenied`, `Unknown`, or unresolved blocker prevents
 subtraction unless a corresponding in-scope grant is proved. This is the same
 invariant required by the observation/refinement condition below, including
-offers that vanish on their emitting edge. In addition, for every admissible source/type
-assignment and every family admitted to a scrutinee row, row/provenance
-coupling must find a corresponding reachable `ReqFact` or explicit unknown
-fact. Open/imported rows, unresolved call targets, or families not enumerated
-by phase one therefore force unknown/top and cannot be subtracted. This
-uniform premise is not proved by reachability alone. Target coverage is
+offers that vanish on their emitting edge. In addition, for every admissible
+source/type assignment, row/provenance coupling must classify each family
+contribution by route. A contribution that may be offered to this handler
+needs a corresponding reachable `ReqFact` or explicit unknown; a contribution
+known only behind a matched raw continuation needs the separate `k` latent-row
+and arm/value preservation obligation. Open/imported rows, unresolved call
+targets, and joined or otherwise unclassified routes force unknown/top for
+offer eligibility. This uniform premise is not proved by reachability alone.
+Target coverage is
 uniform over every type/effect assignment admissible under the successor
 semantics: phase one cannot use one post-inference target snapshot. It must
 include every compatible target in a row-independent superset or widen an
@@ -841,10 +851,13 @@ Define `κ ∈ γ(A)` when all of the following hold:
    pending lost wrapper identity maps to `UnknownRef` with top control. Any
    `TopControl` fact carries the top effect/provenance/offer summary above; it
    cannot exist as an untainted control-only marker.
-6. For every family in a scrutinee effect bound, the offer component contains
-   a corresponding request fact or top fact at every possibly receiving
-   handler slot. For `⊤Eff`, this coupling is top at every compatible local
-   handler slot and imported interface destination.
+6. For every family in a scrutinee effect bound, its contribution is
+   classified by route: a current or forwarded route to a handler is covered
+   by an offer fact at every possibly receiving slot; a route confined to a
+   matched raw continuation is preserved in that continuation's latent effect
+   and the arm/value slot that invokes or exports it; an unresolved or mixed
+   route retains all possibilities or widens to unknown. For `⊤Eff`, all
+   effect, continuation, offer, and compatible interface destinations are top.
 
 The projection of a dynamic handler or boundary identity to a static site is
 only a carrier for a *set* of possible dynamic instances; it is never an
@@ -1024,8 +1037,13 @@ forwarded resumption, and multi-shot continuation invocation. Forwarded
 resumption restores its captured handler context; matched raw `k` does not
 automatically restore the matching shallow handler. Multiple resumes join
 their abstract outcomes and require no usage count. A row/provenance coupling
-lemma must additionally map each family in a scrutinee row to a represented
-request fact or `Unknown`. Step simulation alone does not justify `Drop`; also
+lemma must additionally partition each family contribution by route. A
+contribution that may be offered to `H` maps to a represented request fact or
+`Unknown`; a contribution confined to a matched raw continuation is instead
+preserved through `k`'s latent effect and the arm/value effect if invoked or
+exported. If paths are joined or the route is unknown, represent every
+possible route or widen to `Unknown`. Step simulation alone does not justify
+`Drop`; also
 prove the following observation/refinement invariant, including at the initial
 state:
 
@@ -1631,9 +1649,12 @@ request of family `f` is covered and visible at that activation, with positive
 evidence that the handler is active. This quantification must account for
 forwarding: an outer handler may resume a forwarded continuation zero, one,
 or multiple times, producing different configurations. A row/provenance
-coupling premise must ensure each family in `May(C)` has a corresponding
-request fact in `Offered` or is conservatively retained as unknown. The
-abstract result is:
+coupling premise must classify each contribution to `May(C)` by route: a
+contribution that may be in `Offered` needs a covering request fact or
+unknown; a contribution confined to a matched raw continuation is instead
+covered by the latent `May(C)` assigned to `k` and charged to the arm/value
+summary when invoked or exported. If a contribution may follow both routes,
+both obligations apply. The abstract result is:
 
 ```text
 (May(C) \ Drop(H, C, κ0))
@@ -1703,26 +1724,38 @@ such evidence can be transported soundly.
 
 #### Row-to-offer coupling is still a separate construction obligation
 
-The conditional lemma above cannot equate abstract row membership with a
-concrete reachable request. A conservative row join or a whole-scrutinee
-latent summary may admit a family even when no concrete trace emits it; the
-concrete request-annotation result contract is a separate upper filter and is
-not itself a lower-row contribution. Therefore the required coupling is from
-each family admitted to `May(C)` to either (a) a sound abstract possible-offer
-fact at each compatible handler slot, which may over-approximate concrete
-reachability, or (b) an explicit unknown/top fact that prevents subtraction.
-Concrete reachability alone is not enough to justify `Drop` when the source
-row derivation has no corresponding concrete request witness. The proof must
-trace every family contribution through the source constraints, distinguish
-row joins and latent whole-scrutinee summaries from annotation filters, and
-show that missing correspondence widens to unknown rather than disappearing.
+The conditional lemma above needs route-sensitive coupling, not equality
+between abstract row membership and a concrete offer. An effect contribution
+can reach this handler on the initial or a forwarded path, be confined to a
+matched raw continuation, or have both possibilities after a join. An
+open/imported or otherwise unclassified contribution also needs an unknown
+route. The concrete request-annotation result contract remains a separate
+upper filter and is not itself a lower-row contribution.
 
-This is an unverified proof risk, not an established Oracle behavior or a
-counterexample to the candidate. No claim is made that annotation contracts
-add families to `May(C)`; the risk concerns conservative joins, latent
-summaries, and open/imported contributions. Until this coupling construction
-is supplied uniformly over admissible type/effect assignments, neither the
-finite offer closure nor its `Drop` certificate is established.
+There is a concrete counterexample to the earlier blanket coupling premise.
+Take distinct families `P` and `Q` and the tree
+`C = Request(P.ping, (), λ_. Request(Q.choose, (), λ_. Return(v)))`. Let `H`
+cover both operations and its `P.ping` arm invoke raw `k`. Then
+`May(C) = {P,Q}`, but only `P.ping` is offered to `H`; the raw continuation
+emits `Q.choose` outside `H`. This is the distinct-family case in Lemma 3 of
+`2026-09-30-intrusion-shallow-handler-trace-calculus.md`. The `Q`
+contribution is included through
+`k : May(C)` in the arm bound `A` when resumed. Thus the prior blanket premise
+requiring every family in `May(C)` to appear in `Offered(H,C)` was too
+strong. The conditional handler soundness formula is unchanged: raw suffixes
+remain accounted for through `k`, while `Drop` quantifies only over offers to
+this handler.
+
+Route coupling instead classifies each *contribution* (not just each family)
+as current/forwarded offer, matched-raw-continuation latent effect, or unknown.
+Current/forwarded routes need possible-offer facts at every compatible
+handler slot. Raw-only routes need preservation in `k`'s latent row and in
+every arm or value type that invokes or exports `k`. Mixed routes retain both
+obligations. An unclassified possible offer widens to unknown/top so it cannot
+be subtracted. This uses no continuation-use count. The witness is an
+inference about the candidate's proof premise, not a new Oracle behavior or a
+counterexample to the conditional effect formula. Uniform transfer, finite
+quotient construction, and source-constraint correspondence remain open.
 
 A source-derivation audit for the eventual construction should classify every
 effect-family contribution before closure, rather than infer origins from the
@@ -1731,11 +1764,11 @@ solved row alone:
 | Source of a family bound | Required offer/provenance action |
 |---|---|
 | Direct operation request | Add its exact family, operation, and origin fact before handler matching. |
-| Handler clause operation coverage and scrutinee upper `[handled; residual]` | Track the mentioned family as coverage or an upper bound only. Mere mention creates neither a scrutinee request offer nor `Drop` evidence. Prove whether and how this bound contributes to successor `May(C)`; if it does, provide matching offer provenance or retain unknown/top. |
+| Handler clause operation coverage and scrutinee upper `[handled; residual]` | Track the mentioned operations as coverage or an upper constraint only. Mere mention creates neither a scrutinee request offer nor `Drop` evidence. This candidate disallows a direct positive contribution to `May(C)`; source-to-constraint proof must show that the upper bound constrains rows without generating effect support. If the solver cannot maintain this separation, revise the representation or candidate semantics; do not turn coverage metadata into a fabricated offer. |
 | Known call, force, or callable value | Include offers from every target admissible under the current type/effect assignment; preserve latent facts across storage and re-entry. |
 | Open/imported callable or row | Add unknown/top offer facts at every compatible handler unless a closed interface summary bounds them. |
 | Higher-order formal or callback argument | Quantify over all admissible supplied values, or use an interface summary/top; the annotation's family set alone does not identify the concrete request origin or target. |
-| Row join or whole-scrutinee continuation summary | Union the derivation provenance; if no compatible offer can be established for an admitted family, retain it as unknown/top. |
+| Row join or whole-scrutinee continuation summary | Preserve route tags by contribution: current/forwarded offer, matched raw-continuation latent effect, or unknown. A mixed join keeps all possible routes; raw-only contributions flow through `k`/captured values, not a fabricated offer to the matching handler. |
 | Forwarded request resumed by an outer context | Re-enter the captured handler wrapper and include the resulting offers; raw matched-continuation resumption remains separately summarized through `k`. |
 | Value and operation arm effects | Count these effects in `A`; track requests emitted by the arms for outer handlers. An arm request is not an offer to this shallow handler's scrutinee `Drop`. |
 | Result-position effect annotation/filter | Constrain the inferred result row but do not invent an effect origin or prove that an admitted family is offered. Callable interface latent bounds belong to the call/formal source rules above; absent target offer proof, retain unknown/top. |
@@ -1769,7 +1802,7 @@ The scrutinee's effect summary is derived from its computation and
 callable/latent sources; the handler transforms that summary using coverage
 and visibility, and arm execution contributes separately through `A`. A
 family may enter `Drop` only if every possible operation occurrence and offer
-of that family is covered and visible. The exact-trace Lemma 3 establishes
+of that family is covered and visible. The exact-trace Lemma 4 establishes
 that clause coverage emits no concrete request; excluding coverage as a
 positive source in this coarser abstraction is a candidate rule choice
 consistent with the lemma, not a consequence forced by it. Other abstraction

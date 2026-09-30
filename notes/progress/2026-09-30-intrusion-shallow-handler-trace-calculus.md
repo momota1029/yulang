@@ -81,7 +81,7 @@ This is a declarative shallow-handler rule. It agrees with the frozen source
 contract's documented shallow behavior, but its truth here does not come from
 `StackWeight`, `SubtractId`, row routing, or their implementation.
 
-## 4. Three trace lemmas
+## 4. Four trace lemmas
 
 ### Lemma 1: one handled request can have an empty residual
 
@@ -119,7 +119,25 @@ These two cases rule out unconditional subtraction of a handled family from a
 whole computation effect: the residual depends on the continuation after the
 specific request. The family label alone does not determine it.
 
-### Lemma 3: clause coverage does not generate a request
+### Lemma 3: a raw continuation can emit a different family outside the handler
+
+Let `P` and `Q` be distinct operation families, and let
+`C = Request(P.ping, (), λ_. Request(Q.choose, (), λ_. Return(v)))`. Suppose
+`H` has arms covering both operations, and its `P.ping` arm invokes raw `k`.
+Then the trace of `H(C)` reaches `Q.choose` outside `H`: matching `P.ping`
+runs the arm on the raw continuation, which does not reinstall `H`. Thus
+`{P,Q}` is in the whole-tree support, while only the initial `P.ping` request
+is offered to this `H`; `Q.choose` is not. If the arm invokes `k`, the `Q`
+effect is accounted for through the continuation's latent effect and the arm
+summary, not through an offer to `H`.
+
+The family distinction matters: if both operations belonged to the same
+family, the initial `P.ping` would already witness an offer for that family.
+This example therefore refutes a blanket requirement that every family in the
+whole scrutinee support have an offer at the current handler. It does not
+refute the handler-effect bound: raw suffixes remain included through `k`.
+
+### Lemma 4: clause coverage does not generate a request
 
 Let `f` occur only in `H`'s covered-operation set. Suppose no finite path of
 the source request tree, nor any executed value arm, operation arm, or raw

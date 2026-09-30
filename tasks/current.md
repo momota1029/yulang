@@ -1449,19 +1449,19 @@ return, escaped values, and later client callback/closure/thunk/continuation
 re-entry. The lemma remains conditional and does not establish actual fallback
 placement, annotation acceptance, or principality.
 
-The next closed proof obligation is row-to-offer coupling, separate from the
-conditional handler simulation: every family admitted by a scrutinee effect
-bound must yield a sound abstract possible-offer at each compatible handler,
-or an explicit unknown/top fact that blocks subtraction. A bounded
-architecture pass identified a specific risk: conservative joins and the
-whole-scrutinee latent continuation summary may admit a family without a
-concrete reachable request. The proof must track those row derivations and
-widen unmatched contributions to unknown; concrete-trace reachability alone
-cannot justify a drop. The annotation result contract is an upper filter, not
-a lower-row contribution. This is an unverified candidate risk, not a
-counterexample or selected rule. `notes/progress/2026-10-01-intrusion-coarse-effect-abstraction-candidate.md`
-records the distinction. No finite `Drop#`, leastness transfer, or successor
-implementation authority follows yet.
+The next closed proof obligation is route-sensitive row/provenance coupling,
+separate from the conditional handler simulation. Contributions that may be
+offered to a handler need possible-offer facts or unknown/top; contributions
+confined to a matched raw continuation remain in `k`'s latent effect and the
+arm/value path that invokes or exports it. A bounded compiler-referee search
+found a distinct-family counterexample to the former blanket premise that
+every family in the scrutinee bound must appear as an offer to the same
+handler. Mixed paths retain both obligations. The annotation result contract
+is an upper filter, not a lower-row contribution. The refined premise is
+recorded in `notes/progress/2026-10-01-intrusion-coarse-effect-abstraction-candidate.md`;
+finite route transfer, quotient, and source-constraint correspondence remain
+unproved. No finite `Drop#`, leastness transfer, or successor implementation
+authority follows yet.
 
 The candidate now classifies the source families that the coupling proof must
 handle: direct requests, assignment-uniform known targets, open/imported calls,
@@ -1492,8 +1492,8 @@ row-to-offer coupling and successor transfer proof, with no implementation
 authority.
 
 Independent compiler-referee and specification delta reviews found no
-blocking or major issue in the direct trace lemma. The specification review's
-minor stale heading (“Two trace lemmas”) is corrected to “Three trace lemmas.”
+blocking or major issue in the direct trace lemmas. The specification review's
+minor stale heading was corrected, and the section now contains four lemmas.
 This certifies only the finite direct-tree non-generation lemma and its record
 scope; higher-order transfer, row lowering, row-to-offer coupling, and the
 successor effect calculus remain unproved.
@@ -1506,18 +1506,43 @@ operation occurrence and offer of the family, at every represented handler
 activation including forwarded/resumed suffixes, to be covered and visible.
 Scrutinee effects come from computation/callable/latent sources, while arm
 effects stay in `A`.
-This candidate choice is consistent with, but not forced by, the direct trace
-lemma, which proves only that coverage alone emits no concrete request. Source
-lowering must prove that the upper bound constrains rows without adding
-requests/offers; the exact final-acceptance impact remains unknown.
+This candidate choice is consistent with, but not forced by, Lemma 4 of the
+direct trace calculus, which proves only that coverage alone emits no concrete
+request. The candidate disallows the coverage upper as a direct positive
+`May(C)` source; source lowering must prove that it constrains rows without
+generating support. The exact final-acceptance impact remains unknown.
+
+A compiler-referee adversarial check found a counterexample to the earlier
+blanket row-to-offer premise: with distinct families `P` and `Q`, a `P.ping`
+request can match `H`, whose arm invokes raw `k`, and the suffix can emit
+`Q.choose` outside `H`. Then `Q` is in `May(C)` but has no `Q` offer to this
+handler; its effect is preserved through `k`'s latent row and `A`. The
+candidate coupling has been revised to track contributions by route:
+current/forwarded offer, matched-raw latent effect, or unknown, with mixed
+routes retaining all obligations. This refutes an overly strong proof premise,
+not the conditional handler formula or any Oracle rule. The finite route
+summary and source-constraint transfer remain open.
 
 Architect and compiler-referee review found the candidate consistent with the
 direct trace semantics, with one clarification each: the family projection is
-only an index (coverage remains per operation), and Lemma 3 supports but does
+only an index (coverage remains per operation), and Lemma 4 supports but does
 not force excluding coverage as a positive source in the coarser abstraction.
 Those are explicit in the candidate. Independent compiler/specification
 delta review found the repair conformant and identified a task-summary gap:
 `Drop` must quantify every offer at every represented handler activation,
 including forwarded/resumed suffixes. The task summary now includes that
-quantifier. The reviews cover only these candidate statements; no full effect
-proof or successor-rule approval follows.
+quantifier. A separate compiler-referee audit found the earlier blanket
+coupling from every `May(C)` family to an offer was too strong: a distinct
+family may occur only after a matched request's raw continuation and never be
+offered again to that shallow handler. The candidate now records this as
+Lemma 3 and partitions row contributions into current/forwarded offers, raw
+continuation latent effects, and unknown. Review confirms the conditional
+handler formula remains sound on this case; finite route summaries and
+source-constraint transfer remain open. Independent compiler-referee and
+specification delta reviews close this overbroad premise at the candidate
+level. They checked current/forwarded offer facts, matched-raw preservation
+through `k` and arm/value effects, both obligations for mixed routes, and
+unknown offer routes blocking subtraction. They found no new issue in that
+bounded scope. The reviews do not prove the finite route quotient, source
+lowering, higher-order preservation, or final acceptance; no full effect proof
+or successor-rule approval follows.
