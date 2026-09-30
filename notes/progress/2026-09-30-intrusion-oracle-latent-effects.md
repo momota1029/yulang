@@ -318,6 +318,47 @@ interval until a semantics proof justifies replacing it with a pure effect.
 The focused probe and this static source-path review were independently
 checked; neither proves the runtime behavior or principality of the successor.
 
+### Dual-polarity source occurrence in a catch continuation
+
+A focused test in a disposable worktree at frozen Oracle commit
+`a58eefc31e22141574b6f20c6a5748151c6d79f1` lowered:
+
+```yu
+act tick:
+  our ping: () -> never
+
+my f = catch 1:
+  ping(), k -> k
+  v -> \() -> v
+```
+
+The test passed with no lowering errors. The scrutinee's fresh exact-pure
+effect identity was `TypeVar(3)` in this run. Raw lowering bounds for local
+continuation `k` put that same identity in both Function return-effect
+polarities: lower `Pos::Var(TypeVar(3))`, upper `Neg::Var(TypeVar(3))`. Its
+upper bounds included `Row([], Top)` and a handled-`ping` row. The active bound
+view did not list a `Bot` lower, but that does not show the original
+`Bot ≤ e` source constraint is absent; the bound store can omit the trivial
+lower. The finalized root scheme was `() -> int`, with no quantifiers and
+`ret_eff = Pos::Bot`.
+
+This proves dual polarity in the source-generated continuation constraints,
+not in the selected compact root for `f`. It also does not show that the same
+identity or both bounds survive finalization. Independent compiler-referee
+review confirmed this distinction and cautioned that local `k`'s two-sided
+shape cannot establish the root projection or whether erasure changes final
+acceptance. A variation returning `[k]` through `list` also lowered, and its
+final scheme retained a more complex handled-effect interval, but did not
+identify the original `TypeVar(3)` in that interval. Neither fixture justifies
+polarity-only erasure in the successor: keep meaningful source constraints
+until a preservation argument shows which ones can be solved or removed.
+
+The focused command was
+`CARGO_TARGET_DIR=/tmp/yulang-pure-dual-target cargo test -p infer
+scratch_pure_dual_catch_continuation -- --nocapture`. The disposable test and
+worktree were removed; frozen Oracle was unchanged. This only tested inference
+lowering/finalization, not full compilation or execution.
+
 The useful candidate is thus a two-mode *runtime application* judgment:
 shapes with pure extracted effects are evaluated strictly and their actual
 effect is charged to the call result; shapes with non-pure extracted effects

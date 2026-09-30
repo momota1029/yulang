@@ -920,9 +920,14 @@ positive collection keeps a self-variable occurrence but projects selected
 lower records; later polar simplification may erase it. Do not use this as
 permission for successor q-erasure: retain the source interval until a
 denotation/preservation proof justifies solving it to purity. Details and
-review limits are in the latent-effects note. Next find a dual-polarity source
-use or establish that exact-pure variables are only evaluation effects in the
-supported source envelope. A
+review limits are in the latent-effects note. A `catch 1` continuation probe
+now puts the scrutinee's exact-pure effect identity in both return-effect
+polarities of local `k`; its finalized root still has `ret_eff = Bot`, and
+the selected-root correspondence is unproved. Independent review confirmed
+that graph incidence does not establish selected-root survival or final
+acceptance. Next trace that identity through selected-root projection and
+test whether the omitted constraints can affect a complete source program.
+Do not restore Oracle phase parity as a goal. A
 conditional zero-consumption
 lemma may reduce the handler-free, no-family fragment: Oracle's weighted row
 rule uses `J = K ∩ Common(L)`, so empty row heads force no row consumption;
