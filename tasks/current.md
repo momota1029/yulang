@@ -1834,3 +1834,24 @@ and a source expression's creation-time requests are covered separately by
 suspensions remains unproved. Next prove the source annotation/domain and
 subeffect bridge under a canonical family resolver, then handler routing;
 keep all rows and transfers candidate-only pending the successor design gate.
+
+A small declarative `Value(A)` / `Susp(U,A)` fragment is now written as a
+candidate, with force-prefix effects, latent subeffect passing, value wrapping,
+and strict forcing. Architect/compiler-referee review found and closed two
+soundness gaps: effects on nonreturning/unhandled prefixes now count, and
+suspension capture/allocation work has the explicit `E_make` bound. The proof
+is a conditional trace-denotational fragment, not a syntax-directed solver
+proof; source annotation meaning, canonical family resolution, function
+variance, generalization/instantiation, handlers, and acceptance capability
+remain open. The candidate is unselected and has no implementation authority.
+Next prove the source annotation-to-domain and subeffect bridge; then continue
+with higher-order/handler preservation under the same coarse abstraction.
+
+The fragment's final review exposed and closed a capture substitution statement
+gap: the suspend rule now types the stored body `c[ρ]` under its captured
+environment, bounds capture-time prefixes by `E_make`, and requires capture
+not to execute the body. Architect and compiler referee confirm the
+closed-delay/force lemma under these premises; preservation through source
+lowering, mutable/opaque captures, and nested latent values remains unproved.
+This is still trace-denotational and conditional, not an inference solver or
+accepted Yulang3 language rule.

@@ -3208,3 +3208,97 @@ empty-row request counterexample is closed and that this remains an unproved
 preservation target. A separate specification review confirmed that
 “direct syntactic `TypeExpression` items” matches the syntax authority and
 that semicolon/tail and row denotation remain correctly separated.
+
+#### Candidate declarative typing fragment for a selected suspension domain
+
+To make the preservation target falsifiable, consider a small independent
+typing fragment. Let `D_eff = P(Fam) ∪ {TopEff}` with subset order and
+`TopEff` absorbing join. Write `Pref(c)` for all finite execution prefixes of
+computation `c`, including prefixes that end in an unhandled request, abort,
+stuck state, or divergence. Define `Γ ⊢ c : A ! E` to require both (1) every
+prefix in `Pref(c)` has request-family support included in `E`, and (2) every
+returning execution produces a value of type `A`. Nonreturning prefixes still
+constrain `E`; result typing is checked separately. Write `Susp(U,A)` for an
+already evaluated delayed computation whose result has type `A` and whose
+force-prefix support is bounded by `U`. This is a semantic candidate
+judgment; current syntax and inference do not yet define it.
+
+The force and introduction rules are:
+
+```text
+ρ = capture_env(c)       Γ ⊢ c[ρ] : A ! E       E ⊆ U
+supp(Pref(capture(c))) ⊆ E_make       capture(c) does not evaluate c
+───────────────────────────────────────────────────────────────  suspend
+Γ ⊢ delay(c,ρ) : Susp(U,A) ! E_make
+
+Γ ⊢ e : Susp(U,A) ! E_now
+──────────────────────────  force
+Γ ⊢ force(e) : A ! (E_now ∪ U)
+```
+
+`capture_env(c)` is the environment stored with the delayed body, and `c[ρ]`
+is the body under that captured environment. The typing premise must hold for
+the stored body, not just the uncaptured lexical expression. `capture(c)` is
+the work performed to construct the delayed value, such as evaluating its
+captures; `E_make` must bound every request-bearing prefix of that work. The
+premise also requires construction not to run `c`.
+The force rule is deliberately conservative: it charges the whole allowance
+`U`, which bounds every request-bearing prefix of the stored computation,
+even if one fixed continuation suffix later emits fewer families. Moving,
+returning, or ignoring an already evaluated `Susp(U,A)` preserves `U` and
+contributes no latent family to the immediate row. Passing a `Susp(E,A)` to a
+formal `Susp(U,A)` requires `E ⊆ U` under every admissible row substitution
+and preserves the suspension; a value `A` adapted to `Susp(U,A)` is wrapped
+with latent row `∅`.
+Passing `Susp(E,A)` to a strict value formal `A` forces it at that boundary
+and contributes `E` to the caller's immediate row. Joins on branches and
+sequences use the finite row join. No transfer consults handler visibility.
+
+For this fixed-domain fragment, the force-prefix support theorem follows by
+induction over finite execution: `suspend` admits only computations already
+bounded by `E ⊆ U`, including their nonreturning request prefixes; force adds
+`U`; move/return/ignore do not execute the stored body; strict adaptation is
+the force case; and deferred adaptation checks subeffect inclusion before
+preserving it. Repeated ordinary forces rejoin the same family set
+idempotently; no continuation-use count is needed. If constructing an
+argument emits immediate requests, they remain in `E_make` outside latent
+`U`. The result value on a returning force path must preserve any nested latent
+facts in its payload type `A` for later force sites. This fragment assumes
+capture substitution preserves the body's type/effect bound and the captured
+environment's whole latent facts; proving that property for source lowering
+and mutable or opaque captures remains open.
+
+This is a trace-denotational fragment, so its local soundness is close to the
+definition of `Γ ⊢ c : A ! E`; it does not derive syntax-directed inference
+constraints or prove the current solver implements the judgment. This
+establishes a coherent *candidate typing rule* only for selected
+`Value(A)` / `Susp(U,A)` boundaries with a known payload `A`. It does not prove
+that Yulang3 annotation syntax selects the boundary, that row constraints
+implement `E ⊆ U`, or that general Function subtyping, generalization,
+instantiation, higher-order adapters, recursive definitions, and handlers
+preserve the fragment. In particular, the Function-domain variance needed to
+use this rule through a subtype or instantiated scheme is still open. The
+proof is relative to the finite row abstraction and does not require exact
+continuation-sensitive effect inference. These are candidate rules for review,
+not a selected successor semantics.
+
+An architect and independent compiler referee found two blocking omissions in
+the first draft: the computation effect judgment ignored nonreturning request
+prefixes, and the `suspend` rule left capture/allocation effects unconstrained.
+The judgment now bounds every finite request-bearing prefix, with result typing
+checked separately; `suspend` now requires `supp(Pref(capture(c))) ⊆ E_make`
+and that capture does not evaluate the delayed body. Both reviewers confirmed
+the repaired finite-prefix force argument under these explicit premises. They
+also note that this trace-denotational fragment does not derive syntax-directed
+inference constraints or settle function-domain variance. A specification
+review confirmed the effect-row claims respect the syntax authority. The
+architect's final delta review confirmed the capture-effect bound and
+identified closure substitution as the remaining local proof bridge: the
+stored body must retain its type/effect bound under the captured environment,
+including nested latent facts. The fragment now states this assumption and
+leaves its source proof open. A final compiler-referee and architect delta
+review confirmed that the `c[ρ]` premise applies the force bound to the actual
+stored body, while capture effects are separately bounded by `E_make`; the
+conditional lemma is sound under its stated premises. Neither review proves
+capture substitution for source lowering, mutable or opaque captures. No rule
+has been selected or authorized for implementation.
