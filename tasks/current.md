@@ -1781,3 +1781,56 @@ elaboration correspondence for that restricted pair, then the parameterized
 force-bound lemma. This proof remains relative to the conservative expressible
 effect abstraction; exact traces are the soundness reference, not a precision
 requirement, and no linear/affine continuation tracking is introduced.
+
+An attempted restricted source-to-elaboration bridge exposed a provenance
+problem: the finalized `Bot`/`Top` → `Never`/`Any` observations and the removed
+mono-probe `ForceThunk`/`MakeThunk` outputs are separate evidence; the scratch
+test body no longer identifies its specialization entrypoint. A compiler-
+referee delta review found and closed a mixed legacy/`specialize2` pipeline
+claim. Static `specialize2::apply_type` and its emitter path are now recorded
+separately, while `Runtime::adapt_value` is not treated as an observed probe
+step. Do not join the old probe outputs to that path without provenance. The
+following records close the static `specialize2` transfer/emission lemma and
+the conditional force-bound lemma; the historical probe remains
+characterization only. No exact continuation precision or linear usage
+requirement is introduced.
+
+A static `specialize2` application-transfer identity is now recorded and
+independently compiler-referee reviewed. For a solved Function shape, pure
+`arg_effect` accounts argument evaluation immediately; non-pure `arg_effect`
+routes a constrained computation effect through the callee consumer; both
+join callee evaluation, immediate call-argument, and return effects. Lambda
+binding and the emitter use the same materialized value/thunk boundary
+convention. Review closed an overstatement about unconditional thunk wrapping;
+the equation remains a code identity, not a proof that source annotations
+choose that shape or that latent effects are soundly charged. The following
+conditional force-bound lemma adds the latent-row transfer result while
+keeping the removed probe entrypoint gap separate from this static
+`specialize2` characterization.
+
+A conditional latent-row force soundness lemma is now recorded for an already
+selected `Susp(U,A)` boundary. It proves support inclusion over finite move,
+ignore, return, and force sequences provided `supp(C) ⊆ U`, a whole-value
+`LatentCover` invariant, and independently sound rows for all non-suspension
+requests. Compiler-referee review found and closed the missing immediate-row
+premise; no continuation-use count is needed. Handler subtraction, source
+enforcement of the uniform allowance, and global `LatentCover` preservation
+remain outside this lemma. Next prove the source-side uniform allowance and
+latent preservation, then integrate a proved handler-route transfer. Do not
+turn the fixed trace's `{out}` into a demand for exact continuation-sensitive
+inference; principality remains relative to the chosen abstraction.
+
+A conditional row-to-allowance candidate is now recorded. Resolved closed
+family rows map to a finite `U`, empty closed rows to `∅`, open unknown tails
+and wildcard to `TopEff`; none grants handler visibility. Architect review
+found this is a new annotation-denotation rule, not a consequence of Yulang3
+syntax or Oracle weighted lowering. Syntax authority explicitly leaves
+row-tail meaning and effect lowering undefined; semicolon is a delimiter.
+Compiler-referee review required and confirmed explicit typing/preservation
+premises: an empty row must reject or widen an `out.read` suspension, open-tail
+substitution and deferred adapter/nested-force effects must remain bounded,
+and a source expression's creation-time requests are covered separately by
+`E_now`. The target `support(force(v)) ⊆ U` for already evaluated typed
+suspensions remains unproved. Next prove the source annotation/domain and
+subeffect bridge under a canonical family resolver, then handler routing;
+keep all rows and transfers candidate-only pending the successor design gate.

@@ -3004,3 +3004,207 @@ source-to-elaboration correspondence for the annotated pair through
 materialization and adaptation, followed by the parameterized force-bound
 lemma. This review changes no candidate rule and grants no implementation
 authority.
+
+#### Restricted endpoint and mono-shape correspondence: split evidence
+
+The finalized endpoint/materialization evidence for the annotated pair is
+recorded in
+`notes/progress/2026-09-30-intrusion-oracle-latent-effects.md`, “Finalized
+inference-endpoint follow-up”: the exact probes report `Bot`/`Top` and
+`Never`/`Any` for the ordinary and wildcard-effect parameters. The frozen
+`specialize2::lambda_type` binds a parameter using `runtime_shape`, which maps
+a pure effect to a value and a non-pure effect to a thunk. This supports the
+corresponding runtime domain for those finalized predicates.
+
+The mono probe separately observed `ForceThunk` on the strict call and
+`MakeThunk` containing the read's `ForceThunk` on the deferred call. The
+scratch test body was removed, so its precise entrypoint is not preserved in
+the record. Frozen `specialize/src/lib.rs` routes both public `specialize` and
+`specialize2` through `specialize2::specialize`; however, that does not rule
+out the legacy `Specializer::specialize_roots` API having been used by the
+probe. Do not claim one end-to-end pipeline from these separate records.
+
+For the `specialize2` path specifically, the application transfer is
+`specialize2::task_solver::apply_type`: a pure `parts.arg_effect` uses
+`consume_expr_value`, while a non-pure one uses `consume_expr_computation`;
+the callee consumer is then related to actual and expected materialized
+occurrences. The `specialize2::emit` path creates `ForceThunk` through
+`force_emitted_value_thunk` and `MakeThunk` through
+`make_thunk_from_computation`. Separately, runtime `adapt_value` forces a
+thunk-to-value boundary and preserves thunk-to-thunk adaptation. That runtime
+function describes adapter behavior; it is not evidence that the removed
+probe executed that adapter path. The older `solve/expr_solver.rs` application
+path is not the matching path for `specialize2` and is not used to connect the
+probe's output here.
+
+The conditional force/ignore consequence remains supported by the generated
+mono shapes and runtime step definitions: if the observed `MakeThunk` suspends
+the read until force, the ignored deferred call emits no request; the observed
+`ForceThunk` in the strict call emits the read request before body entry. The
+probe specialized but did not execute either program. This is useful
+characterization evidence, not a joined inference-to-runtime simulation proof.
+It requires no continuation-use counting: the example delays an ordinary
+argument computation and the body either ignores or forces that value. Exact
+trace support remains the soundness reference, while a successor may use a
+sound coarser compositional bound with principality stated relative to that
+bound.
+
+An independent compiler-referee delta review closed the mixed-pipeline finding:
+the historical endpoint/materialization observations are now separate from
+the mono-shape observation; the `specialize2` application and emission path is
+cited on its own; and runtime `adapt_value` is not represented as an observed
+step in the removed probe. The reviewer confirmed the described
+`specialize2` branch and helper links, but explicitly did not recover the
+historical probe entrypoint or certify one end-to-end chain. Treat those
+outputs as separate characterization evidence until that provenance gap is
+closed.
+
+The two remaining local obligations at this point were a static transfer/
+emission lemma for the selected `specialize2` path and a force-bound lemma for
+an already selected suspended domain. The following subsections record both.
+The force bound assumes each admissible argument computation has latent
+support bounded by `U`; each force site charges an abstract bound covering `U`
+unless a proved handler transfer removes part, while moving or ignoring the
+suspension charges no latent request immediately. This does not state that
+`ret_eff ≥ U` is necessary for every individual fixed trace.
+
+#### Conditional specialize2 application-transfer equation
+
+For a solved/materialized function type
+`Fun(A, εarg, εret, R)`, frozen `specialize2::task_solver::apply_type`
+branches on `Type::is_pure_effect(εarg)`. In the pure branch it consumes the
+argument as a value at `A`; the argument's evaluation effect becomes the
+immediate `call_arg_effect`, and the callee's runtime argument-effect slot is
+pure. In the non-pure branch it calls
+`consume_expr_computation(arg, εarg, A)`; the returned constrained runtime
+argument effect is placed on the callee consumer, while `call_arg_effect` is
+pure at this application boundary. Both branches relate the materialized
+callee actual and expected Function occurrences. The produced application
+computation has effect
+`εcallee ∨ call_arg_effect ∨ εret` and value `R`, then passes through
+`runtime_shape`.
+
+This is a code-level transfer identity conditional on the solved function
+shape and on `consume_expr_value` / `consume_expr_computation` doing their
+declared subtype and effect-constraint work. Lambda binding uses the same
+materialized shape convention in `lambda_type`, via
+`runtime_shape(arg_effect, arg)`. The emitter then realizes a selected
+boundary: for an expected thunk, `boundary_emitted_expr_with_argument_contract`
+may pass through an equivalent existing thunk or wrap a computation with
+`make_thunk_from_computation`; when an emitted value is thunk-shaped and the
+expected boundary is plain, `ensure_emitted_value_with_argument_contract`
+emits a `ForceThunk` after its equivalence checks. This establishes internal
+consistency among the newer specializer's selected argument mode, call
+accounting, and boundary constructors. It does not prove that source
+annotations select the right `εarg`, that `εret` soundly bounds latent
+execution, or that a captured handler route survives later forcing. The
+removed mono probe is not evidence for this equation's execution path. Frozen
+source locators are
+`specialize2/task_solver.rs:479-565,605-620`,
+`specialize2/emit.rs:806-889,891-950`, and
+`specialize2/runtime_shape.rs:794-850`.
+
+Exact continuation-sensitive trace support is not required for this transfer.
+The soundness obligation is that strict consumption charges an effect bound
+covering every forced argument, and deferred consumption retains a latent
+bound that every later force charges unless a proved handler transfer removes
+it. Principality is relative to the chosen compositional effect abstraction;
+the code branch alone establishes neither theorem.
+
+#### Conditional latent-row force soundness lemma
+
+Fix a value/suspension boundary with a latent allowance `U`, and assume its
+contract guarantees `supp(C) ⊆ U` for every admissible suspended computation
+`C`. For this local lemma omit handlers, adapters, recursive forcing, and
+unknown calls. Assume an independent immediate-effect judgment already bounds
+every request produced by evaluating the callee, body, or other direct work:
+each such step contributes a row `B_step` containing its exact support, and
+sequential composition joins that row into `E_now`. This premise is not proved
+by the latent-row lemma. Give each evaluated fact a separated immediate row
+`E_now` and latent suspension allowance `U`. Moving or returning the
+suspension preserves `U` and leaves `E_now` unchanged; ignoring it likewise
+adds no latent row. Forcing it joins `U` into the current computation row and
+returns the forced value fact. A caller that later forces an escaped
+suspension applies the same rule at that force site.
+
+For every concrete immediate trace produced by these transfers, its exact
+support is contained in the abstract row: direct work is covered by the
+`B_step` premise; a step evaluating `C` adds `U`, which contains `supp(C)`;
+non-force suspension steps preserve the exact pending computation and add no
+request from it. Sequential composition joins the rows, preserving inclusion.
+This proves soundness of the latent-row contribution by induction on the
+finite call/force sequence, provided the `LatentCover` invariant holds for
+each moved or returned whole value fact. It requires no continuation-use
+count or exact suffix correlation.
+
+The lemma does not cover handler subtraction: with a handler, `U` may be
+removed only by an independently proved handler-route transfer for that force
+site. Nor does it show the source type system enforces the uniform bound,
+prove the `LatentCover` invariant through subtyping/generalization/adapters,
+or imply that charging all of `U` is the least solution for every source
+program. Principality remains relative to the chosen abstract constraints and
+their derivations. The lemma is a candidate local preservation result, not
+successor authority.
+
+An independent compiler-referee review found that the initial statement
+omitted a bound for ordinary immediate requests. The lemma now assumes each
+non-suspension step contributes a sound `B_step` joined into `E_now`; the
+reviewer confirmed this closes the direct-request counterexample and the
+finite-sequence induction under the stated exclusions and `LatentCover`
+premise. This does not prove that source inference supplies those immediate
+rows or preserves `LatentCover` globally.
+
+#### Conditional source annotation to latent allowance mapping
+
+A bounded architecture review found a possible way to define `U` independently
+of handler visibility and frozen Oracle weights, but only after choosing a new
+annotation-denotation rule. Under that candidate rule, resolve each effect
+head to a canonical family identity. A closed row with resolved heads `H`
+denotes allowance `U = H`; an empty closed row denotes `∅`. An open row with
+head set `H` and tail `α` denotes `H ∪ Uα`, where an unbounded or unresolved
+tail widens to `TopEff`. A wildcard denotes `TopEff` unless a separate proved
+bound narrows it. None of these allowances grant handler visibility.
+
+This mapping is not entailed by current Yulang3 authority. The authoritative
+syntax page defines `EffectRowType` shape but explicitly leaves row-tail
+meaning and effect lowering undefined. Its CST has direct syntactic
+`TypeExpression` items and no dedicated row-tail node; semicolon is a literal
+delimiter, not a tail marker. The frozen Oracle's `AnnEffectRow` has a separate
+tail field and its semicolon lowering and weighted constraints are
+characterization evidence only. Do not transfer those rules into Yulang3 by
+assumption. Canonical family identity also remains unresolved: textual paths
+or aliases cannot be collapsed for support bounds or handler subtraction
+without a sound name-resolution relation.
+
+The candidate `Susp` introduction rule must reject or widen any stored
+computation whose force support is not covered by its allowance. In
+particular, an `out.read` computation cannot be admitted as `Susp(∅,A)` merely
+because an annotation spells an empty row. For an open tail, the constraint
+must remain valid under every admissible tail substitution; if no sound bound
+is known, use `TopEff`. Latent adapter work and nested force steps must also be
+included in the stored computation's bound. This constraint-transfer fact is
+not yet established.
+
+The target preservation theorem is: for every already evaluated suspension
+value `v` produced by well-typed derivations of the candidate rules, each
+finite trace of `force(v)` has support included in its `U` in
+`Γ ⊢ v : Susp(U,A)`. The proof must establish that the introduction and
+adaptation rules really enforce the bound above, including open-tail
+substitution and unknown widening. If the source expression `e` that creates
+`v` can itself emit requests, its total trace is bounded by
+`E_now ∪ U`, where `E_now` comes from the separate immediate-effect judgment.
+This theorem excludes handler subtraction; the handler-route proof remains
+separate. It neither requires exact continuation-sensitive inference nor
+follows from row denotation alone. Both the typing rule and theorem remain
+unselected candidate semantics, with no implementation authority.
+
+Independent compiler-referee delta review initially found that the target
+force-bound statement lacked a typing/elaboration premise and conflated
+suspension-creation effects with forcing. The revised candidate now requires
+admission to check the latent allowance under every tail substitution and
+includes adapter/nested-force work; it bounds already evaluated suspensions
+by `U` and creation traces by `E_now ∪ U`. The referee confirmed the direct
+empty-row request counterexample is closed and that this remains an unproved
+preservation target. A separate specification review confirmed that
+“direct syntactic `TypeExpression` items” matches the syntax authority and
+that semicolon/tail and row denotation remain correctly separated.
