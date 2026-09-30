@@ -1125,8 +1125,12 @@ second call; an aborting arm handles the first call. Details are in
 Next: instrument a focused frozen-Oracle trace from concrete callback
 annotation lowering through application bounds, weighted row residuals, and
 `invoke` finalization, recording both directed weights and provenance; compare
-with wildcard `[_]` and the direct-handler control. Then adjudicate the
-helper-boundary candidate end to end, choose a sound expressible effect
+with wildcard `[_]` and the direct-handler control. The first env-gated bounds
+trace shows only left-side `push(choose)` weights for two annotation stack IDs,
+but lacks bound-record parents/origins and source-slot mapping; treat this as
+Oracle characterization only. Add a disposable test-only trace to map those
+slots to bound and row-derivation records. Then adjudicate the helper-boundary
+candidate end to end, choose a sound expressible effect
 abstraction, and define
 principality relative to it. Exact trace support remains the semantic
 soundness reference, not an inference precision mandate; do not add

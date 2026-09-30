@@ -89,6 +89,23 @@ weight, origin, and row-residual derivation. Existing CLI dumps do not expose
 that chain; this candidate is not yet a proven unsoundness finding or an
 approved compatibility delta.
 
+An environment-gated bounds trace is a first partial view of that chain. On
+the combined direct/helper fixture, `YULANG_TRACE_VAR_BOUNDS=0,...,120` with a
+bound limit of 20 emitted 2,078 lines. Across those snapshots, the only
+nonempty directed weights observed were left-side entries for `SubtractId(0)`
+and `SubtractId(3)`, each a single `push(choose)`; no right-side entry was
+observed. The snapshots include variable endpoints and current bound weights,
+but omit bound-record IDs, structural parents, and origins, and they do not
+name which source slot an internal variable represents. This is frozen
+Oracle characterization of propagation, not evidence that left-only routing
+is semantically correct or the cause of the finalized pure effect.
+
+The next useful instrumentation is a disposable test-only trace that maps the
+callback return-effect slot and application result-effect slot to bound
+records, including record derivations and row residual parents. Then compare
+concrete `[choose]`, wildcard `[_]`, and direct catch. Do not change Oracle
+production code or infer a weight law from this candidate alone.
+
 The source-contract basis is stronger than runtime behavior alone:
 
 - frozen `spec/2026-05-31-effect-variable-subtractable.md` describes a concrete
