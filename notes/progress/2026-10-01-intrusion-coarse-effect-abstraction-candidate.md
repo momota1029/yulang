@@ -367,6 +367,72 @@ The source request-tree transition candidate is:
 | Continuation is resumed more than once | Clone the corresponding immutable snapshot for each resume and join the resulting paths; no usage count is introduced. |
 | Arm exits | `h` is already inactive; finalize its suspended scope once and preserve outer activations. |
 
+#### Finite continuation-summary encoding candidate
+
+The bounded machine should not execute both `k_offer` and a separately
+restored copy of `I`. Instead, a finite continuation slot denotes the opaque
+source continuation `k_offer = I(k0)` together with an observational summary
+of the inner context already composed into it. For a fixed source program and
+`K`, a slot may hold a finite set of records:
+
+```text
+KontFact = (Raw | Forwarded,
+            continuation_slot | UnknownKont,
+            captured_handler_ref | UnknownRef,
+            αK(inner_scope_snapshot),
+            bounded_lineage_and_grants,
+            offer_summary ∈ P(ReqFact) | TopOffers)
+```
+
+`inner_scope_snapshot` is evidence for classifying offers made while the
+opaque continuation runs; it is not executable a second time. Raw invocation
+transfers through the continuation slot under the outer context, with `H`
+absent. Forwarded invocation transfers through the stored `H(k_offer)` wrapper
+under the outer context, retaining the captured semantic activation of `H`.
+Both clone the immutable fact for each invocation. “Apply `I` once” here means
+that its transformer is represented once in the slot summary; it does not
+limit how many times an inner operation arm may invoke its own underlying
+continuation.
+
+Joins union whole facts. Allocation-site slots and the bounded stack carrier
+make the record set finite, but a join that merges distinct dynamic
+activations must union their possible scope classes and erase any grant proof
+that does not hold for every represented identity. A truncated snapshot,
+unknown slot, lost wrapper, or ambiguous captured handler must degrade to
+`UnknownKont`, not merely set the scope field to `Unknown`.
+`UnknownKont` has a top control summary: it may return, offer every family in
+the finite `Fam` universe with `UnknownOp`/`UnknownOrigin`/`UnknownMask`,
+execute any relevant handler arm, and re-enter any captured wrapper. This
+fallback may make many drops impossible, but cannot hide an offer or arm
+effect. If `Fam` is not closed over the source and imported interfaces, extend
+it with an explicit `UnknownFam` that also prevents subtraction. Every family
+in a continuation effect bound must couple to a concrete offer fact or this
+unknown summary; unknown continuation control cannot be treated as an empty
+offer set. `TopOffers` ranges over finite operation/family labels, source
+origins, scope classes, and handler/arm slots (with explicit `Unknown*`
+members). When a captured-wrapper reference is lost, install that top summary
+at every possibly affected static handler slot, conservatively all slots if
+the affected set is unknown; do not omit a destination because its dynamic
+activation identity was lost. This makes the fallback finite while ensuring
+the observation invariant sees every possible handler destination.
+
+The need for a control summary is visible in a forwarded-resume trace. Let
+`C0 = Request(u, (), λ_. Request(p, (), λ_. Return(0)))`; inner handler `I`
+forwards `u` and handles `p` with an arm that requests `g`; outer handler `H`
+forwards `u` and handles `g`. If an outer context resumes `u`, the required
+suffix is `H(I(k0))`, so the `g` request is offered to `H`. Replacing a lost
+`I` summary with only `H(k0)` omits that offer. A scope-only `Unknown` would
+not repair the missing control path. `UnknownKont` must instead include the
+possible `g` offer (or top offers), and row/provenance coupling must ensure
+the family cannot be subtracted vacuously.
+
+An independent compiler-referee delta review confirms this top-control fallback
+closes the lost-`I` omission at the candidate level and does not introduce exact
+continuation inference or usage tracking. The review's remaining finite-domain
+clarification is now stated explicitly: a lost wrapper fans top offers out to
+every possibly affected handler slot. The continuation-slot completeness,
+top-control simulation, and row-to-offer coupling are still unproved.
+
 At each offer of a request to a dynamic activation `h`, emit an observation
 `(operation, family, origin, ordered lineage, h, active-scope relation)` before
 the branch. `Eligible(q,h,κ)` remains a parameterized source predicate; this
@@ -397,6 +463,9 @@ suspended while another activation at that site is entered; the saved dynamic
 `h` must be restored without merging it with the newer activation. The source
 request-tree equation is the reference: unmatched inner handlers are already
 composed into `k_offer`, and forwarding through `H` composes `H` exactly once.
+The finite continuation-summary proposal narrows the open implementation of
+that equation, but the top-control fallback, completeness of continuation-slot
+summaries, and row-to-offer coupling still need proof.
 
 Review closure: an independent compiler-referee initially found ambiguity
 between `k` and the inner segment `I`, plus missing distinct return

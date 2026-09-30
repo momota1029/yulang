@@ -1316,3 +1316,16 @@ for the inner handler segment that simulates this request-tree composition
 exactly once, then prove offer-observation coverage and row/provenance coupling.
 The source-level wording review does not close the bounded-machine simulation;
 no compiler implementation is authorized.
+
+A follow-on compiler-referee review exposed a distinct completeness requirement:
+losing an inner `I` snapshot must lose neither its possible offers nor the
+effects of its arms. In the reviewed `u → p → g` witness, outer-resuming `u`
+must run `H(I(k0))` and expose `g` to `H`; a scope-only `Unknown` would miss
+that request. The candidate now gives continuation slots a top control
+fallback (`UnknownKont`/`TopOffers`) over all families, operations, origins,
+scope classes, and possible handler slots when wrapper identity is lost. A
+fresh compiler-referee delta review closes this omission at the candidate level
+and confirms the rule does not require exact continuation-effect inference or
+usage tracking. Next gate: prove `TopOffers` transition coverage, static-slot
+summary completeness across re-entry/escape, and row-to-offer coupling; the
+bounded snapshot simulation and provider eligibility remain unproved.
