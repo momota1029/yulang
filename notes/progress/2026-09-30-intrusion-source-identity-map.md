@@ -99,22 +99,69 @@ for the same first source definition, not persistent identity claims.
 This establishes that this source fixture's *root preparation* is a single
 non-mutating attempt once it starts at epoch 27. It does not trace the earlier
 source constraint/event construction that reached that epoch, prove the
-selected compact view equals a candidate `H_d`, or connect its two
-quantifiers and zero sandwiches through polarity rewrite to the public scheme.
-The q upper/lower evidence, latent stack relation, selected-root observation,
-and final use relation remain separate obligations. The instrumentation was
-discarded with the disposable worktree; frozen Oracle remains clean.
+selected compact view equals a candidate `H_d`, or prove q-erasure preserves
+the source relation. A later capture below connects the generalized compact
+representation to the final raw scheme. The q upper/lower evidence, latent
+stack relation, selected-root observation, and final use relation remain
+separate obligations. The instrumentation was discarded with the disposable
+worktree; frozen Oracle remains clean.
+
+## Generalized compact root to finalized scheme
+
+A third disposable Oracle worktree logged the returned `GeneralizedCompactRoot`
+and the scheme immediately before and after `finalize_generalized_compact_root`
+for this same exact source. The focused Rust dump test passed. The generalized
+root's compact Function is:
+
+```text
+arg      = CompactType { vars: [], ... }                 // finalized as Top
+arg_eff  = CompactType { never: true, ... }               // finalized as Bot
+ret_eff  = Var(TypeVar(13)), weight Empty, origin Secondary
+ret      = Var(TypeVar(8)),  weight Empty, origin Secondary
+rec_vars = []
+```
+
+Its quantifiers are `[TypeVar(8), TypeVar(13)]`, with no stack quantifiers,
+roles, or recursive sandwiches. The substitution table maps application
+result `V=TypeVar(11)` to `TypeVar(8)`; source q `X=TypeVar(2)` has no target
+and is absent from the compact root/recursive table. The finalized raw scheme
+preserves these fields exactly: quantifiers `[8,13]`, no recursive bounds or
+stack quantifiers, and predicate `Fun(arg=Top, arg_eff=Bot,
+ret_eff=Var(13), ret=Var(8))`, formatted `any -> ['a] 'b`.
+
+The role names are inferred by joining this capture with the separate source
+identity trace for the identical source text: `TypeVar(8)=Bv` and
+`TypeVar(13)=C`. The same numeric IDs were observed independently in the two
+captures, but remain run-local labels, not persistent identities. The direct
+capture establishes the final compact-to-scheme representation map and confirms
+that q's transient row does not
+appear in this finalized scheme. It does **not** establish that dropping q
+preserves `Obs_source`/`Root_d`/`Pred_d`, that the transient pre-projection row
+is only a back-reference, or that the stack subtraction makes `C` the right
+public effect representative.
+
+Command:
+
+```text
+YULANG_INTRUSION_PROJECTION_TRACE=1 YULANG_TRACE_SCHEME_DEFS=0 \
+  CARGO_TARGET_DIR=/tmp/yulang-intrusion-projection-target \
+  cargo test -p infer --lib scratch_exact_projection_self_application -- --nocapture
+```
+
+All instrumentation and the scratch test were discarded with that worktree;
+the frozen Oracle checkout remains clean.
 
 The follow-up effect-role trace printed the callee and argument computation
 effects and the lambda parameter effect slots. Together with the earlier
 skeleton and wrapper trace, it resolves every named effect variable in the
 symbolic inventory and confirms the parameter's Bottom slot. It does not
-resolve the complete constraint/event epoch or the selected
-`CompactRoot`/rewrite/final-scheme correspondence. In particular, `Oe=5` and
-the application call-effect `C=13` occur in stack-weighted endpoints; their
-relationship is governed by subtraction evidence, not assumed to be plain
-equality. Proving that relation through the selected-root and scheme stages
-remains required for the source-to-scheme theorem.
+resolve the selected `CompactRoot` to `GeneralizedCompactRoot` semantic
+projection, complete source constraint/event construction, or public use
+observations. In particular, `Oe=5` and the application call-effect `C=13`
+occur in stack-weighted endpoints; their relationship is governed by
+subtraction evidence, not assumed to be plain equality. Proving that relation
+through the selected-root and scheme stages remains required for the
+source-to-scheme theorem.
 
 No compiler code in this branch changed. The focused source-map and root
 preparation scratch tests ran only in disposable Oracle worktrees; no broad

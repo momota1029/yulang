@@ -568,9 +568,12 @@ resolve the source's pre-root constraint/event construction or the
 stack-subtraction correspondence through the selected root. A focused root
 attempt trace shows this fixture begins at epoch 27, settles in one attempt
 without mutations/restarts in either companion pass, and saves two
-quantifiers/zero recursive sandwiches; it still does not link those saved
-fields through projection to the public scheme. The replay's complete source
-provenance also remains open.
+quantifiers/zero recursive sandwiches. A same-source trace now maps that
+generalized compact root to the finalized scheme: its argument is `Top`,
+`arg_eff` is `Bot`, its result/effect variables are `Bv`/`C`, and q has no
+surviving recursive row. This is representation correspondence only; the
+semantic `Vpre -> Pi(Vpre)` preservation, stack-subtraction interpretation,
+and replay's complete source provenance remain open.
 The `H_d` bridge includes selected evidence and post-loop root state. Its type
 component must match realized roots to `Root_d` and accepted supertypes to
 `Pred_d`; diagnostics, provenance, and effects need separate observation
