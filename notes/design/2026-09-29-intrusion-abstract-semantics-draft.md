@@ -606,7 +606,9 @@ negative-only parameter variable q. The Oracle then erases q, prunes its
 recursive row, and publishes a `Top` Function argument with no such bound. Its
 inference-stage two-use probe reports `int` and `bool` for `f 1` and `f 2`, but
 a frozen-Oracle `dump-mono` run rejects `f 1` later with an unsatisfied
-`int <: Function` constraint while specializing the definition body. Thus
+`int <: Function` constraint. Source tracing found a per-use definition-body
+recheck path that could produce this, but the CLI capture did not identify its
+failing instance or signature. Thus
 this projection is not established as a solution-preserving simplification
 of the entire source-bound assignment relation, and the q-free scheme alone
 does not establish end-to-end use success. The parity theorem must relate the

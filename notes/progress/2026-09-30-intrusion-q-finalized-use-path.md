@@ -112,6 +112,48 @@ projection is not a provenance-preservation proof. Temporary instrumentation
 and the scratch test are uncommitted changes in the disposable Oracle
 worktree; they are not part of frozen commit `a58eefc31`.
 
+## Concrete-use specialization of `f 1`
+
+The inference-stage two-use result is not an end-to-end specialization result.
+On frozen Oracle commit `a58eefc31`, this source:
+
+```text
+pub f x = x f
+pub main = f 1
+```
+
+fails the mono dump route. From `/tmp/yulang-intrusion-oracle`, the command
+`target/debug/yulang dump-mono /tmp/yulang-intrusion-q-runtime-probe.yu`
+exits 1 with:
+
+```text
+compile error [yulang.unsatisfied-subtype]:
+unsatisfied subtype constraint: int <: 'open0 -[[], 'open2]-> 'open1
+```
+
+The source path explains why specialization revisits the body. In
+`specialize2/emit.rs::emit_var`, a local definition reference obtains its
+per-use `solved.ref_signature(expr)` and passes that signature to
+`ensure_def_instance`. The instance queues this as `inference_signature_ty`;
+`drain_pending_instances` passes it to `TaskSolver::solve_def_body`. That
+solver rechecks the definition body under the per-use signature via
+`expr_with_signature`, consumes the body against that signature, and adds the
+materialized subtype obligation before finishing
+(`specialize2/task_solver.rs::solve_def_body`). A per-use `f` signature with
+argument `int` would make the body use `int` as a callee and produce the
+observed `int <: Function` failure. The CLI capture does not print the failing
+instance owner or `ref_signature`, so this is a source-supported explanation,
+not a directly traced causal link. The public scheme's inference-stage `Top`
+argument therefore does not by itself show whether the specialized definition
+body accepts every value.
+
+This is a characterization of the two-stage mechanism, not a proof that all
+uses which violate an erased recursive bound are rejected, nor a runtime test.
+The standard `check` and `run` routes on this exact self-application source
+did not finish within the observation window and were interrupted; their
+terminal behavior remains unknown. No frozen Oracle source or test was
+modified.
+
 ## Shared outer anchor with two local scheme uses
 
 A second disposable-worktree Rust probe used:

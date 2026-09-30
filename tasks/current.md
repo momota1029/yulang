@@ -2,6 +2,14 @@
 
 Updated: 2026-09-30. Branch: `research/simple-sub-intrusion`.
 
+The user's current priority is soundness, then principality, then Oracle
+compatibility. Oracle divergence requires a concrete conflict, the exact
+Oracle behavior to drop, the successor rule, and compatibility impact; no
+divergence is selected yet. See
+`notes/progress/2026-09-30-intrusion-oracle-priority.md`. The q-erasure
+inference view is followed by a frozen-Oracle mono specialization rejection
+for `f 1`, so the view alone does not establish an unsound accepted program.
+
 ## Objective
 
 Prove that the SCC-intrusion redesign can match the frozen Yulang2 Oracle's
@@ -596,8 +604,13 @@ within the observation window and were interrupted, so they give no final
 entrypoint result. The replacement draft now treats Oracle polarity erasure
 as an observed projection transition, not a proved solution-preserving
 simplification; scheme inference and later specialization are separate
-observations. Next map their exact relation to candidate intrusion and the
-runtime boundary. Details are in
+observations. Source tracing identifies a path where `emit_var` requests a
+definition instance at the use signature and `TaskSolver::solve_def_body`
+rechecks that body; an `int` argument signature would explain this rejection,
+but the CLI capture does not identify the failing instance or signature.
+Trace that causal link, prove whether this path catches uses of erased bounds,
+and characterize entrypoint behavior without treating `dump-mono` failure as
+a runtime result. Details are in
 `notes/progress/2026-09-30-intrusion-powerset-carrier-candidate.md` and
 `notes/progress/2026-09-30-intrusion-q-finalized-use-path.md`; the draft
 contract note is in
