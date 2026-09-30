@@ -20,9 +20,10 @@ q's direct upper bound `q ≤ Fun(S,V)` and the selected root lower edge
 `Fun(q,V) ≤ root`. The Oracle erases q at negative polarity and publishes
 `Fun(Top, ..., V)` with no q recursive bound. Under a subtype preorder where
 `Top` is greatest, proper Functions are strictly below `Top`, and Function
-arguments are contravariant, the erased scheme relation contains
-`Fun(Top,Bottom)`. The selected source graph has no satisfying root below that
-type: the root edge would imply `Fun(q,V) ≤ Fun(Top,Bottom)`, hence `Top ≤ q`;
+arguments are contravariant, the pure value projection of the erased scheme
+relation contains `Fun(Top,Bottom)` with its separate effect coordinates held
+fixed. The selected source graph has no satisfying root below that type: the
+root edge would imply `Fun(q,V) ≤ Fun(Top,Bottom)`, hence `Top ≤ q`;
 the direct upper gives `q ≤ Fun(S,V)`, hence `Top ≤ Fun(S,V)`, contradiction.
 The q/S cycle fragment is nonempty with `q=Bottom`, `S=Top`, `V=Bottom`,
 `root=Top`. The complete derivation and graph-level scope are in

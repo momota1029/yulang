@@ -41,9 +41,11 @@ run-local identity correspondence are recorded in
 `notes/progress/2026-09-30-intrusion-q-finite-bound-cycle-trace.md` and
 `notes/progress/2026-09-30-intrusion-source-identity-map.md`.
 
-Assume a subtype preorder with greatest element `Top`, a proper Function
-constructor (`Top ≰ Fun(S,V)` for every assignment), and the ordinary
-contravariant Function rule:
+Work in the pure value-type projection, writing `Fun(A,R)` for the Function
+value type and holding the separate effect coordinates fixed. Assume a subtype
+preorder with greatest element `Top`, a proper Function constructor
+(`Top ≰ Fun(S,V)` for every assignment), and the ordinary contravariant
+Function rule:
 
 ```text
 Fun(A,R) ≤ Fun(A',R') iff A' ≤ A and R ≤ R'
@@ -67,6 +69,11 @@ The conflict is thus not an empty-graph artifact. This is a concrete
 principal root-relation mismatch for the traced selected-bound graph under
 the stated carrier/order assumptions: polarity-only erasure enlarges the
 relation.
+
+The contradiction uses only the necessary value-argument condition of
+Function subtyping; additional latent-effect constraints can only further
+restrict the source relation. Matching the captured effect coordinates into a
+full `Obs_source` witness is part of the still-open source/effect bridge below.
 
 ### Scope of this counterexample
 
