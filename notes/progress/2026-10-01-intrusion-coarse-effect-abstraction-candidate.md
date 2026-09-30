@@ -466,6 +466,108 @@ paths, the effect gate needs unknown/top offer coverage at every compatible
 handler. This accounts for the dependency without defining successor role or
 record selection semantics; those remain in the later required gate.
 
+#### Finite source-origin superset for callable bodies
+
+Frozen-Oracle executable IR suggests a finite *body-origin* superset without
+defining how a method, role, or implementation is selected. For one frozen
+executable mono program `P` and its successfully lowered control-IR form, let
+`Body(P)` contain every user body entry in its finite instance table and every
+lambda body expression in its finite expression graph. Let `Prim(P)`,
+`Ctor(P)`, and `Op(P)` contain the finite primitive-operation, constructor,
+and operation-path producer sites. Treat imported/client/host-supplied
+callables without a closed body summary as `ExternalTop`; represent captured
+continuations through the continuation slots instead of pretending each
+runtime continuation is a source body. The candidate body-origin universe is:
+
+```text
+Origin(P) = Body(P) ∪ Prim(P) ∪ Ctor(P) ∪ Op(P) ∪ {ExternalTop, KontTop}
+```
+
+The source characterization is based on the frozen Oracle at `a58eefc3`:
+`control_ir::Program` stores finite `exprs` and `instances`, and its `Expr`
+variants include `Lambda`, `InstanceRef`, `PrimitiveOp`, `Constructor`,
+`EffectOp`, `FunctionAdapter`, `MakeThunk`, and the value/container/control
+forms. `mono-runtime::eval_expr` creates closures, primitive/constructor/op
+values, adapters, and thunks from those static expression nodes. Its
+`apply_value` dispatches marked values to their wrapped value, adapters to
+their underlying function, and thunks through force; continuations take the
+captured-resumption path. Recursive closure calls re-enter a finite source
+body rather than inventing another body site. The source locators are
+`crates/control-ir/src/ir.rs:1-105`,
+`crates/mono-runtime/src/runtime/eval.rs:1-124`, and
+`crates/mono-runtime/src/runtime/flow.rs:1-31,72-130` in that checkout.
+
+Conditional coverage lemma: for any execution of this frozen `P`, every local
+user-body
+entered by an application has an origin in `Body(P)`; a primitive,
+constructor, or operation value has an origin in its corresponding finite
+producer set; an adapter preserves its wrapped body-origin set; and forcing a
+local thunk can reveal only origins already in `Origin(P)`. External values
+without closed summaries map to `ExternalTop`, and captured continuation calls
+map to `KontTop` or a separately proved continuation slot. Proof is by
+induction over value construction and application: static producer cases add
+only their own finite site; locals and container/select/case/block paths
+reuse a previously constructed value; adapters retain the wrapped origin
+while keeping hygiene evidence separate; thunk force evaluates an existing
+finite expression body; runtime `adapt_value` wrappers retain their underlying
+callable origin; callable results returned by a primitive retain the origin of
+the value they return; and recursion reuses a member of `Body(P)`. Since the
+source tables and expression graph are finite, `Pow(Origin(P))` is a finite
+abstract target domain.
+
+This proves target-origin coverage only. It does not prove that a target is
+reachable at a particular call, that a request reaches a particular handler,
+that an adapter's boundary grants eligibility, or that a family may be
+subtracted. The across-assignment premise `Lift(S)` has a source-level
+candidate for a fixed finite source closure `S`: let `BodySrc(S)` be its
+finite set of module-qualified named `DefId`s and source-arena-qualified
+`PolyExprId`s whose expression is a lambda. Both frozen specialization paths
+emit a mono lambda only at the `PolyExpr::Lambda` case
+(`specialize/src/lib_support/specializer.rs:204-212`,
+`specialize/src/specialize2/emit.rs:268-277`); the boundary adapter helper
+that matches a mono lambda copies its existing parameter/body rather than
+creating another body (`specialize/src/lib_support/boundary.rs:175-183`).
+The second path's marker traversal likewise rewrites an existing lambda by
+recursing over its current parameter/body and does not synthesize a new body
+(`specialize/src/specialize2/marker.rs:145-205`).
+Every generated mono instance records `InstanceSource::Def` at allocation
+(`specializer.rs:147-164`; `specialize2/emit.rs:196-205`). Mono-to-control
+lowering preserves those source bodies and lambda expressions
+(`control-ir/src/lower.rs:113-184`). Therefore each local function body in
+every successful specialization maps to a member of `BodySrc(S)`, regardless
+of how many type/effect assignments produce instances. This closes `Lift(S)`
+for local named and lambda body origins under the frozen lowering paths and
+the fixed-source/no-dynamic-code premise; a complete import closure must be
+included in `S`, while bodyless imported or host values still map to
+`ExternalTop`. The mapping for generated lambdas is an existential provenance
+relation through lowering: frozen mono/control IR does not retain the source
+`PolyExprId` on each lambda. An implementation that needs to look up that key
+must carry a separate source-origin map; this proof does not claim the ID is
+currently recoverable from the executable IR alone.
+
+This remains an origin-universe result, not a call-site target analysis. A
+source route analysis may use a smaller target set only after proving it
+contains all targets under every admissible type assignment; otherwise its
+safe local fallback is the broad `BodySrc(S)` set, with `ExternalTop` and
+continuation slots added where applicable. In particular, the body-origin key
+shares neither effect-family identity nor hygiene/path evidence: adapters
+keep separate ordered boundary evidence, and polymorphic effect arguments
+require their own binder substitution or `TopFam` when that set is not finite.
+This is Oracle executable-shape characterization and a candidate abstraction
+lemma, not authority for Oracle's selection or weight rules, not a start of
+the later selection-semantics gate, and not yet a source-to-constraint proof.
+Its final-acceptance cost remains unmeasured.
+
+A focused compiler-referee review found no blocking or major counterexample
+for one frozen executable program. It confirmed the runtime callee cases and
+required the present scope: `P` includes mono-to-control lowering, host-supplied
+callables map to `ExternalTop`, and the then-open cross-assignment `Lift(S)`
+proof remained outside its review. The separate `Lift(S)` delta review found
+no blocking/major counterexample; it required the marker-wrapper citation and
+the existential-provenance limitation now stated above. Call-specific
+reachability, handler routes, adapter eligibility/hygiene, and effect-family
+substitution remain outside both reviews.
+
 #### Conservative unknown-call consequence (conditional)
 
 For an open or unresolved callable target that has no proved finite
