@@ -4,7 +4,7 @@ Date: 2026-10-01
 Status: exploratory candidate; not selected or authoritative
 Scope: ordinary shallow effects and handler residuals; no weight encoding yet
 Implementation authority: none
-Reviewed-by: architect, compiler_referee, spec_auditor (read-only candidate review)
+Reviewed-by: architect, compiler_referee, spec_auditor, closure_escape_soundness_review, closure_escape_spec_review (read-only candidate reviews)
 
 ## Question
 
@@ -42,7 +42,13 @@ outside this shallow catch, so its own effect is not implicitly filtered by
 `M`. Incomplete coverage, unknown eligibility, or any uncovered operation
 keeps its family in `E \ M`.
 
-This rule is intentionally coarse. In the one-request-and-resume fixture,
+This rule is intentionally coarse. Exact continuation-sensitive effect
+inference is not a successor requirement if it needs linear/affine
+continuation typing, usage tracking, or a substantially richer type system.
+Exact traces remain the semantic reference for soundness; the inference
+language may conservatively approximate their support. Principality is
+relative to the chosen expressible compositional effect abstraction, not to
+exact trace support. In the one-request-and-resume fixture,
 `k` receives `[choose]` even though its concrete suffix is pure, so the
 abstract result may retain `[choose]`. That annotation behavior is a precision
 choice in this candidate, not a claim that the exact trace contains a request.
@@ -217,10 +223,14 @@ The frozen Oracle `check` accepts this program. Its `--poly-raw` dump gives
 `maker`'s returned function, `delayed`, and `caller` pure (`Bot`) return-effect
 slots. Both interpreter and evidence VM instead report an unhandled
 `choose::reject`. Thus callback effect information is lost across this
-closure-return path before the pure caller annotation is checked. By the
-successor's sound effect abstraction, the returned function must retain
-`choose`; the explicit `[]` annotation must be rejected. This is an additional
-concrete Oracle-acceptance compatibility delta for an unsound source.
+closure-return path before the pure caller annotation is checked. The
+successor's sound effect abstraction must retain `choose` in the returned
+function's latent effect. Whether the enclosing caller's explicit `[]`
+annotation must be rejected depends on the still-open declarative eligibility
+of that caller handler. The Oracle accepts the annotation while both runtimes
+leave the request unhandled; this is a concrete accepted-but-failing Oracle
+case, while the successor's final acceptance delta remains unsettled until
+handler eligibility and source/runtime correspondence are defined.
 
 A direct-closure control with `delayed = \_ -> choose::reject()` retains
 `[choose]` in the delayed function and caller schemes; the inferred caller
@@ -229,6 +239,23 @@ filter mismatch. The contrast localizes the missing static effect to the
 callback/closure transport path. It does not decide whether the callback's
 later request is eligible for the caller catch; the minimum successor rule is
 that it cannot be erased from the returned function's effect.
+
+The same source was checked with the `maker` callback contract changed while
+the pure caller annotation was removed. With no contract, wildcard `[_]`, and
+concrete empty `[]`, each inferred `caller` retains `[choose]`, and the
+interpreter's caller handler returns `[3]`. With concrete `[choose]`, the
+inferred `maker` result, `delayed`, and `caller` instead have `Bot` return
+effects, and both runtimes report unhandled `choose::reject`. Thus these
+annotation forms differ on this exact closure-escape path. The annotation-
+dependent effect loss is consistent with the concrete capture grant affecting
+analysis beyond the receiving function's inner handlers, but does not
+establish the Oracle mechanism or a general grant-lifetime rule. The successor
+must preserve the unconsumed callback effect in the returned closure; capture
+evidence transport across returned functions remains open. Frozen runtime
+guard notes describe result-marker propagation across returned functions, so
+an unconditional rule that closes every grant at function return would be
+premature. A returning-callback control and request/marker trace are needed
+before choosing that boundary rule.
 
 Focused commands used the frozen checkout's prebuilt CLI and sources in
 `/tmp/yulang-intrusion-*`:
@@ -240,12 +267,28 @@ yulang --no-prelude --no-cache run --interpreter --print-roots /tmp/yulang-intru
 yulang --no-prelude --no-cache run --evidence-vm --print-roots /tmp/yulang-intrusion-capture-escape.yu
 yulang --no-prelude --no-cache check /tmp/yulang-intrusion-direct-closure-control.yu
 yulang --no-prelude --no-cache run --interpreter --print-roots /tmp/yulang-intrusion-direct-closure-inferred.yu
+yulang --no-prelude --no-cache check /tmp/yulang-intrusion-capture-escape-absent-inferred.yu
+yulang --no-prelude --no-cache dump /tmp/yulang-intrusion-capture-escape-absent-inferred.yu --poly-raw
+yulang --no-prelude --no-cache run --interpreter --print-roots /tmp/yulang-intrusion-capture-escape-absent-inferred.yu
+yulang --no-prelude --no-cache check /tmp/yulang-intrusion-capture-escape-wildcard-inferred.yu
+yulang --no-prelude --no-cache dump /tmp/yulang-intrusion-capture-escape-wildcard-inferred.yu --poly-raw
+yulang --no-prelude --no-cache run --interpreter --print-roots /tmp/yulang-intrusion-capture-escape-wildcard-inferred.yu
+yulang --no-prelude --no-cache check /tmp/yulang-intrusion-capture-escape-empty-inferred.yu
+yulang --no-prelude --no-cache dump /tmp/yulang-intrusion-capture-escape-empty-inferred.yu --poly-raw
+yulang --no-prelude --no-cache run --interpreter --print-roots /tmp/yulang-intrusion-capture-escape-empty-inferred.yu
+yulang --no-prelude --no-cache check /tmp/yulang-intrusion-capture-escape-concrete-inferred.yu
+yulang --no-prelude --no-cache dump /tmp/yulang-intrusion-capture-escape-concrete-inferred.yu --poly-raw
+yulang --no-prelude --no-cache run --interpreter --print-roots /tmp/yulang-intrusion-capture-escape-concrete-inferred.yu
+yulang --no-prelude --no-cache run --evidence-vm --print-roots /tmp/yulang-intrusion-capture-escape-concrete-inferred.yu
 ```
 
 The callback/closure fixture's check and dump exit 0; both runtime commands
 exit 1 with `yulang.unhandled-effect`. The direct pure-annotation control exits
 1 with an effect filter mismatch; its inferred control exits 0 and returns
-`[3]`. This is Oracle characterization, not an implementation test.
+`[3]`. Each no-contract/wildcard/empty inferred variant checks successfully
+and returns `[3]`; the concrete `[choose]` inferred variant checks but both
+runtimes fail with `yulang.unhandled-effect`. This is Oracle characterization,
+not an implementation test.
 
 ## Parameterized one-step soundness lemma
 

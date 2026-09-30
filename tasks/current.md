@@ -1140,13 +1140,22 @@ independently and not inherit the Oracle runtime guard route automatically.
 The Oracle's current run therefore errors on the first request; the declarative
 shallow trace would handle it, resume, then expose the second request.
 
-A returned-callback-closure probe adds a second lost-effect path: Oracle
-accepts `caller(): [] int`, prints the returned closure/caller effects as
-`Bot`, and both runtimes leave `choose::reject` unhandled. The direct closure
-control retains `[choose]` and rejects the pure annotation. The successor must
-preserve `choose` in the returned function's latent effect; whether the later
-caller catch is eligible remains a separate open question. Details and exact
-commands are in the candidate record above.
+A returned-callback-closure probe adds a lost-effect path: Oracle accepts
+`caller(): [] int`, prints the returned closure/caller effects as `Bot`, and
+both runtimes leave `choose::reject` unhandled. The successor must preserve
+`choose` in the returned function's latent effect. Whether the caller's pure
+annotation must be rejected depends on still-open handler eligibility. The
+observations do not establish the Oracle mechanism or a general capture-grant
+lifetime rule; frozen runtime guard notes include result-marker propagation
+through returned functions. Inferred variants show that absent, wildcard, and
+concrete-empty callback contracts retain `[choose]` and let the caller catch
+return `[3]`, while concrete `[choose]` loses the closure effect and leaks the
+request. This static/runtime mismatch remains evidence, not a selected
+grant-closing rule. Exact traces remain the soundness reference; exact
+continuation-sensitive inference is not required if it needs linear/affine
+typing or a substantially richer type system. Principality is relative to the
+chosen expressible effect abstraction. Details and commands are in the
+candidate record above.
 
 Remaining gate: formalize provider/capture eligibility, including complete
 coverage and callback ownership, then prove trace soundness and least-derivable
