@@ -766,7 +766,10 @@ A conditional parent-transport fiber lemma is now written in
 the complete selected graph and anchor/local partition are fixed, injective
 parent renaming and per-use freshening preserve satisfying assignments, root
 values, and their upward closure for any syntax-directed preorder carrier.
-It does not establish that Oracle selection gives that graph or that an SCC
-partition is correct. The next proof is the missing bridge from source
-constraints through Oracle's ordered root projection to the exact retained
-graph; then the one-root principal relation can use the transport lemma.
+It does not establish source-constraint generation or that an SCC partition
+is correct. The next proof defines source typing independently of Oracle's
+scheme projection, then shows that the retained component graph presents the
+same source assignment relation. Oracle projection remains evidence for final
+acceptance comparison, not the successor's semantic authority. The revised
+candidate direction is in
+`notes/progress/2026-09-30-intrusion-source-constraint-semantics-gate.md`.
