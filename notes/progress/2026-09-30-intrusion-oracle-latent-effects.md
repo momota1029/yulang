@@ -505,6 +505,44 @@ the zero-consumption premise before using this reduction to simplify
 ordinary Function effects. This is separate from, and does not discharge, the
 inference-to-runtime argument-shape bridge above.
 
+### Nested active skeleton selects the enclosing call frame
+
+A disposable test was added to a separate worktree at the frozen Oracle
+commit. The source was:
+
+```yu
+my outer(l: int, sink): int =
+  my inner(x) =
+    sink x
+    inner l
+    x
+  my first = inner l
+  my second = inner l
+  second
+```
+
+The focused `infer` test passed and temporary instrumentation observed the
+unannotated local `Def::Arg` call to `sink`: the call site's introduced frame
+was 1, the currently innermost defined frame was 2, and
+`unannotated_call_frame_index` selected frame 1 with two active defined
+skeletons. Follow-up instrumentation confirmed the last frame was `Defined`,
+`direct_defined_call = true`, and `crosses_inner_active_skeleton = true`, so
+the active-skeleton crossing branch selected the introduced outer frame rather
+than the sub-syntax fallback. That frame had one `pop(δ0)`, while the call
+carried a matching `push(δ0, Empty)`. This is a concrete nested-skeleton
+outer-frame selection path, unlike a typed `sink` parameter, whose annotation
+bypasses this branch. The observed final outer scheme was
+`int -> (int -> ['a] any) -> ['a] int`.
+
+This confirms source reachability and branch attribution for this fixture; it
+does not prove that the pop cancels all pushes, that the generated weighted
+closure is sound/principal, or that the result is adequate for arbitrary
+source programs. An independent compiler-referee review caught and closed the
+branch-attribution gap by requiring direct-call and active-skeleton predicate
+evidence; the follow-up trace includes those facts. The temporary test,
+instrumentation, and worktree are disposable characterization only; frozen
+Oracle files were not changed.
+
 ## Consequence for the full redesign goal
 
 The effect-free Function graph in the abstract-semantics draft can serve as a
@@ -516,5 +554,5 @@ sequential root/publication lifecycle. Handler matching, masks, weights, and
 runtime freshness remain separate obligations until the supported source
 envelope says they are admitted.
 
-No Oracle code was changed and no test or measurement was run for this record.
-The frozen source paths and prior focused probe records above are the evidence.
+No Oracle code was changed. The focused test ran only in a disposable worktree;
+the frozen source paths and probe records above are the evidence.

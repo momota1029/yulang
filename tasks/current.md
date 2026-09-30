@@ -904,9 +904,12 @@ captured for `my h(x, f) = f x`, and a second source fixture
 across two distinct call effects, with one frame pop and a subtract fact only
 on the first call effect. Compiler-referee review confirms the source
 lowering lifecycle but explicitly does not prove weighted cancellation or
-second-call fact derivation. Next characterize outer-frame selection under a
-nested active skeleton and find a source path where bounded exact-pure effect
-constraints survive finalization. A
+second-call fact derivation. A nested recursive-local fixture now confirms the
+direct-call path crosses an active inner skeleton and selects the introduced
+outer call frame; compiler-referee review required explicit predicate evidence
+to distinguish this from a sub-syntax fallback, which the follow-up trace
+provides. This still does not prove weighted cancellation. Next find a source
+path where bounded exact-pure effect constraints survive finalization. A
 conditional zero-consumption
 lemma may reduce the handler-free, no-family fragment: Oracle's weighted row
 rule uses `J = K ∩ Common(L)`, so empty row heads force no row consumption;
