@@ -1744,5 +1744,18 @@ Oracle adapter behavior remains characterization only. This does not prove
 which source constraints select the accepted domain, source-to-elaboration or
 force-context simulation, or the relation of the application bound to source
 `ret_eff`; those remain the next semantic bridge.
+The candidate now records a narrower frozen-source characterization for the
+explicit `int` versus `[_] int` lambda-parameter pair: lowering produces
+`Bot` versus `Top`, materialization yields plain versus thunk domains, and the
+mono probe shows ForceThunk versus MakeThunk. The pair specialized successfully
+but was not executed. This supports only those explicit annotations. An
+architect review confirms that a stable `Value(A)` / `Susp(U,A)` source-domain
+distinction is a new semantic decision: it changes Function subtyping,
+generalization, instantiation, and adapter coherence. `U` must be a latent
+effect allowance under a proved subeffect constraint; the Oracle `Top` fixture
+does not define it or confer handler visibility. This remains unselected. The
+next proof should derive both annotated cases against source trace semantics
+with effectful arguments and bodies that force or ignore the parameter, then
+account for `ret_eff` and prove domain transport through higher-order uses.
 route/scope quotient, principal solver, and a positive `Drop` certificate
 remain open.

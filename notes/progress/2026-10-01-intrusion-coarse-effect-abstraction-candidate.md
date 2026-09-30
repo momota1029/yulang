@@ -1092,6 +1092,67 @@ continuations remain open. See
 mode-indexed application obligation”; that Oracle characterization does not
 select this successor rule.
 
+#### Restricted source-annotation to domain characterization
+
+The ordinary-application bridge can be narrowed for an explicitly annotated
+lambda parameter, without claiming the general case. In the frozen Oracle,
+`connect_lambda_pattern_annotation` gives an unannotated parameter the
+`never_neg()` argument-effect endpoint and no effect stack. An ordinary value
+annotation such as `int` follows the non-effectful branch of
+`lambda_param_effect_slot` and `connect_parameter_computation_detailed`; it
+also keeps the pure argument-effect endpoint and has no effect-stack
+connection. An `AnnType::Effectful` parameter instead starts with a fresh
+effect variable;
+`connect_parameter_computation_detailed` connects it to the annotation row
+and returns an effect-stack connection. For the wildcard row in the focused
+`[_] int` fixture, that connection uses the full effect endpoint. The lambda
+predicate stores that endpoint as `arg_eff`, and `specialize2::lambda_type`
+binds the parameter through `runtime_shape(arg_effect, arg)`.
+
+The existing exact characterization pair is:
+
+```yu
+my strict(x: int) = 1
+my defer(x: [_] int) = 1
+```
+
+The finalized predicates in the disposable `a58eefc3` probe had
+`strict.arg_eff = Bot` and `defer.arg_eff = Top`; runtime materialization
+therefore produced a plain `int` domain for the first and
+`Thunk(Any,int)` for the second. The focused specialization probe completed
+both cases. Mono output placed a `ForceThunk` on the plain-value path and a
+`MakeThunk` around the effectful body on the suspended path. The programs were
+not executed. Runtime `adapt_value` forces
+thunk-to-value adaptation and preserves thunk-to-thunk adaptation. The prior
+Oracle note records the exact probe and its limits; this paragraph links its
+source-lowering endpoints and runtime-domain shape. The source locators are
+frozen `a58eefc3`: `crates/infer/src/lowering/expr/lambda.rs:1252-1264,1266-1326,1344-1354`,
+`crates/infer/src/annotation/constraints.rs:251-280,546-590`,
+`crates/specialize/src/specialize2/task_solver.rs:605-620`, and
+`crates/specialize/src/types/mod.rs:401-426`. The focused application path is
+`crates/specialize/src/solve/expr_solver.rs:354-388`; runtime adaptation is
+`crates/mono-runtime/src/runtime/thunk.rs:4-45`. No Oracle inference-stage
+scheme formatting is required by the successor.
+
+A candidate declarative distinction suggested by this witness is to make the
+accepted domain explicit in the source judgment: `Value(A)` for an ordinary
+parameter and `Susp(U,A)` for an effectful parameter with latent allowance
+`U`. Application then adapts the argument to that domain using the four cases
+above; domain selection does not inspect the actual argument row. This gives
+an independent semantic vocabulary for the witness, but it is not yet a
+selected successor rule or a theorem. Making these constructors stable source
+domains would be a new semantic decision: it requires Function subtyping,
+generalization, instantiation, and adapter coherence rules. `U` means only a
+latent effect allowance under a proved subeffect constraint; the fixture's
+Oracle `Top` neither defines `U` generally nor grants handler visibility. The
+witness covers explicit plain and wildcard-effect parameter annotations only.
+It does not establish domain
+transport through inferred/unannotated higher-order values, bounds that join
+the two domains, independent use instantiation, function adapters, or nested
+effect rows. The next proof must show how the candidate domain constructor is
+preserved by subtyping and generalization, or retain both domains with a
+conservative top transfer when it cannot be determined.
+
 #### Candidate transfer for an already selected value/suspension boundary
 
 To make the preceding inventory compositional, represent an evaluated
