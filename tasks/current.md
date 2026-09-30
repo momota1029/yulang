@@ -1212,8 +1212,14 @@ are in the progress record above.
 Remaining gate: complete the candidate dynamic receiving-scope relation for
 provider/capture eligibility, including helper boundaries, returned-closure
 re-entry, force, scheme instantiation, complete operation coverage, and
-callback ownership. Then prove trace soundness and least-derivable bounds for
-the compositional whole-scrutinee continuation summary. Independent
+callback ownership. A fresh M3 soundness review found that closure re-entry
+must account for carried markers as possible masks; typed family arguments in
+grants must follow the same binder substitution as callback effects; and
+forwarded resumption must restore boundary order while raw matched
+continuations stay outside their shallow handler. These are unclosed proof
+obligations, not candidate counterexamples. Then prove trace soundness and
+least-derivable bounds for the compositional whole-scrutinee continuation
+summary. Independent
 architect, compiler-referee, and spec-auditor reviews found family rows alone
 insufficient for handler visibility and powerset rows alone insufficient to
 establish principality. Capture evidence must be scoped to its boundary and

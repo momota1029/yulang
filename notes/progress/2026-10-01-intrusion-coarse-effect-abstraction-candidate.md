@@ -1269,6 +1269,12 @@ handler h = (activation_id, covered_operations)
 grant g = (introducing_boundary, family_set, scope)
 ```
 
+`family` here is a typed family identity, including its invariant arguments,
+not just a path/name. A grant for `F<Int>` cannot authorize `F<String>` by
+path equality. Scheme instantiation must transport grant arguments with the
+same binder substitution used for the callback effect occurrence; the exact
+successor binder ownership and transport proof remain open.
+
 A source-grounded candidate eligibility clause can be stated as:
 
 ```text
@@ -1277,7 +1283,7 @@ eligible(q, h) iff
     and exact_operation_covered(h, q.operation)
     and for every boundary b in q.ordered_boundary_lineage:
           outside(h, b) or matching_grant(b, q.family, h)
-    and no_other_active_boundary_masks(q, h)
+    and no_other_active_or_carried_boundary_masks(q, h)
 ```
 
 `outside(h,b)` means handler activation `h` is not dynamically nested within
@@ -1293,6 +1299,14 @@ inference is conditional: the caller may handle the request if its exact arm
 matches, it is outside the maker grant scope, no other carried/active boundary
 masks it, and the source/runtime correspondence preserves that eligibility.
 This clause is a source-grounded candidate, not a selected successor rule.
+
+An unresolved carried marker is a possible mask and therefore cannot be
+discarded merely because the original receiving activation has returned. The
+relation must say whether a carried marker reactivates on closure invocation,
+force, or projection, and which dynamic handler identities it can protect. Until
+that is specified, the escaped request remains ineligible for subtraction in
+the proof abstraction (its family stays in the outward bound). This is a
+conservative unknown case, not a decision that every marker remains active.
 
 The eligibility judgment must require an active handler, exact operation-arm
 coverage, and a derivation that every callback boundary on the request's path
