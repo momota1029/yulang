@@ -265,8 +265,21 @@ For each offered request, handler, and boundary represented in its lineage,
 the abstract scope relation is a set of possible classes:
 
 ```text
-ScopeClass = Outside | InsideGranted | InsideDenied | Unknown
+ConcreteScopeClass = Outside | InsideGranted | InsideDenied
+AbstractScopeClass = Outside | InsideGranted | InsideDenied | Unknown
 ```
+
+`Unknown` is abstract-only. Its concretization is the full
+`ConcreteScopeClass` set; a lost boundary identity must not be represented as
+the singleton concrete class `Unknown`.
+
+For an abstract set `S ⊆ AbstractScopeClass`, its concrete meaning is
+`γscope(S) = (S ∩ ConcreteScopeClass) ∪ (ConcreteScopeClass if Unknown ∈ S)`.
+`UnknownMask` similarly denotes any concrete blocker state. A request fact
+covers a concrete scope observation only when that observation lies in
+`γscope(S)` for every corresponding boundary occurrence. The universal `Drop`
+test is evaluated over these concretizations, so any abstract `Unknown`
+prevents subtraction.
 
 `InsideGranted` requires proof that the handler is nested under the same live
 receiving activation and that its concrete grant covers the request family.
@@ -443,7 +456,7 @@ finite, with explicit unknown members. `ReqFact` and bounded lineage use the
 finite domains already described above. `TopKont` is a symbolic absorbing
 element, not an enumeration of every boundary map. Its concretization includes
 all request facts at every local handler slot; every finite map from boundary
-occurrences to subsets of `ScopeClass`; all local continuation, arm, value,
+occurrences to subsets of `AbstractScopeClass`; all local continuation, arm, value,
 and thunk destinations; every return/request/forward/handle/resume outcome;
 and top latent effect `⊤Eff`. An `UnknownHandler` or `UnknownArm` interface
 destination contributes the same top summary at every compatible local
@@ -452,7 +465,7 @@ handler slot.
 For a concrete observation, project its dynamic handler identity to the
 corresponding static handler slot, or `UnknownHandler` when unavailable.
 Project each dynamic boundary identity to its static boundary occurrence and
-union possible `ScopeClass` values per occurrence. Repeated dynamic instances
+union possible `AbstractScopeClass` values per occurrence. Repeated dynamic instances
 at one site remain separate bounded-lineage entries while represented; if
 truncation or a join loses that distinction, widen the affected occurrence to
 all scope classes and `UnknownMask` instead of overwriting one instance with
@@ -496,6 +509,104 @@ accepts. This is a candidate precision cost, not a selected compatibility
 difference: any concrete Oracle mismatch must still be exhibited and recorded
 before choosing the fallback for the supported envelope.
 
+#### Concrete-to-abstract relation for the top fallback
+
+For the fallback proof only, write a concrete source configuration as
+`κ = (D, L, Env, ctl)`: `D` is the ordered word of live dynamic delimiter
+instances, `L` is ordered request-boundary lineage, `Env` contains every
+reachable local, stored, exported, and imported value root (including
+closures, thunks, and captured continuations), and `ctl` is the current
+return/request/arm/call/force/resume control point plus pending wrappers.
+Continuation values denote the source `k_offer` closures, including their
+already-composed handler transformers; they are not reduced to raw stack
+slices.
+
+An abstract state `A` contains finite sets of projected stack and lineage
+facts, a finite set of abstract control facts, a finite map from static
+value/allocation slots to sets of value facts, a map from static handler slots
+to offered `ReqFact` plus scope relations, and effect bounds for each static
+effect slot. A control fact names a control slot or `UnknownControl`, plus any
+pending continuation kind and wrapper references. `TopControl` denotes all
+control slots and pending wrappers and necessarily carries `TopKont`, `⊤Eff`,
+and top request observations at every possible handler destination. A value
+fact contains its value kind, latent row (possibly `⊤Eff`), and any captured
+continuation summary.
+Define `κ ∈ γ(A)` when all of the following hold:
+
+1. `αK(D)` and the bounded projection of `L` occur in the corresponding
+   abstract stack/lineage alternatives.
+2. Every concrete environment value maps to a static value slot whose fact
+   covers its kind, latent effects, and captured scope/continuation evidence.
+3. Every concrete request offered to a dynamic handler maps to that handler's
+   static slot (or `UnknownHandler`) and to a fact whose family, operation,
+   origin, and ordered lineage cover the concrete request, and whose
+   `γscope` for each corresponding boundary occurrence contains the concrete
+   relation. Dynamic boundary instances at one site keep distinct bounded
+   occurrence positions; if a projection merges them, the union must contain
+   every concrete class and include `UnknownMask` where identity is lost.
+4. Every concrete immediate and latent effect is included in its abstract row.
+5. The current `ctl` and all pending wrappers/continuations map to an abstract
+   control fact. Unknown control identity maps to `UnknownControl`/`TopControl`;
+   pending lost wrapper identity maps to `UnknownRef` with top control. Any
+   `TopControl` fact carries the top effect/provenance/offer summary above; it
+   cannot exist as an untainted control-only marker.
+6. For every family in a scrutinee effect bound, the offer component contains
+   a corresponding request fact or top fact at every possibly receiving
+   handler slot. For `⊤Eff`, this coupling is top at every compatible local
+   handler slot and imported interface destination.
+
+The projection of a dynamic handler or boundary identity to a static site is
+only a carrier for a *set* of possible dynamic instances; it is never an
+identity proof. A concrete `InsideGranted` classification enters the abstract
+scope set only when the exact live activation and family grant are established.
+Otherwise the set includes `InsideDenied` or `Unknown` as appropriate. Join is
+union of whole abstract alternatives; if value/environment correlation is
+lost, the product admits extra states, and their scope classes/effects must be
+included rather than reconstructed from source-site equality.
+
+Define `step#(A)` as a set of pairs `(A', Obs#)`, where `Obs#` is the set of
+request offers emitted on that abstract edge. The top-taint predicate for an
+abstract edge holds when its control point, a pending wrapper, or a value used
+by the edge is represented by `TopControl`, `TopKont`, or `UnknownValue`.
+An abstract observation is a tuple `(handler_slot, operation, family,
+origin, bounded_lineage, scope_relation)` over the finite domains above.
+Define `CoverObs(o, ô)` componentwise: dynamic handlers, operations, families,
+origins, and lineage in concrete offer `o` map to their exact abstract labels
+or the corresponding `Unknown*` label, and each concrete boundary class in
+`o` belongs to `γscope(S)` for the corresponding abstract scope set `S` in
+`ô`. This is a coverage relation, not a unique projection: identity loss may
+admit several covering tuples. `UnknownHandler`, `UnknownOp`,
+`UnknownOrigin`, and `UnknownFam` cover every concrete identity outside the
+finite exact-label set; `UnknownFam` denotes row top, not a standalone family
+that a closed row can accidentally ignore. `TopObs` is the set of every
+abstract tuple, including tuples with every possible scope relation, so for
+every concrete offer `o` some `ô ∈ TopObs` satisfies `CoverObs(o, ô)`.
+The top-edge simulation goal is: if `κ ∈ γ(A)`, `κ →[Obs] κ'`, and that edge
+uses top-tainted control/value, then some `(A', Obs#) ∈ step#(A)` satisfies
+`κ' ∈ γ(A')` and, for every concrete offer `o ∈ Obs`, some `ô ∈ Obs#`
+satisfies `CoverObs(o, ô)`. Silent edges have empty `Obs`. This labelled-edge condition covers
+requests that are handled and disappear before the successor state.
+
+When the top-taint predicate holds, `step#` preserves or widens the complete
+top summary across each control and value transition:
+
+| Concrete transition | Required abstract transfer when the full top summary is present |
+|---|---|
+| A request is offered, then matched or forwarded | Before either branch, put every possible `TopObs(handler, operation, family, origin, lineage, scope)` in `Obs#` for all local/unknown handler destinations; retain `TopKont`/`⊤Eff` in the successor. A fact stored only in `A'` does not cover an offer handled on this edge. |
+| Catch entry/exit, arm entry/exit | Retain `TopKont`/`⊤Eff` and fan top request/scope facts to every possible handler slot. |
+| Raw or forwarded continuation resume | Preserve top on the continuation slot; forwarded resume additionally retains the captured `H` wrapper possibility. |
+| Return, closure/thunk construction, storage, or escape | Copy top latent row and top provenance to every result slot that may capture the continuation; otherwise use `UnknownValue`. |
+| Call, force, or recursive re-entry | Load the top value summary and emit top observations under every possible current handler slot. |
+| Scheme instantiation or imported call | Do not freshen away top; instantiate/export `⊤Eff` and top provenance, or widen to `Unknown*`. |
+
+This transfer table is sufficient for top-tainted edges if the concretization
+and finite-interface premises hold: the next concrete control point, reachable
+value, request observation, and effect all lie in the top summary. Induction
+over finite labelled paths proves `γ` coverage for executions after loss; it
+does not prove how a non-top `KontFact` is computed or when it must widen.
+Escaped roots and imported open rows are part of the induction, not separate
+post-processing.
+
 Review closure: the first version omitted top propagation through escaped
 values and treated a fresh unknown-family token as though it bounded omitted
 families. Architect and compiler-referee review identified those gaps. A
@@ -503,8 +614,18 @@ focused compiler-referee delta review confirms the revised absorbing
 `TopKont`, value taint, handler/boundary projection, universal `Drop` check,
 and row-level `⊤Eff` close them at the candidate-lemma level. The explicit law
 `⊤Eff \ Drop = ⊤Eff` was added after that review from its minor clarification.
-The concretization invariant, transition simulation, and annotation-solver
-integration remain unproved.
+Subsequent independent review found that the first γ relation omitted control
+and pending wrappers, treated `Unknown` as a concrete singleton, allowed
+`TopControl` without a top effect summary, and did not require an edge
+observation when a request was handled and vanished. The candidate now maps
+control/wrappers and all reachable roots, gives `Unknown` its full-class
+concretization, ties `TopControl` to top row/offers, and emits `TopObs` before
+either match or forward. A focused compiler-referee delta review closed these
+findings at the candidate level. A second focused delta review confirms the
+`TopObs` schema matches the emitted edge observations; this note now states a
+set-valued `CoverObs` relation so `γscope` is not mistaken for a unique
+projection. The formal full-language concretization, transition simulation,
+and annotation-solver integration remain unproved.
 
 At each offer of a request to a dynamic activation `h`, emit an observation
 `(operation, family, origin, ordered lineage, h, active-scope relation)` before
@@ -574,14 +695,15 @@ state:
 1. Every concrete request `q` offered to dynamic handler `H` has a covering
    abstract request fact at the corresponding static handler slot.
 2. For every receiving-boundary identity and other active mask on `q`'s
-   concrete lineage, that fact's possible `ScopeClass` set contains the
-   concrete relation for this exact `(H,q,boundary)` activation tuple.
+   concrete lineage, that fact's `γscope` contains the concrete relation for
+   this exact `(H,q,boundary)` activation tuple.
 3. Per-concrete-pair classification is sound, and exact operation coverage is
-   checked separately. Only when the entire possible-class set for every
-   relevant boundary/mask is a subset of `{Outside, InsideGranted}` does the
-   abstract fact imply visibility eligibility for every represented pair. Any
-   `InsideDenied` or `Unknown` prevents `Drop`; a joined `{Outside,
-   InsideDenied}` cannot pass just because one possibility is outside.
+   checked separately. Only when `γscope(S)` for every relevant
+   boundary/mask is a subset of `{Outside, InsideGranted}` does the abstract
+   fact imply visibility eligibility for every represented pair. Any concrete
+   `InsideDenied` possibility, or `Unknown` whose concretization includes it,
+   prevents `Drop`; a joined `{Outside, InsideDenied}` cannot pass just because
+   one possibility is outside.
 4. Closure/thunk/continuation summaries preserve latent effect rows and these
    scope relations. Boundary expiry means `Outside` only after proving the
    source semantics cannot restore that receiving scope through a carried
