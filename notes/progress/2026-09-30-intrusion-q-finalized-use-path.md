@@ -156,20 +156,69 @@ worktree and are not part of frozen commit `a58eefc31`. Independent
 compiler-referee review checked the source, trace, and limits; it found no
 blocking or major issue.
 
+## Effect-sensitive incoming-use trace
+
+A follow-up disposable-Oracle probe places two calls to `f` in differently
+typed handlers:
+
+```text
+pub act ask 'a:
+    pub get: () -> 'a
+pub answer_int(action: [ask int] _) = catch action:
+    ask::get(), k -> answer_int(k 1)
+    v -> v
+pub answer_bool(action: [ask bool] _) = catch action:
+    ask::get(), k -> answer_bool(k true)
+    v -> v
+pub f x = x f
+pub use_int: int = answer_int: f 1
+pub use_bool: bool = answer_bool: f true
+```
+
+The focused `dump_source` characterization asserted no lowering errors and
+passed. In this fixture `f` is `DefId(4)`. Its finalized raw predicate again
+has `ret_eff = Var(TypeVar(83))`, quantified alongside the result `TypeVar(78)`.
+The `use_int` incoming use (`parent DefId(5)`) maps TypeVar83 to TypeVar115;
+the `use_bool` use (`parent DefId(6)`) maps it to TypeVar119. The two distinct
+fresh effect identities each receive an upper bound through their respective
+application constraints. The bounded variable trace then shows the int path
+reaching an upper row `ask(NeuId(5))` with tail TypeVar113, while the bool path
+reaches `ask(NeuId(7))` with tail TypeVar117. The source annotations identify
+these handler contexts as `[ask int]` and `[ask bool]`. Both scheme predicates
+are attached by the direct-lower route.
+
+Command:
+
+```text
+YULANG_INTRUSION_USE_TRACE=1 YULANG_TRACE_SCHEME_DEFS=4 \
+  YULANG_TRACE_VAR_BOUNDS=94,95,107,108,113,115,117,119 \
+  CARGO_TARGET_DIR=/tmp/yulang-intrusion-qscheme-use-target \
+  cargo test -p infer --lib scratch_intrusion_q_scheme_effect_uses -- --nocapture
+```
+
+Result: 1 passed. The trace is captured at
+`/tmp/yulang-intrusion-effect-use.log`. An independent compiler-referee audit
+confirmed the identity mapping and identified the limit: the capture does not
+show fully normalized effects, all handler subtraction edges, or a semantic
+assertion that the two complete effect-choice sets remain independently
+observable. Therefore this establishes distinct quantified `ret_eff`
+freshening and distinct context rows in the captured constraint graph, not
+solved-effect independence, general contextual preservation, provenance or
+diagnostic equality, or q-erasure preservation.
+
 ## Next proof obligation
 
-Construct an effect-sensitive incoming-use context for the quantified latent
-return-effect identity. Trace its scheme-instantiation constraints and final
-observations to show that local effect choices stay independent. Then state
-the exact `Obs_scheme` relation for those uses, including type result, latent
-effects, diagnostics, and exposed provenance. Keep this separate from the
-unproved pre-view `q` rewrite/prune preservation theorem and from the
-source-generated constraint graph's regular-presentation correspondence.
+Trace each fresh `ret_eff` through handler subtraction and to a final normalized
+effect observation, or add a semantic assertion that distinguishes shared from
+independent effect choices. Then state the exact `Obs_scheme` relation for
+those uses, including type result, latent effects, diagnostics, and exposed
+provenance. Keep this separate from the unproved pre-view `q` rewrite/prune
+preservation theorem and from the source-generated constraint graph's
+regular-presentation correspondence.
 
 The source-path mapping above was read-only. Subsequent disposable-worktree
 Rust probes modified only the temporary Oracle checkout and ran the focused
 scratch tests recorded above; no Oracle commit or repository source was
-changed. A compiler-referee reviewed the q-use trace and shared-anchor delta in
-two scoped passes against the captures and source. The review found
-documentation wording issues that were corrected. Its scope was these
-fixtures, not the q-projection or intrusion theorem.
+changed. Compiler-referee reviews checked the q-use, shared-anchor, and
+effect-sensitive traces against their captures and source. Their scope was
+these fixtures, not the q-projection or intrusion theorem.

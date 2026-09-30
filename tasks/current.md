@@ -653,14 +653,16 @@ No compiler implementation is authorized by this result; the reviewed
 successor contract and explicit approval remain prerequisites.
 
 The finalized ordinary-use path is now characterized in
-`notes/progress/2026-09-30-intrusion-q-finalized-use-path.md`. A temporary
-Rust-only frozen-Oracle probe records the exact `f` scheme and two incoming
-uses: the two quantifiers map to disjoint identities, the Function predicate
-uses direct-lower insertion, and no recursive q row is reinstalled. The dump
-reports `int` and `bool` for annotated uses; effect independence and a shared
-free-anchor case for `f` remain open, as do seven structural provenance
-witnesses. A separate local-binding fixture traces one free outer identity
-shared across two uses while its local binder freshens per use; it does not
-cover an SCC. Next add an effect-sensitive context, then relate these use
-observations to the source graph and q projection. These probes changed no
-frozen Oracle files.
+`notes/progress/2026-09-30-intrusion-q-finalized-use-path.md`. Temporary
+Rust-only frozen-Oracle probes record the exact `f` scheme and incoming uses:
+type and latent return-effect quantifiers map to disjoint identities, the
+Function predicate uses direct-lower insertion, and no recursive q row is
+reinstalled. A two-handler probe traces each fresh return-effect identity to
+different `ask int` / `ask bool` context rows, but does not yet show final
+normalized effects or complete choice-set independence. The dump reports
+`int` and `bool` for annotated uses; seven structural provenance witnesses
+remain incomplete. A separate local-binding fixture traces one free outer
+identity shared across two uses while its local binder freshens per use; it
+does not cover an SCC. Next trace each fresh effect through handler subtraction
+to final observations, then relate use observations to the source graph and q
+projection. These probes changed no frozen Oracle files.
