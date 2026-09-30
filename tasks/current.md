@@ -1339,8 +1339,16 @@ symbolic absorbing summary with `⊤Eff`, `UnknownValue`, all-destination offer
 fanout, per-boundary scope unions, and explicit propagation through returns,
 storage, calls, force, escape, arms, instantiation, and resume. The top effect
 includes unknown imported/open families, and `⊤Eff \ Drop` remains top absent a
-narrowing proof. This does not prove concrete finite-slot coverage or those
-transfers. Next gate: define the concretization map for source/interface
-states, prove the listed transitions preserve TopKont and row-to-offer
-coupling, then integrate top effects with annotation and least-solution rules.
-Exact continuation support and use counts remain outside the requirement.
+narrowing proof. The 2026-10-01 candidate now states a set-valued
+concrete-to-abstract relation, `CoverObs` for emitted request observations,
+and a labelled `step#` coverage goal; it ties `TopControl` to the full top
+summary and emits observations even when a request is handled on the current
+edge. Focused architect/compiler-referee delta reviews closed those formulation
+gaps, but the finite-interface coverage premise, transfer simulation, and
+annotation/least-solution integration remain unproved. Next gate: construct
+the actual finite-slot abstraction and prove each top-tainted transition
+preserves control/value/effect/provenance coverage, then prove the non-top
+continuation transfers. Keep exact trace semantics as the soundness reference
+and principality relative to the chosen expressible abstraction; exact
+continuation support and use counts are not requirements absent independent
+language-design justification.
