@@ -2,16 +2,20 @@
 
 Date: 2026-09-30
 Branch: `research/simple-sub-intrusion`
-Status: concrete graph conflict recorded; successor remains unreviewed and
-unapproved
+Status: user-approved priority recorded; exact successor representation
+remains unreviewed
 
 ## Priority and divergence gate
 
 The user's priority is soundness, then principality, then Oracle-compatible
-observable behavior. An Oracle mismatch alone does not authorize divergence.
-The record must identify the concrete conflict, the exact Oracle behavior to
-drop, the proposed successor rule, and compatibility impact. A new semantic
-contract still needs independent review and user approval before implementation.
+observable behavior. The user clarified on 2026-09-30 that q polarity erasure
+is not required: retain any meaningful source constraint. Inference-stage
+scheme formatting and acceptance phase need not match Oracle; final acceptance
+of well-typed programs is the compatibility target. An Oracle mismatch alone
+does not justify divergence; identify the conflict, behavior to drop,
+successor rule, and impact. The user approved this priority and retention
+policy. The exact parent graph representation still needs independent semantic
+review before implementation under the repository design gate.
 
 ## Concrete conflict
 
@@ -47,7 +51,7 @@ unconstrained one-polarity erasure. This is the exact behavior observed for q
 in `pub f x = x f`, not a blanket rejection of all Oracle one-sided
 projection.
 
-## Proposed successor behavior
+## Successor behavior directed by the user
 
 Retain a bounded one-polarity variable as a boundary parent in the generalized
 member graph, retaining its selected incident constraints and recursive
@@ -57,23 +61,22 @@ The intended rationale is that keeping the obligations avoids enlarging the
 source root relation by deleting the q upper bound. Unconstrained one-sided
 variables remain eligible for `Top` / `Bottom` projection.
 
-This successor is only a draft. Its full principal-root theorem, eligibility
-criteria for selected edges, and transport across effects and roles remain
-unproved.
+The user directed this source-constraint-retention policy. Its full
+principal-root theorem, meaningful-bound eligibility criteria, and transport
+across effects and roles remain unproved and unreviewed.
 
-## Compatibility impact
+## Compatibility boundary and impact
 
-For `pub f x = x f`, `dump-poly` would no longer publish `any -> ['a] 'b`
-without q's bound; it would publish a bound-preserving graph view or report an
-earlier use error. The observed `f 1` and `f id` programs already fail
-`dump-mono`, so those fixtures may retain final mono rejection but change
-failure stage, message, span, and public scheme output. API consumers that rely
-on the broad displayed scheme may observe a narrower result. Acceptance and
-diagnostics for other contexts are unmeasured. The proposed draft at
+For `pub f x = x f`, `dump-poly` may stop publishing `any -> ['a] 'b` without
+q's bound or may reject a use earlier. Such inference-stage scheme or
+acceptance-phase differences are allowed. The observed `f 1` and `f id`
+programs already fail `dump-mono`, so these examples can retain final rejection
+while changing phase. The required comparison is final acceptance of
+well-typed programs across the supported envelope; other contexts remain
+unmeasured. The proposed draft at
 `notes/design/2026-09-30-intrusion-q-bound-successor-draft.md` lists these
-risks and remaining proof obligations.
+proof obligations.
 
-No implementation is authorized yet: the successor draft has no independent
-review and no recorded user approval. The next gate is independent review of
-the exact conflict and the proposed root-principality rule, followed by the
-user's approval decision.
+The policy itself is user-approved. No implementation is authorized yet:
+exact graph semantics and the final-acceptance theorem remain open, and the
+successor representation has not had independent review.

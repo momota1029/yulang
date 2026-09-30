@@ -5,8 +5,10 @@ Updated: 2026-09-30. Branch: `research/simple-sub-intrusion`.
 The user's current priority is soundness, then principality, then Oracle
 compatibility. A concrete graph-level q-erasure conflict, proposed Oracle
 behavior to drop, successor rule, and compatibility impact are now recorded;
-the divergence is not adopted because its successor remains unreviewed and
-unapproved. See
+the user has now directed that meaningful source constraints be retained and
+approved that inference-stage scheme formatting / acceptance phase need not
+match Oracle. Final acceptance of well-typed programs remains the compatibility
+target. Exact parent-graph semantics are still unreviewed. See
 `notes/progress/2026-09-30-intrusion-oracle-priority.md`. The q-erasure
 inference view is followed by a frozen-Oracle mono specialization rejection
 for `f 1`, so the view alone does not establish an unsound accepted program.

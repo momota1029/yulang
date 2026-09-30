@@ -34,10 +34,14 @@ its own branch.
 
 ## 2. Semantic target
 
-The observable target is Oracle-compatible behavior on the supported input
-envelope, following the repository's product priority. Use frozen Yulang2
-`main` at commit `a58eefc3` as the concrete oracle for existing behavior. Do
-not copy its implementation mechanically. In particular, the audited Yulang2
+The semantic priority is soundness and principality before Oracle compatibility.
+On 2026-09-30 the user clarified that Oracle inference-stage scheme formatting
+and the phase at which a program is accepted are not successor requirements;
+the compatibility target is the final acceptance capability for well-typed
+programs. Meaningful source constraints must be retained when polarity-only
+erasure would lose them. Use frozen Yulang2 `main` at commit `a58eefc3` as a
+reference for existing behavior, but do not copy its implementation
+mechanically. In particular, the audited Yulang2
 `extrude_pos` / `extrude_neg` lower existing variable levels in place during
 bound insertion; that code does not allocate the fresh boundary representatives
 described in the 2026-09-29 sketch. The redesigned operation must be defined
@@ -131,9 +135,11 @@ branch available until a coherent replacement gate passes.
 
 Return to design if the parent relation captures an enclosing variable,
 collapses meaningful polarity, merges independent uses, loses a recursive
-bound, changes Oracle-observable behavior inside the supported envelope, or
-fails the soundness/principality proof for its claimed envelope. A deliberate
-observable difference needs an explicit compatibility decision rather than
+bound, reduces final acceptance of well-typed programs in the supported
+envelope, or fails the soundness/principality proof for its claimed envelope.
+Differences in inference-stage formatting or acceptance phase are permitted
+under the user's 2026-09-30 decision. Any other deliberate compatibility
+difference needs a concrete conflict and an explicit decision rather than
 being called equivalent.
 
 Do not run the consumed F5c guarded-cycle captures. Any future resource

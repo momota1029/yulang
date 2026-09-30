@@ -1,4 +1,4 @@
-# Successor draft: retain selected bounds on one-polarity parents
+# Successor draft: retain meaningful bounds on one-polarity parents
 
 Date: 2026-09-30
 Status: Draft; unreviewed; not implementation authority
@@ -9,7 +9,20 @@ Approved-at: none
 Reviewed-by: none
 Supersedes: none
 
-## Decision under consideration
+## User-approved semantic priority
+
+On 2026-09-30 the user decided that matching Oracle one-polarity q erasure is
+not a successor requirement: if erasure loses a meaningful source constraint,
+retain that constraint. Compatibility with Oracle inference-stage scheme
+formatting and acceptance stage is not required. The target is acceptance of
+final well-typed programs. Soundness and principality remain ahead of Oracle
+compatibility.
+
+This records that priority decision. The exact parent representation and its
+proof obligations below remain a draft, not an approved implementation
+contract.
+
+## Proposed successor rule
 
 Do not erase a generalizable variable to `Top` or `Bottom` solely because it
 occurs at one polarity when the selected frozen graph has incident bounds on
@@ -19,21 +32,30 @@ per-incoming-use instantiation freshens that parent and transports its selected
 constraint graph as one unit. Unconstrained one-polarity variables remain
 eligible for the Oracle's polarity extreme.
 
-This is a candidate successor rule, not an approved design. It does not select
-which bounds are eligible, define boundary levels, settle the full type
-carrier, or define effects, roles, diagnostics, or serialization.
+The formal criterion for a bound to be meaningful, exact selected-edge
+eligibility, boundary levels, the full type carrier, effects, roles,
+diagnostics, and serialization remain to be specified and proved.
 
 ## Concrete conflict motivating the rule
 
 For frozen Oracle `a58eefc31`, source `pub f x = x f` has parameter `x` mapped
-to `q = TypeVar(2)`, self value `S = TypeVar(1)`, and application result
-`V = TypeVar(11)`. Its selected typed graph contains:
+to `q = TypeVar(2)`, self value `S = TypeVar(1)`, application result
+`V = TypeVar(11)`, wrapper `W`, and public root `R`. The symbolic source
+inventory gives:
 
 ```text
-q⁻ ≤ Fun(S⁺, V⁺)       BoundRecordId(7), source ApplicationArgument
-Fun(q⁻, V⁺) ≤ S⁺       BoundRecordId(4), selected recursive lower
-Fun(q⁻, V⁺) ≤ root⁺   selected root lower
+q ≤ Fun(S, Ea, Stack(C, push(δ)), V)                         // application
+Fun(q, Bot, NonSubtract(Be,pop(δ)), NonSubtract(Bv,pop(δ))) ≤ W
+W ≤ R
 ```
+
+The collector also records a q-bearing selected lower at the root and the
+recursive edge `Fun(q,V) ≤ S`; those are useful graph evidence but are not
+needed for the root exclusion below. The exact source constraints, edge
+provenance, and run-local identity correspondence are recorded in
+`notes/progress/2026-09-30-intrusion-powerset-carrier-candidate.md`,
+`notes/progress/2026-09-30-intrusion-q-finite-bound-cycle-trace.md`, and
+`notes/progress/2026-09-30-intrusion-source-identity-map.md`.
 
 The Oracle expands q at negative polarity, erases it to `Top`, prunes its
 recursive row, and publishes the root argument as `Top`. The exact traces and
@@ -51,24 +73,25 @@ Function rule:
 Fun(A,R) ≤ Fun(A',R') iff A' ≤ A and R ≤ R'
 ```
 
-The selected q-cycle/root fragment is nonempty: choose `q=Bottom`, `S=Top`,
-`V=Bottom`, and root `r=Top`. Now consider `A = Fun(Top,Bottom)`. The erased
-scheme relation contains `A` as a generator by assigning its result binder
-`Bottom`. The original selected graph cannot generate any root `t ≤ A`:
-the selected root edge requires `Fun(q,V) ≤ t`, hence by transitivity
-`Fun(q,V) ≤ A`. Function subtyping then requires `Top ≤ q`. Its selected
-upper edge also requires `q ≤ Fun(S,V)`. Transitivity would give
-`Top ≤ Fun(S,V)`, contradicting properness. Therefore:
+Now consider `A = Fun(Top,Bottom)`. The erased scheme relation contains `A`
+as a generator by assigning its result binder `Bottom`. If a source root
+assignment `t` satisfied `t ≤ A`, the source wrapper constraints would give
+`Fun(q, ..., ...) ≤ W ≤ t ≤ A`. The Function value-argument condition then
+requires `Top ≤ q`. The direct application constraint also requires
+`q ≤ Fun(S, ..., V)`. By transitivity this implies
+`Top ≤ Fun(S, ..., V)`, contradicting properness. Therefore:
 
 ```text
 A ∈ Pred_erased
 A ∉ Pred_selected
 ```
 
-The conflict is thus not an empty-graph artifact. This is a concrete
-principal root-relation mismatch for the traced selected-bound graph under
-the stated carrier/order assumptions: polarity-only erasure enlarges the
-relation.
+This proof uses source-generated wrapper constraints, not only the collector's
+selected-root edge. It is a concrete principal root-relation mismatch for the
+exact traced source constraints under the stated carrier/order assumptions:
+polarity-only erasure enlarges the relation. The q/S incidence fragment is
+nonempty with `q=Bottom`, `S=Top`, `V=Bottom`; that assignment is only for the
+incidence fragment, not a witness for every source/effect constraint.
 
 The compact recursive upper is `q ≤ q ∩ K(q)`. If `∩` is the meet, then
 `q ≤ q ∩ K(q)` iff `q ≤ K(q)`: one direction follows by meet projection, and
@@ -83,10 +106,12 @@ premise. The collector trace records that direct upper as the source
 `ApplicationArgument` edge and records q at negative polarity with empty
 weights. This does not identify the full compact `K(q)` with only that edge.
 
-The contradiction uses only the necessary value-argument condition of
-Function subtyping; additional latent-effect constraints can only further
-restrict the source relation. Matching the captured effect coordinates into a
-full `Obs_source` witness is part of the still-open source/effect bridge below.
+The exclusion uses only the necessary value-argument condition of Function
+subtyping; additional latent-effect constraints cannot make an unsupported
+root enter the source relation. The erased scheme can assign its unconstrained
+result/effect binders directly. The full source-to-public observation bridge,
+including satisfiability of the complete effect graph and runtime behavior,
+remains open.
 
 ### Scope of this counterexample
 
@@ -112,9 +137,9 @@ The observed Oracle output for this fixture is
 `pub f x = x f; pub main = f 1`, reports `main : never`, and marks `main` as a
 runtime root; `dump-mono` later rejects its `f : int -> unit` instance. The
 source-level inference and mono observations are distinct. The proposed
-successor preserves the selected bound at inference/use instantiation, so the
-invalid use may fail earlier; this is a proposed principality correction, not
-a claim of end-to-end Oracle unsoundness.
+successor preserves the selected bound at generalization/use instantiation,
+so the invalid use may fail earlier. This corrects the inferred root relation;
+it is not a claim that Oracle's completed pipeline accepts the invalid program.
 
 ## Successor semantics to prove
 
@@ -139,22 +164,26 @@ must satisfy all of these before any implementation can claim principality:
 The proof obligation is about root principality and per-use behavior; a
 pointwise least assignment to every graph vertex is not required.
 
-## Compatibility impact if approved
+## Compatibility boundary
 
-For fixtures where an erased one-polarity variable has selected bounds, public
-inference output can change from an extreme (`any`/`never`) to a constrained
-regular graph or an equivalent bounded view. Programs such as `f 1` that
-currently pass `dump-poly` and fail `dump-mono` may fail during inference or
-use instantiation instead. Diagnostic phase, wording, source attribution,
-`dump-poly` output, and downstream API consumers of the old broad scheme can
-change. Programs whose one-polarity variables have no selected bounds should
-retain the extreme projection. Whether accepted-program sets change outside
-the observed fixtures remains unproved and must be measured against the
-frozen Oracle after the successor is reviewed.
+Oracle inference-stage scheme formatting and the phase where a program is
+accepted or rejected are not compatibility requirements. Thus `dump-poly`
+changing from `any -> ['a] 'b` or rejecting `f 1` before mono specialization
+is an allowed stage-level difference. The acceptance target is every final
+well-typed program in the supported envelope remaining accepted by the
+completed successor pipeline, with soundness and principality preserved.
+Programs such as `f 1` already fail Oracle `dump-mono`, so an earlier rejection
+does not reduce final acceptance capability for that fixture. Programs whose
+one-polarity variables have no meaningful selected bounds remain eligible for
+the extreme projection. No claim is made that the proposed rule preserves the
+complete final accepted-program set; proving that is part of the
+Oracle-capability theorem.
 
 ## Gate
 
-This proposal needs independent semantic review and explicit user approval
-before code changes. Current evidence justifies rejecting unconditional
-polarity erasure in the candidate graph semantics; it does not yet prove the
-full successor's Oracle-capable envelope or authorize implementation.
+The user approved the semantic priority and source-constraint-retention policy
+above. Exact eligibility and transport semantics still need independent
+semantic review before code changes under the repository design gate. Current
+evidence rejects unconditional polarity erasure for this graph; it does not
+yet prove the full successor's final-acceptance capability or authorize
+implementation.

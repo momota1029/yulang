@@ -1735,7 +1735,14 @@ induced by `P`; they are not compressed into a single use batch. Finite trace
 prefixes are used only in step-simulation lemmas and have no final public
 observation.
 
-Execution is split into an internal transition trace and a public observation:
+Execution is split into an internal transition trace and a public observation.
+For the successor, inference-stage scheme formatting and the phase at which a
+program is accepted are not parity requirements. The decisive compatibility
+claim is that final well-typed programs in the supported envelope remain
+accepted, while soundness and principality hold. Intermediate Oracle outputs
+and phase outcomes remain useful trace evidence, but differences there alone
+do not violate the target. The exact final-acceptance relation still needs a
+reviewed definition.
 
 ```text
 Run_X(Entry_X, state_X, Lower_X(Entry_X, P)) = (trace_X, public_X)
@@ -1775,13 +1782,14 @@ are not assumed to be public fields. Whether public type equality follows the
 Oracle formatter or equality of denoted principal solution sets remains
 unresolved and must be fixed before claiming parity.
 
-The candidate parity claim is that, for every pair of initial states related
-by the root-indexed state invariant and every `P` in the supported source
-grammar, Oracle and intrusion runs have the same
-normalized `public_X` under one identity correspondence that fixes shared
-anchors and consistently renames fresh local identities per use. Their
-internal traces need not be equal; a root/use simulation relation must match
-each public-relevant transition and continuation. This quantifies over
+The candidate parity claim is that every final well-typed program in the
+supported source envelope is accepted by the successor, with soundness and
+principality; inference-stage exported scheme formatting need not equal the
+Oracle's. The richer `public_X` relation remains useful for diagnosing
+differences and for fields that affect final acceptance, but equality of all
+intermediate observations is not the acceptance criterion. Their internal
+traces need not be equal; a root/use simulation relation must justify the
+acceptance result and its continuation. This quantifies over
 interleaved later constraints, root preparation, publication, and uses, not
 only their immediate result at one use root. The root-indexed initial-state
 invariant, source-lowering relation, effect/product/recursive interval
