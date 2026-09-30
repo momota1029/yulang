@@ -1713,8 +1713,12 @@ targets. Review caught and closed a bodyless `PolyPat::Ref` case: its numeric
 runtime instance target is not justified by the source `DefId`, so the pattern
 event takes the full unknown/top transfer unless the allocated body is proved.
 The finite relation is still only instrumentable, not present in current IR;
-ghost-tag erasure through pattern binding, exhaustive provenance transport,
-and source-step simulation remain open. Next prove those transfers together
-with latent-row coupling;
+ghost-tag erasure for the local pattern-reference/instance-evaluation path is
+now stated and independently reviewed, conditional on identical raw cache,
+body, environment, and bind-continuation state. It preserves the Oracle's
+`UnhandledEffect` conversion when an instance body returns a request; this is
+runtime characterization, not successor effect authority. Exhaustive
+provenance instrumentation and source-step simulation remain open. Next prove
+those transfers together with latent-row coupling;
 route/scope quotient, principal solver, and a positive `Drop` certificate
 remain open.

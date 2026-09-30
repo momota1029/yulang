@@ -660,6 +660,35 @@ through every emission and rewrite. It does not prove that this instrumentation
 has been implemented or that the resulting abstract transitions simulate all
 source steps.
 
+#### Conditional ghost-origin erasure for pattern-reference binding
+
+For one fixed frozen executable, add the `PatSite` to each pattern-reference
+bind continuation. The side origin map must retain the source arena-qualified
+`PatId`; the runtime `Pat::Ref(InstanceId)` alone does not retain it. If the
+actual allocated instance body is proved, carry its `DefId` too. The
+bodyless-reference fallback remains `UnknownOrigin`/top.
+
+Conditional erasure claim: with the same raw pattern, environment, instance
+cache, and bind continuation, adding this ghost `PatSite` and origin metadata
+does not change the Oracle transition or error. The bounded case audit is:
+
+| Raw path | Erasure condition |
+|---|---|
+| Match `Pat::Ref(instance)` | Tagged matching carries `PatSite` beside the same raw `InstanceId`; the runtime still calls `eval_instance`, then compares the same raw values with `value_equivalent`. Erase tags before raw equality. |
+| `eval_instance` cache hit or miss | Keep the same `InstanceId`, cache/cycle state, body, and empty evaluation environment. Cache marker stripping sees the same raw value; body origin is side metadata only. |
+| Instance body returns a `Request` | Preserve the same `expect_eval_value` conversion to `UnhandledEffect`. The request does not continue through the pattern bind callback or get dispatched by that binding path. This is frozen runtime behavior, not a successor effect rule. |
+| Bind continuation returns `Done` or `BindRequest` | Carry the same callback and raw environment; ghost pattern metadata is stored alongside the callback and erased before invoking the raw callback. Any record-default evaluation that precedes a nested reference remains its own expression step and request path. |
+
+This gives only tag erasure for the `Pat::Ref`/instance-evaluation binding
+path, conditional on the exact raw cache/body/environment premises. It does
+not prove that the source site maps to the right runtime instance, that
+captured markers and defaults are covered by the finite value relation, or
+that the full source/runtime step simulation holds. The source inventory is
+`mono-runtime/src/runtime/bind.rs:82-85,91-123,170-189,191-271`,
+`mono-runtime/src/runtime/engine.rs:67-92`,
+`mono-runtime/src/lib.rs:667-671,1219-1223`, and
+`mono-runtime/src/runtime/thunk.rs:182-211,238-260` in frozen `a58eefc3`.
+
 #### Candidate source-level value-flow closure
 
 The finite origin set can feed a row-independent inclusion analysis rather
