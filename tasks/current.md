@@ -1224,7 +1224,11 @@ solution reflection. M3 compiler-referee and spec-auditor review confirmed its
 limited scope; a minor wording issue about same-path family operations was
 repaired. Then prove trace
 soundness and least-derivable bounds for the compositional whole-scrutinee
-continuation summary. Independent
+continuation summary. A new source-calculus expansion traces an outer-resumed
+forwarded request through inner `I` and outer `H`, exposing a `g` request that
+is lost if the `I` wrapper is omitted. M3 compiler-referee review confirmed
+the offer order and raw-versus-forwarded distinction; finite transfer and
+runtime correspondence remain unproved. Independent
 architect, compiler-referee, and spec-auditor reviews found family rows alone
 insufficient for handler visibility and powerset rows alone insufficient to
 establish principality. Capture evidence must be scoped to its boundary and

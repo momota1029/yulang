@@ -738,6 +738,39 @@ not repair the missing control path. `UnknownKont` must instead include the
 possible `g` offer (or top offers), and row/provenance coupling must ensure
 the family cannot be subtracted vacuously.
 
+##### Nested forwarded-wrapper expansion (source-calculus lemma)
+
+This witness gives a direct expansion of the two wrappers, without a bounded
+machine or weight rule. Assume `I` forwards `u`, handles `p`, and its `p` arm
+performs `g`; assume `H` forwards both `u` and `p`, handles `g`, and the outer
+context resumes `u` with a value `r`. Eligibility is parameterized: `I` is
+eligible for `p`, and `H` for `g`.
+
+```text
+I(C0) = Request(u, (), λr. I(k0(r)))
+H(I(C0)) = Request(u, (), λr. H(I(k0(r))))
+k0(r) = Request(p, (), λs. Return(0))
+I(k0(r)) = evaluate_I_p_arm((), λs. Return(0))
+```
+
+After the outer context resumes the forwarded `u`, the continuation therefore
+executes `H(I(k0(r)))`; the `p` arm emits `g` while `I` is inactive, and the
+still-installed `H` sees and handles `g`. The offered sequence includes `u`
+at `I`, `u` at `H`, then `p` at the re-entered `I`, then `g` at `H`. The
+continuation is not `H(k0(r))`: that omission loses the `p` arm and its `g`
+offer. A matched raw continuation would differ: matching `u` at `H` would run
+its arm with the raw suffix and would not reapply `H`. This expansion follows
+by substituting the shallow `Request` clause twice and distinguishes wrapper
+composition from raw resumption. It proves no grant/scope judgment, finite
+abstract transfer, top-fallback completeness, or source-to-runtime
+correspondence.
+
+A focused compiler-referee delta review found no issue in this definitional
+expansion. It confirmed the `I:u → H:u → I:p → H:g` offer order and the raw
+`H`-matched contrast, under the stated eligibility assumptions. This closes
+only the source-calculus wrapper trace; finite transfer, row-to-offer coupling,
+and runtime correspondence remain unproved.
+
 An independent compiler-referee delta review confirms this top-control fallback
 closes the lost-`I` omission at the candidate level and does not introduce exact
 continuation inference or usage tracking. The review's remaining finite-domain
