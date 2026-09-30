@@ -627,6 +627,16 @@ and marks `main` as a runtime root, while `dump-mono` rejects the later
 `int -> unit` instance. The entrypoint-indexed observation must preserve this
 phase distinction; inference success is not mono-program success.
 
+**Conditional code-level specialization lemma.** For a successful frozen
+Oracle mono worklist, every reached body-bearing `(definition, instance
+signature)` is validated by `TaskSolver::solve_def_body`: the body is inferred,
+consumed against the instance signature, and constrained below it before the
+instance is stored. This gives a necessary condition on each reached concrete
+instance, not equivalence with inference-stage constraints or proof that all
+recursive/effect obligations are reconstructed. The source derivation and
+limits are recorded in
+`notes/progress/2026-09-30-intrusion-oracle-instance-validation-lemma.md`.
+
 ### Alpha-renaming commutes with the pure root projection
 
 Here `Project` means `compact_root_for_scheme` graph collection followed by the

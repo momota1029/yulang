@@ -611,13 +611,16 @@ its concrete instance. The replacement draft now treats Oracle polarity erasure
 as an observed projection transition, not a proved solution-preserving
 simplification; scheme inference and later specialization are separate
 observations. Temporary traces confirm the body check rejects both a concrete
-`int -> unit` use and a Function-valued use. Prove whether this path catches
-other uses of erased bounds, and
-characterize entrypoint behavior without treating `dump-mono` failure as a
-runtime result. Details are in
+`int -> unit` use and a Function-valued use. A code-level necessary-condition
+lemma now states that every reached mono instance passes body validation under
+its instance signature; it does not equate that validation with the full
+inference constraint graph. Next prove the candidate-to-Oracle relation for
+reached instance signatures, and characterize entrypoint behavior without
+treating `dump-mono` failure as a runtime result. Details are in
 `notes/progress/2026-09-30-intrusion-powerset-carrier-candidate.md` and
-`notes/progress/2026-09-30-intrusion-q-finalized-use-path.md`; the draft
-contract note is in
+`notes/progress/2026-09-30-intrusion-q-finalized-use-path.md` and
+`notes/progress/2026-09-30-intrusion-oracle-instance-validation-lemma.md`; the
+draft contract note is in
 `notes/design/2026-09-29-intrusion-abstract-semantics-draft.md`.
 The `H_d` bridge includes selected evidence and post-loop root state. Its type
 component must match realized roots to `Root_d` and accepted supertypes to
