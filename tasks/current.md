@@ -931,10 +931,14 @@ instance with empty argument/return effects. This proves Oracle inference-to-
 mono acceptance for that exact source, not runtime execution or successor
 adequacy; see the latent-effects note. A wasm runtime-test attempt was stopped
 before execution because the build script was compiling both embedded stdlibs
-and reached about 1 GiB RSS after 2m46s. Next trace the original identity
-through selected-root projection and test whether the omitted constraints can
-affect another complete source program. Do not restore Oracle phase parity as a
-goal. A
+and reached about 1 GiB RSS after 2m46s. Next run one bounded probe at the
+actual uncached `f`-root projection query: capture selected lower/upper records
+and the pre-simplification `CompactRoot` for the verified source effect ID in
+the same query round; if present, also capture post-alias/post-simplification
+polarity and eligibility. This resolves only fixture-level selected-view
+correspondence. Then determine whether omitted constraints can affect another
+complete source program; a negative result does not itself establish
+unsoundness. Do not restore Oracle phase parity as a goal. A
 conditional zero-consumption
 lemma may reduce the handler-free, no-family fragment: Oracle's weighted row
 rule uses `J = K ∩ Common(L)`, so empty row heads force no row consumption;

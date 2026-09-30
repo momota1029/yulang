@@ -386,6 +386,33 @@ result after it remained CPU-active for over a minute at roughly 0.7 GiB RSS;
 it supplies no independent CLI acceptance result. The attempted command was
 `CARGO_TARGET_DIR=/tmp/yulang-intrusion-oracle-target cargo run -p yulang --bin yulang -- check /tmp/yulang-catch-dual.yu`.
 
+### Exact selected-root observation boundary
+
+A read-only source trace located where to settle the remaining correspondence
+question. During member generalization,
+`analysis/session/generalize.rs::compact_root_for_generalize` calls
+`compact_type_var_recording_merge_constraints_for_scheme`, which creates a
+scoped legacy projection query in `compact/surface.rs` and invokes
+`CompactCollector::compact_root_with_merge_constraints_for_scheme`. The
+collector starts at the member root with positive polarity; when it reaches a
+Function return-effect slot it recursively collects that slot, while
+`compact_var_side` selects positive lower records and negative upper records.
+The query exposes `scheme_projectable_lowers_in_scope` and
+`projection_upper_records_in_scope`. A decisive fixture capture must record,
+in the same query, those selected records for the source effect identity and
+the returned `CompactRoot` before
+`simplify_compact_root_with_roles_and_non_generic` runs. The collector does
+not persist a selected-record snapshot after quantification.
+
+This narrows the unresolved claim: raw post-lowering bounds and local `k`'s
+dual Function-bound incidence do not show that `f`'s selected compact view
+traverses or retains those bounds. Simplification can still omit a
+one-polarity variable. This is an observation boundary, not a justification
+for erasure: per the user's rule, the successor retains meaningful source
+constraints until a denotation and preservation argument justifies solving
+or removing them. No code or frozen Oracle file was changed for this mapping,
+and no additional check was run.
+
 The useful candidate is thus a two-mode *runtime application* judgment:
 shapes with pure extracted effects are evaluated strictly and their actual
 effect is charged to the call result; shapes with non-pure extracted effects
