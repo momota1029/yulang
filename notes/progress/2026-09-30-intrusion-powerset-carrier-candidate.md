@@ -334,3 +334,37 @@ claim is again open.
 The paper/implementation audit now records that Simple-sub extrusion itself is
 indexed by `(variable, polarity)`; this is the baseline the next candidate proof
 must recover before proposing any stronger parent sharing.
+
+## Conditional review of the negative recursive interval
+
+A separate compiler-referee review confirmed a counterexample to the candidate
+`Root_d`/`Pred_d` preservation claim **under the candidate's own stated
+interpretation**. If the captured recursive interval is an enforced selected
+obligation and its upper is `q ∩ K(q)`, then it requires `q ≤ K(q)`. In the
+tagged powerset carrier, every Function encoding omits its distinct head atom,
+so `Top` is not feasible; `Bottom` is feasible. The exposed root has `q` only
+in its negative outer Function argument. Erasing that argument to `Top`
+therefore adds `Fun(Top, R_saved)` to the projected upward-closed relation: any
+pre-erasure root below it would, by Function contravariance, require a feasible
+`q` with `Top ≤ q`, which is impossible. The result also holds if the exposed
+argument is `q ∩ K(q)`, since the interval makes it equal to `q`.
+
+This refutes that particular candidate projection equation under those
+premises. It does not establish a public Oracle bug: the source trace establishes
+the compact interval and subsequent rewrite/prune, but the draft has not shown
+that this interval is an enforced semantic obligation in the public scheme
+relation, or that the candidate Function/root/effect denotation matches Oracle
+instantiation and subsumption. Simple-sub §4.3.1 proves a different statement:
+polar removal inside its type-expression semantics is mutually subsuming; it
+does not prove erasure of an independently interpreted recursive interval.
+
+### Next semantic gate
+
+For this single source-induced graph, define the pre- and post-projection
+instance relation including latent Function/effect identities, fixed anchors,
+and the exact role of the selected recursive interval. Decide whether the
+interval is an enforced bound or projection metadata, then prove the Oracle
+observable relation is preserved (or replace the carrier/projection model).
+Do not use the current `P(N)` `Root_d`/`Pred_d` interpretation as Oracle
+evidence until that bridge is supplied. This review ran no tests and changed no
+Oracle files.

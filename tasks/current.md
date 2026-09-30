@@ -527,3 +527,23 @@ exact cases and test limits are in
 `notes/progress/2026-09-29-intrusion-oracle-ledger.md`. The concrete carrier,
 scheme instance relation, and replacement proof remain open; implementation
 stays gated on a reviewed successor contract and explicit approval.
+
+## Immediate gate update (2026-09-30)
+
+The requested full Simple-sub paper PDF and `mlsub-compare` audit is complete;
+the rule-by-rule provenance table is in
+`notes/progress/2026-09-30-simple-sub-paper-mlsub-audit.md`. It classifies
+paper/reference ingredients as Simple-sub original, Yulang behavior/lifecycle
+as extension, and intrusion/effect-hygiene proposals as new conjectures.
+
+The current powerset-carrier `Root_d`/`Pred_d` model now has a reviewed,
+conditional counterexample: if the captured recursive upper interval is an
+enforced selected obligation, negative-only erasure adds an instance. This is
+not a public Oracle bug claim; the unresolved premise is whether that compact
+interval constrains the public scheme relation and how latent effects and
+subsumption are observed. Next gate: define the pre/post instance relation for
+the single `pub f x = x f` source-induced view, with its Function/effect
+identities, fixed anchors, and recursive interval role. Preserve or replace the
+candidate carrier based on that calculation. No compiler implementation is
+authorized by this result; the reviewed successor contract and explicit
+approval remain prerequisites.
