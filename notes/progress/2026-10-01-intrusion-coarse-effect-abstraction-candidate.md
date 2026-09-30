@@ -1153,6 +1153,59 @@ effect rows. The next proof must show how the candidate domain constructor is
 preserved by subtyping and generalization, or retain both domains with a
 conservative top transfer when it cannot be determined.
 
+#### Conditional trace derivation for force versus ignore
+
+The direct source judgment suggested by the explicit-domain candidate can be
+checked without Oracle weights or continuation-use counts. Let an effectful
+argument be a suspension of exact computation `C_out`, where
+`C_out = Request(out.read, (), λn.Return(n))`, with family support
+`{out}`. Let `force(Susp(C)) = C`. Define closure application after boundary
+adaptation: a `Value(A)` formal forces a suspended argument before evaluating
+the closure body; a `Susp(U,A)` formal receives the suspension unchanged,
+subject to its latent allowance. The concrete suspended call below requires
+`{out} ⊆ U`. For an open function formal, the reusable contract must establish
+that every admissible actual suspension, including nested force/adaptation
+effects, has latent row bounded by `U`. Assume a closed pure callee, no
+handlers, adapters, recursion, or other effects, and an operation continuation
+that returns its result without a suffix request. This is a candidate source
+rule for the direct fragment, not an adopted Yulang semantics.
+
+For two ignoring bodies and one body that forces its argument, the trace
+calculations are:
+
+| Function domain and body | Argument boundary | Exact call trace support | Exact body trace support / fixed-call `ret_eff` bound |
+|---|---|---:|---:|
+| `Value(int)`, body returns `1` | Force `C_out` before closure entry | `{out}` | `∅` |
+| `Susp(U,int)`, body returns `1` without using its parameter | Retain `Susp(C_out)` | `∅` | `∅` |
+| `Susp(U,int)`, body forces its parameter before returning | Force `C_out` in the body | `{out}` | `{out}` |
+
+The first row's request belongs to the application boundary computation, not
+the function body's `ret_eff`. In the second row, the argument's `{out}` is a
+latent fact; returning or dropping the unused suspension does not emit a
+request and does not add `{out}` to `ret_eff`. In the third row, the fixed
+trace proves only that this body's bound contains `{out}`. Charging all of
+`U` to the reusable function `ret_eff` is a separate conservative transfer
+proposal: it is sound only if `U` bounds every admissible suspended input and
+the force path has no local handler that soundly removes part of that bound.
+No leastness or necessity of `U` follows from this single trace. The three
+trace results are direct consequences of the candidate force/adapt rules and
+the free-tree trace semantics in
+`2026-09-30-intrusion-shallow-handler-trace-calculus.md`; they need no linear
+or affine typing because the cases concern whether an ordinary delayed value
+is forced, not how many times a continuation is resumed.
+
+This derivation establishes only the effect timing of the proposed direct
+application rules. It does not prove that a source annotation means the
+corresponding stable domain, that ordinary inference retains the `Susp`
+latent row through higher-order use, or that the abstraction can distinguish
+ignore from force while remaining principal. It also omits handler routing:
+if a shallow handler surrounds the application, a strict request is offered
+at the argument adaptation point; a deferred request is offered only if and
+where a later force executes `C_out`. Proving which activation is eligible at
+that force requires the separate route/scope simulation. Exact traces remain
+the soundness reference; successor rows may conservatively retain more than
+these exact supports.
+
 #### Candidate transfer for an already selected value/suspension boundary
 
 To make the preceding inventory compositional, represent an evaluated

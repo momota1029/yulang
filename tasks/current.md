@@ -1753,9 +1753,17 @@ architect review confirms that a stable `Value(A)` / `Susp(U,A)` source-domain
 distinction is a new semantic decision: it changes Function subtyping,
 generalization, instantiation, and adapter coherence. `U` must be a latent
 effect allowance under a proved subeffect constraint; the Oracle `Top` fixture
-does not define it or confer handler visibility. This remains unselected. The
-next proof should derive both annotated cases against source trace semantics
-with effectful arguments and bodies that force or ignore the parameter, then
-account for `ret_eff` and prove domain transport through higher-order uses.
+does not define it or confer handler visibility. This remains unselected. A
+direct candidate trace derivation now distinguishes: plain-domain adaptation
+forces the argument before body entry; a suspended-domain function that
+ignores its argument has empty exact trace support and pure `ret_eff`; forcing
+the suspension in the body emits its family and contributes it to that fixed
+body trace. The compiler-referee and architect reviews closed their findings
+after the note separated this fixed trace from the unproved reusable `U`
+transfer, stated `{out} ⊆ U`, and excluded handlers/adapters/recursion from
+the example. This is not yet a source typing or elaboration theorem. Next prove
+the annotation-to-domain rule and its uniform subeffect/`ret_eff` condition,
+then extend source-to-elaboration and handler-route simulation to higher-order
+uses without introducing continuation usage tracking.
 route/scope quotient, principal solver, and a positive `Drop` certificate
 remain open.
