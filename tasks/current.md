@@ -1176,9 +1176,15 @@ The exact trace, its limitations, and source locators are in the candidate
 record above. The successor must retain `choose` in the returned closure's
 latent effect. The concrete Oracle case (pure caller accepted, both runtimes
 unhandled) cannot be copied as a validated rule; final caller acceptance stays
-open until declarative eligibility and source/runtime correspondence are
-proved. Automatic grant expiry at return is unsupported by the current
-returned-marker evidence.
+open for final successor semantics until its effect abstraction is proved.
+However, the current coarse whole-scrutinee continuation candidate already
+predicts rejection of `[]` regardless of handler eligibility: either the
+scrutinee retains `choose`, or invoking the raw continuation contributes the
+pre-handler `choose` bound from the operation arm, which runs outside the
+shallow catch. This is a concrete candidate acceptance delta, not a selected
+final rule; the exact support remains pure in the one-request trace. Automatic
+grant expiry at return is unsupported by the current returned-marker
+evidence.
 On the callback-returns-a-closure control, the no-contract explicit-pure
 caller is rejected for `choose`; with inferred effects it retains `[choose]`
 and its handler returns `[3]`. The concrete-contract inferred variant has

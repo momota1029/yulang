@@ -214,6 +214,50 @@ helper-call composition, delayed thunk force, closure escape, and repeated
 callback request before relating the judgment to a runtime representation or
 weight calculation.
 
+### Candidate provenance relation (unselected)
+
+A useful proof target keeps these identities separate:
+
+```text
+request q = (operation, family, origin, ordered_boundary_lineage)
+handler h = (activation_id, covered_operations)
+grant g = (introducing_boundary, family_set, scope)
+```
+
+The eligibility judgment must require an active handler, exact operation-arm
+coverage, and a derivation that every callback boundary on the request's path
+to that handler permits this family at this activation. Family equality alone
+cannot discharge the last premise. A request with no callback boundary uses
+the direct shallow rule; a crossed boundary without a proven matching grant
+keeps the request ineligible and forwards it with its provenance. Handler
+subtraction is allowed only if this judgment holds for every reachable request
+contributing that family, including each suffix reached by resuming a forwarded
+continuation. The lineage is an ordered sequence of boundary instances, not a
+set: repeated pushes, re-entry, and one shared pop must retain their order and
+multiplicity until a preservation theorem justifies normalization.
+
+The frozen source documentation motivates, but does not complete, a candidate
+grant rule: a concrete callback argument contract exposes its listed families
+to handlers inside its receiving function. The candidate should identify the
+receiving activation and handler activations explicitly; it must not turn the
+grant into a family-wide Boolean. Passing the callback through a helper must
+preserve its origin and boundary lineage. A returned closure must preserve its
+latent effect and provenance. Whether a grant's scope includes a handler
+reached after that closure escapes, and how a nested helper composes that
+scope, remain open semantic questions rather than being inferred from
+`StackWeight` or runtime marker behavior.
+
+Until those scope rules are proved, the conservative effect abstraction
+retains the family whenever eligibility is unknown. This is compatible with
+the user's precision decision: the bound may over-approximate exact trace
+support, while its principal-solution theorem is stated over the chosen
+compositional abstraction. The following annotation forms remain distinct
+proof cases: absent callback annotation, concrete nonempty row, concrete empty
+row, wildcard row, and result-position filter. Frozen documentation describes
+different roles for these forms, but their successor grant and filter
+semantics have not been selected. This relation is only a proof target and
+does not resolve the frozen marker code/spec conflict.
+
 ### Frozen-Oracle closure-escape probe
 
 A new source characterization tests callback effect transport through a
@@ -239,12 +283,14 @@ slots. Both interpreter and evidence VM instead report an unhandled
 `choose::reject`. Thus callback effect information is lost across this
 closure-return path before the pure caller annotation is checked. The
 successor's sound effect abstraction must retain `choose` in the returned
-function's latent effect. Whether the enclosing caller's explicit `[]`
-annotation must be rejected depends on the still-open declarative eligibility
-of that caller handler. The Oracle accepts the annotation while both runtimes
-leave the request unhandled; this is a concrete accepted-but-failing Oracle
-case, while the successor's final acceptance delta remains unsettled until
-handler eligibility and source/runtime correspondence are defined.
+function's latent effect. Handler eligibility for the escaped request remains
+open, but the current coarse whole-scrutinee continuation candidate predicts
+that the explicit `[]` annotation is rejected either way: if the handler is
+ineligible, the scrutinee effect remains; if eligible, invoking `k` contributes
+the whole pre-handler effect through the unfiltered arm. The derivation and
+compatibility consequence are stated below. The Oracle accepts the annotation
+while both runtimes leave the request unhandled; this is a concrete
+accepted-but-failing Oracle case, not yet a selected successor rule.
 
 A direct-closure control with `delayed = \_ -> choose::reject()` retains
 `[choose]` in the delayed function and caller schemes; the inferred caller
@@ -349,7 +395,8 @@ unhandled `choose::reject`. Its runtime IR shows callback markers at depths 1
 and 2, plus returned maker-body markers at depths 0 and 1. This is a
 distinguishing lowering control for callback-result transport, not yet a
 runtime log of marker ids, frame exits, resumption, and catch skipping. The
-eligible/ineligible-caller ambiguity therefore remains.
+successor's dynamic eligibility remains unresolved; the coarse effect
+candidate's pure-annotation rejection does not depend on that choice.
 
 The matched absent-contract control rejects the explicit pure caller with an
 effect-filter mismatch. With the caller annotation inferred instead, the
@@ -364,10 +411,21 @@ Compatibility consequence: the successor cannot adopt Oracle's complete
 combination of pure returned-closure effects and pure caller acceptance as a
 validated rule. If `choose` escapes the receiving function, the returned
 closure's latent effect must retain it. Whether the surrounding pure caller is
-then rejected or its handler may soundly consume the request remains open
-until provider eligibility and source/runtime correspondence are defined.
-Thus the accepted-but-unhandled Oracle behavior is recorded, while its final
-well-typed-program acceptance delta is not yet selected.
+then rejected is no longer dependent on the unresolved eligibility rule for
+the current coarse candidate. Its shallow handler assigns the whole
+pre-handler effect `E` to `k`; the arm `k 3` therefore contributes `choose` to
+the arm-effect union, which runs outside the same shallow catch. If the request
+is ineligible, `choose` also remains in `E \ M`; if eligible, the resumed
+continuation summary still contributes it through the arm. Thus this candidate
+rejects the pure caller annotation under either eligibility outcome. This is
+a conservative approximation choice, not a claim that the exact one-request
+trace contains an outward request or that the Oracle program is semantically
+well-typed. The candidate acceptance delta is concrete: Oracle `check`
+accepts the pure caller, while the proposed compositional bound rejects it;
+Oracle's runtimes report the request unhandled. Whether a more precise
+abstraction can soundly accept it remains open. No final successor rule is
+selected until soundness and least-derivability relative to the chosen
+abstraction are proved.
 
 Focused commands used the frozen checkout's prebuilt CLI and sources in
 `/tmp/yulang-intrusion-*`:
