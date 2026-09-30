@@ -745,6 +745,120 @@ callbacks, and latent rows flow to the right slots. No offer from these cases
 may authorize `Drop` until those transfer and global handler-scope proofs
 close.
 
+#### Candidate runtime-value coverage for one ghost-tagged mono executable
+
+The concrete runtime audit supports a structural slot relation for one frozen
+mono executable `P`, provided expression execution is ghost-tagged with its
+static occurrence. Let `MonoSite(P)` be the finite structural paths through
+the root and instance expression trees, including child, arm, statement,
+pattern-default, and payload positions. A logical tagged evaluation carries
+the current `MonoSite` when it enters an expression and preserves the creator
+site when a closure or thunk stores a cloned body for later re-entry. Erasing
+these ghost tags must recover exactly the frozen runtime steps; that erasure
+simulation is a proof obligation, not an existing runtime field. It does not
+supply source identity across a family of polymorphic specializations. Define
+slots from finite products of those sites, `DefId`, `InstanceId`, field names,
+and child positions:
+
+```text
+Result(e)          expression result
+Child(e, i)        aggregate/application child
+Field(e, name)     named record field
+ListElem(e)        union of all dynamic list elements produced at e
+Def(d)             local binding
+CaptureProjection(e, d) diagnostic projection of captured local d at e
+InstanceValue(i)   runtime instance cache entry
+RefValue(e, path)  reference-like nested location rooted at e, with path from
+                   a fixed finite structural-path set
+Kont(e, arm)       continuation created for catch arm site and arm position
+```
+
+All indices come from the finite mono expression/pattern trees. `path` is not
+an arbitrary runtime path language: fix a finite set of structural paths per
+source closure and widen any deeper or unknown shape to `TopValue`.
+
+Each result slot stores a powerset of whole finite `ValueFact#` tuples. A
+tuple contains its shape, callable origin, latent rows, nested child facts,
+and auxiliary snapshot together. Child/field/list/capture projection slots
+are inclusion indices only; capture and call use immutable references to the
+whole interned `ValueFact#` tuples, never a lookup in a site-wide union slot.
+When construction has multiple possible child facts, preserve the complete
+parent/child tuple alternatives; if the finite relation cannot retain them,
+widen the whole parent fact to top. `Pt` is only the callable-origin projection
+of this relation; it is not joined independently back with `Aux` or latent rows
+to make a call or `Drop` decision. Capture and route evidence must be
+relational: a `Snapshot#` tuple contains the complete captured environment as
+`DefId -> interned whole-ValueFact# reference` entries, ordered marker transform, saved continuation
+control, and handler/scope/mask facts. It must retain captured value facts,
+not merely point to `CaptureProjection(e,d)`, because that global projection
+may contain values from another dynamic activation. Joining activations unions
+complete tuples; it must not independently union their fields and recreate a
+Cartesian product. On a closure call, captured `DefId` reads use the value
+fact inside the snapshot paired with that closure origin. `CaptureProjection`
+is useful for inclusion propagation but never authorizes re-pairing a captured
+value with an unrelated snapshot.
+
+To make nested captured values finite, choose a finite structural depth `K`
+for `ValueFact#` and `Snapshot#`; beyond `K`, widen the **combined** value,
+control, and effect summary to `TopValue`/`TopControl`/`TopKont`/`⊤Eff` before
+any route or `Drop` decision. `TopValue` retains `⊤Eff` as a latent bound; it
+does not eagerly add that row to a computation until the value is projected,
+called, forced, or re-entered. Such later use keeps top immediate/latent rows
+and top request/blocker observations at every compatible handler slot, and
+emits `TopObs` before any possible request dispatch. The snapshot quotient may
+also retain bounded exact stacks. Joining must preserve all tuples within the
+quotient and use the full top fallback for unrepresentable or ambiguous
+cross-activation relations. Runtime `ContinuationId` and `GuardId` are never
+reusable static identities. `ShapeFact` records
+scalar/aggregate/callable/thunk/adapter/continuation kind; latent rows remain
+tuple fields. Top facts absorb any shape, nested callable, continuation,
+boundary, or effect information that the finite local relation cannot
+represent.
+
+The relation `CoversValue_P(v, s, A)` is a structural simulation hypothesis:
+the runtime value `v` placed at concrete slot `s` is covered by abstract facts
+`A` at the corresponding slot. Its constructor clauses are:
+
+| Runtime value class | Required slot coverage |
+|---|---|
+| scalar (`Int`, `BigInt`, `Float`, `Str`, `Bytes`, `Bool`, `Unit`) | Add its finite scalar shape; it contributes no callable origin. |
+| `Tuple`, `Record`, `PolyVariant`, `DataConstructor` | Add the outer shape and retain each tuple/payload position or record-name field as nested whole child facts; also publish `Child`/`Field` inclusion projections. Spreads and duplicate/unknown fields union complete alternatives; unrepresentable fields become `TopValue`. |
+| `List` | Retain element facts in the list's whole value tuple and publish `ListElem(e)` as an inclusion projection. An exact statically known index may select its positional child fact; unknown index, dynamic length, or slice uses the element union inside that same parent tuple, and an unknown source shape widens to `TopValue`. |
+| `Closure`, `RecursiveClosure` | Add a joint `(body origin, Snapshot#)` fact whose map stores every captured `DefId`'s `ValueFact#`; recursive self insertion flows through `Def(d)` and back to the closure origin at the same finite body site. |
+| `PrimitiveOp` | Add its primitive producer origin and retain accumulated partial arguments inside the same `ValueFact#` tuple, with child slots as projections only. Its completion rule must have a proved output-shape summary; otherwise its result is `TopValue`, including callable values extracted from aggregates. |
+| `ConstructorFunction` | Add the constructor origin and retain accumulated arguments inside the same `ValueFact#` tuple; saturation packages those values into `DataConstructor` payload slots. |
+| `EffectOp` | Add the operation producer/path origin; applying it packages the payload into `Thunk::Effect` with a latent family fact. |
+| `Continuation(id)` | Relate to the finite catch-arm `Kont(e,arm)` slot when the source arm is known; include the saved continuation/wrapper and call-result marker transform in `Aux`. If dynamic activation identity or saved control is unresolved, widen to `TopKont`/`TopControl`. |
+| `Thunk::Expr`, `Thunk::Value`, `Thunk::Effect`, `Thunk::Continuation`, `Thunk::Adapter` | Preserve thunk kind and latent row, then recursively relate the captured expression environment, returned value, payload, continuation slot, or inner thunk/adaptation. Marker evidence is carried separately in `Aux`; unresolved captured scope widens to top. |
+| `FunctionAdapter`, `Marked` | Recursively preserve the wrapped callable target set and nested value slots; append adapter hygiene or runtime marker transformation to `Aux`. If ordered wrappers cannot be represented by the finite quotient, widen route/control evidence to top without deleting callable origins. |
+
+Locals and pattern binds move value-fact references along the exact finite
+`DefId` edges; tuple/list/record/variant/constructor projections read the
+matching child facts from the parent tuple and may publish them to child,
+element, or field projection slots. Record defaults add their expression result as an
+alternative for the missing-field branch and include its latent effect even
+though binding itself does not force it. Ref-set updates flow through the
+reference-shaped slots and the `update_effect` call/result; unmodeled host
+values or aggregate shapes seed `TopValue`. Runtime `InstanceId` is already a
+finite executable key. Runtime `ContinuationId` and `GuardId` are fresh dynamic
+counters, so they may only map to finite source arm/boundary slots when the
+saved control/marker relation is covered; otherwise use top rather than
+equating dynamic IDs with static sites.
+
+For a fixed `P`, this clause set is finite because all slots are generated
+from finite structural paths and the row/origin sets are finite. The clauses
+do not yet prove `CoversValue_P` inductive for all runtime steps; in particular,
+primitive summaries, arbitrary selection, the mono-to-slot ghost-tag erasure
+simulation, escaped closure re-entry, and the finite marker/continuation
+quotient remain premises. Nor does this prove a source-level slot map across
+specializations: current mono IR retains sparse application/selection
+provenance, but not a source-arena `PolyExprId` on every lambda, aggregate,
+thunk, pattern, or generated value. `BodySrc(S)` to `MonoSite(P)` transport
+therefore needs an explicit provenance map, or else cross-assignment analysis
+must use the broad `BodySrc(S)`/`TopValue` fallback. This relation is a
+proposed base case for the `γP` source/runtime invariant, not a soundness
+theorem or a positive `Drop` certificate.
+
 #### Conservative unknown-call consequence (conditional)
 
 For an open or unresolved callable target that has no proved finite

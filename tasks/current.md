@@ -1680,3 +1680,25 @@ recursive force/adaptation cases are now explicit, and the `ForceThunk`
 second-force condition is precise. Delta review closes the local table and
 inventory. Source-to-slot coverage, latent-row coupling, finite route
 simulation, and any `Drop` certificate remain open.
+
+The next value-coverage draft now uses finite structural `MonoSite(P)` paths
+for a ghost-tagged frozen mono execution rather than treating Control-IR
+`ExprId` as an Oracle runtime identity. It records that erasing these tags
+needs a simulation proof, and that cross-specialization source provenance is
+still absent for most expression kinds. Independent compiler-referee review
+found and closed four major gaps in this bounded draft: (1) exact executable
+identity must be ghost-tagged and later erased against mono runtime steps;
+(2) capture values, marker transforms, and saved continuation control must
+remain paired in whole `Snapshot#` tuples instead of separate site-local
+unions; (3) nested child values and partial arguments must remain inside their
+parent `ValueFact#`, with projection slots used only as inclusion indices;
+(4) depth/shape widening must carry latent `⊤Eff` and top observations through
+later projection/call/force/re-entry. The draft now uses correlated whole-value
+facts and widens the complete tuple to top before any route or `Drop`
+decision. Independent delta review closed these findings in the bounded
+candidate relation, including clarification that list-element unions and
+partial arguments are read within the same parent fact. This remains a
+candidate base case, not a proven `γP` relation. The immediate next proof
+obligation is the ghost-tag erasure simulation for closure/thunk creation and
+re-entry, followed by the complete source-origin transport across
+specializations and latent-row coupling.
