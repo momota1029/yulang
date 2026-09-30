@@ -1076,11 +1076,13 @@ runs the outer same-family reject arm (`run --interpreter --print-roots` gives
 shows both marker sites and the force under each. This disproves nearest-active-
 handler as a routing shortcut, but does not demonstrate unsoundness: the
 independent provider/handler rule is still open. A compiler-referee review found
-no counterexample in the existing evidence and confirms this limit. Next fixture:
-construct the paired inner-owned callback with a controlled creation/force
-boundary, then write the declarative provider/activation transition rules before
-trying to derive or simplify any weights. Details and exact commands are in
-`notes/progress/2026-09-30-intrusion-oracle-latent-effects.md`.
+no counterexample in that probe and confirms this limit. A followup with an
+explicit `[choose]` callback capture contract lets the inner handler return
+`[2]` while the no-budget pair returns `[1]` from the outer handler. This closes
+the basic nested provider/capture contrast but does not explain the extra helper
+boundary candidate. Details are in
+`notes/progress/2026-09-30-intrusion-oracle-latent-effects.md` and
+`notes/progress/2026-09-30-intrusion-weight-routing-counterexample-search.md`.
 
 ## Shallow-handler trace candidate
 
@@ -1104,15 +1106,28 @@ The next probe found a candidate contradiction at a helper boundary:
 pass an explicit pure-result annotation, but runtime reports an unhandled
 `choose::reject`. The source contract supports compositional capture, though no
 exact double-boundary example is specified. Independent spec and compiler
-reviews agree it is a likely defect, with precise weighted cause still open.
+reviews treat it as a likely defect, with precise weighted cause still open.
+Source-level pipeline inspection localizes the pure effect to `invoke`'s
+finalized scheme, before caller catch specialization. The adapter emits a
+body guard and argument resume marker, while the helper catch body has no
+direct catch marker. Annotation lowering creates the relevant concrete push
+and negative filter, but the CLI cannot expose the exact constraint/parent
+chain or its left/right weights. Thus runtime marker shape and subtract-ID
+counts do not yet prove a weight-routing cause. The same inspection confirms
+that concrete `[choose]` and wildcard `[_]` callback annotations take distinct
+lowering paths; this matches the observed rejection control without settling
+the candidate.
 The paired two-call callback case behaves consistently with shallow semantics:
 its scheme retains stack-weighted `choose`, and resumption escapes on the
 second call; an aborting arm handles the first call. Details are in
 `notes/progress/2026-09-30-intrusion-weight-routing-counterexample-search.md`.
 
-Next: resolve and trace the helper-boundary candidate from source annotation
-through weighted constraints, `FunctionAdapter` planning, and runtime guard
-unwind; then choose a sound expressible effect abstraction and define
+Next: instrument a focused frozen-Oracle trace from concrete callback
+annotation lowering through application bounds, weighted row residuals, and
+`invoke` finalization, recording both directed weights and provenance; compare
+with wildcard `[_]` and the direct-handler control. Then adjudicate the
+helper-boundary candidate end to end, choose a sound expressible effect
+abstraction, and define
 principality relative to it. Exact trace support remains the semantic
 soundness reference, not an inference precision mandate; do not add
 linear/affine usage tracking without independent language justification. Keep

@@ -37,6 +37,58 @@ monomorphized body wraps `invoke` in a `FunctionAdapter` with
 The surrounding catch has no `marker[choose]` in this body. The same callback
 handled directly by `catch f ()` returns `2` in both VMs.
 
+Two boundary controls narrow the discrepancy:
+
+- Changing only `invoke`'s callback row from concrete `[choose]` to wildcard
+  `[_]` makes the caller's pure result annotation fail with
+  `effect filter mismatch: choose is not allowed by []`.
+- Putting `catch f()` inside `invoke` with the concrete contract and resuming
+  `k` also makes a pure result annotation fail. The callback is abstract and
+  its continuation may perform another `choose` request, so this rejection is
+  consistent with the shallow trace reference.
+
+Thus the surprising case is specifically a concrete capture budget crossing a
+helper call and being subtracted by a caller catch: that program passes the
+pure filter, but the runtime adapter's guard prevents either the caller catch
+or an outer catch from handling the request. These controls narrow the routing
+path but still do not identify whether constraint weighting or runtime guard
+transport is causal.
+
+### Source-pipeline localization
+
+A read-only source trace narrows the candidate further:
+
+- In `--poly-raw`, the finalized `invoke` scheme already has a pure return
+  effect even though its body directly calls the annotated `f()`. The caller's
+  `via_helper` scheme inherits that pure effect. The direct-handler control
+  has the same callback contract, but its catch scrutinee remains a direct
+  `f()` call.
+- The monomorphic helper call is adapted from a callback returning a
+  `[choose]` thunk to a callback returning a plain `int`. Its adapter carries
+  `body[add_id[0, choose, own]]` and an argument resume marker. The helper
+  catch body is an `App`, so `specialize2/marker.rs` does not add a direct
+  `marker[choose]`; the direct control has a forced thunk and does get that
+  marker. This explains the emitted shape but is separate from solver weight
+  semantics.
+- Concrete and wildcard callback annotations lower differently in
+  `annotation/constraints.rs::lower_arg_effect_bounds`: the concrete row
+  creates a positive `push(choose)` and a negative filter, while wildcard
+  `[_]` keeps an unstacked effect variable at that callback boundary.
+- `YULANG_TRACE_SUBTRACT_ALL=1` reports seven subtract IDs for the helper
+  fixture and three for the direct fixture; all originate at concrete or
+  empty callback-row annotation lowering (`annotation/constraints.rs:676,
+  :685`). Neither fixture allocates an ID in the unannotated-local-callee
+  return-effect path. These counts locate annotation-generated stacks but do
+  not establish how a particular weight reaches the application result.
+
+The effect is absent from `invoke`'s finalized scheme before the caller's
+catch is specialized. The remaining causal gap is the constraint/parent chain
+from the annotated callback return effect through application and
+generalization, including each constraint's lower/upper endpoint, left/right
+weight, origin, and row-residual derivation. Existing CLI dumps do not expose
+that chain; this candidate is not yet a proven unsoundness finding or an
+approved compatibility delta.
+
 The source-contract basis is stronger than runtime behavior alone:
 
 - frozen `spec/2026-05-31-effect-variable-subtractable.md` describes a concrete
@@ -48,6 +100,25 @@ The source-contract basis is stronger than runtime behavior alone:
 - frozen `spec/2026-06-13-runtime-guard-markers.md` requires a guard frame to
   unwind when effect search exits it, allowing an outer handler to receive the
   request.
+
+### Provider/capture contrast
+
+The simple nested-provider pair changes whether the inner function's callback
+parameter has an explicit capture contract:
+
+- Without a concrete callback capture budget, `outer(rejecter)` passes through
+  an inner same-family catch and returns `[1]`; the outer arm handles the
+  request.
+- With `inner(f: () -> [choose] int) = catch f(): ...` and an outer same-family
+  catch around `inner(rejecter)`, both VMs return `[2]`; the inner arm handles
+  the request.
+
+This confirms that operation-family equality and nearest dynamic activation do
+not determine eligibility by themselves. The annotation changes the visible
+capture budget. It does not settle how that budget composes through the extra
+`invoke` FunctionAdapter in the candidate above. The original no-budget probe
+and its trace are recorded in
+`notes/progress/2026-09-30-intrusion-oracle-latent-effects.md`.
 
 An independent `spec_auditor` found that these rules strongly support
 compositional capture across the helper, but found no exact two-annotation
@@ -138,6 +209,9 @@ yulang --no-prelude --no-cache run --evidence-vm --print-roots /tmp/yulang-intru
 yulang --no-prelude --no-cache check /tmp/yulang-intrusion-weight-capture-direct.yu
 yulang --no-prelude --no-cache run --interpreter --print-roots /tmp/yulang-intrusion-weight-capture-direct.yu
 yulang --no-prelude --no-cache run --evidence-vm --print-roots /tmp/yulang-intrusion-weight-capture-direct.yu
+yulang --no-prelude --no-cache check /tmp/yulang-intrusion-weight-nested-inner-capture-direct.yu
+yulang --no-prelude --no-cache run --interpreter --print-roots /tmp/yulang-intrusion-weight-nested-inner-capture-direct.yu
+yulang --no-prelude --no-cache run --evidence-vm --print-roots /tmp/yulang-intrusion-weight-nested-inner-capture-direct.yu
 yulang --no-prelude --no-cache check /tmp/yulang-intrusion-weight-repeated-push-shared-pop.yu
 yulang --no-prelude --no-cache dump /tmp/yulang-intrusion-weight-repeated-push-shared-pop.yu --poly-raw
 yulang --no-prelude --no-cache dump /tmp/yulang-intrusion-weight-repeated-push-shared-pop.yu --mono
