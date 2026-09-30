@@ -486,6 +486,43 @@ Oracle worktree. Focused command:
 `CARGO_TARGET_DIR=/tmp/yulang-intrusion-oracle-target cargo test -p specialize
 scratch_specialize_residual_handler_effect_use -- --nocapture`.
 
+### Source rule and complete/incomplete handler constraints
+
+The source path behind this residual-effect witness is now mapped. An act
+operation's declared family is inserted into its return effect, so the fixture
+has distinct `[signal]` and `[io]` effects; application lowering propagates
+the operation return effect into the call computation effect. The catch arm
+for `signal::ping` adds the `[signal]` row. Its unguarded wildcard payload
+covers the sole operation in that act, so the handler is complete. The
+complete-handler branch constrains the scrutinee effect to
+`[signal; result_effect]` without directly copying the scrutinee effect into
+the result. Row residual reduction removes `signal` and routes the unrelated
+`io` family to the tail.
+
+Two existing focused inference tests cover this branch distinction. A
+complete handler over `run = 1` has no result-effect lower source with an
+`out` row upper; an incomplete handler for one operation in a two-operation
+`choose` act retains a result-effect lower source with a `choose` row upper.
+Both tests passed. They inspect the inference constraint graph only, not
+selected compact roots or generalized schemes. A nearby committed test's
+expected scheme `any [ping; 'a] -> ['a] bool` likewise shows a retained
+residual binder, but is not the exact `judge` fixture.
+
+The compiler-referee review of the mono witness confirms its scope: the
+generated instance accepts `[signal, io]` input and returns `[io]`, with a
+`[signal]` marker and an `[io]` force in the body. This is compilation and IR
+evidence, not execution or a general subtraction theorem. No raw inference
+TypeVar IDs, selected `judge` root, or finalized `judge` scheme have yet been
+captured, so the path from these source constraints through generalization
+remains open. This witness is distinct from the `catch 1` `TypeVar(3)` case;
+it does not prove those omitted upper rows meaningful. The focused inference
+commands were:
+
+```sh
+CARGO_TARGET_DIR=/tmp/yulang-intrusion-oracle-target cargo test -p infer catch_complete_effect_handler_flows_rest_effect_to_result -- --nocapture
+CARGO_TARGET_DIR=/tmp/yulang-intrusion-oracle-target cargo test -p infer catch_incomplete_effect_handler_flows_scrutinee_effect_to_result -- --nocapture
+```
+
 The useful candidate is thus a two-mode *runtime application* judgment:
 shapes with pure extracted effects are evaluated strictly and their actual
 effect is charged to the call result; shapes with non-pure extracted effects

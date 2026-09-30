@@ -941,9 +941,13 @@ variables. A second trace shows the first polar-elimination pass maps
 no substitution. Independent review confirms this is the operational cause
 for this prepared root, not evidence that the omitted upper rows are
 semantically meaningful or that the complete source graph has one polarity.
-Next determine whether those omitted constraints distinguish another complete
-source program. No soundness/principality failure is established by the `f()`
-fixture; do not
+Next instrument the accepted `judge(io::read())` source to map operation and
+residual effect TypeVars through its selected root, finalized scheme, and use
+instance. Compare with the complete/incomplete handler pair while keeping
+source-bound preservation separate from Oracle's projection behavior. This
+tests a meaningful effectful context; it does not by itself prove that the
+upper rows in the `catch 1` fixture matter. No soundness/principality failure
+is established by the `f()` fixture; do not
 restore Oracle phase parity as a goal. The probe details and command are in the
 latent-effects note. A separate accepted effect-handler source,
 `judge(io::read())`, specializes to an instance accepting `[signal, io]` and
