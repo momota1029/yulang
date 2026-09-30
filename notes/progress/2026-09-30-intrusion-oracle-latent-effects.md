@@ -97,6 +97,116 @@ hygiene: no handler is needed to trigger this application path. This source
 audit records operational facts, not the successor's effect semantics or a
 final-acceptance theorem.
 
+## Specialization-level argument-effect interpretation candidate
+
+The frozen specialization path gives an operational reason for retaining the
+argument-effect slot. `apply_type` obtains runtime Function argument and
+return shapes through `function_runtime_parts`
+(`crates/specialize/src/solve/expr_solver.rs:286–289`,
+`crates/specialize/src/solve/effect.rs:21–26`). In
+`apply_known_function_arg` (`expr_solver.rs:363–390`), a runtime argument
+shape whose extracted effect is pure is evaluated as a call value; its actual
+evaluation effect is included in the call result. A `Thunk` with a non-pure
+effect is passed as the argument and contributes a pure immediate argument
+effect.
+`call_result_shape` joins the callee evaluation effect, immediate argument
+effect, and function return effect (`expr_solver.rs:456–505`).
+`mono::Type::is_pure_effect` classifies `Never` and the empty effect row as
+pure (`crates/mono/src/lib.rs:89–95`).
+
+The observed specialization mode is selected by the runtime type shape, not
+directly by denotational purity of inference `arg_eff`. Conversion
+`runtime_function_type` encodes an effectful Function argument as
+`Thunk{effect,value}` and resets the Function's `arg_effect` slot to pure
+(`crates/specialize/src/types/mod.rs:399–425`). But `runtime_shape` only
+unwraps syntactic `Never` and the empty effect row; an unresolved effect
+variable, even one separately constrained exact-pure, becomes a `Thunk`.
+The inference-to-runtime conversion must be tracked before assigning a source
+meaning to either mode.
+
+The useful candidate is thus a two-mode *runtime application* judgment:
+shapes with pure extracted effects are evaluated strictly and their actual
+effect is charged to the call result; shapes with non-pure extracted effects
+are passed as deferred computations and contribute no immediate argument
+effect. This motivates why Function application is not a four-coordinate
+product, but it does not yet explain how
+the inference argument-effect slot determines that runtime shape or prove
+that it corresponds to the inference rule's `Neg::Bot` passthrough branch.
+
+There are two distinctions to resolve. First, the inference branch tests
+whether the lower argument-effect endpoint is syntactically `Neg::Bot`
+(`propagate.rs:234`), while an exact-pure evaluation effect is represented by
+a variable with bounds `Bot ≤ e ≤ EmptyRow` (`constraints.rs:7–24`). Second,
+specialization chooses strict versus deferred application by testing whether
+the effect extracted from the runtime argument shape is syntactically pure;
+an exact-pure inference variable may still be wrapped in a `Thunk`. A
+successor need not preserve either Oracle phase rule, but its independent
+source judgment must define the inference-to-runtime shape mapping and prove
+the final behavior. Effect denotations alone cannot explain the distinction
+if these representations collapse to one pure element.
+
+The runtime path does not define the denotation of inference `StackWeight`,
+`SubtractId`, weighted row residuals, or `NonSubtract`. A `SubtractId` is a
+scoped administrative identity: `StackWeight` normalizes ordered push/pop
+entries noncommutatively (`poly/src/types.rs:298–400`), while lowering reuses
+one identity per selected frame/local binding and records subtractability on
+the first call effect. It cannot be erased as an effect-family label without
+a contextual preservation proof. In particular, it is not yet proved that
+the local-call push/pop pair is a semantics-preserving encoding of either
+runtime application shape. A discriminating source fixture must compare a
+callee whose finalized argument becomes a plain runtime value shape with one
+whose argument becomes `Thunk{effect,value}`, each applied to an effectful
+expression, and observe final acceptance, argument evaluation, and resulting
+computation effect. It must separately inspect an exact-pure inference
+variable's runtime conversion. A nested call through an unannotated local
+`Def::Arg` is additionally needed to exercise the selected-frame push/pop
+path. These fixtures and their independent declarative typing derivations
+remain unestablished.
+
+The runtime-shape rule and explicit inference-to-runtime bridge are therefore
+source-grounded candidates for ordinary application, not a selected carrier
+or design decisions. Before they can support implementation, a successor
+must give independent meanings to latent effect rows and weighted transport,
+prove the Function compatibility rule sound and principal for that judgment,
+and show source lowering adequate for each fixed outer assignment. It may
+discard Oracle's syntactic `Neg::Bot` branch or its runtime extracted-effect
+purity test only after the declarative judgment proves corresponding final
+behavior.
+
+## Directed-weight evidence and a conditional simplification
+
+The frozen Oracle effect-subtraction specification
+(`spec/2026-05-31-effect-variable-subtractable.md`, §§ “Directed weight”,
+“Weight composition”, “Row upper bound”, and “Protect”) defines noncommutative
+per-identity weights. A push carries a `take(F)` family budget; pops cancel
+only takes that precede them. For a weighted upper row with head `K`, only
+active left pushes can consume families, with `J = K ∩ Common(L)`. Right
+pops do not widen the head. `take(Empty)` is a protective boundary: its
+`Common(L)` is empty, so it cannot consume any row head. Terminal concrete
+types do not observe weights, but rows and nested Functions can.
+
+This gives a conditional reduction target for a handler-free, no-effect-family
+fragment: if every reachable row split has an empty head `K`, then
+`J = ∅` regardless of active push families, and no residual is produced by
+that split. For arbitrary `K`, a separate sufficient premise is that every
+relevant `L` has at least one active `take(Empty)`, which makes
+`Common(L) = Empty`; alternatively prove `Common(L) = Empty` directly.
+Having only empty takes is insufficient when there are no active pushes,
+because the specification defines `Common(L) = All` in that case. These
+premises could support a zero-consumption lemma for the fragment; neither is
+established for source-generated graphs yet. `StackWeight` IDs
+must still be transported as scoped identities until the weighted-closure
+simulation proves when they may be erased.
+
+The premise that `fresh_exact_pure_effect` really denotes only the empty
+effect also remains open in an independent carrier. Its source constraint is
+`Bottom ≤ e ≤ Neg::Row([], Neg::Top)`; the helper name does not define the
+meaning of the polarized empty row or its tail. A candidate semantics must
+define that interval, inspect all generated weighted row splits, and prove
+the zero-consumption premise before using this reduction to simplify
+ordinary Function effects. This is separate from, and does not discharge, the
+inference-to-runtime argument-shape bridge above.
+
 ## Consequence for the full redesign goal
 
 The effect-free Function graph in the abstract-semantics draft can serve as a

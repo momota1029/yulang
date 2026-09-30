@@ -853,11 +853,33 @@ special-cases pure-argument Function subtyping, and inserts call-stack
 `StackWeight::push(δ, Empty)` / frame-pop evidence for eligible unannotated
 local calls. The frozen source characterization and exact conditions are in
 `notes/progress/2026-09-30-intrusion-oracle-latent-effects.md`; independent
-compiler-referee review closed its source precision findings. The missing
-successor decision is a source-adequate effect constraint/carrier rule that
-retains these meaningful constraints and proves call/lambda adequacy and
-principality; do not assume a four-coordinate product or infer an effect
-algebra from renaming. In parallel, complete ordered member-root lifecycle
+compiler-referee review closed its source precision findings. Specialization
+uses a two-mode *runtime shape* split: shapes with pure extracted effects
+evaluate arguments strictly, while non-pure effects travel in deferred
+thunks. It joins the strict argument's actual effect into the result, but
+gives thunk arguments a pure immediate effect. This does not establish how
+inference `arg_eff` determines the runtime shape: a Function conversion wraps
+non-syntactically-pure effects, including variables that may be bounded
+exact-pure, in a thunk. The inference branch separately tests syntactic
+`Neg::Bot`. This major bridge obligation was found by independent
+compiler-referee review and is recorded in the latent-effects note. The next
+proof must define an explicit inference-to-runtime evaluation-mode judgment;
+inference-stage parity is waived, so a source-derived mode is allowed only
+with a proof of equivalent final behavior. A conditional zero-consumption
+lemma may reduce the handler-free, no-family fragment: Oracle's weighted row
+rule uses `J = K ∩ Common(L)`, so empty row heads force no row consumption;
+arbitrary heads require `Common(L) = Empty` at every split. A vacuous
+“all active takes are empty” premise is insufficient when there are no active
+pushes. Neither premise has been proved for generated graphs, and
+the candidate carrier must define `Bot ≤ e ≤ Row([], Top)` before calling it
+exact-pure. The frozen effect spec and these gaps are in the latent-effects
+record. The successor must also account for scoped, noncommutative
+`SubtractId` push/pop transport; those identities cannot be erased as mere
+effect-family labels without contextual preservation. Derive discriminating
+source fixtures, then prove soundness, principality, and source-lowering
+adequacy for fixed outer assignments. Do not assume a four-coordinate product
+or infer an effect algebra from renaming. In parallel, complete ordered
+member-root lifecycle
 simulation (epochs, saved roots, bounded post-loop mutations, and atomic
 publication) before asserting Oracle SCC adequacy. Then extend the parent
 operation across those effects and lifecycle transitions toward complete
