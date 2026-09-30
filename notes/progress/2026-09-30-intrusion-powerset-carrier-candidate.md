@@ -385,6 +385,18 @@ independent public subtype obligation. Only a row that survives into
 `Scheme.recursive_bounds` is reinstalled as two subtype edges by the ordinary
 scheme instantiator.
 
+The collector's construction further narrows the interpretation question.
+`compact_var_side` first expands the selected bounds, merges them with the
+current variable occurrence as `with_self`, and on an in-progress recursion
+hit records the re-entered `(var, polarity)`; when unwinding, it stores
+`with_self` on the matching interval side and returns a variable occurrence to
+close the graph. Thus a transient `rec_vars` row is produced by finite
+structural expansion and back-edge closure. Its endpoints can be *replayed as
+inequalities* after the row survives into a `Scheme`, but that later use does
+not prove that the collector's pre-projection row denotes an independent
+constraint during generalization. The bridge must explain how these two roles
+relate.
+
 Therefore q's interval is operational input to Oracle projection, not an
 enforced obligation of the *resulting* scheme instance. Source inspection
 establishes this lifecycle, but not that the pre-projection interval denotes an
@@ -403,12 +415,62 @@ Oracle files or tests changed.
 
 ### Next semantic gate
 
-For this single source-induced graph, define a source typing/use observation
-before and after Oracle root projection, including latent Function/effect
-identities and fixed anchors. Relate the pre-projection recursive interval to
-the constraints induced by the source typing derivation; do not append it as a
-post-projection member obligation unless that transport is proved. Then show
-that the finalized scheme has the same observations under its actual
-instantiation path. This is the bridge needed to validate the candidate
-`Root_d`/`Pred_d` semantics or replace it. No tests ran and no Oracle files
-changed.
+### Exact source-to-scheme theorem target
+
+For a fixed source derivation of `pub f x = x f`, root/epoch, preserved outer
+anchors `eta`, and an admissible incoming-use context `U`, name these objects:
+
+- `Csrc`: the actual source-generated constraint/event graph, including the
+  lambda Function shape, open recursive-SCC use, application, latent effect
+  edges, and their origin/epoch data;
+- `Vpre`: the Oracle's selected finite regular compact presentation for the
+  member root, including its transient recursive side table;
+- `Pi(Vpre)`: polarity rewrite, variable substitution, and unreachable-row
+  pruning for that root;
+- `Sfinal`: the finalized public scheme and the Oracle instantiation path.
+
+The required proof is a composition, not the assumption that every row in
+`Vpre` is a conjunctive subtype obligation. Each `Obs` below must denote the
+same source-level contextual observations—accepted use/result relations,
+diagnostics, and exposed provenance—under its representation, not raw
+satisfaction of all captured edges:
+
+```text
+Obs_source(Csrc, eta, U)
+  = Obs_pre(Vpre, eta, U)
+  = Obs_projected(Pi(Vpre), eta, U)
+  = Obs_member(H_d, eta, U)
+  = Obs_scheme(Sfinal, eta, U)
+```
+
+The first equality must explain the collector's recursion side table as a
+regular presentation of source-generated constraints and evidence. The second
+is the one-sided rewrite/prune preservation theorem; the powerset
+counterexample rules out one proposed proof interpretation if it treats the
+transient q row as an independent enforced interval. The third must construct
+the candidate member view from the fully selected Oracle root/epoch result,
+including post-loop preparation, role/quantifier classification, selected
+evidence, and surviving recursive rows. It must show that the *root-type
+projection* of the member's contextual relation has exact realized roots
+`Root_d` and accepted root supertypes `Pred_d`; those sets need not be equal.
+They alone do not encode diagnostics, provenance, or effect observations. If
+`Pi` is defined to include these steps, its output must be shown to equal
+`H_d`; otherwise a separate construction lemma is required. Define and prove
+the diagnostic, provenance, and effect components separately against
+`Obs_projected`.
+The last equality must follow the actual scheme fields, including per-use
+freshening of surviving binders and the absence of q's recursive interval.
+`eta` and `U` must retain Oracle-shared anchors and independently fresh local
+identities. Observable outcomes must include supported public success/failure
+and diagnostic/provenance families, not only a type-tree comparison.
+
+Source anchors for constructing `Csrc` include open SCC-use constraint
+installation at `analysis/session/instantiate.rs:4–12`, application and effect
+edges at `lowering/expr/tail.rs` around lines 580–635, and lambda Function
+shape/effect fields at `lowering/expr/lambda.rs` around lines 350–368. These
+snippets do not yet enumerate the complete `pub f x = x f` root-epoch graph;
+that inventory and the denotations of `Vpre`, `Pi(Vpre)`, and `H_d` are the
+immediate fixture-level Gate B/C work. Closing this one fixture would not
+close the charter's multi-member epochs, publication/failure, internal-use,
+and independent incoming-use obligations across the supported envelope. No
+tests ran and no Oracle files changed.

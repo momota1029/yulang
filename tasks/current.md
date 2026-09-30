@@ -545,6 +545,16 @@ identities, and it is not a public Oracle bug claim. Next gate: define source
 typing/use observations before and after projection for the single
 `pub f x = x f` view, including latent Function/effect identities, fixed
 anchors, and the recursive interval's relation to the source derivation. Then
-check that the finalized scheme's actual instantiation path preserves those
-observations. No compiler implementation is authorized by this result; the
-reviewed successor contract and explicit approval remain prerequisites.
+prove the chain `source constraints = pre-projection compact presentation =
+rewrite/prune result = candidate H_d observations = actual finalized-scheme
+use observations`. The transient recursive side table's meaning must be
+explicit; do not treat it as independent interval constraints without proving
+that interpretation. The complete root-epoch event inventory remains open.
+The `H_d` bridge includes selected evidence and post-loop root state. Its type
+component must match realized roots to `Root_d` and accepted supertypes to
+`Pred_d`; diagnostics, provenance, and effects need separate observation
+equalities.
+This is one fixture-level obligation; multi-member epochs, publication/failure,
+internal uses, and independent incoming uses remain charter-wide requirements.
+No compiler implementation is authorized by this result; the reviewed
+successor contract and explicit approval remain prerequisites.
