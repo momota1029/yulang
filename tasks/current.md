@@ -3,9 +3,10 @@
 Updated: 2026-09-30. Branch: `research/simple-sub-intrusion`.
 
 The user's current priority is soundness, then principality, then Oracle
-compatibility. Oracle divergence requires a concrete conflict, the exact
-Oracle behavior to drop, the successor rule, and compatibility impact; no
-divergence is selected yet. See
+compatibility. A concrete graph-level q-erasure conflict, proposed Oracle
+behavior to drop, successor rule, and compatibility impact are now recorded;
+the divergence is not adopted because its successor remains unreviewed and
+unapproved. See
 `notes/progress/2026-09-30-intrusion-oracle-priority.md`. The q-erasure
 inference view is followed by a frozen-Oracle mono specialization rejection
 for `f 1`, so the view alone does not establish an unsound accepted program.
@@ -596,7 +597,13 @@ no-go. This equality remains conditional and does not characterize the source
 fixture by itself.
 The exact source application also contributes a direct Function upper bound on
 q, so ordinary source-constraint assignment semantics excludes `Top` and
-cannot justify the projection. The captured inference-stage `f 1` / `f 2`
+cannot justify the projection. The selected q upper plus root lower now yields
+a graph-level principality counterexample: the erased scheme relation contains
+`Fun(Top, Bottom)`, but the selected graph has no root below it under the
+proper-Function subtype assumptions. The proposed behavior to drop, retained
+parent-graph rule, compatibility impact, and full-source caveats are recorded
+in `notes/design/2026-09-30-intrusion-q-bound-successor-draft.md`; it remains
+unreviewed and unapproved. The captured inference-stage `f 1` / `f 2`
 uses report `int` / `bool` under the q-free scheme, but a frozen-Oracle
 `dump-mono` run rejects `f 1` during definition-body specialization with
 `int <: Function`; a temporary trace records the exact `f` instance signature
@@ -614,8 +621,9 @@ observations. Temporary traces confirm the body check rejects both a concrete
 `int -> unit` use and a Function-valued use. A code-level necessary-condition
 lemma now states that every reached mono instance passes body validation under
 its instance signature; it does not equate that validation with the full
-inference constraint graph. Next prove the candidate-to-Oracle relation for
-reached instance signatures, and characterize entrypoint behavior without
+inference constraint graph. Next close the effectful source-to-denotation
+bridge and prove the candidate-to-Oracle relation for reached instance
+signatures, then characterize entrypoint behavior without
 treating `dump-mono` failure as a runtime result. Details are in
 `notes/progress/2026-09-30-intrusion-powerset-carrier-candidate.md` and
 `notes/progress/2026-09-30-intrusion-q-finalized-use-path.md` and

@@ -627,6 +627,17 @@ and marks `main` as a runtime root, while `dump-mono` rejects the later
 `int -> unit` instance. The entrypoint-indexed observation must preserve this
 phase distinction; inference success is not mono-program success.
 
+The exact selected q upper and root lower edges now yield a concrete
+graph-level `Pred` counterexample under the stated proper-Function subtype
+assumptions: the erased scheme relation contains `Fun(Top, Bottom)`, while the
+selected graph has no root below it. This establishes that unconditional
+one-polarity erasure is not principal for that selected graph relation. It
+does not yet close the effectful source-to-denotation bridge or prove
+end-to-end Oracle unsoundness. A proposed successor retains q as a boundary
+parent with its selected edges; its draft, compatibility impact, and approval
+gate are in
+`notes/design/2026-09-30-intrusion-q-bound-successor-draft.md`.
+
 **Conditional code-level specialization lemma.** For a successful frozen
 Oracle mono worklist, every reached body-bearing `(definition, instance
 signature)` is validated by `TaskSolver::solve_def_body`: the body is inferred,

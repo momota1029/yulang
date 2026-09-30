@@ -1,70 +1,78 @@
-# Oracle compatibility priority and divergence gate
+# Oracle compatibility priority and q-erasure divergence record
 
 Date: 2026-09-30
 Branch: `research/simple-sub-intrusion`
-Status: research decision recorded; successor semantics not approved
+Status: concrete graph conflict recorded; successor remains unreviewed and
+unapproved
 
-## Priority
+## Priority and divergence gate
 
-The current objective orders semantic qualities as follows:
+The user's priority is soundness, then principality, then Oracle-compatible
+observable behavior. An Oracle mismatch alone does not authorize divergence.
+The record must identify the concrete conflict, the exact Oracle behavior to
+drop, the proposed successor rule, and compatibility impact. A new semantic
+contract still needs independent review and user approval before implementation.
 
-1. soundness;
-2. principality;
-3. Oracle-compatible observable behavior.
+## Concrete conflict
 
-Oracle behavior remains the reference target where it is sound and principal.
-An observed mismatch alone does not justify divergence. Before selecting a
-divergence, the record must include (a) a concrete counterexample or explicit
-constraint conflict, (b) the precise Oracle behavior being dropped, (c) the
-replacement rule and its soundness/principality rationale, and (d) the source
-compatibility impact. A proposed replacement remains non-authoritative until
-independent review and user approval.
+The frozen Oracle `a58eefc31` source `pub f x = x f` has a selected graph with
+q's direct upper bound `q ≤ Fun(S,V)` and the selected root lower edge
+`Fun(q,V) ≤ root`. The Oracle erases q at negative polarity and publishes
+`Fun(Top, ..., V)` with no q recursive bound. Under a subtype preorder where
+`Top` is greatest, proper Functions are strictly below `Top`, and Function
+arguments are contravariant, the erased scheme relation contains
+`Fun(Top,Bottom)`. The selected source graph has no satisfying root below that
+type: the root edge would imply `Fun(q,V) ≤ Fun(Top,Bottom)`, hence `Top ≤ q`;
+the direct upper gives `q ≤ Fun(S,V)`, hence `Top ≤ Fun(S,V)`, contradiction.
+The q/S cycle fragment is nonempty with `q=Bottom`, `S=Top`, `V=Bottom`,
+`root=Top`. The complete derivation and graph-level scope are in
+`notes/design/2026-09-30-intrusion-q-bound-successor-draft.md`.
 
-## Current q-erasure evidence does not yet meet the divergence gate
+This is a concrete mismatch between the selected source-bound root relation
+and the published scheme's ordinary upward-closure relation, under the stated
+semantic assumptions. It is a principality conflict for that graph fragment.
+It does not prove the whole effectful source-to-scheme adequacy theorem or
+that the Oracle accepts an invalid executable program. In fact, Oracle
+specialization rejects both concrete uses traced so far: `f 1` at
+`int -> unit`, and `f id` at `(unit -> unit) -> unit`. Oracle `dump-poly`
+succeeds for the former source and reports `main : never`, while `dump-mono`
+rejects it later. These are separate public phase observations.
 
-Frozen Oracle `a58eefc31` infers an `any`-like argument view for
-`pub f x = x f`; the inference-stage two-use characterization is recorded in
-`notes/progress/2026-09-30-intrusion-q-finalized-use-path.md`. But the concrete
-source `pub f x = x f; pub main = f 1` fails in `dump-mono` with
-`int <: Function`. A temporary trace in the disposable frozen-Oracle checkout
-records the queued and solved `f` instance as `Fun(int, [], [], unit)`; its
-body check fails with that constraint. This resolves the exact instance
-signature. The exported inference view alone is insufficient evidence that
-Oracle accepts an unsound concrete use: downstream specialization preserves
-the recursive constraint for this use.
+## Oracle behavior proposed for removal
 
-A Function-valued incoming use is also rejected by the mono route:
-`pub id x = x; pub use id = f id` produces `f : (unit -> unit) -> unit`,
-`id : unit -> unit`, and `(unit -> unit) <: unit` at the recursive `f`
-occurrence. This strengthens the fixture set for per-use body rechecking but
-does not prove the Oracle catches every use that violates a projected
-recursive relation.
+Drop the inference projection rule that erases a variable at one polarity
+despite selected incident bounds and then prunes its recursive row. Keep
+unconstrained one-polarity erasure. This is the exact behavior observed for q
+in `pub f x = x f`, not a blanket rejection of all Oracle one-sided
+projection.
 
-Separately, the bounded-negative counterexample in
-`notes/progress/2026-09-30-intrusion-bounded-negative-counterexample.md`
-shows that polarity-only replacement of a constrained negative variable by
-`Top` can change the candidate denotation. It is not the traced q graph and is
-not evidence that Oracle makes that replacement for the same selected graph;
-the observed `expect` fixture instead expands the negative variable to `Int`.
-The graph-level counterexample therefore does not currently establish a
-soundness/principality conflict with Oracle.
+## Proposed successor behavior
 
-## Decision for the current gate
+Retain a bounded one-polarity variable as a boundary parent in the generalized
+member graph, retaining its selected incident constraints and recursive
+back-edges. Freshen that parent and transport the same constraints per
+incoming use. Derive the member's `Root` / `Pred` relation from that graph.
+The intended rationale is that keeping the obligations avoids enlarging the
+source root relation by deleting the q upper bound. Unconstrained one-sided
+variables remain eligible for `Top` / `Bottom` projection.
 
-No Oracle behavior is dropped by this record. Do not encode q erasure as an
-unconditional candidate rule, and do not claim the Oracle is unsound from the
-inference-stage scheme shape. The next proof must relate the selected q-bound
-graph and Oracle's per-use specialization recheck to the candidate's
-generalization/instantiation semantics. If that proof finds an actual
-conflict, write the four divergence items above before choosing the successor
-rule. Until then the successor contract remains unresolved and implementation
-remains gated.
+This successor is only a draft. Its full principal-root theorem, eligibility
+criteria for selected edges, and transport across effects and roles remain
+unproved.
 
-## Compatibility impact if a conflict is later proven
+## Compatibility impact
 
-No present compatibility change is authorized. Any later rule that preserves
-the q bound in the public inference view or rejects the use earlier could
-change exported scheme formatting, acceptance stage, diagnostics, or
-provenance even if final program acceptance remains the same. These are
-observable compatibility dimensions and must be measured and recorded against
-the frozen Oracle before the successor is approved.
+For `pub f x = x f`, `dump-poly` would no longer publish `any -> ['a] 'b`
+without q's bound; it would publish a bound-preserving graph view or report an
+earlier use error. The observed `f 1` and `f id` programs already fail
+`dump-mono`, so those fixtures may retain final mono rejection but change
+failure stage, message, span, and public scheme output. API consumers that rely
+on the broad displayed scheme may observe a narrower result. Acceptance and
+diagnostics for other contexts are unmeasured. The proposed draft at
+`notes/design/2026-09-30-intrusion-q-bound-successor-draft.md` lists these
+risks and remaining proof obligations.
+
+No implementation is authorized yet: the successor draft has no independent
+review and no recorded user approval. The next gate is independent review of
+the exact conflict and the proposed root-principality rule, followed by the
+user's approval decision.
