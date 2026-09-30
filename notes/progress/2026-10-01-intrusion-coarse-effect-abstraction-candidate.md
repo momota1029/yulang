@@ -1076,6 +1076,54 @@ does not prove how a non-top `KontFact` is computed or when it must widen.
 Escaped roots and imported open rows are part of the induction, not separate
 post-processing.
 
+#### Exact-or-top wrapper-step simulation target
+
+The ordered wrapper rule and the top fallback combine into a conditional
+one-request simulation for this fragment. Give an abstract control either an
+`ExactSpine(W, Snapshot)` tag or `TopControl`:
+
+- Use `ExactSpine` only when every handler reference in the active wrapper
+  spine and captured continuation is tied to one unambiguous dynamic activation,
+  the wrapper order is represented without truncation, and the request's
+  operation, typed family arguments, origin, lineage, scope evidence, and
+  needed value/continuation slots are exact. Dispatch it through the ordered
+  wrapper transfer above.
+- Otherwise dispatch the entire step through `TopControl`: emit `TopObs`
+  before branch selection, retain `TopKont` and `⊤Eff`, and cover possible
+  arm/value/continuation destinations by top summaries.
+
+Here a concrete `request-dispatch` edge ends before evaluating an operation
+arm body. On a match, its endpoint is an `ArmEntry` control with the payload,
+raw continuation, inactive matched handler, and surviving outer context. On
+all-forward, its endpoint is a forwarded `Request` with the wrapper continuation
+constructed above. Requests and effects emitted while an arm body later runs
+belong to subsequent edges. The top dispatch edge covers every possible
+`ArmEntry` or forwarded-`Request` endpoint; its top effect/provenance summary
+also persists into subsequent arm/continuation edges.
+
+Assume the `ExactSpine` tag agrees with the concrete ordered activation stack,
+the untouched parts of the state remain related, and `Eligible` plus scope
+observations agree for those exact activation references. Assume also the
+top-edge simulation and finite-interface premises for every `TopControl`
+state. For a concrete request step from `κ ∈ γ(A)`,
+case analysis on the tag gives an abstract successor `A'` and observation set
+`Obs#` such that:
+
+```text
+κ' ∈ γ(A')
+∀ o ∈ concrete_offers(κ → κ'), ∃ ô ∈ Obs# . CoverObs(o, ô)
+```
+
+In the exact case this is the finite-nesting equation plus identity
+observation; in the top case it is the `TopObs` coverage argument. Multiple
+resumes reuse the immutable exact spine or top summary and take a union of
+successor/observation alternatives, without recording a use count. This
+conditional lemma closes only one request-transformer step for exact wrapper
+spines or widened states. It does not prove that a source program is mapped to
+the right tag, that values/handlers stay related across all transitions, that
+the family-row/effect-slot coupling holds, or that `Drop` is sound; those
+remain full-machine obligations.
+
 #### Finite-carrier proposition
 
 For one fixed finite checked source and finite interface declarations, fix

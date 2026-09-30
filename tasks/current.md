@@ -1246,7 +1246,13 @@ is now stated for the bounded request-tree fragment. M3 compiler-referee
 review confirmed its one-step equations and required top widening to cover the
 entire ambiguous request step (offers, branch/arm, effects, and continuations),
 not just future continuations; this clarification is now recorded. Quotient and
-runtime completeness remain unproved.
+runtime completeness remain unproved. An exact-or-top one-request simulation
+target now composes that transfer with `TopObs` coverage, assuming exact typed
+request evidence or the top fallback premises. M3 compiler-referee review found
+no blocking/major issue and required an explicit dispatch-edge endpoint; the
+candidate now ends at arm entry or forwarded-request construction, leaving arm
+body effects to subsequent edges. The concrete tag mapping and full-machine
+coverage remain unproved.
 Independent
 architect, compiler-referee, and spec-auditor reviews found family rows alone
 insufficient for handler visibility and powerset rows alone insufficient to
