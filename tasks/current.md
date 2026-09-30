@@ -1064,9 +1064,13 @@ weighted constraints without such a proof. Search explicitly for Oracle routing
 counterexamples, covering repeated pushes with one shared pop, nested frames,
 complete and incomplete handlers, and residual effects. If a conflict with
 soundness or principality is found, record the precise Oracle behavior dropped,
-the successor rule, and the compatibility impact. Next: draft this independent
-judgment and derive the weight encoding and its soundness/principality
-obligations; only then resume root-specific projection work. The later
+the successor rule, and the compatibility impact. A conservative
+continuation-summary candidate and its independent review are recorded in
+`notes/progress/2026-10-01-intrusion-coarse-effect-abstraction-candidate.md`.
+Next: define provider/capture eligibility independently of family rows and
+prove the candidate's complete-coverage side condition and least-derivable
+bound property. Only then derive any weight encoding or resume root-specific
+projection work. The later
 method-selection/roles/impl-resolution gate remains deferred unless this
 ordinary effect proof discovers a concrete dependency.
 
@@ -1130,10 +1134,13 @@ independently and not inherit the Oracle runtime guard route automatically.
 The Oracle's current run therefore errors on the first request; the declarative
 shallow trace would handle it, resume, then expose the second request.
 
-Remaining gate: define and prove soundness/principality for a finite-family
-effect abstraction that retains possible repeated continuation requests;
-formalize provider/handler eligibility; prove or replace every weight
-transport rule against that abstraction. Continue checking repeated pushes
-with one pop, nested frames, complete/incomplete handlers, and residual
-fan-out. Do not require exact trace precision or linear/affine usage tracking.
-No implementation is authorized yet.
+Remaining gate: formalize provider/capture eligibility, including complete
+coverage and callback ownership, then prove trace soundness and least-derivable
+bounds for the compositional whole-scrutinee continuation summary. Independent
+architect and compiler-referee reviews found family rows alone insufficient
+for handler visibility and powerset rows alone insufficient to establish
+principality; see the candidate record above. Then prove or replace each weight
+transport rule against that abstraction, including repeated pushes with one
+pop, nested frames, complete/incomplete handlers, and residual fan-out. Do not
+require exact trace precision or linear/affine usage tracking. No
+implementation is authorized yet.
