@@ -957,3 +957,45 @@ site. It also does not establish final monomorphic acceptance, runtime
 behavior, or principality. The compiler-referee review accepts the narrow
 pre-simplification distinction and these limits. The focused test and trace
 instrumentation were restored from the disposable Oracle checkout.
+
+### Finalization and mono use of the same-family pair
+
+The same source pair was extended with uses of both definitions on
+`choose::reject()`:
+
+```yu
+my complete_use = complete(choose::reject())
+my incomplete_use = incomplete(choose::reject())
+```
+
+The production Oracle CLI accepted the exact file through both
+`--no-prelude --no-cache check` and `--no-prelude --no-cache dump … --mono`.
+The mono output contains roots for both uses. Both function instances have
+`thunk[[choose], unit] -> bool`; the complete body retains branch and reject
+arms, while the incomplete body retains only branch. Both generated bodies
+include `catch marker[choose](force-thunk[… ! [choose]])`.
+
+The raw poly dump gives alpha-equivalent finalized type predicates for the
+two functions: one effect quantifier, `arg_eff = Row([choose], tail: 'a)`,
+`ret_eff = 'a`, and no stack quantifiers. Thus the observed pre-simplification
+`AllExcept(choose)` versus `All` weight difference is absent from these
+finalized type schemes. This does not establish that all selected-view data is
+erased: provenance sidecars and other publication fields were not compared.
+Nor does it prove that the earlier weight was semantically redundant or that
+the two effect computations execute with different outcomes. The source passes
+an effect operation at the argument, so evaluation/adaptation order matters;
+the mono dump is acceptance evidence, not a runtime trace. Compiler-referee
+review confirmed these boundaries and cautioned that the direct operation may
+be evaluated before either handler, depending on argument adaptation.
+
+The exact CLI commands were:
+
+```text
+yulang --no-prelude --no-cache check /tmp/yulang-handler-coverage-probe.yu
+yulang --no-prelude --no-cache dump /tmp/yulang-handler-coverage-probe.yu --mono
+```
+
+Both commands completed successfully with the prebuilt binary from the
+disposable Oracle checkout. This proves final mono acceptance for those exact
+source programs only. The disposable source and all instrumentation were kept
+outside the repository and removed/restored after the probe.

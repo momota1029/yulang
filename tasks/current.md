@@ -955,9 +955,14 @@ signatures, and the IDs are session-local. A same-family pair now has identical
 formatted schemes but different pre-simplification `ret_eff` weights:
 complete carries `push(δ, AllExcept(choose))`; incomplete carries
 `push(δ', All)`. This shows a selected-view distinction hidden by formatting,
-not final effect semantics. Next trace both roots through finalization and
-mono uses to learn whether the weight difference survives and affects accepted
-programs. The successor retains meaningful source constraints; polarity-only
+not final effect semantics. The same pair now passes Oracle `check` and
+production `dump --mono`; final raw type schemes are alpha-equivalent, with no
+stack quantifiers or weighted return effect, while mono bodies retain their
+different operation-arm sets. This proves exact-program final mono acceptance,
+not runtime handler behavior or weight redundancy; argument evaluation order
+is still ambiguous. Next use an explicitly thunked effectful source and trace
+its use through finalization and mono lowering. The successor retains
+meaningful source constraints; polarity-only
 `q` erasure is not required. No soundness/principality failure is established
 by the `f()` fixture; do not
 restore Oracle phase parity as a goal. The probe details and command are in the
