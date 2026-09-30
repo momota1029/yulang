@@ -493,14 +493,61 @@ frozen Oracle checkout and this branch's compiler sources were not changed.
 Source anchors: frozen `compact/collect/mod.rs::compact_var_side` and
 `compact_var_bounds`; `compact/collect/type_nodes.rs::record_recursive_side`;
 `compact/mod.rs::CompactRoot`; and
-`generalize/core/prune.rs::prune_unreachable_recursive_bounds`. With visit-level
-q weights closed for this fixture, the next step is to state
-and prove the finite-regular-presentation lemma for its selected source-bound
-graph, then prove that recursive negative-only q erasure preserves the
-source/use observation through projection and instantiation. This does not
-close weighted cycles outside this fixture, cycles through other Function
+`generalize/core/prune.rs::prune_unreachable_recursive_bounds`. With q's row
+write and visit weights characterized for this fixture, the next step is to
+recover source-edge identities through compact collection and prove the
+finite-regular-presentation lemma, then prove that recursive negative-only q
+erasure preserves the source/use observation through projection and
+instantiation. This does not close weighted cycles outside this fixture,
+cycles through other Function
 positions, latent effects, row tails, or stack subtraction. The focused Rust
 probe passed; no frozen Oracle source or test file changed.
+
+### Fixture-level recursive-row capture fact
+
+The current evidence supports an exact collector transition fact, but not yet
+a regular-unfolding completeness lemma. Fix the captured selected root/epoch
+and write `q=(TypeVar(2), Negative)`, with its observed incoming weight
+`Empty`. On the first active visit, let `with_self` be the compact type
+computed by frozen `compact_var_side` from the current q occurrence and the
+selected upper bounds. The recursive table stores a clone of this computed
+term when the active q visit unwinds.
+
+**Lemma (captured recursive-row write).** For the captured source, the
+recursive-side table's upper entry for q is exactly the `with_self` term
+computed on the first active q visit; the recursive re-entry itself returns
+`q@Empty` to its caller. The selected q upper record has empty outer, left,
+and right weights, and the visit trace records both q calls as Negative/Empty.
+
+**Proof.** `compact_var_side` first installs q's `(TypeVar, Negative)` key in
+`in_progress` and computes `with_self`. The selected Function endpoint reaches
+q again with the same polarity and weight. Since q is active, the re-entry
+adds the key to `recursive` and returns a q occurrence. The first visit then
+unwinds, removes the key from `in_progress`, sees and removes it from
+`recursive`, and passes `with_self.clone()` to `record_recursive_side` under
+the negative polarity. That routine writes the term to the interval's upper
+field. The outer call then returns and caches an empty-weight q occurrence.
+This is exactly the frozen code's state transition and the captured weights
+meet its same-key condition.
+
+This fact does **not** prove that the compact row is a lossless encoding of an
+unbounded unfolding of the selected source-bound graph. In particular,
+`with_self` can contain indistinguishable q occurrences for the synthetic
+self term and a q reached inside the selected bound; the compact occurrence
+does not retain the source-edge identity that would distinguish them. A
+separate graph-level back-reference map and an occurrence/provenance
+correspondence are still needed to establish regular-presentation
+completeness. A compiler-referee review rejected an earlier finite-prefix
+claim because it treated another invocation of the memoizing collector as a
+depth-indexed unfolding. It also confirmed the occurrence-identity gap: the
+synthetic self q and the q reached through the selected Function bound both
+serialize as Primary/Empty `CompactVar`s. The claim was narrowed to the direct
+row-write transition above. A spec review confirmed the narrowed statement
+does not grant implementation authority; it requested keeping scheme-interval
+meaning explicitly open, which this wording does. The row-write fact also
+does not assign the stored term an independently enforced subtype meaning,
+prove polar-erasure preservation, or establish finalized-scheme use
+equivalence.
 
 ### Simple-sub boundary on recursive polar elimination
 

@@ -574,12 +574,19 @@ occurrences, all with empty weight; another effect variable carries
 logged both `TypeVar(2)` collector visits as Negative/empty and showed the
 selected upper record's left, right, and outer weights all empty. Visit-level
 q-weight closure is therefore established only for this captured source/root
-shape. Simple-sub's `TypeSimplifier`
+shape. The exact collector transition writes the first q visit's `with_self`
+term to the recursive-side upper row and returns q on the recursive edge;
+this does not yet prove regular-unfolding completeness. Review rejected an
+earlier finite-prefix claim because the emitted `CompactVar`s do not identify
+the synthetic self q separately from the q inside the selected Function
+bound. Source-edge/occurrence identity must be recovered before claiming that
+the row is a lossless finite graph presentation. Simple-sub's `TypeSimplifier`
 also explicitly preserves recursive variables during polar-only removal,
 whereas the Oracle removes this negative-only q and prunes its row. That
 specific behavior is a Yulang extension; its contextual preservation is a new
-conjecture, not supplied by Simple-sub §4.3.1. Next prove the
-finite-regular-presentation and q-erasure bridges before using
+conjecture, not supplied by Simple-sub §4.3.1. Next reconstruct selected
+source-edge identities through compact collection, prove the
+finite-regular-presentation and q-erasure bridges, then use
 `Root_d`/`Pred_d`. General weighted-cycle reconstruction remains open. See
 `notes/progress/2026-09-30-intrusion-powerset-carrier-candidate.md`.
 The rule distinction is recorded in
