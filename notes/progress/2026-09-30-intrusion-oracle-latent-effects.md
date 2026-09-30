@@ -97,6 +97,61 @@ hygiene: no handler is needed to trigger this application path. This source
 audit records operational facts, not the successor's effect semantics or a
 final-acceptance theorem.
 
+### Source-level local-argument push/pop capture
+
+A temporary instrumentation probe in a disposable worktree at the frozen
+Oracle commit ran the existing source fixture `my h(x, f) = f x` with
+`cargo test -p infer
+unannotated_callback_return_effect_surfaces_without_empty_stack -- --nocapture`.
+The test passed and retained scheme `'a -> ('a -> ['b] 'c) -> ['b] 'c`.
+Instrumentation inside `unannotated_local_callee_return_effect` captured the
+actual eligible branch: callee `DefId(2)`, selected defined frame 1, call
+effect `TypeVar(18)`, and `SubtractId(0)`. That call effect had the declared
+`Empty` subtract fact; its lower endpoint was a `Pos::Stack` with one
+`push(0, Empty)` and its upper endpoint was the corresponding
+`Neg::Stack(Var(18), push(0, Empty))`, while the selected frame contained the
+matching `pop(0)`.
+
+This directly confirms that an ordinary source callback call reaches the
+special local `Def::Arg` path and installs the per-call push plus frame pop.
+The selected frame's dynamic effect is thus source-reachable, not merely a
+synthetic graph possibility. The test's scheme shows that the callback result
+effect remains observable after generalization, but does not itself expose
+the raw stack identity. This one-call trace proves neither the directed row
+subtraction law nor preservation of effect behavior under intrusion, and it
+does not characterize nested frames, repeated calls reusing one ID, or
+handler hygiene. The instrumentation and worktree were removed; frozen Oracle
+files were unchanged. Independent compiler-referee review confirms this
+eligible path and the paired endpoints/pop. It also confirms the test's
+finalized latent effect variable, while noting that the capture does not
+exercise second-call ID reuse, an outer-frame selection through nested
+skeletons, transport across generalization/instantiation, or the weighted
+cancellation law.
+
+### Repeated local calls reuse one frame identity
+
+A follow-up disposable-worktree probe used source `my h(x, y, f) = (f x, f y)`.
+The focused test passed. Instrumentation captured two calls to the same live
+`Def::Arg` in the same defined frame 2: call effects `TypeVar(23)` and
+`TypeVar(28)` both received `push(SubtractId(0), Empty)`. The frame contained
+one matching `pop(SubtractId(0))`. The first call effect had the declared
+`Empty` subtract fact for ID 0; the second had no subtract fact of its own.
+The finalized scheme was
+`'a -> 'b -> (('a | 'b) -> ['c] 'd & 'e) -> ['c] ('d, 'e)`.
+
+This confirms the source-level allocation boundary: one subtract identity and
+one frame pop are shared by calls to the same local argument within that
+frame, while each call gets its own pushed call-effect endpoint and only the
+first call-effect receives the declaration fact. This is an identity and
+lifecycle observation, not proof that the push/pop pair cancels semantically,
+that effect rows are preserved, or that this behavior is principal under
+instantiation. The temporary instrumentation and worktree were removed; no
+frozen Oracle file changed. Independent compiler-referee review confirms the
+shared ID, distinct per-call endpoints, one frame pop, and first-call-only
+declaration fact. It cautions that this does not prove one pop cancels both
+pushes or that the second call's subtract fact is derivable; weighted closure
+adequacy remains open.
+
 ## Specialization-level argument-effect interpretation candidate
 
 The frozen specialization path gives an operational reason for retaining the

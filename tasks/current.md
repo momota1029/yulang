@@ -898,8 +898,15 @@ plain versus thunk argument. The effect operation has scheme
 `() -> [out] int`, while both wrapper schemes render `int -> int`. Independent review
 closed this narrow endpoint-to-runtime link and its caveats: it does not show
 that source lowering allocated `Top`, equate `Top` with `[out]`, or generalize
-to other functions. Next trace a surviving bounded exact-pure effect and an
-eligible nested unannotated local `Def::Arg` push/pop path. A
+to other functions. The source-level unannotated local `Def::Arg` path is now
+captured for `my h(x, f) = f x`, and a second source fixture
+`my h(x, y, f) = (f x, f y)` confirms one frame-local `SubtractId` is reused
+across two distinct call effects, with one frame pop and a subtract fact only
+on the first call effect. Compiler-referee review confirms the source
+lowering lifecycle but explicitly does not prove weighted cancellation or
+second-call fact derivation. Next characterize outer-frame selection under a
+nested active skeleton and find a source path where bounded exact-pure effect
+constraints survive finalization. A
 conditional zero-consumption
 lemma may reduce the handler-free, no-family fragment: Oracle's weighted row
 rule uses `J = K ∩ Common(L)`, so empty row heads force no row consumption;
