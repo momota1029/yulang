@@ -480,13 +480,20 @@ fixed-anchor projections have finite scheme representations under the
 candidate subsumption relation. A pure carrier calculation now covers one
 guarded negative self-cycle: its root relation is upward closed and represented
 by the same finite SCC graph despite having no least full assignment; the
-calculation is independently reviewed. A Rust probe for the surface form
-`pub f x = x f` produced two ordinary binders and no recursive-bound entry, so
-it does not establish that the Oracle source graph is this direct negative
-self-cycle. Next derive the actual source root projection for such recursive
-uses, then extend the finite relations to source-induced environments and
-interacting uses. Relate endpoint and incomplete OCast observations before
-choosing representation.
+calculation is independently reviewed. A Rust trace for `pub f x = x f` found
+one selected recursive interval with lower `Bottom`, then no recursive entry
+in the saved view; the outer Function argument is also empty in the generalized
+compact root, leaving two quantifiers. Its upper endpoint is more complex than
+the isolated `Fun(q, Bottom) ≤ q` cycle. A conditional carrier calculation
+shows that `Bottom ≤ q ≤ q ∪ K` is assignment-vacuous, and projecting the
+negative-only root argument to `Top` has the same `Pred` relation. This proof is
+independently reviewed with the `Root`/`Pred` distinction and fixed-environment
+assumptions made explicit; it does not cover latent effects or establish why
+the Oracle chooses that simplification. Next locate the exact Oracle
+simplification phase for this interval and relate that operation to the
+fiberwise calculation, then extend the finite relations to source-induced
+environments and interacting uses. Relate endpoint and incomplete OCast
+observations before choosing representation.
 Details are in
 `notes/progress/2026-09-30-intrusion-powerset-carrier-candidate.md`. The run-local observations are
 recorded in

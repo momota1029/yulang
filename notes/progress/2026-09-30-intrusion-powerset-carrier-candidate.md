@@ -197,15 +197,54 @@ or that latent Function effects preserve the relation.
 A focused Rust probe against frozen Oracle `a58eefc3` used
 `pub f x = x f`. It succeeded with no diagnostics and formatted `f` as
 `any -> ['a] 'b`; the inspected saved scheme has two ordinary quantifiers and
-zero recursive-bound entries. Therefore this source is not evidence that the
-Oracle saves the direct graph `Fun(q, Bottom) ≤ q` as its member view. It may
-have erased or transformed internal constraints during root projection; the
-probe did not inspect those roots. This is a warning against identifying the
-abstract polarity-reversing graph with a source fixture by surface syntax
-alone. The exact command was
-`YULANG_INTRUSION_INSTANCE_TRACE=1 CARGO_TARGET_DIR=/tmp/yulang-intrusion-oracle-target cargo test -p infer --lib scratch_negative_recursive_self_application_probe -- --nocapture`
-in the detached Oracle worktree. The temporary Rust probe was removed after
-capturing this observation; no Oracle source or committed test changed.
+zero recursive-bound entries. A second Rust probe enabled the existing root
+trace: the selected compact root has one recursive interval (TypeVar2) with
+lower `Bottom`; its upper endpoint contains `TypeVar2` and a Function whose
+argument contains a nested Function argument referring to TypeVar2. The
+generalized compact root then has no recursive entries, and its outer Function
+argument is empty. This source therefore does exercise a recursive interval,
+but the observed compact root is more involved than the isolated
+`Fun(q, Bottom) ≤ q` calculation, and no recursive-bound entry survives in the
+saved scheme. The trace does not yet explain why that representation preserves
+the public relation. The exact commands were the focused Rust tests
+`scratch_negative_recursive_self_application_probe` with
+`YULANG_INTRUSION_INSTANCE_TRACE=1` and
+`scratch_negative_recursive_self_application_root_probe` with
+`YULANG_INTRUSION_ROOT_TRACE=1`, both using
+`CARGO_TARGET_DIR=/tmp/yulang-intrusion-oracle-target` in the detached Oracle
+worktree. Both temporary Rust probes were removed after capturing the
+observations; no Oracle source or committed test changed.
+
+### Candidate projection explanation for this trace
+
+The selected compact interval has lower `Bottom` and upper `q ∪ K`, where
+`K` is the observed Function endpoint containing another occurrence of `q`.
+If the pure candidate interprets `∪` as join, then for every assignment `Q`
+and every value `X` of `K`, both interval constraints hold:
+`Bottom ⊆ Q` and `Q ⊆ Q ∪ X`. The recursive occurrence inside `K` therefore
+does not restrict `Q` through this interval. In the captured compact root body,
+the occurrence inventory places `q` only in the outer Function argument; its
+other occurrences are in the recursive interval. Under that inventory premise,
+the effect-free carrier model sees a negative-only root occurrence.
+
+For any such `Q`, the candidate Function encoding satisfies
+`Fun(Top,R) ⊆ Fun(Q,R)` because its negative argument channel is empty.
+Also `Q=Top` is an allowed interval assignment. For each fixed assignment to
+the other identities, yielding fixed `R`, the original root set is
+`Root_original = {Fun(Q,R) | Q ⊆ N}`, and its upward closure is therefore
+`Pred_original = ↑{Fun(Top,R)}`. Replacing the negative-only local argument
+with `Top` gives `Root_projected = {Fun(Top,R)}` and
+`Pred_projected = ↑{Fun(Top,R)}`. Thus the original and projected views have
+the same `Pred` relation in that fiber, even though their `Root` sets differ.
+Taking the union over satisfying assignments to the other identities
+preserves this equality when their feasible range is independent of `q`.
+This gives a candidate principality explanation for saving the argument as
+`Top`; it does not derive the Oracle's implementation choice or cover its
+latent effect identities. The argument is conditional on the interval being
+the only constraint on `q`, the captured occurrence inventory being complete,
+the other identities' feasible range being independent of `q`, and the
+candidate's join/subsumption semantics; the independent review disposition
+is recorded below.
 
 ## Selector fixture
 
@@ -224,10 +263,10 @@ judgment must remain separate until their relation is specified.
 
 ## Required next work
 
-1. Derive which saved root and selected obligations the Oracle gives to
-   negative recursive uses. The surface probe `pub f x = x f` does not directly
-   save `Fun(q, Bottom) ≤ q`, so source syntax alone does not identify the
-   abstract graph.
+1. Locate the exact Oracle simplification phase that drops TypeVar2 from the
+   selected root, then check that its rule has the same fiberwise `Pred`
+   behavior as the candidate calculation, including latent effect identities.
+   Do not infer the implementation rationale from the endpoint trace alone.
 2. Extend the finite `Root`/`Pred` calculations from isolated graphs to those
    source-induced environments and interactions between uses.
 3. Relate the selected root/epoch snapshots and the separate incomplete OCast
@@ -264,4 +303,8 @@ review of `Fun(q, Bottom) ≤ q` found and then delta-closed a head-element type
 gap; it confirmed `Root_q = Pred_q` and the even/odd no-least-assignment
 witness within this isolated graph. These reviews did not assess source
 adequacy, full-scheme semantics, or implementation readiness, and ran no
-tests.
+tests. The independent review of the source-trace projection calculation
+corrected an initial `Root`/`Pred` conflation, made its root occurrence and
+fixed-environment assumptions explicit, and then confirmed the fiberwise
+`Pred` equality after those qualifications. This review also made no source
+adequacy or latent-effect claim.
