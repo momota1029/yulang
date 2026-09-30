@@ -703,11 +703,13 @@ and assume the root term contains q only as its Function argument:
 Vpre.root = Fun(q, R)
 ```
 
-Assume q ranges freely over a subtype preorder `D` with greatest element
-`Top`, and Function subtyping is contravariant in its argument. The realized
+Let `T` be a subtype preorder with greatest element `Top`, and let `D ⊆ T` be
+the set of q assignments feasible under the fixed environment and constraints.
+Assume Function subtyping is contravariant in its argument. The realized
 pre-projection roots are `{ Fun(a,R) | a ∈ D }`; after replacing q by `Top`,
 the root set is `{ Fun(Top,R) }`. These exact `Root` sets differ in general.
-Their upward closures agree:
+If q is unrestricted so that `D=T` (hence `Top ∈ D`), their upward closures
+agree:
 
 ```text
 ↑{ Fun(a,R) | a ∈ D } = ↑{ Fun(Top,R) }
@@ -720,17 +722,28 @@ inclusion. The equality also holds fiberwise for each fixed environment and
 incoming-use continuation as long as neither constrains q outside this root
 occurrence.
 
-This conditional calculation exactly recovers the Oracle's `Top` argument
-projection at the `Pred` level, while preserving the distinction between the
-realized-root set and its accepted-supertype closure. It is compatible with
-the collector's back-reference lifecycle: the q row can have driven finite
-bound expansion without becoming a second semantic constraint on the
-already-collected root. However, the crucial premise is still unproved:
-source constraints and selected evidence must induce the same contextual
-observations as this `Vpre` interpretation, despite q's recorded interval
-`Bottom ≤ q ≤ q ∩ K(q)`. If that interval is an independent obligation, the
-previous conditional no-go applies instead. Therefore this is a conditional
-bridge lemma, not an Oracle q-erasure correctness result.
+This feasibility premise is necessary for fixed `R`. For arbitrary nonempty
+`D ⊆ {a | a ≤ Top}`, equality requires some `a ∈ D` with
+`Fun(a,R) ≤ Fun(Top,R)`. By contravariance this requires `Top ≤ a`, so `a` is
+equivalent to `Top` in the preorder. A two-element chain with `D={Bottom}` is
+a counterexample: `Fun(Top,R) ≤ Fun(Bottom,R)`, but the upward closure of the
+latter omits `Fun(Top,R)`. Thus treating q's recorded interval as a genuine
+restriction can invalidate the recovery even when q still occurs only
+negatively. The collector-metadata interpretation must establish that q's
+semantic assignment fiber admits `Top` (and that `R` is fixed independently);
+merely calling the row a back-reference is not enough.
+
+This conditional calculation recovers the Oracle's `Top` argument projection
+at the `Pred` level only if q's assignment fiber admits `Top`, the result and
+environment are fixed independently, and the continuation does not constrain
+q elsewhere. It preserves the distinction between the realized-root set and
+its accepted-supertype closure. The crucial source-level premises remain
+unproved: selected source constraints and evidence must induce this fiber even
+though the captured recursive row is `Bottom ≤ q ≤ q ∩ K(q)`. If that interval
+restricts q so `Top` is infeasible, the equality need not hold; if it is an
+independent obligation, the previous conditional no-go applies. Therefore
+this is a conditional bridge lemma, not an Oracle q-erasure correctness
+result.
 
 ### Next semantic gate
 

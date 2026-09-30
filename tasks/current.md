@@ -580,9 +580,11 @@ the one-row reachability prune follows directly once q is absent from the
 rewritten root/roles. Neither result proves that the pre-projection
 presentation preserves source/use observations. A conditional `Pred` equality
 now covers the observed negative-only root if its recursive side table is
-presentation metadata, with q otherwise unconstrained; treating its interval
-as an independent obligation instead triggers the reviewed powerset no-go.
-The source-to-presentation premise remains the next proof gap.
+presentation metadata only when q's assignment fiber still admits `Top` and
+the result/continuation is independent of q. A two-element counterexample
+shows polarity alone is insufficient when its interval excludes `Top`;
+treating the row as an independent obligation triggers the reviewed powerset
+no-go. Prove the actual source-to-presentation fiber and Top feasibility next.
 The `H_d` bridge includes selected evidence and post-loop root state. Its type
 component must match realized roots to `Root_d` and accepted supertypes to
 `Pred_d`; diagnostics, provenance, and effects need separate observation
