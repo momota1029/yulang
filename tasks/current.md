@@ -565,14 +565,21 @@ back-edge sides during expansion, while only surviving rows are restored as
 scheme inequalities. Its cache includes `ConstraintWeight`, but recursion and
 row identity use `(TypeVar, polarity)`. Source transitions reset weight to
 empty at a positive Function argument and propagate incoming weight at a
-negative Function argument. The saved `pub f x = x f` summary lacks the complete
-polarized selected endpoints, every q back-edge and its weight, and the
-`q = TypeVar2` correspondence; the fixture's different-weight re-entry question
-remains open. Next capture those exact root-epoch facts before stating and
-proving the finite-presentation lemma or using
-`Root_d`/`Pred_d` for its projection bridge. General weighted-cycle
-reconstruction remains open. See
+negative Function argument. The saved `CompactRoot` capture at run-local root
+`TypeVar(0)`/epoch 27 contains one q=`TypeVar(2)` row and three serialized q
+occurrences, all with empty weight; another effect variable carries
+`SubtractId(0)`. Its output does not preserve every incoming recursive-call
+weight, so visit-level closure remains open. Simple-sub's `TypeSimplifier`
+also explicitly preserves recursive variables during polar-only removal,
+whereas the Oracle removes this negative-only q and prunes its row. That
+specific behavior is a Yulang extension; its contextual preservation is a new
+conjecture, not supplied by Simple-sub §4.3.1. Next derive visit weights from
+selected upper-bound records and prove the finite-presentation and q-erasure
+bridges before using `Root_d`/`Pred_d`. General weighted-cycle reconstruction
+remains open. See
 `notes/progress/2026-09-30-intrusion-powerset-carrier-candidate.md`.
+The rule distinction is recorded in
+`notes/progress/2026-09-30-simple-sub-paper-mlsub-audit.md`.
 This is one fixture-level obligation; multi-member epochs, publication/failure,
 internal uses, and independent incoming uses remain charter-wide requirements.
 No compiler implementation is authorized by this result; the reviewed

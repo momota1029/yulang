@@ -449,25 +449,70 @@ semantically mergeable, or represented elsewhere without loss. The frozen
 collector's Function transitions give a conditional fact: a positive Function
 argument resets the weight to empty; a negative Function argument propagates
 its incoming weight. A path that traverses those transitions in the stated
-order reaches an empty weight after the positive argument. The captured summary
-for `pub f x = x f` does not establish that every q re-entry takes that path:
-the complete polarized selected endpoints, all q back-edges and their weights,
-and the `q = TypeVar2` correspondence are missing. The different-weight
-re-entry question remains open for this fixture. A complete root-epoch trace
-of those facts is required before the finite-presentation lemma. This evidence
-also does not cover cycles through Function results, latent effects, row tails,
-or stack subtraction.
+order reaches an empty weight after the positive argument. A complete captured
+root establishes this path for `pub f x = x f` at root `TypeVar(0)`, selected
+epoch 27. Its one recursive row is `q=TypeVar(2)`, with lower `Bottom` and
+upper compact intersection `q@Empty ∩ K`; the root Function's argument is
+`q@Empty`. The q-bearing part of `K` is a Function in the first Function's
+argument, whose own argument is `q@Empty`. On this structural path, the
+negative Function argument propagates its incoming upper-record weight and
+the positive Function argument then resets it to empty before q. The row's
+other weighted occurrences are distinct effect variables, including
+`TypeVar(13)` under `SubtractId(0)`; no q occurs in those weighted effect
+positions. Thus every q occurrence in the *serialized selected root/row* is
+unweighted, and it has one recursive row, keyed operationally by
+`(TypeVar(2), Negative)`. This closes the output-graph census, but not the
+weight of every `compact_var_side` call while that row was built: after
+recording a recursive side, the collector returns an empty-weight occurrence,
+and the final compact output does not retain each incoming visit weight. In
+particular, the direct q in the row does not distinguish the collector's
+`with_self` occurrence from a possible q endpoint in the selected upper
+records. A visit-level different-weight proof still needs either a trace of
+those calls or a source proof from the selected bound weights. The capture
+also does not cover cycles through Function results, other latent-effect
+identities, row tails, or stack subtraction.
+
+This is a run-local capture, not an invariant about stable numeric IDs. The
+original focused command was
+`YULANG_INTRUSION_ROOT_TRACE=1 CARGO_TARGET_DIR=/tmp/yulang-intrusion-oracle-target cargo test -p infer --lib scratch_negative_recursive_self_application_root_probe -- --nocapture`;
+its selected `CompactRoot` trace is the source of the complete q census above.
+The test and instrumentation were temporary in the detached Oracle checkout;
+no Oracle source or test file was changed in this turn.
 
 Source anchors: frozen `compact/collect/mod.rs::compact_var_side` and
 `compact_var_bounds`; `compact/collect/type_nodes.rs::record_recursive_side`;
 `compact/mod.rs::CompactRoot`; and
 `generalize/core/prune.rs::prune_unreachable_recursive_bounds`. This source
-reading changes the next step: capture the complete root-epoch polarized
-selected endpoints, every q back-edge and weight, and the `q = TypeVar2`
-correspondence; then state and prove the finite-regular-presentation lemma for
-that selected graph before using `Root_d`/`Pred_d` to compare projection results. Weighted
-cycles outside this fixture remain a separate envelope obligation. No tests or
-Oracle files changed.
+reading changes the next step: resolve visit-level q weights from selected
+upper-bound records, then state and prove the finite-regular-presentation
+lemma for this captured graph before using `Root_d`/`Pred_d` to compare
+projection results. Weighted cycles outside this fixture remain a separate
+envelope obligation. No tests ran in this turn; no Oracle files changed.
+
+### Simple-sub boundary on recursive polar elimination
+
+The newly captured q case also marks a precise limit on transferring
+Simple-sub §4.3.1. `mlsub-compare`'s `TypeSimplifier.simplifyType` only removes a
+polar-only variable when it is absent from its recursive-variable table
+(`!recVars.contains(v)`). Oracle's simplifier instead counts occurrences in
+`CompactRoot.rec_vars`, applies one-sided elimination to eligible q, rewrites
+the recursive row, and then prunes that row as unreachable. Thus the
+*operation* of erasing this recursive q is a Yulang extension relative to the
+reference implementation; its source/use preservation is a new conjecture.
+The Simple-sub polar-removal argument cannot be cited as that preservation
+proof unless a separate lemma first shows why Oracle's transient `rec_vars`
+presentation is semantically different from the recursive binders protected
+by `mlsub-compare`.
+
+This distinction matters for the current carrier counterexample: treating q's
+transient upper row as an independently enforced scheme interval makes
+erasure fail in the candidate carrier, but that interpretation may not be the
+semantics of the collector's finite presentation. The open theorem is now
+narrower and more explicit: give the transient row its source-graph
+presentation semantics, then prove that Oracle's Yulang-specific recursive
+polar erasure preserves the same contextual observations through use and
+effect handling. The rule classification delta is also recorded in
+`notes/progress/2026-09-30-simple-sub-paper-mlsub-audit.md`.
 
 ### Next semantic gate
 
