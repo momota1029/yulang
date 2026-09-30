@@ -497,7 +497,13 @@ and copied opposite bound, and compare memoized on-demand allocation with
 preallocation on a cycle and a shared diamond. Then resolve the exact
 negative-intersection projection, including latent Function/effect identities,
 before resuming other source environments, interacting uses, and OCast
-observations.
+observations. The source audit also yields a discriminator: with `v` bounded
+by `Int ≤ v ≤ Top`, positive extrusion permits its parent to be `Top`, while
+negative extrusion permits its distinct parent to be `Bottom`; identifying
+those parents loses that independent assignment pair under Simple-sub's
+extrusion relation. This rules out calling one polarity-erasing parent map
+ordinary Simple-sub extrusion equivalence, while leaving a separately proved
+Yulang quotient open.
 Details are in
 `notes/progress/2026-09-30-intrusion-powerset-carrier-candidate.md`. The run-local observations are
 recorded in
