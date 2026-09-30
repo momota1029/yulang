@@ -585,6 +585,26 @@ branch, root provenance, and proof-side data still need their own inventory.
 The q-edge delta review matched this table to the raw trace and explicitly
 left further reachability through the TypeVar4 sibling branch unclaimed.
 
+For the redesign graph, the trace therefore supplies this identity-bearing
+slice, where `v2⁻` and `v1⁺` are variable-side vertices, not recursive type
+constructors:
+
+```text
+root PosId(19) --Fun.arg--> v2⁻
+v2⁻ --upper BoundRecordId(7) / NegId(12).Fun.arg--> v1⁺
+v1⁺ --lower BoundRecordId(4) / PosId(4).Fun.arg--> v2⁻
+v1⁺ --lower BoundRecordId(2) / PosId(5)--> v4⁺
+```
+
+The synthetic q inserted into `with_self` is a collector-generated
+`SelfOccurrence(v2⁻)`, not another selected-bound edge. A candidate
+identity-preserving graph can therefore keep the selected cycle and the
+collector's self occurrence distinct, then define an explicit forgetting map
+to compact syntax. This particular trace does not yet provide the lower-edge
+weight payloads, full effect endpoints, or the rest of `v4⁺`'s reachable graph;
+the display is an identity-bearing path slice rather than a complete input
+graph or a proved graph-to-`CompactRoot` homomorphism.
+
 This fact does **not** prove that the compact row is a lossless encoding of an
 unbounded unfolding of the selected source-bound graph. In particular,
 `with_self` can contain indistinguishable q occurrences for the synthetic

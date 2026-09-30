@@ -586,13 +586,17 @@ through `PosId(4).Fun.arg` to q; lower record 2 is a separate
 bound-record provenance distinguish the visits, not their arena leaf ID. These
 identities are visible in the traversal trace but are not stored on compact
 occurrences. A candidate graph must retain the bound and parent-path
-identities explicitly. Simple-sub's `TypeSimplifier`
+identities explicitly. The q-cycle slice now records a collector-generated
+`SelfOccurrence(v2-)` separately from the selected bound edges, with an
+explicit forgetting map to compact syntax left to prove. Its lower weights,
+effect endpoints, and the rest of `v4+` remain untraced. Simple-sub's
+`TypeSimplifier`
 also explicitly preserves recursive variables during polar-only removal,
 whereas the Oracle removes this negative-only q and prunes its row. That
 specific behavior is a Yulang extension; its contextual preservation is a new
-conjecture, not supplied by Simple-sub §4.3.1. Next define an identity-
-preserving selected-bound graph before compact merging, prove its
-finite-regular-presentation correspondence and q-erasure bridge, then use
+conjecture, not supplied by Simple-sub §4.3.1. Next complete the
+identity-preserving selected-bound graph and prove its graph-to-collector map,
+finite-regular-presentation correspondence, and q-erasure bridge, then use
 `Root_d`/`Pred_d`. General weighted-cycle reconstruction remains open. See
 `notes/progress/2026-09-30-intrusion-powerset-carrier-candidate.md`.
 The rule distinction is recorded in
