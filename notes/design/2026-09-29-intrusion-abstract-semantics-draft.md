@@ -603,16 +603,17 @@ prove principality.
 The `pub f x = x f` source/use trace sharpens what “preserve” can mean here.
 The source application contributes a direct Function upper bound to the
 negative-only parameter variable q. The Oracle then erases q, prunes its
-recursive row, publishes a `Top` Function argument with no such bound, and
-accepts independent incoming uses `f 1` and `f 2`. Therefore this root-local
-projection is not established as a solution-preserving simplification of the
-entire source-bound assignment relation; under that conventional relation, the
-direct q upper excludes `Top`. Treat it as an observed Oracle projection
-transition until a separate source/runtime semantics explains the behavior.
-The parity theorem must relate the complete staged source-to-projection-to-use
-pipeline, including dynamic checks or their absence, rather than silently
-identifying `Csrc` solutions with the post-projection scheme instances. The
-fixture trace and the conditional assignment-fiber no-go are recorded in
+recursive row, and publishes a `Top` Function argument with no such bound. Its
+inference-stage two-use probe reports `int` and `bool` for `f 1` and `f 2`, but
+a frozen-Oracle `dump-mono` run rejects `f 1` later with an unsatisfied
+`int <: Function` constraint while specializing the definition body. Thus
+this projection is not established as a solution-preserving simplification
+of the entire source-bound assignment relation, and the q-free scheme alone
+does not establish end-to-end use success. The parity theorem must relate the
+complete entrypoint-indexed source-to-projection-to-specialization pipeline,
+rather than silently identifying `Csrc` solutions with post-projection scheme
+instances. The focused probe details and conditional assignment-fiber no-go
+are recorded in
 `notes/progress/2026-09-30-intrusion-powerset-carrier-candidate.md` and
 `notes/progress/2026-09-30-intrusion-q-finalized-use-path.md`.
 

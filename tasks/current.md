@@ -588,13 +588,16 @@ no-go. This equality remains conditional and does not characterize the source
 fixture by itself.
 The exact source application also contributes a direct Function upper bound on
 q, so ordinary source-constraint assignment semantics excludes `Top` and
-cannot justify the projection. The captured `f 1` / `f 2` uses succeed under
-the finalized q-free scheme, so ordinary source-solution projection is
-refuted for this fixture. The replacement draft now treats Oracle polarity
-erasure as an observed projection transition, not a proved
-solution-preserving simplification. Next relate the exact source → projection
-→ scheme instantiation → use path to candidate intrusion, including the
-runtime boundary and the separate soundness question. Details are in
+cannot justify the projection. The captured inference-stage `f 1` / `f 2`
+uses report `int` / `bool` under the q-free scheme, but a frozen-Oracle
+`dump-mono` run rejects `f 1` during definition-body specialization with
+`int <: Function`. `check` and `run` on the same source did not terminate
+within the observation window and were interrupted, so they give no final
+entrypoint result. The replacement draft now treats Oracle polarity erasure
+as an observed projection transition, not a proved solution-preserving
+simplification; scheme inference and later specialization are separate
+observations. Next map their exact relation to candidate intrusion and the
+runtime boundary. Details are in
 `notes/progress/2026-09-30-intrusion-powerset-carrier-candidate.md` and
 `notes/progress/2026-09-30-intrusion-q-finalized-use-path.md`; the draft
 contract note is in

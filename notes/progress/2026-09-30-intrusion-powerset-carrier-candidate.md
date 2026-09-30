@@ -775,10 +775,10 @@ not establish that quotient. A successful Gate C proof must now choose and
 justify one of these meanings against finalized scheme instantiation and
 source uses; the earlier unrestricted-q recovery cannot serve as that bridge.
 
-### Public-use witness for the Oracle projection
+### Inference-stage use and specialization rejection
 
-The existing two-use characterization supplies a direct public witness for
-which side of the operational boundary the Oracle takes. It checks:
+The existing two-use characterization supplies an inference-stage witness
+for the Oracle's scheme projection. It checks:
 
 ```text
 pub f x = x f
@@ -786,29 +786,42 @@ pub use_int: int = f 1
 pub use_bool: bool = f 2
 ```
 
-Both uses finish without lowering errors and expose result types `int` and
-`bool`. The finalized `f` predicate has `arg=Top` and no q recursive bound;
-each use freshens its result/effect binders. These are recorded observations,
-not inferred from the display string alone; see
-`2026-09-30-intrusion-q-finalized-use-path.md`.
+Both uses finish inference without lowering errors and expose result types
+`int` and `bool`. The finalized `f` predicate has `arg=Top` and no q recursive
+bound; each use freshens its result/effect binders. These are recorded
+inference observations, not inferred from the display string alone; see
+`2026-09-30-intrusion-q-finalized-use-path.md`. They are not evidence that the
+whole program specializes or runs successfully.
 
 Under an ordinary assignment-projection reading, the `f 1` use would require
 an instance in which the source parameter q accepts `int`, while the captured
 application edge imposes `q ≤ Fun(S, ..., V)`. Since `int` is not a subtype of
 a Function constructor, those two requirements cannot both hold. Therefore
-the successful Oracle use is incompatible with preserving that q upper bound
-as a quantified assignment obligation. The Oracle's observable generalization
-for this fixture crosses that boundary: the nontrivial q row is used during
-compact projection, then absent from the published scheme and its ordinary
-instantiations.
+the inference-stage scheme relation is incompatible with preserving that q
+upper bound as a quantified assignment obligation. The Oracle's projection
+crosses that boundary: the nontrivial q row is used during compact projection,
+then absent from the published scheme and its ordinary instantiations.
 
-This closes the *operational choice* for the fixture, not its justification.
-It does not establish runtime safety, a source-level semantic quotient, or a
-general rule for other SCCs. The replacement must model and prove the Oracle's
-projection/instantiation behavior that admits these uses; ordinary solution
-projection is refuted as the bridge for this case. Whether the resulting rule
-has a separate soundness interpretation remains open and must not be claimed
-from these inference traces.
+A frozen-Oracle CLI specialization of the exact source rejects the concrete
+`f 1` use later. `target/debug/yulang dump-mono
+/tmp/yulang-intrusion-q-runtime-probe.yu` exits 1 with
+`yulang.unsatisfied-subtype` for `int <: 'open0 -[[], 'open2]-> 'open1`.
+This indicates that def-body specialization rechecks an obligation omitted
+from the exported scheme. The `check` CLI attempt did not terminate within the
+observation window and was interrupted after sustained CPU use; a separate
+`run` attempt was likewise interrupted. Neither attempt supplies a final
+entrypoint result. Consequently, the prior use trace does not show an
+end-to-end accepted program or a runtime-safety counterexample. The focused
+`dump-mono` result and the interrupted entrypoint attempts are recorded as
+characterization only; no Oracle source or test was modified.
+
+This closes only the inference-versus-specialization stage distinction for
+the fixture, not its semantics. It does not establish a source-level quotient,
+whole-program termination, runtime safety, or a general rule for other SCCs.
+The replacement must model the exported inference scheme and the later
+specialization rejection as distinct observations. Ordinary source-solution
+projection still cannot explain the inferred scheme by itself; whether the
+staged pipeline is sound under the language's runtime semantics remains open.
 
 ### Next semantic gate
 
