@@ -57,12 +57,88 @@ preservation.
 
 Together with the asserted public inferred results (`int` and `bool`), the
 probe now connects the actual prepared views to fresh use maps and public
-observations for this fixture. The remaining local proof step is to derive the
-selector's subtype/projection obligations from those instantiated views and
-show that they expose the least endpoint payload. The broader Gate C carrier,
-root-step simulation, and principality obligations remain open.
+observations for this fixture. The same run also reports two OCast classifications,
+zero source-boundary-eligible events, and two incomplete events with
+`UnknownOrigin(OriginId(1))`. Each producer's `why_constraint` explanation is
+complete, has five source leaves, and contains two unknown-origin
+variable-to-variable root edges. No diagnostics are emitted. Those edges have
+the shape produced by `AnalysisSession::constrain_open_use`, but this trace does
+not yet identify each edge with a particular recursive call occurrence.
+
+The two incomplete OCast producers themselves are both nominal head checks of
+`Pos::Con(step, ...) <: Neg::Con(int, [])`. Thus the classifier sees an actual
+`step`-to-`int` mismatch on each selector call, but emits no diagnostic. The
+full explanation also reaches unknown-origin variable links.
+
+A second Rust-only trace of structural parents identifies the local route. For
+the `ints` use, record 610 is a same-head outer `step <: step` comparison.
+Its second argument produces record 616 (`Union <: int`) through
+`ConstructorArgument { index: 1, direction: LowerToUpper }`; record 625 is
+branch 1 of that union and is the `step <: int` producer. The `mixed` use has
+the parallel chain 612 → 620 → 629. These record and type-arena IDs are
+run-local observations. This establishes that the nominal events arise along
+the recursive second-argument path of the selector comparison. It does not
+establish what created the parent `step <: step` comparisons.
+
+The trace review also found a provenance gap: the probe's unknown-edge count
+uses the full `why_constraint` explanation, while OCast classification uses
+`why_constraint_without_scheme_instantiation`. Thus the current capture does
+not identify the exact edge that causes `UnknownOrigin` classification. Keep
+the structural route and the classifier's incomplete result as separate facts
+until a Rust probe captures the classifier's exact explanation graph.
+
+The final constraint bounds for the selector-result path also expose a smaller
+endpoint graph. For `ints`, let `p=TypeVar(145)` be the fresh inner payload
+from `ints`, `a=TypeVar(154)` be the getter result binder, `u=TypeVar(120)` be
+the call-result intermediate, and `r=TypeVar(110)` be the exported result
+root. The captured lower/upper endpoints are:
+
+```text
+Int ≤ p, a, u, r
+a ≤ p ≤ a
+p, a ≤ u ≤ r
+```
+
+More explicitly, both `p` and `a` have `Int` and the other variable as lower
+endpoints, and each has the other variable plus `u` and `r` as upper
+endpoints. `u` has lower endpoints `p`, `a`, and `Int`, and upper endpoint
+`r`; `r` has lower endpoints `u`, `p`, `a`, and `Int`. For `mixed`, the
+same endpoint shape holds with `p=TypeVar(148)`, `a=TypeVar(155)`,
+`u=TypeVar(133)`, `r=TypeVar(123)`, and `Bool` replacing `Int`.
+
+Conditionally interpret each captured lower/upper endpoint as an ordinary
+inequality in a preorder. For this endpoint subgraph alone, assigning every
+vertex `Int` (respectively `Bool`) satisfies the inequalities, and every
+satisfying assignment places that constant below `r`. Thus the constant is the
+least root value for this subgraph, up to preorder equivalence. This gives a
+local calculation for the public endpoint result, but does not select the
+replacement carrier or prove that the Oracle uses this subgraph as its complete
+principal-solution relation. It also does **not** show that the complete
+recursive-use graph is satisfiable in the same carrier: the separate
+`step <: int` OCast events are ineligible for source diagnostics due unknown
+origins, and their semantics must remain a separate outcome in the machine
+relation.
+
+This separates two simultaneous Oracle observations: the selector result is
+inferred as `int` / `bool`, while the nominal event classifier cannot establish
+source-boundary eligibility because recursive unknown-origin edges remain in
+the explanation. The latter is not evidence that all subtype constraints
+succeeded. The remaining local proof step is to derive which instantiated
+constraints produce the endpoint result and capture the exact classifier
+explanation for the separate nominal event, then relate both paths to
+candidate inference and diagnostics. The broader Gate C carrier, root-step
+simulation, and principality obligations remain open.
 
 No compiler source or test in the redesign worktree changed. All instrumentation
 was confined to the temporary Oracle probe worktree; it only emitted diagnostic
 output. The focused Rust test passed; no Python model or performance measurement
 was used.
+
+## Review
+
+A compiler-referee delta review found the structural chain above supported by
+the trace. It also identified that the probe counts unknown-origin edges from
+the full `why_constraint` graph, while OCast classification excludes scheme
+instantiation provenance. The exact edge causing classification, and the
+upstream creation of records 610/612, remain uninspected. No edits or tests
+were made by the reviewer.

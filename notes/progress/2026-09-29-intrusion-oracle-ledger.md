@@ -399,4 +399,12 @@ The two selected root traces and the external per-use fresh maps are now
 captured for this fixture in
 `notes/progress/2026-09-30-intrusion-recursive-root-epoch-capture.md`. They
 confirm the local inputs for the next calculation, but do not themselves prove
-selector projection or an intrusion-to-Oracle simulation.
+selector projection or an intrusion-to-Oracle simulation. The selector calls
+also emit two `UnknownOrigin`-incomplete OCast classifications with complete
+explanations and no diagnostics; this is a separate outcome from the inferred
+`int` / `bool` results, not a successful-subtyping observation. A Rust trace
+shows each `step <: int` event is a productive union branch reached through
+the second invariant argument of the selector's `step <: step` comparison.
+The exact edge used by the classifier remains unobserved because the captured
+unknown-edge count came from a fuller explanation graph; details and review
+scope are in the root-epoch capture note.

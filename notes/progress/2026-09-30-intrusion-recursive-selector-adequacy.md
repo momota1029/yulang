@@ -78,10 +78,18 @@ difference, or select a carrier or prove principality beyond this fixture.
 
 The actual selected roots and external-use maps are now observed for this
 fixture, but the selector's induced subtype/projection obligations are still
-not derived. Envelope-wide soundness/principality, ordered root-step
-simulation, and use-event simulation remain open. F5 scheme equivalence remains
-withdrawn as the target; no compiler implementation follows from this
-characterization.
+not derived. The same run reports two `UnknownOrigin`-incomplete OCast
+classifications with complete explanations, source leaves, and unknown-origin
+variable-link edges, alongside the `int` / `bool` results and no diagnostics.
+Both OCast producer heads are `step <: int`; the classifier sees a nominal
+mismatch but cannot attach a source-boundary diagnostic. Keep the inferred
+endpoint and diagnostic-eligibility calculations as separate obligations;
+diagnostic silence does not prove all subtype constraints succeeded. Exact evidence is in
+`2026-09-30-intrusion-recursive-root-epoch-capture.md`.
+
+Envelope-wide soundness/principality, ordered root-step simulation, and
+use-event simulation remain open. F5 scheme equivalence remains withdrawn as
+the target; no compiler implementation follows from this characterization.
 
 ## Review
 

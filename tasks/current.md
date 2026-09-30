@@ -463,9 +463,15 @@ these concrete intervals. It does not select a carrier or prove general
 principality. The diagnostic route remains a separate `UnknownOrigin`
 observation, not subtype acceptance. The conditional algebra is reviewed; its
 major overclaim about these exact bounds was narrowed and delta-closed. Next
-derive the selector's subtype/projection obligations from the captured root
-views and fresh use maps, then prove this fixture's scheme-instance relation.
-Those run-local observations are recorded in
+derive which instantiated constraints produce the `int` / `bool` results and
+capture the exact explanation used by OCast classification. A Rust structural
+trace establishes that each `step <: int` producer is the productive branch of
+the second invariant `step` argument; both classify `UnknownOrigin`-incomplete.
+However, the trace's unknown-edge count comes from a fuller explanation than
+the classifier uses, so it does not identify the exact blocking edge. Keep
+diagnostic silence separate from subtype success. Then prove this fixture's
+scheme-instance and public-output relation. The run-local observations are
+recorded in
 `notes/progress/2026-09-30-intrusion-recursive-root-epoch-capture.md`. The
 exact cases and test limits are in
 `notes/progress/2026-09-29-intrusion-oracle-ledger.md`. The concrete carrier,
