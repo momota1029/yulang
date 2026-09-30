@@ -1092,6 +1092,57 @@ continuations remain open. See
 mode-indexed application obligation”; that Oracle characterization does not
 select this successor rule.
 
+#### Candidate transfer for an already selected value/suspension boundary
+
+To make the preceding inventory compositional, represent an evaluated
+argument fact as either `Value(F)` or `Susp(E_latent,F)`, together with any
+effect `E_now` already produced while evaluating the argument expression.
+These are semantic categories for the candidate judgment, not source syntax
+and not an inference rule for choosing the callee's accepted domain. A
+suspension retains the whole value fact `F`, including captures and boundary
+evidence.
+
+For a fixed boundary adaptation, use these transfers:
+
+| Source fact | Accepted callee domain | Immediate effect added here | Returned fact |
+|---|---|---|---|
+| `Value(F)` | value `A` | effects from evaluating the argument (`E_now`) and any immediate value adaptation | adapted `Value(F')` |
+| `Susp(E_latent,F)` | value `A` | `E_now ∨ E_latent ∨ E_adapt-now` because the suspended computation must run before closure entry | adapted `Value(F')` |
+| `Value(F)` | suspended `Susp(A)` | `E_now ∨ E_adapt-now`; wrapping the already computed value adds no latent request | `Susp(∅, F')` |
+| `Susp(E_latent,F)` | suspended `Susp(A)` | `E_now`; retain latent work and defer any adaptation that the suspended boundary requires until force | `Susp(E_latent ∨ E_adapt-latent, F')` |
+
+`E_adapt-now` and `E_adapt-latent` are themselves computed by the same rule
+for nested boundaries, not erased because an adapter is administrative.
+For a suspended target with an explicit latent-effect allowance `U`, the
+boundary is admissible only when the produced latent row is bounded by `U`;
+otherwise the typing constraint rejects that adaptation (or an unknown
+relation widens to top and cannot certify acceptance).
+When calling through a function adapter, compose the stages in order:
+adapt the external argument to the wrapped function's input, run that
+function, then adapt its result to the external result. Join their immediate
+rows in `D_eff`, while preserving the ordered wrapper and route evidence in
+the correlated whole fact. An unknown source/target relation yields the
+whole top fact and `⊤Eff`; it cannot justify `Drop`.
+
+The local preservation claim is conditional: if the source judgment defines
+`Value` and `Susp` as immediate values and explicit delayed computations, and
+each boundary operation has the stated force/wrap semantics, then these four
+cases neither omit a forcing effect nor charge a retained latent effect
+before its force. This does not prove that source `arg_eff` / `ret_eff`
+constraints determine the boundary, that all function boundaries have these
+two forms, or that handlers observe each stage under the right activation.
+The frozen `adapt_value` force inventory appears above under “Conditional
+thunk-step simulation cases”; its conditional tagged-erasure cases appear in
+the preceding “Candidate runtime-value coverage for one ghost-tagged mono
+executable” subsection. `apply_adapter`'s argument-adapt / call / result-adapt
+order is characterized by frozen `crates/mono-runtime/src/runtime/flow.rs`
+and the nested adapter trace recorded earlier in this candidate. These are
+separate characterization evidence, not the semantic authority for this
+transfer. The latent-effects note records mode and generated-shape
+characterization, not these adapter details. Principal inference still
+requires that these transfer inequalities be integrated into the fixed-`Drop`
+effect operator and that derivations match its least solutions.
+
 #### Conservative unknown-call consequence (conditional)
 
 For an open or unresolved callable target that has no proved finite

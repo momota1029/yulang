@@ -1727,21 +1727,22 @@ issue after splitting out operation/continuation application and
 `Thunk::Value` force; its minor omission of recursive forcing after a
 thunk-valued continuation result is now recorded in the table. An architect
 review identified ordinary application as a critical open bridge: source
-`arg_eff`/`ret_eff` still lack a proved relation to strict evaluation versus
-deferred thunk construction. The mode-indexed Oracle characterization remains
-evidence only; prove a sound source-to-elaboration call/force relation and its
-latent-row/route preservation before selecting successor rules or beginning
-implementation. The candidate now separates callee evaluation, argument
+`arg_eff`/`ret_eff` still lack a proved relation to the accepted argument
+boundary. The mode-indexed Oracle characterization remains evidence only.
+The candidate now separates callee evaluation, argument
 boundary adaptation to value versus suspended domains, closure body evaluation,
 and unknown/assignment-dependent adaptation joins. It charges unsuspended
 argument evaluation or suspended-argument forcing at the actual argument or
 adaptation context; a suspended-domain transfer retains the latent row and
 captured snapshot for routing at the force-site active handler/receiving
-context. An unresolved relation widens to top. A compiler-referee delta review
-closed the route clarification and confirmed both unsuspended evaluation and
-suspended forcing are covered. This closes the transfer inventory wording
-only: proving which source constraints select the accepted domain, force-context
-simulation, and the relation of the application bound to source `ret_eff`
-remains the next semantic bridge.
+context. An unresolved relation widens to top. A four-case conditional
+`Value`/`Susp` boundary transfer now accounts for immediate evaluation,
+forcing, value wrapping, and latent adaptation, with an explicit latent-row
+allowance check. A compiler-referee review found no major issue in those
+conditional transfers and the follow-up closed a source-attribution minor;
+Oracle adapter behavior remains characterization only. This does not prove
+which source constraints select the accepted domain, source-to-elaboration or
+force-context simulation, or the relation of the application bound to source
+`ret_eff`; those remain the next semantic bridge.
 route/scope quotient, principal solver, and a positive `Drop` certificate
 remain open.
