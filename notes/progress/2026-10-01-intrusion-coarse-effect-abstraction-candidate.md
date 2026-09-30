@@ -1346,8 +1346,8 @@ on own-path coloring.
 When same-path family heads meet in the frozen specification's set, split,
 filter, or stack-check operations, their arguments receive invariant ordinary
 constraints; two unrelated occurrences in separate rows do not constrain one
-another. Path equality alone never discards payload types. As a conditional
-candidate grant check, same-path, same-arity heads generate:
+another. Path equality alone never discards payload types. For well-formed,
+same-path, same-arity heads, a conditional candidate grant check generates:
 
 ```text
 InvMatch(F<α₁,...,αₙ>, F<β₁,...,βₙ>)
