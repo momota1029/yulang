@@ -558,6 +558,33 @@ matched the recorded paths and selected-bound IDs to the raw trace and
 collector source; its scope was this run only, not other roots or graph
 classes.
 
+The q-bearing incidence slice from that trace can be recorded with identities
+before compact merging:
+
+| Owner/side | Selected edge or occurrence | Endpoint/path |
+|---|---|---|
+| root, Positive | root type `PosId(19)` | `Fun.arg -> NegId(4) -> q=(TypeVar(2), Negative)` |
+| q, Negative | upper `BoundRecordId(7)`, all weights Empty | `NegId(12): Fun.arg -> PosId(8) -> (TypeVar(1), Positive)` |
+| `TypeVar(1)`, Positive | lower `BoundRecordId(4)` | `PosId(4): Fun.arg -> NegId(4) -> q` (cycle return; q visit weight Empty) |
+| `TypeVar(1)`, Positive | lower `BoundRecordId(2)` | `PosId(5) -> (TypeVar(4), Positive)` (sibling branch) |
+
+At the variable-side abstraction, the q-bearing incidence cycle induced by
+these record paths is:
+
+```text
+q --upper BoundRecordId(7) / Fun.arg--> TypeVar(1)
+  --lower BoundRecordId(4) / Fun.arg--> q
+```
+
+The cycle's leaf arena node is the same `NegId(4)` on both visits; the edge
+records and parent paths identify which traversal occurrence is which. The
+synthetic self occurrence added while constructing `with_self` is not an edge
+of this source-bound slice. This is a finite traced subgraph for the q cycle,
+not the complete root/epoch graph: effect endpoints, the rest of the TypeVar4
+branch, root provenance, and proof-side data still need their own inventory.
+The q-edge delta review matched this table to the raw trace and explicitly
+left further reachability through the TypeVar4 sibling branch unclaimed.
+
 This fact does **not** prove that the compact row is a lossless encoding of an
 unbounded unfolding of the selected source-bound graph. In particular,
 `with_self` can contain indistinguishable q occurrences for the synthetic
