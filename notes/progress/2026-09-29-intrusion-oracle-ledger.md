@@ -348,3 +348,37 @@ remaining semantic question is whether another source context can make this
 recursive mismatch eligible or otherwise affect a public inferred result, and
 whether the replacement should reproduce this conservative diagnostic gate;
 do not model the incomplete event as an accepted subtype edge.
+
+## Recursive endpoint payload through a source-level field selector (2026-09-30)
+
+The source fixture now observes the distinct recursive endpoint payloads through
+a polymorphic selector over the nominal struct's generated field methods:
+
+```yulang
+struct step 'value 'next { value: 'value, next: 'next }
+my ints(seed: int) = step { value: seed, next: step { value: 1, next: ints seed } }
+my mixed(seed: int) = step { value: seed, next: step { value: true, next: mixed seed } }
+my get_inner_value(x: step int (step 'a int)) = x.next.value
+my ints_inner_value = get_inner_value (ints 0)
+my mixed_inner_value = get_inner_value (mixed 0)
+```
+
+The Oracle reports `get_inner_value : step(int, step 'a int) -> 'a`, then
+infers `ints_inner_value : int` and `mixed_inner_value : bool`, with no lowering
+or check diagnostics. The dedicated assertion probe passed, and the consolidated
+command `cargo test -p infer --lib source_recursive_ -- --nocapture` passed all
+four matching source probes in detached worktree
+`/tmp/yulang-intrusion-recursive-comparison-probe` at frozen Oracle revision
+`a58eefc31e22141574b6f20c6a5748151c6d79f1`.
+
+This is stronger source-level evidence than the diagnostic-only application
+probe: the recursive schemes preserve endpoint payload differences through
+instantiation and nominal field selection into public inferred result types.
+It does not prove that those schemes are principal, characterize the complete
+subtype carrier, or establish the SCC-intrusion replacement relation. In
+particular, keep the conservative OCast diagnostic result and this inferred-type
+observation as separate public observations.
+
+Next compare the candidate carrier and scheme-instance relation against both
+observations, including a proof of root simulation and principality for the
+supported source envelope. The F5 shape remains withdrawn as the target.

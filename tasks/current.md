@@ -445,18 +445,19 @@ spec review's minor arbitrary-state concern was closed by that reachability
 condition. This does not construct the concrete recursive carrier or prove
 projection/principality. See
 `notes/progress/2026-09-30-intrusion-carrier-parametric-saturation.md`.
-The source-generated recursive Function scheme payloads are now characterized
+The source-generated recursive Function scheme payloads are characterized
 through their quantified inner bounds. A source call through those bounds emits
 nominal mismatch events that all classify as `UnknownOrigin`, leaving the check
 report without diagnostics; direct and acyclic controls do report diagnostics.
-This records Oracle diagnostic behavior and mixed provenance, not a subtype
-acceptance proof: the full explanation is complete and contains source leaves,
-but it also contains an `UnknownInternal` origin that blocks OCast eligibility.
-The sentinel is now traced to the variable-to-variable internal SCC edge from
-`AnalysisSession::constrain_open_use`, used for the recursive calls in these
-fixtures. Next test whether other source contexts can make the same nested
-nominal mismatch eligible, and characterize the public inferred result rather
-than interpreting suppressed diagnostics as subtype acceptance. The exact
+The full explanation contains source leaves and an `UnknownInternal` origin that
+blocks OCast eligibility. The sentinel is traced to the variable-to-variable
+internal SCC edge from `AnalysisSession::constrain_open_use`. Separately, a
+polymorphic nominal field selector preserves distinct recursive endpoint
+payloads as inferred `int` and `bool` results without diagnostics. This closes
+the source-observable payload gap, but neither that observation nor the
+diagnostic route proves subtype acceptance or principality. Next relate both
+public observations to a concrete candidate carrier and scheme-instance
+relation, then extend the proof to the declared Oracle outcomes. The exact
 cases and test limits are in
 `notes/progress/2026-09-29-intrusion-oracle-ledger.md`. The concrete carrier,
 scheme instance relation, and replacement proof remain open; implementation
