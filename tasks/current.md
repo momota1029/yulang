@@ -760,3 +760,13 @@ source-generated constraints and prove one frozen member's root denotation /
 principality with retained one-polarity bounds over a fixed outer environment.
 This is still a design/proof gate; no compiler implementation is authorized
 until the exact successor contract is independently reviewed and approved.
+
+A conditional parent-transport fiber lemma is now written in
+`notes/progress/2026-09-30-intrusion-parent-transport-fiber-lemma.md`: once
+the complete selected graph and anchor/local partition are fixed, injective
+parent renaming and per-use freshening preserve satisfying assignments, root
+values, and their upward closure for any syntax-directed preorder carrier.
+It does not establish that Oracle selection gives that graph or that an SCC
+partition is correct. The next proof is the missing bridge from source
+constraints through Oracle's ordered root projection to the exact retained
+graph; then the one-root principal relation can use the transport lemma.
