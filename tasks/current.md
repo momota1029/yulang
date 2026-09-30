@@ -1129,8 +1129,14 @@ with wildcard `[_]` and the direct-handler control. The first env-gated bounds
 trace shows only left-side `push(choose)` weights for two annotation stack IDs,
 but lacks bound-record parents/origins and source-slot mapping; treat this as
 Oracle characterization only. Add a disposable test-only trace to map those
-slots to bound and row-derivation records. Then adjudicate the helper-boundary
-candidate end to end, choose a sound expressible effect
+slots to bound and row-derivation records. A scratch infer test now maps
+`invoke`'s `f ()` source application to a left `push(choose)` bound and its
+return endpoint to a matching `NonSubtract` pop for the same ID; the closed
+scheme is `Bot`. The explanation path has no row-residual edge. This narrows
+the Oracle cancellation path but does not prove the weight law or isolate the
+runtime inconsistency. Next map the helper call result and caller catch through
+row subtraction and guard search, then adjudicate the candidate end to end.
+Choose a sound expressible effect
 abstraction, and define
 principality relative to it. Exact trace support remains the semantic
 soundness reference, not an inference precision mandate; do not add

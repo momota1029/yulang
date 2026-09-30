@@ -100,11 +100,40 @@ name which source slot an internal variable represents. This is frozen
 Oracle characterization of propagation, not evidence that left-only routing
 is semantically correct or the cause of the finalized pure effect.
 
-The next useful instrumentation is a disposable test-only trace that maps the
-callback return-effect slot and application result-effect slot to bound
-records, including record derivations and row residual parents. Then compare
-concrete `[choose]`, wildcard `[_]`, and direct catch. Do not change Oracle
-production code or infer a weight law from this candidate alone.
+A disposable `infer` test then mapped the `invoke` body call to its typed
+callback parameter and queried bound explanations. For
+`my invoke(f: () -> [choose] int) = f ()`:
+
+- the call to `f` is the `f ()` source application and its declared callback
+  result effect is the concrete `[choose]` row;
+- the `invoke` function body's return-effect node is
+  `NonSubtract(Var(TypeVar(29)), StackWeight { filter: Set(choose),
+  id: SubtractId(0), pops: 1 })` before scheme serialization;
+- `TypeVar(29)` has four lowers and one upper. One lower is `Var(TypeVar(23))`
+  with left weight `push(choose)` for the same `SubtractId(0)`;
+- the explanation for that lower reaches both an `Annotation` origin and the
+  `ApplicationArgument` origin whose source span is `f ()`. Its structural
+  path includes `LowerStackNormalization` and `FunctionReturnEffect`, plus
+  binary-bound replay. No `RowDerivation` edge appears on this explanation
+  path.
+
+The finalized `invoke` scheme still serializes its return effect as `Bot`.
+This identifies the observed inference erasure more narrowly: a positively
+weighted callback effect reaches the body return-effect graph, then the
+matching non-subtract pop/filter remains on the function return endpoint and
+the closed scheme is pure. This is a concrete Oracle cancellation path, not a
+semantic justification for `push` followed by `pop`. The path does not use
+row-residual splitting, so a proof of that row rule alone would not certify
+this case. The runtime adapter separately carries an own-path body marker and
+an argument resume marker; the candidate runtime escape is therefore still a
+cross-phase inconsistency, not proof that this exact cancellation rule is the
+sole defect.
+
+The mapped trace covers the callback application and `invoke` return endpoint,
+but does not yet map the helper call's result-effect slot through caller catch
+subtraction or runtime guard search. Compare those remaining links with
+wildcard `[_]` and direct catch. Do not change Oracle production code or infer
+a weight law from this candidate alone.
 
 The source-contract basis is stronger than runtime behavior alone:
 
