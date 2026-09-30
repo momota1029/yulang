@@ -471,6 +471,37 @@ the top offers simulate call entry, returned values, captured wrappers, and
 later re-entry. Unknown target typing and annotation acceptance remain outside
 this effect-only statement.
 
+A deliberately coarse completion of that conditional fallback is available as
+a proof lemma. Let `TopCall#` be one finite abstract configuration whose
+concretization includes every source configuration over the checked module's
+whole lifetime and every admissible client/interface context, including after
+module return and escape into a client followed by callback, closure, thunk, or
+continuation re-entry. Represent these contexts through the finite interface
+summary and its unknown slots, not by enumerating client programs. Include all
+bounded stack/lineage alternatives, all static control and value slots,
+unknown callable/wrapper references, every scope and blocker possibility, and
+top request observations. Seed `TopCall#` for every admissible exported or
+client entry. Let
+`step#(TopCall#)` include the self-loop labelled by the full finite `TopObs`
+set. Then for every concrete transition `κ -O→ κ'` in this scope, both
+endpoints are represented by `TopCall#`, and each `o ∈ O` has a covering
+`ô ∈ TopObs`; hence this single abstract edge satisfies endpoint-preserving
+observation simulation. The claim follows directly from the two top-state
+definitions, and induction covers every finite concrete path. Couple any
+immediate or latent effect slot reached through top, including escaped/stored
+values and later re-entry, to `⊤Eff`; then the fixed-`Drop` law retains `⊤Eff`,
+so this fallback cannot erase an effect. It also cannot prove
+any finite drop because `TopObs` includes unknown blockers and families.
+
+This is an intentionally degenerate safety backstop, not the desired ordinary
+inference machine: reaching it can make every handler residual top and reject
+otherwise well-typed closed annotations. It proves neither that the source
+front end reaches this state exactly where needed nor that final acceptance is
+preserved. The useful next refinement is to replace `TopCall#` with a finite
+row-independent callable target set where one is proved, keeping this universal
+state for open interfaces and unresolved targets. Exact continuation support
+and use counts are still unnecessary for the backstop proof.
+
 If these premises hold and `→#` is independent of inferred effect rows, freeze
 `Drop#` and solve the effect lattice with `F_Drop#`. The reviewed leastness
 result then applies, subject to source derivations matching its inequalities.

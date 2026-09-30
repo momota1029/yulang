@@ -1431,3 +1431,20 @@ fixed-`Drop` law leaves `⊤Eff` unchanged. This prevents unknown call effects
 from being erased, but it is not yet a selected typing rule or an end-to-end
 soundness proof; call-entry, returned-value, captured-wrapper, and re-entry
 simulation still need proof.
+
+The candidate now gives the universal `TopCall#` backstop: one finite abstract
+state covering all source/interface configurations, with a full-`TopObs`
+self-loop and `⊤Eff` coupling, directly satisfies endpoint/observation
+simulation and cannot be subtracted by fixed `Drop`. This is a conditional
+worst-case safety lemma only; it may reject ordinary closed annotations and
+does not prove the front end activates it correctly. The immediate next proof
+step is localizing this top fallback using finite callable target sets, then
+proving the resulting row-to-offer coupling without losing the external-entry
+and captured-wrapper cases.
+
+An independent universal-top simulation audit found no blocking or major issue
+under the stated premises. Its minor scope gap is closed in the candidate:
+concretization, entry seeds, and `⊤Eff` coupling now explicitly span module
+return, escaped values, and later client callback/closure/thunk/continuation
+re-entry. The lemma remains conditional and does not establish actual fallback
+placement, annotation acceptance, or principality.
