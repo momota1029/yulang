@@ -1731,6 +1731,14 @@ review identified ordinary application as a critical open bridge: source
 deferred thunk construction. The mode-indexed Oracle characterization remains
 evidence only; prove a sound source-to-elaboration call/force relation and its
 latent-row/route preservation before selecting successor rules or beginning
-implementation.
+implementation. The candidate now separates callee evaluation, strict
+argument evaluation, deferred `Thunk::Expr` construction, closure body
+evaluation, and unknown/assignment-dependent mode joins. Its deferred row
+retains the latent body row and captured snapshot, then routes it against the
+force-site active handler/receiving context; an unresolved relation widens to
+top. A compiler-referee delta review found no issue in this route clarification.
+This closes wording only: proving source mode selection, force-context
+simulation, and the relation of the application bound to source `ret_eff`
+remains the next semantic bridge.
 route/scope quotient, principal solver, and a positive `Drop` certificate
 remain open.
