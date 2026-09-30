@@ -1872,3 +1872,16 @@ making the erased key authoritative for matching. Next prove source elaboration
 and binder transport preserve typed evidence, and establish leastness for
 coupled constraints or a staged fixed-eligibility analysis. The current finite-
 lattice result still assumes fixed `Drop`.
+
+A conditional source-to-constraint interface is now drafted in the candidate:
+typed constraints, possible-request evidence, row bounds, and handler/grant
+facts stay linked; call/force and higher-order latent possibilities require
+closed summaries or unknown/top. The binder-split witness now demonstrates
+lost source identity and potential acceptance loss, while distinguishing the
+additional faulty projection rule needed for unsound subtraction. Architect
+and exact-source reviews were clean; compiler-referee findings on possible
+requests, `RawOnly`, and the witness claim were repaired and closed by a fresh
+delta review. Next prove source-step coverage and transport conditional on a
+declared source interface, then close route quotient and coupled leastness.
+Concrete syntax/handler semantics still needs an approved successor contract;
+no implementation rule is selected here.
