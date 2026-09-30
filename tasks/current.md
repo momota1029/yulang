@@ -452,9 +452,12 @@ report without diagnostics; direct and acyclic controls do report diagnostics.
 This records Oracle diagnostic behavior and mixed provenance, not a subtype
 acceptance proof: the full explanation is complete and contains source leaves,
 but it also contains an `UnknownInternal` origin that blocks OCast eligibility.
-Next isolate which recursive/generalization proof edge contributes that
-sentinel, then seek a source context whose public inferred result distinguishes
-the interval payloads. The exact cases and test limits are in
+The sentinel is now traced to the variable-to-variable internal SCC edge from
+`AnalysisSession::constrain_open_use`, used for the recursive calls in these
+fixtures. Next test whether other source contexts can make the same nested
+nominal mismatch eligible, and characterize the public inferred result rather
+than interpreting suppressed diagnostics as subtype acceptance. The exact
+cases and test limits are in
 `notes/progress/2026-09-29-intrusion-oracle-ledger.md`. The concrete carrier,
 scheme instance relation, and replacement proof remain open; implementation
 stays gated on a reviewed successor contract and explicit approval.

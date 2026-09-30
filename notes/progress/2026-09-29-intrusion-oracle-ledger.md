@@ -324,8 +324,19 @@ retains scheme-instantiation proof edges) is complete and contains both source
 leaves and an `UnknownInternal` origin node. Thus the evidence is mixed: source
 provenance exists in the full explanation, while the OCast eligibility query
 still rejects the producer because an unknown-origin branch remains. This is
-not explained by query truncation. The exact recursive/generalization edge
-that contributes the sentinel remains to be isolated.
+not explained by query truncation.
+
+The origin-bearing edges now isolate the source: at least one `UnknownInternal`
+root belongs to a variable-to-variable subtype constraint. That is exactly the
+shape emitted for an open recursive/component-local use by
+`AnalysisSession::constrain_open_use` (`analysis/session/instantiate.rs`):
+`Pos::Var(target_root) <: Neg::Var(use_value)` with
+`OriginId::unknown_internal()`. The recursive call inside the `ints` / `mixed`
+SCC therefore contributes an intentionally non-source origin to the generalized
+proof path. This is not a missing registration for the outer call boundary.
+The current eligibility classifier conservatively declines to attach a
+diagnostic whenever that recursive internal edge appears alongside the
+application's source leaves.
 
 Focused command: `cargo test -p infer --lib source_recursive_ -- --nocapture`
 passed 2 source-level tests in the detached Oracle worktree
@@ -334,5 +345,6 @@ explicit-two-sided interval comparison matrix also passed its five focused
 tests separately.
 This gives an executable fixture for the diagnostic/provenance route. The
 remaining semantic question is whether another source context can make this
-recursive mismatch eligible or otherwise affect a public inferred result;
+recursive mismatch eligible or otherwise affect a public inferred result, and
+whether the replacement should reproduce this conservative diagnostic gate;
 do not model the incomplete event as an accepted subtype edge.
