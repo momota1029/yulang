@@ -889,3 +889,71 @@ checkout and then restored. It narrows the next source-origin question to the
 two annotation boundaries and the internal/replay derivations, while leaving
 the candidate semantics, effect preservation, and principality obligations
 open.
+
+### Resolve the two annotation boundaries
+
+The exact boundary allocation path for the `judge` fixture is now mapped:
+
+- `OriginId(2)` / `SourceBoundaryId(0)` is the whole parameter annotation
+  `x: [_] _`. `connect_lambda_pattern_annotation` creates an
+  `AnnConstraintLowerer::with_vars_and_closed_effect_rows` for it.
+- `OriginId(3)` / `SourceBoundaryId(1)` is a declared subtract fact created
+  while that same lowerer processes the wildcard effect row `[_]`. The path is
+  parameter-computation connection, effect-row stack construction, stack-fact
+  registration, then `InferArena::declared_subtract_fact`.
+
+These are two provenance leaves from one source annotation, not separate
+annotations and not the `signal.ping` / `io.read` operation signatures. Those
+operation signatures use `SignatureLowerer`; the plain signatures in this
+fixture do not allocate these `Annotation` boundaries. A disposable trace
+propagating caller locations through the allocators logged the first boundary
+at the annotation-lowerer constructor and the second at its stack-fact
+registration. Independent source audit confirmed the lowering path. Since the
+annotation source-boundary table does not retain annotation spans, this
+mapping rests on the exact fixture and unique allocation/call order, not a
+stored source location.
+
+This narrows the provenance claim for weighted record 47: its source leaves
+come from the annotated input effect contract and its generated subtract fact.
+It still does not show that `io` is the denotation of the quantified `'a`,
+that the weighted relation survives simplification in the successor, or that
+the source-to-mono witness generalizes. Both the allocator instrumentation
+and focused test were restored from the disposable checkout.
+
+### Same-family complete/incomplete handler roots
+
+A focused disposable test compared two definitions over the same two-operation
+family `choose`:
+
+```yu
+act choose:
+  our branch: () -> int
+  our reject: () -> never
+
+my complete(x: [_] _) = catch x:
+  choose::branch(), _ -> true
+  choose::reject(), _ -> false
+  _ -> false
+
+my incomplete(x: [_] _) = catch x:
+  choose::branch(), _ -> true
+  _ -> false
+```
+
+Both definitions lower without errors and both formatted schemes are
+`any [choose; 'a] -> ['a] bool`. A temporary trace at
+`compact_root_for_generalize`, before alias/simplification, captures different
+`ret_eff` evidence: `complete` has a secondary occurrence weighted by
+`push(δ, AllExcept(choose))`; `incomplete` has a secondary occurrence weighted
+by `push(δ', All)`. Their TypeVar and SubtractId numbers differ because these
+are separate definitions and carry no cross-definition identity claim.
+
+This is the first same-family selected-view characterization that shows a
+coverage-correlated weight distinction hidden by formatted schemes. It does
+not isolate coverage as the only cause (the complete function has another arm
+and body), prove that either weight survives finalization, interpret weights
+as concrete effect rows, or show that `choose` is removed/retained at a use
+site. It also does not establish final monomorphic acceptance, runtime
+behavior, or principality. The compiler-referee review accepts the narrow
+pre-simplification distinction and these limits. The focused test and trace
+instrumentation were restored from the disposable Oracle checkout.

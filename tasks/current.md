@@ -948,10 +948,16 @@ return effect, and has four admitted lower records, including an
 scheme characterization, not naming the records `io`, proving weighted
 preservation through simplification, or proving principality. Provenance
 queries map the four records to `Constraint(33,35,36,37)`; three have only
-`UnknownInternal` source roots, while the weighted path reaches two unresolved
-annotation boundaries. These IDs are session-local. Continue by resolving
-those source constraints and comparing complete/incomplete handler roots. The
-successor retains meaningful source constraints; polarity-only
+`UnknownInternal` source roots. Both leaves on the weighted path come from the
+same `judge` parameter annotation `x: [_] _`: one is the annotation constraint,
+the other its generated wildcard-row subtract fact. They are not act operation
+signatures, and the IDs are session-local. A same-family pair now has identical
+formatted schemes but different pre-simplification `ret_eff` weights:
+complete carries `push(δ, AllExcept(choose))`; incomplete carries
+`push(δ', All)`. This shows a selected-view distinction hidden by formatting,
+not final effect semantics. Next trace both roots through finalization and
+mono uses to learn whether the weight difference survives and affects accepted
+programs. The successor retains meaningful source constraints; polarity-only
 `q` erasure is not required. No soundness/principality failure is established
 by the `f()` fixture; do not
 restore Oracle phase parity as a goal. The probe details and command are in the
