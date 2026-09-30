@@ -891,10 +891,15 @@ shape/evaluation distinction in generated mono structure only; no program was
 executed, and the probe does not establish inference-effect adequacy. Its
 independent compiler-referee review confirms only the generated shape
 distinction and points out that `thunk[any, int]` is the adapted runtime
-parameter shape, not evidence about the inference `arg_eff` denotation. Next
-capture finalized effect endpoints for both roots, then trace a surviving
-exact-pure effect and an eligible nested unannotated local `Def::Arg` push/pop
-path. A
+parameter shape, not evidence about the inference `arg_eff` denotation. A
+second probe now confirms, for these fixtures only, finalized
+`Pos::Fun.arg_eff = Neg::Bot` versus `Neg::Top`, then materialization to a
+plain versus thunk argument. The effect operation has scheme
+`() -> [out] int`, while both wrapper schemes render `int -> int`. Independent review
+closed this narrow endpoint-to-runtime link and its caveats: it does not show
+that source lowering allocated `Top`, equate `Top` with `[out]`, or generalize
+to other functions. Next trace a surviving bounded exact-pure effect and an
+eligible nested unannotated local `Def::Arg` push/pop path. A
 conditional zero-consumption
 lemma may reduce the handler-free, no-family fragment: Oracle's weighted row
 rule uses `J = K ∩ Common(L)`, so empty row heads force no row consumption;

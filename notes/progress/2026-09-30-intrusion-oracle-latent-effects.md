@@ -371,6 +371,41 @@ characterization. The reviewer did not certify the source-to-shape relation,
 the effect carrier, weighted transport, or the overall soundness/principality
 claim.
 
+### Finalized inference-endpoint follow-up
+
+A second temporary probe of the same source pair printed every finalized
+Function scheme's raw argument and return effect nodes before specialization.
+The operation scheme was `() -> [out] int`, with
+`arg_eff = Row([], NegId(1))` and `ret_eff = Row([PosId(0)])`. The plain
+parameter function had `arg_eff = Bot`, `ret_eff = Bot`; the thunk-annotated
+function had `arg_eff = Top`, `ret_eff = Bot`, although both ordinary scheme
+format strings rendered as `int -> int`. Specialization then materialized
+those two shapes as `int -> int` and `thunk[any, int] -> int` respectively.
+
+For this fixture, this supplies a concrete inference-to-runtime observation:
+the finalized positive Function predicate for the deferred fixture has
+syntactic `Neg::Top` in `arg_eff`; this path materializes that to `Any`, then
+`runtime_shape` makes `Thunk(any, int)`. The strict fixture's `Neg::Bot`
+materializes to `Never` and remains a plain `int` argument. The operation's
+`[out]` effect is carried by its result computation inside the thunk; the
+target `any` on `MakeThunk` comes from boundary adaptation, not from the
+operation's effect. Both text schemes render as `int -> int`, which matches
+the user's decision not to require inference-stage scheme-format compatibility.
+
+Independent compiler-referee review confirms these links for this exact pair:
+`Neg::Bot`/`Neg::Top` in the finalized positive Function predicate,
+materialization to `Never`/`Any`, and runtime conversion to plain/thunk
+arguments. This does not show that source lowering originally allocated
+`Top`, that `Top` denotes the concrete `[out]` effect, or that all deferred
+arguments use `Top`.
+
+This is still one pair of finalized schemes, not a general shape relation or
+proof. It says nothing about a surviving bounded exact-pure effect variable,
+non-inlined result-effect accumulation, independent use substitutions, or
+weighted local-call transport. The temporary test and worktree were removed;
+the frozen Oracle was unchanged. Independent review of this endpoint mapping
+remains pending.
+
 The runtime-shape rule and explicit inference-to-runtime bridge are therefore
 source-grounded candidates for ordinary application, not a selected carrier
 or design decisions. Before they can support implementation, a successor
