@@ -773,3 +773,9 @@ same source assignment relation. Oracle projection remains evidence for final
 acceptance comparison, not the successor's semantic authority. The revised
 candidate direction is in
 `notes/progress/2026-09-30-intrusion-source-constraint-semantics-gate.md`.
+The first declarative subfragment now has `Var`/`Int`/`Lam`/`App` typing and
+constraint-generation rules with a conditional soundness/completeness argument
+in `notes/progress/2026-09-30-intrusion-pure-source-typing-rules.md`. It does
+not yet cover let-polymorphism or recursive SCCs. Next extend the relation to
+member-owned versus shared identities for an SCC and prove per-use root
+principality before adding effect constraints.
