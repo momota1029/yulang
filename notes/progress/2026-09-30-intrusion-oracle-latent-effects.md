@@ -123,9 +123,14 @@ unwraps syntactic `Never` and the empty effect row; an unresolved effect
 variable represented as `OpenVar` becomes a `Thunk`, regardless of constraints
 that may have existed before materialization. Conversely, a source variable
 with only the recorded `Bot` lower and empty-row upper may materialize directly
-to the empty row when its bounds remain available. The exact-pure-bounded
-source path into runtime Function materialization has not been traced, so the
-report does not claim which of these representations reaches application.
+to the empty row when its bounds remain available: `materialize_neu` omits a
+`Pos::Bot` lower, materializes the remaining `Neg::Row([], Neg::Top)` upper,
+and row materialization yields `EffectRow([])`
+(`types/materialize.rs:163–175,193–213`). By contrast, an unquantified,
+unsubstituted variable occurrence materializes as `OpenVar`
+(`materialize.rs:266–280`). Both facts are directly established. The exact
+source-generated path into runtime Function materialization has not been
+traced, so the report does not claim which representation reaches application.
 That conversion path must be tracked before assigning a source meaning to
 either mode.
 
