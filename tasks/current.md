@@ -600,7 +600,10 @@ q, so ordinary source-constraint assignment semantics excludes `Top` and
 cannot justify the projection. The selected q upper plus root lower now yields
 a graph-level principality counterexample: the erased scheme relation contains
 `Fun(Top, Bottom)`, but the selected graph has no root below it under the
-proper-Function subtype assumptions. The proposed behavior to drop, retained
+proper-Function subtype assumptions. The compact recursive upper is
+`q ≤ q ∩ K(q)`; meet laws reduce it to `q ≤ K(q)`, while the full captured
+`K(q)` contains a nested q Function and is not identical to the direct source
+upper alone. The proposed behavior to drop, retained
 parent-graph rule, compatibility impact, and full-source caveats are recorded
 in `notes/design/2026-09-30-intrusion-q-bound-successor-draft.md`; it remains
 unreviewed and unapproved. The captured inference-stage `f 1` / `f 2`

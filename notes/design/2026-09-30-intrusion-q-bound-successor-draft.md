@@ -70,6 +70,19 @@ principal root-relation mismatch for the traced selected-bound graph under
 the stated carrier/order assumptions: polarity-only erasure enlarges the
 relation.
 
+The compact recursive upper is `q ≤ q ∩ K(q)`. If `∩` is the meet, then
+`q ≤ q ∩ K(q)` iff `q ≤ K(q)`: one direction follows by meet projection, and
+the other by the greatest-lower-bound property plus reflexivity `q ≤ q`.
+The compact `K(q)` is more structured than one endpoint: the captured upper
+contains q and a Function with nested q occurrence. Independently, the
+selected source upper record 7 gives the direct obligation
+`q ≤ Fun(S,V)` (with its captured effect positions); it is one constraint
+that any ordinary satisfying assignment must meet. Substituting `q=Top`
+therefore requires `Top ≤ Fun(S,V)`, which fails under the proper-Function
+premise. The collector trace records that direct upper as the source
+`ApplicationArgument` edge and records q at negative polarity with empty
+weights. This does not identify the full compact `K(q)` with only that edge.
+
 The contradiction uses only the necessary value-argument condition of
 Function subtyping; additional latent-effect constraints can only further
 restrict the source relation. Matching the captured effect coordinates into a
