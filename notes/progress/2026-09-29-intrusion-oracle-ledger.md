@@ -405,6 +405,7 @@ explanations and no diagnostics; this is a separate outcome from the inferred
 `int` / `bool` results, not a successful-subtyping observation. A Rust trace
 shows each `step <: int` event is a productive union branch reached through
 the second invariant argument of the selector's `step <: step` comparison.
-The exact edge used by the classifier remains unobserved because the captured
-unknown-edge count came from a fuller explanation graph; details and review
-scope are in the root-epoch capture note.
+The classifier-specific explanation now traces both events through recursive
+bound replay to `UnknownInternal(OriginId(1))`. This establishes a reachable
+classification blocker for this fixture, not subtype acceptance or the origin's
+source. Details and review scope are in the root-epoch capture note.

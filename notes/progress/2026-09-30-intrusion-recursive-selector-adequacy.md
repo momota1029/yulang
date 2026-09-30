@@ -87,6 +87,12 @@ endpoint and diagnostic-eligibility calculations as separate obligations;
 diagnostic silence does not prove all subtype constraints succeeded. Exact evidence is in
 `2026-09-30-intrusion-recursive-root-epoch-capture.md`.
 
+The classifier's exact query now also has a captured path to
+`UnknownInternal(OriginId(1))` through the recursive binder's replayed lower
+bound. This explains the incomplete classification for the two events on this
+fixture, but does not establish the source or semantics of that origin. The
+endpoint constraint ancestry remains to be derived.
+
 Envelope-wide soundness/principality, ordered root-step simulation, and
 use-event simulation remain open. F5 scheme equivalence remains withdrawn as
 the target; no compiler implementation follows from this characterization.

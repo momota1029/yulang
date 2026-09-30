@@ -80,12 +80,32 @@ run-local observations. This establishes that the nominal events arise along
 the recursive second-argument path of the selector comparison. It does not
 establish what created the parent `step <: step` comparisons.
 
-The trace review also found a provenance gap: the probe's unknown-edge count
-uses the full `why_constraint` explanation, while OCast classification uses
-`why_constraint_without_scheme_instantiation`. Thus the current capture does
-not identify the exact edge that causes `UnknownOrigin` classification. Keep
-the structural route and the classifier's incomplete result as separate facts
-until a Rust probe captures the classifier's exact explanation graph.
+The full `why_constraint` probe initially left a provenance gap because OCast
+classification uses `why_constraint_without_scheme_instantiation`. A follow-up
+Rust probe captured that exact classifier query. For `ints`, the path is:
+
+```text
+producer 625
+  <- UnionBranch 616
+  <- ConstructorArgument(index=1, LowerToUpper) 610
+  <- BinaryReplay(pivot=TypeVar(144), lower=bound 828, upper=bound 932)
+  <- lower bound 828 <- constraint 514 <- UnionBranch constraint 513
+  <- RootOrigin UnknownInternal(OriginId(1))
+```
+
+The source map identifies `TypeVar(144)` as this use's fresh instance of
+recursive binder `TypeVar(137)`. Constraint 513 has shape
+`Union(Var(TypeVar(144)), Pos::Con(step, ...)) <: Var(TypeVar(144))` in this
+run. The classifier's own explanation therefore contains the unknown origin
+on the ancestry of the nominal event; the earlier edge-count mismatch is
+resolved for this producer. The mixed branch has the parallel chain 629 → 620
+→ 612 → BinaryReplay at `TypeVar(147)` (lower bound 835, upper bound 940) →
+lower-bound ancestry 835 → 520 → 519 → `UnknownInternal(OriginId(1))`.
+
+These paths establish a reachable unknown-origin explanation for each
+classifier result. They do not show where the `UnknownInternal` origin was
+created, that it is the only possible cause, or that the subtype constraint is
+accepted. IDs are run-local.
 
 The final constraint bounds for the selector-result path also expose a smaller
 endpoint graph. For `ints`, let `p=TypeVar(145)` be the fresh inner payload
@@ -123,22 +143,23 @@ This separates two simultaneous Oracle observations: the selector result is
 inferred as `int` / `bool`, while the nominal event classifier cannot establish
 source-boundary eligibility because recursive unknown-origin edges remain in
 the explanation. The latter is not evidence that all subtype constraints
-succeeded. The remaining local proof step is to derive which instantiated
-constraints produce the endpoint result and capture the exact classifier
-explanation for the separate nominal event, then relate both paths to
-candidate inference and diagnostics. The broader Gate C carrier, root-step
-simulation, and principality obligations remain open.
+succeeded. The remaining local proof step is to trace which instantiated
+constraints produce the endpoint result, then relate that path and the exact
+incomplete classifier route to candidate inference and diagnostics. The
+broader Gate C carrier, root-step simulation, and principality obligations
+remain open.
 
-No compiler source or test in the redesign worktree changed. All instrumentation
-was confined to the temporary Oracle probe worktree; it only emitted diagnostic
-output. The focused Rust test passed; no Python model or performance measurement
-was used.
+No compiler source or test in the redesign worktree changed. All temporary
+instrumentation was confined to the Oracle probe worktree; it emitted
+diagnostic output and made the classifier explanation method visible to the
+test module. The focused Rust test passed; no Python model or performance
+measurement was used.
 
 ## Review
 
 A compiler-referee delta review found the structural chain above supported by
-the trace. It also identified that the probe counts unknown-origin edges from
-the full `why_constraint` graph, while OCast classification excludes scheme
-instantiation provenance. The exact edge causing classification, and the
-upstream creation of records 610/612, remain uninspected. No edits or tests
-were made by the reviewer.
+the trace and identified the mismatch between full and classifier-specific
+explanations. A follow-up review of the classifier-specific trace confirms the
+UnknownInternal ancestry for both producers. The source of that origin and the
+upstream creation of records 610/612 remain uninspected; this is not an
+acceptance or soundness result. Reviewers made no edits or ran tests.

@@ -463,14 +463,13 @@ these concrete intervals. It does not select a carrier or prove general
 principality. The diagnostic route remains a separate `UnknownOrigin`
 observation, not subtype acceptance. The conditional algebra is reviewed; its
 major overclaim about these exact bounds was narrowed and delta-closed. Next
-derive which instantiated constraints produce the `int` / `bool` results and
-capture the exact explanation used by OCast classification. A Rust structural
-trace establishes that each `step <: int` producer is the productive branch of
-the second invariant `step` argument; both classify `UnknownOrigin`-incomplete.
-However, the trace's unknown-edge count comes from a fuller explanation than
-the classifier uses, so it does not identify the exact blocking edge. Keep
-diagnostic silence separate from subtype success. Then prove this fixture's
-scheme-instance and public-output relation. The run-local observations are
+derive which instantiated constraints produce the `int` / `bool` results.
+The classifier's exact query now traces each `step <: int` event through the
+recursive second invariant argument to an `UnknownInternal` root on its
+bound-replay ancestry. This explains the incomplete classification locally,
+without claiming subtype acceptance or identifying the origin's source.
+Next trace the endpoint-bound ancestry that yields `int` / `bool`, then prove
+this fixture's scheme-instance and public-output relation. The run-local observations are
 recorded in
 `notes/progress/2026-09-30-intrusion-recursive-root-epoch-capture.md`. The
 exact cases and test limits are in
