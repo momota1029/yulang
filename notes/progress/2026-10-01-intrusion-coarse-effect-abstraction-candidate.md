@@ -193,3 +193,77 @@ the whole pre-handler effect bound. Include the callback/hygiene pair,
 helper-call composition, delayed thunk force, closure escape, and repeated
 callback request before relating the judgment to a runtime representation or
 weight calculation.
+
+## Parameterized one-step soundness target
+
+The coarse row rule can be isolated from the still-open hygiene semantics by
+parameterizing the handler transformer with two independent predicates:
+
+```text
+Covered(H, operation)
+Visible(request, H)
+```
+
+`Visible` must refer to the request's provenance and the active handler
+activation. It is not defined by family equality. Keep the exact request
+occurrence on each trace path; do not aggregate different paths that share a
+family into one node-local visibility value.
+
+For a request tree `C`, write `May(C)` for a sound family-set upper bound on
+the union of supports of all finite traces through `C`, including every
+continuation suffix for every operation result. This finite-trace definition
+also applies when recursion makes the request tree infinite. Assume each arm
+judgment soundly summarizes its immediate execution for arbitrary calls to
+raw `k`, with `k` assigned latent row `May(C)`. If an arm returns a callable
+or thunk that captures `k`, its result-value typing must separately preserve
+that latent row. The following simulation targets immediate trace effects:
+
+```text
+T_H(Return(v)) = value_arm(v)
+
+T_H(Request(q, k)) = operation_arm(q, k)
+    if Covered(H, q.operation) and Visible(q, H)
+
+T_H(Request(q, k)) = Request(q, x -> T_H(k(x)))
+    otherwise
+```
+
+Let `Drop(H, C)` be a proof-carrying set of families, not a function of the
+family row alone. A family `f` may enter `Drop(H, C)` only if every reachable
+execution configuration for a request of family `f` is covered and visible.
+A configuration includes the request occurrence, active handler activation,
+and provenance/guard state. This quantification must account for forwarding:
+an outer handler may resume a forwarded continuation zero, one, or multiple
+times, producing different active `H` instances. The abstract result is:
+
+```text
+(May(C) \ Drop(H, C))
+    ∪ May(value arm)
+    ∪ ⋃ May(operation arm under latent k effect May(C))
+```
+
+Then prove by induction on finite trace length (equivalently, finite
+approximants of an infinite request tree) that every immediate effect on a
+trace of `T_H(C)` is in that abstract result. Forwarded requests are
+covered by the residual term; matched-arm effects are covered by arm
+judgments; any raw continuation invocation is covered by `k`'s
+whole-scrutinee latent bound. The induction is conditional on sound arm
+judgments and the external `Visible` relation. It does not prove `Visible`,
+least derivability, principal schemes, or higher-order transport. A separate
+value-correspondence lemma is required to show that a returned closure or
+thunk cannot drop or widen a captured continuation's latent row or visibility
+scope.
+
+The quantifier in `Drop` exposes an important limitation: a family-set row
+alone cannot prove that *all* contributing requests are visible. A solver
+would need to retain enough occurrence/path evidence to justify a drop, or
+conservatively leave the family residual whenever that evidence is absent.
+This is an abstract proof requirement, not a choice of graph representation.
+The unresolved closure-escape and helper-composition cases determine whether
+such evidence can be transported soundly.
+
+A fresh compiler-referee delta review found no finite-trace counterexample to
+this conditional transfer after the activation quantifier and finite-trace
+induction were made explicit. This closes only the wording review of the
+parameterized target. It does not prove the induction, define `Visible`, prove
+arm judgment soundness, or establish higher-order transport and principality.
