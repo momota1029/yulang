@@ -246,6 +246,23 @@ the other identities' feasible range being independent of `q`, and the
 candidate's join/subsumption semantics; the independent review disposition
 is recorded below.
 
+The Oracle's representation path is also now localized. A temporary focused
+Rust trace reported `TypeVar2` at level/birth level `TypeLevel(1)`, equal to
+the simplification boundary. During both polarity-elimination visits it
+reported positive occurrence `false`, negative occurrence `true`, and
+`is_simplification_candidate=true`. In
+`compact/analysis/mod.rs::eliminate_polar_variables_with_roles_and_non_generic`,
+that eligible one-sided variable is rewritten away. Then
+`generalize/mod.rs::prepare_stack_cleaned_compact_root` calls
+`prune_unreachable_recursive_bounds`, which keeps only recursive variables
+reachable from the rewritten root or role predicates; the TypeVar2 interval
+is no longer reachable. This accounts for the empty outer negative argument
+and the missing saved recursive-bound entry in this case. It is an explanation
+of the Oracle's representation pipeline, not yet a general preservation proof
+for SCC intrusion or latent effects. The instrumentation and focused Rust
+probe were temporary in the detached Oracle worktree. The polarity command
+was `YULANG_INTRUSION_ROOT_TRACE=1 CARGO_TARGET_DIR=/tmp/yulang-intrusion-oracle-target cargo test -p infer --lib scratch_negative_recursive_self_application_level_probe -- --nocapture`.
+
 ## Selector fixture
 
 The `ints` endpoint graph admits `p = a = u = r = {tag_int}`; its inequalities
@@ -263,10 +280,9 @@ judgment must remain separate until their relation is specified.
 
 ## Required next work
 
-1. Locate the exact Oracle simplification phase that drops TypeVar2 from the
-   selected root, then check that its rule has the same fiberwise `Pred`
-   behavior as the candidate calculation, including latent effect identities.
-   Do not infer the implementation rationale from the endpoint trace alone.
+1. Extend the fiberwise projection proof to the source's latent Function/effect
+   identities and verify that their feasible ranges are independent of
+   TypeVar2. The current carrier calculation is effect-free.
 2. Extend the finite `Root`/`Pred` calculations from isolated graphs to those
    source-induced environments and interactions between uses.
 3. Relate the selected root/epoch snapshots and the separate incomplete OCast
@@ -307,4 +323,8 @@ tests. The independent review of the source-trace projection calculation
 corrected an initial `Root`/`Pred` conflation, made its root occurrence and
 fixed-environment assumptions explicit, and then confirmed the fiberwise
 `Pred` equality after those qualifications. This review also made no source
-adequacy or latent-effect claim.
+adequacy or latent-effect claim. A final compiler-referee delta review checked
+the polarity trace and both cited Oracle code paths. It confirmed the eligible
+one-sided variable is rewritten away and the now-unreachable recursive record
+is pruned, while keeping trace facts separate from source-based causal
+inference. No source behavior tests or edits were made by the reviewer.

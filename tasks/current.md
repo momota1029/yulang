@@ -488,12 +488,13 @@ the isolated `Fun(q, Bottom) ≤ q` cycle. A conditional carrier calculation
 shows that `Bottom ≤ q ≤ q ∪ K` is assignment-vacuous, and projecting the
 negative-only root argument to `Top` has the same `Pred` relation. This proof is
 independently reviewed with the `Root`/`Pred` distinction and fixed-environment
-assumptions made explicit; it does not cover latent effects or establish why
-the Oracle chooses that simplification. Next locate the exact Oracle
-simplification phase for this interval and relate that operation to the
-fiberwise calculation, then extend the finite relations to source-induced
-environments and interacting uses. Relate endpoint and incomplete OCast
-observations before choosing representation.
+assumptions made explicit; it does not cover latent effects. The Oracle path is
+now localized: TypeVar2 is negative-only and eligible at the simplification
+boundary, then its unreachable recursive interval is pruned. Next extend the
+fiberwise projection proof to latent Function/effect identities and verify
+their independence from TypeVar2. Then extend the finite relations to other
+source-induced environments and interacting uses. Relate endpoint and
+incomplete OCast observations before choosing representation.
 Details are in
 `notes/progress/2026-09-30-intrusion-powerset-carrier-candidate.md`. The run-local observations are
 recorded in
