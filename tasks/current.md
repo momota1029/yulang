@@ -1069,8 +1069,11 @@ continuation-summary candidate and its independent review are recorded in
 `notes/progress/2026-10-01-intrusion-coarse-effect-abstraction-candidate.md`.
 Next: define provider/capture eligibility independently of family rows and
 prove the candidate's complete-coverage side condition and least-derivable
-bound property. Only then derive any weight encoding or resume root-specific
-projection work. The later
+bound property. The contract principle is source-backed, but provider identity,
+grant lifetime, closure escape, and helper transport are not. Keep absent,
+concrete, empty, wildcard, and wildcard-by-skeleton annotation forms distinct
+until their successor meanings are specified. Only then derive any weight
+encoding or resume root-specific projection work. The later
 method-selection/roles/impl-resolution gate remains deferred unless this
 ordinary effect proof discovers a concrete dependency.
 
@@ -1137,10 +1140,14 @@ shallow trace would handle it, resume, then expose the second request.
 Remaining gate: formalize provider/capture eligibility, including complete
 coverage and callback ownership, then prove trace soundness and least-derivable
 bounds for the compositional whole-scrutinee continuation summary. Independent
-architect and compiler-referee reviews found family rows alone insufficient
-for handler visibility and powerset rows alone insufficient to establish
-principality; see the candidate record above. Then prove or replace each weight
-transport rule against that abstraction, including repeated pushes with one
-pop, nested frames, complete/incomplete handlers, and residual fan-out. Do not
-require exact trace precision or linear/affine usage tracking. No
-implementation is authorized yet.
+architect, compiler-referee, and spec-auditor reviews found family rows alone
+insufficient for handler visibility and powerset rows alone insufficient to
+establish principality. Capture evidence must be scoped to its boundary and
+active handler; call/force, closure escape, and scheme instantiation must not
+widen it. Annotation forms (absent, concrete nonempty/empty, wildcard, and
+wildcard-by-skeleton) need separate successor semantics. Details are in the
+candidate record above. Then prove or replace each weight transport rule
+against that abstraction, including repeated pushes with one pop, nested
+frames, complete/incomplete handlers, and residual fan-out. Do not require
+exact trace precision or linear/affine usage tracking. No implementation is
+authorized yet.

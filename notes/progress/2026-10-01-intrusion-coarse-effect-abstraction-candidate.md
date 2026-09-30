@@ -125,3 +125,71 @@ concrete dependency.
 
 No implementation, Oracle weight rule, or equivalence claim is authorized by
 this candidate.
+
+## Provider/capture eligibility remains open
+
+The frozen reference directly states these principles:
+
+- callback-origin effects supplied by an outer caller are protected from an
+  inner same-family handler unless the receiving boundary exposes them;
+- a concrete callback argument row grants matching-family visibility to
+  handlers inside that receiving function;
+- wildcard surface rows do not erase unrelated hygiene evidence; and
+- a shallow operation arm receives the raw continuation.
+
+The nested-provider probes in
+`2026-09-30-intrusion-weight-routing-counterexample-search.md` characterize the
+first two behaviors as outer result `[1]` without the concrete contract and
+inner result `[2]` with `[choose]`. The helper witness records a further Oracle
+conflict: its pure `invoke` scheme drops an effect that its callback call can
+perform. The successor must propagate that effect and conservatively retain it
+when shallow resumption can reach another request. These observations do not
+define a provider identity or grant lifetime.
+
+A source semantics will need at least distinct operation-family, request
+provenance, callback-boundary, and active-handler identities. Candidate
+eligibility notation is:
+
+```text
+eligible(request, handler) iff
+    handler is active
+    and handler covers request.operation
+    and visibility evidence authorizes this request at this activation
+```
+
+The last condition is intentionally unspecified. Treating a capture contract
+as a transferable Boolean attached to a family is unsafe: if it escapes in a
+returned closure, a later handler without a matching receiving-boundary
+contract may steal the request. The converse shortcut—dropping every grant at
+a helper return—could prevent a contract that composes through a helper from
+working. The evidence must therefore be scoped to its introducing boundary
+and active handler, and its call, force, closure-escape, and scheme-instantiation
+transport must be proved without widening its scope. This is a challenge
+example, not an established Oracle behavior or a selected successor rule.
+
+Annotation syntax also cannot be collapsed to one “has a contract” bit.
+Absent annotations, concrete nonempty rows, concrete empty rows, wildcard
+`[_]`, and any effect-only skeleton position with wildcard behavior may impose
+different constraints. The frozen effect specification characterizes several
+of these paths, while its weight operations remain non-authoritative. The
+successor must define the semantic meaning of each supported annotation form
+before deriving any encoding.
+
+Independent architect, compiler-referee, and spec-auditor reviews agree that
+provider provenance must remain separate from family identity and that the
+family-removal side condition must quantify over every possible request path:
+each contributing operation must be covered and eligible at the handler
+activation being modeled. The references establish the visibility principle,
+not the provenance assignment, grant lifetime, closure-escape rule, or
+inference/runtime correspondence theorem. Consequently, the notation above is
+only a proof target. It does not close the blocker or authorize a data
+representation.
+
+The next proof artifact should define a source request-tree judgment with this
+eligibility relation and prove a one-step handler simulation: covered eligible
+requests enter the matching arm; incomplete, uncovered, or ineligible requests
+forward with provenance intact; and any raw-continuation resumption preserves
+the whole pre-handler effect bound. Include the callback/hygiene pair,
+helper-call composition, delayed thunk force, closure escape, and repeated
+callback request before relating the judgment to a runtime representation or
+weight calculation.
