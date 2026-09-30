@@ -1215,8 +1215,12 @@ principality target now formulates effect slots as a finite powerset lattice
 with a monotone constraint operator and fixed proof-carrying `Drop`; its
 finite-lattice least-solution step was independently confirmed conditional on
 derivations matching the lower-bound constraints. The dynamic origin quotient,
-handler scope, and transfer correspondence remain unproved. Details are in
-the candidate record above. A compiler-referee delta review also found that
+handler scope, and transfer correspondence remain unproved. Worked one/two
+request and non-resumption equations now show where the coarse least row keeps
+an exact-trace-pure effect while retaining the second shallow request. Details
+are in the candidate record above; a compiler-referee delta check confirmed
+the `Drop` values and exact trace rows for these fixed witnesses. A separate
+compiler-referee delta review also found that
 subtraction must quantify over all reachable request/activation states,
 including forwarded continuations resumed by an outer handler; recursive
 request trees need a finite-trace or finite-approximation induction. A fresh

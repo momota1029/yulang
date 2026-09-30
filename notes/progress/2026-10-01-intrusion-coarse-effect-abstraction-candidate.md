@@ -161,6 +161,35 @@ This fixed-point argument is a proof target, not yet a theorem for the current
 candidate: source-origin completeness, handler-scope stability, and the full
 construct interpretation still require proof and independent review.
 
+## Worked least bounds for the shallow witnesses
+
+Take `Fam = {choose}`, one fixed handler activation, and a closed direct
+request tree with no other effects. In both one-request cases, the only
+request reaching the handler is covered and eligible, so `Drop = {choose}`.
+In the two-request case, the second request is in the raw continuation suffix
+and occurs outside this shallow handler activation; in the final case, a
+reachable `choose` operation is uncovered. Both prevent a proof to drop the
+family, so `Drop = ∅` there. Each scrutinee has bound `E = {choose}`.
+
+| Witness | Exact trace support after the catch | `Drop` | Arm bound with `k : E` | Candidate result `(E \ Drop) ∪ arms` | Least row |
+|---|---:|---:|---:|---:|---:|
+| One request, arm ignores `k` | `∅` | `{choose}` | `∅` | `∅` | `∅` |
+| One request, arm invokes `k` once | `∅` | `{choose}` | `{choose}` | `{choose}` | `{choose}` |
+| Two requests, arm resumes first request | `{choose}` | `∅` | `{choose}` | `{choose}` | `{choose}` |
+| Reachable uncovered `choose` operation | `{choose}` | `∅` | `∅` | `{choose}` | `{choose}` |
+
+In the non-resuming case, merely giving `k` latent bound `E` adds no effect;
+ordinary application contributes `E` only when the arm invokes it. In the
+one-request resuming case, the abstract least bound intentionally retains
+`choose` although the exact suffix is pure. In the two-request case that same
+bound also covers the second request that escapes shallow resumption. The
+last row illustrates that an uncovered reachable operation contributing to
+`E` prevents family subtraction; an omitted operation that cannot occur does
+not. These equations establish leastness for the fixed
+one-family witnesses under the candidate transfer rules; they do not prove
+that source lowering, provider analysis, or the general constraint operator
+meets those rules.
+
 ## Adversarial review result
 
 Independent architect and compiler-referee reviews agree on the following:
