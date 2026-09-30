@@ -1348,7 +1348,12 @@ gaps, but the finite-interface coverage premise, transfer simulation, and
 annotation/least-solution integration remain unproved. Next gate: construct
 the actual finite-slot abstraction and prove each top-tainted transition
 preserves control/value/effect/provenance coverage, then prove the non-top
-continuation transfers. Keep exact trace semantics as the soundness reference
+continuation transfers. A conditional finite-carrier proposition has now been
+added to the candidate: for finite source/interface slots and fixed `K`, every
+carrier component is a finite product or powerset; this does not prove
+concretization coverage, sound transfer, or acceptance precision. A focused
+compiler-referee delta review confirmed only this conditional finiteness claim.
+Keep exact trace semantics as the soundness reference
 and principality relative to the chosen expressible abstraction; exact
 continuation support and use counts are not requirements absent independent
 language-design justification.

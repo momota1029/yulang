@@ -607,6 +607,48 @@ does not prove how a non-top `KontFact` is computed or when it must widen.
 Escaped roots and imported open rows are part of the induction, not separate
 post-processing.
 
+#### Finite-carrier proposition
+
+For one fixed finite checked source and finite interface declarations, fix
+finite sets of handler, arm, continuation, value/thunk allocation, operation,
+family, origin, boundary, control, and effect slots. Open or unenumerated
+imported families map to `UnknownFam`/`⊤Eff`; unenumerated interface
+destinations map to the corresponding `Unknown*` slot. Fix `K < ∞` for the
+bounded stack and lineage suffixes. Then the abstract carrier described above
+is finite:
+
+- The stack and lineage domains are bounded words over a finite tag set, a
+  saturated prefix count `{Zero, One, Many}`, and a subset of finite prefix
+  tags. Their powersets are finite.
+- `ReqFact` is a product of finite operation/family/origin labels and a subset
+  of finite blocker labels. `KontFact` is a product of finite mode, slot,
+  handler-reference, bounded-snapshot, bounded-lineage, and
+  `P(ReqFact) ∪ {TopOffers}` components. Their powersets are finite.
+- Value facts are drawn from finite value kinds, latent-row values
+  `P(Fam) ∪ {⊤Eff}`, and finite continuation references. The environment is a
+  finite map from static value slots to subsets of these facts; it therefore
+  forgets dynamic multiplicity and joins repeated instances at their static
+  allocation slot.
+- Effect maps, control facts, and edge observations are finite products or
+  powersets over the declared finite slots and labels. `TopKont`, `TopControl`,
+  and unknown interface labels are symbolic elements of these finite domains,
+  not generators of fresh identities.
+
+Thus the full abstract state space is a finite product of finite powersets for
+fixed source/interface inputs and `K`. This establishes carrier finiteness only.
+It does not establish that every concrete source configuration projects into
+the stated slots, that a joined environment preserves enough correlation for
+`Drop`, or that any abstract transfer simulates a concrete step. Those require
+the coverage and transition proofs above; finiteness by itself proves neither
+soundness nor useful acceptance precision.
+
+A focused compiler-referee delta review found no finding in this finite-carrier
+argument under its fixed finite-slot and fixed-`K` premises. The review checked
+that each stated component is finite and that recursive/dynamic identities are
+represented by finite slots or explicit unknown elements. It did not review or
+establish concrete slot coverage, sound transfer, provider eligibility, or
+acceptance precision.
+
 Review closure: the first version omitted top propagation through escaped
 values and treated a fresh unknown-family token as though it bounded omitted
 families. Architect and compiler-referee review identified those gaps. A
