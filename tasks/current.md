@@ -585,6 +585,12 @@ the result/continuation is independent of q. A two-element counterexample
 shows polarity alone is insufficient when its interval excludes `Top`;
 treating the row as an independent obligation triggers the reviewed powerset
 no-go. Prove the actual source-to-presentation fiber and Top feasibility next.
+The exact source application also contributes a direct Function upper bound on
+q, so ordinary source-constraint assignment semantics excludes `Top` and
+cannot justify the projection. The next proof must define whether pre-root
+observations quotient away that constraint, then relate the quotient to
+finalized scheme instantiation and source uses; see the conditional no-go in
+`notes/progress/2026-09-30-intrusion-powerset-carrier-candidate.md`.
 The `H_d` bridge includes selected evidence and post-loop root state. Its type
 component must match realized roots to `Root_d` and accepted supertypes to
 `Pred_d`; diagnostics, provenance, and effects need separate observation

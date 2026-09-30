@@ -745,6 +745,36 @@ independent obligation, the previous conditional no-go applies. Therefore
 this is a conditional bridge lemma, not an Oracle q-erasure correctness
 result.
 
+### Source-bound consequence if ordinary constraint satisfaction is used
+
+The exact source trace makes the feasibility issue concrete. The q-cycle
+incidence record identifies `BoundRecordId(7)` as a selected upper bound of
+`q=TypeVar(2)` from the source application `x f`; its negative endpoint is a
+Function with the named-self value in its argument. Thus the source constraint
+graph contains an ordinary upper obligation of the form
+`q ≤ Fun(S, ..., V)`. Under the standard structural subtype interpretation,
+`q=Top` cannot satisfy this: it would require `Top ≤ Fun(S, ..., V)`, while
+`Top` is not a subtype of a Function constructor. The cycle's second edge is
+`Fun(q, ...) ≤ S`; it does not remove the direct upper obligation on q.
+
+Consequently, if `D` in the preceding lemma is the ordinary satisfying
+assignment fiber of the selected source constraints, then `Top ∉ D`. For every
+pre-root `Fun(q,R')` and matching post-root query `Fun(Top,R')`, subtype
+covariance requires `Top ≤ q` on the argument position. Since `q ≤ Top`, this
+would force q equivalent to Top and contradict the selected Function upper.
+Provided the source fiber is nonempty and the post-projection scheme permits
+that same result instance, this is a distinguishing element: the projected
+root belongs to its own upward closure but not to the pre-projection closure.
+
+This is a conditional no-go for interpreting `Vpre` by ordinary source-bound
+assignments. It does not prove Oracle's public scheme is wrong: the exact
+missing semantic definition is whether `Obs_pre` is instead a projection or
+quotient of source solutions that forgets q's bound before computing root
+supertypes. The collector's finite-back-reference implementation alone does
+not establish that quotient. A successful Gate C proof must now choose and
+justify one of these meanings against finalized scheme instantiation and
+source uses; the earlier unrestricted-q recovery cannot serve as that bridge.
+
 ### Next semantic gate
 
 ### Exact source-to-scheme theorem target
