@@ -81,7 +81,7 @@ This is a declarative shallow-handler rule. It agrees with the frozen source
 contract's documented shallow behavior, but its truth here does not come from
 `StackWeight`, `SubtractId`, row routing, or their implementation.
 
-## 4. Two trace lemmas
+## 4. Three trace lemmas
 
 ### Lemma 1: one handled request can have an empty residual
 
@@ -118,6 +118,28 @@ A least family-set upper bound therefore retains `choose` for this example.
 These two cases rule out unconditional subtraction of a handled family from a
 whole computation effect: the residual depends on the continuation after the
 specific request. The family label alone does not determine it.
+
+### Lemma 3: clause coverage does not generate a request
+
+Let `f` occur only in `H`'s covered-operation set. Suppose no finite path of
+the source request tree, nor any executed value arm, operation arm, or raw
+continuation, emits a request in `f`. Then no finite trace of `H(C)` contains
+an `f` request solely because `H` covers `f`.
+
+Inspect the transformer cases. On `Return(v)`, only the value arm runs. For a
+covered, eligible `Request(o,p,k)`, the matching operation arm runs with raw
+`k`; any request it or `k` emits belongs to their execution. For an unmatched
+or ineligible request, the transformer forwards that existing request and
+wraps its continuation. Repeating this inspection over any finite trace
+introduces no request from the coverage set itself. Arm requests may be
+visible to outer handlers; they are arm effects, not requests in this shallow
+handler's scrutinee residual or evidence for its `Drop`.
+
+This exact-trace lemma says nothing about Oracle row lowering or whether a
+successor solver flows a coverage upper row into a successor effect slot. The
+source-to-constraint correspondence remains open; the successor rule is not
+selected. See the compiler-referee closure of the handler-coverage source
+table in `2026-10-01-intrusion-coarse-effect-abstraction-candidate.md`.
 
 ## 5. Frozen-Oracle characterization
 

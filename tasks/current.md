@@ -1479,3 +1479,21 @@ call/formal target evidence or unknown/top. The candidate checklist now records
 these proof obligations, closing the major finding at the record level only.
 The successor transfer, finite quotient, acceptance cost, and row-to-offer
 proof remain open. No Oracle authority or implementation authorization follows.
+
+The direct shallow trace calculus now records the narrow coverage
+non-generation lemma: listing family `f` in handler coverage alone cannot
+emit an `f` request when the source tree and executed arms/raw continuations
+emit none. This cross-references the compiler-referee closure of the
+handler-coverage table. It does not decide Oracle row lowering, successor
+coverage-upper-row flow into an effect slot, or source-to-constraint
+correspondence. Arm requests remain arm effects and may reach outer handlers;
+they do not establish this scrutinee's `Drop`. The next gate remains the
+row-to-offer coupling and successor transfer proof, with no implementation
+authority.
+
+Independent compiler-referee and specification delta reviews found no
+blocking or major issue in the direct trace lemma. The specification review's
+minor stale heading (“Two trace lemmas”) is corrected to “Three trace lemmas.”
+This certifies only the finite direct-tree non-generation lemma and its record
+scope; higher-order transfer, row lowering, row-to-offer coupling, and the
+successor effect calculus remain unproved.

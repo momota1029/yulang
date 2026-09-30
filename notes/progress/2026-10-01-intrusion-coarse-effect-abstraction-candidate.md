@@ -1748,3 +1748,14 @@ request semantics and that their resulting origin set is finite (or has a
 sound finite quotient). The handler-coverage contribution to successor
 `May(C)` is deliberately unresolved; this checklist does not select a transfer
 or authorize implementation.
+
+The direct exact-trace lemma in
+`2026-09-30-intrusion-shallow-handler-trace-calculus.md` isolates the first
+handler-coverage table row: covered-operation metadata does not itself emit a
+request. Its proof inspects return, matched-request, and forwarded-request
+transformer cases. It does not resolve Oracle row lowering or whether a
+successor coverage upper row contributes to an effect slot. The
+compiler-referee closure of the table is therefore record-level closure of
+the classification finding only; source-to-constraint correspondence and
+successor transfer semantics remain open. Arm-emitted requests belong in `A`
+and may be seen by outer handlers, not this scrutinee's `Drop`.
