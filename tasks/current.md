@@ -859,8 +859,10 @@ evaluate arguments strictly, while non-pure effects travel in deferred
 thunks. It joins the strict argument's actual effect into the result, but
 gives thunk arguments a pure immediate effect. This does not establish how
 inference `arg_eff` determines the runtime shape: a Function conversion wraps
-non-syntactically-pure effects, including variables that may be bounded
-exact-pure, in a thunk. The inference branch separately tests syntactic
+non-syntactically-pure effects such as `OpenVar`, while a bounded source
+variable may materialize to the empty row when its bounds remain available.
+The exact-pure source path into runtime materialization remains untraced. The
+inference branch separately tests syntactic
 `Neg::Bot`. This major bridge obligation was found by independent
 compiler-referee review and is recorded in the latent-effects note. The next
 proof must define an explicit inference-to-runtime evaluation-mode judgment;

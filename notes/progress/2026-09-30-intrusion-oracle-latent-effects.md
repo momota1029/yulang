@@ -120,9 +120,14 @@ directly by denotational purity of inference `arg_eff`. Conversion
 `Thunk{effect,value}` and resets the Function's `arg_effect` slot to pure
 (`crates/specialize/src/types/mod.rs:399–425`). But `runtime_shape` only
 unwraps syntactic `Never` and the empty effect row; an unresolved effect
-variable, even one separately constrained exact-pure, becomes a `Thunk`.
-The inference-to-runtime conversion must be tracked before assigning a source
-meaning to either mode.
+variable represented as `OpenVar` becomes a `Thunk`, regardless of constraints
+that may have existed before materialization. Conversely, a source variable
+with only the recorded `Bot` lower and empty-row upper may materialize directly
+to the empty row when its bounds remain available. The exact-pure-bounded
+source path into runtime Function materialization has not been traced, so the
+report does not claim which of these representations reaches application.
+That conversion path must be tracked before assigning a source meaning to
+either mode.
 
 The useful candidate is thus a two-mode *runtime application* judgment:
 shapes with pure extracted effects are evaluated strictly and their actual
@@ -138,8 +143,9 @@ whether the lower argument-effect endpoint is syntactically `Neg::Bot`
 (`propagate.rs:234`), while an exact-pure evaluation effect is represented by
 a variable with bounds `Bot ≤ e ≤ EmptyRow` (`constraints.rs:7–24`). Second,
 specialization chooses strict versus deferred application by testing whether
-the effect extracted from the runtime argument shape is syntactically pure;
-an exact-pure inference variable may still be wrapped in a `Thunk`. A
+the effect extracted from the runtime argument shape is syntactically pure.
+Whether an exact-pure inference variable reaches this check as `OpenVar` or as
+the empty row depends on materialization and remains untraced. A
 successor need not preserve either Oracle phase rule, but its independent
 source judgment must define the inference-to-runtime shape mapping and prove
 the final behavior. Effect denotations alone cannot explain the distinction
