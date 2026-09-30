@@ -1389,3 +1389,20 @@ resolution gate. Exact continuation-sensitive effect inference and linear or
 affine continuation usage are not requirements; exact traces remain the
 soundness reference and principality is relative to the chosen expressible
 effect abstraction.
+
+That dependency is now concrete in frozen Oracle evidence: `flip` resolves
+after a receiver effect-row lower bound and is reprobed after a transitive row
+fact is added (`main` at `a58eefc3`,
+`crates/infer/src/analysis/tests/case_01.rs:468-502,629-672`). The staged
+may-origin initialization also must cover admissible calls into exported
+handler entries with client-supplied callbacks, not just the module root;
+unknown provider contexts need top offers before subtraction. The narrow next
+step is to characterize a row-independent superset of effect-dependent call
+targets and exported-entry contexts (or prove when top must be used), then feed
+that coverage into the staged simulation. Do not start the full method/roles/
+implementation-resolution gate here.
+A focused compiler-referee delta review found no blocking or major issue in
+the updated premises and confirmed they do not establish `Drop#` or authorize
+implementation. It noted and the progress note corrected the wording that
+described frozen Oracle callback documentation as a successor “source
+contract.”

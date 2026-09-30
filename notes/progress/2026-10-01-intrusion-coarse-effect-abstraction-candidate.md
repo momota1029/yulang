@@ -284,9 +284,11 @@ otherwise the fixed-`Drop` leastness theorem does not apply.
 
 A phase-separated construction avoids making `Drop` an effect-solver transfer.
 Let `S#` be a finite **provenance/control-only** configuration carrier for one
-fixed source and interface input. It may contain callback contracts and
-source-level call-target possibilities, but no inferred effect-row slot; open
-or unknown interface behavior widens to unknown targets/offers. Its value
+fixed source module and a finite interface summary denoting all admissible
+client/provider contexts, not only execution from the module's own entry
+point. It may contain callback contracts and source-level call-target
+possibilities, but no inferred effect-row slot; open or unknown interface
+behavior widens to unknown targets/offers. Its value
 facts record runtime kind, finite source/call-target slot, and captured
 control/wrapper references, but contain no latent-effect field. `UnknownValueP`
 is defined as a top control/provenance summary that can reach every compatible
@@ -314,7 +316,12 @@ Silent edges have `Ω = ∅`; one abstract edge may emit multiple offers or
 `Reach#` is reached after finitely many additions.
 
 Assume initial coverage: every concrete initial configuration is in
-`γP(s₀)` for some `s₀ ∈ X₀#`. Assume forward simulation: for every reachable
+`γP(s₀)` for some `s₀ ∈ X₀#`. This includes calls into every exported callable
+entry, callback, or thunk that an admissible client can invoke, with the
+provider/scope context allowed by its interface; it is not just the module's
+ordinary root execution. An unenumerated client value or provider context must
+start as `UnknownValueP`/top offers at every compatible handler slot. Assume
+forward simulation: for every reachable
 pair `κ ∈ γP(s)` and concrete labelled step `κ -O→ κ'`, there exist `s'` and
 an edge label `Ω` such that `s →# Ω s'`, `κ' ∈ γP(s')`, and for each concrete
 request observation `o ∈ O` there is an `ô ∈ Ω` with `CoverObs(o, ô)`. The
@@ -340,7 +347,11 @@ assignment and every family admitted to a scrutinee row, row/provenance
 coupling must find a corresponding reachable `ReqFact` or explicit unknown
 fact. Open/imported rows, unresolved call targets, or families not enumerated
 by phase one therefore force unknown/top and cannot be subtracted. This
-uniform premise is not proved by reachability alone.
+uniform premise is not proved by reachability alone. Target coverage is
+uniform over every type/effect assignment admissible under the successor
+semantics: phase one cannot use one post-inference target snapshot. It must
+include every compatible target in a row-independent superset or widen an
+unresolved selection to `UnknownValueP`/top offers.
 
 A compiler-referee delta review initially found that the shared full-state
 `γ(A)` omitted non-boundary active masks even though `CoverObs` and `Drop#`
@@ -352,6 +363,44 @@ A follow-up delta review found no remaining mismatch among `γ(A)`, `TopObs`,
 may-origin theorem still assumes rather than proves the actual transition
 simulation, interface/type-assignment uniformity, row-to-offer coupling, and
 source derivation correspondence.
+
+The current source proof also exposes a narrow method-selection dependency.
+Frozen Oracle tests resolve effect method `flip` after a receiver effect-row
+lower bound appears, and reprobe an unresolved selection after a transitive
+effect fact is added (`main` at `a58eefc3`,
+`crates/infer/src/analysis/tests/case_01.rs:468-502,629-672`). Thus a phase-one
+target set cannot be derived from one pre-solve selection snapshot. For this
+effect gate only, characterize a target superset uniform over admissible
+assignments or use top for unresolved selections. This is the charter's narrow
+dependency exception, not the later full methods/roles/implementation
+resolution gate. Independently, a module-root-only initial state misses
+admissible client calls into exported handlers with callback arguments; frozen
+Oracle documentation records that an uncontracted callback's effects remain
+hygienic (`main` at `a58eefc3`,
+`web/docs/reference/effects.md:244-261`). Such entry
+contexts must be represented or widened to top before any family can be
+subtracted. These are concrete coverage obligations, not claims that Oracle's
+effect routing or visibility rules are successor authority.
+
+An architect's bounded source/runtime map confirms the transition cases the
+future finite machine must cover: direct operation, application/force, catch
+entry and return, request observation before handle/forward, raw continuation,
+forwarded wrapper, and value/closure/thunk storage, escape, re-entry, and
+repeated resume. Its source-level raw/forwarded cases agree with this trace
+reference; no bounded `γP`/`step#` simulation has been constructed. The smallest
+next proof slice remains a closed finite fragment with these transitions,
+endpoint-plus-offer simulation, and row-to-offer coupling. Before that slice can
+justify any `Drop#`, resolve the newly discovered uniform target and external
+entry coverage dependency above. Full method/roles/implementation resolution
+remains deferred.
+
+A focused compiler-referee delta review found no blocking or major issue in
+these new entry/target premises. It confirmed the cited frozen-Oracle tests
+support only the narrow target-superset dependency, that all compatible targets
+or top must be covered, and that the full method/roles/implementation gate
+remains deferred. Its minor wording finding was repaired above. The review
+closed only this formulation and handoff; it did not establish a sound
+`Drop#`, concrete finite transition machine, or implementation authority.
 
 If these premises hold and `→#` is independent of inferred effect rows, freeze
 `Drop#` and solve the effect lattice with `F_Drop#`. The reviewed leastness
