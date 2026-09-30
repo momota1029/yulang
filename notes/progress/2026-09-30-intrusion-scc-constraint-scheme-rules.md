@@ -87,18 +87,41 @@ Component_G = (C_G, A_G, L_G, self_G, roots_G, {H_d | d ∈ G})
 `C_G` is immutable after the SCC closes. For an external incoming use `u` of
 member `d`, freshen exactly `Local_d = Gen_d ∪ Cycle_d` with an injective map
 `ρ_(d,u) : Local_d → Fresh_(d,u)`, and fix every surviving `Free_d` identity
-through the shared environment map `E_d`, which is injective on distinct
+through the shared environment map `E_G`, which is injective on distinct
 surviving source identities. All distinct incoming uses, including uses of
 different members, have pairwise disjoint fresh ranges; each member uses its
 own `b_d` and partition. The use receives `ρ_(d,u)(r_d)` when `r_d` is local,
-or `E_d(r_d)` when it is a preserved free identity, together with `C_G` under
+or `E_G(r_d)` when it is a preserved free identity, together with `C_G` under
 that renaming. This keeps open-SCC recursion monomorphic, gives each external
 use an independent member-local instance, and retains intended outer sharing.
 The constraint graph is shared as the component authority; use overlays apply
 the member-specific identity map rather than one component-wide quantification
 plan.
 
-For fixed member environment `η_d : E_d(Free_d) → D`, define the member
+### Cross-member anchor coherence obligation
+
+The per-member maps cannot be chosen independently if their free domains
+overlap. Define `Free_G = ⋃_{d∈G} Free_d`. The candidate uses one component
+environment resolver `E_G` on this union, with distinct surviving source
+identities resolving to distinct anchors unless the source identity model has
+already identified them. Every `E_G(v)` is outside every per-use fresh range.
+For a use of member `d`, only `E_G` restricted to `Free_d` is consulted. This
+ensures that two views preserving the same outer identity do not accidentally
+split it or alias different identities, and that a local overlay cannot capture
+an anchor used by another member's view.
+
+An identity may still be local in one member view and free in another. The
+local use receives its own fresh overlay; the free use resolves the source
+identity through `E_G`. Those two uses are not equated merely because their
+source graph contains the same identity. Whether that split matches the
+declarative SCC typing rule depends on the independently derived
+`Gen_d`/`Free_d` ownership partition. If source typing requires a cross-use
+constraint between them, that obligation must be represented explicitly in
+the joint use relation; per-use renaming alone cannot create it. This is a
+specific remaining soundness/completeness obligation for mixed member
+boundaries, not a consequence of the transport lemma.
+
+For fixed member environment `η_d : E_G(Free_d) → D`, define the member
 relation by assigning all local variables in the shared source graph:
 
 ```text
@@ -118,11 +141,12 @@ by discarding an obligation.
 
 For a finite family of incoming uses, each use receives its own `ν_u` over its
 member-specific disjoint fresh range, while all uses share the same resolved
-free anchors. Their joint acceptance condition is the conjunction of each
-renamed `H_d` view and each caller-use constraint. It factors into independent
-local fibers only when the views and caller constraints communicate solely
-through anchors. Otherwise retain the full joint relation; do not multiply
-separately projected root marginals.
+free anchors through the single `E_G` resolver above. Their joint acceptance
+condition is the conjunction of each renamed `H_d` view and each caller-use
+constraint, plus any source-required cross-use obligations. It factors into
+independent local fibers only when the views and caller constraints
+communicate solely through anchors. Otherwise retain the full joint relation;
+do not multiply separately projected root marginals.
 
 ## Correctness argument, conditional on source generation
 

@@ -793,4 +793,12 @@ constraint generation, SCC ownership, and Yulang effects remain unproved. The
 `pub f x = x f` pure projection yields a nonempty retained graph and
 conditionally proves that `f 1` has no satisfying instance in the candidate
 carrier, matching the recorded Oracle final specialization rejection for
-that fixture.
+that fixture. The latest SCC proof pass found a concrete ownership gap for
+multiple member views: independently chosen `E_d` maps could split one shared
+free identity, alias distinct identities, or permit a local fresh range to
+capture another view's anchor. The candidate now requires one coherent,
+globally injective `E_G` resolver and explicitly leaves mixed local/free
+cross-use obligations to the source-typing proof. Next derive `Gen_d` and
+`Free_d` from an independent recursive-group typing judgment and prove this
+partition handles the mixed-boundary case; the resolver condition alone does
+not establish that.
