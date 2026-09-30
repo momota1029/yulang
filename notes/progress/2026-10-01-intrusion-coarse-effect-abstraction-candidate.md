@@ -1759,3 +1759,30 @@ compiler-referee closure of the table is therefore record-level closure of
 the classification finding only; source-to-constraint correspondence and
 successor transfer semantics remain open. Arm-emitted requests belong in `A`
 and may be seen by outer handlers, not this scrutinee's `Drop`.
+
+#### Candidate consequence for the declarative effect rule
+
+For this candidate only, the exact operation set in a handler clause is
+coverage metadata for `Covered(H, operation)`; its family projection can help
+index candidates, but is not a lower source for `May(C)` or an `Offered` fact.
+The scrutinee's effect summary is derived from its computation and
+callable/latent sources; the handler transforms that summary using coverage
+and visibility, and arm execution contributes separately through `A`. A
+family may enter `Drop` only if every possible operation occurrence and offer
+of that family is covered and visible. The exact-trace Lemma 3 establishes
+that clause coverage emits no concrete request; excluding coverage as a
+positive source in this coarser abstraction is a candidate rule choice
+consistent with the lemma, not a consequence forced by it. Other abstraction
+steps may still add spurious families, which require matching possible-offer
+provenance or unknown/top. A successor constraint lowering that places the
+handler's coverage upper `[handled; residual]` in the positive source of
+`May(C)` would not implement this candidate rule. Its source-to-constraint
+proof must show that the upper bound constrains admissible rows without
+creating request or offer evidence. If the solver representation cannot
+maintain that distinction, the representation or supported rule must be
+revised before claiming soundness or principality.
+
+This is a candidate successor rule inferred from the declared trace semantics,
+not a fact about Oracle routing and not an approved implementation decision.
+The exact impact on supported final acceptance and the lowering/solver
+correspondence remain open.

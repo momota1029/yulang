@@ -1497,3 +1497,27 @@ minor stale heading (“Two trace lemmas”) is corrected to “Three trace lemm
 This certifies only the finite direct-tree non-generation lemma and its record
 scope; higher-order transfer, row lowering, row-to-offer coupling, and the
 successor effect calculus remain unproved.
+
+As the next candidate consequence, handler coverage rows contribute to
+operation-level `Covered(H, operation)` metadata only; family projection helps
+index candidates but is not a positive `May(C)` or offer source merely because
+it occurs in `[handled; residual]`. `Drop` still requires every possible
+operation occurrence and offer of the family, at every represented handler
+activation including forwarded/resumed suffixes, to be covered and visible.
+Scrutinee effects come from computation/callable/latent sources, while arm
+effects stay in `A`.
+This candidate choice is consistent with, but not forced by, the direct trace
+lemma, which proves only that coverage alone emits no concrete request. Source
+lowering must prove that the upper bound constrains rows without adding
+requests/offers; the exact final-acceptance impact remains unknown.
+
+Architect and compiler-referee review found the candidate consistent with the
+direct trace semantics, with one clarification each: the family projection is
+only an index (coverage remains per operation), and Lemma 3 supports but does
+not force excluding coverage as a positive source in the coarser abstraction.
+Those are explicit in the candidate. Independent compiler/specification
+delta review found the repair conformant and identified a task-summary gap:
+`Drop` must quantify every offer at every represented handler activation,
+including forwarded/resumed suffixes. The task summary now includes that
+quantifier. The reviews cover only these candidate statements; no full effect
+proof or successor-rule approval follows.
