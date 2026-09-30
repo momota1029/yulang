@@ -593,9 +593,18 @@ identities are visible in the traversal trace but are not stored on compact
 occurrences. A candidate graph must retain the bound and parent-path
 identities explicitly. The q-cycle slice now records a collector-generated
 `SelfOccurrence(v2-)` separately from the selected bound edges, with an
-explicit forgetting map to compact syntax left to prove. Its lower weights,
-remaining effect endpoints and the bounds reachable from TypeVar4 remain
-untraced. Simple-sub's
+explicit forgetting map to compact syntax left to prove. A fourth focused
+trace now directly closes the finite typed bound-incidence cycle:
+TypeVar2-negative upper record 7 has a Function argument PosId(8)=TypeVar1;
+TypeVar1-positive lower record 4 has a Function argument NegId(4)=TypeVar2.
+The root lower record 24 enters through that same NegId(4), and these visited
+edges carry empty weights. This is a typed bound graph cycle, not a proof
+provenance cycle: record 4 names its replay premises, but upper record 7 has no
+proof parent in this trace. The compact representation still omits the edge
+and path identities. Other weight-bearing/effect endpoints and the bounds
+reachable from TypeVar4 remain untraced. Full trace and limits:
+`notes/progress/2026-09-30-intrusion-q-finite-bound-cycle-trace.md`.
+Simple-sub's
 `TypeSimplifier` also explicitly preserves recursive variables during
 polar-only removal,
 whereas the Oracle removes this negative-only q and prunes its row. That
@@ -618,12 +627,16 @@ record 1 and upper record 3 (`UpperBoundAdded`, result constraint 3). Likewise,
 root TypeVar0 records 22/24 share claim 14: record 22 is original constraint
 16, while record 24 is a replay conjunction at TypeVar14 from records 21/23,
 result constraint 17. An independent review matched these evidence variants to
-the proof constructors. This gives identity-preserving derivation links for
-those selected records, not their premise endpoints, proof completeness, or
-causal source-syntax paths. The event trace also has no full parent-call tree.
-Neither trace includes the finalized `CompactRoot`/scheme quantifiers or
-interval restoration, so the selected graph and q-erasure preservation proof
-remain incomplete.
+the proof constructors. A fourth trace records the pivot endpoint shapes too:
+TypeVar4's lower/upper premises are `Fun(arg=TypeVar2-)` and `TypeVar1+`, while
+TypeVar14's are the root Function and `TypeVar0+`. Those premise lower records
+are later returned as Unclaimed when queried on the pivot; their provenance is
+not recursively certified by these logs. The evidence therefore supports the
+local selected-record derivations and endpoint identities, not a complete
+proof-provenance graph or causal source-syntax path. Upper record 7 has no
+proof parent in the trace. Neither trace includes the finalized
+`CompactRoot`/scheme quantifiers or interval restoration, so the selected graph
+and q-erasure preservation proof remain incomplete.
 The rule distinction is recorded in
 `notes/progress/2026-09-30-simple-sub-paper-mlsub-audit.md`.
 This is one fixture-level obligation; multi-member epochs, publication/failure,
