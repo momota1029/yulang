@@ -66,6 +66,15 @@ each lens selects a different root and binder partition. The map and root
 selection are member-specific, while constraint identity and sharing stay
 component-wide.
 
+In the pure recursive-group subcase with a fixed outer endpoint environment,
+the partition is fully determined: every SCC-created identity belongs to
+`Gen_d`, every referenced outer identity belongs to `Free_d`, and `Cycle_d` is
+empty because regular cycles are back-references among existing endpoint
+identities. A conditional adequacy theorem for this exact subcase is recorded
+in `notes/progress/2026-09-30-intrusion-pure-recursive-group-adequacy.md`.
+Member-specific mixed local/free partitions remain open when nested boundary
+levels or fetch kinds are admitted.
+
 A single component-wide quantification set is not justified: the Oracle
 generalizes each member separately and fetch kinds can use different
 boundaries. The frozen-source evidence is summarized in
