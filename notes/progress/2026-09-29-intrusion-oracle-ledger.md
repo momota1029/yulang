@@ -394,3 +394,9 @@ fresh instance relation with shared anchors, and show how the nominal selector
 projects the least endpoint payload to the public `int` / `bool` results. Then
 continue toward envelope-wide root simulation and principality. The F5 shape
 remains withdrawn as the target.
+
+The two selected root traces and the external per-use fresh maps are now
+captured for this fixture in
+`notes/progress/2026-09-30-intrusion-recursive-root-epoch-capture.md`. They
+confirm the local inputs for the next calculation, but do not themselves prove
+selector projection or an intrusion-to-Oracle simulation.

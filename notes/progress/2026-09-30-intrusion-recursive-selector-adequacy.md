@@ -57,8 +57,11 @@ exactly that satisfaction clause for the complete scheme, that the selector's
 root projection returns this least value, or that the outer recursive interval
 has a satisfying assignment in a chosen carrier. The exact connection from
 source root preparation and selected evidence to the displayed interval is
-also still an operational simulation obligation. No recursive type equation
-or equi-recursive comparison is used here.
+also still an operational simulation obligation. Run-local root epochs,
+selected compact intervals, and the fresh maps for the two external uses are
+now captured in
+`2026-09-30-intrusion-recursive-root-epoch-capture.md`. No recursive type
+equation or equi-recursive comparison is used here.
 
 ## Required next proof
 
@@ -73,9 +76,12 @@ observationally indistinguishable. It does not yet show that the displayed
 `q ∪ int` / `q ∪ bool` intervals are the necessary channel carrying the
 difference, or select a carrier or prove principality beyond this fixture.
 
-Envelope-wide soundness/principality, ordered root-step simulation, and
-use-event simulation remain open. F5 scheme equivalence remains withdrawn as
-the target; no compiler implementation follows from this characterization.
+The actual selected roots and external-use maps are now observed for this
+fixture, but the selector's induced subtype/projection obligations are still
+not derived. Envelope-wide soundness/principality, ordered root-step
+simulation, and use-event simulation remain open. F5 scheme equivalence remains
+withdrawn as the target; no compiler implementation follows from this
+characterization.
 
 ## Review
 

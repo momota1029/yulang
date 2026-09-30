@@ -463,9 +463,11 @@ these concrete intervals. It does not select a carrier or prove general
 principality. The diagnostic route remains a separate `UnknownOrigin`
 observation, not subtype acceptance. The conditional algebra is reviewed; its
 major overclaim about these exact bounds was narrowed and delta-closed. Next
-capture the two roots' selected views at their actual epochs and prove the
-scheme-instance/selector relation before generalizing the result. The exact
-cases and test limits are in
+derive the selector's subtype/projection obligations from the captured root
+views and fresh use maps, then prove this fixture's scheme-instance relation.
+Those run-local observations are recorded in
+`notes/progress/2026-09-30-intrusion-recursive-root-epoch-capture.md`. The
+exact cases and test limits are in
 `notes/progress/2026-09-29-intrusion-oracle-ledger.md`. The concrete carrier,
 scheme instance relation, and replacement proof remain open; implementation
 stays gated on a reviewed successor contract and explicit approval.
