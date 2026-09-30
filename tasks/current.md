@@ -1329,3 +1329,18 @@ and confirms the rule does not require exact continuation-effect inference or
 usage tracking. Next gate: prove `TopOffers` transition coverage, static-slot
 summary completeness across re-entry/escape, and row-to-offer coupling; the
 bounded snapshot simulation and provider eligibility remain unproved.
+
+The first `TopKont` fallback lemma was independently reviewed by an architect
+and compiler referee. They found the initial wording did not preserve top
+across returned/stored closures and thunks, force/call, imported open effects,
+or the dynamic-to-static observation projection. A focused compiler-referee
+delta review closed those findings at candidate level: `TopKont` is now a
+symbolic absorbing summary with `⊤Eff`, `UnknownValue`, all-destination offer
+fanout, per-boundary scope unions, and explicit propagation through returns,
+storage, calls, force, escape, arms, instantiation, and resume. The top effect
+includes unknown imported/open families, and `⊤Eff \ Drop` remains top absent a
+narrowing proof. This does not prove concrete finite-slot coverage or those
+transfers. Next gate: define the concretization map for source/interface
+states, prove the listed transitions preserve TopKont and row-to-offer
+coupling, then integrate top effects with annotation and least-solution rules.
+Exact continuation support and use counts remain outside the requirement.

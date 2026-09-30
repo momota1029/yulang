@@ -433,6 +433,79 @@ clarification is now stated explicitly: a lost wrapper fans top offers out to
 every possibly affected handler slot. The continuation-slot completeness,
 top-control simulation, and row-to-offer coupling are still unproved.
 
+#### Top-control closure lemma target
+
+The most conservative `UnknownKont` case can be made explicit without
+simulating the lost continuation's control structure. Define a finite
+abstraction of the checked module and imported interfaces: handler, arm,
+continuation, value/thunk, operation, family, origin, and boundary slots are
+finite, with explicit unknown members. `ReqFact` and bounded lineage use the
+finite domains already described above. `TopKont` is a symbolic absorbing
+element, not an enumeration of every boundary map. Its concretization includes
+all request facts at every local handler slot; every finite map from boundary
+occurrences to subsets of `ScopeClass`; all local continuation, arm, value,
+and thunk destinations; every return/request/forward/handle/resume outcome;
+and top latent effect `⊤Eff`. An `UnknownHandler` or `UnknownArm` interface
+destination contributes the same top summary at every compatible local
+handler slot.
+
+For a concrete observation, project its dynamic handler identity to the
+corresponding static handler slot, or `UnknownHandler` when unavailable.
+Project each dynamic boundary identity to its static boundary occurrence and
+union possible `ScopeClass` values per occurrence. Repeated dynamic instances
+at one site remain separate bounded-lineage entries while represented; if
+truncation or a join loses that distinction, widen the affected occurrence to
+all scope classes and `UnknownMask` instead of overwriting one instance with
+another. The `Drop` test remains universal over every fact and every class in
+these projected sets.
+
+`⊤Eff` denotes every concrete effect row, including families omitted from the
+current finite labels and future instantiations of open imported rows. It is
+not an ordinary fresh family label: a closed annotation accepts `⊤Eff` only if
+that annotation also denotes top or a separate proof narrows the unknown
+family set. Otherwise the annotation check fails conservatively. Every
+`TopKont` includes observations with `InsideDenied` and `Unknown` for every
+boundary; because `Drop` quantifies over all observations, no represented
+family can be subtracted. For this fallback, `⊤Eff \ Drop = ⊤Eff` unless a
+separate proof first narrows the unknown family set. Any result that may
+capture the lost continuation propagates `TopKont` into its value/thunk slot
+as top latent effect and provenance. If capture cannot be ruled out, use
+`UnknownValue` with that top summary. Return, storage, ordinary call, force,
+closure escape/re-entry, arm entry/exit, scheme instantiation, and wrapper
+resumption all preserve or widen `TopKont`; none may clear it by leaving the
+current stack. Top request observations fan out to every possibly affected
+local handler slot, and an unknown external handler destination widens to the
+top interface summary.
+
+The finite-slot closure premise is that every concrete observation and
+destination from the checked source and imported interfaces either maps into
+these slots or maps to an `Unknown*` slot whose top row/observation semantics
+is as above. Given that concretization invariant and the row-to-offer coupling,
+every concrete request in a lost continuation is represented, each arm/call/
+resume destination is covered, and each emitted effect is below `⊤Eff`.
+Because every listed transition preserves the symbolic top, induction over
+finite trace prefixes proves observation coverage and effect inclusion after
+loss, including requests emitted by an inner handler arm and requests reached
+after a stored continuation is forced or called. This is a fallback soundness
+lemma only; it neither proves the precise continuation-slot transfers nor
+yields useful principal rows for paths that reach `TopKont`.
+
+This closure does not require a continuation-use count. It may retain every
+effect or reject source annotations that a more precise analysis or Oracle
+accepts. This is a candidate precision cost, not a selected compatibility
+difference: any concrete Oracle mismatch must still be exhibited and recorded
+before choosing the fallback for the supported envelope.
+
+Review closure: the first version omitted top propagation through escaped
+values and treated a fresh unknown-family token as though it bounded omitted
+families. Architect and compiler-referee review identified those gaps. A
+focused compiler-referee delta review confirms the revised absorbing
+`TopKont`, value taint, handler/boundary projection, universal `Drop` check,
+and row-level `⊤Eff` close them at the candidate-lemma level. The explicit law
+`⊤Eff \ Drop = ⊤Eff` was added after that review from its minor clarification.
+The concretization invariant, transition simulation, and annotation-solver
+integration remain unproved.
+
 At each offer of a request to a dynamic activation `h`, emit an observation
 `(operation, family, origin, ordered lineage, h, active-scope relation)` before
 the branch. `Eligible(q,h,κ)` remains a parameterized source predicate; this
