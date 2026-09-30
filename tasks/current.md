@@ -776,6 +776,13 @@ candidate direction is in
 The first declarative subfragment now has `Var`/`Int`/`Lam`/`App` typing and
 constraint-generation rules with a conditional soundness/completeness argument
 in `notes/progress/2026-09-30-intrusion-pure-source-typing-rules.md`. It does
-not yet cover let-polymorphism or recursive SCCs. Next extend the relation to
-member-owned versus shared identities for an SCC and prove per-use root
-principality before adding effect constraints.
+not yet cover let-polymorphism or recursive SCCs; the candidate SCC extension
+is recorded below and remains conditional.
+
+A candidate recursive-group rule now allocates one monomorphic root per SCC
+member, generates every body against the shared root environment, and retains
+the full finite constraint graph as a generalized component. Each external use
+freshens the component-owned identities together while fixing enclosing
+anchors. Its conditional root principality argument is in
+`notes/progress/2026-09-30-intrusion-scc-constraint-scheme-rules.md`; source
+constraint generation, SCC ownership, and Yulang effects remain unproved.
