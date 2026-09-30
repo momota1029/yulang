@@ -204,8 +204,12 @@ request facts can have the form:
 ```text
 ReqFact = (family, exact_operation | UnknownOp,
            origin_site | UnknownOrigin, may_blockers)
-may_blockers ⊆ BoundarySite ∪ {UnknownMask}
+may_blockers ⊆ (BoundarySite ∪ ActiveMaskSite) ∪ {UnknownMask}
 ```
+
+`ActiveMaskSite` is the finite set of source/interface slots for independently
+active eligibility guards, including provider guards; any runtime mask that
+cannot be projected to one of these slots contributes `UnknownMask`.
 
 The abstract request set joins by union. `Drop(H,f)` is permitted only when
 there is positive evidence that `H` is active, every fact for `f` names an
@@ -275,6 +279,92 @@ scheme instantiation. A finite activation quotient and simulation theorem are
 still needed. If the quotient or callback facts depend on inferred effect
 rows, the combined origin/effect analysis must also establish monotonicity;
 otherwise the fixed-`Drop` leastness theorem does not apply.
+
+#### Staged may-origin closure theorem target
+
+A phase-separated construction avoids making `Drop` an effect-solver transfer.
+Let `S#` be a finite **provenance/control-only** configuration carrier for one
+fixed source and interface input. It may contain callback contracts and
+source-level call-target possibilities, but no inferred effect-row slot; open
+or unknown interface behavior widens to unknown targets/offers. Its value
+facts record runtime kind, finite source/call-target slot, and captured
+control/wrapper references, but contain no latent-effect field. `UnknownValueP`
+is defined as a top control/provenance summary that can reach every compatible
+local target and emits top request observations; it does not carry `⊤Eff` in
+this phase. The effect solver's row-to-offer coupling handles `⊤Eff`
+separately. Define `γP(s)` directly over runtime configurations: (1) the
+concrete stack and lineage are covered by the abstract suffixes, (2) every
+reachable runtime value maps to a finite abstract value slot that covers its
+kind and captured control/wrapper references (or to `UnknownValueP`), (3) each
+concrete handler/request/boundary and other-mask relation is covered by the
+scope and blocker evidence in the abstract request facts, and (4) the current
+control point and pending executable wrappers map to abstract control facts.
+There is no inferred effect-row inclusion or latent-row claim in `γP`. A
+reachable abstract transition is labelled by a **set** of edge observations:
+
+```text
+→# ⊆ S# × P(Obs#) × S#
+Post#(X) = X₀# ∪ { s' | ∃s ∈ X, Ω, s →# Ω s' }
+Reach#    = lfp(Post#)
+Offers#(Reach#) = ⋃ { Ω | ∃s ∈ Reach#, s', s →# Ω s' }
+```
+
+Silent edges have `Ω = ∅`; one abstract edge may emit multiple offers or
+`TopObs`. `Post#` is monotone over the finite powerset lattice `P(S#)`, so
+`Reach#` is reached after finitely many additions.
+
+Assume initial coverage: every concrete initial configuration is in
+`γP(s₀)` for some `s₀ ∈ X₀#`. Assume forward simulation: for every reachable
+pair `κ ∈ γP(s)` and concrete labelled step `κ -O→ κ'`, there exist `s'` and
+an edge label `Ω` such that `s →# Ω s'`, `κ' ∈ γP(s')`, and for each concrete
+request observation `o ∈ O` there is an `ô ∈ Ω` with `CoverObs(o, ô)`. The
+edge observation must retain the concrete handler activation, operation,
+family, lineage, every receiving-boundary scope class, and every other active
+mask that can independently block eligibility. An unresolved mask maps to
+`UnknownMask`; a fact carrying it cannot authorize subtraction. In particular,
+a request is emitted before matching/forwarding so a handled-and-vanished
+offer is still covered. This endpoint-preserving simulation premise, by induction
+over finite concrete paths, derives that every concrete reachable state is
+represented in `Reach#` and every concrete handler offer is covered by
+`Offers#(Reach#)`; offer coverage is a conclusion, not an extra assumption.
+
+Derive `Drop#` only after this closure. It is sound only if the universal
+eligibility test sees, for every offered family, all covered operations, the
+full set of possible scope classes for each concrete
+`(handler activation, request, boundary)` relation, and every other possible
+eligibility mask. Any `InsideDenied`, `Unknown`, or unresolved blocker prevents
+subtraction unless a corresponding in-scope grant is proved. This is the same
+invariant required by the observation/refinement condition below, including
+offers that vanish on their emitting edge. In addition, for every admissible source/type
+assignment and every family admitted to a scrutinee row, row/provenance
+coupling must find a corresponding reachable `ReqFact` or explicit unknown
+fact. Open/imported rows, unresolved call targets, or families not enumerated
+by phase one therefore force unknown/top and cannot be subtracted. This
+uniform premise is not proved by reachability alone.
+
+A compiler-referee delta review initially found that the shared full-state
+`γ(A)` omitted non-boundary active masks even though `CoverObs` and `Drop#`
+required them. The relation now requires each such mask in `may_blockers` or
+`UnknownMask`; the finite blocker domain includes `ActiveMaskSite` for
+source/interface guard slots, and unprojectable masks widen to `UnknownMask`.
+A follow-up delta review found no remaining mismatch among `γ(A)`, `TopObs`,
+`CoverObs`, and `Drop#`. This closes only that formulation gap. The staged
+may-origin theorem still assumes rather than proves the actual transition
+simulation, interface/type-assignment uniformity, row-to-offer coupling, and
+source derivation correspondence.
+
+If these premises hold and `→#` is independent of inferred effect rows, freeze
+`Drop#` and solve the effect lattice with `F_Drop#`. The reviewed leastness
+result then applies, subject to source derivations matching its inequalities.
+This phase order needs no continuation-use count: finite reachability closure
+represents any number of resume/re-entry cycles. It can still lose acceptance
+precision when unknown control or interface slots add extra offers; exact
+continuation trace support is not required. The decisive open premise is a
+sound effect-row-independent transition relation. It must preserve the
+captured wrapper/value relation through return, storage, escape, re-entry, and
+multi-shot calls, or widen to a proven top summary. If possible call targets
+depend on inferred types or method resolution, include every compatible target
+or an unknown summary; incomplete targets cannot justify `Drop#`.
 
 ### Bounded dynamic-scope quotient candidate (unselected)
 
@@ -591,7 +681,9 @@ Define `κ ∈ γ(A)` when all of the following hold:
    static slot (or `UnknownHandler`) and to a fact whose family, operation,
    origin, and ordered lineage cover the concrete request, and whose
    `γscope` for each corresponding boundary occurrence contains the concrete
-   relation. Dynamic boundary instances at one site keep distinct bounded
+   relation. Every independently active eligibility mask is represented in
+   `may_blockers` or by `UnknownMask`; this includes non-boundary provider
+   guards. Dynamic boundary instances at one site keep distinct bounded
    occurrence positions; if a projection merges them, the union must contain
    every concrete class and include `UnknownMask` where identity is lost.
 4. Every concrete immediate and latent effect is included in its abstract row.
@@ -619,17 +711,21 @@ request offers emitted on that abstract edge. The top-taint predicate for an
 abstract edge holds when its control point, a pending wrapper, or a value used
 by the edge is represented by `TopControl`, `TopKont`, or `UnknownValue`.
 An abstract observation is a tuple `(handler_slot, operation, family,
-origin, bounded_lineage, scope_relation)` over the finite domains above.
+origin, bounded_lineage, scope_relation, may_blockers)` over the finite domains
+above. `may_blockers` ranges over subsets of finite boundary and active-mask
+slots plus `UnknownMask`.
 Define `CoverObs(o, ô)` componentwise: dynamic handlers, operations, families,
 origins, and lineage in concrete offer `o` map to their exact abstract labels
-or the corresponding `Unknown*` label, and each concrete boundary class in
-`o` belongs to `γscope(S)` for the corresponding abstract scope set `S` in
-`ô`. This is a coverage relation, not a unique projection: identity loss may
-admit several covering tuples. `UnknownHandler`, `UnknownOp`,
+or the corresponding `Unknown*` label, each concrete boundary class in `o`
+belongs to `γscope(S)` for the corresponding abstract scope set `S` in `ô`,
+and every concrete active blocker in `o` is represented in `may_blockers` or
+by `UnknownMask`. This is a coverage relation, not a unique projection:
+identity loss may admit several covering tuples. `UnknownHandler`, `UnknownOp`,
 `UnknownOrigin`, and `UnknownFam` cover every concrete identity outside the
 finite exact-label set; `UnknownFam` denotes row top, not a standalone family
 that a closed row can accidentally ignore. `TopObs` is the set of every
-abstract tuple, including tuples with every possible scope relation, so for
+abstract tuple, including tuples with every possible scope relation and
+blocker set, so for
 every concrete offer `o` some `ô ∈ TopObs` satisfies `CoverObs(o, ô)`.
 The top-edge simulation goal is: if `κ ∈ γ(A)`, `κ →[Obs] κ'`, and that edge
 uses top-tainted control/value, then some `(A', Obs#) ∈ step#(A)` satisfies
@@ -642,8 +738,8 @@ top summary across each control and value transition:
 
 | Concrete transition | Required abstract transfer when the full top summary is present |
 |---|---|
-| A request is offered, then matched or forwarded | Before either branch, put every possible `TopObs(handler, operation, family, origin, lineage, scope)` in `Obs#` for all local/unknown handler destinations; retain `TopKont`/`⊤Eff` in the successor. A fact stored only in `A'` does not cover an offer handled on this edge. |
-| Catch entry/exit, arm entry/exit | Retain `TopKont`/`⊤Eff` and fan top request/scope facts to every possible handler slot. |
+| A request is offered, then matched or forwarded | Before either branch, put every possible `TopObs(handler, operation, family, origin, lineage, scope, blockers)` in `Obs#` for all local/unknown handler destinations; retain `TopKont`/`⊤Eff` in the successor. A fact stored only in `A'` does not cover an offer handled on this edge. |
+| Catch entry/exit, arm entry/exit | Retain `TopKont`/`⊤Eff` and fan top request, scope, and blocker facts to every possible handler slot. |
 | Raw or forwarded continuation resume | Preserve top on the continuation slot; forwarded resume additionally retains the captured `H` wrapper possibility. |
 | Return, closure/thunk construction, storage, or escape | Copy top latent row and top provenance to every result slot that may capture the continuation; otherwise use `UnknownValue`. |
 | Call, force, or recursive re-entry | Load the top value summary and emit top observations under every possible current handler slot. |
@@ -786,20 +882,23 @@ state:
 
 1. Every concrete request `q` offered to dynamic handler `H` has a covering
    abstract request fact at the corresponding static handler slot.
-2. For every receiving-boundary identity and other active mask on `q`'s
-   concrete lineage, that fact's `γscope` contains the concrete relation for
-   this exact `(H,q,boundary)` activation tuple.
+2. For every receiving-boundary identity on `q`'s concrete lineage, that
+   fact's `γscope` contains the concrete relation for this exact
+   `(H,q,boundary)` activation tuple. Every other active mask that can
+   independently deny `H` is represented in `may_blockers` or by
+   `UnknownMask`; omission is never interpreted as proof of absence.
 3. Per-concrete-pair classification is sound, and exact operation coverage is
-   checked separately. Only when `γscope(S)` for every relevant
-   boundary/mask is a subset of `{Outside, InsideGranted}` does the abstract
-   fact imply visibility eligibility for every represented pair. Any concrete
-   `InsideDenied` possibility, or `Unknown` whose concretization includes it,
-   prevents `Drop`; a joined `{Outside, InsideDenied}` cannot pass just because
-   one possibility is outside.
-4. Closure/thunk/continuation summaries preserve latent effect rows and these
-   scope relations. Boundary expiry means `Outside` only after proving the
-   source semantics cannot restore that receiving scope through a carried
-   value; a lexical return or stack pop alone is insufficient.
+   checked separately. `Drop` requires `γscope(S) ⊆ {Outside, InsideGranted}`
+   for every receiving boundary and no unresolved `may_blockers`; a non-boundary
+   mask can be discharged only by a matching grant proved in scope for this
+   handler/request. Any concrete `InsideDenied` possibility, `Unknown` whose
+   concretization includes it, or `UnknownMask` prevents `Drop`; a joined
+   `{Outside, InsideDenied}` cannot pass just because one possibility is
+   outside.
+4. Closure/thunk/continuation summaries preserve latent effect rows, scope
+   relations, and blocker evidence. Boundary expiry means `Outside` only after
+   proving the source semantics cannot restore that receiving scope through a
+   carried value; a lexical return or stack pop alone is insufficient.
 
 Then every family admitted to `Drop(H)` is covered and eligible for every
 concrete request represented by its abstract facts. Without this implication,

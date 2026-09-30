@@ -1372,3 +1372,20 @@ coupled construction; it makes the next effect-solver gate explicit: either
 compute and freeze a source-sound `Drop` before effect solving, or prove a
 monotone coupled domain with its own least-solution theorem. Details are in
 `notes/progress/2026-10-01-intrusion-coarse-effect-abstraction-candidate.md`.
+
+The staged alternative now states an endpoint-preserving, set-labelled
+forward-simulation premise over a row-free provenance/control carrier, from
+which finite reachability derives offered-request coverage before `Drop` is
+computed. A compiler-referee delta review found and the candidate repaired
+missing non-boundary active-mask evidence in the shared concretization; a
+follow-up review found no remaining mismatch across the relation, top fallback,
+observation coverage, and `Drop`. This is still only a conditional theorem
+target: actual source transitions, captured-wrapper and multi-shot transfer,
+uniform target coverage across admissible type assignments, row-to-offer
+coupling, and derivation correspondence remain unproved. Method-target
+characterization is a narrow dependency of this effect gate if target sets
+depend on inferred types; it does not open the full later method/roles/impl
+resolution gate. Exact continuation-sensitive effect inference and linear or
+affine continuation usage are not requirements; exact traces remain the
+soundness reference and principality is relative to the chosen expressible
+effect abstraction.
