@@ -52,6 +52,51 @@ Its production freshening maps are not keyed to individual uses, and its raw
 reachability check does not prove transitive isolation. It does not establish
 effect transport for a multi-member component.
 
+## Implicit application stack behavior
+
+The no-handler source subset still has a special interaction between argument
+effects and call return effects. Frozen `tail.rs::make_app_with_origins`
+allocates result-value, result-effect, and call-effect identities; it places
+the argument computation's effect in the callee Function's argument-effect
+slot and constrains callee evaluation and the call-return effect into the
+application result effect (`lowering/expr/tail.rs:540–627`).
+
+The call-return endpoint is stack-wrapped only under a narrower condition:
+the callee expression is a local variable reference resolving to a live local
+`Def::Arg`, that binding is marked `Unannotated`, and
+`unannotated_call_frame_index` selects a frame whose scope is `Defined`
+(`tail.rs:745–768,801–829`). Depending on active nested skeletons and
+sub-syntax scopes, this can select the frame where the unannotated local was
+introduced rather than the innermost frame. The selected frame keeps one
+`SubtractId` per local `Def`; the first call allocates it, marks that call's
+effect as `Empty`-subtractable, and registers the matching `pop` on that frame.
+Each call, including later calls reusing the same ID, wraps its own call-effect
+endpoint with `StackWeight::push(δ, Empty)` (`tail.rs:769–796`). Thus the
+empty-subtract fact is per first call-effect, while the push identity is
+reused per selected frame/local binding.
+
+The structural Function subtype step is not an independent four-coordinate
+product rule when the lower Function's argument-effect slot is `Neg::Bot`.
+In that case `constraints/machine/propagate.rs:212–270` constrains the upper
+argument effect against the upper return effect after stripping leading
+`Neg::Stack` wrappers and applies `both_from_right()` to the subtype weights;
+otherwise it relates the upper argument effect contravariantly to the lower
+argument effect with swapped weights. Return effects remain covariant with
+the original weights. Unannotated lambda
+parameters use `Neg::Bot` for `arg_eff`, while `wrap_lambda_param` puts the
+body computation effect into the returned Function's `ret_eff`
+(`lowering/expr/lambda.rs:954–969,1251–1264`).
+
+This rules out treating latent effects as four independent value coordinates
+in the current powerset Function encoding. A source-adequate extension needs a
+meaning for cumulative call effects and the pure-argument passthrough law, as
+well as a meaning for the implicitly generated push/pop weights and
+`NonSubtract` transport. Those meanings cannot be inferred from identity
+renaming alone. They remain distinct from handler matching and masking
+hygiene: no handler is needed to trigger this application path. This source
+audit records operational facts, not the successor's effect semantics or a
+final-acceptance theorem.
+
 ## Consequence for the full redesign goal
 
 The effect-free Function graph in the abstract-semantics draft can serve as a

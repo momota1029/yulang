@@ -10,7 +10,9 @@ approved that inference-stage scheme formatting / acceptance phase need not
 match Oracle. Final acceptance of well-typed programs remains the compatibility
 target. Polarity-only q erasure is not a successor requirement; retain
 meaningful source constraints, and allow any later erasure only with a
-preservation proof. Exact parent-graph semantics are still unreviewed. See
+preservation proof. The narrow injective pure-graph parent-transport theorem
+has M3 review, conditional on the reviewed pure source/group adequacy result;
+full parent semantics and Oracle projection remain open. See
 `notes/progress/2026-09-30-intrusion-oracle-priority.md`. The q-erasure
 inference view is followed by a frozen-Oracle mono specialization rejection
 for `f 1`, so the view alone does not establish an unsound accepted program.
@@ -845,6 +847,19 @@ obligations while fixing all outer/context identities. The reviewed theorem is
 conditional on the pure source/group adequacy result and does not cover the
 full Oracle pipeline. See
 `notes/progress/2026-09-30-intrusion-parent-transport-composition.md`. Next
-extend the source/group adequacy and parent operation beyond this pure
-constraint fragment, then carry the proof toward complete Oracle
-final-acceptance capability.
+extend source adequacy through ordinary implicit Function effects before
+handlers: Oracle allocates latent effect identities for ordinary Functions,
+special-cases pure-argument Function subtyping, and inserts call-stack
+`StackWeight::push(δ, Empty)` / frame-pop evidence for eligible unannotated
+local calls. The frozen source characterization and exact conditions are in
+`notes/progress/2026-09-30-intrusion-oracle-latent-effects.md`; independent
+compiler-referee review closed its source precision findings. The missing
+successor decision is a source-adequate effect constraint/carrier rule that
+retains these meaningful constraints and proves call/lambda adequacy and
+principality; do not assume a four-coordinate product or infer an effect
+algebra from renaming. In parallel, complete ordered member-root lifecycle
+simulation (epochs, saved roots, bounded post-loop mutations, and atomic
+publication) before asserting Oracle SCC adequacy. Then extend the parent
+operation across those effects and lifecycle transitions toward complete
+Oracle final-acceptance capability. No compiler implementation is authorized
+by the conditional transport result alone.
