@@ -332,6 +332,86 @@ two-frame prefix (becoming One) and longer prefixes (remaining Many). Extra
 tag subsets add only abstract paths. This closes the primitive stack
 projection check, not the handler-scope or source-transition simulation.
 
+#### Shallow handler snapshot transition candidate
+
+To distinguish handler restoration from stack push/pop, use a concrete
+delimiter configuration `O · H · I`: `H` is the dynamic handler activation,
+`O` the outer delimiter stack, and `I` the delimiters suspended between `H`
+and the current request or return. Give continuation snapshots an explicit
+kind:
+
+```text
+Raw(h, k_offer, ScopeSnap)       // matching arm's already-transformed continuation
+Forwarded(h, k_offer, ScopeSnap) // outer request continuation wrapped by H
+```
+
+Here `k_offer` is the continuation already presented at `H`, after any inner
+handler transformers have composed around the underlying suffix. `ScopeSnap`
+is provenance for abstract observations, not a second executable stack to
+reinstall. In particular, applying `k_offer` must not also push the inner
+segment `I`; that would apply an inner handler twice. A machine that instead
+stores an underlying continuation `k0` must define and prove the corresponding
+single application of the `I` transformer. This candidate uses the
+request-tree form below and leaves its bounded machine encoding open.
+
+The source request-tree transition candidate is:
+
+| Event at `H` | Concrete transition |
+|---|---|
+| Enter `catch_H C` | Allocate fresh dynamic identity `h`; evaluate `C` under `O·h`. |
+| `C` returns `v` | Remove `h`; run the value arm under `O`. |
+| Request `q` is eligible and covered | Capture `Raw(h,k_offer,ScopeSnap)` and run the operation arm under `O`. A call to raw `k_offer` clones the continuation and evaluates it with its already-composed inner handler behavior; it does not reapply `H`. |
+| Request `q` is uncovered or ineligible | Forward `Request(q, x -> H(k_offer(x)))` to `O`, retaining the same semantic activation identity `h` in the wrapper. If an outer handler resumes it, the wrapper reapplies `H` to the suffix; if the outer context aborts, the suspended wrapper is discarded. |
+| A resumed raw suffix returns `v` | Return `v` to the matching operation arm's call to `k_offer` under `O`; inner return/value behavior in `k_offer` runs once, while `H`'s value arm does not run. |
+| A resumed forwarded suffix returns `v` | Its already-installed `H(k_offer(...))` wrapper runs inner return/value behavior and then `H`'s value arm once, before returning to the outer resumer. |
+| Continuation is resumed more than once | Clone the corresponding immutable snapshot for each resume and join the resulting paths; no usage count is introduced. |
+| Arm exits | `h` is already inactive; finalize its suspended scope once and preserve outer activations. |
+
+At each offer of a request to a dynamic activation `h`, emit an observation
+`(operation, family, origin, ordered lineage, h, active-scope relation)` before
+the branch. `Eligible(q,h,κ)` remains a parameterized source predicate; this
+machine does not select wildcard/omission behavior, expiry semantics, or an
+Oracle guard rule. The bounded abstraction must carry the continuation kind
+and paired scope/provenance snapshot together. It must never restore `h` from a
+matching static site or reused stack position. A stack-machine encoding must
+prove that its operational frames correspond to the handler transformations
+already represented by `k_offer`; it cannot both run a transformed
+continuation and separately reinstall those frames. If unwind crosses more
+than `K` frames or a join loses the snapshot identity, use `Unknown`.
+
+The key compositional lemma is conditional: if initial configurations are
+covered, each transition above is simulated by the bounded abstract transfer,
+and every concrete offer observation appears in the abstract observation set
+with all concrete scope classes, then induction over finite trace prefixes
+covers every request in `Offered(H,C)`, including every outer-resume branch.
+Exact operation coverage plus the universal scope-class test then makes
+`Drop(H)` sound. Matched raw-`k` suffixes remain accounted for by the arm's
+`k : May(C)` bound, while forwarded suffixes are inspected again under the
+restored `h`. This reduces the general handler proof to transition simulation,
+observation refinement, and row/provenance coupling; it does not prove those
+premises or infer continuation usage.
+
+The bounded machine encoding of the `I` segment and observation refinement
+remain proof obligations. In particular, a same-site activation may be
+suspended while another activation at that site is entered; the saved dynamic
+`h` must be restored without merging it with the newer activation. The source
+request-tree equation is the reference: unmatched inner handlers are already
+composed into `k_offer`, and forwarding through `H` composes `H` exactly once.
+
+Review closure: an independent compiler-referee initially found ambiguity
+between `k` and the inner segment `I`, plus missing distinct return
+destinations. The candidate now makes `k_offer` the already-transformed
+continuation, keeps `ScopeSnap` non-executable, specifies forwarding as
+`Request(q, x -> H(k_offer(x)))`, and states raw versus forwarded return
+behavior separately. A focused delta review checked a nested inner handler
+whose value arm changes the result and closed both findings. An independent
+architect review found no conflict with the precision/principality decision:
+the trace model remains a soundness reference, while `May(C)` may conservatively
+over-approximate and the leastness claim remains relative to the chosen
+compositional abstraction. This closes only the source request-tree wording;
+the bounded-machine encoding of `I`, observation refinement, and full
+simulation remain open.
+
 The target step-simulation obligation is:
 
 ```text

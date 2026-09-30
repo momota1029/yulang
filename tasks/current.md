@@ -1299,3 +1299,20 @@ abstract paths. This closes only the stack data-structure lemma. Next compose
 it with handler activation, snapshots, request lineage, and captured values,
 then prove the observation invariant and row/provenance coupling end to end.
 The one-step source simulation and supported-envelope precision remain open.
+
+The source request-tree snapshot candidate is now written in the same
+continuation form as the shallow-handler trace calculus: `k_offer` already
+contains inner handler transformations, `ScopeSnap` is observation evidence
+rather than an executable stack to reinstall, raw resumption leaves `H`
+unwrapped, and forwarded resumption composes `H` once. Raw and forwarded return
+paths are distinguished. A compiler-referee found the former `k`/`I` wording
+could apply an inner handler twice and omitted return destinations; a focused
+delta review closed both findings with a nested result-changing handler. The
+architect review confirms this does not require exact continuation-sensitive
+effect inference: traces remain the soundness reference, conservative
+over-approximation is permitted, and principality stays relative to the chosen
+expressible abstraction. Next gate: give the bounded machine a representation
+for the inner handler segment that simulates this request-tree composition
+exactly once, then prove offer-observation coverage and row/provenance coupling.
+The source-level wording review does not close the bounded-machine simulation;
+no compiler implementation is authorized.
