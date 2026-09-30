@@ -445,12 +445,14 @@ spec review's minor arbitrary-state concern was closed by that reachability
 condition. This does not construct the concrete recursive carrier or prove
 projection/principality. See
 `notes/progress/2026-09-30-intrusion-carrier-parametric-saturation.md`.
-Next inspect the exact lower and upper payloads of source-generated recursive
-Function schemes, and characterize an operation whose result depends on their
-comparison. A Rust-native Oracle probe now confirms that a nominal-guarded
-recursive Function source produces recursive scheme bounds and that two uses
-freshen its recursive binder independently; its exact fixture and limits are
-in `notes/progress/2026-09-29-intrusion-oracle-ledger.md`. This does not settle
-the concrete carrier for the Oracle's recursive intervals or the scheme
-instance relation. Keep implementation gated on the reviewed successor
-contract and explicit approval.
+The source-generated recursive Function scheme payloads are now characterized
+through their quantified inner bounds. A source call through those bounds emits
+nominal mismatch events that all classify as `UnknownOrigin`, leaving the check
+report without diagnostics; direct and acyclic controls do report diagnostics.
+This records an Oracle behavior and a provenance gap, not a subtype acceptance
+proof. Next trace why the recursive path loses its source origin, then seek a
+source context whose public inferred result distinguishes the interval
+payloads. The exact cases and test limits are in
+`notes/progress/2026-09-29-intrusion-oracle-ledger.md`. The concrete carrier,
+scheme instance relation, and replacement proof remain open; implementation
+stays gated on a reviewed successor contract and explicit approval.

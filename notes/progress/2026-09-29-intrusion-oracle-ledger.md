@@ -288,3 +288,41 @@ source schemes and find a source-level operation whose observable result
 depends on their comparison. Only then can the carrier relation be tested
 against these recursive intervals. This work used Rust tests against the
 Oracle implementation; no auxiliary Python model was used.
+
+## Recursive application outcome characterization (2026-09-30)
+
+The same Rust-native fixture was extended with a source-level consumer whose
+parameter is `step int (step int T)`, then calls it with `ints 0` or `mixed 0`
+for `T = int`, `bool`, and a distinct nominal `label`. The Oracle check report
+has no diagnostics for all six recursive calls. Each case does route one or
+more nominal mismatch events, but every captured eligibility result is
+`Incomplete { reason: UnknownOrigin(OriginId(1)) }`; none is eligible for a
+source-boundary cast diagnostic. This must be read as the Oracle's observed
+diagnostic behavior, not as proof that the schemes satisfy a structural
+subtyping relation.
+
+Controls: a direct `int` argument to a `bool` parameter produces a check
+diagnostic, and an acyclic value explicitly annotated
+`step int (step bool int)` produces diagnostics when passed to the same
+`step int (step int label)` consumer. This localizes the surprising outcome to
+the recursive scheme route rather than establishing general acceptance of
+incompatible nominal types.
+
+Raw finalized schemes show the source-level difference. Both have three
+quantifiers and one recursive bound. In `ints`, the inner value parameter has
+lower payload `q_value ∪ int` and upper payload `q_value`; in `mixed` it is
+`q_value ∪ bool` / `q_value`. The recursive root bound's lower side is a union
+of its recursive variable and a guarded `step` node, with upper side `Top`.
+Thus the observed pending mismatch travels through quantified payloads below a
+recursive bound, and its explanation reaches an unknown origin before the
+diagnostic gate can decide it.
+
+Focused command: `cargo test -p infer --lib source_recursive_ -- --nocapture`
+passed 2 source-level tests in the detached Oracle worktree
+`/tmp/yulang-intrusion-recursive-comparison-probe`; the manually constructed
+explicit-two-sided interval comparison matrix also passed its five focused
+tests separately.
+This gives an executable fixture for the diagnostic/provenance route. The
+remaining semantic question is whether another source context can make this
+recursive mismatch eligible or otherwise affect a public inferred result;
+do not model the incomplete event as an accepted subtype edge.
