@@ -34,18 +34,23 @@ not say which handler may consume a request.
 
 Let `Fam` be the finite set of operation families relevant to a checked module
 and its imported interfaces. A computation has an abstract immediate effect
-`E ⊆ Fam`. Functions, callbacks, thunks, and continuation values also retain a
-latent effect set, which an ordinary call or force adds to the immediate
-effect. Sequential composition and control-flow joins use set union.
+`D_eff = P(Fam) ∪ {⊤Eff}`, ordered by subset on finite rows with `⊤Eff` above
+every finite row. `⊤Eff` covers unknown or unenumerated imported families.
+A computation's immediate effect `E` belongs to `D_eff`. Functions, callbacks,
+thunks, and continuation values also retain a latent effect row, which an
+ordinary call or force joins into the immediate effect. Sequential composition
+and control-flow joins use row join.
 
-For an operation request in family `f`, the immediate effect contains `f`.
+For an operation request in family `f ∈ Fam`, the immediate effect contains
+`{f}`; a request whose family cannot be enumerated contributes `⊤Eff`.
 In a shallow catch with scrutinee effect `E`, let `M` contain only those
 families for which every operation that can contribute that family to `E` is
 both covered by an arm and eligible for this handler under a separate
-provider/capture relation. The candidate handler rule is:
+provider/capture relation. Define `remove(E,M)` as `E \ M` for finite `E`,
+and `⊤Eff` for `E = ⊤Eff`. The candidate handler rule is:
 
 ```text
-effect(catch e with H) = (E \ M) ∪ effect(value arm) ∪ ⋃ effect(operation arms)
+effect(catch e with H) = remove(E,M) ∨ effect(value arm) ∨ ⋁ effect(operation arms)
 ```
 
 Each operation arm receives its continuation `k` with the whole pre-handler
@@ -109,18 +114,28 @@ finite set `Slots` of static immediate and latent effect positions, and fixed
 provenance/eligibility input:
 
 ```text
-L = (P(Fam))^Slots
+D_eff = P(Fam) ∪ {⊤Eff}
+L = D_eff^Slots
 ```
 
-Order assignments componentwise by subset. Generate a lower-bound constraint
-operator `F : L -> L` from the compositional rules. Operation nodes contribute
-their family; sequencing, calls, and thunk forcing use union with operand and
-latent effects; a shallow catch uses `(E \ Drop) ∪ arm_bounds`, with each raw
-continuation assigned the whole scrutinee `E`. `Drop` and callback contracts
-are fixed inputs for this judgment, so these transfers are monotone. Define
-abstract solutions as the pre-fixed points `Sol(F) = {ρ | F(ρ) ≤ ρ}`. Derivability
-must be defined by, or proved equivalent to, these generated inequalities
-before calling the least solution principal.
+Order finite rows by subset and put `⊤Eff` above every finite row;
+`⊤Eff` denotes any concrete family set, including unenumerated imported or
+future families. Join is finite-set union with `⊤Eff` absorbing. For a fixed
+`Drop ⊆ Fam`, define `remove(E, Drop) = E \ Drop` for finite `E` and
+`remove(⊤Eff, Drop) = ⊤Eff`: no family may be subtracted from unknown support.
+This removal is monotone in `E`; if an input grows to top, its output grows to
+top, and on finite rows it is ordinary set-difference by a fixed set. Thus
+`D_eff` and the product `L` are finite complete lattices.
+
+Generate a lower-bound constraint operator `F : L -> L` from the compositional
+rules. Operation nodes contribute their family; sequencing, calls, and thunk
+forcing use join with operand and latent effects; a shallow catch uses
+`remove(E, Drop) ∨ arm_bounds`, with each raw continuation assigned the whole
+scrutinee `E`. `Drop` and callback contracts are fixed inputs for this
+judgment, so these transfers are monotone. Define abstract solutions as the
+pre-fixed points `Sol(F) = {ρ | F(ρ) ≤ ρ}`. Derivability must be defined by, or
+proved equivalent to, these generated inequalities before calling the least
+solution principal.
 
 For each handler/family pair, let `Origins(H,f)` be a sound over-approximation
 of request-occurrence and handler-activation/provenance configurations offered
@@ -766,21 +781,30 @@ the soundness reference, not a continuation-usage inference requirement.
 Concrete callback annotations are part of the fixed source-contract input and
 can change `Drop` and therefore `F`; this theorem compares solutions only for
 the same annotated program. Concrete result annotations are separate upper
-filter checks `ρ(slot) ⊆ U`, not operations that clip or alter `F`.
+filter checks `ρ(slot) ≤ U`, not operations that clip or alter `F`.
 
 Under monotonicity, the finite lattice gives a least fixed point
-`lfp(F) = ⋃ₙ Fⁿ(⊥)`. For every `ρ ∈ Sol(F)`, `lfp(F) ≤ ρ`; therefore, if any
-solution satisfies a separate concrete result filter `ρ(slot) ⊆ U`, the least
-solution satisfies it too. This establishes principality only if derivations
+`lfp(F) = ⋁ₙ Fⁿ(⊥)`, with iteration reaching stability after finitely many
+strict increases. For every `ρ ∈ Sol(F)`, `lfp(F) ≤ ρ`; therefore, if any
+solution satisfies a separate concrete result filter `ρ(slot) ≤ U`, the least solution
+satisfies it too. This establishes principality only if derivations
 of the selected effect core are exactly characterized by `Sol(F)` and its
-separate filters. Principality here means least derivable finite-family bounds
-for this effect core. It does not mean least exact trace support, and it does
+separate filters. Principality here means least derivable `D_eff` bounds for
+this effect core. It does not mean least exact trace support, and it does
 not establish principal value types, higher-order subtyping, scheme/SCC
 generalization, or final program acceptance for the full language. If the
 request-configuration summary is coarse, the result may retain extra families
 and lose acceptance precision; soundness additionally requires complete
 configuration coverage, correct eligibility, sound transfer simulation, and
 latent-effect preservation.
+
+A focused compiler-referee delta review confirmed the `D_eff` lattice,
+monotonicity of fixed-`Drop` removal, compatibility with unsubtractable
+`⊤Eff`, and the finite Kleene least-solution argument. This result is
+conditional on `F` using only the stated monotone transfers and on derivations
+matching its pre-fixed solutions. It does not prove that dynamic origins yield
+a fixed sound `Drop`, that source rules generate exactly `F`, or that the
+full-language source/runtime system satisfies these conditions.
 
 This fixed-point argument is a proof target, not yet a theorem for the current
 candidate: source-origin completeness, handler-scope stability, and the full

@@ -1353,7 +1353,12 @@ added to the candidate: for finite source/interface slots and fixed `K`, every
 carrier component is a finite product or powerset; this does not prove
 concretization coverage, sound transfer, or acceptance precision. A focused
 compiler-referee delta review confirmed only this conditional finiteness claim.
-Keep exact trace semantics as the soundness reference
+The finite effect lattice now also includes an unsubtractable `⊤Eff` above
+finite rows; a separate compiler-referee delta review confirmed fixed-`Drop`
+removal monotonicity and the conditional least-solution argument. Neither
+review proves source-slot coverage, sound `Drop` construction, full transfer
+simulation, derivation correspondence, or acceptance precision. Keep exact
+trace semantics as the soundness reference
 and principality relative to the chosen expressible abstraction; exact
 continuation support and use counts are not requirements absent independent
 language-design justification.
