@@ -1723,3 +1723,24 @@ add families to `May(C)`; the risk concerns conservative joins, latent
 summaries, and open/imported contributions. Until this coupling construction
 is supplied uniformly over admissible type/effect assignments, neither the
 finite offer closure nor its `Drop` certificate is established.
+
+A source-derivation audit for the eventual construction should classify every
+effect-family contribution before closure, rather than infer origins from the
+solved row alone:
+
+| Source of a family bound | Required offer/provenance action |
+|---|---|
+| Direct operation request | Add its exact family, operation, and origin fact before handler matching. |
+| Known call, force, or callable value | Include offers from every target admissible under the current type/effect assignment; preserve latent facts across storage and re-entry. |
+| Open/imported callable or row | Add unknown/top offer facts at every compatible handler unless a closed interface summary bounds them. |
+| Higher-order formal or callback argument | Quantify over all admissible supplied values, or use an interface summary/top; the annotation's family set alone does not identify the concrete request origin or target. |
+| Row join or whole-scrutinee continuation summary | Union the derivation provenance; if no compatible offer can be established for an admitted family, retain it as unknown/top. |
+| Forwarded request resumed by an outer context | Re-enter the captured handler wrapper and include the resulting offers; raw matched-continuation resumption remains separately summarized through `k`. |
+| Result-effect annotation/filter | Constrain the inferred row but do not invent an effect origin or prove that an admitted family is offered. |
+
+This table is a proof checklist, not a transfer definition. In particular,
+"known call" requires a target superset uniform over admissible assignments,
+and higher-order quantification may need `TopCall#`; either can change final
+acceptance. It remains to prove the table's transfers preserve the source
+request semantics and that their resulting origin set is finite (or has a
+sound finite quotient).

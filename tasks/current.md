@@ -1462,3 +1462,10 @@ a lower-row contribution. This is an unverified candidate risk, not a
 counterexample or selected rule. `notes/progress/2026-10-01-intrusion-coarse-effect-abstraction-candidate.md`
 records the distinction. No finite `Drop#`, leastness transfer, or successor
 implementation authority follows yet.
+
+The candidate now classifies the source families that the coupling proof must
+handle: direct requests, assignment-uniform known targets, open/imported calls,
+higher-order arguments, joins/continuation summaries, forwarded re-entry, and
+annotation filters. Missing origin evidence must widen to unknown/top. This is
+a proof checklist only; the transfers, finite quotient, and acceptance cost
+remain unproved.
