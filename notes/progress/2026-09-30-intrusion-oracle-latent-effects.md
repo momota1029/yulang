@@ -359,6 +359,33 @@ scratch_pure_dual_catch_continuation -- --nocapture`. The disposable test and
 worktree were removed; frozen Oracle was unchanged. This only tested inference
 lowering/finalization, not full compilation or execution.
 
+A second disposable test added the root expression `f()` and sent the same
+source through Oracle's production `specialize` entrypoint. `lower_source`
+reported no body-lowering errors; specialization succeeded and produced the
+root call `(m0 ())` with instance `m0 = d2 : unit -> int`. The raw instance
+signature had `arg_effect = EffectRow([])`, `ret_effect = EffectRow([])`, and
+return type `int`. An independent compiler-referee review confirms this is
+full source-lowering-to-mono acceptance for this fixture, stronger than the
+inference-only probe. It still does not reveal the exact final fate of
+`TypeVar(3)` inside the selected root, prove its source bounds redundant, or
+show runtime/backend acceptance or successor adequacy. The disposable test
+and worktree were removed. The focused commands were:
+
+```sh
+CARGO_TARGET_DIR=/tmp/yulang-pure-dual-target cargo test -p infer scratch_pure_dual_catch_continuation -- --nocapture
+CARGO_TARGET_DIR=/tmp/yulang-catch-finalaccept-target cargo test -p specialize scratch_catch_continuation_exact_pure_effect_reaches_mono -- --nocapture
+```
+
+A separate attempt to use the `wasm` runtime test path was stopped before the
+test ran: its build script was compiling both embedded standard libraries and
+reached about 1 GiB RSS after 2m46s. That run supplies no runtime evidence.
+The attempted command was
+`CARGO_TARGET_DIR=/tmp/yulang-catch-finalaccept-target cargo test -p wasm scratch_catch_continuation_exact_pure_effect_executes -- --nocapture`.
+A CLI `check` attempt on the same `/tmp` source was also stopped before a
+result after it remained CPU-active for over a minute at roughly 0.7 GiB RSS;
+it supplies no independent CLI acceptance result. The attempted command was
+`CARGO_TARGET_DIR=/tmp/yulang-intrusion-oracle-target cargo run -p yulang --bin yulang -- check /tmp/yulang-catch-dual.yu`.
+
 The useful candidate is thus a two-mode *runtime application* judgment:
 shapes with pure extracted effects are evaluated strictly and their actual
 effect is charged to the call result; shapes with non-pure extracted effects

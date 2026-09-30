@@ -925,9 +925,16 @@ now puts the scrutinee's exact-pure effect identity in both return-effect
 polarities of local `k`; its finalized root still has `ret_eff = Bot`, and
 the selected-root correspondence is unproved. Independent review confirmed
 that graph incidence does not establish selected-root survival or final
-acceptance. Next trace that identity through selected-root projection and
-test whether the omitted constraints can affect a complete source program.
-Do not restore Oracle phase parity as a goal. A
+acceptance. A second focused test appended `f()` and passed the same fixture
+through production `specialize`: it produced a root call and `unit -> int`
+instance with empty argument/return effects. This proves Oracle inference-to-
+mono acceptance for that exact source, not runtime execution or successor
+adequacy; see the latent-effects note. A wasm runtime-test attempt was stopped
+before execution because the build script was compiling both embedded stdlibs
+and reached about 1 GiB RSS after 2m46s. Next trace the original identity
+through selected-root projection and test whether the omitted constraints can
+affect another complete source program. Do not restore Oracle phase parity as a
+goal. A
 conditional zero-consumption
 lemma may reduce the handler-free, no-family fragment: Oracle's weighted row
 rule uses `J = K ∩ Common(L)`, so empty row heads force no row consumption;
