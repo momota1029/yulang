@@ -3,7 +3,7 @@
 Date: 2026-09-30
 Status: candidate declarative rules; unreviewed; not implementation authority
 Scope: recursive binding groups, graph generalization, and external use in the pure expression fragment
-Governing sources: pure source typing rules; source-constraint semantics gate; intrusion sketch
+Governing sources: pure source typing rules; source-constraint semantics gate; intrusion sketch; `notes/progress/2026-09-29-intrusion-oracle-ledger.md`
 
 ## Recursive group generation
 
@@ -45,66 +45,92 @@ there is one joint assignment `ν_G : L_G → D` satisfying every obligation in
 joint assignment. This relation describes the SCC before per-member views are
 selected.
 
+The SCC is the monomorphic recursive region, not one polymorphic binder
+scope. Each member has its own generalization boundary `b_d`, determined by
+that member's binding fetch. For each `d`, derive a member view
+`H_d = Project_d(C_G, roots_G, b_d)` containing the exposed root and the
+obligations required to preserve that member's contextual root relation.
+The projection may retain graph sharing, but it must account for constraints
+induced through other SCC members. `Gen_d` contains identities generalized at
+`b_d`; `Free_d` contains surviving identities shared with the environment;
+`Cycle_d` contains recursive identities that must freshen with this view;
+`Erase_d` may contain only identities whose elimination has a proved
+root-relation preservation argument. The partition and the exact `Project_d`
+operation are open proof obligations. A single component-wide quantification
+set is not justified: the Oracle generalizes each member separately and fetch
+kinds can use different boundaries. The frozen-source evidence is summarized
+in `notes/progress/2026-09-29-intrusion-oracle-ledger.md`: `generalize_boundary`
+is selected per definition, and `quantify_component` invokes root
+generalization separately for each member.
+
 ## Graph scheme and use
 
-The generalized component is the graph object
+The generalized component retains the source graph and member-specific views:
 
 ```text
-Component_G = (C_G, A_G, L_G, self_G = {d ↦ s_d}, roots_G = {d ↦ r_d})
+Component_G = (C_G, A_G, L_G, self_G, roots_G,
+               {H_d, b_d, Gen_d, Free_d, Cycle_d, Erase_d})
 ```
 
-It is immutable after construction. For each external incoming use `u` of
-member `d`, choose a fresh identity set `F_u` and a bijection
-`ρ_u : L_G ↔ F_u`, extended by identity on `A_G`; distinct uses have disjoint
-fresh ranges. The use receives root `ρ_u(r_d)` and the entire obligation
-graph `ρ_u(C_G)`.
-Thus a use of one member retains the same SCC constraints and recursive
-sharing as every other member view, while independent incoming uses do not
-share their component-local assignments. Enclosing identities remain shared
-through one fixed `η`.
+`C_G` and the finalized `H_d` views are immutable after their proof-relevant
+construction. For an external incoming use `u` of member `d`, freshen exactly
+`Local_d = Gen_d ∪ Cycle_d` with an injective map
+`ρ_(d,u) : Local_d → Fresh_(d,u)`, and fix every surviving `Free_d` identity
+through the shared environment map `E_d`, which is injective on distinct
+surviving source identities. All distinct incoming uses, including uses of
+different members, have pairwise disjoint fresh ranges; each member uses its
+own `b_d` and partition. The use receives `ρ_(d,u)(r_d)` when `r_d` is local,
+or `E_d(r_d)` when it is a preserved free identity, together with the renamed
+view `H_d`. This keeps open-SCC recursion monomorphic, gives each external use
+an independent member-local instance, and retains intended outer sharing. The
+whole SCC graph is not cloned indiscriminately at every member use.
 
-For fixed `η`, define the member relation:
+For fixed member environment `η_d : E_d(Free_d) → D`, define the member
+relation using the exact projected view:
 
 ```text
-Root_G,d(η) = {
-  eval(r_d,η,ν) | ν : L_G→D and Sat(C_G,η,ν)
+Root_G,d(η_d) = {
+  eval(r_d,η_d,ν) | ν : Local_d→D and Sat(H_d,η_d,ν)
 }
-Pred_G,d(η) = { T | ∃t∈Root_G,d(η). t ≤ T }
+Pred_G,d(η_d) = { T | ∃t∈Root_G,d(η_d). t ≤ T }
 ```
 
-The denotation of `Component_G` at a use of `d` is, by definition, the set of
-all `T` in `Pred_G,d(η)`. It is a principal graph scheme for this relation:
-every satisfying local assignment yields an instance root, every instance
+The denotation of `H_d` at a use of `d` is, by definition, the set of all `T`
+in `Pred_G,d(η_d)`. It is a principal graph scheme for this relation: every
+satisfying member-local assignment yields an instance root, every instance
 root comes from such an assignment, and ordinary subsumption contributes
-exactly the upward closure. No least assignment to all of `L_G` is required.
-An empty solution fiber yields an empty relation; it is not repaired by
-discarding an obligation.
+exactly the upward closure. No least assignment to all of `Local_d` is
+required. An empty solution fiber yields an empty relation; it is not repaired
+by discarding an obligation.
 
 For a finite family of incoming uses, each use receives its own `ν_u` over its
-disjoint `F_u`, while all uses share the same anchor environment `η`. Their
-joint acceptance condition is one conjunction of every renamed member graph
-and every caller-use constraint. It factors into independent local fibers only
-when the caller constraints communicate solely through anchors. Otherwise
-retain the full joint relation; do not multiply separately projected root
-marginals.
+member-specific disjoint fresh range, while all uses share the same resolved
+free anchors. Their joint acceptance condition is the conjunction of each
+renamed `H_d` view and each caller-use constraint. It factors into independent
+local fibers only when the views and caller constraints communicate solely
+through anchors. Otherwise retain the full joint relation; do not multiply
+separately projected root marginals.
 
 ## Correctness argument, conditional on source generation
 
 The group-generation relation uses one shared environment `Ξ_G`, so every
 internal reference and every source-generated cross-member inequality appears
-once in `C_G` with its intended shared endpoint identities. External use
-instantiation replaces exactly `L_G` by a disjoint fresh set and fixes `A_G`.
-The parent-transport fiber lemma then gives a bijection between satisfying
-assignments to the source group graph and assignments to each renamed use
-graph, preserving the exposed root value. For multiple uses it applies to the
-joint renamed conjunction. Therefore the graph scheme preserves the source
-constraint assignment relation and its member root projections.
+once in `C_G` with its intended shared endpoint identities. The unproved
+projection obligation is that each `H_d`, under its own boundary partition,
+preserves the `C_G` relation visible at root `r_d` and at all incoming-use
+contexts. Once this is shown, the parent-transport fiber lemma gives a
+bijection between satisfying assignments to `H_d` and each renamed use view,
+preserving the exposed root value. For multiple uses it applies to the joint
+renamed views with one shared anchor environment. Thus the proof splits into
+source generation, member projection, and use transport; transport alone does
+not establish the first two.
 
 This is a candidate principality result relative to the declarative graph
 semantics, not a proof that the generated graph captures Yulang typing. It
 assumes that each body's constraint-generation rule is sound/complete, the SCC
-membership partition is correct, all cross-member constraints are retained,
-and the `A_G`/`L_G` ownership split matches lexical generalization boundaries.
+membership partition is correct, all cross-member constraints affecting a
+member view are retained, and every `b_d`/`Gen_d`/`Free_d`/`Cycle_d` partition
+matches that member's lexical generalization boundary.
 Those premises remain unproved. The construction also has no latent effects,
 handlers, rows, roles, diagnostics, failure scheduling, or runtime entrypoint
 semantics, and it does not prove final acceptance equivalence with the Oracle.
@@ -138,8 +164,9 @@ The candidate graph is satisfiable in the tagged powerset carrier: choose
 least; both Function lower bounds hold because Top is greatest. Thus retaining
 the recursive constraint does not make the SCC empty.
 
-Now consider an external use `f 1`. Application generation adds a fresh `w`
-and the constraint `r ≤ Fun(Int,w)`. The exported lower edge implies
+If `H_f` retains the meaningful value constraints above, consider an external
+use `f 1`. Application generation adds a fresh `w` and the constraint
+`r ≤ Fun(Int,w)`. The exported lower edge implies
 `Fun(q,v) ≤ Fun(Int,w)`, hence `Int ≤ q` by Function contravariance. But the
 body edge gives `q ≤ Fun(s,v)`, so transitivity requires `Int ≤ Fun(s,v)`.
 That is impossible in the candidate carrier because integer and Function
@@ -148,11 +175,40 @@ constraint fiber. This matches the already observed final Oracle
 specialization rejection of the concrete `int -> unit` instance; any earlier
 intrusion rejection changes only the phase for this invalid use.
 
-The derivation is conditional on the three-edge source rule and tagged
+The derivation is conditional on the three-edge source rule, `Project_f`
+retaining those source obligations, and tagged
 powerset separation of Int and Function. It does not establish the correct
 scheme relation for all roots or the full source-to-Oracle bridge, but it
 replaces the earlier candidate's conflation of the recursive self identity
 with the exported root.
+
+## Two-member sharing witness
+
+For `f x = g x; g y = f y`, let `s_f` and `s_g` be the open-SCC self
+placeholders; let `r_f` and `r_g` be the exported roots. Let `a,b` be the
+argument types and `u,v` the application results. The candidate source rules
+generate:
+
+```text
+a ≤ Fun(s_g,u)       Fun(a,u) ≤ s_f       Fun(a,u) ≤ r_f
+b ≤ Fun(s_f,v)       Fun(b,v) ≤ s_g       Fun(b,v) ≤ r_g
+```
+
+The first member's use of `g` points to the same live `s_g` that the second
+member's body constrains; it is not a separately instantiated scheme. The
+group graph is nonempty in the tagged powerset carrier by assigning
+`a=b=u=v=Bottom` and `s_f=s_g=r_f=r_g=Top`.
+
+After the SCC closes, `H_f` and `H_g` are separate root views with their own
+member-specific boundaries. A use of `f` freshens `Local_f` through its map;
+a use of `g` freshens `Local_g` through its map. Shared outer anchors remain
+common. If a source identity is generalized in both views, the two member
+maps still produce distinct use identities; if it is free in a view, that
+view preserves its environment mapping. The views may include constraints
+induced through the other member, so their exact projection is still a proof
+obligation. The Oracle ledger observes an unproductive pure Function mutual
+cycle, but this simple two-line source is a declarative witness, not a claim
+that its finalized scheme strings match that Oracle fixture.
 
 ## Why this is not ordinary Simple-sub extrusion
 

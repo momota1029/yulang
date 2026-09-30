@@ -781,12 +781,14 @@ is recorded below and remains conditional.
 
 A candidate recursive-group rule now gives each member a distinct monomorphic
 self placeholder and exposed root, generates every body against the shared
-self environment, and retains the full finite constraint graph as a
-generalized component. Each external use freshens the component-owned
-identities together while fixing enclosing anchors. Its conditional root
-principality argument is in
+self environment, and retains the full finite constraint graph as the SCC
+authority. External schemes are member-specific projections with separate
+generalization boundaries; each use freshens only that member view's local
+and recursive identities while preserving its free anchors. Its conditional
+root principality argument is in
 `notes/progress/2026-09-30-intrusion-scc-constraint-scheme-rules.md`; source
 constraint generation, SCC ownership, and Yulang effects remain unproved. The
-`pub f x = x f` pure projection yields a nonempty retained graph and proves
-that `f 1` has no satisfying instance in the candidate carrier, matching the
-recorded Oracle final specialization rejection for that fixture.
+`pub f x = x f` pure projection yields a nonempty retained graph and
+conditionally proves that `f 1` has no satisfying instance in the candidate
+carrier, matching the recorded Oracle final specialization rejection for
+that fixture.
