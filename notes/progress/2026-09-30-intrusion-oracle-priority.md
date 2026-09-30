@@ -33,6 +33,13 @@ signature. The exported inference view alone is insufficient evidence that
 Oracle accepts an unsound concrete use: downstream specialization preserves
 the recursive constraint for this use.
 
+A Function-valued incoming use is also rejected by the mono route:
+`pub id x = x; pub use id = f id` produces `f : (unit -> unit) -> unit`,
+`id : unit -> unit`, and `(unit -> unit) <: unit` at the recursive `f`
+occurrence. This strengthens the fixture set for per-use body rechecking but
+does not prove the Oracle catches every use that violates a projected
+recursive relation.
+
 Separately, the bounded-negative counterexample in
 `notes/progress/2026-09-30-intrusion-bounded-negative-counterexample.md`
 shows that polarity-only replacement of a constrained negative variable by

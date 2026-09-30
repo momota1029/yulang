@@ -600,14 +600,17 @@ cannot justify the projection. The captured inference-stage `f 1` / `f 2`
 uses report `int` / `bool` under the q-free scheme, but a frozen-Oracle
 `dump-mono` run rejects `f 1` during definition-body specialization with
 `int <: Function`; a temporary trace records the exact `f` instance signature
-as `int -> unit`. `check` and `run` on the same source did not terminate
+as `int -> unit`. A Function-valued use `f id` is also rejected when the
+specializer checks `f : (unit -> unit) -> unit`; the recursive `f` occurrence
+is passed to `id : unit -> unit`, producing `(unit -> unit) <: unit`.
+`check` and `run` on the first source did not terminate
 within the observation window and were interrupted, so they give no final
 entrypoint result. The replacement draft now treats Oracle polarity erasure
 as an observed projection transition, not a proved solution-preserving
 simplification; scheme inference and later specialization are separate
-observations. A temporary trace confirms `emit_var` requests the exact
-`int -> unit` definition instance and `TaskSolver::solve_def_body` rejects its
-body. Prove whether this path catches other uses of erased bounds, and
+observations. Temporary traces confirm the body check rejects both a concrete
+`int -> unit` use and a Function-valued use. Prove whether this path catches
+other uses of erased bounds, and
 characterize entrypoint behavior without treating `dump-mono` failure as a
 runtime result. Details are in
 `notes/progress/2026-09-30-intrusion-powerset-carrier-candidate.md` and

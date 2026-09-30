@@ -165,6 +165,31 @@ did not finish within the observation window and were interrupted; their
 terminal behavior remains unknown. No frozen Oracle source or test was
 modified.
 
+## Function-valued incoming use
+
+A second disposable source probe changes only the incoming argument:
+
+```text
+pub f x = x f
+pub id x = x
+pub use id = f id
+```
+
+`dump-mono` rejects this source too. The temporary instance trace records the
+`f` instance signature as `(unit -> unit) -> unit` and the `id` instance as
+`unit -> unit`. The diagnostic is
+`(unit -> unit) <: unit`, located at the recursive `f` occurrence in the body
+of `f`. Given those signatures, this is the expected conflict: the argument
+`id` is used to call the recursive value `f`, while this instance of `id`
+expects its argument to be `unit`. This is a second concrete use whose
+inference-stage generalized view does not imply end-to-end acceptance.
+
+This probe used the same temporarily instrumented binary as the `f 1` trace,
+with tracing enabled only for the command. It is an observed mono-specializer
+result for this source, not a general proof that specialization reconstructs
+every erased recursive constraint or that an intrusion solver has the same
+accepted-use relation.
+
 ## Shared outer anchor with two local scheme uses
 
 A second disposable-worktree Rust probe used:
