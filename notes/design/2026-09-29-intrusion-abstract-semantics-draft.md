@@ -14,6 +14,20 @@ This draft advances Gate B of
 It records a candidate mathematical interface, not a settled representation or
 a soundness/principality result. F5 closed schemes are not the target.
 
+## Successor priority clarification (2026-09-30)
+
+The user has decided that polarity-only q erasure is not a successor
+requirement. When projection would lose a meaningful source constraint, the
+successor retains that constraint. Oracle inference-stage scheme formatting
+and acceptance phase are not parity requirements; final acceptance of
+well-typed programs is the compatibility target, subject to soundness and
+principality. The earlier `Erase_d`/polarity-projection passages below describe
+candidate Oracle-observation machinery and proof obligations only. They do not
+require the successor to erase variables or reproduce that projection. The
+current constraint-retaining SCC candidate is recorded in
+`notes/progress/2026-09-30-intrusion-scc-constraint-scheme-rules.md`; it is
+still unreviewed and is not implementation authority.
+
 ## 1. Initial graph class
 
 Start with finite regular graphs: cycles are represented by back-edges, never by

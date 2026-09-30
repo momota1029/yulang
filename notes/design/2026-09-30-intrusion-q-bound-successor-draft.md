@@ -25,15 +25,17 @@ contract.
 ## Proposed successor rule
 
 Do not erase a generalizable variable to `Top` or `Bottom` solely because it
-occurs at one polarity when the selected frozen graph has incident bounds on
-that variable. Intrude the variable to a per-member boundary parent and retain
-the selected incident constraints, including recursive back-edges. A
-per-incoming-use instantiation freshens that parent and transports its selected
-constraint graph as one unit. Unconstrained one-polarity variables remain
-eligible for the Oracle's polarity extreme.
+occurs at one polarity when the source constraint graph has meaningful
+obligations incident on that variable. Intrude the variable to a per-member
+boundary parent and retain those source constraints, including recursive
+back-edges. A per-incoming-use instantiation freshens that parent and
+transports the retained source constraint graph as one unit. Unconstrained
+one-polarity variables may be
+projected to a polarity extreme only if a separate preservation proof permits
+it; such erasure is not a successor requirement.
 
-The formal criterion for a bound to be meaningful, exact selected-edge
-eligibility, boundary levels, the full type carrier, effects, roles,
+The formal criterion for a bound to be meaningful, the successor's source
+constraint and edge ownership rules, boundary levels, the full type carrier, effects, roles,
 diagnostics, and serialization remain to be specified and proved.
 
 ## Concrete conflict motivating the rule
@@ -137,26 +139,28 @@ The observed Oracle output for this fixture is
 `pub f x = x f; pub main = f 1`, reports `main : never`, and marks `main` as a
 runtime root; `dump-mono` later rejects its `f : int -> unit` instance. The
 source-level inference and mono observations are distinct. The proposed
-successor preserves the selected bound at generalization/use instantiation,
+successor preserves the meaningful source bound through generalization and
+use instantiation,
 so the invalid use may fail earlier. This corrects the inferred root relation;
 it is not a claim that Oracle's completed pipeline accepts the invalid program.
 
 ## Successor semantics to prove
 
 For each member root and boundary, construct the root relation from the
-selected bound graph, not from polarity alone. The one-polarity parent remains
-an explicit graph identity with its incident selected inequalities. Intrusion
+successor's complete source constraint graph, not from polarity alone. The
+one-polarity parent remains an explicit graph identity with its incident
+source inequalities. Intrusion
 must satisfy all of these before any implementation can claim principality:
 
-1. the parent graph's satisfying assignments correspond to the Oracle source
-   bound assignments before projection;
+1. the parent graph's satisfying assignments correspond to the declarative
+   source typing assignments before root projection;
 2. the parent graph's `Pred` relation is sound and complete for the root
    relation over every fixed outer environment;
-3. each use receives capture-avoiding fresh parents and the same selected
-   edges, while preserving outer anchors;
+3. each use receives capture-avoiding fresh parents and the corresponding
+   source constraints, while preserving outer anchors;
 4. SCC recursion remains inequality sharing, never an implicit recursive type
    equation;
-5. any later body specialization check is redundant for these selected type
+5. any later body specialization check is redundant for these source type
    obligations or is explicitly part of the source observation relation;
 6. effects, handler hygiene, role constraints, diagnostic order, and public
    normalization are transported or accounted for by separate proved layers.
@@ -173,11 +177,11 @@ is an allowed stage-level difference. The acceptance target is every final
 well-typed program in the supported envelope remaining accepted by the
 completed successor pipeline, with soundness and principality preserved.
 Programs such as `f 1` already fail Oracle `dump-mono`, so an earlier rejection
-does not reduce final acceptance capability for that fixture. Programs whose
-one-polarity variables have no meaningful selected bounds remain eligible for
-the extreme projection. No claim is made that the proposed rule preserves the
-complete final accepted-program set; proving that is part of the
-Oracle-capability theorem.
+does not reduce final acceptance capability for that fixture. The successor
+may retain variables even when their bounds appear irrelevant; removing them
+is an optimization, not a compatibility requirement. No claim is made that
+the proposed rule preserves the complete final accepted-program set; proving
+that is part of the Oracle-capability theorem.
 
 ## Gate
 

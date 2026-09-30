@@ -47,55 +47,68 @@ selected.
 
 The SCC is the monomorphic recursive region, not one polymorphic binder
 scope. Each member has its own generalization boundary `b_d`, determined by
-that member's binding fetch. For each `d`, derive a member view
-`H_d = Project_d(C_G, roots_G, b_d)` containing the exposed root and the
-obligations required to preserve that member's contextual root relation.
-The projection may retain graph sharing, but it must account for constraints
-induced through other SCC members. `Gen_d` contains identities generalized at
-`b_d`; `Free_d` contains surviving identities shared with the environment;
-`Cycle_d` contains recursive identities that must freshen with this view;
-`Erase_d` may contain only identities whose elimination has a proved
-root-relation preservation argument. The partition and the exact `Project_d`
-operation are open proof obligations. A single component-wide quantification
-set is not justified: the Oracle generalizes each member separately and fetch
-kinds can use different boundaries. The frozen-source evidence is summarized
-in `notes/progress/2026-09-29-intrusion-oracle-ledger.md`: `generalize_boundary`
-is selected per definition, and `quantify_component` invokes root
-generalization separately for each member.
+that member's binding fetch. The candidate member view is a root lens over the
+whole source graph, not an edge-pruned copy:
+
+```text
+H_d = (C_G, root = r_d, b_d, Gen_d, Free_d, Cycle_d, Erase_d)
+```
+
+`Gen_d` contains graph identities above `b_d`; `Cycle_d` contains recursive
+identities that must freshen with this view; `Local_d = Gen_d ∪ Cycle_d`.
+`Free_d` contains all other surviving graph identities and resolves through a
+stable environment map. For this constraint-retaining candidate,
+`Erase_d = ∅`: no source edge or recursive row is removed during view
+construction. A source identity may be local in one member view and free in
+another because the member boundaries differ. The same raw `C_G` constraints,
+including edges through other SCC members, remain available to each root lens;
+each lens selects a different root and binder partition. The map and root
+selection are member-specific, while constraint identity and sharing stay
+component-wide.
+
+A single component-wide quantification set is not justified: the Oracle
+generalizes each member separately and fetch kinds can use different
+boundaries. The frozen-source evidence is summarized in
+`notes/progress/2026-09-29-intrusion-oracle-ledger.md`:
+`generalize_boundary` is selected per definition, and `quantify_component`
+invokes root generalization separately for each member. This candidate keeps
+that member specificity without requiring Oracle's inference-stage edge
+selection or polarity erasure.
 
 ## Graph scheme and use
 
-The generalized component retains the source graph and member-specific views:
+The generalized component retains the source graph and member-specific root
+lenses:
 
 ```text
-Component_G = (C_G, A_G, L_G, self_G, roots_G,
-               {H_d, b_d, Gen_d, Free_d, Cycle_d, Erase_d})
+Component_G = (C_G, A_G, L_G, self_G, roots_G, {H_d | d ∈ G})
 ```
 
-`C_G` and the finalized `H_d` views are immutable after their proof-relevant
-construction. For an external incoming use `u` of member `d`, freshen exactly
-`Local_d = Gen_d ∪ Cycle_d` with an injective map
+`C_G` is immutable after the SCC closes. For an external incoming use `u` of
+member `d`, freshen exactly `Local_d = Gen_d ∪ Cycle_d` with an injective map
 `ρ_(d,u) : Local_d → Fresh_(d,u)`, and fix every surviving `Free_d` identity
 through the shared environment map `E_d`, which is injective on distinct
 surviving source identities. All distinct incoming uses, including uses of
 different members, have pairwise disjoint fresh ranges; each member uses its
 own `b_d` and partition. The use receives `ρ_(d,u)(r_d)` when `r_d` is local,
-or `E_d(r_d)` when it is a preserved free identity, together with the renamed
-view `H_d`. This keeps open-SCC recursion monomorphic, gives each external use
-an independent member-local instance, and retains intended outer sharing. The
-whole SCC graph is not cloned indiscriminately at every member use.
+or `E_d(r_d)` when it is a preserved free identity, together with `C_G` under
+that renaming. This keeps open-SCC recursion monomorphic, gives each external
+use an independent member-local instance, and retains intended outer sharing.
+The constraint graph is shared as the component authority; use overlays apply
+the member-specific identity map rather than one component-wide quantification
+plan.
 
 For fixed member environment `η_d : E_d(Free_d) → D`, define the member
-relation using the exact projected view:
+relation by assigning all local variables in the shared source graph:
 
 ```text
 Root_G,d(η_d) = {
-  eval(r_d,η_d,ν) | ν : Local_d→D and Sat(H_d,η_d,ν)
+  eval(r_d,η_d,ν) | ν : Local_d→D and Sat(C_G,η_d,ν)
 }
 Pred_G,d(η_d) = { T | ∃t∈Root_G,d(η_d). t ≤ T }
 ```
 
-The denotation of `H_d` at a use of `d` is, by definition, the set of all `T`
+The denotation of the root lens `H_d` at a use of `d` is, by definition, the set of all `T`
 in `Pred_G,d(η_d)`. It is a principal graph scheme for this relation: every
 satisfying member-local assignment yields an instance root, every instance
 root comes from such an assignment, and ordinary subsumption contributes
@@ -115,22 +128,25 @@ separately projected root marginals.
 
 The group-generation relation uses one shared environment `Ξ_G`, so every
 internal reference and every source-generated cross-member inequality appears
-once in `C_G` with its intended shared endpoint identities. The unproved
-projection obligation is that each `H_d`, under its own boundary partition,
-preserves the `C_G` relation visible at root `r_d` and at all incoming-use
-contexts. Once this is shown, the parent-transport fiber lemma gives a
-bijection between satisfying assignments to `H_d` and each renamed use view,
-preserving the exposed root value. For multiple uses it applies to the joint
-renamed views with one shared anchor environment. Thus the proof splits into
-source generation, member projection, and use transport; transport alone does
-not establish the first two.
+once in `C_G` with its intended shared endpoint identities. Each `H_d` is a
+root lens over this complete graph: `Local_d` assignments are existentially
+projected while the member's `Free_d` anchors are fixed. There is no
+edge-deletion operation in this candidate. The proof obligations are source
+generation adequacy, correct `b_d`/partition ownership, and that this
+existential root projection matches the declarative member/use relation. Given
+those premises, the parent-transport fiber lemma gives a bijection between
+assignments to `C_G` and each renamed use overlay, preserving the exposed root
+value. For multiple uses it applies to the joint renamed views with one shared
+anchor environment. Transport does not establish source generation or the
+typing meaning of the root projection.
 
 This is a candidate principality result relative to the declarative graph
 semantics, not a proof that the generated graph captures Yulang typing. It
 assumes that each body's constraint-generation rule is sound/complete, the SCC
-membership partition is correct, all cross-member constraints affecting a
-member view are retained, and every `b_d`/`Gen_d`/`Free_d`/`Cycle_d` partition
-matches that member's lexical generalization boundary.
+membership partition is correct, the root projection of the complete source
+graph is the language's member typing relation, and every
+`b_d`/`Gen_d`/`Free_d`/`Cycle_d` partition matches that member's lexical
+generalization boundary.
 Those premises remain unproved. The construction also has no latent effects,
 handlers, rows, roles, diagnostics, failure scheduling, or runtime entrypoint
 semantics, and it does not prove final acceptance equivalence with the Oracle.
@@ -175,10 +191,10 @@ constraint fiber. This matches the already observed final Oracle
 specialization rejection of the concrete `int -> unit` instance; any earlier
 intrusion rejection changes only the phase for this invalid use.
 
-The derivation is conditional on the three-edge source rule, `Project_f`
-retaining those source obligations, and tagged
+The derivation is conditional on the three-edge source rule, the `H_f` root
+lens retaining the complete source graph, and tagged
 powerset separation of Int and Function. It does not establish the correct
-scheme relation for all roots or the full source-to-Oracle bridge, but it
+member root relation for all roots or the full source-to-Oracle bridge, but it
 replaces the earlier candidate's conflation of the recursive self identity
 with the exported root.
 
