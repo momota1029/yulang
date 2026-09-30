@@ -675,6 +675,57 @@ distinct marker transformations. This closes only the source locator and
 transfer correction; it does not prove finite abstract route simulation or
 permit positive `Drop` evidence.
 
+#### Conditional thunk-step simulation cases
+
+The local proof obligation can be stated without claiming a full source
+simulation. For an exact abstract spine, relate an Oracle value/thunk to a
+finite value slot plus its latent row, continuation reference, and captured
+wrapper summary. A wrapper summary must retain the ordered marker transform
+and the possible receiving-handler/boundary relations. If it cannot represent
+the concrete activation relation, use `TopControl`/`TopKont`, not the
+application site's handler identity.
+
+| Exact runtime step | Required abstract successor and observation |
+|---|---|
+| Evaluate `Apply(callee, arg)`'s callee and argument | Simulate their evaluation steps first; retain any immediate effects/offers they produce. The producer-specific row below covers only applying the resulting values. |
+| Apply an `EffectOp(path)` to its payload | Add an effect-thunk fact to the result slot with latent family/path and the marker transform on the returned value; emit no offer on this application step. |
+| Apply a continuation | Add a continuation-thunk fact referencing the saved continuation/wrapper and its latent effect summary, plus the distinct continuation-call marker transform attached to the returned thunk; emit no resumed-suffix offer on this application step. |
+| Force an effect thunk, including a marked thunk | Interpret its captured marker transform, emit a request observation before dispatch, and preserve the resulting request endpoint. If exact activation/scope/blocker labels cannot be represented, emit `TopObs` and retain top continuation/effect facts. |
+| Force a continuation thunk | Invoke the represented saved continuation, preserve its raw/forwarded wrapper mode and endpoint, and recursively account for a thunk-valued resume result. If the saved continuation state is not exact, use `TopKont`/`TopControl` with `TopObs` on every possible request edge. |
+| Implicit force (thunk callee, thunk adaptation, case scrutinee, or reference operation) | Reuse the same force transfer at that concrete force point; do not silently treat the thunk as an ordinary value. |
+| Catch body returns a thunk value | Do not invent a force at catch entry. The returned thunk passes through the value-arm path with its latent effect and captured wrapper intact, unless a later concrete operation forces it. |
+| Pattern/default binding | Transfer the bound value and any latent thunk/continuation facts into the bound slot. Binding alone is not a force; retain latent evidence until a concrete force or invocation site. |
+
+For these cases, the endpoint-plus-observation goal is conditional: if the
+value-slot relation represents the concrete thunk and its captured wrapper,
+and the exact-spine premise or top-edge premise holds, each concrete step has
+an abstract successor containing the concrete endpoint and an observation
+covering every request offered on that edge. This follows case-by-case from
+the runtime constructors: operation application constructs the effect thunk;
+effect force calls request emission; continuation application constructs its
+thunk; continuation force invokes the saved resumption and forces a thunk
+result. For a marked continuation, application applies
+`markers_for_continuation_call`, and closing that marker frame marks the
+returned continuation thunk; forcing the thunk later reactivates those
+transformed markers in addition to consulting the saved continuation wrapper.
+These are separate evidence carried by the thunk fact, not interchangeable
+with the wrapper captured when `k` was created. Callee/argument evaluation is
+a preceding sequence of steps, not hidden by the application case.
+
+This conditional local argument still does not construct the source-to-slot
+relation, prove captured-wrapper summaries finite and complete, establish
+endpoint preservation for every continuation state, or show that effect-row
+slots receive every thunk latent row. The cited Oracle force sites also need a
+complete inventory before this case table can be generalized: explicit
+`ForceThunk`, thunk callees, thunk adaptation, reference operations, case
+scrutinees, handler-body results, and continuation resume. Catch entry
+dispatches an `EvalResult::Value` directly to its value-arm path; it does not
+force a returned thunk. Record-pattern defaults are evaluated during binding,
+but `continue_value_as_bind` does not
+itself force a returned thunk; their result and latent evidence must flow to
+the bound slot. No offer from these cases may authorize `Drop` until that
+inventory and the global handler-scope simulation close.
+
 #### Conservative unknown-call consequence (conditional)
 
 For an open or unresolved callable target that has no proved finite

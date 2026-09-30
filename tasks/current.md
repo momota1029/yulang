@@ -1669,4 +1669,10 @@ must not be used as positive `Drop` evidence. A bounded independent
 compiler-referee audit confirmed the lazy split and the marker propagation at
 handler-frame closure and force; it also clarified that callee/argument
 evaluation may itself have immediate effects and that continuation wrappers
-transform markers. No finite route simulation or `Drop` certificate follows.
+transform markers. The candidate now contains conditional local step cases.
+Independent delta review caught and the candidate corrected two concrete
+omissions: catch-value dispatch does not force a returned thunk, and applying a
+marked continuation attaches a distinct transformed marker wrapper to its
+returned thunk. Delta review confirms these repairs and the bounded local
+table; source-to-slot coverage, the complete force-site inventory, latent-row
+coupling, finite route simulation, and any `Drop` certificate remain open.
