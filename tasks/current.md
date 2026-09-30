@@ -936,12 +936,14 @@ instrumentation now confirms that the actual positive `f`-root projection
 visited the source effect variable with an empty projectable-lower list while
 two upper rows were available; the pre-simplification root kept the positive
 self occurrence and the post-alias/simplification root had no return-effect
-variables. Independent review confirms this is selected-view characterization,
-not evidence that the upper rows are semantically meaningful, nor a proof that
-polarity alone caused their later disappearance. Next determine whether those
-omitted constraints distinguish another complete source program, and separately
-trace the exact simplification substitution if attributing the final erasure.
-No soundness/principality failure is established by the `f()` fixture; do not
+variables. A second trace shows the first polar-elimination pass maps
+`TypeVar(3)` to `None`; pinned collapse made no change and co-occurrence made
+no substitution. Independent review confirms this is the operational cause
+for this prepared root, not evidence that the omitted upper rows are
+semantically meaningful or that the complete source graph has one polarity.
+Next determine whether those omitted constraints distinguish another complete
+source program. No soundness/principality failure is established by the `f()`
+fixture; do not
 restore Oracle phase parity as a goal. The probe details and command are in the
 latent-effects note. A
 conditional zero-consumption

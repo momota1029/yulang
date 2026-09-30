@@ -429,21 +429,28 @@ had no `ret_eff` variables.
 
 This establishes a fixture-level polarity-selected projection gap: the two
 available upper rows did not enter `f`'s compact root at that positive visit.
-It does not establish that the later disappearance was caused only by
-polarity; the exact simplification substitution/eligibility trace was not
-captured. An independent compiler-referee review confirmed the upper-record
-read is observational and does not mutate projection-round state, while
-warning that an extra lower projection query could contaminate it; this probe
-reported the collector's own lower result. Neither soundness nor principality
-failure follows from this fixture, and the already recorded `f()` mono
-acceptance still passes. The successor requirement remains to retain
-meaningful source constraints and justify any solving/removal by its own
-denotation and preservation proof; matching Oracle's selected view is not a
-goal. The focused command was
+A follow-up trace instrumented the actual simplifier. Pinned-interval collapse
+left the root unchanged; the first fixed-point iteration of
+`eliminate_polar_variables_with_roles_and_non_generic` returned
+`TypeVar(3) -> None`, immediately removing it. The following co-occurrence pass
+made no substitution. Independent compiler-referee review confirms this
+attributes the disappearance from this prepared root to polar elimination,
+with eligibility and one-polarity occurrence measured after alias expansion.
+It does not establish one-polarity occurrence in the complete source graph,
+nor that the skipped empty/handled-effect upper rows are semantically
+meaningful for this root. They may be redundant for this pure fixture or may
+have influenced another selected constraint. Neither soundness nor
+principality failure follows from this fixture, and the already recorded
+`f()` mono acceptance still passes. The successor requirement remains to
+retain meaningful source constraints and justify any solving/removal by its
+own denotation and preservation proof; matching Oracle's selected view is not
+a goal. The focused commands were
 `CARGO_TARGET_DIR=/tmp/yulang-intrusion-oracle-target cargo test -p infer
-scratch_capture_selected_catch_effect_view -- --nocapture`; it passed. All
-temporary instrumentation and the test were restored from the disposable
-Oracle worktree, which is clean at the frozen commit.
+scratch_capture_selected_catch_effect_view -- --nocapture` and
+`CARGO_TARGET_DIR=/tmp/yulang-intrusion-oracle-target cargo test -p infer
+scratch_capture_catch_simplification_trace -- --nocapture`; both passed. All
+temporary instrumentation and tests were restored from the disposable Oracle
+worktree, which is clean at the frozen commit.
 
 The useful candidate is thus a two-mode *runtime application* judgment:
 shapes with pure extracted effects are evaluated strictly and their actual
