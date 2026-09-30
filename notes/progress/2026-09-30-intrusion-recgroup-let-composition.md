@@ -86,6 +86,54 @@ structural scheme-adequacy result from the nested-let note. Outer polymorphic
 lookups become fresh SCC-local graph identities; their outer anchors remain
 in `A_G`.
 
+## Retained-q source corollary
+
+Take the singleton group `G={f=λx.(x f)}` in an empty outer environment. The
+syntax-directed rules allocate a monomorphic self endpoint `s`, a lambda
+parameter endpoint `q`, an application result endpoint `v`, and an exposed
+root `r`. The body graph and group edges are:
+
+```text
+q ≤ Fun(s,v)
+Fun(q,v) ≤ s
+Fun(q,v) ≤ r
+```
+
+The first inequality is the application constraint: `x` is the callee and
+`f` is its argument. The remaining two are the body-to-self and
+body-to-exposed-root obligations. This directly exhibits the source
+constraint on `q`; no polarity-only projection is used by the declarative
+member relation.
+
+Assume the pure carrier has a greatest element `Top`, `Fun` obeys ordinary
+contravariant argument subtyping, and `Top` is not a subtype of any Function
+type. Also assume `Bottom` is least.
+The candidate member relation excludes `Fun(Top,Bottom)`: if
+`Fun(q,v) ≤ Fun(Top,Bottom)`, Function subtyping gives `Top ≤ q`; combined
+with `q ≤ Fun(s,v)`, transitivity gives `Top ≤ Fun(s,v)`, contradicting
+properness. In contrast, the polarity-erasure graph transformation replaces
+the `q` occurrence in `Fun(q,v)` by `Top`, removes the selected application
+obligation `q≤Fun(s,v)`, and retains the transformed body-to-self/root edges
+`Fun(Top,v)≤s,r`. It admits root `r=Fun(Top,Bottom)` by assigning
+`v=Bottom` and `s=Top`. Thus this declarative source corollary reproduces the
+concrete graph-level root-relation conflict without using the Oracle scheme
+as the meaning of `LetRec`.
+
+The recursive group itself is valid in the candidate relation: choose
+`q=Bottom`, `s=Top`, `v=Bottom`, and `r=Top`; then `Fun(q,v)≤s`,
+`Fun(q,v)≤r`, and `q≤Fun(s,v)` hold. Yet an external use requiring this
+member to have a type below `Fun(Int,U)` has no candidate member type when
+`Int` is not a subtype of any Function type: `Fun(q,v)≤R≤Fun(Int,U)` implies
+`Int≤q`, and then `Int≤q≤Fun(s,v)`, contradicting the disjoint-outer-form
+assumption. This models the final type-level rejection of `f 1` while
+allowing a valid recursive definition; it is not a whole compiler or runtime
+acceptance theorem.
+
+The corollary assumes the stated pure preorder laws and the singleton
+recursive-group rule. It does not interpret latent effect coordinates, prove
+that the frozen Oracle accepts/rejects every corresponding complete program,
+or establish the full supported-envelope theorem.
+
 ## Declarative `let rec` rule
 
 In the declarative semantic environment, `Poly(P)` denotes a source-level set
@@ -196,3 +244,10 @@ remaining concrete issue within the stated pure fixed-anchor scope. The
 reviews did not assess Oracle final acceptance, effects, runtime soundness, or
 implementation. This remains a candidate theorem and does not authorize
 implementation.
+
+The retained-q source corollary was separately reviewed by a compiler-referee
+and spec-auditor. They confirmed its pure singleton derivation after the
+primary added the least-`Bottom` premise, explicit root assignments in both
+witnesses, and the exact hypothetical erasure rewrite. The delta review found
+no remaining issue in that corollary; it did not assess effects, the complete
+Oracle pipeline, or implementation.

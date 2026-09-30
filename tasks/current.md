@@ -824,5 +824,19 @@ defined from source member-type sets independently of the graph generator.
 Compiler-referee and spec-auditor M3 review closed concrete circularity,
 environment-domain, simultaneous-update, and set-binder findings within this
 pure scope. No Oracle final-capability result or implementation authority
-follows yet. Next characterize final Oracle outcomes for this exact combined
-source fragment.
+follows yet. The final-acceptance contract candidate received M3 semantic and
+specification review; both confirmed the priority but required an independent
+envelope, syntax-directed source rules, explicit source-graph adequacy, and
+root/use equality for every fixed outer assignment (including subsumption and
+empty fibers). Those repairs are recorded in
+`notes/progress/2026-09-30-intrusion-final-acceptance-contract.md`; that review
+does not certify the semantics or the full Oracle envelope. The combined
+recursive-group/nested-let note now also derives the `f x = x f` retained-q
+constraint from the declarative source rule, excludes the erased
+`Fun(Top,Bottom)` root, and derives rejection of an `Int` application under
+the stated pure carrier assumptions. Focused compiler-referee/spec-auditor
+review found and closed the missing least-`Bottom` premise and imprecise
+erasure description; no issue remains in the pure singleton corollary. This
+does not certify effects, complete Oracle behavior, or implementation. Next
+extend source/graph assignment adequacy beyond this singleton example and
+toward the full Oracle final-acceptance objective.
