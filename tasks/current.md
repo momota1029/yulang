@@ -562,9 +562,10 @@ graph remain to be reconstructed.
 The lowering-variable roles are now mapped to run-local TypeVar identities
 for `R/S/X`, the defined-lambda skeleton, application, and wrapper in
 `notes/progress/2026-09-30-intrusion-source-identity-map.md`; the q-cycle
-vertices resolve to `X⁻` and `S⁺`. This does not resolve every latent-effect
-identity, root epoch, selected-root relation, or the replay's full source
-provenance.
+vertices resolve to `X⁻` and `S⁺`. A follow-up trace maps every named source
+effect variable and confirms the parameter's Bottom effect slot. This does not
+resolve the complete root epoch, stack-subtraction correspondence through the
+selected root, or the replay's full source provenance.
 The `H_d` bridge includes selected evidence and post-loop root state. Its type
 component must match realized roots to `Root_d` and accepted supertypes to
 `Pred_d`; diagnostics, provenance, and effects need separate observation
