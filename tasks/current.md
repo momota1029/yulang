@@ -1000,11 +1000,15 @@ obligations: it loses the requirement that each target tail contain the
 source's unhandled `other` family. This is conditional on ordinary set-row
 inclusion and does not show Oracle compaction is wrong. Next define the
 existential projection needed to eliminate gamma while preserving every
-shared-tail constraint, then check it against the root-specific complete and
-incomplete traces. This remains a proof obligation, not a row denotation
-theorem, source acceptance mismatch, soundness, or principality result. The
-successor retains meaningful source constraints; polarity-only `q` erasure is
-not required.
+shared-tail constraint. A restricted lemma now proves the `take(Empty)` finite
+set case by replacing shared G with least witness `A minus J`, pointwise in
+every tail. Review confirms the algebra but forbids extending it to other
+weights or gamma neighborhoods without proof. Generalize that lemma to
+directed weights, recursive replay, and extra gamma bounds, then check it
+against the root-specific complete/incomplete traces. This remains a proof
+obligation, not a row denotation theorem, source acceptance mismatch,
+soundness, or principality result. The successor retains meaningful source
+constraints; polarity-only `q` erasure is not required.
 Yulang2 inference-stage scheme
 formatting/acceptance parity is not required, while final well-typed program
 acceptance remains the compatibility target. Any later constraint erasure

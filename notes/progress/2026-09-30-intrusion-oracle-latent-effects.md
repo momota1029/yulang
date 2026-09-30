@@ -1318,3 +1318,32 @@ projection that preserves the shared residual requirements for every tail.
 The remaining proof task is to characterize and verify that projection for
 the weighted row algebra, including row fan-out and replay, then relate it to
 the root-specific gamma eliminations above.
+
+For the isolated finite-set fragment with residual weight exactly
+`take(Empty)`, the projection is explicit. Fix source assignment `A`, retained
+head `J`, and target tails `B_i`, all as subsets of one finite family universe.
+The split constraints are `A ⊆ J ∪ G` and `G ⊆ B_i` for every target. Then:
+
+```text
+exists G. (A ⊆ J ∪ G and for every i, G ⊆ B_i)
+iff
+for every i, A \ J ⊆ B_i
+```
+
+Forward: every family in `A \ J` must be in `G`, hence in every `B_i`.
+Reverse: choose the least witness `G = A \ J`. This covers any finite fan-out
+of one shared gamma in this restricted graph. The previous countermodel is the
+instance `A={choose,other}`, `J={choose}`, `B1=B2={}`.
+
+Independent compiler-referee review confirms the set proof and its structural
+match to Oracle's emitted split/key. It requires that this lemma stay narrowly
+scoped: it assumes fixed `A`, `J`, and tails in one finite set universe;
+payloads, nesting, row multiplicity, right pops, filters, and other residual
+weights are absent. It also assumes that `take(Empty)` acts as plain inclusion
+on these tail edges. Any other lower/upper bounds, recursive occurrence, or
+use of gamma require additional projected constraints. This does not prove
+the Oracle compact simplifier's quantifier elimination, source final
+acceptance, or principality. The next proof step is to generalize the
+projection to the directed weight algebra while preserving gamma's full
+constraint neighborhood and then test the general rule against root
+projection.
