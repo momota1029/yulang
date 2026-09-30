@@ -805,3 +805,57 @@ envelope says they are admitted.
 
 No Oracle code was changed. The focused test ran only in a disposable worktree;
 the frozen source paths and probe records above are the evidence.
+
+### Selected `judge` root and residual binder
+
+A disposable focused `infer` test instrumented the accepted source:
+
+```yu
+act signal:
+  our ping: () -> never
+act io:
+  our read: () -> int
+
+my judge(x: [_] _) = catch x:
+  signal::ping(), _ -> true
+  _ -> false
+judge(io::read())
+```
+
+In this run, `judge` was `DefId(4)` with root `TypeVar(2)`. Before alias
+simplification, its compact root placed `TypeVar(11)` in both the argument
+effect row tail and return effect. The argument tail also included `signal`;
+the pre-simplification return effect had additional identities, including
+`TypeVar(23)` carrying `SubtractId(0)` / `AllExcept(["signal"])` weight.
+After alias simplification the root was
+`Fun(arg_eff=[signal; TypeVar(11)], ret_eff=TypeVar(11), ret=bool)`, and the
+formatted scheme was `any [signal; 'a] -> ['a] bool` with sole quantifier
+`TypeVar(11)`.
+
+The selected positive occurrence of `TypeVar(11)` had four admitted lower
+records: 39 (unweighted `PosId(29)`), 43 (unweighted `PosId(22)`), 45
+(unweighted `PosId(25)`), and 47 (`PosId(28)` weighted by
+`AllExcept(["signal"])`). Their projection evidence was qualified standalone
+or replay-conjunction evidence. This shows that the residual binder in this
+saved selected view is not merely an unconstrained fresh variable, and that
+its argument-effect and return-effect positions share one binder in the
+finalized scheme.
+
+This observation does not identify any record or `TypeVar(11)` with `io`:
+`io` enters at the use site, while the scheme binder is polymorphic. The
+instrumented positive occurrence is one traversal, not proof of global
+single-polarity use; the binder appears under Function argument-effect
+variance too. Nor does the trace prove that the weighted record's meaning
+survives alias simplification, establish freshening/adequacy for every use, or
+prove principality. In conjunction with the prior `judge(io::read())`
+specialization witness, it characterizes one accepted source-to-mono residual
+effect case, without runtime execution.
+
+The focused test and instrumentation were restored from the disposable
+Oracle worktree after capture. Independent compiler-referee review accepted
+the same-TypeVar linkage and selected-view claim with the limits above. The
+successor requirement is now explicit: retain meaningful source constraints;
+polarity-only `q` erasure is not required, and any later erasure needs a
+preservation proof. Oracle inference-stage scheme formatting and its
+acceptance phase need not match the successor; compatibility is measured by
+final well-typed program acceptance, subject to soundness and principality.
