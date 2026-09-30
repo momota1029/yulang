@@ -562,11 +562,16 @@ equalities.
 Read-only collector tracing now separates the selected source-bound graph from
 its `CompactRoot` finite regular presentation: transient `rec_vars` record
 back-edge sides during expansion, while only surviving rows are restored as
-scheme inequalities. The collector cache includes `ConstraintWeight`, but its
-recursion/row identity is `(TypeVar, polarity)`; the exact weighted-cycle
-reconstruction condition is open. Next capture the exact weighted visit/row
-graph for `pub f x = x f` and prove the finite-presentation lemma before using
-`Root_d`/`Pred_d` for its projection bridge. See
+scheme inequalities. Its cache includes `ConstraintWeight`, but recursion and
+row identity use `(TypeVar, polarity)`. Source transitions reset weight to
+empty at a positive Function argument and propagate incoming weight at a
+negative Function argument. The saved `pub f x = x f` summary lacks the complete
+polarized selected endpoints, every q back-edge and its weight, and the
+`q = TypeVar2` correspondence; the fixture's different-weight re-entry question
+remains open. Next capture those exact root-epoch facts before stating and
+proving the finite-presentation lemma or using
+`Root_d`/`Pred_d` for its projection bridge. General weighted-cycle
+reconstruction remains open. See
 `notes/progress/2026-09-30-intrusion-powerset-carrier-candidate.md`.
 This is one fixture-level obligation; multi-member epochs, publication/failure,
 internal uses, and independent incoming uses remain charter-wide requirements.

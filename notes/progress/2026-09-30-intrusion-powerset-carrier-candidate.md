@@ -445,19 +445,29 @@ recursive-row keys are `(var, polarity)`, and the recursive table stores one
 side per `(var, polarity)`. A proof that the recorded row reconstructs every
 weighted descent must show that a same-variable/same-polarity re-entry under a
 different `ConstraintWeight` is either impossible in the admitted fragment,
-semantically mergeable, or represented elsewhere without loss. The exact
-`pub f x = x f` root trace has not yet established that premise. Thus the
-weight-free intuition above is only a candidate model, not a global
-interpretation for Function effects or stack subtraction.
+semantically mergeable, or represented elsewhere without loss. The frozen
+collector's Function transitions give a conditional fact: a positive Function
+argument resets the weight to empty; a negative Function argument propagates
+its incoming weight. A path that traverses those transitions in the stated
+order reaches an empty weight after the positive argument. The captured summary
+for `pub f x = x f` does not establish that every q re-entry takes that path:
+the complete polarized selected endpoints, all q back-edges and their weights,
+and the `q = TypeVar2` correspondence are missing. The different-weight
+re-entry question remains open for this fixture. A complete root-epoch trace
+of those facts is required before the finite-presentation lemma. This evidence
+also does not cover cycles through Function results, latent effects, row tails,
+or stack subtraction.
 
 Source anchors: frozen `compact/collect/mod.rs::compact_var_side` and
 `compact_var_bounds`; `compact/collect/type_nodes.rs::record_recursive_side`;
 `compact/mod.rs::CompactRoot`; and
 `generalize/core/prune.rs::prune_unreachable_recursive_bounds`. This source
-reading changes the next step: capture the exact weighted visit/row graph for
-the fixture, then state and prove the finite-regular-presentation lemma before
-using `Root_d`/`Pred_d` to compare projection results. No tests or Oracle files
-changed.
+reading changes the next step: capture the complete root-epoch polarized
+selected endpoints, every q back-edge and weight, and the `q = TypeVar2`
+correspondence; then state and prove the finite-regular-presentation lemma for
+that selected graph before using `Root_d`/`Pred_d` to compare projection results. Weighted
+cycles outside this fixture remain a separate envelope obligation. No tests or
+Oracle files changed.
 
 ### Next semantic gate
 
