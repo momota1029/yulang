@@ -1140,6 +1140,14 @@ independently and not inherit the Oracle runtime guard route automatically.
 The Oracle's current run therefore errors on the first request; the declarative
 shallow trace would handle it, resume, then expose the second request.
 
+A returned-callback-closure probe adds a second lost-effect path: Oracle
+accepts `caller(): [] int`, prints the returned closure/caller effects as
+`Bot`, and both runtimes leave `choose::reject` unhandled. The direct closure
+control retains `[choose]` and rejects the pure annotation. The successor must
+preserve `choose` in the returned function's latent effect; whether the later
+caller catch is eligible remains a separate open question. Details and exact
+commands are in the candidate record above.
+
 Remaining gate: formalize provider/capture eligibility, including complete
 coverage and callback ownership, then prove trace soundness and least-derivable
 bounds for the compositional whole-scrutinee continuation summary. Independent

@@ -4,7 +4,7 @@ Date: 2026-10-01
 Status: exploratory candidate; not selected or authoritative
 Scope: ordinary shallow effects and handler residuals; no weight encoding yet
 Implementation authority: none
-Reviewed-by: architect, compiler_referee (read-only candidate review)
+Reviewed-by: architect, compiler_referee, spec_auditor (read-only candidate review)
 
 ## Question
 
@@ -193,6 +193,59 @@ the whole pre-handler effect bound. Include the callback/hygiene pair,
 helper-call composition, delayed thunk force, closure escape, and repeated
 callback request before relating the judgment to a runtime representation or
 weight calculation.
+
+### Frozen-Oracle closure-escape probe
+
+A new source characterization tests callback effect transport through a
+returned closure:
+
+```yu
+act choose:
+  our reject: () -> int
+
+my rejecter() = choose::reject()
+my maker(f: () -> [choose] int) = \_ -> f()
+my delayed = maker(rejecter)
+my caller(): [] int = catch delayed(0):
+  choose::reject(), k -> k 3
+  v -> v
+
+caller()
+```
+
+The frozen Oracle `check` accepts this program. Its `--poly-raw` dump gives
+`maker`'s returned function, `delayed`, and `caller` pure (`Bot`) return-effect
+slots. Both interpreter and evidence VM instead report an unhandled
+`choose::reject`. Thus callback effect information is lost across this
+closure-return path before the pure caller annotation is checked. By the
+successor's sound effect abstraction, the returned function must retain
+`choose`; the explicit `[]` annotation must be rejected. This is an additional
+concrete Oracle-acceptance compatibility delta for an unsound source.
+
+A direct-closure control with `delayed = \_ -> choose::reject()` retains
+`[choose]` in the delayed function and caller schemes; the inferred caller
+returns `3`, while an explicit pure annotation is rejected with an effect
+filter mismatch. The contrast localizes the missing static effect to the
+callback/closure transport path. It does not decide whether the callback's
+later request is eligible for the caller catch; the minimum successor rule is
+that it cannot be erased from the returned function's effect.
+
+Focused commands used the frozen checkout's prebuilt CLI and sources in
+`/tmp/yulang-intrusion-*`:
+
+```text
+yulang --no-prelude --no-cache check /tmp/yulang-intrusion-capture-escape.yu
+yulang --no-prelude --no-cache dump /tmp/yulang-intrusion-capture-escape.yu --poly-raw
+yulang --no-prelude --no-cache run --interpreter --print-roots /tmp/yulang-intrusion-capture-escape.yu
+yulang --no-prelude --no-cache run --evidence-vm --print-roots /tmp/yulang-intrusion-capture-escape.yu
+yulang --no-prelude --no-cache check /tmp/yulang-intrusion-direct-closure-control.yu
+yulang --no-prelude --no-cache run --interpreter --print-roots /tmp/yulang-intrusion-direct-closure-inferred.yu
+```
+
+The callback/closure fixture's check and dump exit 0; both runtime commands
+exit 1 with `yulang.unhandled-effect`. The direct pure-annotation control exits
+1 with an effect filter mismatch; its inferred control exits 0 and returns
+`[3]`. This is Oracle characterization, not an implementation test.
 
 ## Parameterized one-step soundness lemma
 
