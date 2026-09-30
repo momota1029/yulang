@@ -1448,3 +1448,17 @@ concretization, entry seeds, and `⊤Eff` coupling now explicitly span module
 return, escaped values, and later client callback/closure/thunk/continuation
 re-entry. The lemma remains conditional and does not establish actual fallback
 placement, annotation acceptance, or principality.
+
+The next closed proof obligation is row-to-offer coupling, separate from the
+conditional handler simulation: every family admitted by a scrutinee effect
+bound must yield a sound abstract possible-offer at each compatible handler,
+or an explicit unknown/top fact that blocks subtraction. A bounded
+architecture pass identified a specific risk: conservative joins and the
+whole-scrutinee latent continuation summary may admit a family without a
+concrete reachable request. The proof must track those row derivations and
+widen unmatched contributions to unknown; concrete-trace reachability alone
+cannot justify a drop. The annotation result contract is an upper filter, not
+a lower-row contribution. This is an unverified candidate risk, not a
+counterexample or selected rule. `notes/progress/2026-10-01-intrusion-coarse-effect-abstraction-candidate.md`
+records the distinction. No finite `Drop#`, leastness transfer, or successor
+implementation authority follows yet.

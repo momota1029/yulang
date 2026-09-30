@@ -1700,3 +1700,26 @@ conservatively leave the family residual whenever that evidence is absent.
 This is an abstract proof requirement, not a choice of graph representation.
 The unresolved closure-escape and helper-composition cases determine whether
 such evidence can be transported soundly.
+
+#### Row-to-offer coupling is still a separate construction obligation
+
+The conditional lemma above cannot equate abstract row membership with a
+concrete reachable request. A conservative row join or a whole-scrutinee
+latent summary may admit a family even when no concrete trace emits it; the
+concrete request-annotation result contract is a separate upper filter and is
+not itself a lower-row contribution. Therefore the required coupling is from
+each family admitted to `May(C)` to either (a) a sound abstract possible-offer
+fact at each compatible handler slot, which may over-approximate concrete
+reachability, or (b) an explicit unknown/top fact that prevents subtraction.
+Concrete reachability alone is not enough to justify `Drop` when the source
+row derivation has no corresponding concrete request witness. The proof must
+trace every family contribution through the source constraints, distinguish
+row joins and latent whole-scrutinee summaries from annotation filters, and
+show that missing correspondence widens to unknown rather than disappearing.
+
+This is an unverified proof risk, not an established Oracle behavior or a
+counterexample to the candidate. No claim is made that annotation contracts
+add families to `May(C)`; the risk concerns conservative joins, latent
+summaries, and open/imported contributions. Until this coupling construction
+is supplied uniformly over admissible type/effect assignments, neither the
+finite offer closure nor its `Drop` certificate is established.
