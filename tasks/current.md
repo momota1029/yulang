@@ -590,11 +590,15 @@ The exact source application also contributes a direct Function upper bound on
 q, so ordinary source-constraint assignment semantics excludes `Top` and
 cannot justify the projection. The captured `f 1` / `f 2` uses succeed under
 the finalized q-free scheme, so ordinary source-solution projection is
-refuted for this fixture. Define and justify the Oracle-specific projection
-that explains this result, then relate it to candidate intrusion and retain
-the separate soundness question. Details are in
+refuted for this fixture. The replacement draft now treats Oracle polarity
+erasure as an observed projection transition, not a proved
+solution-preserving simplification. Next relate the exact source → projection
+→ scheme instantiation → use path to candidate intrusion, including the
+runtime boundary and the separate soundness question. Details are in
 `notes/progress/2026-09-30-intrusion-powerset-carrier-candidate.md` and
-`notes/progress/2026-09-30-intrusion-q-finalized-use-path.md`.
+`notes/progress/2026-09-30-intrusion-q-finalized-use-path.md`; the draft
+contract note is in
+`notes/design/2026-09-29-intrusion-abstract-semantics-draft.md`.
 The `H_d` bridge includes selected evidence and post-loop root state. Its type
 component must match realized roots to `Root_d` and accepted supertypes to
 `Pred_d`; diagnostics, provenance, and effects need separate observation

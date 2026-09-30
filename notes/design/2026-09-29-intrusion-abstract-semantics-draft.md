@@ -600,6 +600,22 @@ establish only the exact programs listed in the behavior ledger. No executable
 intrusion model currently establishes this projection rule, and it does not
 prove principality.
 
+The `pub f x = x f` source/use trace sharpens what “preserve” can mean here.
+The source application contributes a direct Function upper bound to the
+negative-only parameter variable q. The Oracle then erases q, prunes its
+recursive row, publishes a `Top` Function argument with no such bound, and
+accepts independent incoming uses `f 1` and `f 2`. Therefore this root-local
+projection is not established as a solution-preserving simplification of the
+entire source-bound assignment relation; under that conventional relation, the
+direct q upper excludes `Top`. Treat it as an observed Oracle projection
+transition until a separate source/runtime semantics explains the behavior.
+The parity theorem must relate the complete staged source-to-projection-to-use
+pipeline, including dynamic checks or their absence, rather than silently
+identifying `Csrc` solutions with the post-projection scheme instances. The
+fixture trace and the conditional assignment-fiber no-go are recorded in
+`notes/progress/2026-09-30-intrusion-powerset-carrier-candidate.md` and
+`notes/progress/2026-09-30-intrusion-q-finalized-use-path.md`.
+
 ### Alpha-renaming commutes with the pure root projection
 
 Here `Project` means `compact_root_for_scheme` graph collection followed by the
