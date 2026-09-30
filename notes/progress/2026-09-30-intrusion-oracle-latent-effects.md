@@ -1177,8 +1177,17 @@ Annotation origin. This mapping follows this fixture's source/lowering order:
 `SourceBoundaryRecord` retains origin and whether a location was recorded, but
 not the annotation span, so boundary numbers alone do not encode source text.
 
-This links the live upper records to the parameter annotation, its generated
-wildcard-row fact, and row/replay derivations. It still does not identify the
-row family in the retained `NegId(13)` / `NegId(58)` endpoint, prove constraint
-necessity, establish principality or final-acceptance impact, or show that
-removing the weighted occurrences preserves behavior.
+An additional same-fixture trace resolves the endpoint: `NegId(13)` is
+`Con(["choose"], [])`, while `NegId(58)` is `Var(TypeVar(53))`. The complete
+handler's `WeightedResidual` derivation is `RowDerivationId(0)`, retaining
+`NegId(13)` and citing `ConstraintRecordId(40)` plus subtract fact 0. The
+incomplete handler's corresponding `RowDerivationId(1)` retains that same
+`choose` family head and cites `ConstraintRecordId(94)` plus subtract fact 1.
+For the complete path, record 40 is the weighted relation from the annotated
+effect variable `TypeVar(6)` to a row whose head is `choose`; its left weight
+is `push(SubtractId(0), All)`. This identifies the family preserved by the
+row derivations and ties it to each annotation's generated subtract fact.
+
+This still does not prove constraint necessity, establish principality or
+final-acceptance impact, or show that removing the weighted occurrences
+preserves behavior. The endpoint IDs and record IDs are local to this probe.

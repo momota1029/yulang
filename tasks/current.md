@@ -979,10 +979,14 @@ necessity or semantic preservation. The source audit maps complete-handler
 boundaries 0/1 to its parameter annotation and generated wildcard-row subtract
 fact, and incomplete-handler boundaries 2/3 to the corresponding pair; source
 spans are not stored in boundary records, so the mapping is fixture/lowering
-order specific. Next decode the retained `NegId(13)` / `NegId(58)` row endpoint
-and relate its derivation and the weighted bounds to final residual behavior.
-This is an operational distinction, not a soundness counterexample or a
-principality result. The successor retains
+order specific. A same-fixture endpoint trace resolves `NegId(13)` to the
+`choose` effect-family head and `NegId(58)` to `TypeVar(53)`. The complete and
+incomplete `WeightedResidual` derivations both retain that family head and cite
+their respective generated subtract facts; the complete path's source row
+relation carries `push(SubtractId(0), All)`. Next relate these retained row
+derivations and weighted bounds to final residual behavior. This remains an
+operational distinction, not a soundness counterexample or a principality
+result. The successor retains
 meaningful source constraints; polarity-only `q` erasure is not required.
 Yulang2 inference-stage scheme
 formatting/acceptance parity is not required, while final well-typed program
