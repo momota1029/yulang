@@ -825,6 +825,39 @@ order, inner-to-outer forwarding, cutoff at the first match, and separate arm
 observations. It found one ambiguity about repeated suffix offers; the wording
 now scopes the cutoff to each request in the suffix.
 
+##### Handler-relative raw-route corollary
+
+Let `P ≠ Q` and
+`C = Request(P.ping, (), λ_. Request(Q.choose, (), λ_. Return(v)))`. Let inner
+`I` handle `P.ping` by invoking raw `k`, and let outer `H` handle `Q.choose`.
+Then:
+
+```text
+I(C) = k(()) = Request(Q.choose, (), λ_. Return(v))
+H(I(C)) = H(Request(Q.choose, (), λ_. Return(v)))
+```
+
+So `Q.choose` is raw-only relative to `I` (it is not re-offered to `I`) but
+is an ordinary offer to outer `H`, which remains around `I`'s operation-arm
+execution. The displayed equation assumes `I`'s arm is exactly the pure direct
+resume `arm_I((),k)=k(())`; it makes no claim about arm effects or multiple
+resumes. If instead the arm is pure and ignores `k`, the `Q` request in `C`'s
+suffix is never reached, so that suffix contributes no `Q` offer to `H`.
+Therefore route labels must be handler-relative: a contribution must not carry
+one global `RawOnly` tag that suppresses a different outer handler's offer.
+This follows directly from shallow-transformer composition and introduces no
+continuation-use count or exact-inference requirement.
+
+This is a direct two-handler trace case only; source/abstract transfer and
+effect-slot coupling remain open.
+
+An initial compiler-referee review found that the witness did not constrain
+the matching arm's own effects. The example was narrowed to an exactly pure
+direct-resume arm, and the non-resuming statement to the suffix through `k`.
+A fresh compiler-referee delta review closed that finding and confirmed the
+handler-relative route result. It did not review or establish abstract
+transfer or effect-slot coupling.
+
 An independent compiler-referee delta review confirms this top-control fallback
 closes the lost-`I` omission at the candidate level and does not introduce exact
 continuation inference or usage tracking. The review's remaining finite-domain
