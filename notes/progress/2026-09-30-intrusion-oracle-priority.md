@@ -26,12 +26,12 @@ Frozen Oracle `a58eefc31` infers an `any`-like argument view for
 `pub f x = x f`; the inference-stage two-use characterization is recorded in
 `notes/progress/2026-09-30-intrusion-q-finalized-use-path.md`. But the concrete
 source `pub f x = x f; pub main = f 1` fails in `dump-mono` with
-`int <: Function`. Oracle specialization rechecks the definition body under
-the use signature. The current capture does not identify the exact failing
-instance signature, so the causal link is source-supported but not fully
-traced. This means the exported inference view alone is insufficient evidence
-that Oracle accepts an unsound concrete use: downstream specialization may
-preserve the recursive constraint.
+`int <: Function`. A temporary trace in the disposable frozen-Oracle checkout
+records the queued and solved `f` instance as `Fun(int, [], [], unit)`; its
+body check fails with that constraint. This resolves the exact instance
+signature. The exported inference view alone is insufficient evidence that
+Oracle accepts an unsound concrete use: downstream specialization preserves
+the recursive constraint for this use.
 
 Separately, the bounded-negative counterexample in
 `notes/progress/2026-09-30-intrusion-bounded-negative-counterexample.md`
@@ -47,7 +47,7 @@ soundness/principality conflict with Oracle.
 No Oracle behavior is dropped by this record. Do not encode q erasure as an
 unconditional candidate rule, and do not claim the Oracle is unsound from the
 inference-stage scheme shape. The next proof must relate the selected q-bound
-graph, Oracle's per-use specialization recheck, and the candidate's
+graph and Oracle's per-use specialization recheck to the candidate's
 generalization/instantiation semantics. If that proof finds an actual
 conflict, write the four divergence items above before choosing the successor
 rule. Until then the successor contract remains unresolved and implementation

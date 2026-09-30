@@ -131,7 +131,21 @@ compile error [yulang.unsatisfied-subtype]:
 unsatisfied subtype constraint: int <: 'open0 -[[], 'open2]-> 'open1
 ```
 
-The source path explains why specialization revisits the body. In
+The source path explains why specialization revisits the body. A temporary
+trace in the disposable frozen-Oracle checkout records the exact instance:
+
+```text
+enqueue def=DefId(0) signature=Fun {
+  arg: Con { path: ["int"], args: [] },
+  arg_effect: EffectRow([]), ret_effect: EffectRow([]),
+  ret: Con { path: ["unit"], args: [] }
+}
+solve id=InstanceId(1) def=DefId(0) signature=Fun { ...same... }
+```
+
+This is the `f` instance at `int -> unit`, not merely a possible explanation.
+The trace confirms that this use signature reaches the definition-body check
+that rejects `int <: Function`. In
 `specialize2/emit.rs::emit_var`, a local definition reference obtains its
 per-use `solved.ref_signature(expr)` and passes that signature to
 `ensure_def_instance`. The instance queues this as `inference_signature_ty`;
@@ -139,16 +153,13 @@ per-use `solved.ref_signature(expr)` and passes that signature to
 solver rechecks the definition body under the per-use signature via
 `expr_with_signature`, consumes the body against that signature, and adds the
 materialized subtype obligation before finishing
-(`specialize2/task_solver.rs::solve_def_body`). A per-use `f` signature with
-argument `int` would make the body use `int` as a callee and produce the
-observed `int <: Function` failure. The CLI capture does not print the failing
-instance owner or `ref_signature`, so this is a source-supported explanation,
-not a directly traced causal link. The public scheme's inference-stage `Top`
-argument therefore does not by itself show whether the specialized definition
-body accepts every value.
+(`specialize2/task_solver.rs::solve_def_body`). The captured signature has
+argument `int`; the body uses that parameter as a callee and produces the
+observed `int <: Function` failure. Therefore the inference-stage `Top`
+argument does not make this concrete use succeed end to end.
 
-This is a characterization of the two-stage mechanism, not a proof that all
-uses which violate an erased recursive bound are rejected, nor a runtime test.
+This characterizes this concrete two-stage use, not whether all uses that
+violate an erased recursive bound are rejected, nor runtime behavior.
 The standard `check` and `run` routes on this exact self-application source
 did not finish within the observation window and were interrupted; their
 terminal behavior remains unknown. No frozen Oracle source or test was

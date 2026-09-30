@@ -599,18 +599,17 @@ q, so ordinary source-constraint assignment semantics excludes `Top` and
 cannot justify the projection. The captured inference-stage `f 1` / `f 2`
 uses report `int` / `bool` under the q-free scheme, but a frozen-Oracle
 `dump-mono` run rejects `f 1` during definition-body specialization with
-`int <: Function`. `check` and `run` on the same source did not terminate
+`int <: Function`; a temporary trace records the exact `f` instance signature
+as `int -> unit`. `check` and `run` on the same source did not terminate
 within the observation window and were interrupted, so they give no final
 entrypoint result. The replacement draft now treats Oracle polarity erasure
 as an observed projection transition, not a proved solution-preserving
 simplification; scheme inference and later specialization are separate
-observations. Source tracing identifies a path where `emit_var` requests a
-definition instance at the use signature and `TaskSolver::solve_def_body`
-rechecks that body; an `int` argument signature would explain this rejection,
-but the CLI capture does not identify the failing instance or signature.
-Trace that causal link, prove whether this path catches uses of erased bounds,
-and characterize entrypoint behavior without treating `dump-mono` failure as
-a runtime result. Details are in
+observations. A temporary trace confirms `emit_var` requests the exact
+`int -> unit` definition instance and `TaskSolver::solve_def_body` rejects its
+body. Prove whether this path catches other uses of erased bounds, and
+characterize entrypoint behavior without treating `dump-mono` failure as a
+runtime result. Details are in
 `notes/progress/2026-09-30-intrusion-powerset-carrier-candidate.md` and
 `notes/progress/2026-09-30-intrusion-q-finalized-use-path.md`; the draft
 contract note is in
