@@ -413,6 +413,52 @@ Source anchors in the frozen checkout: `compact/analysis/mod.rs:41–56,
 `instantiate.rs:620–658,1013–1043`. This was source inspection only; no
 Oracle files or tests changed.
 
+### Collector meaning: graph presentation, not a second constraint table
+
+The collector implementation narrows the candidate interpretation of `Vpre`.
+`CompactRoot` stores one root term and a separate `rec_vars` vector. A variable
+side visit first reads the selected source bounds for that `(var, polarity)`,
+merges those bounds with the current variable occurrence, and detects an
+in-progress re-entry. On unwind, a detected cycle records that merged side in
+`rec_vars` and returns a variable occurrence to close the regular graph. This
+is a finite presentation of a bound-expansion walk. It is not evidence that
+every recorded row is a distinct selected source constraint. Treating the
+table as an additional constraint set changes the object being interpreted;
+after projection it can also reintroduce a row that was deliberately removed.
+
+A viable pre-projection object therefore needs two layers:
+
+1. the authoritative selected source-bound graph and its edge/evidence order;
+2. a finite regular presentation (`root`, back-reference identities, and
+   recorded recursive sides) produced by traversing that graph.
+
+`Obs_pre` must be defined by the first layer, with the second required to be a
+lossless encoding of the relevant root observation. Scheme restoration of a
+surviving recursive row is a later operation that emits inequalities; it is
+not the definition of the transient collector row's meaning. This separates
+the needed collector-completeness lemma from the later projection-preservation
+lemma, without asserting either one.
+
+There is also a concrete transport obligation for weighted traversals. The
+collector cache key is `(var, polarity, weight)`, but its in-progress and
+recursive-row keys are `(var, polarity)`, and the recursive table stores one
+side per `(var, polarity)`. A proof that the recorded row reconstructs every
+weighted descent must show that a same-variable/same-polarity re-entry under a
+different `ConstraintWeight` is either impossible in the admitted fragment,
+semantically mergeable, or represented elsewhere without loss. The exact
+`pub f x = x f` root trace has not yet established that premise. Thus the
+weight-free intuition above is only a candidate model, not a global
+interpretation for Function effects or stack subtraction.
+
+Source anchors: frozen `compact/collect/mod.rs::compact_var_side` and
+`compact_var_bounds`; `compact/collect/type_nodes.rs::record_recursive_side`;
+`compact/mod.rs::CompactRoot`; and
+`generalize/core/prune.rs::prune_unreachable_recursive_bounds`. This source
+reading changes the next step: capture the exact weighted visit/row graph for
+the fixture, then state and prove the finite-regular-presentation lemma before
+using `Root_d`/`Pred_d` to compare projection results. No tests or Oracle files
+changed.
+
 ### Next semantic gate
 
 ### Exact source-to-scheme theorem target

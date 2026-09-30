@@ -559,6 +559,15 @@ The `H_d` bridge includes selected evidence and post-loop root state. Its type
 component must match realized roots to `Root_d` and accepted supertypes to
 `Pred_d`; diagnostics, provenance, and effects need separate observation
 equalities.
+Read-only collector tracing now separates the selected source-bound graph from
+its `CompactRoot` finite regular presentation: transient `rec_vars` record
+back-edge sides during expansion, while only surviving rows are restored as
+scheme inequalities. The collector cache includes `ConstraintWeight`, but its
+recursion/row identity is `(TypeVar, polarity)`; the exact weighted-cycle
+reconstruction condition is open. Next capture the exact weighted visit/row
+graph for `pub f x = x f` and prove the finite-presentation lemma before using
+`Root_d`/`Pred_d` for its projection bridge. See
+`notes/progress/2026-09-30-intrusion-powerset-carrier-candidate.md`.
 This is one fixture-level obligation; multi-member epochs, publication/failure,
 internal uses, and independent incoming uses remain charter-wide requirements.
 No compiler implementation is authorized by this result; the reviewed
