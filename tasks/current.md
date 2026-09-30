@@ -657,12 +657,16 @@ The finalized ordinary-use path is now characterized in
 Rust-only frozen-Oracle probes record the exact `f` scheme and incoming uses:
 type and latent return-effect quantifiers map to disjoint identities, the
 Function predicate uses direct-lower insertion, and no recursive q row is
-reinstalled. A two-handler probe traces each fresh return-effect identity to
-different `ask int` / `ask bool` context rows, but does not yet show final
-normalized effects or complete choice-set independence. The dump reports
+reinstalled. A caught-use probe traces each fresh return-effect identity to
+different `ask` / `tick` family rows, but does not show handler consumption or
+normalized final catch effects. The earlier two-handler probe reports
+different `ask int` / `ask bool` context rows. Neither establishes complete
+choice-set independence. The dump reports
 `int` and `bool` for annotated uses; seven structural provenance witnesses
 remain incomplete. A separate local-binding fixture traces one free outer
 identity shared across two uses while its local binder freshens per use; it
 does not cover an SCC. Next trace each fresh effect through handler subtraction
 to final observations, then relate use observations to the source graph and q
-projection. These probes changed no frozen Oracle files.
+projection. Next trace late-lower row-reduction replay and final catch-effect
+observations before stating `Obs_scheme`. These probes changed no frozen
+Oracle files.

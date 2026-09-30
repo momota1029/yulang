@@ -222,3 +222,43 @@ scratch tests recorded above; no Oracle commit or repository source was
 changed. Compiler-referee reviews checked the q-use, shared-anchor, and
 effect-sensitive traces against their captures and source. Their scope was
 these fixtures, not the q-projection or intrusion theorem.
+
+## Distinct effect-family follow-up
+
+A further temporary source fixture uses the same polymorphic `f` at two
+independent incoming uses, one under a complete `ask` handler and one under a
+complete `tick` handler. The focused Oracle scratch test passes with no
+lowering errors. Its scheme trace maps `f`'s quantified return-effect
+`TypeVar(17)` to distinct use identities `TypeVar(83)` and `TypeVar(86)`.
+The bound dump gives the first identity lower rows formatted `[ask 'a]` and
+the second a lower row `[tick]`; the source callbacks and handler clauses use
+those respective families. Catch construction records separate scrutinee and
+result effect variables (`35 -> 38` and `66 -> 69`) and complete handled rows.
+
+This strengthens the fixture from distinct context parameters to distinct
+effect-family constraints. It still does not establish that each handler
+consumes its matching row, that the other family's row is preserved or
+excluded, or what normalized final effect each use exposes. The temporary
+row-reduction instrumentation emitted no matching reduction event, so no
+consumption claim follows from this run. Independent compiler-referee review
+also found the ask/tick rows among lower bounds of the catch result-effect
+variables, which are connected to their scrutinee effects. Since the handler
+continuations resume with `k`, this alone neither proves a leaked effect nor
+proves consumption. A follow-up must capture reduction/subtraction for each
+scrutinee-to-handled-row constraint, including row tails, and assert or print
+the final catch effects under the intended continuation semantics before this
+can count as effect-choice independence.
+
+Command:
+
+```text
+YULANG_INTRUSION_USE_TRACE=1 YULANG_INTRUSION_EFFECT_TRACE=1 \
+  YULANG_TRACE_SCHEME_DEFS=2 \
+  CARGO_TARGET_DIR=/tmp/yulang-intrusion-qscheme-use-target \
+  cargo test -p infer --lib scratch_intrusion_q_effect_caught_uses -- --nocapture
+```
+
+Result: 1 passed. Capture:
+`/tmp/yulang-intrusion-distinct-effects-replay.log`. All temporary Oracle
+instrumentation and the scratch test were restored; the frozen checkout is
+clean at `a58eefc31e22141574b6f20c6a5748151c6d79f1`.
