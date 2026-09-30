@@ -584,7 +584,8 @@ presentation metadata only when q's assignment fiber still admits `Top` and
 the result/continuation is independent of q. A two-element counterexample
 shows polarity alone is insufficient when its interval excludes `Top`;
 treating the row as an independent obligation triggers the reviewed powerset
-no-go. Prove the actual source-to-presentation fiber and Top feasibility next.
+no-go. This equality remains conditional and does not characterize the source
+fixture by itself.
 The exact source application also contributes a direct Function upper bound on
 q, so ordinary source-constraint assignment semantics excludes `Top` and
 cannot justify the projection. The captured `f 1` / `f 2` uses succeed under
