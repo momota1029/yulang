@@ -1157,6 +1157,27 @@ typing or a substantially richer type system. Principality is relative to the
 chosen expressible effect abstraction. Details and commands are in the
 candidate record above.
 
+Runtime IR comparison now shows the concrete callback argument and escaped
+closure carrying `add_id` markers, while the absent/wildcard/empty controls
+retain an effectful thunk and a marked caller force. A returning-callback
+control also checks, lowers, and then fails unhandled with the same pure rows;
+its IR carries markers through the returned function shape. These lowering
+plans plus runtime outcomes still do not provide the dynamic `GuardId`/handler
+trace or settle whether the successor caller handler may consume the escaped
+request. The successor must retain `choose` in the returned closure's latent
+effect. The concrete Oracle case (pure caller accepted, both runtimes
+unhandled) cannot be copied as a validated rule; final caller acceptance stays
+open until declarative eligibility and source/runtime correspondence are
+proved. The frozen contract limits `[choose]` visibility to handlers inside
+the receiving function, and the runtime marker spec carries markers across
+returned functions; automatic grant expiry at return is unsupported.
+On the callback-returns-a-closure control, the no-contract explicit-pure
+caller is rejected for `choose`; with inferred effects it retains `[choose]`
+and its handler returns `[3]`. The concrete-contract inferred variant has
+`Bot` rows and leaves the request unhandled. This sharpens the Oracle conflict
+for this shape but still leaves the successor's caller eligibility rule and
+source/runtime simulation to prove.
+
 Remaining gate: formalize provider/capture eligibility, including complete
 coverage and callback ownership, then prove trace soundness and least-derivable
 bounds for the compositional whole-scrutinee continuation summary. Independent

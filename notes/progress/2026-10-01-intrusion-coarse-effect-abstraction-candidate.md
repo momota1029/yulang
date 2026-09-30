@@ -4,7 +4,7 @@ Date: 2026-10-01
 Status: exploratory candidate; not selected or authoritative
 Scope: ordinary shallow effects and handler residuals; no weight encoding yet
 Implementation authority: none
-Reviewed-by: architect, compiler_referee, spec_auditor, closure_escape_soundness_review, closure_escape_spec_review (read-only candidate reviews)
+Reviewed-by: architect, compiler_referee (multiple delta reviews), spec_auditor (multiple delta reviews)
 
 ## Question
 
@@ -254,8 +254,59 @@ must preserve the unconsumed callback effect in the returned closure; capture
 evidence transport across returned functions remains open. Frozen runtime
 guard notes describe result-marker propagation across returned functions, so
 an unconditional rule that closes every grant at function return would be
-premature. A returning-callback control and request/marker trace are needed
-before choosing that boundary rule.
+premature. A returning-callback control is documented below; a dynamic
+request/marker trace is still needed before choosing that boundary rule.
+
+The frozen runtime IR narrows the mechanism without settling the source rule.
+The concrete-contract variant lowers the callback argument with
+`arg[add_id[1, choose, own, resume-own]]`; the returned closure's maker adapter
+has `body[add_id[1, choose, own]]`. At the caller, the concrete variant has a
+plain `catch (delayed 0)`, while the absent, wildcard, and concrete-empty
+variants retain a `thunk[[choose], int]` and lower to a marked
+`catch marker[choose](force-thunk ...)`. These are compiler-lowered marker
+plans, not an instrumented trace of runtime `GuardId` values. The frozen
+runtime rules say returned functions carry markers and later calls re-enter
+their marker frame; the concrete variant's two runtimes report the resulting
+request unhandled. This shows that effect-row erasure and runtime marker
+routing coexist in this case, but does not prove whether the caller handler is
+eligible in the successor's declarative semantics.
+
+A second control makes the callback itself return the effectful closure:
+
+```yu
+my make_rejecter() = \_ -> choose::reject()
+my maker(f: () -> [choose] (int -> [choose] int)) = f()
+my delayed = maker(make_rejecter)
+my caller(): [] int = catch delayed(0):
+  choose::reject(), k -> k 3
+  v -> v
+```
+
+The frozen checker accepts it; `--poly-raw` again gives `maker`, `delayed`,
+and `caller` pure result-effect slots, and the interpreter reports an
+unhandled `choose::reject`. Its runtime IR shows callback markers at depths 1
+and 2, plus returned maker-body markers at depths 0 and 1. This is a
+distinguishing lowering control for callback-result transport, not yet a
+runtime log of marker ids, frame exits, resumption, and catch skipping. The
+eligible/ineligible-caller ambiguity therefore remains.
+
+The matched absent-contract control rejects the explicit pure caller with an
+effect-filter mismatch. With the caller annotation inferred instead, the
+absent-contract program retains `[choose]` in `delayed` and `caller`, and the
+caller handler returns `[3]`. The concrete-contract version with the caller
+annotation inferred has `Bot` result effects and fails at runtime with the
+unhandled request. These outcomes isolate the contract-dependent difference
+on this returned-callback shape; they still do not choose the successor's
+handler-eligibility rule.
+
+Compatibility consequence: the successor cannot adopt Oracle's complete
+combination of pure returned-closure effects and pure caller acceptance as a
+validated rule. If `choose` escapes the receiving function, the returned
+closure's latent effect must retain it. Whether the surrounding pure caller is
+then rejected or its handler may soundly consume the request remains open
+until provider eligibility and source/runtime correspondence are defined.
+Thus the accepted-but-unhandled Oracle behavior is recorded, while its final
+well-typed-program acceptance delta is not yet selected.
 
 Focused commands used the frozen checkout's prebuilt CLI and sources in
 `/tmp/yulang-intrusion-*`:
@@ -263,23 +314,41 @@ Focused commands used the frozen checkout's prebuilt CLI and sources in
 ```text
 yulang --no-prelude --no-cache check /tmp/yulang-intrusion-capture-escape.yu
 yulang --no-prelude --no-cache dump /tmp/yulang-intrusion-capture-escape.yu --poly-raw
+yulang --no-prelude --no-cache dump /tmp/yulang-intrusion-capture-escape.yu --runtime-ir
 yulang --no-prelude --no-cache run --interpreter --print-roots /tmp/yulang-intrusion-capture-escape.yu
 yulang --no-prelude --no-cache run --evidence-vm --print-roots /tmp/yulang-intrusion-capture-escape.yu
 yulang --no-prelude --no-cache check /tmp/yulang-intrusion-direct-closure-control.yu
 yulang --no-prelude --no-cache run --interpreter --print-roots /tmp/yulang-intrusion-direct-closure-inferred.yu
 yulang --no-prelude --no-cache check /tmp/yulang-intrusion-capture-escape-absent-inferred.yu
 yulang --no-prelude --no-cache dump /tmp/yulang-intrusion-capture-escape-absent-inferred.yu --poly-raw
+yulang --no-prelude --no-cache dump /tmp/yulang-intrusion-capture-escape-absent-inferred.yu --runtime-ir
 yulang --no-prelude --no-cache run --interpreter --print-roots /tmp/yulang-intrusion-capture-escape-absent-inferred.yu
 yulang --no-prelude --no-cache check /tmp/yulang-intrusion-capture-escape-wildcard-inferred.yu
 yulang --no-prelude --no-cache dump /tmp/yulang-intrusion-capture-escape-wildcard-inferred.yu --poly-raw
+yulang --no-prelude --no-cache dump /tmp/yulang-intrusion-capture-escape-wildcard-inferred.yu --runtime-ir
 yulang --no-prelude --no-cache run --interpreter --print-roots /tmp/yulang-intrusion-capture-escape-wildcard-inferred.yu
 yulang --no-prelude --no-cache check /tmp/yulang-intrusion-capture-escape-empty-inferred.yu
 yulang --no-prelude --no-cache dump /tmp/yulang-intrusion-capture-escape-empty-inferred.yu --poly-raw
+yulang --no-prelude --no-cache dump /tmp/yulang-intrusion-capture-escape-empty-inferred.yu --runtime-ir
 yulang --no-prelude --no-cache run --interpreter --print-roots /tmp/yulang-intrusion-capture-escape-empty-inferred.yu
 yulang --no-prelude --no-cache check /tmp/yulang-intrusion-capture-escape-concrete-inferred.yu
 yulang --no-prelude --no-cache dump /tmp/yulang-intrusion-capture-escape-concrete-inferred.yu --poly-raw
+yulang --no-prelude --no-cache dump /tmp/yulang-intrusion-capture-escape-concrete-inferred.yu --runtime-ir
 yulang --no-prelude --no-cache run --interpreter --print-roots /tmp/yulang-intrusion-capture-escape-concrete-inferred.yu
 yulang --no-prelude --no-cache run --evidence-vm --print-roots /tmp/yulang-intrusion-capture-escape-concrete-inferred.yu
+yulang --no-prelude --no-cache check /tmp/yulang-intrusion-returning-callback-control.yu
+yulang --no-prelude --no-cache dump /tmp/yulang-intrusion-returning-callback-control.yu --poly-raw
+yulang --no-prelude --no-cache dump /tmp/yulang-intrusion-returning-callback-control.yu --runtime-ir
+yulang --no-prelude --no-cache run --interpreter --print-roots /tmp/yulang-intrusion-returning-callback-control.yu
+yulang --no-prelude --no-cache check /tmp/yulang-intrusion-returning-callback-absent.yu
+yulang --no-prelude --no-cache check /tmp/yulang-intrusion-returning-callback-absent-inferred.yu
+yulang --no-prelude --no-cache dump /tmp/yulang-intrusion-returning-callback-absent-inferred.yu --poly-raw
+yulang --no-prelude --no-cache dump /tmp/yulang-intrusion-returning-callback-absent-inferred.yu --runtime-ir
+yulang --no-prelude --no-cache run --interpreter --print-roots /tmp/yulang-intrusion-returning-callback-absent-inferred.yu
+yulang --no-prelude --no-cache check /tmp/yulang-intrusion-returning-callback-concrete-inferred.yu
+yulang --no-prelude --no-cache dump /tmp/yulang-intrusion-returning-callback-concrete-inferred.yu --poly-raw
+yulang --no-prelude --no-cache dump /tmp/yulang-intrusion-returning-callback-concrete-inferred.yu --runtime-ir
+yulang --no-prelude --no-cache run --interpreter --print-roots /tmp/yulang-intrusion-returning-callback-concrete-inferred.yu
 ```
 
 The callback/closure fixture's check and dump exit 0; both runtime commands
