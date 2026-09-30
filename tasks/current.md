@@ -1254,8 +1254,19 @@ argument applies only with fixed `Drop`.
 The exact delta is in
 `notes/progress/2026-10-01-intrusion-coarse-effect-abstraction-candidate.md`;
 this focused semantic delta is reviewed and recorded. The finite provenance
-analysis remains unproved; next define its concrete-to-abstract transfer for
-helper calls, force, closure escape/re-entry, scheme instantiation, and
-forwarded resumption, then prove row/provenance coupling and measure whether
-unknown fallback loses supported final acceptance. No implementation is
-authorized.
+analysis remains unproved. No implementation is authorized.
+
+The candidate now contains a proposed transfer table for those transitions.
+Three independent delta reviews found and closed the concrete table defects:
+helper entry must append/recompute boundaries; proven outside-scope and an
+in-scope explicit grant are separate ways to clear a blocker; annotations must
+keep row-side constraints separate from explicit grant metadata; and arm/raw-k
+execution must drop this shallow handler while forwarded resumption restores
+its captured activation identity. Scheme-local static binder freshening stays
+separate from dynamic call activations. The table remains explicitly unproved;
+frozen wildcard/omission visibility does not select successor semantics.
+Next gate: define a finite activation quotient and prove the concrete-to-
+abstract simulation plus row/provenance coupling. Then measure its unknown
+fallback against the supported final-acceptance envelope before deriving any
+weight encoding. The reviewed candidate details are in
+`notes/progress/2026-10-01-intrusion-coarse-effect-abstraction-candidate.md`.

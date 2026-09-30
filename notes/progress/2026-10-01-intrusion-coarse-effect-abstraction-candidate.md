@@ -183,6 +183,49 @@ and then solve effect rows. If origin discovery depends on inferred rows, or
 the two analyses run together, monotonicity of the combined operator must be
 proved; the separate finite-lattice theorem does not establish it.
 
+### Proposed provenance transfers (unproved)
+
+The following table is a candidate transfer contract for checking against the
+source request-tree semantics. It does not adopt Oracle weights or runtime
+guard routing. `Lineage` is ordered and preserves callback-boundary evidence;
+`Block(H,q)` is a sound over-approximation of the boundaries that may prevent
+handler `H` from receiving request `q`.
+
+| Source transition | Candidate provenance transfer | Required proof obligation |
+|---|---|---|
+| Direct operation request | Add an exact `(family, operation, origin-site)` fact; retain current lineage. | Every evaluated request has a fact, including operation results and recursive calls. |
+| Enter a catch activation `H` | Mark this dynamic activation active while evaluating its scrutinee and forwarded suffixes. | Activation identity and delimiter lifetime are explicit, including recursive/re-entrant calls. |
+| Enter a callback receiving boundary `b` | Append the fresh boundary instance to the lineage; compute possible blockers relative to the receiving handler activations. | Dynamic nesting and the provider of the callback are preserved across the call. |
+| Concrete callback argument contract `[F]` | Record a candidate grant `(b,F)`; it can discharge blocker `b` only for family `f ∈ F` and a handler proved inside this receiving activation. | Contract ownership and scope are stable under helper calls and do not become a family-wide grant. |
+| Concrete empty, absent, wildcard, or wildcard-by-skeleton annotation | Preserve the exact annotation form and its row-side constraint separately from explicit grant metadata; do not collapse the forms. | Frozen Oracle uses distinct row-side constraints (`take(Empty)`, `take(All)`, or omitted) and concrete heads alone generate explicit runtime contract metadata. Their successor visibility meaning is open; unknown meaning cannot prove a drop. |
+| Ordinary helper call | Preserve existing request origin and lineage, append any newly crossed receiving boundary, then recompute handler-relative blockers for newly entered activations. Add `UnknownMask` if context prevents proving those relations. | Compositionality across argument passing, helper entry/return, and any handler entered by the helper. |
+| Thunk force or closure invocation | Preserve latent request facts, then relate the current handler activation to every captured boundary; unknown relation adds `UnknownMask`. | Return/force and re-entry preserve effects and do not widen grant scope. |
+| Closure return or storage | Carry latent row and provenance with the value; do not convert grants into transferable permission. | Later invocation reconstructs a sound receiving/activation relation, or conservatively becomes unknown. |
+| Scheme instantiation | Freshen identities owned by local static binders while preserving imported/outer provider identities; transport request facts consistently. Dynamic receiving activation identities are allocated later, at calls. | Static binder ownership, use-site substitution, and later dynamic activation are separate; unresolved ownership adds `UnknownMask`. |
+| Handler value arm or matching operation arm begins | Remove the current shallow handler activation from the active stack while evaluating the arm; arm-originated requests are analyzed against outer active handlers. | Arm execution does not accidentally reuse `H`'s eligibility or hide arm effects from outer handlers. |
+| Matched request resumes raw `k` | Execute the suffix without automatically reinstating this matching `H`; retain its request lineage and analyze it under whatever outer handlers are active. | This agrees with the shallow trace transformer; effects remain covered by `k : May(C)`, and any separately installed/re-entered handler gets its own provenance analysis. |
+| Forwarded request resumed by an outer context | Preserve request provenance and re-enter the forwarded handler transformer under its captured `H` activation identity. If an abstract implementation uses a successor identity, prove it equivalent for visibility. | Every such successor configuration is represented in `Offered`; arbitrary finite resumes remain covered. |
+| Handler arm returns or aborts | `H` remains inactive after arm entry; finalize that same suspended scope without popping `H` or disturbing outer handlers a second time. Unwind arm-local activations normally. | Delimiter scope ends on every arm exit path and its captured identity cannot leak to unrelated calls. |
+
+For a handler/family pair, a blocker can be removed only after exact operation
+coverage and active-handler status are established, and either (a) a proof
+shows this handler activation is outside the receiving activation represented
+by that boundary, or (b) a matching concrete grant is in scope for this
+handler. Possible-but-unproved scope is not treated as outside; it maps to
+`UnknownMask`. Join of control-flow paths unions request facts and possible
+blockers. This is designed to lose precision monotonically: adding a possible
+path cannot create a new `Drop` proof.
+
+The transfer table is not yet a finite abstract interpreter. In particular,
+the rule for determining whether a handler is inside a receiving activation
+cannot use source-site equality: recursive calls and escaped closures can
+re-enter one site under distinct dynamic activations. Fresh dynamic identities
+must also be distinguished from static boundary binders freshened during
+scheme instantiation. A finite activation quotient and simulation theorem are
+still needed. If the quotient or callback facts depend on inferred effect
+rows, the combined origin/effect analysis must also establish monotonicity;
+otherwise the fixed-`Drop` leastness theorem does not apply.
+
 Concrete callback annotations are part of the fixed source-contract input and
 can change `Drop` and therefore `F`; this theorem compares solutions only for
 the same annotated program. Concrete result annotations are separate upper
