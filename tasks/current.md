@@ -536,14 +536,15 @@ the rule-by-rule provenance table is in
 paper/reference ingredients as Simple-sub original, Yulang behavior/lifecycle
 as extension, and intrusion/effect-hygiene proposals as new conjectures.
 
-The current powerset-carrier `Root_d`/`Pred_d` model now has a reviewed,
-conditional counterexample: if the captured recursive upper interval is an
-enforced selected obligation, negative-only erasure adds an instance. This is
-not a public Oracle bug claim; the unresolved premise is whether that compact
-interval constrains the public scheme relation and how latent effects and
-subsumption are observed. Next gate: define the pre/post instance relation for
-the single `pub f x = x f` source-induced view, with its Function/effect
-identities, fixed anchors, and recursive interval role. Preserve or replace the
-candidate carrier based on that calculation. No compiler implementation is
-authorized by this result; the reviewed successor contract and explicit
-approval remain prerequisites.
+The powerset carrier has a reviewed conditional counterexample to one possible
+pre/post projection bridge: if the pre-projection recursive interval is an
+enforced obligation, erasing its negative-only variable and pruning the row
+changes the pre-projection `Pred`. This does not refute the draft's
+post-projection `Root_d`/`Pred_d` definition, whose `H_d` excludes erased
+identities, and it is not a public Oracle bug claim. Next gate: define source
+typing/use observations before and after projection for the single
+`pub f x = x f` view, including latent Function/effect identities, fixed
+anchors, and the recursive interval's relation to the source derivation. Then
+check that the finalized scheme's actual instantiation path preserves those
+observations. No compiler implementation is authorized by this result; the
+reviewed successor contract and explicit approval remain prerequisites.

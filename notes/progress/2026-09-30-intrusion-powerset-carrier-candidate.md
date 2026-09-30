@@ -337,34 +337,78 @@ must recover before proposing any stronger parent sharing.
 
 ## Conditional review of the negative recursive interval
 
-A separate compiler-referee review confirmed a counterexample to the candidate
-`Root_d`/`Pred_d` preservation claim **under the candidate's own stated
-interpretation**. If the captured recursive interval is an enforced selected
-obligation and its upper is `q ∩ K(q)`, then it requires `q ≤ K(q)`. In the
-tagged powerset carrier, every Function encoding omits its distinct head atom,
-so `Top` is not feasible; `Bottom` is feasible. The exposed root has `q` only
-in its negative outer Function argument. Erasing that argument to `Top`
-therefore adds `Fun(Top, R_saved)` to the projected upward-closed relation: any
-pre-erasure root below it would, by Function contravariance, require a feasible
-`q` with `Top ≤ q`, which is impossible. The result also holds if the exposed
-argument is `q ∩ K(q)`, since the interval makes it equal to `q`.
+A compiler-referee review confirmed a counterexample **if** the captured
+pre-projection recursive interval is carried into the assignment fiber as an
+enforced selected obligation. Its upper is `q ∩ K(q)`, so it requires
+`q ≤ K(q)`. In the tagged powerset carrier, every Function encoding omits its
+distinct head atom, so `Top` is not feasible; `Bottom` is feasible. The exposed
+root has `q` only in its negative outer Function argument. If that argument is
+erased to `Top` while the interval is still enforced, the projected upward
+closure gains `Fun(Top, R_saved)`: any pre-erasure root below it would, by
+Function contravariance, require a feasible `q` with `Top ≤ q`, which is
+impossible. The same reasoning applies if the exposed argument is `q ∩ K(q)`,
+since the interval makes it equal to `q`.
 
-This refutes that particular candidate projection equation under those
-premises. It does not establish a public Oracle bug: the source trace establishes
-the compact interval and subsequent rewrite/prune, but the draft has not shown
-that this interval is an enforced semantic obligation in the public scheme
-relation, or that the candidate Function/root/effect denotation matches Oracle
-instantiation and subsumption. Simple-sub §4.3.1 proves a different statement:
-polar removal inside its type-expression semantics is mutually subsuming; it
-does not prove erasure of an independently interpreted recursive interval.
+This does **not** refute the draft's `Root_d`/`Pred_d` definition as currently
+staged. There, `H_d` is already projected and simplified; `Erase_d` identities
+do not occur in `H_d`. The Oracle trace reports precisely that q is rewritten
+out of the root and its now-unreachable recursive row is pruned before the
+saved scheme is finalized. Thus the counterexample rejects a tempting but
+unjustified modeling step—treating the pre-projection interval as an additional
+obligation in the post-projection member relation. It does not prove that
+Oracle's projection is sound. Simple-sub §4.3.1 proves polar removal inside its
+type-expression semantics is mutually subsuming; it does not by itself prove
+the Oracle's pre/post root preparation preserves source typing observations.
+
+The source trace and scheme output establish representation facts, not a
+source-to-carrier semantic bridge. The exact Function/effect identity and
+public use relation still need characterization before claiming that the
+projection preserves Oracle behavior. No public Oracle bug is established.
+
+### Oracle stage boundary confirmed by source audit
+
+Read-only tracing of the frozen Oracle confirms the stage distinction above.
+`eliminate_polar_variables_with_roles_and_non_generic` rewrites eligible
+one-sided variables to `None`; `rewrite_type_vars` removes their occurrences.
+The recursive record can remain in `rec_vars` immediately after that rewrite,
+but `prepare_stack_cleaned_compact_root` calls
+`prune_unreachable_recursive_bounds`, which computes reachability from the
+projected root and roles and drops the now-unreachable q row. Finalization copies
+only the surviving recursive rows into `Scheme.recursive_bounds`, and the
+scheme instantiator freshens/reinstalls only those rows. For this source, the
+captured and previously recorded output has zero finalized recursive bounds.
+
+The collector creates `rec_vars` on a same `(TypeVar, polarity)` recursion
+hit (`compact/collect/mod.rs:746–782`, `compact/collect/type_nodes.rs:657–675`).
+That representation fact does not establish that a transient row is an
+independent public subtype obligation. Only a row that survives into
+`Scheme.recursive_bounds` is reinstalled as two subtype edges by the ordinary
+scheme instantiator.
+
+Therefore q's interval is operational input to Oracle projection, not an
+enforced obligation of the *resulting* scheme instance. Source inspection
+establishes this lifecycle, but not that the pre-projection interval denotes an
+independent constraint on all source typings, nor that deleting it preserves
+all contextual results. The next proof must define the pre-projection meaning
+of the compact recursive side table (possibly as projection metadata), then
+compare the source/use relation before and after rewrite+prune. Separately,
+the already-projected `H_d` relation must match the actual finalized scheme
+instantiation path; q's removed edge must not be silently reintroduced there.
+Source anchors in the frozen checkout: `compact/analysis/mod.rs:41–56,
+214–243`; `compact/analysis/occurrence/substitution.rs:69–85,110–125`;
+`generalize/mod.rs:811–829`; `generalize/core/prune.rs:90–121`;
+`compact/finalize.rs:119–135`; `generalize/finalize.rs:3–25`;
+`instantiate.rs:620–658,1013–1043`. This was source inspection only; no
+Oracle files or tests changed.
 
 ### Next semantic gate
 
-For this single source-induced graph, define the pre- and post-projection
-instance relation including latent Function/effect identities, fixed anchors,
-and the exact role of the selected recursive interval. Decide whether the
-interval is an enforced bound or projection metadata, then prove the Oracle
-observable relation is preserved (or replace the carrier/projection model).
-Do not use the current `P(N)` `Root_d`/`Pred_d` interpretation as Oracle
-evidence until that bridge is supplied. This review ran no tests and changed no
-Oracle files.
+For this single source-induced graph, define a source typing/use observation
+before and after Oracle root projection, including latent Function/effect
+identities and fixed anchors. Relate the pre-projection recursive interval to
+the constraints induced by the source typing derivation; do not append it as a
+post-projection member obligation unless that transport is proved. Then show
+that the finalized scheme has the same observations under its actual
+instantiation path. This is the bridge needed to validate the candidate
+`Root_d`/`Pred_d` semantics or replace it. No tests ran and no Oracle files
+changed.
