@@ -590,8 +590,8 @@ identities explicitly. The q-cycle slice now records a collector-generated
 `SelfOccurrence(v2-)` separately from the selected bound edges, with an
 explicit forgetting map to compact syntax left to prove. Its lower weights,
 effect endpoints, and the rest of `v4+` remain untraced. Simple-sub's
-`TypeSimplifier`
-also explicitly preserves recursive variables during polar-only removal,
+`TypeSimplifier` also explicitly preserves recursive variables during
+polar-only removal,
 whereas the Oracle removes this negative-only q and prunes its row. That
 specific behavior is a Yulang extension; its contextual preservation is a new
 conjecture, not supplied by Simple-sub §4.3.1. Next complete the
@@ -599,6 +599,17 @@ identity-preserving selected-bound graph and prove its graph-to-collector map,
 finite-regular-presentation correspondence, and q-erasure bridge, then use
 `Root_d`/`Pred_d`. General weighted-cycle reconstruction remains open. See
 `notes/progress/2026-09-30-intrusion-powerset-carrier-candidate.md`.
+An independent source review of a second disposable Oracle collector trace
+confirms only additional metadata: root lower records 22/24 have empty weights
+and uncovered upper claim 14; q's selected upper and the q→TypeVar1→q cycle
+remain empty-weighted; return effect variables TypeVar7/8 are reached through
+`SubtractId(0)` pop-one weights, while the matching push-Empty upper records
+and several qualified lower records are logged. This trace is incomplete:
+variable-bound endpoints bypass the typed-node wrapper, and qualified records
+do not by themselves establish accepted edges. It therefore does not complete
+the selected graph or establish interval restoration. In particular, this
+trace confirms only `BoundRecordId(2) → PosId(5)`, not its endpoint; the
+TypeVar4 endpoint remains supported only by the earlier trace.
 The rule distinction is recorded in
 `notes/progress/2026-09-30-simple-sub-paper-mlsub-audit.md`.
 This is one fixture-level obligation; multi-member epochs, publication/failure,
