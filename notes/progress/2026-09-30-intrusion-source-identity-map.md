@@ -151,12 +151,51 @@ YULANG_INTRUSION_PROJECTION_TRACE=1 YULANG_TRACE_SCHEME_DEFS=0 \
 All instrumentation and the scratch test were discarded with that worktree;
 the frozen Oracle checkout remains clean.
 
+## Polarity rewrite and recursive-row pruning stages
+
+A fourth disposable Oracle worktree traced `eliminate_polar_variables_with_roles_and_non_generic`
+and `prune_unreachable_recursive_bounds` for the same source. Its focused
+Rust dump test passed. The captured stage data shows:
+
+1. Before polarity rewrite, the root Function argument contains the primary
+   `TypeVar(2)` q occurrence and `rec_vars` contains q's interval.
+2. The rewrite returns a substitution for `TypeVar(2)` with `target=None`;
+   the rewritten root's Function argument has no variables, while the copied
+   recursive table still contains q and its interval.
+3. Before reachability pruning, the root argument remains empty and the q row
+   is still present. After pruning, `rec_vars=[]`.
+4. The final `GeneralizedCompactRoot` capture above agrees on the root shape,
+   no q recursive row, and no recursive sandwich; finalization emits no
+   recursive bound.
+
+The trace also shows that polarity rewrite does not finish the whole compact
+view: the intermediate Function result still has two `SubtractId(0)`-weighted
+value occurrences. The separate final-root capture has one unweighted result
+variable after later cleanup/substitution. The captures use run-local IDs;
+the exact semantic role of those transformations still needs proof.
+Therefore this closes the operational `q -> None; retain row; prune row`
+stage order for the fixture, not the `Obs_source`-preservation theorem or the
+meaning of the collector's transient q row.
+
+Command:
+
+```text
+YULANG_INTRUSION_QPROJECTION_TRACE=1 \
+  CARGO_TARGET_DIR=/tmp/yulang-intrusion-qprojection-stages-target \
+  cargo test -p infer --lib scratch_qprojection_stage_self_application -- --nocapture
+```
+
+The trace emitted multiple rewrite calls on compact copies during this root's
+pipeline. The sequence above states only the repeated local rewrite/prune facts;
+it does not claim every emitted snapshot is one uninterrupted mutation chain.
+Instrumentation and the test were discarded; frozen Oracle remains clean.
+
 The follow-up effect-role trace printed the callee and argument computation
 effects and the lambda parameter effect slots. Together with the earlier
 skeleton and wrapper trace, it resolves every named effect variable in the
 symbolic inventory and confirms the parameter's Bottom slot. It does not
 resolve the selected `CompactRoot` to `GeneralizedCompactRoot` semantic
-projection, complete source constraint/event construction, or public use
+adequacy, complete source constraint/event construction, or public use
 observations. In particular, `Oe=5` and the application call-effect `C=13`
 occur in stack-weighted endpoints; their relationship is governed by
 subtraction evidence, not assumed to be plain equality. Proving that relation
