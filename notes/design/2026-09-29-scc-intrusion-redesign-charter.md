@@ -166,3 +166,35 @@ records the user's direction to remove F5 as the target but does not yet define
 the replacement semantics. No compiler code, F5 tests, public scheme APIs, or
 frozen `main` files are authorized for deletion or modification by this
 research document.
+
+## 8. User-directed effect-semantics amendment (2026-09-30)
+
+This section records the user's explicit decision after the charter review. It
+supersedes the sentence in §3 that places effect-handler hygiene only after
+pure type/SCC behavior has been characterized, and narrows the later-gate
+wording in §4 as follows:
+
+- Ordinary effect and handler semantics must be settled before the successor
+  can be called complete or implementation-ready. Method selection, roles, and
+  implementation resolution remain a later mandatory gate and must not begin
+  before ordinary effects/handlers are sufficiently settled, unless the
+  current proof demonstrates a concrete dependency.
+- Frozen Oracle weight propagation and left/right routing are characterization
+  evidence only. `StackWeight`, `SubtractId`, `All`, `AllExcept(...)`, and the
+  routing algorithm are not presumed sound or semantically authoritative.
+- Derive effect meaning from an independent declarative source semantics. If a
+  weight representation is retained, define its meaning independently and prove
+  each left/right transformation preserves that meaning. No weighted
+  constraint may be erased, split, commuted, or transferred without a
+  preservation proof.
+- Counterexample search must include repeated pushes sharing one pop, nested
+  frames, complete/incomplete handlers, and residual effects. If Oracle routing
+  conflicts with soundness or principality, record the exact behavior dropped,
+  successor rule, and final-acceptance compatibility impact.
+
+This user-directed amendment does not select a trace/row model, establish a
+routing counterexample, complete a proof, approve a representation, or authorize
+compiler implementation. Those remain research obligations under the active
+successor-design gate. The current status of the candidate semantics and
+counterexample search is recorded in
+`notes/progress/2026-09-30-intrusion-oracle-latent-effects.md`.

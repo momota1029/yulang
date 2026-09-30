@@ -1047,3 +1047,37 @@ semantics are sufficiently settled, unless the current effect proof discovers
 a concrete dependency that requires resolving it earlier. This gate is
 recorded in the redesign charter. No compiler implementation is authorized by
 the conditional transport result alone.
+
+## Current user decision: independent effect semantics first
+
+Oracle weight propagation and left/right routing are characterization evidence
+only. Do not treat `StackWeight`, `SubtractId`, `All`, `AllExcept(...)`, or the
+frozen routing rules as semantic authority or assume they are sound. The finite
+set-row residual projection recorded in the latent-effects note is conditional
+on its stated set interpretation; it is not a successor semantics theorem.
+
+Before generalizing that projection or implementing effect machinery, define a
+declarative effect/handler semantics independently of the Oracle algorithm.
+Give weight an independent meaning if retaining it, and prove every left/right
+transformation preserves that meaning. Do not erase, split, commute, or transfer
+weighted constraints without such a proof. Search explicitly for Oracle routing
+counterexamples, covering repeated pushes with one shared pop, nested frames,
+complete and incomplete handlers, and residual effects. If a conflict with
+soundness or principality is found, record the precise Oracle behavior dropped,
+the successor rule, and the compatibility impact. Next: draft this independent
+judgment and derive the weight encoding and its soundness/principality
+obligations; only then resume root-specific projection work. The later
+method-selection/roles/impl-resolution gate remains deferred unless this
+ordinary effect proof discovers a concrete dependency.
+
+Focused frozen-Oracle nested-provider probe: `outer(rejecter)` is accepted and
+runs the outer same-family reject arm (`run --interpreter --print-roots` gives
+`[1]`) even though the call passes through an inner same-family catch. Mono
+shows both marker sites and the force under each. This disproves nearest-active-
+handler as a routing shortcut, but does not demonstrate unsoundness: the
+independent provider/handler rule is still open. A compiler-referee review found
+no counterexample in the existing evidence and confirms this limit. Next fixture:
+construct the paired inner-owned callback with a controlled creation/force
+boundary, then write the declarative provider/activation transition rules before
+trying to derive or simplify any weights. Details and exact commands are in
+`notes/progress/2026-09-30-intrusion-oracle-latent-effects.md`.

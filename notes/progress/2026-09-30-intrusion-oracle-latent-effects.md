@@ -1347,3 +1347,135 @@ acceptance, or principality. The next proof step is to generalize the
 projection to the directed weight algebra while preserving gamma's full
 constraint neighborhood and then test the general rule against root
 projection.
+
+### Authority correction from the user (2026-09-30)
+
+The frozen Oracle's weight propagation and left/right routing are only
+characterization evidence. `StackWeight`, `SubtractId`, `All`, `AllExcept(...)`,
+and their current routing rules are not semantic authority and are not presumed
+sound. All prior descriptions here of Oracle rules report implementation
+behavior only. The finite set-row countermodel and projection lemma above are
+conditional on the explicitly assumed finite-set inclusion model; neither
+establishes the meaning of Yulang effects nor validates Oracle routing.
+
+The successor must begin with a declarative effect/handler judgment
+independent of the Oracle algorithm. Any retained weight representation needs
+an independent meaning and a semantic preservation proof for every
+left/right transformation. No weighted constraint may be erased, split,
+commuted, or transferred without that proof. Counterexample search must cover
+repeated pushes with one shared pop, nested frames, complete/incomplete
+handlers, and residual effects. If Oracle behavior conflicts with soundness or
+principality, record the exact behavior dropped, successor rule, and final
+acceptance compatibility impact. Root-specific residual projection is paused
+until this semantic foundation and routing derivation exist.
+
+### Independent-semantics gate: first candidate and counterexample inventory
+
+A read-only architecture pass recommends defining effects from source execution
+before choosing a weight representation. Candidate semantic observations are
+finite execution traces containing operation requests (family, operation,
+payload), latent function/thunk computations, handler activations, handler
+selection, and residual/unhandled requests. Function and thunk types describe
+latent computations; constructing a thunk is distinct from forcing it. A
+handler creates a fresh activation and handles only requests that the source
+operational semantics routes to it and whose operation/payload is covered;
+unmatched requests remain observable residuals. This is a candidate frame for
+a judgment, not yet a complete semantics: in particular, callback provider
+ownership, effectful argument mode, recursive traces, and handler eligibility
+still need exact source rules.
+
+If a weight encoding is retained, the candidate meaning should be a relation on
+these semantic traces/contexts, not an interpretation borrowed from the Oracle
+constructors. The proof target is: every generated left/right transformation
+preserves the trace relation for every fixed outer assignment; the induced
+constraint solution is least among expressible effect bounds; and function,
+thunk, handler, and SCC transport are operationally adequate. An exact trace
+semantics alone does not establish a finite principal inference representation.
+
+Current explicit counterexample search has not established an unsound Oracle
+routing case. Its evidence inventory is:
+
+- Repeated pushes / one shared pop: one source callback called twice produces
+two call-effect endpoints with the same `push(δ, Empty)` identity and one
+frame `pop(δ)`. Each path is observed separately; the trace does not prove
+that treating the paths independently or combining them is sound. A decisive
+counterexample must distinguish one dynamic activation from two fresh
+instantiations and compare the resulting handler observations.
+- Nested frames: a concrete Oracle lowering selects an introduced outer frame
+(`δ0`) while a more recently entered defined frame (`δ1`) is active. This is
+implementation behavior only. Whether it is correct depends on the missing
+provider/handler eligibility rule. A likely discriminating source pair is an
+outer-owned callback forced beneath an inner same-family handler versus a
+callback created/owned inside that inner boundary.
+- Complete/incomplete handlers: a named `choose::reject` thunk is caught by a
+complete handler and remains unhandled by the incomplete handler; both source
+programs are accepted and their finalized function schemes are alpha-equivalent.
+The runtime distinction matches arm coverage. No weight-routing conflict is
+shown by this pair.
+- Residual effects: deleting a shared gamma and all its edges admits an invalid
+empty-tail assignment under the explicitly assumed set-row inclusion model.
+Oracle itself emits the shared residual edges in the probed case. The conditional
+projection lemma handles only `take(Empty)` in that model; neither result
+certifies Oracle compaction or arbitrary routed weights.
+
+The structural candidate requiring direct challenge is the separation between
+lexical/provider ownership and nearest dynamic activation. Specifically, test
+whether a callback whose effect provider belongs to an outer frame can be
+instantiated, transported through an inner handler, and still reach the outer
+handler, while an otherwise identical callback owned by the inner frame reaches
+the inner handler. Then vary repeated calls, two fresh callback instantiations,
+and reversed nested families. A mismatch would identify the exact routed
+constraint and observable request path; until then this remains a test
+hypothesis, not an Oracle counterexample or successor rule.
+
+The next gate is to write the source-level transition/judgment rules for
+provider identity, handler activation/coverage, strict versus delayed argument
+execution, and residual requests. Only after that, derive any weight as a
+proved encoding and search its left/right laws against this fixture matrix.
+No implementation or generic residual projection follows from the current
+candidate.
+
+### Nested provider/handler routing probe
+
+A focused frozen-Oracle CLI probe distinguishes the owner of a callback from
+its dynamically active caller:
+
+```yu
+act choose:
+  our branch: () -> int
+  our reject: () -> never
+
+my rejecter() = choose::reject()
+my inner(f: () -> [_] _) = catch f():
+  choose::reject(), _ -> 2
+  _ -> 20
+my outer(f: () -> [_] _) = catch inner(f):
+  choose::reject(), _ -> 1
+  v -> v
+my inside = outer(rejecter)
+inside
+```
+
+At frozen Oracle `a58eefc3`, `check` succeeds, `dump --mono` shows both inner
+and outer `catch marker[choose]` sites and the thunk force under each, and
+`run --interpreter --print-roots` reports root `[1]`: the outer reject arm runs,
+not the inner reject arm. This is a concrete same-family provider/handler
+routing observation, but not a soundness counterexample: the required
+independent source rule for which activation owns this request is not yet
+specified. It does refute the simplifying assumption that the nearest active
+same-family handler necessarily receives every request. The paired
+inner-owned callback case remains to be constructed without changing when the
+callback/thunk is created or forced.
+
+Commands, using the prebuilt frozen-Oracle binary:
+
+```text
+yulang --no-prelude --no-cache check /tmp/yulang-intrusion-weight-nested.yu
+yulang --no-prelude --no-cache dump /tmp/yulang-intrusion-weight-nested.yu --mono
+yulang --no-prelude --no-cache run --interpreter --print-roots /tmp/yulang-intrusion-weight-nested.yu
+```
+
+All three commands succeeded; no source/build changes were made in the frozen
+checkout. The scratch source was removed after recording this result. An
+independent compiler-referee review agrees that the observation is consistent
+with provider-sensitive routing and is not, by itself, a routing defect.
