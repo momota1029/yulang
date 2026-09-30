@@ -1265,8 +1265,29 @@ execution must drop this shallow handler while forwarded resumption restores
 its captured activation identity. Scheme-local static binder freshening stays
 separate from dynamic call activations. The table remains explicitly unproved;
 frozen wildcard/omission visibility does not select successor semantics.
-Next gate: define a finite activation quotient and prove the concrete-to-
-abstract simulation plus row/provenance coupling. Then measure its unknown
+Next gate: prove the bounded-stack candidate's concrete-to-abstract
+simulation and row/provenance coupling. The candidate
+now retains the top `K` dynamic frames, summarizes older frames as unknown,
+and joins closure/thunk snapshots by allocation site. Dynamic identities may
+not be inferred from source-site or reused stack-slot equality. An independent
+compiler-referee found the concrete failure case: the same static handler site
+may be inside an ungranted receiving activation on one path and outside on
+another, so an outside proof for one must not clear the other. Only scope
+evidence valid for every concrete activation represented by a fact may
+authorize `Drop`. The `K` quotient, closure-snapshot simulation, and expiry-as-
+outside rule remain hypotheses, not proof. Check `α(step κ) ⊑ step#(α κ)`
+for every transfer and handler observation; then measure its unknown
 fallback against the supported final-acceptance envelope before deriving any
 weight encoding. The reviewed candidate details are in
 `notes/progress/2026-10-01-intrusion-coarse-effect-abstraction-candidate.md`.
+
+The quotient record now bounds every carrier component (`UnknownOlder`,
+snapshot/grant references, and recursive stored-value summaries) for a fixed
+finite source and `K`. Independent architect review confirmed carrier
+finiteness under those stated parameters. Independent compiler-referee review
+confirmed the observation invariant must classify every concrete activation
+pair and admit `Drop` only when every possible scope class is in
+`{Outside, InsideGranted}`; `{Outside, InsideDenied}` fails. Exact operation
+coverage remains separate. These close the finite-carrier and quantifier
+findings only. The source-level expiry rule and the concrete-to-abstract step
+simulation remain open, so the quotient is not selected or authoritative.

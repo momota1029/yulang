@@ -226,6 +226,107 @@ still needed. If the quotient or callback facts depend on inferred effect
 rows, the combined origin/effect analysis must also establish monotonicity;
 otherwise the fixed-`Drop` leastness theorem does not apply.
 
+### Bounded dynamic-scope quotient candidate (unselected)
+
+Independent architecture and semantic review suggests a finite, deliberately
+conservative route. A concrete state `κ` would carry unique dynamic handler
+and receiving-boundary identities, their ordered active delimiter stack,
+request lineage, contract grants, and the provenance snapshots carried by
+closures, thunks, and continuations. For a fixed finite program and an
+analysis parameter `K`, an abstract state can retain only the top `K` stack
+frames, each tagged by frame kind and source site, plus an `UnknownOlder`
+summary for frames below that suffix. Request lineage can use the same bounded
+ordered representation and an `UnknownOlder` tail. This gives a finite domain
+for fixed `K`; it is an analysis precision parameter, not yet a selected input
+limit or compatibility boundary. To keep the carried-value component finite,
+closure/thunk/continuation provenance would be joined by static allocation
+site or a finite set of instantiated value slots; if recursive specialization
+can create an unbounded slot universe, it must use allocation-site summaries
+or `Unknown`. Grant families and paired-snapshot references must range over
+finite source sites, annotation heads, bounded abstract frame positions/value
+slots, or `Unknown`; they cannot use fresh dynamic counters. `UnknownOlder`
+must be a finite flag or subset of finite site/kind labels, not an unbounded
+count or list. Recursive stored-value depth and repeated grant instances join
+at allocation sites/value slots, with multiplicity discarded. A merge may add
+possible scopes but must never turn uncertainty into proof of visibility.
+
+The abstract identity of a frame is its position in the currently retained
+stack snapshot, never its source site or a position reused after pop. Such
+positions cannot escape as durable identity: a closure/thunk/continuation may
+carry a paired snapshot only while a proof ties it to the same live dynamic
+frame. A join of equal site/position shapes with different dynamic identities
+must destroy that correlation; a later transfer cannot reconstruct
+`InsideGranted` from shape equality. At escape, truncation, merge, or re-entry
+where identity is ambiguous, the carried relation degrades to `Unknown`. This
+prevents a recursive activation or reused stack slot from inheriting another
+activation's grant.
+
+For each offered request, handler, and boundary represented in its lineage,
+the abstract scope relation is a set of possible classes:
+
+```text
+ScopeClass = Outside | InsideGranted | InsideDenied | Unknown
+```
+
+`InsideGranted` requires proof that the handler is nested under the same live
+receiving activation and that its concrete grant covers the request family.
+`Outside` requires proof that the handler is not nested under that activation,
+including a proof that the carried boundary has expired; treating expiry this
+way remains a source-level hypothesis to validate. Any hidden stack
+frame, mixed dynamic activation, unmatched snapshot, or uncertain grant adds
+`Unknown`. The finite relation uses union at joins. A family may enter
+`Drop(H)` only if every represented operation is covered and every possible
+scope class for every boundary is either `Outside` or `InsideGranted`; any
+`InsideDenied` or `Unknown` prevents subtraction. This universal condition is
+important: a static handler site may denote one activation inside an ungranted
+boundary and another outside it. The outside activation cannot clear the
+inside activation's blocker.
+
+The target step-simulation obligation is:
+
+```text
+α(step(κ)) ⊑ step#(α(κ))
+```
+
+for every concrete source-semantics step, including call/return, force,
+closure escape/re-entry, scheme instantiation, handler arm entry/exit,
+forwarded resumption, and multi-shot continuation invocation. Forwarded
+resumption restores its captured handler context; matched raw `k` does not
+automatically restore the matching shallow handler. Multiple resumes join
+their abstract outcomes and require no usage count. A row/provenance coupling
+lemma must additionally map each family in a scrutinee row to a represented
+request fact or `Unknown`. Step simulation alone does not justify `Drop`; also
+prove the following observation/refinement invariant, including at the initial
+state:
+
+1. Every concrete request `q` offered to dynamic handler `H` has a covering
+   abstract request fact at the corresponding static handler slot.
+2. For every receiving-boundary identity and other active mask on `q`'s
+   concrete lineage, that fact's possible `ScopeClass` set contains the
+   concrete relation for this exact `(H,q,boundary)` activation tuple.
+3. Per-concrete-pair classification is sound, and exact operation coverage is
+   checked separately. Only when the entire possible-class set for every
+   relevant boundary/mask is a subset of `{Outside, InsideGranted}` does the
+   abstract fact imply visibility eligibility for every represented pair. Any
+   `InsideDenied` or `Unknown` prevents `Drop`; a joined `{Outside,
+   InsideDenied}` cannot pass just because one possibility is outside.
+4. Closure/thunk/continuation summaries preserve latent effect rows and these
+   scope relations. Boundary expiry means `Outside` only after proving the
+   source semantics cannot restore that receiving scope through a carried
+   value; a lexical return or stack pop alone is insufficient.
+
+Then every family admitted to `Drop(H)` is covered and eligible for every
+concrete request represented by its abstract facts. Without this implication,
+the abstract scope test is not a sound subtraction certificate.
+
+This is not yet a finite-quotient theorem. The concrete activation semantics,
+abstract join/transfer soundness, and effect of truncation on the supported
+final-acceptance envelope all remain open. Recursive or escaped-callback
+cases may become `Unknown` and therefore lose acceptance precision. No value
+of `K` is selected. Any useful precision/acceptance claim requires explicit
+fixtures and proof over the resulting abstraction; exact trace support remains
+the soundness reference, not a continuation-usage inference requirement.
+
 Concrete callback annotations are part of the fixed source-contract input and
 can change `Drop` and therefore `F`; this theorem compares solutions only for
 the same annotated program. Concrete result annotations are separate upper
