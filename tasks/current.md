@@ -1189,12 +1189,22 @@ On the callback-returns-a-closure control, the no-contract explicit-pure
 caller is rejected for `choose`; with inferred effects it retains `[choose]`
 and its handler returns `[3]`. The concrete-contract inferred variant has
 `Bot` rows and leaves the request unhandled. This sharpens the Oracle conflict
-for this shape but still leaves the successor's caller eligibility rule and
-source/runtime simulation to prove.
+for this shape but still leaves source/runtime simulation to prove. Frozen
+source wording supports a scope hypothesis: the maker's concrete callback
+grant covers matching handlers inside maker, while the later caller catch is
+outside and may handle the escaped request without inheriting that grant,
+provided no other boundary masks it. This is an inference, not an explicit
+escaped-closure rule. The marker spec's own-path rule is compatible with this
+reading but does not establish later-caller eligibility; the no-contract
+outer-handler example is only adjacent evidence. Runtime code's own-path guard
+conflicts with the frozen marker spec. The candidate relation and qualifications
+are in the progress record above.
 
-Remaining gate: formalize provider/capture eligibility, including complete
-coverage and callback ownership, then prove trace soundness and least-derivable
-bounds for the compositional whole-scrutinee continuation summary. Independent
+Remaining gate: complete the candidate dynamic receiving-scope relation for
+provider/capture eligibility, including helper boundaries, returned-closure
+re-entry, force, scheme instantiation, complete operation coverage, and
+callback ownership. Then prove trace soundness and least-derivable bounds for
+the compositional whole-scrutinee continuation summary. Independent
 architect, compiler-referee, and spec-auditor reviews found family rows alone
 insufficient for handler visibility and powerset rows alone insufficient to
 establish principality. Capture evidence must be scoped to its boundary and

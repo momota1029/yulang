@@ -224,17 +224,41 @@ handler h = (activation_id, covered_operations)
 grant g = (introducing_boundary, family_set, scope)
 ```
 
+A source-grounded candidate eligibility clause can be stated as:
+
+```text
+eligible(q, h) iff
+    active(h)
+    and exact_operation_covered(h, q.operation)
+    and for every boundary b in q.ordered_boundary_lineage:
+          outside(h, b) or matching_grant(b, q.family, h)
+    and no_other_active_boundary_masks(q, h)
+```
+
+`outside(h,b)` means handler activation `h` is not dynamically nested within
+the particular receiving activation represented by boundary instance `b`.
+It is activation-specific, not a lexical test on where a closure was created.
+A crossed callback boundary does not by itself block an outer handler.
+`matching_grant` requires an explicit contract at that boundary for the family
+and a scope proof that includes this activation. How this receiving scope is
+represented and transported across closure re-entry remains a proof
+obligation. Other active guards may also mask a request even when the handler
+is outside this grant scope. Thus the escaped-callback
+inference is conditional: the caller may handle the request if its exact arm
+matches, it is outside the maker grant scope, no other carried/active boundary
+masks it, and the source/runtime correspondence preserves that eligibility.
+This clause is a source-grounded candidate, not a selected successor rule.
+
 The eligibility judgment must require an active handler, exact operation-arm
 coverage, and a derivation that every callback boundary on the request's path
 to that handler permits this family at this activation. Family equality alone
 cannot discharge the last premise. A request with no callback boundary uses
-the direct shallow rule; a crossed boundary without a proven matching grant
-keeps the request ineligible and forwards it with its provenance. Handler
-subtraction is allowed only if this judgment holds for every reachable request
-contributing that family, including each suffix reached by resuming a forwarded
-continuation. The lineage is an ordered sequence of boundary instances, not a
-set: repeated pushes, re-entry, and one shared pop must retain their order and
-multiplicity until a preservation theorem justifies normalization.
+the direct shallow rule. Handler subtraction is allowed only if this judgment
+holds for every reachable request contributing that family, including each
+suffix reached by resuming a forwarded continuation. The lineage is an ordered
+sequence of boundary instances, not a set: repeated pushes, re-entry, and one
+shared pop must retain their order and multiplicity until a preservation
+theorem justifies normalization.
 
 The frozen source documentation motivates, but does not complete, a candidate
 grant rule: a concrete callback argument contract exposes its listed families
@@ -242,10 +266,21 @@ to handlers inside its receiving function. The candidate should identify the
 receiving activation and handler activations explicitly; it must not turn the
 grant into a family-wide Boolean. Passing the callback through a helper must
 preserve its origin and boundary lineage. A returned closure must preserve its
-latent effect and provenance. Whether a grant's scope includes a handler
-reached after that closure escapes, and how a nested helper composes that
-scope, remain open semantic questions rather than being inferred from
-`StackWeight` or runtime marker behavior.
+latent effect and provenance. A source-grounded scope hypothesis is that the
+grant authorizes matching handlers inside the receiving function activation;
+it is not a transferable permission for unrelated later handlers. Thus the
+`caller` catch in the `maker` closure probe is outside `maker` and need not
+inherit `maker`'s grant to handle a request that escapes the returned closure,
+provided no other active boundary masks it. The marker spec's own-family
+`add_id` rule is compatible with this interpretation at that boundary, but
+does not establish eligibility at a later caller activation. The no-contract
+outer-handler control is also only adjacent evidence; it does not prove the
+concrete-contract closure-return path. This escaped-closure conclusion is an
+inference, not an explicit frozen source rule. Formal activation scope,
+helper composition, and the relation between returned-value markers and
+handler eligibility still need proof. They must not be inferred from
+`StackWeight` or runtime marker code; that code conflicts with the marker spec
+on own-path coloring.
 
 Until those scope rules are proved, the conservative effect abstraction
 retains the family whenever eligibility is unknown. This is compatible with
@@ -257,6 +292,17 @@ row, wildcard row, and result-position filter. Frozen documentation describes
 different roles for these forms, but their successor grant and filter
 semantics have not been selected. This relation is only a proof target and
 does not resolve the frozen marker code/spec conflict.
+
+The frozen contract-metadata design sharpens this distinction: only concrete
+heads in root function-parameter annotations generate argument-contract
+markers; wildcard and row tails do not. A root computation annotation is a
+separate static subtraction contract, not argument metadata. The frozen effect
+reference describes a result-position concrete row as a static escape filter.
+These are representation/lowering facts, not authority for successor weight
+semantics. See
+`/tmp/yulang-intrusion-oracle/notes/design/2026-06-24-explicit-effect-contract-metadata.md:65-81,111-128`,
+`/tmp/yulang-intrusion-oracle/web/docs/reference/effects.md:243-263`, and
+`/tmp/yulang-intrusion-oracle/spec/2026-05-31-effect-variable-subtractable.md:254-274`.
 
 ### Frozen-Oracle closure-escape probe
 
