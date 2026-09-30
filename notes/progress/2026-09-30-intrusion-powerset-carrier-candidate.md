@@ -691,6 +691,47 @@ record identities and
 `notes/design/2026-09-29-intrusion-abstract-semantics-draft.md` for the
 current `Root_d`/`Pred_d` criterion.
 
+### Conditional recovery if the recursive row is presentation metadata
+
+The same fixture has a sharply different result under the collector
+interpretation that `rec_vars` is a finite back-reference presentation and is
+not conjoined as an extra assignment obligation before polar projection. Fix
+all outer and other local identities, including the Function result/effect,
+and assume the root term contains q only as its Function argument:
+
+```text
+Vpre.root = Fun(q, R)
+```
+
+Assume q ranges freely over a subtype preorder `D` with greatest element
+`Top`, and Function subtyping is contravariant in its argument. The realized
+pre-projection roots are `{ Fun(a,R) | a ∈ D }`; after replacing q by `Top`,
+the root set is `{ Fun(Top,R) }`. These exact `Root` sets differ in general.
+Their upward closures agree:
+
+```text
+↑{ Fun(a,R) | a ∈ D } = ↑{ Fun(Top,R) }
+```
+
+For every `a`, `a ≤ Top`, so contravariance gives
+`Fun(Top,R) ≤ Fun(a,R)`; this proves the first inclusion. Since `Top ∈ D`,
+`Fun(Top,R)` is itself one of the pre-projection roots, proving the reverse
+inclusion. The equality also holds fiberwise for each fixed environment and
+incoming-use continuation as long as neither constrains q outside this root
+occurrence.
+
+This conditional calculation exactly recovers the Oracle's `Top` argument
+projection at the `Pred` level, while preserving the distinction between the
+realized-root set and its accepted-supertype closure. It is compatible with
+the collector's back-reference lifecycle: the q row can have driven finite
+bound expansion without becoming a second semantic constraint on the
+already-collected root. However, the crucial premise is still unproved:
+source constraints and selected evidence must induce the same contextual
+observations as this `Vpre` interpretation, despite q's recorded interval
+`Bottom ≤ q ≤ q ∩ K(q)`. If that interval is an independent obligation, the
+previous conditional no-go applies instead. Therefore this is a conditional
+bridge lemma, not an Oracle q-erasure correctness result.
+
 ### Next semantic gate
 
 ### Exact source-to-scheme theorem target
