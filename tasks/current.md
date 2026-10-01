@@ -29,6 +29,12 @@ substitutable symbolic endpoint payload, so solving cannot mint a new key just
 because endpoint expressions change; use freshening and intrusion transport
 that identity through their occurrence/view maps. This is a candidate
 bookkeeping invariant, not an approved representation.
+The frozen Oracle code paths for filter checks, duplicate collection, common
+stack matching, and residual rewriting are now mapped to the points where
+they emit pairwise subtype constraints and consume or collapse typed row data;
+this is characterization only. Source rules must still determine which of
+those encounters require successor obligations, and the successor's
+view-demand incidence proof remains open.
 
 ## Objective
 

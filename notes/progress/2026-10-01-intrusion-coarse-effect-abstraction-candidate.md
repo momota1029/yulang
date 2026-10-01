@@ -5429,6 +5429,32 @@ The source audit supports the following narrow applicability map:
 | Generic callback/Function row comparison | Principal monomorphization matches effect-row items by family and emits subtype constraints in its specialization graph, but this is not a source typing rule requiring invariant comparison for every actual/formal same-head pair. | Candidate successor rule only; prove it from callback typing and the selected effect abstraction. |
 | Arbitrary open `RowLeq` and all same-head occurrence pairs | The frozen list does not define this general relation. | Candidate denotation only; prove source adequacy and solver principality before selecting it. |
 
+The frozen implementation provides a source-code crosswalk for these named
+characterization sites. At revision `a58eefc31e22141574b6f20c6a5748151c6d79f1`,
+`crates/infer/src/constraints/row_effect.rs::constrain_effect_family_by_filter`
+and `effect_family_passes_filter` create `FilterInvariant` constraints before
+the filter check is consumed. `collect_neg_effect_items` creates
+`PayloadInvariant` constraints against the first same-path item, then drops
+each duplicate from the collected row. `intersect_row_items_with_left_stack`
+routes through `common_stack_subtractability`, which constrains duplicate
+families in stack entries before intersecting them; `machine/propagate.rs`
+does the corresponding common-stack check for an upper `Neg::Stack` before
+continuing through its inner endpoint. `subtract_row_items_from_left_stack_weight`
+and `subtract_effect_families` create transformation constraints while
+rewriting pushed filters against removed families. The shared helper
+`enqueue_row_invariant_args` currently expands each zipped argument pair into
+two polarized subtype constraints.
+
+This locates when those frozen paths create constraints and where row items or
+filters are subsequently discarded. It does not prove that the Oracle's
+pairwise rules, representative-star duplicate collection, or weighted route
+are sound/principal, and it does not supply the successor's `Demand` relation.
+For the successor, the useful obligation is temporal: derive a stable symbolic
+key and attach it to every dependent view before the corresponding semantic
+operation consumes, collapses, or moves its typed occurrence. The applicable
+source rules must still decide which pairs create keys; this crosswalk cannot
+promote every same-head encounter into a rule.
+
 The shorthand `InvArgs(F<τ̄>,F<ῡ>) = ⋀ᵢ(τᵢ <: υᵢ ∧ υᵢ <: τᵢ)` is a
 candidate symbolic encoding, not a statement copied literally from the frozen
 specs. The frozen effect spec asks for invariant ordinary constraints, while
