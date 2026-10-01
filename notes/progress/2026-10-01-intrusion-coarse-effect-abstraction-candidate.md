@@ -5445,6 +5445,54 @@ requires a non-regular language; that cannot be excluded from this local
 closure argument. Keep all symbolic family constraints and owner edges in the
 graph until those adequacy and principality obligations are closed.
 
+#### Regular-witness property for finite pure constraints (candidate theorem)
+
+The carrier refinement has a stronger conditional property for the finite
+pure fragment. Fix a finite ranked signature `Σ` using exactly the disjoint
+atom and unary-channel tags of the tagged encoding; symbols outside a
+constructor's assigned head/channel tags contribute no membership in that
+constructor. Fix finitely many type variables
+`V`, and a finite set of subtype constraints `e ≤ f`. Require every endpoint
+to be a finite expression over variables, `Bottom`, `Top`, finite union and
+intersection, and the tagged nominal/pure-Function constructors above. If
+there is any satisfying assignment `ν : V → P(N)`, then there is also a
+satisfying assignment `ν_reg : V → RegΣ(N)`.
+
+Proof. Let `E` be the finite set of all endpoint subexpressions. At each tree
+`t ∈ N`, form a finite state containing (i) one bit for membership of `t` in
+each `ν(X)`, `X ∈ V`, and (ii) one bit for membership of `t` in the denotation
+of every `e ∈ E`. The resulting state set `Q` is finite. For each ranked
+symbol, constructor membership is determined locally from its assigned
+head/channel tag and child-subexpression bits; symbols with another tag yield
+false for that constructor. Union/intersection and complement are
+Boolean operations on the corresponding bits. Retain only transitions whose
+subexpression bits obey these local rules and whose state satisfies every
+constraint `e ≤ f` at the current tree. The arbitrary satisfying `ν` induces
+a valid state at every tree, so let `Q₀ ⊆ Q` be the finite set of states it
+uses. For any symbol and tuple of child states from `Q₀`, choose representative
+child trees carrying those states and compose them into a tree. The state of
+that tree under `ν` supplies a valid successor state in `Q₀`. Choose one such
+successor for each tuple; nullary symbols use their state under `ν`. This
+finite transition table defines a bottom-up tree automaton. By induction on
+tree height, its states satisfy every local constraint. The variable-membership
+bits therefore define regular languages `ν_reg(X)` satisfying all original
+subtype inclusions. A finite regular outer environment can be added by
+carrying its supplied automaton states in the product state and constraining
+the corresponding identity bits to match.
+
+Because `Σ` and the state space `Q` are finite, automaton candidates can in
+principle be enumerated and their reachable transitions checked by finite
+state closure. This gives a finite satisfiability search for the stated pure
+constraint fragment, although no practical complexity bound or implementation
+is established here. The result says that restricting this carrier to regular
+languages loses no **existence of a satisfying assignment** for these finite
+constraints. It does not preserve every arbitrary assignment, the joint
+root/use solution relation, principality, or the exact source acceptance
+judgment. It excludes lifted tuples/products, records, effects, methods,
+non-regular fixed anchors, and any constraint form not expressible by the
+finite local endpoint grammar. SCC intrusion and the required symbolic
+family-constraint lifecycle remain separate proof obligations.
+
 #### Variable-edge propagation into interval constraints (conditional)
 
 This identifies one solver expansion of the `InvArgs` shorthand; it does not

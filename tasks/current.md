@@ -2566,3 +2566,14 @@ effective automaton inputs for all evaluated endpoints. No such carrier is
 selected. General SCC solution regularity, symbolic correlations, effects,
 source adequacy, principal root/use representation, and Oracle final
 acceptance remain open.
+
+The finite pure regular-witness theorem now states its exact tagged alphabet
+premise: atom and unary channel tags are disjoint, and unrelated symbols do
+not inhabit a constructor. Compiler-referee review found no blocking or major
+issue; this precision closes its sole minor finding. The theorem only gives a
+regular satisfying assignment for the finite local pure constraint grammar.
+Next prove whether symbolic typed-family constraints (including `InvArgs`)
+can be carried through actual solve, residualize, generalize, freshen, and
+intrusion transitions while preserving satisfiability and root/use
+observations. The regular-witness result does not establish that lifecycle,
+SCC principality, effects/handlers, or Oracle final acceptance.
