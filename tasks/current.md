@@ -61,14 +61,15 @@ duplicate open rows; retaining the whole relation as a constrained-scheme
 formula is a more unified candidate, but its denotation and generalization
 principality are unproved. A candidate criterion now defines principality via
 most-general complete interfaces under adopted subsumption, with exact
-environment fibers through generalization; trace inclusion stays a separate
-soundness theorem. Unknown request evidence also needs to survive removal.
+environment fibers and independent-use product law through generalization;
+trace inclusion stays a separate soundness theorem. Unknown request evidence
+also needs to survive removal.
 Prefer one declarative relation with transport laws over selectors tied to
 individual source sites, and keep solver keys/evidence as projections of it.
 An independent architect review closed the initial principality-definition
 gaps around subsumption and environment anchors; whether source adopts those
-rules and whether transport preserves fibers remain open. No candidate is yet
-proved sound or principal.
+rules and whether transport preserves fibers or factors independent uses remain
+open. No candidate is yet proved sound or principal.
 
 ## Objective
 

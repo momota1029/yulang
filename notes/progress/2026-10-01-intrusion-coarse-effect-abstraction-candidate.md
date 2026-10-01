@@ -5056,8 +5056,9 @@ abstraction with its acceptance cost recorded.
 Let `A` be the selected abstract request domain and `γ_A` its concretization
 into finite operation-request prefixes. Soundness is a separate theorem:
 every abstract derivation of `Γ ⊢_A e : J` proves
-`Traces(e) ⊆ γ_A(effect(J))`; inference need not represent exact
-continuation-use correlations. Define `Deriv_A(Γ,e)` using only the chosen
+`Traces(e, ω) ⊆ γ_A(effect(J))` for each runtime environment `ω` compatible
+with the typing environment and its valuation; inference need not represent
+exact continuation-use correlations. Define `Deriv_A(Γ,e)` using only the chosen
 declarative source typing rules, including exactly the subsumption, coercion,
 and effect weakening rules that source semantics adopts. Oracle behavior does
 not add a rule to this set.
@@ -5101,6 +5102,19 @@ and ownership. Binder quantification alone does not prove this
 fiber-preservation condition. These are candidate definitions and laws, not a
 proof that the constrained scheme language has principal solutions.
 
+The fiber condition also has a multi-use law. Let `D_ρ = Inst_A(S,ρ)` be the
+complete satisfying interfaces for one incoming use. Each use `u` gets its
+own injective capture-avoiding binder/evidence map `ιᵤ`; distinct maps have
+disjoint local ranges and fix the same rigid outer valuation `ρ`. For a finite
+set of incoming uses `U`, the unconstrained joint instances must be the
+fibered product `∏ᵤ D_ρ`: each copy preserves the constraints among roots and
+evidence inside that use, while no local identity or relation couples two
+copies. Constraints from the surrounding program intersect this product only
+after instantiation. Internal SCC uses remain attached to one shared live
+component and therefore are not factors in this external-use product. The
+product law must include dependent row, request, handler, and symbolic
+`FamCompat` views, not only root types.
+
 A bounded independent architect review found two major gaps in the initial
 criterion: equality modulo subtype equivalence omitted strict subsumption and
 row weakening, and retaining `RowIncl` did not by itself prove exact
@@ -5109,6 +5123,11 @@ the declared judgment preorder and requires per-environment solution-fiber
 preservation. Whether source typing adopts those subsumption rules, and
 whether the candidate generalization/transport actually preserves each fiber,
 remain unproved.
+
+A follow-up compiler-referee review found that a single-use fiber condition
+does not imply the independent-use product law. It also required the soundness
+statement to quantify compatible runtime environments for open terms. Both
+conditions are now explicit above; their proofs remain open.
 
 Oracle compatibility is a separate comparison between final accepted
 programs after validation, runtime construction, and specialization. A
