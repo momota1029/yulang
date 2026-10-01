@@ -3699,6 +3699,26 @@ monomorphic use context requires these occurrences to denote one value, the
 constraint must be carried in `K_ctx`; omitting it can change the joint
 solution set. The raw ID alone decides neither case.
 
+A minimal constraint-graph instance separates these cases. Let
+`C={a≤x, x≤b}` with distinct anchors `a,b,x₀`; consider a root view `H_A`
+whose root is `x` and whose `x` is local, and a view `H_B` whose root is the
+same saved source ID `x` but whose `x` is free through shared anchor `x₀`. Under
+external uses `u_A,u_B`, the two copies become
+
+```text
+C_A = { a≤x_A, x_A≤b }      root_A = x_A
+C_B = { a≤x₀, x₀≤b }        root_B = x₀
+```
+
+Here `x_A` is fresh and independent of `x₀`; that is exactly the two views'
+declared ownership. A continuation constraint `root_A≤root_B` belongs to
+`K_ctx` and becomes `x_A≤x₀`. Every satisfying pair transports in both
+directions by assigning the old local `x` the value of `x_A` and leaving
+`x₀,a,b` fixed. If the intended source relation instead says that `x_A` and
+`x₀` denote one shared value, the graph above is incomplete without an
+explicit equality/link; the transport argument does not invent one. This
+example validates only the map algebra after the two partitions are supplied.
+
 The criterion is conditional on complete member views, correct source binder
 ownership, and a complete `K_ctx`. It does not prove that the Oracle's ordered
 root projections or the successor's source elaboration construct those
