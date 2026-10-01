@@ -627,13 +627,27 @@ compose `F` into its saved continuation so that it runs under the environment
 and state produced when that continuation is resumed. Thus handler-frame
 unwind/re-entry and visibility changes are threaded through composition
 rather than freezing the initial activation. Prefixes of nonreturning behavior
-remain observations and do not invent a result. A case expression then has
-the sequencing equation
+remain observations and do not invent a result. A case context requires a
+value for pattern matching. For a fixed source typing derivation assigning
+its scrutinee boundary `(S,T)`—the scrutinee's source value shape and the
+pattern matcher's required value shape—the candidate typed execution equation
+is
 
 ```text
 Run_ν(case e of arms,η,s) =
-  Run_ν(e,η,s) >>= (λ(v,η',s'). Match(v,arms,η',s'))
+  Run_ν(e,η,s) >>= (λ(v,η₁,s₁).
+    Adapt_ν(S,T,v) >>= (λ(v',η₂,s₂).
+      Match(v',arms,η₂,s₂)))
 ```
+
+When the source/target shapes are equivalent, `Adapt` is the identity clause;
+when they differ, its common value/thunk relation determines whether to force
+or preserve a delayed value. This refines the untyped sequencing shorthand:
+`Run(e)` is composed with the boundary required by the typed consumer before
+the already defined pattern-binding, guard, and body relation `Match`. The
+candidate does not choose `(S,T)` from a weight or solver event. The source
+typing/elaboration rule that supplies that boundary remains open, and no
+successor semantics is approved by this equation alone.
 
 `Match(v,arms,η,s')` tests patterns in source order using one pattern-binding
 relation and extends `η` with successful bindings. Pattern binding includes
@@ -873,51 +887,18 @@ source-semantics candidates: the runtime contract fixes the observed
 evaluation and force cases, but the source typing relation and its finite
 principal presentation remain unproved.
 
-Let `Ret*(R)` be returns reached from `R` along every well-typed finite
-resumption of its saved continuations, where resume values are admitted by the
-operation signature and active handler/source context. Retain each returned
-value, environment, and dynamic state. Define the reachable match image
-
-```text
-MatchImg(R,arms) = ⋃ { Match(v,arms,η',s') | (v,η',s') ∈ Ret*(R) }
-```
-
-Thus requests emitted while evaluating the scrutinee precede matching, and
-requests from attempted guards and the selected body follow in order. The
-source rule needed for the frozen `file::load` fixture is that a case
-scrutinee typed as an effectful computation uses `Run_ν` and composes its
-computation before matching. The fixture plus frozen runtime behavior
-supports this candidate reading, but current Y3 has no authoritative typing
-rule proving it. Current mono emission omits an explicit `ForceThunk`, and the
-evaluator supplies the demand at runtime.
-
-The case equation remains the candidate source sequencing definition, but the
-following support bound is only conditional:
-
-```text
-MayReq(Run_ν(case e of arms,η,s),ν)
-  ⊆ MayReq(Run_ν(e,η,s),ν)
-   ∪ MayReq(MatchImg(Run_ν(e,η,s),arms),ν)
-```
-
-The isolated `MatchImg` above ranges over returns of the scrutinee relation
-before matching effects are interleaved with later resumptions. A guard,
-pattern default, or body may mutate state or affect control before a
-multi-shot handler resumes a saved scrutinee continuation again. That later
-scrutinee suffix can therefore emit requests absent from both the initial
-scrutinee support and this independently computed match image. This is the
-same resumption-stability gap as the general bind decomposition. The bound is
-valid if matching is resumption-stable for the scrutinee (or if the image is
-closed under every matching-induced state/control change), but neither premise
-is proved for Yulang.
-
-Without that side condition, take the support of the complete relational
-composition `Run_ν(e,η,s) >>= Match` directly. The matching relation still
-includes pattern-bound environments, conditional defaults, attempted guards,
-false-guard fallthrough, and selected bodies, but its state changes and
-resumptions must be analyzed jointly with the scrutinee continuations. No
-independent union-of-support formula follows from bind alone, and this direct
-relational image does not yet give a principal row rule.
+The case relation's request support is the projection of its complete
+state-threaded composition above, including the typed boundary before
+matching. Requests from forcing, pattern defaults, guards, and selected bodies
+therefore stay joined with the same saved continuations, state, and `K,D`
+incidence. Do not split this into independent `MayReq` rows for the scrutinee,
+adaptation, and arms: a multi-shot resumption can observe mutations made by an
+earlier continuation of any of these components. The exact `file::load`
+fixture shows that the frozen evaluator forces the case operand before
+matching, while current mono emission omits an explicit `ForceThunk`; it is
+characterization for the open source typing boundary, not a typing rule. This
+complete relational image is the candidate semantic authority. A finite
+principal presentation of it remains unproved.
 
 There is a further source/inference gap for record-pattern defaults. The
 frozen runtime evaluates a missing-field default during pattern binding, and
@@ -1588,6 +1569,26 @@ not from separate case or callback effect rules. If the source/target boundary
 is equivalent, the identity `Adapt` clause applies. If it is not equivalent
 and `T` has a thunk outer shape, the delayed thunk-target clause applies
 instead.
+
+In particular, if source typing assigns case scrutinee `e` the boundary
+`(S,T)` before matching, its operational factorization is the ordinary
+composition:
+
+```text
+Run_ν(case e of arms,η,s) =
+  Run_ν(e,η,s) >>= (λ(v,η₁,s₁).
+    Adapt_ν(S,T,v) >>= (λ(v',η₂,s₂).
+      Match(v',arms,η₂,s₂)))
+```
+
+Here the typing premise gives `v'` the required scrutinee value type `T` for
+the already defined ordered pattern/guard/body relation `Match`.
+For `S=Thunk(E,A)`, non-thunk `T`, and `S ≉ T`, substituting the existing
+`Adapt` clause places `Force(v)` before `Match`, with every request,
+resumption, state change, and `K,D` dependency transported by the same binds.
+This factorization is a corollary of the candidate `Adapt` and `Run(case)`
+equations under the `(S,T)` premise; it does not derive that premise from
+current Y3 typing or emitter behavior.
 
 The conclusion is conditional on source typing deriving `(S,T)` and the
 evaluation context placing `Adapt` before the consumer. It does not establish

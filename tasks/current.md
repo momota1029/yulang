@@ -3955,5 +3955,11 @@ before the consumer. Compiler-referee and spec-auditor review found no major
 issue; a minor recursive-binder/shape clarification was fixed. Frozen Y3 does
 not derive those case operand boundaries in its current specialization path,
 so the successor must establish them from its source typing judgment. No
-site-specific rule is approved. See the latest entry in
+site-specific rule is approved. The governing candidate `Run(case)` equation
+now composes `Run(e)`, the derivation-supplied `Adapt(S,T)` boundary, and
+`Match`; the source rule supplying `(S,T)` remains open. The prior independent
+`MatchImg`/MayReq union was removed because it omitted possible forces and
+failed under multi-shot state feedback. M3 compiler-referee and spec-auditor
+review closed the equation/support inconsistency without selecting that source
+rule. See the latest entry in
 `notes/progress/2026-10-01-intrusion-coarse-effect-abstraction-candidate.md`.

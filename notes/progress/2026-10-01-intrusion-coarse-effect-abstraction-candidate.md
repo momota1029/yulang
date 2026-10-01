@@ -9261,3 +9261,14 @@ source contexts receive the `(S,T)` boundary. Frozen case runtime demand is
 characterization evidence; the successor typing rule remains unselected.
 Complete `K,D` fiber preservation, principal finite presentation, and SCC
 transport remain open. No tests or code ran; only `git diff --check` was used.
+
+The explicit case factorization exposed a consistency gap: the prior shorthand
+`Run(case e)=Run(e)>>=Match` omitted the value boundary that can force the
+scrutinee. The governing candidate equation now fixes a source typing
+derivation's `(S,T)` and composes `Run(e) >>= Adapt(S,T) >>= Match`; the rule
+that supplies `(S,T)` remains open. The earlier independent `MatchImg` and
+MayReq-union discussion was removed because it omitted `Adapt` and also failed
+under multi-shot state feedback. Case support is projected from the complete
+composition only. Compiler-referee and spec-auditor M3 delta review closed the
+consistency finding and confirmed state threading; no source typing, finite
+principal presentation, or Y3 emitter claim follows from the candidate.
