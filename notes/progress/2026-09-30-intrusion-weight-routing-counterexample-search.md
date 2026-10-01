@@ -212,18 +212,20 @@ to expose. The trace is direct runtime characterization; the Yulang3
 successor should define handler eligibility from the declarative semantics
 and must not copy this routing behavior by default.
 
-With the declarative callback contract honored, the first request is eligible
-for the visible caller catch. Resuming its raw shallow continuation reaches
-the second operation outside that catch. The sound finite-family effect
-approximation still includes `choose`; the pure annotation is rejected. The
-runtime's current first-request escape is a separate guard bug and does not
-make the pure type sound.
+If the visible caller catch is eligible, resuming its raw shallow continuation
+may reach the second operation outside that catch. If it is ineligible, the
+first request escapes. Under either branch, the computation has outward
+`choose` support, so the pure annotation conflicts with that sound finite-
+family bound. The eligibility premise for this second annotated receiver is
+unresolved; runtime guard output does not decide it.
 
-The source-contract basis is stronger than runtime behavior alone:
+The source-contract basis for direct-receiver capture is stronger than runtime
+behavior alone, but does not settle the second-receiver composition in this
+witness:
 
 - frozen `spec/2026-05-31-effect-variable-subtractable.md` describes a concrete
   contravariant callback row as a `take` budget that permits a matching
-  `catch f()`;
+  `catch f()` inside its receiving function;
 - frozen `web/docs/reference/effects.md` says a function acquires effects it
   calls unless a visible handler consumes them, and explicit callback
   annotations govern which effects may flow across higher-order calls;
@@ -254,14 +256,16 @@ example. An independent `compiler_referee` confirmed the accepted pure scheme,
 unhandled runtime request, and direct-handler control. Both cautioned that the
 precise source of the mismatch is not yet localized to weight routing alone.
 
-The repeated-operation witness establishes the compatibility conflict for
-this callback slice: the frozen checker accepts a pure scheme while a
-well-typed callback can leave a request outside the shallow handler. The
-successor should honor the explicit capture contract for handler eligibility,
-handle the first request, and retain `choose` in the outward approximation
-because resumption may reach another request. The frozen runtime's first
-request escape remains a separate handler-guard defect; neither runtime
-behavior nor the current weight cancellation defines the successor rule.
+The repeated-operation witness establishes a conditional compatibility
+conflict for this callback slice: under shallow-handler semantics and an
+outward-support effect bound, the frozen checker accepts a pure scheme for a
+callback that can leave a request outward. If the caller catch is eligible,
+resuming may expose a later request; if it is ineligible, the first request
+escapes. Either branch has outward `choose` support. Whether a second concrete
+annotated receiver preserves caller-catch eligibility remains unsettled, so
+the trace does not establish a handler-guard defect or choose that source rule.
+Neither runtime behavior nor current weight cancellation defines the successor
+rule.
 
 Relevant source ownership candidates are frozen
 `crates/infer/src/lowering/expr/tail.rs` application-effect construction,
@@ -758,3 +762,38 @@ parent transport. Commands used:
 The exact executable build provenance has the same limitation recorded above;
 these outputs are frozen CLI characterization, not an identity proof between
 the dirty checkout and the binary.
+
+## 2026-10-02 adjudication: nested concrete receiver remains open
+
+A controlled helper-annotation pair holds the outer receiver fixed:
+
+```yu
+pub act choose:
+  pub get: () -> unit
+
+pub invoke(f: () -> [_] ()) = f()
+pub handle(f: () -> [choose] ()) = catch invoke(f):
+  choose::get, k -> k ()
+  v -> v
+pub result = handle(\() -> choose::get())
+```
+
+This wildcard helper passes the frozen check and interpreter run. Replacing
+only `invoke`'s callback annotation with `[choose]` also passes checking, but
+the interpreter reports unhandled `choose::get`. Annotation-free
+`invoke(f: () -> ())` is another successful control. Mono output shows that
+the wildcard/absent helper returns a thunk which the outer `handle` forces
+inside its catch; the concrete helper's adapter forces the callback thunk to
+`unit` inside `invoke`, before the outer catch. The trace correspondingly has
+an active boundary in the wildcard case and none in the concrete case.
+
+This characterizes annotation-sensitive call/result adaptation. It does not
+decide whether a later concrete receiver should shadow, preserve, or
+re-establish an earlier receiver's handler visibility. Existing docs and the
+direct-receiver positive control do not settle that composition rule. Do not
+infer a successor eligibility selector from `CallView`, adapter shape, or
+guard IDs alone; derive the rule within the general typed computation/call
+relation and its value/result transport. These exact helper variants have not
+received independent delta review. Frozen CLI commands were `check`,
+`dump --poly-raw`, `dump --mono`, and `run --interpreter`, with
+`YULANG_INTRUSION_GUARD_TRACE=1`; no tests were run.

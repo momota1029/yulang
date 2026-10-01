@@ -16,6 +16,15 @@ full parent semantics and Oracle projection remain open. See
 `notes/progress/2026-09-30-intrusion-oracle-priority.md`. The q-erasure
 inference view is followed by a frozen-Oracle mono specialization rejection
 for `f 1`, so the view alone does not establish an unsound accepted program.
+The user now also requires conceptual economy: prefer a small unified
+declarative theory where row splitting, filtering, handler subtraction,
+callback boundaries, generalization, instantiation, and intrusion follow from
+shared semantic relations and transport laws. Treat `Sel_s`, `Demand`, typed
+family obligations, route evidence, and transport maps as candidate derived
+proof/bookkeeping views, not independent source-site rules, unless a
+fundamental source distinction is established. Compare sound candidates for
+economy, compositionality, principality, and proof reuse. This is a design
+criterion, not approval of the current relational candidate.
 An additional hard successor invariant is that typed-family argument
 invariance remains symbolic through solving, residualization, generalization,
 fresh instantiation, and intrusion. It cannot be reconstructed only after
@@ -1368,24 +1377,26 @@ information disappears, but Oracle's cancellation remains characterization,
 not a sound rule. Details and bound-record evidence are in
 `notes/progress/2026-09-30-intrusion-weight-routing-counterexample-search.md`.
 
-A repeated-operation callback witness establishes the soundness conflict:
+A repeated-operation callback witness establishes a conditional soundness
+conflict under the adopted shallow-handler account of outgoing request support:
 `two_requests` has type `() -> [choose] int` but performs two sequential
 requests. Oracle accepts generic `via_helper(f: () -> [choose] int): [] int`
-which catches one request and resumes its raw continuation. The second request
-is outside the shallow handler, so a sound finite-family abstraction retains
-`choose` and rejects this `[]` annotation. This deliberately drops one exact
-Oracle acceptance because it is unsound; the source, transition argument, and
-compatibility impact are recorded in
+which catches one request and resumes its raw continuation. If the catch is
+eligible, resuming may expose the second request outside the shallow handler;
+if it is ineligible, the first request escapes. Either way execution has an
+outward `choose` request. A sound finite-family abstraction retaining outward
+support rejects this `[]` annotation. This would drop one exact Oracle
+acceptance if that abstraction is selected; the source, transition argument,
+and compatibility impact are recorded in
 `notes/progress/2026-09-30-intrusion-weight-routing-counterexample-search.md`.
 
-Temporary runtime tracing confirms a separate adapter-guard failure: the
-first request reaches the matching catch with no handler boundary, and
-`request_guard_for_path` skips it using the first carried provider guard. The
-declarative source contract says the explicit capture contract makes this
-caller handler eligible. The successor must define this eligibility
-independently and not inherit the Oracle runtime guard route automatically.
-The Oracle's current run therefore errors on the first request; the declarative
-shallow trace would handle it, resume, then expose the second request.
+Temporary runtime tracing shows the first request reaches the matching catch
+without a handler boundary and is skipped by the first carried provider guard.
+This is runtime characterization only. Whether this caller catch is eligible
+after the callback passes through a second concrete annotated receiver remains
+unresolved; neither the trace nor existing prose establishes a source rule or
+an Oracle runtime bug. A controlled helper-annotation pair and its adapter
+timing are recorded in the progress note, without selecting that rule.
 
 A returned-callback-closure probe adds a lost-effect path: Oracle accepts
 `caller(): [] int`, prints the returned closure/caller effects as `Bot`, and
