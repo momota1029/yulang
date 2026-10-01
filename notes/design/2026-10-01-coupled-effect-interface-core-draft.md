@@ -491,35 +491,44 @@ typed-request support at fixed assignment `ν` by
 MayReq(R,ν) = ⋃ { typed_requests(τ) | (τ,o) ∈ R at assignment ν }
 ```
 
-The state-threading bind definition gives the general support equation
+An earlier candidate claimed the following general support equation:
 
 ```text
 MayReq(R >>= F,ν) = MayReq(R,ν)
   ∪ ⋃ { MayReq(F(r),ν) | r ∈ Ret*(R) }
 ```
 
-where `F(r)` receives the returned value, environment, and state. Every
-request in an `R` prefix is retained; `F` runs only after a reachable return,
-including returns reached after resuming a saved continuation. Conversely,
-each such return composes exactly its `F` behavior into the continuation.
-This is the support projection of relational composition, not a separate
-rule for application or case. The equation is conditional on the complete
-finite-observation bind semantics and the definition of `Ret*` below.
-At the complete-interface level this is only a support projection: `ν`,
-source-owned identities, and dependent symbolic formulas are shared through
-the bind. A formula remains in the composed relation unless a retained proof
-establishes equivalence for every dependent view. The equation does not
-authorize existentially projecting a typed-family constraint after its last
-request was filtered from the support view.
+Here `F(r)` receives the returned value, environment, and state. The equation
+is **not established for the general stateful, multi-shot semantics**. Its
+right side computes the resumptions of `R` independently of the effects of
+`F`, while bind attaches `F` to each saved continuation. An effect in `F`
+can therefore change the store or control state observed by a later resumption
+of that continuation.
 
-For the left-to-right inclusion, any request in a composed observation is
-either in its `R` prefix or in an `F(r)` suffix after some finite sequence of
-permitted resumptions reaches `r`; these are the two right-hand terms. For the
-reverse inclusion, bind preserves every `R` request prefix, and for each
-`r ∈ Ret*(R)` the resumption path witnessing `r` remains available after `F`
-is attached to the continuation, so each request in `F(r)` occurs in a
-composed observation. This proof uses may-support union, so it does not claim
-that `R`'s and `F`'s requests occur on one common execution path.
+A distinguishing transition pattern is: `R` emits `q` with a reusable
+continuation that reads cell `c`; at the initial state `c=0`, resuming it
+returns without emitting `g`. The handler resumes it once, then resumes it
+again, with no intervening mutation in the handler arm. Let `F` set `c:=1`
+and emit no request from family `g` (any other direct request is immaterial).
+In `R >>= F`, the first resumed
+continuation runs `F` before returning to the handler; the second resumption
+now sees `c=1` and may emit `g`. If `Ret*(R)` is computed from the initial
+state without the `F` mutation, the displayed right side contains `q` but
+misses `g`, while the composed relation contains `g`. This is a semantic
+counterexample to the decomposition under that `Ret*` interpretation, not a
+claim about a particular Oracle fixture.
+
+The sound general statement is only that support is projected from the
+complete composed relation. The displayed equation can be recovered under
+an additional resumption-stability condition: every store/control state
+change introduced by `F` must leave the request support of all later `R`
+resumptions unchanged, or `Ret*` must already quantify over a proved
+F-closed set of such states. Neither condition is established for Yulang.
+At the complete-interface level, composition still shares `ν`, source-owned
+identities, and dependent symbolic formulas. A formula remains in the
+composed relation unless a retained proof establishes equivalence for every
+dependent view; the failed support equation does not authorize projecting a
+typed-family constraint after its last request was filtered away.
 
 Application and shallow catch use the same relational operations, without a
 callback-specific effect selector. Under the frozen runtime contract's
@@ -574,7 +583,8 @@ supports this candidate reading, but current Y3 has no authoritative typing
 rule proving it. Current mono emission omits an explicit `ForceThunk`, and the
 evaluator supplies the demand at runtime.
 
-For fixed `ν`, the equation yields the sound support bound
+The case equation remains the candidate source sequencing definition, but the
+following support bound is only conditional:
 
 ```text
 MayReq(Run_ν(case e of arms,η,s),ν)
@@ -582,14 +592,24 @@ MayReq(Run_ν(case e of arms,η,s),ν)
    ∪ MayReq(MatchImg(Run_ν(e,η,s),arms),ν)
 ```
 
-because bind either retains a scrutinee request or composes the reachable
-continuation/return into `MatchImg`. That image includes pattern-bound
-environments, conditional defaults, attempted guards, false-guard fallthrough,
-and selected bodies at their actual dynamic states. The complete relation
-preserves which arms were reached and result/request correlation. This
-inclusion is a consequence of the candidate stateful bind equation, assuming
-`Ret*` ranges over all permitted typed resumptions. It does not establish a
-principal row rule.
+The isolated `MatchImg` above ranges over returns of the scrutinee relation
+before matching effects are interleaved with later resumptions. A guard,
+pattern default, or body may mutate state or affect control before a
+multi-shot handler resumes a saved scrutinee continuation again. That later
+scrutinee suffix can therefore emit requests absent from both the initial
+scrutinee support and this independently computed match image. This is the
+same resumption-stability gap as the general bind decomposition. The bound is
+valid if matching is resumption-stable for the scrutinee (or if the image is
+closed under every matching-induced state/control change), but neither premise
+is proved for Yulang.
+
+Without that side condition, take the support of the complete relational
+composition `Run_ν(e,η,s) >>= Match` directly. The matching relation still
+includes pattern-bound environments, conditional defaults, attempted guards,
+false-guard fallthrough, and selected bodies, but its state changes and
+resumptions must be analyzed jointly with the scrutinee continuations. No
+independent union-of-support formula follows from bind alone, and this direct
+relational image does not yet give a principal row rule.
 
 There is a further source/inference gap for record-pattern defaults. The
 frozen runtime evaluates a missing-field default during pattern binding, and

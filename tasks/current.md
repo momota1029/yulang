@@ -3218,21 +3218,20 @@ premises, preserving symbolic source-owned family groups rather than assuming
 them after row materialization. No implementation follows from these
 conditional lemmas.
 
-The draft now gives a conditional source-level sequencing lemma for `case`:
-the source computation relation is composed with ordered pattern/guard checks
-and the selected body, with dynamic activation state and pattern environments
-threaded through resumed continuations. Typed may-support is bounded by the
-scrutinee and its reachable match image, preserving branch and
-result/request correlations. Compiler-referee review of the updated equation
-found the state-threading account conditionally adequate, while requiring
-resumable-continuation closure and pattern-default effects to remain explicit.
-The candidate source rule interpreting a typed effectful scrutinee as a
-computation, its simulation to the current implicit mono force, and support
-adequacy of `case_type`'s join remain unproved. In particular, `case_type`
-currently discards effects returned while consuming record-pattern defaults;
-this is a possible under-approximation, not yet a demonstrated accepted-
-program mismatch. Handler simulation and principal finite representation
-remain open too.
+The draft gives a candidate source-level sequencing equation for `case`:
+compose the scrutinee computation with ordered pattern/guard checks and the
+selected body, threading dynamic state and environments through resumed
+continuations. A previous support bound used the isolated scrutinee's
+reachable match image. Adversarial re-evaluation found that bound is not
+justified for stateful multi-shot resumptions: matching can mutate state
+before a later resume re-enters the scrutinee continuation. The bound now
+requires resumption stability or closure under matching-induced state/control
+changes; otherwise support must be projected from the complete joint
+composition. The source typing rule interpreting an effectful scrutinee as a
+computation and its simulation to current implicit mono force remain open.
+`case_type` also discards record-pattern default effects, a possible
+under-approximation without a demonstrated accepted-program mismatch.
+Handler simulation and principal finite representation remain open.
 
 The active semantic preference is now explicit in
 `notes/design/2026-10-01-coupled-effect-interface-core-draft.md`: prefer one
@@ -3274,14 +3273,13 @@ visibility. This connects callback calls and catches without adding an
 effect rule for either source site. The source typing contract, emitted/runtime
 simulation, and finite principal presentation remain unproved.
 
-The relational-bind section also states its generic typed may-support equation:
-requests already observed in the first relation are unioned with the support
-of the continuation relation at every reachable return, including returns
-after resumption. Application and case are instances of this same equation;
-the draft gives both inclusions, with the reverse direction using the same
-resumption path after the continuation is attached. This is a set-of-traces
-support equality, not a claim that both sets of requests occur on one path.
-The complete-interface bind still shares `ν`, owner identities, and symbolic
-formulas; support projection cannot discard a formula when its last request
-disappears. The result remains conditional on the candidate finite-observation
-bind semantics.
+The relational-bind section previously stated an unconditional typed
+may-support decomposition. That claim is withdrawn for stateful multi-shot
+continuations: effects in the appended continuation may change state observed
+by a later resumption of the first computation. A counterexample pattern and
+the required resumption-stability side condition are now recorded in the
+draft. Relational composition itself remains the semantic definition; an
+independent union of the two support projections is not generally valid.
+Complete-interface composition still shares `ν`, owner identities, and
+symbolic formulas; support projection cannot discard a formula when its last
+request disappears.
