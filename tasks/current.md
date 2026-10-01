@@ -2092,14 +2092,22 @@ conservatively until those transports are proved. Evidence is under
 "Receiver-grant transport through an ordinary helper: focused probe" in
 `notes/progress/2026-10-01-intrusion-coarse-effect-abstraction-candidate.md`.
 
-The receiver-grant candidate is now challenged by a result-shape stress case.
-With the same concrete callback contract, helper, operation, and complete
-handlers, scalar `inner` returns `[2]` (inner catches), but a fixed tuple result
-returns `(9, 10)` (outer catches); a polymorphic tuple specialization repeats
-the outer route independently at `int` and `str`. The `--mono` boundary changes
-from a forced `thunk[[choose], int]` to `thunk[[choose], (int, int)]`. This
-refutes the current eligibility candidate as sufficient, not Oracle
-soundness. Next isolate the source-to-materialized-boundary transfer that
-introduces this route difference; grant lifetime cannot be settled from family
-and annotation alone. Evidence is in the same candidate note under
-"Return-shape stress on the receiver-grant candidate".
+The receiver-grant candidate is now challenged by a curried argument-order
+control. With the same scalar result, `[choose]` callback contract, helper,
+operation, and complete handlers, placing an unused `int` argument before the
+callback makes the outer handler run (`[9]`); placing the callback first makes
+the inner handler run (`[2]`). The earlier polymorphic tuple case still routes
+outward independently at `int` and `str`, but its result-shape interpretation
+was confounded by the extra curried parameter. This refutes receiver-local
+grant sufficiency as currently stated, not Oracle soundness. Next trace the
+source-to-adapter steps for staged argument receipt: `specialize2::emit`
+selects a parameter contract from the callee call-spine index, and hygiene
+turns `PreserveMatchingPath` into carry-after-frame markers. The guard trace
+shows those carried markers expose the inner guard only when the callback is
+first. Treat that as frozen-runtime characterization, not successor
+semantics. The next proof step is to define argument-grant scope independently
+of runtime marker transport, then test whether either observed route follows
+from that declarative rule and the chosen coarse effect abstraction. Evidence
+is in
+`notes/progress/2026-10-01-intrusion-coarse-effect-abstraction-candidate.md`,
+section "Partial-application order stress on the receiver-grant candidate".

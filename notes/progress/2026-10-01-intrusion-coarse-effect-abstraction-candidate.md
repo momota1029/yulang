@@ -2249,41 +2249,70 @@ were `[2]` and `[1]`; the env-gated scratch guard trace for the concrete case
 shows the inner operation arm matched without a skip. No repository compiler
 code or frozen checkout source was changed by this probe.
 
-#### Return-shape stress on the receiver-grant candidate
+#### Partial-application order stress on the receiver-grant candidate
 
-Changing the receiving functions' ordinary result from `int` to `(int, x)`
-changes the nested route even though the effect family, callback contract,
-helper call, and complete operation arms are held fixed. With
-`inner(x: int, f: () -> [choose] int): (int, int)` and the corresponding
-`outer`, the nested program returns `(9, 10)`: the outer arm handles the
-request. Removing the outer catch and running the same inner function returns
-`(2, 10)`, so the inner arm handles it when alone. Generalizing `x` to `'a`
-and making two incoming uses at `int` and `str` independently returns
-`((9, 10), (9, "s"))`; the raw scheme has quantifiers for the value and latent
-effect identities, and the mono dump has separate `inner` specializations for
-the two result tuples. Their guard traces use distinct dynamic IDs (outer/inner
-`0/1`, then `4/5`), but both inner boundaries are blocked and both outer arms
-handle the request.
+The earlier tuple result probe changed two things at once: it added a curried
+ordinary argument before the callback and changed the result shape. A minimal
+pair now isolates argument order while keeping the result scalar, both
+callback contracts concrete `[choose]`, the wildcard helper, operation, and
+complete handlers fixed.
 
-The scalar-return control with the same nested concrete `[choose]` parameter
-and wildcard helper returns `[2]` from the inner arm. The monos show the
-relevant shape change: the forced thunk carries `[[choose], (int, int)]` in the
-fixed-tuple case and `[[choose], int]` in the scalar case. Thus “concrete
-callback grant in the receiver activation” is not yet a sufficient
-eligibility rule. The route difference correlates with the materialized
-computation/value boundary or its inferred latent row, not just the shared
-source family, annotation, operation coverage, and lexical receiver
-activation. The causal step is not localized to that representation or to
-weight routing. This is a counterexample to that *candidate rule*, not a
-soundness counterexample to the frozen Oracle; the successor must account for
-shape-dependent delayed effects before it can decide which behavior is
-required.
+With callback second:
+
+```yu
+my inner(x: int, f: () -> [choose] int): int = catch invoke(f): ...
+my outer(x: int, f: () -> [choose] int): int = catch inner(x, f): ...
+outer 10 (\() -> choose::ping())
+```
+
+the outer arm runs, returning `[9]`. With callback first:
+
+```yu
+my inner(f: () -> [choose] int, x: int): int = catch invoke(f): ...
+my outer(f: () -> [choose] int, x: int): int = catch inner(f, x): ...
+outer (\() -> choose::ping()) 10
+```
+
+the inner arm runs, returning `[2]`. In the latter source, the request reaches
+the inner catch with its `HandlerBoundary` unblocked; in the former the inner
+boundary is blocked and the outer boundary handles it. The original polymorphic
+tuple stress still returns `((9, 10), (9, "s"))` at two independent
+instantiations when the ordinary value argument precedes the callback.
+
+The callback parameter's position in a curried function is therefore a
+discriminating observable for the frozen runtime's grant/marker behavior. The
+mono dumps show the callback contract materialized at different stages. The
+frozen `specialize2::emit` path gets the argument contract from the current
+callee's call-spine index, then passes it to the argument boundary wrapper;
+the index counts already-applied arguments. The hygiene collector translates
+`PreserveMatchingPath` contract markers into carry-after-frame markers. The
+runtime trace then distinguishes the cases: for callback-first, carried
+markers expose the inner guard at the inner boundary; for callback-second,
+the request has only the outer guard and the inner boundary is blocked. This
+locates the route difference in staged contract/adaptor marker transport, but
+does not justify that transport semantically. It is a counterexample to the
+candidate that receiver-local concrete grants alone determine eligibility,
+not a soundness counterexample to the Oracle. The successor needs an
+independent source rule for staged argument receipt and grant lifetime, or a
+concrete soundness/principality conflict before it can choose a different
+route.
+
+Frozen source locators (scratch checkout `a58eefc31e22141574b6f20c6a5748151c6d79f1`):
+`crates/specialize/src/specialize2/emit.rs` lines 257-265, 1149-1182, and
+1209-1219 select the contract by call-spine argument index and pass it to the
+argument boundary; `crates/specialize/src/hygiene.rs` lines 69-90 translate
+contract resume policies into markers; `crates/specialize/src/lib_support/boundary.rs`
+lines 106-112 builds the `FunctionAdapter`. These locations characterize the
+frozen implementation only. No corresponding algorithm is adopted as
+successor authority.
 
 The independent-use case checked successfully; both interpreter runs and
 `--poly-raw` / `--mono` dumps completed. Relevant temp fixtures are
 `/tmp/yulang-intrusion-grant-independent-uses.yu`,
-`/tmp/yulang-intrusion-grant-independent-inner-only.yu`, and
-`/tmp/yulang-intrusion-grant-outer-fixed-tuple.yu`. The failed earlier probe
+`/tmp/yulang-intrusion-grant-independent-inner-only.yu`,
+`/tmp/yulang-intrusion-grant-outer-fixed-tuple.yu`,
+`/tmp/yulang-intrusion-grant-scalar-extra-arg.yu`, and
+`/tmp/yulang-intrusion-grant-scalar-callback-first.yu`. The failed earlier probe
 that put the type variable in the effect-family argument panicked at the
 Oracle's `one stack id must not use multiple families` assertion; it is not
 used as evidence here. This also leaves a separate diagnostic-quality issue to
