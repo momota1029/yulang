@@ -259,3 +259,73 @@ pure-fragment scope. These reviews did not assess the
 full Yulang type/effect semantics, an implementation, runtime soundness, or
 Oracle final-acceptance equivalence. This note remains a candidate proof and
 does not authorize implementation.
+
+## Follow-up: pure monomorphic binding (value-restriction subcase)
+
+The earlier `Let` rule generalizes every RHS and therefore excluded Yulang's
+value restriction. The source distinction should be phrased from the
+value/computation boundary, not as an Oracle `BindingFetch` semantic tag. For
+the pure fragment, let `Value(e)` be the source-derived predicate that RHS
+evaluation yields a value without executing a computation. Define one binding
+judgment with two cases:
+
+```text
+Value(e₁)   P₁ = Types_(Γ,η)(e₁) ≠ ∅   Γ[x↦Poly(P₁)],η ⊢ e₂ : T
+──────────────────────────────────────────────────────── BindValue
+Γ,η ⊢ let x=e₁ in e₂ : T
+```
+
+```text
+¬Value(e₁)   Γ,η ⊢ e₁ : T₁   Γ[x↦Mono(T₁)],η ⊢ e₂ : T
+──────────────────────────────────────────────────────── BindComputation
+Γ,η ⊢ let x=e₁ in e₂ : T
+```
+
+The computation case chooses one RHS type `T₁` for the binding and shares it
+across every lookup of `x`. It still permits ordinary subsumption at each
+lookup. It does not prohibit a later enclosing value boundary from quantifying
+identities local to this entire subexpression; those identities become ports
+of the enclosing scheme and are freshened only when that enclosing value is
+instantiated.
+
+The corresponding graph generation case is direct composition:
+
+```text
+Ξ ⊢ e₁ ⇓ (t₁,C₁)     Ξ[x↦Mono(t₁)] ⊢ e₂ ⇓ (t₂,C₂)
+──────────────────────────────────────────────────── GenerateBindComputation
+Ξ ⊢ let x=e₁ in e₂ ⇓ (t₂,C₁∪C₂)
+```
+
+There is no fresh clone of `C₁` at an `x` lookup: all lookups refer to `t₁`
+under the same graph assignment. `C₁` remains even when `x` is unused, so the
+binding itself must be typable. For an outer scheme, every fresh identity from
+`C₁∪C₂` remains local to that scheme unless it is already an outer anchor.
+The computation remains monomorphic within one enclosing scheme instance,
+while separate instantiations of that outer scheme freshen its local graph
+identities independently.
+
+**Conditional adequacy.** Assume the monomorphic expression generation
+correspondence and environment relation `Ξ≈_ηΓ` from the earlier theorem.
+Forward, a satisfying assignment for `C₁∪C₂` gives
+`T₁=eval(t₁,ν)`, types `e₁:T₁` by the first graph correspondence, and types
+`e₂` under `x↦Mono(T₁)` by the second; together these are `BindComputation`.
+Reverse, a source derivation supplies `T₁` and separate witnesses for `e₁`
+and `e₂`. The RHS graph correspondence gives a root value
+`T₀=eval(t₁,ν₁)≤T₁`. Replacing a `Mono(T₁)` environment entry by the more
+precise `Mono(T₀)` preserves the body derivation: every occurrence typed at
+`T₁` can be reconstructed from `T₀` using subsumption. Apply the expression
+generation theorem to `e₂` with that shared root assignment. Freshness of
+body-local identities lets the two witnesses combine into one assignment for
+`C₁∪C₂`. As in the generalized-let theorem, this is exact equality of the
+resulting scheme denotation with the declarative type set, modulo its outer
+anchors.
+
+This closes only the pure, non-recursive local computation-binding case. It
+does not define the effectful computation interface: that case must sequence
+the complete resumable relation and preserve symbolic typed-family formulas
+monomorphically, including through any enclosing generalization/intrusion.
+Top-level computed roots additionally append to the source-order execution
+observation; a source-level module theorem must combine that observation with
+the same monomorphic binding rule. The value/computation predicate itself is
+not a solver selector; it is derived from source evaluation and controls
+whether the binding's identities are shared or independently chosen.

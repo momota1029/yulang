@@ -515,3 +515,47 @@ its semantic definition must still cover computed bindings retained for later
 uses, their shared monomorphic constraints, multiple roots in source order,
 and imported/exported outer anchors. Those are the remaining top-level
 translation obligations before the effects gate.
+
+#### General declaration fold from value restriction
+
+The general top-level fold should be stated from the source evaluation/value
+boundary, not from an Oracle-only `BindingFetch` selector. For an ordinary
+binding RHS `e`, the source relation determines whether binding the result is
+a value boundary or a computation boundary:
+
+```text
+value RHS e:       P = Types_Γ(e); extend Γ with x ↦ Poly(P)
+computation RHS e: derive one shared interface for e; extend Γ with x ↦ Mono(T)
+                   and append its top-level execution to the ordered roots
+```
+
+The value case permits independent type choices at distinct lookups while
+retaining the binding's validity witness. The computation case keeps all
+RHS-created type/family identities monomorphic across later references; at
+top level, its computation is evaluated once in source order and the resulting
+value is retained. This is the source value restriction and runtime-root
+contract expressed in the same environment/computation relation. Oracle's
+`FetchValue`/`FetchComputation` bit is characterization and an implementation
+index for this boundary, not the successor's semantic selector.
+
+A recursive Function SCC is the simultaneous value-binding case of this
+fold: all members receive shared monomorphic self assumptions while their
+external entries are the respective `Poly(MemberTypes)` sets. A component
+whose recursive dependency requires evaluating a computation is outside this
+pure recursive rule; the frozen source contract diagnoses cyclic computed
+fetches because initialization order and value sharing are then observable.
+After dependency SCCs are typed, computation roots still execute in source
+order, which is independent of the dependency order used to expose schemes.
+Thus one source/module relation has two order observations—static SCC
+dependency and dynamic root evaluation—without an ad hoc rule per source
+site.
+
+For `f` / identity, the first declaration takes the recursive value-group
+case, and `main` takes the monomorphic computation-root case. Since `main` is
+not subsequently referenced, the only relevant use fiber is the independent
+external lookup of `f`; it can choose the `Top`/`Fun` member assignment above.
+This matches the frozen declaration classification and event trace, but the
+complete source evaluation relation, symbolic effect-family transport, and
+all computed-binding lookups remain unproved. In particular, the effectful
+computation case must retain its entire coupled typed interface rather than
+only `T`; deriving that case belongs to the ordinary effect/handler gate.

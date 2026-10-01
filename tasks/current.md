@@ -3833,9 +3833,28 @@ computation roots from the existing `RecGroup` member relation,
 environment-extensionality, and nested-expression adequacy results. It lifts
 the `f`/identity witness without a fixture-specific rule. Frozen source rules
 classify `f` as `FetchValue` and `main`'s application RHS as a monomorphic
-`FetchComputation` runtime root, matching the fold for this witness. The
+`FetchComputation` runtime root. The module candidate now derives these cases
+from the source value/computation boundary: value bindings generalize their
+type sets, while computed bindings retain one shared monomorphic interface and
+contribute an ordered root. Oracle `BindingFetch` is characterization and a
+derived implementation index, not the successor semantic selector. The
 general correspondence to top-level declarations/exports still needs a
-complete source rule and independent review. Non-function value SCCs,
-referenced computed definitions, multiple roots, effects, roles, and methods
-remain outside this slice. Method/role and ordinary effect/handler gates stay
-later. No implementation is authorized.
+complete source rule and independent review. A conditional pure
+monomorphic-binding adequacy lemma now covers non-value local RHSs: one RHS
+assignment is shared through all lookups; enclosing scheme freshening may
+later freshen its local graph as a whole. It is unreviewed. Effectful
+computation interfaces and symbolic family transport remain open.
+Non-function recursive SCCs, multiple roots, roles, and methods remain outside
+the proved slice. Method/role and ordinary effect/handler gates stay later.
+No implementation is authorized.
+
+Theory-shape direction: among sound candidates, prefer the smallest
+compositional relation over complete typed interfaces. Treat `Sel_s`,
+`Demand`, typed-family obligations, route evidence, and lifecycle maps as
+projections or bookkeeping unless a source-level distinction proves them
+fundamental. Compare candidates by conceptual economy, compositionality,
+principality, and proof reuse; derive row operations and SCC lifecycle steps
+from shared relation/transport laws where possible. Exact trace support remains
+a soundness reference, not a required inference domain. The comparison is
+recorded in the non-authoritative coupled-interface draft; its source rules,
+finite solver presentation, soundness, and principality remain open.

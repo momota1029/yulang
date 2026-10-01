@@ -112,6 +112,34 @@ keeps two genuinely different observations—type sharing and dynamic reachabili
 inside one relation without identifying them or making either a new solver
 mechanism.
 
+#### Candidate-formulation comparison
+
+The current preference is the extensional `Rel_C` over assignments and
+complete observable interfaces, with source constructs interpreted as
+relations and compiler phases represented by relational restriction,
+composition, and capture-avoiding transport. This is the smallest candidate
+that currently preserves both symbolic typed-family invariance and the
+distinction between static type sharing and dynamic handler reachability.
+
+| Candidate | Economy | Compositionality and principality | Current disposition |
+|---|---|---|---|
+| Independent `Sel_s`, `Demand`, typed-family obligation, and route rules | Low: each site adds a selector or obligation kind | Duplicates semantics across solving, residualization, and lifecycle phases; principality must be re-established per kind | Treat as implementation projections or proof witnesses unless source semantics proves a fundamental distinction |
+| Ground rows as the sole interface | Superficially small | Cannot preserve invariant family arguments symbolically or their correlation with shared requests; post-materialization reconstruction is invalid | Reject for the required symbolic invariance |
+| One complete relational interface with source-judgment composition | One semantic carrier plus ordinary source judgments | Composition can derive splitting, filtering, subtraction, callback behavior, and lifecycle transport; principality is stated relative to the chosen expressible abstraction | Preferred candidate; soundness, finite presentation, and principality remain proof obligations |
+| Exact continuation-sensitive trace sets | Semantically precise | May demand usage or linearity structure absent from the language and a richer inference domain | Use as a soundness reference; do not require exact inference absent independent language justification |
+
+This preference does not assert that all operations collapse to one
+mathematical function. Distinct source constructs can induce distinct
+relations. The economy claim is that they act on the same interface carrier
+and obey common relational composition and transport laws. Source-specific
+selectors, route classes, or obligation variants need separate semantic
+justification. Row splitting, filtering, and handler subtraction should be
+derived as projections or residuals of the source relation; generalization,
+instantiation, and intrusion should preserve its denotation through binder
+renaming and assignment transport. A solver may keep specialized data
+structures as bookkeeping, provided they neither add semantic choices nor
+discard symbolic predicates.
+
 #### One denotational row relation (candidate)
 
 For a fixed complete assignment `ν`, interpret a typed row jointly with its
