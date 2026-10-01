@@ -3551,8 +3551,8 @@ prefix observations coinductively.
 The finite request-origin presentation now has a separate conditional
 least-closure lemma in
 `notes/design/2026-10-01-coupled-effect-interface-core-draft.md`. Given a
-complete-lattice abstraction, monotone one-step transformer, and a concretely
-sound abstraction pair that retains symbolic typed-family fibers, its least
+complete lattice, a monotone one-step transformer, and a Galois connection
+that retains symbolic typed-family fibers, its least
 fixed point covers every finite source execution and is least among closed
 states in that abstraction. Independent compiler-referee review found that a
 mere sound abstraction pair was insufficient for leastness among concretely
