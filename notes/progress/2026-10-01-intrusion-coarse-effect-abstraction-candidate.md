@@ -5349,6 +5349,48 @@ preserves their joint observations. The finite-join carrier remains an
 unselected candidate assumption; the actual type-domain realization proof is
 still open.
 
+#### N-way typed-family argument overlap (carrier-parametric)
+
+The endpoint result extends to any finite batch of occurrences that one
+source-derived rule requires to denote the same invariant family argument;
+it does not impose a relation on every same-head occurrence in a program.
+Fix such a batch of `k ≥ 1` occurrences of family head `F` with arity `m`.
+For each argument position `i`, let `Lᵢ` be the union of all lower endpoints
+and `Uᵢ` the union of all upper endpoints contributed by the batch's
+occurrence-owned argument intervals at that position. Assume each occurrence's
+interval contributes finite lower and upper endpoint sets, already derived by
+a semantics-preserving decomposition of its argument bounds; therefore the
+batch unions `Lᵢ` and `Uᵢ` are finite. Also assume the endpoint carrier `D`
+has a least element and all finite joins satisfying the least-upper-bound
+laws, or more generally has the finite interval-realization property from
+the preceding lemma. Under these premises, one shared tuple of argument
+witnesses exists in the independent per-position endpoint fragment exactly
+when
+
+```text
+for each i ∈ 1..m, for every l ∈ Lᵢ and u ∈ Uᵢ: l ≤ u
+```
+
+Necessity follows by composing every `l ≤ tᵢ` and `tᵢ ≤ u` through the
+shared witness `tᵢ`. For sufficiency under the stated join assumption, choose
+`tᵢ = ⋁Lᵢ` (or `⊥` for an empty `Lᵢ`); the LUB law gives `tᵢ ≤ u` for every
+`u ∈ Uᵢ`. A nullary family has no argument obligations and the condition is
+vacuous. This gives an order-independent N-way common-witness criterion for
+the source-derived batch in the already decomposed endpoint fragment and
+avoids unsoundly demanding mutual subtyping between interval descriptions.
+
+This result does not establish that compound `Con`, `Tuple`, or `Fun` bounds
+decompose into independent per-position endpoint sets; that requires the
+chosen type-domain semantics and its variance/equality rules. It also does not
+cover cross-position correlations caused by shared type variables: those
+remain in the joint symbolic constraint graph, and per-position feasibility
+cannot replace solving that graph. No current successor carrier has been
+shown to satisfy the join premise. The occurrence-owned endpoint sets and
+their incidence with every `InvArgs` demand must remain symbolic through
+solving, residualization, generalization, fresh instantiation, and intrusion.
+This is a conditional lemma, not a selected successor relation or permission
+to materialize a witness and discard its source constraints.
+
 This does not prove the equivalence for arbitrary compound arguments,
 non-saturated recursive graphs, effect weights, or post-substitution
 residuals. Those require the structural subtype decomposition and fixed-point

@@ -2533,6 +2533,11 @@ candidate records this only as a representation/proof obligation, not as a
 selected successor rule. `InvArgs` still needs a denotation covering concrete
 and interval-valued arguments and must remain symbolic through the full
 lifecycle. See `Overlap is not mutual subtyping for interval arguments` in
-the candidate record. Next, define that relation over polarized interval
-terms and compose it with compound constructor decomposition and the actual
-carrier realization theorem.
+the candidate record. The interval theorem now extends to an N-way batch
+identified by one source-derived shared-argument demand, assuming finite
+endpoint sets and a carrier with finite interval realization. Initial
+compiler-referee review found omitted carrier/finite-set premises and an
+overbroad occurrence reading; both were repaired, and delta review closed the
+findings. The proof remains carrier-parametric. Next, derive the endpoint
+decomposition for compound arguments from the chosen constructor variance and
+invariance semantics, then prove the actual carrier realization property.
