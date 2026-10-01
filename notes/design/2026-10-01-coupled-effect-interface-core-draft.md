@@ -195,6 +195,26 @@ one reusable commutation lemma for row filtering through use-site freshening
 and injective intrusion, conditional on filter-predicate naturality. It does
 not cover a non-injective parent quotient.
 
+The same row restriction commutes with generalization when it acts only on
+the interface coordinates that generalization retains. Write a fixed-outer
+relation as `Rel ⊆ { (ρ,β,O) }`, where `β` are locally owned identities and
+`O` is the complete exported interface. Define
+`Gen_β(Rel) = { (ρ,O) | ∃β. (ρ,β,O) ∈ Rel }`. For a restriction map
+`F_φ(ρ,β,O) = (ρ,β,F_φ(O))` that leaves `ρ` and `β` fixed, then:
+
+```text
+Gen_β(F_φ(Rel)) = F_φ(Gen_β(Rel))
+```
+
+Proof: either side contains exactly `(ρ,F_φ(O))` for which there exists a
+local assignment `β` with `(ρ,β,O) ∈ Rel`. The existential witness is
+unchanged because `F_φ` does not inspect or alter hidden `β`. If a filter
+depends on local information absent from the exported interface, this equation
+does not apply: that dependency must remain symbolically represented in the
+generalized relation rather than being recreated from a materialized row.
+This is a relational commutation law, not a claim that the current scheme
+presentation can express every such existential projection.
+
 The first equality concerns support only. It does not say that the joint
 assignment relation factors across a split: when a binder occurs on both
 sides, the shared assignment and its incidence remain in force. The second

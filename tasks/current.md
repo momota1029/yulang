@@ -3089,3 +3089,11 @@ typed requests. The pointwise proof preserves all non-row coordinates and
 applies the same identity map to presentation formulas and incidence. This
 reuses one lemma for fresh instantiation and injective intrusion; it does not
 cover non-injective parent quotients.
+
+Filtering also commutes with existential generalization over local identities
+when the filter acts only on the exported interface: `Gen_β(Filter_φ(Rel)) =
+Filter_φ(Gen_β(Rel))`. The proof preserves the same local witness on both
+sides. A filter that depends on hidden local data cannot be moved after
+projection; that dependency has to remain in the generalized symbolic
+relation. This is conditional and does not prove the current finite scheme
+language can express every such projection.
