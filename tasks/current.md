@@ -3487,3 +3487,10 @@ The transport law extends to finite use batches with arbitrary shared-receiver
 constraints: it preserves the whole joint fiber even when the context couples
 uses, without assuming a Cartesian factorization. The source's use-event
 partition and root/scheduler projection are separate obligations.
+
+The handler fiber-domain proof now has an explicit completeness side: a finite
+over-approximation can make universal handler totality fail on a spurious
+typed request/payload pairing and thereby reject a valid source fiber. This
+is an abstract countermodel, not an observed Yulang mismatch. The solver must
+preserve the relevant correlation or prove a sound output widening; ground
+support soundness alone does not ensure final-acceptance capability.

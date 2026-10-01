@@ -1189,6 +1189,24 @@ support dropped a symbolic formula. For a handler transition whose source
 premises are already entailed by `R`, the criterion reduces to preservation
 of the whole input valuation domain.
 
+This exact-fiber criterion is also an acceptance-completeness obligation, not
+only a soundness convenience. Let `R_src` be the source-derivable relation and
+`R_abs` a finite presentation whose concretization may over-approximate source
+computations. Filtering `R_abs` by `P_{H,κ,ρ}` is sound for the represented
+fiber, but it can discard a source-derivable interface if an extra abstract
+computation makes the universal totality predicate false. For example, let
+the source fiber contain only a request `F<int>` with an `int` payload, while
+a support-only concretization also admits `F<bool>` with a `string` payload;
+an arm safe for the source request can fail universal coverage of the extra
+abstract request. This is an abstract countermodel, not a claimed Yulang
+source program. It shows why final-acceptance preservation needs a further
+condition: every source-derivable interface must have a represented handler
+image satisfying the source transition, with no lost typed/payload
+correlation causing `P` to fail. A presentation that cannot prove this must
+retain enough of the complete relation or widen the output by a separately
+proved sound abstraction instead of filtering out the source fiber. Ground
+support soundness alone is insufficient for this gate.
+
 **Conditional transfer theorem.** If (1) `C_ρ(I,ν)` covers every concrete
 scrutinee represented by each `(ν,I) ∈ R_{H,κ,ρ}`, (2) `H_κ` is total on those
 fibers and agrees with the source shallow-handler transition, and (3) `Obs_H`

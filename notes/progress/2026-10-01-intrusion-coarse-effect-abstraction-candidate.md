@@ -8146,6 +8146,17 @@ typing relation, while row materialization cannot silently constrain them
 afterward. Source derivation of `P_H` and the required totality theorem remain
 open.
 
+The fiber-domain criterion also exposes an acceptance-completeness risk for
+finite over-approximations. If a support-only concretization invents a typed
+request/payload combination that is incompatible with a handler arm, the
+universal `P_H` test can reject a source-derivable valuation whose exact
+behavior only contains compatible requests. A two-request-family construction
+records this as an abstract countermodel, not a Yulang source mismatch. The
+successor must preserve enough request/payload correlation for the source
+transition, or use a separately proved sound output widening rather than
+filtering away the source fiber. This is a completeness proof obligation,
+not a new handler rule or justification for Oracle routing.
+
 #### Freshening lemma: quantify semantic binders, reindex presentation labels
 
 The generalization/fresh-use lemma now separates the owned type/row binders
