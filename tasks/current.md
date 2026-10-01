@@ -134,10 +134,12 @@ to check the conditional shallow-handler relational-image theorem against the
 source trace semantics. The collected may-support projection is least in the
 full powerset for each fixed valuation, while pointwise row join is distinct
 from relational disjunction and only gives a monotonicity inclusion without
-an additional theorem. Next derive a finite principal presentation while
-preserving symbolic family formulas through every lifecycle phase. Neither
-leastness result establishes finite representability, solver termination, or
-global principality.
+an additional theorem. A further audit found that this ground support result
+alone does not establish the required symbolic family transport. The handler
+image now has an explicit `K,D` preservation premise and symbolic observation
+map; proving that source handler transitions construct and retain it is the
+immediate next step. Finite principal presentation, termination, and global
+principality remain open.
 
 ## Objective
 

@@ -49,6 +49,15 @@ argument endpoints and the source-derived shared occurrence identity inside
 `Rel_C`; solving may substitute its endpoints or discharge it with proof, but
 materialized row comparison cannot recreate it after it has been dropped.
 
+For transport statements, write a presented interface as
+`I = (V, M, Q, K, D)`: value views `V`, may-support coordinates `M`, typed
+request facts `Q`, symbolic formulas `K`, and incidence `D` connecting each
+formula to the views that depend on it. This tuple is a presentation of an
+element of the carrier, not five independent semantic authorities. A
+post-solve or post-handler presentation must carry `K` and `D` forward. If a
+formula is discharged, it must carry a proof of equivalence for the affected
+views; equality of materialized rows is not such a proof.
+
 The meaning of typed request inclusion and the source rule that creates a
 shared invariant argument group still need definition. The core does not
 assume that support inclusion, common-witness compatibility, and handler
@@ -90,10 +99,11 @@ chosen interface language.
 
 ### Handler transfer as a relational image
 
-Let `C_ρ(I)` be the set of well-typed continuation-bearing computations
-represented by a complete interface `I` over fixed imports `ρ`. It includes
-the values, captured environments, latent function/thunk behavior, and
-activation lineage needed to interpret later calls and forces. Let `H_κ` be
+Let `C_ρ(I,ν)` be the set of well-typed continuation-bearing computations
+represented by a complete interface `I` under the owned-variable assignment
+`ν` and fixed imports `ρ`. It includes the values, captured environments,
+latent function/thunk behavior, and activation lineage needed to interpret
+later calls and forces. Let `H_κ` be
 the source shallow-handler transformation at activation context `κ`. The
 context includes the active handler stack and the source-defined visibility
 relation; it is not calculated from a family row alone. Require `H_κ` to be
@@ -104,31 +114,46 @@ For an interface relation `R` over owned valuations and root interfaces,
 define its concrete fiber and the least semantic output relation:
 
 ```text
-C_ρ(R, ν) = ⋃ { C_ρ(I) | (ν, I) ∈ R }
+C_ρ(R, ν) = ⋃ { C_ρ(I,ν) | (ν, I) ∈ R }
 
 H#_κ(R) = { (ν, J) |
-    there are c ∈ C_ρ(R, ν) and c' with c' = H_κ(c),
-    and J is the complete interface observation of c' }
+    there are I, c, c' with (ν, I) ∈ R, c ∈ C_ρ(I,ν),
+    c' = H_κ(c), and J ∈ Obs^sym_H(I, ν, c') }
 ```
 
 Here the complete observation includes output values with their latent
 interfaces, typed request facts, symbolic argument constraints, occurrence
-ownership, and route lineage. The relation keeps `ν` fixed during transfer,
-so this image cannot validate a typed-family condition only after erasing its
-symbolic endpoints. The induced support view is the may-row effect of the
-handler. No `Drop` operation is part of this definition.
+ownership, and route lineage. Crucially, `J` is not reconstructed solely by
+materializing `c'`: it includes the symbolic transport of the input
+presentation. If `I = (V,M,Q,K,D)`, a symbolic handler step must provide a
+map `τ_H` from input view identities to output view identities and carry every
+formula in `K` through its endpoint substitution into `K'`. Its incidence
+must be mapped through the same `τ_H`; formulas may leave `K'` only with
+proof evidence that their meaning is preserved for every dependent output
+view. New operation-signature, arm, or route constraints are generated at
+their symbolic source relation before rows are changed. A path through
+concrete `c'` alone cannot discharge these obligations.
 
-**Conditional transfer theorem.** If (1) `C_ρ(R,ν)` covers every concrete
-scrutinee represented by `R`, (2) `H_κ` is total on that fiber and agrees
-with the source shallow-handler transition, and (3) the output interface
-observation is sound for every result `H_κ(c)`, then `H#_κ(R)` is sound:
-every concrete handled result represented on an input fiber is represented
-on the corresponding output fiber. Moreover, among exact relations over the
-chosen complete-interface carrier, `H#_κ(R)` is the least sound relational
-image: any relation containing the observation of every such `H_κ(c)` must
-contain `H#_κ(R)`. This is leastness for the semantic transfer, not a proof
-that the image has a finite formula, that a solver computes it, or that the
-whole type inference system is principal.
+The relation keeps `ν` fixed during transfer, so this image cannot validate a
+typed-family condition only after erasing its symbolic endpoints. The induced
+support view is the may-row effect of the handler. No `Drop` operation is
+part of this definition. The collecting support projection below deliberately
+states only ground support soundness and leastness; it does not prove this
+symbolic interface-transport condition.
+
+**Conditional transfer theorem.** If (1) `C_ρ(I,ν)` covers every concrete
+scrutinee represented by each `(ν,I) ∈ R`, (2) `H_κ` is total on those fibers
+and agrees with the source shallow-handler transition, and (3) `Obs^sym_H`
+is a sound output observation that preserves the `K,D` obligations described
+above, then `H#_κ(R)` is sound: every concrete handled result represented on
+an input fiber is represented on the corresponding output fiber. Moreover,
+among exact relations over the chosen complete-interface carrier,
+`H#_κ(R)` is the least sound relational image: any relation containing the
+symbolically transported observation of every such `H_κ(c)` must contain
+`H#_κ(R)`. This is leastness for the semantic transfer, not a proof that the
+image has a finite formula, that a solver computes it, or that the whole type
+inference system is principal. The `K,D` transport premise is a separate open
+lemma, not a consequence of the ground collecting support argument.
 
 The shallow operational cases are consequences of the same image. A covered
 visible request enters its arm with the raw continuation; a request not
