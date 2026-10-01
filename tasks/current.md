@@ -2913,3 +2913,9 @@ from the handler transition. This replaces `RowRel_s`/`Sel_s` as candidate
 semantic architecture; the older notation remains historical characterization
 only. Duplicate-row denotation, argument interpretation, and source derivation
 of shared groups remain open.
+
+Refinement: shared-family argument agreement is represented inside one joint
+row relation `J_R` indexed by source-owned family-instantiation binders;
+`TypedRow` and the common-witness fiber are projections of that relation. It is
+not a separate semantic query alongside row inclusion. Which occurrences share
+a binder remains a source-semantics obligation.

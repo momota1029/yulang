@@ -67,13 +67,23 @@ admissibility, and dynamic boundary visibility respectively.
 
 #### One denotational row relation (candidate)
 
-For a fixed type/row assignment, interpret a typed row as a set of concrete
-typed requests, not just a set of family heads. If `ArgDen_A(o,ν)` is the
-chosen interpretation of occurrence `o`'s complete argument tuple, define:
+For a fixed type/row assignment, interpret a typed row jointly with its
+source-owned family-instantiation binders. Let `g(o)` identify the binder
+whose invariant argument is shared by occurrence `o`; occurrences with no
+shared binder receive distinct local binders. This identity comes from
+lexical/source ownership and is transported with the complete relation, not
+selected by a row-comparison call site. If `ArgDen_A(o,ν)` interprets the
+complete argument tuple of occurrence `o`, define the joint typed-request
+relation:
 
 ```text
-⟦R⟧_ν = ⋃ { {(head(o),a) | a ∈ ArgDen_A(o,ν)} | o ∈ occurrences(R,ν) }
-RowSub(R,S,ν) iff ⟦R⟧_ν ⊆ ⟦S⟧_ν
+J_R(ν) = { (b, Q) |
+  b_g ∈ ⋂_{o:g(o)=g} ArgDen_A(o,ν) for every binder g,
+  Q = { (head(o), b_{g(o)}) | o ∈ occurrences(R,ν) }
+}
+TypedRow(R,ν) = { q | ∃b,Q. (b,Q) ∈ J_R(ν) ∧ q ∈ Q }
+RowSub(R,S,ν) iff J_R(ν) ≠ ∅ ∧ J_S(ν) ≠ ∅
+                   ∧ TypedRow(R,ν) ⊆ TypedRow(S,ν)
 ```
 
 Open tails are evaluated in the same assignment before taking this relation;
@@ -81,22 +91,23 @@ they are not replaced by a second source-site rule. `RowSub` is the candidate
 meaning behind row splitting, filtering, and row comparison. A solver may
 expand subset into finite witness formulas, but a `Sel_s`/`Demand` pair list
 then records a derivation of membership, not an additional semantic choice.
-For finite point rows the expansion is the familiar per-left-occurrence
-disjunction over compatible right occurrences. For interval or compound
-arguments, the set denotation controls the expansion and preserves shared
-tuple dependencies; pairwise overlap is not assumed equivalent.
+For singleton point arguments with independent binders, the expansion is the
+familiar per-left-occurrence disjunction over compatible right occurrences.
+For interval or compound arguments, the set denotation controls the expansion
+and preserves shared tuple dependencies; pairwise overlap is not assumed
+equivalent. The nonempty-`J` premise also prevents an inconsistent shared
+binder from making inclusion vacuously true by projecting to an empty row.
 
-Typed-family invariance asks a different query on the same occurrence
-denotations. For a source-derived batch `B` whose occurrences share one family
-instantiation, its candidate common-witness condition is
-`⋂_{o∈B} ArgDen_A(o,ν) ≠ ∅`. `B` is the semantic scope of one shared family
-instantiation, not a source-site selector; if the source semantics does not
-establish shared ownership, this condition must not be imposed. Thus inclusion
-uses subset, while shared-family coherence uses intersection nonemptiness;
-both are formulas over the same denotation and neither is inferred from
-materialized family-head support. Handler eligibility remains a property of
-the source handler transition on typed requests and active boundaries, not a
-variant of `RowSub`.
+The common-witness condition is now a projection of `J_R`: a row assignment
+admits a typed request view exactly when every shared binder has a witness in
+the intersection of its occurrences' argument denotations. Typed-family
+invariance is therefore not a second obligation kind; it is the nonempty-fiber
+condition for this joint relation. If the source does not establish shared
+ownership, there is no shared binder and no intersection is imposed. Both
+row inclusion and family coherence are observations of `J_R`, not facts
+reconstructed from materialized family-head support. Handler eligibility
+remains a property of the source handler transition on typed requests and
+active boundaries, not a variant of `RowSub`.
 
 Under this candidate, splitting and union are set projections/union on typed
 request denotations, filtering is restriction of that denotation, and

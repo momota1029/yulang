@@ -7716,3 +7716,13 @@ This is not yet a selected semantics. Duplicate-row denotation, concrete
 argument interpretation, and source derivation of a shared-instantiation
 batch remain to be established before subset/intersection can be connected to
 the actual source typing relation.
+
+Follow-up refinement: the preferred candidate now places shared arguments
+inside one joint row relation `J_R(ν)`, indexed by source-owned family
+instantiation binders. `TypedRow` is a projection of `J_R`, and a nonempty
+shared-witness intersection is the nonempty fiber for one such binder. Thus
+the intersection is not an independent semantic query/obligation beside row
+comparison; it is how this candidate relation enforces a shared binder. The
+source must still establish which occurrences share that binder. See the
+revised joint definition in the coupled-effect draft. This is still a
+candidate, and its duplicate-row/runtime adequacy remains open.
