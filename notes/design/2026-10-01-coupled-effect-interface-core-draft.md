@@ -35,28 +35,32 @@ view observable by clients. A computation view contains:
 - occurrence and owner incidence needed by future generalization;
 - origin and boundary lineage needed to determine handler eligibility.
 
-The component meaning is one relation:
+The component meaning is one extensional relation over assignments and
+source-observable root interfaces:
 
 ```text
-Rel_C(ρ) ⊆ { (ν, I) | ν assigns β and I is a complete root interface }
+Rel_C(ρ) ⊆ { (ν, O) | ν assigns β and O is a complete observable root interface }
 ```
 
-The relation couples roots, request views, symbolic constraints, owners, and
-routes. A row, obligation ledger, or dependency edge is a finite presentation
-or projection of this relation. None is the semantic authority separately.
-In particular, a typed-family invariant remains a predicate over symbolic
-argument endpoints and the source-derived shared occurrence identity inside
-`Rel_C`; solving may substitute its endpoints or discharge it with proof, but
+The relation couples roots, request behavior, typed-family denotations,
+source-owned sharing, and handler visibility. A row or constraint formula is
+a finite presentation or projection of this relation. Neither an obligation
+ledger nor a dependency edge is an additional semantic coordinate. In
+particular, a typed-family invariant restricts which `(ν,O)` pairs belong to
+`Rel_C`; solving may reindex that predicate or discharge it with proof, but
 materialized row comparison cannot recreate it after it has been dropped.
 
-For transport statements, write a presented interface as
-`I = (V, M, Q, K, D)`: value views `V`, may-support coordinates `M`, typed
+For transport statements, write a finite presentation as
+`p = (V, M, Q, K, D)`: value views `V`, may-support coordinates `M`, typed
 request facts `Q`, symbolic formulas `K`, and incidence `D` connecting each
-formula to the views that depend on it. This tuple is a presentation of an
-element of the carrier, not five independent semantic authorities. A
-post-solve or post-handler presentation must carry `K` and `D` forward. If a
-formula is discharged, it must carry a proof of equivalence for the affected
-views; equality of materialized rows is not such a proof.
+formula to the views that depend on it. Its denotation `⟦p⟧_ρ` is a set of
+`(ν,O)` pairs; `K` contributes by formula satisfaction, while `D` records how
+the implementation preserves formula-to-view dependencies. Thus `K` is a
+symbolic presentation of a semantic restriction and `D` is transport
+bookkeeping, not part of the mathematical carrier. A post-solve or
+post-handler presentation must denote the required transformed relation. If
+a formula is discharged, the proof must establish equivalence for the
+affected views; equality of materialized rows is not such a proof.
 
 The meaning of typed request inclusion and the source rule that creates a
 shared invariant argument group still need definition. The core does not
@@ -152,21 +156,24 @@ filtered, and
 `J^K_R(ν) = { Q | K(ν) ∧ Q = { (head(o),ν(g(o))) | o∈R } }`.
 The notation keeps that persistent predicate explicit in the filter laws.
 
-More generally, for the complete interface relation
-`Rel ⊆ { (ν,V,Q,K,D) }`, filtering is the image of a coordinate map:
+More generally, for a semantic interface relation
+`Rel ⊆ { (ν,O) }`, write `Q(O)` for its typed-request support coordinate and
+`O[Q←Q']` for replacing only that coordinate. Filtering is the image of a
+semantic coordinate map:
 
 ```text
 Filter_φ(Rel) =
-  { (ν,V,Q ∩ φ,K,D) | (ν,V,Q,K,D) ∈ Rel }
-dom_{ν,V}(Filter_φ(Rel)) = dom_{ν,V}(Rel)
+  { (ν,O[Q←Q(O) ∩ φ]) | (ν,O) ∈ Rel }
+dom_ν(Filter_φ(Rel)) = dom_ν(Rel)
 ```
 
-The second equation follows because the map changes only `Q`; every satisfying
-valuation and value-root view remains represented, including fibers whose
-filtered support becomes empty. `K` and its incidence `D` remain attached;
-they may be projected away only after their dependencies have no retained
-observation or a proof discharges them. Thus filtering preserves the
-satisfying fiber rather than asking the surviving row to recreate it.
+The domain equation follows because this map changes only `Q`; every
+satisfying valuation remains represented, including fibers whose filtered
+support becomes empty. At the presentation level, a filter implementation
+must produce `p'` with denotation `Filter_φ(⟦p⟧)` while retaining `K` and its
+incidence `D`; they may be projected away only after their dependencies have
+no retained observation or a proof discharges them. Thus filtering preserves
+the satisfying fiber rather than asking the surviving row to recreate it.
 Projection to roots after filtering preserves the original root solutions;
 projection that also observes the effect row returns the intentionally
 filtered rows together with their original symbolic correlations.
@@ -349,28 +356,26 @@ C_ρ(R_H, ν) = ⋃ { C_ρ(I,ν) | (ν, I) ∈ R_H }
 
 H#_κ(R) = { (ν, J) |
     there are I, c, c' with (ν, I) ∈ R_H, c ∈ C_ρ(I,ν),
-    c' = H_κ(c), and J ∈ Obs^sym_H(I, ν, c') }
+    c' = H_κ(c), and J ∈ Obs_H(I, ν, c') }
 ```
 
 Here the complete observation includes output values with their latent
-interfaces, typed request facts, symbolic argument constraints, occurrence
-ownership, and route lineage. Crucially, `J` is not reconstructed solely by
-materializing `c'`: it includes the symbolic transport of the input
-presentation. If `I = (V,M,Q,K,D)`, a symbolic handler step must provide a
-map `τ_H` from input view identities to output view identities and carry every
-formula in `K` through its endpoint substitution into `K'`. Its incidence
-must be mapped through the same `τ_H`; formulas may leave `K'` only with
-proof evidence that their meaning is preserved for every dependent output
-view. New operation-signature, arm, or route constraints are generated at
-their symbolic source relation before rows are changed. A path through
-concrete `c'` alone cannot discharge these obligations.
+interfaces, typed request facts, family-argument denotations, occurrence
+ownership, and route lineage. The finite presentation is separate: if
+`p=(V,M,Q,K,D)`, its handler transformation must carry every formula in `K`
+through its endpoint substitution and map its incidence `D` to the dependent
+output views. A formula may leave the new presentation only with proof that
+its meaning is preserved for every dependent output view. New operation,
+arm, or route predicates enter `K` from the typed source transition before
+the presented support row changes. Observing concrete `c'` alone cannot
+reconstruct this presentation proof.
 
 The relation keeps `ν` fixed during transfer, so this image cannot validate a
 typed-family condition only after erasing its symbolic endpoints. The induced
 support view is the may-row effect of the handler. No `Drop` operation is
 part of this definition. The collecting support projection below deliberately
-states only ground support soundness and leastness; it does not prove this
-symbolic interface-transport condition.
+states only ground support soundness and leastness; it does not prove that a
+finite presentation transports `K,D` correctly.
 
 The handler image has a useful fiber-domain criterion. If each `I` in `R_H`
 has a represented concrete computation and the handler plus symbolic
@@ -392,23 +397,23 @@ of the whole input valuation domain.
 
 **Conditional transfer theorem.** If (1) `C_ρ(I,ν)` covers every concrete
 scrutinee represented by each `(ν,I) ∈ R_H`, (2) `H_κ` is total on those fibers
-and agrees with the source shallow-handler transition, and (3) `Obs^sym_H`
-is a sound output observation that preserves the `K,D` obligations described
-above, then `H#_κ(R)` is sound: every concrete handled result represented on
-an input fiber is represented on the corresponding output fiber. Moreover,
-among exact relations over the chosen complete-interface carrier,
-`H#_κ(R)` is the least sound relational image: any relation containing the
-symbolically transported observation of every such `H_κ(c)` must contain
+and agrees with the source shallow-handler transition, and (3) `Obs_H`
+is a sound output observation, then `H#_κ(R)` is sound: every concrete handled
+result represented on an input fiber is represented on the corresponding
+output fiber. Moreover, among exact relations over the chosen
+complete-interface carrier, `H#_κ(R)` is the least sound relational image:
+any relation containing the observation of every such `H_κ(c)` must contain
 `H#_κ(R)`. This is leastness for the semantic transfer, not a proof that the
 image has a finite formula, that a solver computes it, or that the whole type
-inference system is principal. The `K,D` transport premise is a separate open
-lemma, not a consequence of the ground collecting support argument.
+inference system is principal. Finite-presentation `K,D` transport is a
+separate open correctness lemma, not a semantic premise of the image.
 
 ### Symbolic preservation at one shallow-handler step
 
-The required `K,D` premise can be stated without adding another obligation
-kind. Write `K` for the existing formulas in the coupled interface and `D`
-for their dependency incidence. A source handler step partitions the
+The semantic handler image acts on observable relations. A compiler
+presentation of that image must transport its formula `K` and incidence `D`
+without adding another obligation kind. At presentation level, a source
+handler transition partitions the
 scrutinee's typed request facts into facts forwarded, facts selected by the
 source eligibility rule, and facts whose route is not known. It then acts as
 follows:

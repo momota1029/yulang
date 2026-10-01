@@ -3060,6 +3060,14 @@ support is empty while reabstracting between handlers yields `{B}`. This
 strengthens the requirement to retain complete value/effect fibers where
 possible and use only a proved sound over-approximation when they are widened.
 
+The coupled-effect core now distinguishes the extensional `Rel_C(ρ)` over
+assignments and observable interfaces from a finite presentation
+`p=(V,M,Q,K,D)`. Formula satisfaction in `K` denotes semantic restrictions;
+incidence `D` is transport bookkeeping. Filtering and handler image are
+defined on observable relations, while preservation of `K,D` is a separate
+presentation-correctness proof. This removes bookkeeping fields from the
+mathematical carrier; source adequacy and finite presentation remain open.
+
 The handler `P_H` discussion now includes a conditional operation-arm safety
 lemma: with one exact `OpId`, a request payload subtype of the arm payload, and
 the arm's resumed result subtype of the request's continuation input, the raw
