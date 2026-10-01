@@ -2942,6 +2942,13 @@ mere pairwise overlap also misses uncovered values. Symbolic finite
 representability depends on exact coverage procedures for the selected type
 algebra and remains open.
 
+Recorded a projection-loss witness: the relation
+`{(a, result=a, request=F<a>) | a ∈ {int,bool}}` has exact marginals but their
+Cartesian product adds mismatched result/request pairs. So support rows are
+not complete scheme interfaces; generalization, handlers, callbacks, and
+instantiation must preserve the joint relation or equivalent symbolic
+constraints.
+
 Row-split union now has an explicit factorization condition: the support
 equation holds when split pieces own disjoint family binders, but can be strict
 when one shared binder crosses the split. In the latter case both projections

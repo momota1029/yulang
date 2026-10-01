@@ -180,6 +180,25 @@ groups. It does not decide how source syntax creates those groups, extend to
 interval/compound arguments, or prove that the compiler's current
 `InvArgs` generation is equivalent to `GroupEq`.
 
+#### Why the support projection cannot replace the joint relation
+
+Even an exact `TypedRow` support view is not a complete function/effect
+interface. Consider the finite joint relation
+
+```text
+J = { (a, result=a, request=F<a>) | a ∈ {int,bool} }
+```
+
+Its result marginal is `{int,bool}` and its request-support marginal is
+`{F<int>,F<bool>}`. Their Cartesian product additionally contains
+`(int,F<bool>)` and `(bool,F<int>)`, neither of which belongs to `J`. Thus a
+row may be the exact support projection and still lose which result and
+request argument came from the same owned binder. Generalization, callback
+composition, handler matching, and fresh instantiation must carry `J` or an
+equivalent symbolic constraint relation; rebuilding it from the two
+materialized marginals is unsoundly permissive. This is why `TypedRow` is a
+view used for support inclusion, not the authority for the complete scheme.
+
 #### Finite-domain coverage and why one selected match is insufficient
 
 For a fixed assignment, suppose each argument denotation is a finite subset of
