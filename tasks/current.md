@@ -38,6 +38,16 @@ view-demand incidence proof remains open.
 The later source-rule notation now agrees with the stable-key rule: each
 relation site and argument position has a key, while endpoint type terms stay
 as substitutable formula payload.
+The open-row `Sel_all`/`RowLeq_all` proofs are now explicitly only maximal
+stress cases for duplicate, within-row, and cross-row preservation. A
+source-indexed selector `Sel_s` must determine which occurrence pairs each
+typing rule relates; the typed-family retention requirement does not license
+universal same-head constraints. Selector transport and source derivation
+remain open. The conditional callback theorem now names its pair selector as
+source-site-specific as well; its actual/formal row comparison is not yet an
+approved language rule. The callback theorem's soundness and local-principality
+claims are scoped to that selector; the existing all-pairs proof does not
+establish either property for a source-selected relation.
 
 ## Objective
 

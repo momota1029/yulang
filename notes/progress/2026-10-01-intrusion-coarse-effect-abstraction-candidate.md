@@ -5203,6 +5203,33 @@ provenance being sufficient to identify both endpoints and dependent views.
 It does not yet prove that a proposed solver can discover all such pairs,
 terminate, or preserve the complete joint solution set.
 
+#### Source-selected pair relation for open rows (scope constraint)
+
+The all-pairs `Pairs_F` relation below is a maximal candidate used to test
+whether the ledger can preserve duplicate and cross-row obligations. It is not
+a successor source rule. In particular, it must not be read to mean that
+every same-head encounter creates an invariance obligation. A source relation
+site `s` must independently define its selected occurrence-pair collection
+`Sel_s(R₁,R₂,μ)`; it may select within-row pairs, cross-row pairs, both, or
+neither, according to that rule. The symbolic formula set is then the
+projection of those selected keyed pairs, and `Demand` comes from the source
+typing premises and dependent outputs of `s`.
+
+For lifecycle transport, the source selector must commute with uniform
+occurrence-preserving substitution: old selected keys map through the
+occurrence transport, while newly exposed selected keys are derived from the
+still-symbolic relation and tail assignment before consumption. Selection
+must not be inferred from the existing ledger, and keys retain the source
+site and endpoint owner identities. The all-pairs selector satisfies this
+property by construction. Every narrower selector needs its own source-rule
+derivation and extension/naturality proof. Thus the all-pairs exposure lemma
+is useful as a stress case for symbolic retention but cannot authorize the
+candidate universal `RowLeq` semantics elsewhere in this record.
+
+The following all-pairs exposure and assignment-wise lemmas prove only the
+`Sel_all` stress instance. They do not establish the pair selector for any
+particular source construct.
+
 #### Open-tail obligation exposure lemma (conditional)
 
 This makes the delayed rule's preservation claim explicit. Let `R₁,R₂` be
@@ -6143,21 +6170,24 @@ typed latent row `R_formal`. Before the receiving function is callable,
 require the symbolic typed-row constraint:
 
 ```text
-TypedRowLeq(R_actual, R_formal)
+TypedRowLeq_s(R_actual, R_formal)
 ```
 
-with `TypedRowLeq` interpreted by support inclusion and the keyed
-within-row/cross-row `InvArgs` obligations defined above. Keep each obligation
-and its request/row incidence in `K_sym`; solve it before final acceptance or
-retain it as a residual scheme constraint. If the callback is generalized,
-freshened, or intruded, transport its actual row, the formal contract, and
-every `InvArgs` endpoint under their shared binder ownership. Never rebuild
-the relation from a materialized row.
+where source site `s` defines the support comparison and the exact selected
+within-row/cross-row occurrence pairs whose arguments must be invariant. The
+all-pairs `TypedRowLeq` above is only a maximal stress instance; it is not
+implied by the symbolic-retention requirement. Keep every source-selected
+obligation and its request/row incidence in `K_sym`; solve it before final
+acceptance or retain it as a residual scheme constraint. If the callback is
+generalized, freshened, or intruded, transport its actual row, the formal
+contract, and every selected formula endpoint under their shared binder
+ownership. Never rebuild the relation from a materialized row.
 
 Conditional soundness: assume (i) every finite request prefix of the actual
 callback is represented in the typed `R_actual`, including `TopEff` for every
-unknown possible request, (ii) `TypedRowLeq` treats `TopEff` as uncovered by
-any finite formal row and preserves typed family relations, and (iii) every
+unknown possible request, (ii) `TypedRowLeq_s` treats `TopEff` as uncovered by
+any finite formal row and includes the source-selected typed family relations
+needed for signature coherence, and (iii) every
 offered request/selected handler-arm pair has a source-derived signature
 coherence proof. For exact operation `p`, resolving the request under `θ` and
 the arm under `φ` must prove payload flow `Aθ <: Aφ` and resume flow
@@ -6171,23 +6201,22 @@ signature coherence makes handler delivery and resumption type-safe. Unknown
 identity or unknown typed family does not prove coherence and cannot justify
 handler subtraction. A callback with unknown requests is therefore rejected
 against a finite formal row or remains unaccepted until its summary is
-refined; it cannot use finite support inclusion as evidence of safety. For the
-minimized witness, support inclusion alone
-passes because both rows contain `ask`; its family constraint is unsatisfiable,
-so that particular application is rejected. This example does not discharge
-the separate operation-only-binder obligations.
+refined; it cannot use finite support inclusion as evidence of safety. Under
+the candidate cross-row selector for the minimized witness, support inclusion
+passes because both rows contain `ask`, while its family constraint is
+unsatisfiable, so that application is rejected by this unapproved rule. This
+example does not discharge the separate operation-only-binder obligations.
 
-For this chosen upper-bound interpretation and the finite typed-row fragment,
-the assignment-wise open-row lemma makes only the `TypedRowLeq` comparison
-exact and weakest up to logical equivalence: dropping a non-entailed support
-or invariant constraint admits a typed row pair outside that comparison,
-while adding an unrelated non-entailed atom rejects a pair it permits. This
-local principality claim excludes `TopEff`; the rule that finite rows do not
-cover `TopEff` is a conservative rejection convention, not a proved greatest
-solution property for an unknown-row language. This is local principality of
-the finite row relation only; it proves no callback payload/result safety. It
-does not establish that the Yulang annotation
-syntax has this meaning, the outer function-argument variance, the scope of
+The existing assignment-wise open-row lemma proves exactness only for
+`Sel_all`. Each source selector `s` needs its own denotation and pair
+selection proof before the conditional callback rule can claim
+`TypedRowLeq_s` is exact. No principality or weakest-solution result for the
+callback source rule is currently established. Even if that relation is
+proved exact, the rule that finite rows do not cover `TopEff` remains a
+conservative rejection convention, not a proved greatest solution property
+for an unknown-row language. This conditional effect rule proves no callback
+payload/result safety on its own. It does not establish that the Yulang
+annotation syntax has this meaning, the outer function-argument variance, the scope of
 handler grants, callback receipt across curried stages, the adequacy of the
 family-argument projection, or principality of the combined effect system.
 Those premises require source semantics and approval before implementation.
@@ -6268,7 +6297,8 @@ that callback under a shallow catch `H`. The *complete scrutinee expression*
 has result `S`, support bound `E_s`, request/evidence view `Q_s`, and symbolic
 constraints `K_s`. Its source derivation must include evaluation of the
 callee/arguments, callback invocation, and all other work in the scrutinee.
-It requires `TypedRowLeq(R_a,R_f)` at callback application and includes that
+It requires the candidate source-site relation
+`TypedRowLeq_s_cb(R_a,R_f)` at callback application and includes that
 relation, `K_a`, and all other scrutinee constraints in `K_s`. `Q_s` is not
 just a renamed copy of `Q_a`: it contains the callback facts transported
 through invocation and source-derived boundary events, plus every other
@@ -6306,8 +6336,9 @@ evidence.
 Conditional finite-prefix theorem: if the callback upper-bound premise covers
 all its finite request prefixes, the complete scrutinee derivation proves that
 `E_s` covers every finite request prefix and every request fact in `Q_s`,
-`TypedRowLeq` is sound for that meaning, every handled request has sound
-signature coherence, `Visible` and route
+`TypedRowLeq_s_cb` is sound for that meaning and selects all typed-family
+comparisons required by its callback source rule, every handled request has
+sound signature coherence, `Visible` and route
 certificates are sound for the current activation, raw `k` retains `E_s/Q_s`,
 and arm judgments bound their own requests, then each finite request prefix
 after application and catch is contained in `E_out`, and every consumed
@@ -6405,7 +6436,7 @@ separate rules that preserve the same symbolic obligations. The lemma is a
 local proof component for the candidate actual/formal row comparison, not an
 implementation gate or a complete successor effect semantics.
 
-#### Open typed-row relation without shape invention (candidate)
+#### Maximal all-pairs open-row relation (stress candidate, not source rule)
 
 Extend only the row-value language, not the handler dynamics. A closed row
 value is a finite family-indexed collection of typed row occurrences. Each
@@ -6420,53 +6451,61 @@ R ::= { F₁<τ̄₁>@o₁, ..., Fₙ<τ̄ₙ>@oₙ | ρ }
 The row value retains every occurrence; merging explicit items with `μ(ρ)`
 concatenates occurrence collections and never selects one tuple as the
 representative for a shared family head. Its support is the set of heads with
-at least one occurrence. A row is well formed when all pairs of occurrences
-at the same head satisfy `InvArgs`; those obligations keep their own
-endpoints and owner identities. This all-pairs condition is independent of
-merge order because concatenation is associative and it does not quotient
-distinct symbolic endpoints.
+at least one occurrence. In this maximal stress candidate only, define
+well-formedness by requiring `InvArgs` for all pairs of occurrences at the
+same head; those obligations keep their own endpoints and owner identities.
+This all-pairs condition is independent of merge order because concatenation
+is associative and it does not quotient distinct symbolic endpoints. The
+successor's source rules must replace this universal selector with the
+specific selected-pair relation at each operation site before the model can
+serve as a semantic contract.
 
-For two evaluated rows, `R₁ ⊑ᵗ R₂` means support inclusion and invariant
-argument agreement between every left/right occurrence pair at each common
-family head, as in the preceding closed-row relation generalized to
-occurrence lists. Row subtraction may remove occurrences from a support view,
-but their typed obligations and owners remain in the incidence ledger for any
-dependent residual, handler, or root view.
+For two evaluated rows, the stress relation `R₁ ⊑ᵗ_all R₂` means support
+inclusion and invariant argument agreement between every left/right
+occurrence pair at each common family head, as in the preceding closed-row
+relation generalized to occurrence lists. This universal comparison is a
+stress case only. A source-selected relation `R₁ ⊑ᵗ_s R₂` must instead
+project the pair collection selected by its source rule `s`; no all-pairs
+requirement follows from the symbolic-retention invariant by itself. Row
+subtraction may remove occurrences from a support view, but every selected
+typed obligation and its owners remain in the incidence ledger for dependent
+residual, handler, or root views.
 
-Keep an open relation `RowLeq(R₁,R₂)` symbolic. Under a particular joint
-assignment of its row tails and type variables, the assigned occurrence rows
-must satisfy well-formedness and the resulting typed rows must satisfy
-`⊑ᵗ`. The constraint denotes the set of assignments satisfying that
+Keep each source-indexed open relation `RowRel_s(R₁,R₂)` symbolic. Under a
+particular joint assignment of its row tails and type variables, its typed
+occurrence comparison uses the pair selector and support rule derived for
+source site `s`. It denotes the assignments satisfying that site-specific
 relation; it is not a universal claim that every possible tail assignment is
-valid. This makes `RowLeq` an exact relational constraint for the chosen
-typed-row abstraction, rather than a default effect row or an unexamined
-approximation. It adds no assumption about which family a tail contains. The
-result is principal only relative to this constraint language and its
-denotation; it is not a claim that a particular finite row is the least
-concrete solution.
+valid. The all-pairs `RowLeq` instance is one stress candidate, not a default
+effect row or an approved approximation. Any principality claim is relative
+to the selected source relation and constraint language; it is not a claim
+that a particular finite row is the least concrete solution.
 
 When a row-tail substitution exposes same-head occurrences, the solver may
-retain `RowLeq` unchanged and add derived support/invariant constraints over
-the exposed symbolic argument terms. It may replace `RowLeq` with a residual
-relation only after proving both directions of solution-set equivalence for
-all assignments to the remaining tails, types, and evidence owners. For
-example, a residual relation must still prevent an unexposed tail from adding
-a head excluded by the other row. Every rewrite keeps the original relation
-key, duplicate-occurrence obligations, and owner incidence (or carries a
-proof that maps them equivalently). Thus normalization is not permitted to
-drop the only typed row relation before all residuals are accounted for. No
-stage may infer the relation anew from concrete materialized rows.
+When a row-tail substitution exposes occurrences, the solver may retain the
+source-indexed `RowRel_s` unchanged and add only the obligations selected by
+that relation's source rule over the newly exposed symbolic endpoints. It may
+replace `RowRel_s` with a residual relation only after proving both directions
+of solution-set equivalence for all assignments to the remaining tails,
+types, and evidence owners. For example, a residual relation must still
+prevent an unexposed tail from adding a head excluded by the other row. Every
+rewrite keeps the original relation key, selected obligations, and owner
+incidence (or carries a proof that maps them equivalently). Thus
+normalization is not permitted to drop the only typed relation before all
+residuals are accounted for. No stage may infer obligations anew from
+concrete materialized rows.
 
 Example:
 
 ```text
 R₁ = { ask<α> | ρ }
 R₂ = { ask<int> }
-RowLeq(R₁, R₂)
+RowLeq_all(R₁, R₂)
 ```
 
-This relation does not decide in advance whether `ρ` is empty or which other
-heads a satisfying assignment gives it. It restricts satisfying assignments:
+This all-pairs stress relation does not decide in advance whether `ρ` is
+empty or which other heads a satisfying assignment gives it. It restricts
+satisfying assignments:
 `ρ` cannot add a head outside `R₂`; if `ρ` contains `ask<β>`, the row value
 retains both `ask` occurrences and requires `InvArgs(ask<α>, ask<β>)`; and the
 row comparison relates every resulting ask occurrence to `ask<int>`. If the
@@ -6475,8 +6514,8 @@ item, its type arguments therefore remain symbolically connected to `int`.
 No family detail is generated for an unknown tail shape before an assignment
 exposes one.
 
-Substitution is relationally stable: substituting type and row terms into
-`RowLeq` commutes with its denotation, provided assignments are reindexed by
+Substitution is relationally stable for this `RowLeq_all` instance:
+substituting type and row terms commutes with its denotation, provided assignments are reindexed by
 pullback and row merge preserves the recorded duplicate constraints. A common
 external-use map must freshen owned row-tail and type binders together;
 outer anchors remain shared and independent uses receive disjoint local row
