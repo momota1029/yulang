@@ -1164,7 +1164,14 @@ grant-closing rule. Exact traces remain the soundness reference; exact
 continuation-sensitive inference is not required if it needs linear/affine
 typing or a substantially richer type system. Principality is relative to the
 chosen expressible effect abstraction. Details and commands are in the
-candidate record above.
+candidate record above. A handler-independent compositional lemma now isolates
+the defect: if `f : Unit -[E]-> Int`, then `\_ -> f()` is immediately pure as
+a value but its returned arrow must retain a latent support bound including
+`E`; the call to `maker` can itself remain pure. A later handler cannot erase
+that latent effect retroactively. The frozen concrete `[choose]` scheme is
+therefore unsound even before choosing the successor's handler-eligibility or
+coarse-continuation rule. SCC instantiation must map the effect binder
+consistently and transport boundary evidence separately.
 
 Runtime IR comparison now shows the concrete callback argument and escaped
 closure carrying `add_id` markers, while the absent/wildcard/empty controls

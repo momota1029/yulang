@@ -2730,6 +2730,46 @@ premature. A source-derived symbolic marker trace for the returning-callback
 control is recorded below; it characterizes frozen implementation code but
 does not choose the successor's boundary rule.
 
+#### Callback effect in a returned closure: independent row-preservation lemma
+
+The lost effect in `maker` does not depend on which handler is eligible later:
+the body of `maker` contains no handler, and evaluating the returned closure
+`\_ -> f()` produces a function value whose later call performs `f()`. Let
+`E` be a sound latent request-support bound for `f`. The ordinary compositional
+typing fragment required for sound closure effects is:
+
+```text
+Γ, f : Unit -[E]-> Int ⊢ f () : Int ! E
+Γ, f : Unit -[E]-> Int ⊢ (\_ : Unit -> f ()) : Unit -[E]-> Int ! ∅
+Γ ⊢ maker : (Unit -[E]-> Int) -[∅]-> (Unit -[E]-> Int)
+```
+
+Application carries the callback's latent bound into the body. Closure
+construction is immediate-effect-free but retains that bound on the returned
+arrow; calling `maker` itself only returns the closure. For every finite trace
+of a later call, the request events from `f()` are included in `E`, so
+replacing the returned arrow's latent row by a strict subrow is unsound. If
+`E` is unknown/top, it remains unknown/top. This argument does not require
+continuation-use counts or exact continuation-sensitive inference.
+
+Any handler subtraction is a separate operation at the later invocation
+site. It must use typed coverage and the source-derived visibility evidence
+for that particular handler activation; it cannot mutate the returned
+function scheme retroactively. SCC generalization and each use-site
+instantiation must map the callback and returned-arrow effect binder
+consistently, while transporting hygiene/boundary evidence separately as
+required by the intrude effect-hygiene design.
+
+The concrete `[choose]` closure fixture violates this minimum rule in the
+frozen Oracle: its accepted `maker`/`delayed` schemes erase `choose` from the
+returned arrow, while forcing `delayed` emits `choose::reject`; the direct
+closure control retains `[choose]`. This is a soundness conflict in the frozen
+inferred scheme itself, not merely a disputed handler-arm choice. The
+successor must preserve `choose` on the returned arrow. Whether the enclosing
+caller remains accepted is still conditional on handler eligibility and the
+chosen coarse continuation abstraction; this lemma does not claim an
+unconditional final-acceptance delta.
+
 The frozen runtime IR narrows the mechanism without settling the source rule.
 The concrete-contract variant lowers the callback argument with
 `arg[add_id[1, choose, own, resume-own]]`; the returned closure's maker adapter
