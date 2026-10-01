@@ -3554,10 +3554,18 @@ least-closure lemma in
 complete-lattice abstraction, monotone one-step transformer, and a concretely
 sound abstraction pair that retains symbolic typed-family fibers, its least
 fixed point covers every finite source execution and is least among closed
-states in that abstraction. This does not prove those premises for Yulang or
-make closure principality of the typing relation: source transition
+states in that abstraction. Independent compiler-referee review found that a
+mere sound abstraction pair was insufficient for leastness among concretely
+closed presentations; the lemma now requires `α ⊣ γ`, making concretely
+source-containing, `Post`-closed states equivalent to `F`-pre-fixed states.
+This does not prove those premises for Yulang or make closure principality of
+the typing relation: source transition
 simulation and exact representation of complete root/use fibers remain
 separate. Next derive the concrete abstraction pair and monotonic transformer
-for the actual call/force/resume/store/handler transitions, then prove the
-source typing and SCC lifecycle correspondence. No compiler implementation
-is authorized by this candidate lemma.
+for the actual call/force/resume/store/handler transitions. A newly found gap
+in the prior `γ` sketch is that it omitted the live store `σ`, despite the
+source `Run` and continuation equations threading that state. Define finite
+abstract store slots and unknown-store widening, then show read/write/resume
+transfers preserve the live-state relation before proving source typing and
+SCC lifecycle correspondence. No compiler implementation is authorized by
+this candidate lemma.

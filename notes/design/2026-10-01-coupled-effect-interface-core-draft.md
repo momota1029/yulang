@@ -2327,9 +2327,9 @@ including store updates, thunk force, call, resume, handler arm selection,
 and forwarding. Let `A` be a complete lattice of finite presentations ordered
 by denotation inclusion; its coordinates must include the symbolic typed
 family predicate and its incidence with every affected view. Let
-`α : P(Conf) → A` and `γ : A → P(Conf)` form a sound abstraction pair
-(`α` and `γ` monotone, and `X ⊆ γ(α(X))`). Write `Post(X)` for all
-one-step successors of `X`, and let
+`α : P(Conf) → A` and `γ : A → P(Conf)` form a Galois connection
+(`α` and `γ` monotone, with `α(X) ≤ a` iff `X ⊆ γ(a)`). Write `Post(X)` for
+all one-step successors of `X`, and let
 `F(a) = α(I) ⊔ α(Post(γ(a)))`, where `I` is the set of admitted initial
 configurations. Assume `F` is monotone and that the carrier/order treats
 formula reindexing and typed-fiber preservation extensionally, rather than
@@ -2345,10 +2345,13 @@ Reach*(I) ⊆ γ(μF)
 Proof: `α(I) ≤ μF` by the fixed-point equation. If a configuration `c` is
 represented by `μF`, then `c ∈ γ(μF)`, so each successor `c'` contributes to
 `Post(γ(μF))`; by construction `α(c') ≤ F(μF) = μF`, hence
-`c' ∈ γ(μF)` under the abstraction pair's concretization convention.
-Induction on finite path length gives the inclusion. By Tarski leastness,
-`μF` is also below every pre-fixed abstract state containing `α(I)`, so it is
-the least closed sound presentation *within this particular abstraction*.
+`c' ∈ γ(μF)` by the adjunction. Induction on finite path length gives the
+inclusion. By Tarski leastness, `μF` is below every `F`-pre-fixed abstract
+state. Moreover, the adjunction makes these exactly the abstract states whose
+concretizations contain `I` and are closed under `Post`: if `a` has those two
+properties, then `α(I) ≤ a` and `α(Post(γ(a))) ≤ a`, hence `F(a) ≤ a`; the
+converse follows by adjunction as well. Thus `μF` is the least closed sound
+presentation in this abstraction.
 
 This lemma does not establish an abstract machine for Yulang. The candidate
 has not supplied `A`, `α`, or `γ` with these properties, and symbolic formulas

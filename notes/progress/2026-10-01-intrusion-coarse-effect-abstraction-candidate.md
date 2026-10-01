@@ -8330,6 +8330,16 @@ then the least fixed point covers all finite concrete executions and is the
 least closed presentation in that abstraction. The proof is induction over
 execution length followed by lattice leastness.
 
+Independent compiler-referee review found one major gap in the first lemma:
+monotone maps plus `X ⊆ γ(α(X))` proved finite reachability and leastness among
+`F`-pre-fixed points, but not leastness among all concretely source-containing
+and transition-closed abstract states. The lemma now requires the full
+adjunction `α(X) ≤ a iff X ⊆ γ(a)`. Under it, an abstract state contains the
+initial configurations and is `Post`-closed exactly when it is
+`F`-pre-fixed, so Tarski leastness proves the intended within-abstraction
+claim. A focused compiler-referee delta review found no remaining issue in
+this lemma; it did not inspect the machine/store abstraction or source steps.
+
 This is not yet a Yulang theorem. The abstract domain may fail complete-lattice
 closure or effective monotonicity; the abstraction has not been constructed
 for calls, force, resumes, mutable stores, or handler transitions; and support
@@ -8339,3 +8349,36 @@ abstraction/concretization maps and show each source transition's abstract
 image is representable and monotone while retaining symbolic family
 constraints. The subsequent exact derivation/lifecycle correspondence remains
 necessary before implementation.
+
+### Concrete configuration correction: retain live machine state
+
+Applying that obligation to the existing top-fallback relation exposed a
+specific omission: its concrete configuration was written as
+`κ = (D,L,Env,ctl)`, while the source `Run` judgment and resumption equations
+carry a live machine state `s`. The earlier component checklist mentioned
+store updates, but the actual `γ` relation did not relate the concrete store
+to an abstract coordinate. Therefore the displayed relation could not prove
+simulation for mutation followed by a later call/resume, including the
+already-recorded two-resume state-feedback witness.
+
+The concrete configuration for this candidate is now read as
+`κ = (D,L,σ,Env,ctl)`, where `σ` is the live source store/state passed through
+ordinary steps and saved continuations. The finite presentation must include a
+corresponding abstract store coordinate `Σ#`, with static cell/value slots and
+an unknown-store case for locations or state distinctions it cannot track.
+Its concretization must include every concrete cell reachable through local,
+stored, exported, or imported values; a lost alias or state distinction must
+widen the affected state and dependent continuation/effect observations, not
+silently restore the store captured when a continuation was created. Until
+that coordinate and its read/write/resume transfer are defined, the old
+concrete-to-abstract relation is withdrawn as a full machine invariant and is
+only a partial stack/environment/control sketch. Whether a useful finite
+`Σ#` retains enough correlation for principal handler subtraction remains
+open; sound top widening is the fallback candidate, not an acceptance or
+precision claim.
+
+The adjunction repair received a focused compiler-referee delta review with no
+finding: under `α ⊣ γ`, `F`-pre-fixed points are exactly initial-containing,
+`Post`-closed abstract states, so its within-abstraction leastness follows.
+That review did not inspect the machine/store abstraction or source
+transitions.
