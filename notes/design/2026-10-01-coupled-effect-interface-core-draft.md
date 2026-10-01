@@ -721,7 +721,10 @@ the ordered active-handler stack, and the callee's captured boundary lineage;
 it is not selected by an effect-row rule or restricted to observed call sites.
 The surrounding evaluation relation determines which such configurations
 are reachable in a particular program, but reachability does not define the
-function contract. Let
+function contract. Equivalently, `CallCfg` is the projection of the ordinary
+source evaluation relation over all closing, well-typed contexts that place
+`f x` at a call boundary, with the callable and argument interfaces fixed;
+it does not add a new source typing rule. Let
 `Beh_{ρ,ν,c}(f,x)` be the source-defined relation of finite evaluation
 observations from applying `f` to `x` at configuration `c`. These inputs matter:
 the same closure or thunk can be called under different active handler stacks,
@@ -793,6 +796,24 @@ must include well-formed counterfactual contexts, or the function contract
 collapses back to whole-program reachability and loses its compositional
 meaning. Its finite principal presentation remains open; neither Oracle
 routing nor the pure F5 Function rule settles it.
+
+The call-configuration domain itself has three candidate definitions:
+
+| Domain | Soundness/compositionality | Principality and proof cost |
+| --- | --- | --- |
+| Call sites reached by the current program | Cheap projection, but an unused function has an empty domain and its arrow contract holds vacuously. It is not compositional under moving a definition to another client. | Easy to compute but fails to constrain exported function behavior; reject. |
+| Every runtime-well-formed machine configuration | Program-independent and compositional, but may include stores and handler stacks no well-typed source context can construct. | Simple denotational domain in principle, yet can reject source-valid functions and destroy Oracle final-acceptance capability; no reason to prefer it without a source theorem. |
+| Every closing well-typed source context that calls the value | Contextual and compositional across clients, and excludes dynamically impossible states by source typing. | Best semantic fit, but requires a precise context-typing/evaluation closure and an effective finite principal abstraction of its behaviors. This is the current candidate, not a proved decision procedure. |
+
+The preferred domain is therefore contextual rather than whole-program
+reachable or all-machine-state. A proof must show that the context class is
+defined independently of the candidate solver, is closed under evaluation
+context composition, and contains a witnessing context for every admitted
+argument/value pair whenever the arrow contract is intended to constrain
+that pair. Otherwise vacuity can reappear through an empty contextual fiber.
+The exact context grammar and typing closure remain open source-semantics
+work; the table is a formulation comparison, not a new selector or semantic
+construct.
 
 #### Evaluation contexts and the frozen runtime contract
 
