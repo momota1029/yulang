@@ -1967,18 +1967,22 @@ the dependency-only or R/free cases. A focused source fixture now forms a
 mixed-fetch dependency SCC: a value-fetch local lambda has a concrete role
 predicate, the candidate scan sees the receiverless computed member unready,
 and the reverse ordinary use edge closes the SCC. The joint component passes
-the source runtime-ready and mono specialization path. Its roots have concrete
-types and empty Q/R sets, so this is not a shared-identity Q/free witness.
-Details are in notes/progress/2026-10-01-intrusion-mixed-ownership-fixture-audit.md.
+the source runtime-ready and mono specialization path. This first fixture has
+concrete roots and empty Q/R sets; a polymorphic extension below establishes
+the shared-identity Q/free case. Details are in
+notes/progress/2026-10-01-intrusion-mixed-ownership-fixture-audit.md.
 A disposable synthetic AnalysisSession
 fixture now constructs a same-SCC mixed-fetch graph using payload-free
 dependency edges and one shared depth-1 variable. The Oracle jointly quantifies
 both roots without diagnostics, retaining the shared variable in both
 predicates but quantifying it only for the value-fetch root (`Q=[702]` versus
 `Q=[]` at the computation-fetch root). This confirms the machine-level Q/free
-split; the accepted mixed-fetch source fixture confirms dependency-SCC
-reachability and final compilation separately, but does not connect the shared
-variable split to source. The
+split. A source-level polymorphic extension now has one shared TypeVar in both
+member predicates, with Q=[38] for the value-fetch owner and Q=[] for the
+computed-fetch member; both appear in one joint component. The identical
+source passes runtime readiness and mono specialization. This is a concrete
+source counterexample to SCC-wide variable ownership, not a principality
+proof. Details are in the progress note. The
 proposed graph-level exclusion of mixed-fetch dependency SCCs was refuted:
 `DependencyAdded` can target a receiverless computed role member, and the SCC
 diagnostic ignores payload-free dependency edges. A focused source candidate
@@ -1987,8 +1991,8 @@ so it is not source-reachability or final-acceptance evidence. The candidate
 edge is absent because the candidate impl is visible, but helper has no
 owner-local role constraints during either scan. The InstantiateUse to the
 role read signature appears later without a helper→make dependency.
-Continue with the shared-TypeVar Q/free source witness. Cross-epoch level
-lowering and root-local R/free ownership remain separate open cases. Details
-are in the same progress note.
+Continue with cross-epoch lowering and root-local R/free ownership; the
+shared-TypeVar Q/free source case is now characterized. Details are in the
+same progress note.
 Effect-row principality, route quotient completeness, and Oracle acceptance
 remain open.

@@ -232,6 +232,59 @@ root quantifies it and the other leaves it free. This accepted mixed-fetch
 fixture does not answer that question. Cross-epoch lowering and root-local
 R/free ownership remain separate.
 
+## Accepted source Q/free ownership split
+
+The same mixed-fetch dependency construction also admits a retained shared
+TypeVar split. Change the role member signature to `'b -> 'b`; make the
+value-fetch owner return an identity function, and let the receiverless
+computed `make` call the owner:
+
+```text
+role Pair 'subject:
+  our make: 'b -> 'b
+  our x.probe: int
+my demand(x: 'a): int =
+  where 'a: Pair
+  x.probe
+impl int: Pair:
+  my owner = \() ->
+    demand(1)
+    1.probe
+    \x -> x
+  our make = owner()
+  our x.probe = 1
+pub result = 0
+```
+
+In one `AnalysisSession`, the source trace records owner DefId 5 and make
+DefId 6 in exactly one joint `QuantifyComponent`. The owner boundary is
+`TypeLevel(0)` and its Q vector is `[TypeVar(38)]`; make's boundary is
+`TypeLevel(1)` and its Q vector is empty. The trace shows the same TypeVar 38
+as both argument and result in each finalized predicate. Direct assertions in
+the focused scratch characterization check the common SCC, the owner's single
+Q binder, the empty make Q vector, and an exact `Var('38)` node in both raw
+schemes. The dependency scan for owner sees concrete `Pair` and
+`unready=[make]`. No lowering diagnostics occur.
+
+The identical source is accepted by the focused Yulang path through
+`specialize_mono_from_sources`: runtime readiness and monomorphic
+specialization both succeed with no errors. This is now a source-level,
+final-compilation witness that the same shared TypeVar can be Q for a
+value-fetch SCC member and free for a computed-fetch member. Therefore the
+successor cannot classify variables once per SCC and infer ownership from
+that shared classification; it needs member-view ownership while retaining
+the shared source identity. The result is one counterexample fixture, not a
+principality proof or a complete Oracle capability comparison. Runtime
+execution remains untested. The scratch fixture and all instrumentation are
+detached-only; neither compiler source nor test files on this branch changed.
+
+Focused commands:
+
+```text
+YULANG_INTRUSION_OWNER_TRACE=1 YULANG_INTRUSION_ROLE_DEP_TRACE=1 CARGO_TARGET_DIR=/tmp/yulang-intrusion-scc-owned-target cargo test --offline --jobs=1 -p infer scratch_intrusion_source_mixed_fetch_shared_polymorphic_result -- --nocapture --test-threads=1
+YULANG_INTRUSION_ROLE_DEP_TRACE=1 CARGO_TARGET_DIR=/tmp/yulang-intrusion-scc-owned-target cargo test --offline --jobs=1 -p yulang scratch_intrusion_mixed_fetch_shared_q_free_runtime_acceptance -- --nocapture --test-threads=1
+```
+
 There is a useful conditional exclusion for Q-versus-free ownership. For a
 variable `v` that occurs in both roots' compact-plus-role views where their
 quantifiers are selected, if both roots use the same boundary and
