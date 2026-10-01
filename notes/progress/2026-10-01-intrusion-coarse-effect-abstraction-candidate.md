@@ -2441,6 +2441,28 @@ contracts, use the static-bound alternative and preserve uncertain requests
 in the coarse row. This conditional criterion is a proof obligation, not a
 selected policy or implementation authorization.
 
+#### Empty-row annotation control
+
+The route pair was also checked with `[] int` result annotations on both
+`inner` and `outer`. Both callback orders still pass `check`, and the
+interpreter still returns `[2]` for callback-first and `[9]` for
+callback-second. As a control, a direct unhandled operation in a function
+annotated `: [] int` fails with `effect filter mismatch: choose is not allowed
+by []`; changing that annotation to `: [choose] int` passes. These source
+observations show that the empty row constrains residual effects and that the
+nested catches discharge the effect filter in both order variants. They do
+not explain or authorize the different handler arm: dispatch is a separate
+semantic dimension from the residual row bound.
+
+Fixtures:
+`/tmp/yulang-intrusion-grant-callback-first-pure-result.yu`,
+`/tmp/yulang-intrusion-grant-callback-second-pure-result.yu`,
+`/tmp/yulang-intrusion-effect-row-empty-result.yu`, and
+`/tmp/yulang-intrusion-effect-row-concrete-result.yu`. The two nested cases
+pass `check` and return `[2]`/`[9]`; the direct empty-row case is rejected,
+and its concrete `[choose]` counterpart passes. This is characterization of
+the frozen Oracle only.
+
 The independent-use case checked successfully; both interpreter runs and
 `--poly-raw` / `--mono` dumps completed. Relevant temp fixtures are
 `/tmp/yulang-intrusion-grant-independent-uses.yu`,

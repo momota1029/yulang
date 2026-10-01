@@ -2119,7 +2119,10 @@ pair's `[2]` versus `[9]` is a conditional runtime compatibility difference
 if contracts are static-only. Both programs are accepted, so this is not an
 acceptance-capability mismatch. A scoped-grant rule must explain parameter
 position and partial-application stages from source meaning and prove every
-`Drop` is actually handled. Alternatives and obligations are recorded in
+`Drop` is actually handled. A follow-up exact-empty-row control confirms both
+nested orders pass `: [] int`, while a direct unhandled operation fails that
+filter and `: [choose] int` passes; row residual and handler-arm dispatch are
+separate observable dimensions. Alternatives and obligations are recorded in
 `notes/progress/2026-10-01-intrusion-coarse-effect-abstraction-candidate.md`,
 sections "Partial-application order stress on the receiver-grant candidate"
 and "Successor contract alternatives (unselected)".
