@@ -3568,12 +3568,11 @@ source `Run` and continuation equations threading that state. The candidate
 `Σ#` now has finite abstract cell and non-heap state slots with unknown-state
 widening. A focused compiler-referee audit caught and the repair closed
 missing store taint and successor-state preservation in the top-edge
-condition; that is candidate proof bookkeeping only. Next prove read/write,
-and weak writes now have a conditional heap-coordinate preservation argument
-in the progress record; it retains complete typed-family/value facts across
-cell-site joins. Two focused compiler-referee passes closed local findings
-about mismatched points-to/content witnesses and newly reachable referents.
-The lemma still assumes evaluated write operands are represented as live
+condition; that is candidate proof bookkeeping only. A conditional heap
+read/weak-write preservation argument now retains complete typed-family/value
+facts across cell-site joins. Two focused compiler-referee passes closed local
+findings about mismatched points-to/content witnesses and newly reachable
+referents. The lemma assumes evaluated write operands are represented as live
 roots; it does not establish source operation typing, identity-test or
 closure-capture adequacy, non-heap state simulation, or multi-shot
 continuation simulation. Close those transfer proofs before establishing
