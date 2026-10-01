@@ -2627,3 +2627,14 @@ are added before consumption. Compiler-referee review confirmed formula
 pullback even for non-injective type substitutions and closed a minor owner
 embedding premise gap. This remains a local conditional solve law, not proof
 of an actual solver's substitution protocol.
+
+For open rows, the candidate denotation now supports an entailed-known-pair
+rule: derive obligations among explicit occurrences, retain `RowLeq` for
+unknown tails, and attach each keyed record using independently derived
+`Demand`. The type/row substitution law states that old keys embed injectively;
+newly exposed tail pairs are added before consumption, and the formula
+pullback remains valid for non-injective type substitutions. Compiler-referee
+review closed the owner-embedding premise gap and found no residual issue in
+these conditional lemmas. Next derive the invariant argument formula for
+interval-valued family arguments and connect these candidate transitions to
+the actual source-rule/solver correspondence; neither is established yet.
