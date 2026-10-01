@@ -99,6 +99,17 @@ residualization, generalization, freshening, and intrusion. See the new
 Compiler-referee review closed the local transfer-domain gap by indexing
 computations by value and activation context and requiring handler totality on
 that fiber; source typing has not yet been proved to supply those premises.
+A coupled-interface-relation skeleton now puts per-environment constraints,
+root/request/handler views, callback composition, and binder transport in one
+denotation; `Sel_s`, `Demand`, and evidence ledgers are derivation records or
+projections. This is only a semantic carrier candidate. Its next gate is a
+reviewed source-step simulation for callback forwarding and shallow handlers,
+followed by finite principal representation and fiber preservation across the
+full SCC lifecycle. Architect review endorses it only as an open candidate:
+the relation must retain occurrence/provenance/route coordinates. Freshening
+and injective intrusion may use equivariance; generalization needs fixed-outer
+fiber projection and independent-use product; non-injective intrusion needs a
+quotient/root-observation proof.
 
 ## Objective
 

@@ -4987,6 +4987,96 @@ for composition. The delta review closed this local domain issue under those
 premises. It did not prove source typing establishes those premises for the
 proposed coupled relational domain.
 
+#### Coupled interface relation (candidate core)
+
+The common object should be the complete relation of admissible component
+interfaces over fixed outer environments, rather than a row plus several
+independent selector and demand systems. For a component `C`, let `ρ` assign
+its rigid imported identities, `β` its scheme-owned symbolic identities, and
+`ν` range over admissible assignments to `β`. Let `I_C` be the complete
+observable interface tuple for every SCC root: value types, immediate and
+latent typed request rows, and the handler/continuation views whose effects
+can escape a root. It must also retain enough occurrence, provenance, and
+route coordinates to determine future handler applicability and freshening;
+otherwise equal fibers may conceal transport-relevant distinctions. The
+candidate denotation is a fiber
+
+```text
+Rel_C(ρ) ⊆ { (ν, I_C) }
+```
+
+The relation itself contains all correlations among roots, typed requests,
+row tails, and effect constraints. The selected source typing rules determine
+which pairs belong to it; the type/effect abstract domain determines the
+coordinates and their order. A symbolic formula or graph is only a finite
+presentation of this relation. Binder scope determines which coordinates are
+fixed or quantified, but concrete owner IDs are representation details. A
+separate owner ledger is adequate only if a proof connects it to every
+owner-sensitive coordinate in the relation.
+
+This gives a common mathematical account of the mechanisms under study:
+
+- `RowIncl` and shared-slot argument invariance restrict which assignments
+  and request interfaces belong to `Rel_C`; the latter remains symbolic in
+  the relation, including after solving.
+- Callback application is a relational composition that joins the callee's
+  latent interface with the supplied callback interface under the same typed
+  request valuation.
+- A handler is a relational image of the shallow handler semantics on the
+  continuation-bearing interface. Its residual is assignment-dependent, so
+  a coverage fact cannot be frozen before its type fiber is known.
+- Row union and splitting are projections/decompositions of interface
+  coordinates. They do not license distributing handler transformation over
+  a union unless that law follows from the semantics.
+- `Sel_s` is a proof witness for a relational premise; `Demand` records a
+  dependency used to compute a projection. Neither is a separate source-level
+  construct. Route/visibility is a real coordinate of handler applicability
+  in the concrete relation, not part of row inclusion.
+- Generalization retains the relation over owned binders while fixing `ρ`.
+  Fresh instantiation is a capture-avoiding renaming of those coordinates.
+  Intrusion acts on the same relation by its parent map and occurrence
+  transport. Freshening and injective intrusion are candidates for one
+  equivariance theorem. Generalization instead needs exact fixed-`ρ` fiber
+  projection and the independent-use product law. Non-injective intrusion
+  needs the separate quotient and root-observation theorem.
+
+The natural preservation criterion is equality of each fixed-`ρ` solution
+fiber before and after an allowed transformation, with interfaces related by
+its induced map. A non-injective parent map needs a quotient theorem proving
+that merged fibers preserve every root, callback, request, and handler view.
+Independent incoming uses are renamed copies over the same rigid `ρ`; their
+joint relation must be the fibered product of the separate copies before
+surrounding constraints are applied. This makes typed-family evidence and
+handler residuals ordinary parts of one relational denotation instead of
+detached records that must be rediscovered after materialization.
+
+This is the most conceptually unified candidate so far, but it is not yet an
+inference theory: an unrestricted relation trivially has the needed joins and
+projections but may have no finite symbolic representation, terminating
+solver, or principal residual in the chosen language. The next theorem must
+choose an expressible relation fragment, define declarative source rules for
+callback invocation and shallow handlers, prove source-step simulation, and
+show that its finite presentations preserve exactly the per-environment
+fibers through solve, residualization, generalization, freshening, and
+intrusion. If a projection is not finitely representable or loses principality,
+the relation needs a principled conservative abstraction, with its acceptance
+cost stated. This section does not select the fragment or approve
+implementation. The first callback simulation fixture is the frozen accepted
+`call(f: () -> [ask] ()) = f()` / `invoke(): [] () = call(\() -> ask::get())`
+counterexample recorded later in this note: its abstract relation must retain
+`ask` through the call and reject the empty annotation. This pins a concrete
+source-to-relation obligation and the allowed final-acceptance difference.
+
+An independent architect review endorsed this as an open consolidation
+candidate, with no claim that it defines a solver. The review required the
+interface relation to retain the occurrence/provenance/route coordinates
+needed by later handler applicability and freshening. It also rejected one
+equivariance theorem for every lifecycle step: freshening and injective
+intrusion may share equivariance, while generalization needs fiber projection
+and the independent-use product law, and non-injective intrusion needs its
+quotient/root-observation proof. These distinctions are reflected above;
+finite presentation and source-step adequacy remain open.
+
 ##### Denotational candidates for typed rows
 
 The current `TypedRow` sketch hides the key choice: whether a row has one
