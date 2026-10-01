@@ -4630,3 +4630,209 @@ conditional proof handoff, not a selected rule, authority change, or
 implementation gate. The callback contract's grant meaning and lifetime,
 operation-latent-effect ownership, open-row denotation, coupled leastness, and
 full source-to-trace simulation remain unresolved.
+
+#### Typed shallow core judgment (candidate)
+
+To turn that handoff into a proof target, use a computation judgment that
+retains the type/effect distinction and occurrence evidence:
+
+```text
+Γ ⊢ e ⇓ (τ, E, Q, K_sym)
+
+τ       result type, including latent effects/request facts in any
+        Function/suspension types
+E       abstract support bound for request-bearing finite prefixes
+Q       may-request facts, each retaining typed family instance, exact or
+        unknown OpId, payload/result types, origin, ordered lineage, and route
+        class (scrutinee offer, raw suffix, or arm request)
+K_sym   symbolic type constraints/evidence, including invariant family-argument
+        obligations linked to their request and row occurrences
+```
+
+The `E` component is only a projection: it may forget family arguments and
+routes because `Q` remains coupled to it. An annotation or handler coverage
+declaration constrains types/rows; it does not itself add a request to `Q`.
+Unknown call/force targets contribute an unknown request fact and `TopEff`.
+The abstraction is deliberately conservative and does not count continuation
+uses.
+
+Resolve an operation declaration once per source use under one
+capture-avoiding substitution `θ`. The resolved operation signature contains
+`Aθ`, `Bθ`, and every declared effect obligation `Λθ`. Its ownership is an
+explicit parameter of this candidate: each obligation must be assigned to the
+request itself, a returned Function/suspension, an adapter, or another named
+evaluation point by source semantics. It is never discarded. If the owner is
+unknown, retain the typed obligation and widen its possible request support to
+`TopEff` at every possible owner; do not guess that it is immediate or latent.
+This includes both the current request/call and every returned
+Function/suspension or adapter that may carry the obligation. Such values
+retain an `Unknown` latent request fact and `TopEff` latent bound through
+capture, escape, generalization, fresh instantiation, and intrusion; a later
+call/force charges that latent bound to its own immediate effect. For
+`op : A -> B` in
+exact operation path `p` and family instance `F<ᾱ>`, the request contribution
+is:
+
+```text
+q = (F<θ(ᾱ)>, p, payload : Aθ, result : Bθ, Λθ, origin, lineage)
+E_call = {head(F)} ∪ support(immediate-owned obligations in Λθ)
+          ∪ (TopEff if any Λθ owner is unknown, otherwise ∅)
+```
+
+Every unknown-owned obligation contributes an `Unknown` request fact at each
+possible owner in `Q`; `TopEff` is not a replacement for retaining the typed
+`Λθ` payload. Obligations classified as latent remain attached to their owning
+Function/suspension type and contribute when that value is called or forced.
+This keeps the equation sound while the source semantics for ownership is
+unresolved, at the cost of conservatively widening both immediate and latent
+bounds wherever ownership may lie.
+
+Sequential composition unions `E_call` and the continuation/body support.
+Payload and result types retain their complete nested Function and suspension
+latent rows; family arguments remain in `q` and in ordinary type constraints.
+When a row operation relates two instances with the same family head, it
+generates invariant argument constraints in `K_sym` before modifying either
+row. The family head is not a substitute for those constraints, and distinct
+operations at one family remain distinct `OpId`s.
+
+For a shallow catch, let the scrutinee have result `S`, support `E`, and facts
+`Q`; let its value and operation arms return `R`. An operation arm for
+`p : A -> B` receives payload `Aθ` and raw continuation
+`k : Bθ -> S ! E`. The continuation returns the scrutinee's result `S`;
+typing the arm's whole body at `R` is a separate obligation. This whole-`E`
+latent bound is conservative: every finite suffix after the request is
+included in the scrutinee's finite-prefix bound. The arm's ordinary
+application judgment charges `E` whenever it calls `k`; its latent request
+facts are transported with it. Returning a closure that captures `k` must
+retain both the latent bound and those facts on the closure. The matching
+catch is not reinstalled around raw `k`.
+
+Let `Offered(Q,H)` include only scrutinee-side request facts that can be
+presented to this activation, including forwarded suffixes after outer
+resumption. It excludes raw suffixes run outside this shallow handler and
+requests produced by this handler's own arms. If one summary contribution can
+take both an offered and raw/arm route, retain both tagged facts. Define
+`Drop_H` only from proof certificates that every possible offered fact of each
+dropped family is (1) a typed instance of an exactly covered operation, (2)
+visible to this activation under its occurrence-local lineage, and (3)
+actually offered to this activation. Unknown identity, type, lineage,
+activation, or route classification blocks the certificate. The candidate
+effect result is:
+
+```text
+E_catch = (E \ Drop_H) ∪ A_value ∪ ⋃ A_operation
+```
+
+where each arm support is derived with its continuation typed at `E`. The
+union intentionally keeps an effect reached after a shallow resumption, even
+when the initial request is handled. It also conservatively keeps arm effects
+for clauses that may be unreachable; no exact continuation/branch correlation
+is claimed. For the candidate open-world abstraction, `TopEff \ Drop_H` is
+defined as `TopEff`; finite subtraction from unknown support cannot justify a
+drop.
+
+The judgment is compositional only if its request-fact component is as well as
+its row component. For this candidate, raw continuation types carry the
+scrutinee suffix facts `Q_suffix`; ordinary call/force adds the callee's
+latent facts at that evaluation point; closure construction preserves captured
+facts; and arms derive `Q_value` / `Q_operation` under those rules. The catch
+transfer is therefore:
+
+```text
+Q_catch = Forwarded_H(Q_scrutinee, Drop_H)
+          ∪ Q_value
+          ∪ Q_operation
+```
+
+`Forwarded_H` preserves each remaining occurrence and its typed identity,
+adds the forwarding/re-entry boundary events, and retains its suffix facts.
+Arm facts keep an arm origin and are outside this handler's offer set, though
+an outer handler may see them. The transfer must map unresolved route or
+ownership information to `Unknown`/`TopEff`. It may not delete a fact merely
+because its family head appears in `Drop_H`. This definition states the
+required compositional interface; source rules for producing these facts and
+the boundary-event updates are still unproved.
+
+`K_sym` follows each request/row fact through this transfer. Before a head is
+removed or moved by split, subtraction, matching, or residualization, any
+same-head invariant argument relation is emitted into `K_sym` and attached to
+the resulting evidence. Constraint solving maps its endpoints through the
+current substitution and retains the relation until a solver proof explicitly
+discharges it. Generalization closes over the obligation endpoints; fresh
+instantiation applies the same binder map to the row facts and `K_sym`; and
+intrusion applies the type-parent map to both endpoints and evidence payloads.
+A discharged relation remains represented by its proof/equivalence evidence
+where later row transport needs it. No phase may defer generating or
+reconstructing `InvArgs` until concrete family rows are materialized.
+
+#### Conditional finite-prefix soundness claim
+
+Assume source evaluation has the free resumable-tree behavior from the shallow
+trace calculus; every concrete request step is represented in the
+compositional `Q` transfer above; every declared operation effect obligation
+`Λθ` is charged at its true owner (or conservatively widened if unknown); `E`
+contains the support of every finite request-bearing prefix; exact typed
+coverage and `Visible` soundly predict the selected live handler; and each
+arm's ordinary typing is sound when raw `k` has latent support `E`. Then every
+finite prefix of the caught computation is bounded by `E_catch`.
+
+Proof sketch: an uncovered, invisible, unknown, or unoffered request remains
+in `E \ Drop_H`; a covered visible offered request is consumed at its first
+matching activation, so its operation arm is bounded by its arm judgment. If
+the arm calls raw `k`, the called suffix is bounded by `E` and therefore is
+charged in the arm support. If an unmatched request is forwarded and an outer
+handler resumes it, the wrapped suffix remains among `Offered`; the universal
+certificate cannot drop a family if that suffix can later escape. Any finite
+trace has finitely many such steps, so induction on its prefix length gives
+the bound. This proof uses no weight routing and no continuation-use count.
+
+This theorem is still conditional: it assumes the operation elaborator, typed
+visibility relation, arm judgments, and `Drop` certificates whose construction
+is the actual open problem. The rule also does not yet establish principality.
+To prove leastness, the request/route abstraction and row constraints must be
+shown jointly least for its concretization; the fixed-`Drop` finite-lattice
+lemma alone is insufficient if type refinement or stage evidence changes
+coverage. Treating this as an implementable rule before that coupled proof and
+independent semantic review would violate the design gate.
+
+#### Required symbolic typed-family constraint lifecycle
+
+The user has now made an additional mandatory successor invariant explicit:
+typed-family argument invariance must remain symbolic throughout solving,
+residualization, generalization, fresh instantiation, and intrusion. It must
+never be reconstructed only after concrete materialization.
+
+For same-head family instances `F<τ̄>` and `F<ῡ>`, the candidate symbolic
+obligation is:
+
+```text
+InvArgs(F<τ̄>, F<ῡ>) = ⋀ᵢ (τᵢ <: υᵢ  and  υᵢ <: τᵢ)
+```
+
+The solver carries its symbolic endpoints as constraints/evidence and applies
+each type substitution to those endpoints. It may discharge an obligation
+only with a recorded proof (including a symbolic solver proof); it may not
+drop the relation and later try to recreate it by comparing materialized
+family rows. When row split, subtraction, duplicate collection, handler
+matching, or residual construction removes or moves either head, the
+obligation is emitted and attached to the resulting constraint/evidence
+state before that structural change.
+
+Generalization closes over the symbolic constraint endpoints and maps them
+through the same binder ownership as their family arguments. One fresh
+instantiation map renames the binders in the row heads and in every
+`InvArgs` occurrence consistently. Intrusion applies its type-parent map `P`
+to both endpoints and all evidence payloads; hygiene/boundary identities
+remain separately transported by `Theta`. Internal SCC uses retain the live
+symbolic relation, and independent external uses freshen local binders and
+their attached obligations together. This requirement is semantic; the final
+constraint representation and proof that each solver/residualization step
+preserves it remain open.
+
+The pure type/SCC proof must establish that symbolic family obligations are
+part of the transported graph, not auxiliary post-materialization checks. The
+effect proof must additionally show that family support projection can erase
+argument detail only while this invariant evidence remains coupled to every
+request, handler, residual, and scheme view that depends on it. This rules out
+the earlier weaker reading in which invariance was generated only when two
+already-materialized row heads happened to meet.

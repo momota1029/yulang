@@ -2254,3 +2254,19 @@ unknown routes residual. No semantic choice or implementation gate is closed
 by this audit. Full evidence and inspected sources are recorded in
 `notes/progress/2026-10-01-intrusion-coarse-effect-abstraction-candidate.md`,
 "Source-rule audit: operation typing and handler reconnection".
+
+The candidate source judgment now returns `(τ, E, Q, K_sym)`: typed
+request/route facts and symbolic type constraints travel beside the projected
+effect support. The user explicitly requires family-argument invariance to
+survive symbolically through solving, residualization, generalization, fresh
+instantiation, and intrusion; it cannot be reconstructed after materializing
+rows. The candidate records a same-head `InvArgs` obligation and phase-by-phase
+transport. A narrow compiler-referee delta review closed the continuation
+result-type mismatch, missing compositional `Q_catch`, unknown latent-owner
+Top widening, and symbolic constraint lifecycle gaps. This is still a
+conditional research judgment: concrete source ownership, callback visibility,
+route/Drop construction, invariant-preservation proofs, and coupled leastness
+are open. The exact review scope and conditional status are in the linked
+candidate progress record under "Typed shallow core judgment" and "Required
+symbolic typed-family constraint lifecycle". No implementation is authorized
+by this slice.
