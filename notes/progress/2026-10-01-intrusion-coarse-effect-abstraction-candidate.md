@@ -5344,20 +5344,106 @@ lifted heads have disjoint images. Induction gives this result for finite
 acyclic trees whose comparison is aligned at each node as Interval/Interval
 or same-head Lifted/Lifted.
 
-This structural factorization does not cover an Interval/Lifted comparison,
-which needs its own membership rule. It does not cover tuple/product,
-record, or effect heads because the candidate has no encoding for them. It
-also does not factor child checks when slot witnesses have cross-slot identity
-constraints. In that case the
-condition is one existential choice of `η` and all child witnesses satisfying
-the complete incidence/constraint graph together; separate per-slot
-existentials can change the solution set. Recursive or polarity-reversing
-bounds, effectful Function slots, source-rule obligation generation, and
-root/use observations are outside this lemma. It is conditional evidence
+This structural factorization does not itself cover an Interval/Lifted
+comparison; a conditional membership rule follows below. It does not cover
+tuple/product, record, or effect heads because the candidate has no encoding
+for them. It also does not factor child checks when slot witnesses have
+cross-slot identity constraints. In that case the condition is one existential
+choice of `η` and all child witnesses satisfying the complete
+incidence/constraint graph together; separate per-slot existentials can change
+the solution set. Recursive or polarity-reversing bounds, effectful Function
+slots, source-rule obligation generation, and root/use observations are
+outside this lemma. It is conditional evidence
 that retaining a variance-tagged structural graph can express nested overlap
 in this carrier, not proof that this carrier is selected, source-adequate,
 principal, or suitable for implementation. The type/evidence incidence
 required by the user remains symbolic through every phase.
+
+#### Mixed interval/lifted membership rule (conditional)
+
+For the same candidate carrier, an Interval/Lifted comparison can be reduced
+recursively when child slots are independent. Let an interval leaf have finite
+lower endpoint list `L` and upper endpoint list `U`, evaluated under fixed
+`η`, and write
+
+```text
+L₀ = ⋃ { lη | l ∈ L }       U₀ = ⋂ { uη | u ∈ U }
+```
+
+with empty union `∅` and empty intersection `N`. For a lifted head `K`, let
+`H_K` be its unique head atom, `S_K` its head plus all of its used channel
+ranges, and `decode_c(X) = { n | pair(c,n) ∈ X }`. A candidate
+`Enc_K(t₁,…,tₙ)` lies in the interval exactly when
+
+```text
+L₀ ⊆ S_K,   H_K ⊆ U₀,
+L_c ⊆ g_c(tᵢ),   and   g_c(tᵢ) ⊆ U_c   for each used channel c of slot i,
+```
+
+where `L_c = decode_c(L₀)`, `U_c = decode_c(U₀)`, and `g_c` is the encoding
+payload (`tᵢ` for a positive/covariant channel, `N \ tᵢ` for a
+negative/contravariant channel). A missing support or head condition makes
+membership impossible. For a positive channel the child gains lower/upper
+bounds `L_c ⊆ tᵢ ⊆ U_c`. For a negative channel the inequalities reverse
+under complement, giving `N \ U_c ⊆ tᵢ ⊆ N \ L_c`. An invariant slot
+combines its positive and negative channel bounds by unioning the resulting
+lowers and intersecting the uppers. Thus the child comparison is recursively
+between `Bᵢ` and an interval leaf over these derived carrier endpoints.
+
+Induction on the finite lifted tree gives an exact recursive characterization
+of membership for Interval/Lifted pairs, and therefore a semantic overlap
+relation by applying the derived child constraints to the lifted children.
+This structural recursion terminates, but the relation still uses inclusion
+tests over arbitrary elements of `P(N)`. No effective representation or
+terminating inclusion oracle for those subsets has been supplied, so this is
+not a decision procedure or solver algorithm. It is a semantic calculation
+in `P(N)`, not a claim that generated endpoint subsets have finite source
+expressions or can be inserted into a solver graph. It assumes fixed endpoint
+values, the exact tagged-channel encoding above, and independent child
+witnesses. Shared slot identities or jointly existential graph variables
+require one coupled incidence relation and cannot be tested by separate child
+recursion. The powerset carrier, channel scheme, and this membership rule all
+remain unselected pending a whole-envelope soundness and principality proof.
+
+#### Effective regular-tree subcarrier (candidate)
+
+The previous calculation ranges over arbitrary subsets of `N`, so it has no
+effective subset representation by itself. A possible effective restriction
+is `RegΣ(N)`, the regular tree languages over one fixed finite ranked
+signature `Σ` for a compilation unit. Use the same atom and unary channel
+constructors as the tagged encoding, with `N` the set of all finite `Σ`-trees
+and the order still language inclusion. This is a candidate carrier
+refinement, not a selected successor decision.
+
+Assume every endpoint evaluated under `η`, including each nested and
+generated child endpoint, is supplied as a finite tree automaton or can be
+constructed effectively from source endpoint syntax. Under that input
+presentation, all operations used above stay regular: finite union and
+intersection, complement relative to `N`, singleton head atoms,
+channel-prefix images, and channel decoding. Inclusion is decidable by
+testing emptiness of the regular difference `A ∖ B`. Thus `RegΣ(N)` has
+bottom `∅`, top `N`, and finite joins given by language union. The interval
+common-witness test is decidable: combine lower endpoints by union, upper
+endpoints by intersection, and test inclusion. The mixed Interval/Lifted
+transform also produces regular endpoint languages and uses only those
+operations. For finite acyclic structural bounds with independent child
+slots, the recursive semantic characterization therefore becomes an
+effective decision procedure in this subcarrier.
+
+Constructor encoding preserves regularity because each used variance
+channel is a unary context image; contravariant channels additionally take
+regular complement. The finite alphabet assumption matters: the relevant
+constructors, variance channels, and atom codes must be fixed for the whole
+compilation unit. This does not prove that every satisfying SCC assignment is
+regular, that regular assignments preserve the intended source typing
+relation, or that a principal root/use scheme is representable by finite
+automata. Recursive/polarity-reversing constraints, shared identity
+incidence, effect rows and effectful Function slots, tuples/products/records,
+method selection, and Oracle final-acceptance adequacy remain unproved. In
+particular, the regular-tree restriction may lose a source solution that
+requires a non-regular language; that cannot be excluded from this local
+closure argument. Keep all symbolic family constraints and owner edges in the
+graph until those adequacy and principality obligations are closed.
 
 #### Variable-edge propagation into interval constraints (conditional)
 

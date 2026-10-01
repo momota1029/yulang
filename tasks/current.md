@@ -2556,3 +2556,13 @@ constraints, cycles, effectful Functions, source adequacy, and principality
 remain open. Next, prove or refute that this candidate can be extended to the
 full required type/effect envelope while preserving symbolic incidence and
 root observations; do not advance to implementation on this lemma alone.
+The mixed Interval/Lifted membership conditions are now derived for the
+tagged powerset model, including support/head checks and polarity-correct
+channel bounds. This is an exact semantic characterization, not an algorithm
+over arbitrary subsets. A regular-tree-language subcarrier over a fixed
+finite signature supplies an effective candidate for finite acyclic,
+independent-slot bounds; compiler-referee review required and confirmed
+effective automaton inputs for all evaluated endpoints. No such carrier is
+selected. General SCC solution regularity, symbolic correlations, effects,
+source adequacy, principal root/use representation, and Oracle final
+acceptance remain open.
