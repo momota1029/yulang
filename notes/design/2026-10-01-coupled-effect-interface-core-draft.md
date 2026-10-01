@@ -394,6 +394,52 @@ action on `Rel_C`; symbolic family endpoints and evidence payloads receive
 `P`, while boundary lineage receives `Θ`. A type substitution never erases
 boundary evidence merely because request support becomes equal.
 
+### A sufficient parent-quotient condition (point fragment)
+
+There is a useful sufficient condition for non-injective intrusion that is
+stronger than the substitution pullback identity. Let `P` map the component's
+exported type-variable identities onto parent identities, extending `P` by
+identity on component-local identities that are not intruded, and let
+`K_C(ρ,ν,I)` be the exact finite point-fragment relation. Let `μ` assign the
+boundary parent identities while `ρ` stays fixed. Define its quotient
+presentation by direct substitution:
+
+```text
+K_P(ρ,μ,I) = K_C(ρ, μ ∘ P, I[P])
+```
+
+Assume:
+
+1. `P` fixes all rigid outer identities and leaves occurrence, owner, and
+   boundary identities distinct; it identifies only type-variable
+   identities.
+2. For every pair `x,y` in the same fiber of `P` that occurs in `K_C` or a
+   jointly observable root/request view, `K_C` entails `ν(x) ≈ ν(y)` for every
+   satisfying assignment, where `≈` is the selected point-type equivalence.
+3. Type constructors in `I` and formulas in `K_C` respect `≈`, so replacing
+   one equivalent point endpoint by the other preserves their denotation.
+
+Then quotienting these identities preserves the complete interface solution
+fiber up to `≈`. In one direction, for each source solution choose one
+representative value for each fiber of `P`. Premise 2 says every source value
+in that fiber is equivalent to the representative, and premise 3 makes
+replacing them by that representative preserve `K_C` and the root views.
+Thus every source solution factors through `P` modulo `≈`. In the other
+direction, every quotient solution lifts by assigning each source identity
+the value of its parent, and the definition of `K_P` makes that lift a source
+solution. The observable interfaces agree modulo `≈` by premise 3. Thus this
+quotient loses no satisfying interface and introduces none in this fragment.
+
+This proof transports the whole formula; it does not delete `FamAgree_A` or
+reconstruct it from rows. If two merged identities were independent under
+`K_C`, the second direction would still lift, but the first would fail for
+source solutions assigning them different types. The familiar roots
+`F<α>` and `F<β>` demonstrate that failure. For interval-valued identities,
+common-witness compatibility is weaker than point equivalence, so premise 2
+cannot be replaced by `FamAgree_A`. Non-injective intrusion outside these
+premises still needs the general quotient/root-observation theorem; injective
+transport remains the renaming case.
+
 ## Principality and finite presentation
 
 The relation above is intentionally more expressive than any proposed solver:

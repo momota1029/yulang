@@ -157,6 +157,12 @@ target matches, giving a local principal presentation when its source
 constraints and complete interface are represented exactly. This avoids
 eager branch selection but does not establish ordinary source adequacy,
 solver termination, handler principality, or recursive SCC closure.
+A sufficient point-fragment quotient condition for intrusion is now explicit:
+every pair of merged observable type identities must already be equivalent
+under the full source constraint relation, and interface/formula denotations
+must respect that equivalence. This preserves the complete fiber modulo type
+equivalence; `FamAgree_A` overlap alone does not meet the condition. General
+parent-map quotient and recursive/interface cases remain open.
 
 ## Objective
 
