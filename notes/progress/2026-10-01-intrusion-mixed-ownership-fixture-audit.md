@@ -67,6 +67,16 @@ computed-use diagnostic is source-permitted at the scheduler level; no
 accepted source fixture with a shared identity across such member views has
 been found. This does not start the later method/role semantics gate.
 
+As a negative control, the existing accepted role-method/helper recursion at
+`lowering/tests/case_07.rs::role_impl_method_lifecycle_slice4c_t4_receiver_and_ordinary_binding_recurse_in_one_component`
+was run with the temporary trace enabled. Its two jointly quantified roots
+both selected `TypeLevel(0)`, with unchanged constraint epoch `(37, 37)`, no
+Q binders, and no recursive binders. The focused test passed. This confirms
+that this existing role cycle supplies no differing-boundary or mixed-owner
+witness; it says nothing about other dependency-only SCCs or cross-epoch
+lowering. The command was
+`YULANG_INTRUSION_OWNER_TRACE=1 CARGO_TARGET_DIR=/tmp/yulang-intrusion-scc-owned-target cargo test --offline --jobs=1 -p infer role_impl_method_lifecycle_slice4c_t4_receiver_and_ordinary_binding_recurse_in_one_component -- --nocapture --test-threads=1`.
+
 Likewise, levels are mutable shared machine state and only move downward
 (`constraints/mod.rs:458-467`). Bound insertion can extrude endpoints
 (`constraints/machine/bounds.rs:630-645, 815-830, 4701-4727`), while the first

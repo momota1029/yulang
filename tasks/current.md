@@ -1963,6 +1963,9 @@ possibility, not an observed accepted source transition. No accepted mixed-
 fetch/shared-identity fixture is known. Next construct a diagnostic-free
 dependency-cycle case with a shared deep variable and inspect levels/Q around
 the first member's constraint-producing prepass; independently continue the
-root-local R/free ownership search.
+root-local R/free ownership search. The existing accepted role-method/helper
+cycle was run as a negative control: both roots use `TypeLevel(0)`, Q/R are
+empty, and no level transition occurs in the captured epoch. It does not close
+the dependency-only or R/free cases.
 Effect-row principality, route quotient completeness, and Oracle acceptance
 remain open.
