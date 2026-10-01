@@ -452,7 +452,7 @@ define `supp_now`, delayed operations/thunks, callback invocation, and
 nonreturning prefixes in one evaluation relation; neither Oracle routing nor
 the pure F5 Function rule settles them.
 
-#### Operational anchor from the frozen runtime contract
+#### Evaluation contexts and the frozen runtime contract
 
 The syntax references do not define evaluation. Frozen Yulang2's reviewed
 mono-VM and runtime-guard specifications define the intended runtime contract
@@ -494,37 +494,58 @@ give these cases:
   only at the explicit root boundary.
 
 Consequently, `supp_now(τ)` in the Function candidate means typed requests
-actually emitted before the current expression returns or yields its next
-request under this machine. It includes requests from a thunk forced during
-that computation, but not requests from a thunk that is merely returned or
-passed onward. The value coordinate carries that thunk's latent behavior for a
-later force. This supplies an operational boundary without imposing exact
-continuation-sensitive rows: an inferred effect may still conservatively
-over-approximate these observations. It also makes callback application,
-handler transfer, and forcing compositions of the same machine relation,
-instead of separate callback or thunk effect rules.
+actually emitted before the source computation returns or yields its next
+request under this machine. This boundary is semantic, not the runtime shape
+tag: a `Thunk` used as the representation of a pending computation contributes
+its requests to the current computation when the enclosing source context
+demands its result, while a first-class thunk returned or passed onward carries
+its behavior latently. The value/computation distinction must come from the
+source typing and evaluation relation; inspecting a mono `Type::Thunk` alone
+does not decide it. Callback application, handler transfer, and computation
+demand are compositions of the same relation, rather than separate
+callback/thunk effect rules. This leaves rows free to conservatively
+over-approximate exact continuation-sensitive observations.
 
-#### Frozen evaluator discrepancy ledger
+#### Live conflict: computation demand at a case scrutinee
 
-The runtime contract is not yet shown to describe every behavior of the
-frozen evaluator. In commit `a58eefc3`, `runtime/flow.rs::apply_value` forces
-a thunk used as a callee; `runtime/eval.rs` also forces thunk values in case
-scrutinee/ref positions and in handler-body completion. The contract instead
-requires first-class thunks to execute only at explicit `ForceThunk` nodes.
-The evaluator's catch path also consults request-carried guards and
-`handler_boundary`, while the declarative account above needs the semantic
-`Visible(q,κ)` relation. These are concrete implementation/spec differences,
-not additional source-site rules for the successor.
+There is now a concrete reachable conflict, not just a suspected evaluator
+fallback. The successful frozen run fixture
+`tests/yulang/regressions/runtime/file_native_invalid_path_typed_failure.yu`
+cases directly on `std::io::file::file::load invalid`, and
+`tests/yulang/cases.toml` expects `load-invalid`. In frozen `specialize2`,
+`TaskSolver::case_type` splits the scrutinee's computation shape and includes
+its effect, but records no consumer boundary for the scrutinee;
+`specialize2/emit.rs` therefore emits the `Case` with that expression
+unchanged. The evaluator forces the scrutinee before pattern matching. The
+runtime contract instead requires `ForceThunk` to be explicit. Thus the
+accepted source example depends on computation demand that is not represented
+by an explicit force node in the emitted mono tree.
 
-The successor's operational reference is the reviewed VM-ready contract, not
-the evaluator's fallback behavior. Before claiming runtime compatibility,
-prove that the evaluator-only force sites are unreachable for valid
-VM-validated mono programs, or record a compatibility decision if a reachable
-case changes final well-typed-program acceptance. The guard/handler
-visibility relation remains part of the common computation observation;
-concrete guard and handler fields are implementation witnesses.
-No soundness or final-acceptance claim follows from this contract comparison
-alone.
+This evidence does not authorize a case-specific effect selector. The
+candidate is the ordinary context closure of one source evaluation relation:
+an evaluation context that needs a value composes the expression's computation
+observations before matching or using its result; a context that transports a
+first-class thunk retains its latent interface without running it. The same
+context-composition relation governs case operands, reference operands, calls,
+handler arms, and roots, with each context's value/computation boundary fixed
+by source typing. Typed requests become immediate exactly when their
+suspended computation is composed, retaining the same family arguments and
+visibility lineage. This derives effect support from ordinary evaluation
+composition, not from a site-specific `Demand` predicate.
+
+The contract/evaluator mismatch remains open at the mono boundary: either
+specialization must make this context composition explicit with
+`ForceThunk`, or the runtime contract must recognize a typed context demand
+that is currently implicit. The successor proof must establish which
+simulation preserves final well-typed-program acceptance. The same reachability
+audit found implicit force code for `RefSet` and some handler-result paths;
+only the case path has a confirmed source run witness so far. It also found
+that callee expressions receive a typed `Fun` consumer and normally get an
+explicit boundary, so its fallback remains unproven. The semantic relation
+uses `Visible(q,κ)` for routing; the evaluator's concrete guard fields and
+`handler_boundary` remain implementation evidence, not additional inference
+rules. No soundness or final-acceptance claim follows until these simulation
+obligations are closed.
 
 This anchor does not decide which source expressions specialization must
 lower to `MakeThunk` or `ForceThunk`, nor does it prove that Function effect

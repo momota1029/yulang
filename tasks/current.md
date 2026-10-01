@@ -3203,12 +3203,17 @@ requests in a returned or forwarded thunk stay latent until force. A single
 guard IDs and `add_id` entry snapshots are runtime witnesses, not extra
 successor rules; `handler_boundary` is an additional field in the frozen
 evaluator. A compiler-referee audit found the
-frozen evaluator has implicit force sites absent from that contract (thunk
-callee, case/ref operands, handler-body completion). It also uses request
-guard/boundary data after frames unwind. The draft records this discrepancy
-instead of treating either source-site fallback as a new rule. Runtime
-compatibility still requires proving the force sites unreachable in valid
-VM-ready programs or recording the final-acceptance impact if reachable. A
-finite point-row lemma also now carries both `GroupEq` premises, preserving
-symbolic source-owned family groups rather than assuming them after row
-materialization. No implementation follows from these conditional lemmas.
+frozen successful `file_native_invalid_path_typed_failure` run cases directly
+on an effectful file operation. `specialize2::case_type` includes its
+computation effect but adds no explicit consumer boundary; emission preserves
+the operand and both frozen VMs force it at case evaluation. This is a live
+conflict with the mono contract's explicit-`ForceThunk` rule. Candidate
+resolution is one evaluation-context relation: strict value contexts compose
+a latent computation into the current trace, while first-class transport
+keeps it latent. The exact relation must be derived from source typing and
+proved against emitted/runtime execution; no case-specific selector is
+authorized. RefSet and handler-result force paths still need reachability
+classification. A finite point-row lemma also now carries both `GroupEq`
+premises, preserving symbolic source-owned family groups rather than assuming
+them after row materialization. No implementation follows from these
+conditional lemmas.
