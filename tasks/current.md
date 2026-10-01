@@ -4055,6 +4055,18 @@ origin-indexed ordered-boundary relation is the lowest-cost candidate, with
 preservation favored as a hypothesis but not approved. See the latest section
 of `notes/progress/2026-10-02-callback-scope-transition.md`.
 
+An independent M3 audit of the symbolic `K,D` lifecycle found two proof gaps
+and repaired their statements: handler-image commutation now requires
+backward lifting of target successors and observations, and parent quotient
+assignments now include retained locals with explicit source pullback and
+target observation. A varying-interface quotient is defined as a relational
+direct image. Compiler-referee delta review closed both major findings; the
+small direct-image scope clarification was checked locally. This establishes
+only conditional formula/image laws, not actual solver completeness, source
+ownership generation, or finite principality. The phase-by-phase residual
+proof requirements are in
+`notes/progress/2026-10-02-symbolic-family-transport-audit.md`.
+
 Source-contract clue for that gate: the frozen reference says handlers inside
 a concrete callback receiver can consume matching callback-origin effects.
 The witness's `catch` is inside `handle`, while nested `invoke` has no handler;
