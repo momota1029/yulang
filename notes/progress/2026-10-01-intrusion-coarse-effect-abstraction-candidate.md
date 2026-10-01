@@ -5054,28 +5054,61 @@ abstraction with its acceptance cost recorded.
 ##### Principality relative to the may-effect abstraction
 
 Let `A` be the selected abstract request domain and `γ_A` its concretization
-into finite operation-request prefixes. The source trace semantics is used to
-prove `Traces(e) ⊆ γ_A(E)` for an inferred effect `E`; inference is not
-required to represent exact continuation-use correlations. Let
-`Judg_A(Γ,e)` be the set of closed type/effect judgments expressible in `A`
-that satisfy the source typing relations and the concrete trace soundness
-condition. A constrained scheme `S` denotes the closed judgments obtained by
-capture-avoiding instantiation of its type and row binders, subject to its
-retained symbolic relations and owned evidence.
+into finite operation-request prefixes. Soundness is a separate theorem:
+every abstract derivation of `Γ ⊢_A e : J` proves
+`Traces(e) ⊆ γ_A(effect(J))`; inference need not represent exact
+continuation-use correlations. Define `Deriv_A(Γ,e)` using only the chosen
+declarative source typing rules, including exactly the subsumption, coercion,
+and effect weakening rules that source semantics adopts. Oracle behavior does
+not add a rule to this set.
 
-Relative principality means `S` is itself valid and
-`Inst_A(S) = Judg_A(Γ,e)` modulo alpha-equivalence and the selected subtype
-equivalence. In particular, keeping `RowIncl` as a relation is useful only if
-all and only its satisfying instantiations remain available; choosing an
-existential match loses valid instances, while replacing the relation with a
-weaker support-only fact admits judgments not justified by the typing rules.
-Generalization must quantify exactly the component-owned binders, leave
-environment-owned identities shared, and retain each symbolic family
-invariance premise. Fresh instantiation renames the quantified binders and
-their owned relation/evidence together. Intrusion composes the same
-capture-avoiding transport through type parents and separately owned boundary
-identities. These are candidate definitions and laws, not a proof that the
-constrained scheme language has principal solutions.
+A constrained scheme denotes complete interfaces, not just one root type:
+all SCC member roots, immediate and latent effect rows, and identities shared
+with the environment. `Inst_A(S, ρ)` is the set of those interfaces produced
+by one capture-avoiding map for all scheme-owned binders, with the retained
+symbolic relations and owned evidence satisfied, while outer identities are
+fixed by environment valuation `ρ`. A scheme is valid only when each such
+instance yields a derivation in `Deriv_A`. A separate soundness theorem maps
+every derivation to its concrete trace bound.
+
+Write `J₀ ≼_A J` when `J` follows from `J₀` using only the declared
+subsumption/coercion/effect-weakening rules. Candidate principality requires:
+
+1. every admissible scheme instance is derivable;
+2. for every `ρ` and every `J ∈ Deriv_A(Γ_ρ,e)`, there is an
+   `J₀ ∈ Inst_A(S,ρ)` with `J₀ ≼_A J`.
+
+If the chosen derivation relation is closed under those rules, this is the
+usual most-general scheme property under the preorder `≼_A`. The subtype
+equivalence alone is insufficient: strict subtype and row weakening instances
+must be covered too. If the source typing relation has no adopted subsumption
+rule, the theorem must state that narrower syntax-directed scope rather than
+silently closing it under an invented rule.
+
+Keeping `RowIncl` as one relation is useful only if its full solution relation
+survives every lifecycle phase. For each fixed outer valuation `ρ`, the scheme
+must preserve the fiber of local type/row assignments and all dependent views;
+projecting constraints cannot choose one existential family match, merge
+independent choices, or forget a premise touching a rigid outer anchor.
+Solving substitutes symbolic endpoints uniformly and retains any formula
+needed by a live view. Residualization preserves the same solution fiber while
+moving a relation between live and exported ownership. Generalization keeps
+outer identities fixed and quantifies only component-owned binders. Fresh
+instantiation renames those binders and their owned relation/evidence
+together. Intrusion composes the same capture-avoiding transport through type
+parents and separately owned boundary identities, preserving satisfiability
+and ownership. Binder quantification alone does not prove this
+fiber-preservation condition. These are candidate definitions and laws, not a
+proof that the constrained scheme language has principal solutions.
+
+A bounded independent architect review found two major gaps in the initial
+criterion: equality modulo subtype equivalence omitted strict subsumption and
+row weakening, and retaining `RowIncl` did not by itself prove exact
+generalization across rigid environment anchors. The definition above now uses
+the declared judgment preorder and requires per-environment solution-fiber
+preservation. Whether source typing adopts those subsumption rules, and
+whether the candidate generalization/transport actually preserves each fiber,
+remain unproved.
 
 Oracle compatibility is a separate comparison between final accepted
 programs after validation, runtime construction, and specialization. A
