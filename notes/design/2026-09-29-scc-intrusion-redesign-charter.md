@@ -222,3 +222,30 @@ This amendment does not settle helper-boundary capture, provider ownership,
 weight meaning, or left/right preservation. It does not authorize compiler
 implementation. The active evidence and next proof step are in
 `notes/progress/2026-09-30-intrusion-weight-routing-counterexample-search.md`.
+
+## 10. User-directed typed-family constraint amendment (2026-10-01)
+
+The user requires typed-family argument invariance to remain symbolic through
+solving, residualization, generalization, fresh instantiation, and intrusion.
+It must not be reconstructed only after concrete row materialization.
+
+- A source rule that requires invariant family arguments must emit a symbolic
+  obligation over the argument terms and retain its dependency/owner evidence
+  while any dependent row, request, handler, residual, or scheme view remains
+  live.
+- Solving applies substitutions to the symbolic endpoints uniformly. It may
+  discharge the formula only with retained proof/equivalence evidence when a
+  later view depends on it.
+- Row splitting, matching, subtraction, residualization, generalization,
+  per-use freshening, and intrusion must transport the obligation and its
+  ownership using the same type-identity maps as the corresponding arguments.
+- This requirement does not assert that every same-head occurrence creates an
+  obligation; source semantics must derive exactly which relation sites
+  require it. It also does not select a final constraint representation or
+  authorize compiler implementation.
+
+The present conditional transport results and information-loss counterexample
+are recorded in
+`notes/progress/2026-10-01-intrusion-coarse-effect-abstraction-candidate.md`.
+Source-rule derivation, actual solver/residual transitions, their solution
+preservation proof, and parent-map construction remain open.
