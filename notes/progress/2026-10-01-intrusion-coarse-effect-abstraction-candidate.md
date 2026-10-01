@@ -6769,18 +6769,28 @@ subtype inclusions. A finite regular outer environment can be added by
 carrying its supplied automaton states in the product state and constraining
 the corresponding identity bits to match.
 
-Because `Σ` and the state space `Q` are finite, automaton candidates can in
-principle be enumerated and their reachable transitions checked by finite
-state closure. This gives a finite satisfiability search for the stated pure
-constraint fragment, although no practical complexity bound or implementation
-is established here. The result says that restricting this carrier to regular
-languages loses no **existence of a satisfying assignment** for these finite
-constraints, including cyclic subtype SCCs. It does not establish
-guarded/productive recursive Function semantics, preserve every arbitrary
-assignment, the joint root/use solution relation, principality, or the exact
-source acceptance judgment. It includes exact-head products such as fixed-
-arity covariant tuples only when their source subtype rule meets the preceding
-encoding premise. It excludes width-subtyped records, effects, methods,
+Let `m = |V| + |E|`, so `|Q| ≤ 2^m`. Enumerate deterministic bottom-up
+transition tables over this fixed state universe. For a symbol `s` of rank
+`r`, a total table has at most `|Q|^(|Q|^r)` choices; over finite `Σ`, the
+number of tables is finite. For each table, compute the reachable states by
+least closure from the nullary transitions. Check the local subexpression
+equations on each reachable transition and check every edge `e ≤ f` on every
+reachable state. The bit for each `X ∈ V` then defines its recognized regular
+language. If outer anchors are fixed regular automata, take their automaton
+state product with `Q`; the same finite enumeration and closure check applies
+over that product state universe. The representative-tree construction in the
+existence proof supplies one valid table whenever an arbitrary powerset model
+exists, so this is a finite decision procedure for the stated constraint
+fragment. Its state bound is at most `2^m` before the outer-anchor product;
+the transition-table search is enormous, and no practical optimization or
+implementation is established here. The result says that restricting this
+carrier to regular languages loses no **existence of a satisfying assignment**
+for these finite constraints, including cyclic subtype SCCs. It does not
+establish guarded/productive recursive Function semantics, preserve every
+arbitrary assignment, the joint root/use solution relation, principality, or
+the exact source acceptance judgment. It includes exact-head products such as
+fixed-arity covariant tuples only when their source subtype rule meets the
+preceding encoding premise. It excludes width-subtyped records, effects, methods,
 non-regular fixed anchors, and any constraint form not expressible by the
 finite local endpoint grammar. SCC intrusion and the required symbolic
 family-constraint lifecycle remain separate proof obligations.

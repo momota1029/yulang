@@ -2744,6 +2744,13 @@ shared variables or additional subtype edges. This is satisfiability only,
 not preservation of the complete root/use solution fiber; source grouping,
 non-subtyping cross-position relations, effects, and the phase-by-phase
 symbolic lifecycle remain open.
+The pure constraint fragment now has an explicit finite-search bound: with
+`m = number of type variables + number of endpoint subexpressions`, the
+witness automaton uses at most `2^m` states before multiplying by fixed
+outer-anchor automata.
+Enumerating transition tables and checking reachable states decides the
+fragment, though the bound is impractical and says nothing about the full
+compiler envelope.
 An explicit root-fiber counterexample shows that regular-model existence does
 not preserve arbitrary `P(N)` observations: an unconstrained root `x` may
 denote a nonregular language such as `{aⁿbⁿ}`. A new conditional bridge notes
