@@ -382,6 +382,42 @@ continuations. Soundness requires an over-approximation of the relational
 image; principality asks for the most-general representable result in the
 chosen interface language.
 
+#### Formulation choice and semantic/bookkeeping boundary
+
+There are three plausible presentations of this same design problem:
+
+| Candidate presentation | Conceptual economy and composition | Principality and proof reuse |
+|---|---|---|
+| A separate selector/obligation rule at each source site (`Sel_s`, `Demand`, typed-family pair obligations, and route-transfer cases) | Easy to attach to current solver events, but duplicates the meaning of row comparison, callback invocation, handler residualization, and variable transport. A new source form tends to need another rule. | Local checks can be executable, but their joint solution relation and cross-site preservation must be reconstructed. Proofs do not compose automatically. |
+| A ground may-support row plus a separate provenance/route analysis | Small support algebra and a finite least-support candidate; operational visibility remains explicit. | Support alone forgets valuation, result/request, and continuation correlations. Separate analyses need a proved coupling, and handler images need not distribute over row union. This can be a derived coarse solver view only when the coupling theorem holds. |
+| One assignment-indexed relation over complete root, typed-request, ownership, and visibility observations | One relation composes source evaluation, callbacks, and handler transitions; row splitting/filtering and lifecycle maps are projections or images. | Preserves correlations needed for principality and reuses image/transport lemmas, but may not have an effective finite principal presentation. That is an open theorem, not a reason to add site-specific semantic rules. |
+
+The third presentation is the preferred mathematical candidate because it
+reuses composition and transport proofs while retaining the information the
+other two presentations discard. This is a preference among research
+formulations, not a claim that the relation is already sound, principal, or
+implementable. A ground row or local obligation may still be used as a solver
+presentation when it is proved to denote the corresponding relational image.
+
+The semantic distinctions are source evaluation and value/computation
+boundaries, typed request arguments and source-owned sharing, and dynamic
+handler visibility. These affect which observations a program can produce.
+By contrast, `Sel_s` alternatives, `Demand` labels, typed-family obligation
+records, route ledgers, and explicit transport maps are candidate derivation
+or bookkeeping forms. They may be useful proof witnesses, but do not create
+additional source semantics. A typed-family invariant itself is semantic: its
+formula and ownership remain in the solution relation; an obligation object
+is only one way to present it. Likewise, handler visibility is semantic while
+a route record is evidence that a transition respects it.
+
+The proof direction is therefore from one source evaluation/handler relation
+to its typed interface relation, then from that relation to any finite solver
+presentation. Site-local lemmas may be derived from this path. If a proposed
+special case cannot be derived, first test whether it identifies a genuine
+source distinction or whether the common relation or its observation map is
+missing information; do not promote the special case into a semantic
+constructor solely to fit an Oracle fixture.
+
 #### Case sequencing as relational composition
 
 Write `Run_ν(e,η,s)` for the candidate source-level computation relation of

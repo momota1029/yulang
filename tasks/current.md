@@ -3233,3 +3233,16 @@ currently discards effects returned while consuming record-pattern defaults;
 this is a possible under-approximation, not yet a demonstrated accepted-
 program mismatch. Handler simulation and principal finite representation
 remain open too.
+
+The active semantic preference is now explicit in
+`notes/design/2026-10-01-coupled-effect-interface-core-draft.md`: prefer one
+assignment-indexed relation over complete typed interfaces to site-local
+`Sel_s`/`Demand`/obligation rules or a ground-row-plus-independent-route
+analysis. The latter are acceptable only as proved presentations/projections.
+Source evaluation, typed family ownership, and handler visibility are semantic
+distinctions; selectors, obligation records, route ledgers, and transport maps
+are derivation/bookkeeping forms. Next, derive the source-to-interface
+simulation and a finite principal solver presentation from the common relation;
+if a missing distinction appears, establish its source-level necessity before
+adding it to the theory. No new semantic construct or implementation is
+approved by this preference.
