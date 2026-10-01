@@ -3305,7 +3305,13 @@ for non-injective parent maps remains open.
 Further audit of the Function contract found that its earlier
 `Beh_{ρ,ν}(f,x)` omitted the dynamic activation and starting state. A callable's
 resumed request visibility depends on that context and its captured boundary
-lineage. The contract is now indexed by `(κ,s)` and quantifies over contexts
-admitted by the complete value interface; simple row variance is conditional
-on preserving that context interface. The source rule defining these allowed
-contexts remains open, and row-only comparison cannot supply it.
+lineage. The candidate now indexes behavior by source-derived complete call
+configurations from the surrounding evaluation relation, carrying the live
+store, ordered handler stack, and captured lineage with the callee interface.
+This avoids making the set of admitted contexts an independent type-level
+selector. The source rule that relates those configurations to a finite
+principal interface remains open; simple row variance is conditional on
+comparing both sides over the same call configurations and preserving
+visibility lineage. The denotational candidate therefore derives call
+contexts, support, delayed computation, callbacks, and prefixes from one
+evaluation relation, but remains unproved and unapproved.
