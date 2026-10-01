@@ -132,6 +132,36 @@ original binder and its full incidence; a solver may factor it only after
 proving the factorization condition. This is a direct criterion for when row
 splitting is a harmless view and when it would lose a typed-family constraint.
 
+#### Algebraic consequences at one fixed assignment
+
+For a fixed `ν`, write `supp(J_R(ν)) = TypedRow(R,ν)`. The row view has a
+small algebra that follows directly from the joint relation. When the source
+row constructors are interpreted by occurrence union and restriction, and
+their shared-binder constraints are evaluated in the same assignment, support
+union holds when both input fibers are nonempty:
+
+```text
+supp(J_{R ∪ S}(ν)) = supp(J_R(ν)) ∪ supp(J_S(ν))
+supp(J_{filter φ(R)}(ν)) = { q ∈ supp(J_R(ν)) | φ(q) }
+filter ψ(filter φ(supp(J_R(ν)))) = filter (φ ∧ ψ)(supp(J_R(ν)))
+```
+
+The first equality concerns support only. It does not say that the joint
+assignment relation factors across a split: when a binder occurs on both
+sides, the shared assignment and its incidence remain in force. The second
+and third equalities make filtering a restriction of the same request support,
+not a filter-specific semantic rule, provided `φ` is a predicate on the
+complete typed request. A predicate that inspects route or activation history
+is outside this row algebra and belongs to handler applicability.
+
+Handler subtraction does not follow from set difference alone. It is the
+residual support projection of the handler's relational image on
+continuation-bearing computations. For a handler proven total on the relevant
+concretization, the residual request support is a consequence of that image;
+an incomplete handler or unknown route cannot be erased by applying the
+filter equations above. This distinction keeps row restriction general while
+deriving removal only from the declarative transition relation.
+
 
 The frozen typed-family use probe is a useful consistency check on binder
 ownership. Its generalized `generic` has result type `α` and effect request

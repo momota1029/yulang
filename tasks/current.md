@@ -2993,3 +2993,12 @@ observationally equivalent factorization. Equality MGU theory provides this
 in its own domain, not automatically for polarized subtype solving. Occurrence,
 shared-binder, incidence, and boundary IDs stay on separate identity maps so
 type unification cannot merge them.
+
+The coupled-effect draft now derives fixed-assignment support laws from the
+joint row relation: valid union projects to support union, filtering is
+support restriction, and repeated filters compose by predicate intersection.
+These laws do not factor shared-binder assignments, and route-sensitive
+filtering is outside row algebra. Handler residualization remains the
+relational image of continuation-bearing computations under a proved totality
+and coverage premise; it does not follow from set difference. This is a
+conditional algebraic lemma, not a source rule or implementation authority.
