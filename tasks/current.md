@@ -2066,8 +2066,8 @@ weight routing. The correction and transition evidence are in
 A separate conditional semantic component now gives the shallow-handler family
 support transfer independently of Oracle weights: `E_out = (E minus C) ∪ A(E)`,
 where the raw continuation has a latent row bounded by the input support `E`,
-and `C` contains only families both authorized and completely covered by the
-handler. Ordinary typing of a resumed
+and `C` contains only families eligible for this handler and completely
+covered by its operation clauses. Ordinary typing of a resumed
 continuation adds its effect to the arm support, so repeated resumed requests
 remain represented without exact request-count or linear-usage inference. The
 transfer is sound by finite-trace cases and least for the stated finite-family

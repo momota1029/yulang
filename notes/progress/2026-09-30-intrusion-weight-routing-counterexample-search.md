@@ -391,6 +391,17 @@ incomplete handler keeps `choose` in `E minus C`, even if the particular observe
 request matches one of its clauses. Thus the rule does not indiscriminately
 retain every completely handled effect, and does not erase a partial family.
 
+The same equation handles a different-family suffix after resumption. If a
+`P` arm resumes `k` and the raw suffix can request `Q`, then `Q ∈ E` and the
+ordinary continuation call puts `Q` in `A(E)`. Even when the current catch is
+complete and authorized for both `P` and `Q`, the `Q` in `A(E)` survives the
+union: resumption ran the suffix outside this shallow catch, so this activation
+cannot consume that later `Q`. If the `P` arm does not resume, this suffix is
+unreachable on that handled trace; any independent `Q` path still appears in
+`E minus C` unless `Q` is completely covered and authorized. This is the
+family-support counterpart of the two-family raw-suffix trace lemma in
+`2026-09-30-intrusion-shallow-handler-trace-calculus.md`.
+
 No left/right weight rewrite follows merely from this set equation. Any future
 weighted encoding must prove that projection of every source constraint into
 and out of `C` implements this transfer. In particular, Oracle's observed
