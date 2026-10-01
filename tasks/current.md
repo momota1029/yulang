@@ -3861,4 +3861,15 @@ factorization table and a proof-economy test for each proposed rule. Its source
 rules, finite solver presentation, soundness, and principality remain open.
 This explicit preference is also recorded as a user-directed amendment to the
 Reviewed redesign charter and indexed there; it does not authorize compiler
-implementation.
+implementation. A relational prefix lemma now proves that transparent
+state-threaded composition preserves a first outward request before any
+resumption; an earlier general MayReq-monotonicity claim was rejected after a
+multi-shot mutable-state counterexample. The K,D symbolic-family premise is
+recorded separately from operational prefix preservation. This supports the
+annotated-callback soundness discriminator only if the source boundary forces
+the operation before the callback returns; the frozen run does not settle
+that force point. The lemma still does not prove the source Function contract
+or finite principal presentation. A compiler-referee delta review closed the
+lemma's multi-shot overclaim, symbolic-incidence scope, and force-boundary
+qualification; the source relation and runtime adequacy remain unreviewed by
+that narrow review.

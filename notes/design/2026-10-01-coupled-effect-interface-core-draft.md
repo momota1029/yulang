@@ -1036,6 +1036,62 @@ Whether the candidate Function clause is the source language's chosen
 well-typedness relation, and the completeness/principality of its finite
 presentation, remain open.
 
+##### Transparent composition cannot erase an emitted request
+
+The callback consequence is an instance of a **first-request** lemma, not a
+general monotonicity law for `MayReq`. If an execution of `R` emits `q` as its
+first outward request, then no external resumption has occurred before `q`.
+Under state-threaded bind, `R >>= F` preserves that request node and its prefix:
+at a `Request(q,k)` node, bind produces `Request(q, λr. k(r) >>= F)`. Thus the
+same execution of `R >>= F` emits its first outward request `q`.
+
+The first-request condition is essential. The earlier stateful multi-shot
+counterexample in “Case sequencing as relational composition” shows why the
+unrestricted statement is false: a request `q` reachable only after a prior
+resume can disappear when the first resumed return runs `F`, mutates shared
+state, and changes what the second resume observes. Accordingly, the following
+is **not** a valid general law:
+
+```text
+MayReq(R,ν) ⊆ MayReq(R >>= F,ν)
+```
+
+The first-request lemma uses one fixed assignment and one concrete execution
+prefix; it neither decomposes support into independent row unions nor says
+anything about later requests reached through resumed continuations. For the
+annotated `ask` witness above, the conclusion additionally assumes that the
+source typing/elaboration boundary forces `ask::get()` before the annotated
+callback call returns, so it is an outward first request rather than a latent
+request in a returned thunk. Under this premise, the pure callee and argument
+stages add no earlier request, and no handler transition consumes it. The
+Function row that bounds this behavior must contain `ask`; the empty row
+cannot satisfy the candidate bound. The frozen run shows that the request is
+eventually issued, but does not establish this precise force boundary. The
+candidate contradiction and any final-acceptance delta therefore remain
+conditional on source boundary adequacy; the proof is still specific to its
+first-request premise, not a general callback-effect rule.
+
+Symbolic typed-family preservation is a separate relation-composition
+obligation, not a consequence of the operational prefix lemma. For a request
+with argument term `a` under source-owned binder `g`, require the composite
+presentation to retain `K(ν,g,a)` and transport its incidence to exactly the
+retained views that depend on it. This follows conditionally when complete
+interface composition conjoins component predicates under the same assignment
+and unions their dependency maps; the prefix proof alone says nothing about
+`K,D`. Filtering or a handler may remove immediate support through its
+relational image, and may remove `K` only after proving equivalence for every
+remaining dependent view.
+
+Given that presentation premise, capture-avoiding generalization and use-site
+renaming transport the first-request witness together with the owner, formula,
+and incidence maps. Injective intrusion has the same reindexing property. A
+non-injective type-parent quotient still needs the separate quotient/fiber
+theorem; prefix preservation does not justify it. The first-request result
+uses only ordinary computation composition, with no weight-routing or
+callback-site semantic rule. It does not establish the source Function
+contract, callback behavior latent behind a thunk, or a finite principal
+effect presentation.
+
 Define semantic Function compatibility by inclusion between these denotations.
 Application composes callee evaluation, argument evaluation, and `Beh`; a
 surrounding handler acts on the resulting complete computation relation. A
