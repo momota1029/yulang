@@ -6825,6 +6825,26 @@ elaboration equivalence, complete root/use principality, and the method for
 presenting regular solutions as successor interfaces remain unproved; no
 claim is made for records, effects, methods, or recursive Function semantics.
 
+The current syntax-v0 pages give a concrete source-form checklist for this
+bridge, but they define grammar rather than typing or denotation
+(`syntax-reference/en/src/types/type-expression-core.md` and its composed
+construct pages):
+
+| Source form | Candidate regular-carrier mapping | Still required for an Oracle envelope |
+| --- | --- | --- |
+| Resolved primitive/type-variable atom | Finite head atom or a constraint variable | Prove name resolution and the selected base subtype order match the source type relation. |
+| Type call/application | Exact-head constructor with its declared finite variance vector | Prove every admitted declaration elaborates to that constructor relation; aliases and nominal-cast outcomes need their own source mapping. |
+| Equal-arity tuple-like type | Exact-head tuple constructor with covariant element channels | Source characterization supports this rule; prove lowering and final public outcomes through SCC/use contexts. |
+| Unequal-arity tuple pair | Different heads, hence no subtype inclusion | Oracle defers this mismatch to specialization; the closed-ground final rejection is characterized above, but open-variable interactions remain open. |
+| Pure Function type | One exact-head constructor with contravariant argument and covariant result | Requires a source proof that all latent effect views are empty and that no pure-argument-effect side rule adds constraints. |
+| Effectful Function, named record, `forall`, effect row, polymorphic variant, bracket row | Not in the current finite pure carrier grammar | Their semantics and final acceptance must be added before claiming Oracle-capable full-envelope support. |
+
+This is a candidate partition, not a selected source envelope. The syntax
+pages do not establish any row in the semantic column. The regular-model
+bridge becomes a final-acceptance theorem only after lowering and every
+relevant inference/specialization judgment are proved equivalent to the
+finite constraint grammar for the included forms.
+
 #### Regular-model extension for joint interval family batches
 
 The regular-witness theorem applies to a finite collection of already

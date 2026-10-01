@@ -2752,6 +2752,12 @@ that the regular-model theorem therefore preserves satisfiability of finite
 constraint systems. This could preserve final acceptance for a source
 envelope whose elaboration is exact into that grammar, but the source mapping,
 full root/use principality, and interface representation remain unproved.
+The syntax-v0 audit now enumerates the bridge boundary: resolved atoms,
+fixed-variance applications, equal-arity tuples, and proven-pure arrows are
+candidate mappings; effectful arrows, records, `forall`, effect rows,
+polymorphic variants, and bracket rows remain outside it. These pages define
+syntax only, so each semantic mapping still needs an authoritative source
+typing/lowering derivation and public-stage comparison.
 A shared tagged encoding lemma now covers any finite-arity exact-head
 constructor with a fixed variance vector: one head atom distinguishes the
 constructor, and per-slot positive/negative channel tags make covariance,
