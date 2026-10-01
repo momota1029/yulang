@@ -709,12 +709,19 @@ specify syntax without typing or evaluation rules. The callback upper-bound
 meaning must therefore remain a successor conjecture until the source
 computation relation is selected and reviewed.
 
-A compact candidate gives ordinary Function types a relational reading. Let
-`CallCfg_{ρ,ν}(f,x)` be the set of complete machine configurations at
-source-typed call boundaries where callable value `f` is applied to argument
-value `x`. This set comes from the surrounding source evaluation relation; it
-is not selected by an effect-row rule. It includes the live store, ordered
-active-handler stack, and the callee's captured boundary lineage. Let
+A compact candidate gives ordinary Function types a relational reading. A
+first formulation took `CallCfg` from call boundaries reached by the
+surrounding program. That is too weak for a compositional function meaning:
+an unused function would have no such boundaries and its contract could hold
+vacuously. Instead, let `CallCfg_{ρ,ν}(f,x)` be the set of all complete machine
+configurations in which source well-typed contexts may apply callable value
+`f` to argument value `x`, including contexts not reached by the current
+program. Admissibility is defined by source typing, the well-formed store,
+the ordered active-handler stack, and the callee's captured boundary lineage;
+it is not selected by an effect-row rule or restricted to observed call sites.
+The surrounding evaluation relation determines which such configurations
+are reachable in a particular program, but reachability does not define the
+function contract. Let
 `Beh_{ρ,ν,c}(f,x)` be the source-defined relation of finite evaluation
 observations from applying `f` to `x` at configuration `c`. These inputs matter:
 the same closure or thunk can be called under different active handler stacks,
@@ -747,7 +754,8 @@ surrounding handler acts on the resulting complete computation relation. A
 finite structural rule can use the usual argument contravariance, result
 covariance, and `RowSub(E_actual,E_formal,ν)` only when both interfaces are
 compared over the same source-typed call configurations and the captured
-visibility lineage is preserved. For a fixed call configuration, the direct
+visibility lineage is preserved for every admissible call configuration. For
+each fixed call configuration, the direct
 proof is: every value admitted by `A_formal` is admitted by `A_actual`; each
 observed result in `B_actual` is
 also in `B_formal`; and each actual request support admitted by
@@ -777,9 +785,14 @@ presentation may be unavailable. Choosing the structural rule trades that
 precision for a simpler solver and requires a final-acceptance comparison on
 any resulting rejection. The relational denotation remains the candidate
 mathematical core, not an established successor rule. Its source meaning must
-derive `CallCfg`, `supp_now`, delayed operations and thunks, callback
-invocation, and nonreturning prefixes from one evaluation relation; neither
-Oracle routing nor the pure F5 Function rule settles them.
+derive the admissible `CallCfg` configurations by source typing and the
+machine's evaluation relation, and derive `supp_now`, delayed operations and
+thunks, callback invocation, and nonreturning prefixes from that same
+relation. The call-context admissibility judgment must be compositional and
+must include well-formed counterfactual contexts, or the function contract
+collapses back to whole-program reachability and loses its compositional
+meaning. Its finite principal presentation remains open; neither Oracle
+routing nor the pure F5 Function rule settles it.
 
 #### Evaluation contexts and the frozen runtime contract
 

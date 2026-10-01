@@ -3305,13 +3305,23 @@ for non-injective parent maps remains open.
 Further audit of the Function contract found that its earlier
 `Beh_{ρ,ν}(f,x)` omitted the dynamic activation and starting state. A callable's
 resumed request visibility depends on that context and its captured boundary
-lineage. The candidate now indexes behavior by source-derived complete call
-configurations from the surrounding evaluation relation, carrying the live
-store, ordered handler stack, and captured lineage with the callee interface.
-This avoids making the set of admitted contexts an independent type-level
-selector. The source rule that relates those configurations to a finite
-principal interface remains open; simple row variance is conditional on
-comparing both sides over the same call configurations and preserving
-visibility lineage. The denotational candidate therefore derives call
-contexts, support, delayed computation, callbacks, and prefixes from one
-evaluation relation, but remains unproved and unapproved.
+lineage. The candidate now indexes behavior by complete call configurations
+admissible in all source-well-typed contexts, carrying the live store, ordered
+handler stack, and captured lineage with the callee interface. This avoids
+making the set of admitted contexts an independent type-level selector or
+restricting it to call sites reached by the current program. The source rule
+that relates those configurations to a finite principal interface remains
+open; simple row variance is conditional on comparing both sides over the
+same call configurations and preserving visibility lineage. The denotational
+candidate therefore derives call contexts, support, delayed computation,
+callbacks, and prefixes from one evaluation relation, but remains unproved
+and unapproved.
+
+An adversarial check found that defining call configurations only from call
+sites reached by the surrounding program makes an unused function's contract
+vacuous. The candidate now quantifies over all well-typed source contexts
+admissible for the callable, argument, store, active handler stack, and
+captured lineage; program reachability is only a projection of those contexts.
+This restores a compositional target in the mathematical statement, but the
+admissibility judgment itself still needs a source definition and a finite
+principal presentation. It must not become a type-level call-site selector.
