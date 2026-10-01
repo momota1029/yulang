@@ -2744,12 +2744,14 @@ shared variables or additional subtype edges. This is satisfiability only,
 not preservation of the complete root/use solution fiber; source grouping,
 non-subtyping cross-position relations, effects, and the phase-by-phase
 symbolic lifecycle remain open.
-An explicit root-fiber counterexample now blocks promoting `RegΣ(N)` to the
-carrier without another theorem: an unconstrained root `x` may denote a
-nonregular language such as `{aⁿbⁿ}` in the powerset model, which has no
-regular representative if exact root observations matter. The candidate
-needs proof that source-observable types are regular, or a proved observation
-quotient that identifies every lost assignment. Neither is established.
+An explicit root-fiber counterexample shows that regular-model existence does
+not preserve arbitrary `P(N)` observations: an unconstrained root `x` may
+denote a nonregular language such as `{aⁿbⁿ}`. A new conditional bridge notes
+that finite source type terms in the fixed-variance grammar are regular and
+that the regular-model theorem therefore preserves satisfiability of finite
+constraint systems. This could preserve final acceptance for a source
+envelope whose elaboration is exact into that grammar, but the source mapping,
+full root/use principality, and interface representation remain unproved.
 A shared tagged encoding lemma now covers any finite-arity exact-head
 constructor with a fixed variance vector: one head atom distinguishes the
 constructor, and per-slot positive/negative channel tags make covariance,
