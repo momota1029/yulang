@@ -2716,12 +2716,13 @@ The mixed Interval/Lifted membership conditions are now derived for the
 tagged powerset model, including support/head checks and polarity-correct
 channel bounds. This is an exact semantic characterization, not an algorithm
 over arbitrary subsets. A regular-tree-language subcarrier over a fixed
-finite signature supplies an effective candidate for finite acyclic,
-independent-slot bounds; compiler-referee review required and confirmed
-effective automaton inputs for all evaluated endpoints. No such carrier is
-selected. General SCC solution regularity, symbolic correlations, effects,
-source adequacy, principal root/use representation, and Oracle final
-acceptance remain open.
+finite signature supplies an effective candidate for finite constraint
+graphs; compiler-referee review required and confirmed effective automaton
+inputs for all evaluated endpoints. No such carrier is selected. The
+regular-witness theorem covers satisfying assignments for finite cyclic pure
+subtype SCCs too, but not guarded recursive Function semantics, symbolic
+root/use fiber preservation, principality, effects, source adequacy, or Oracle
+final acceptance.
 
 The finite pure regular-witness theorem now states its exact tagged alphabet
 premise: atom and unary channel tags are disjoint, and unrelated symbols do
@@ -2733,14 +2734,16 @@ can be carried through actual solve, residualize, generalize, freshen, and
 intrusion transitions while preserving satisfiability and root/use
 observations. The regular-witness result does not establish that lifecycle,
 SCC principality, effects/handlers, or Oracle final acceptance.
-The regular-model argument has now been extended to finite, already
-decomposed interval-valued `InvArgs` batches: include each shared argument as
-an explicit symbolic variable and add its lower/upper endpoint constraints
-for every source-owned occurrence. Any satisfying powerset assignment to the
-extended pure graph then has a regular satisfying assignment, retaining that
-shared variable. This proves satisfiability only for the finite independent-
-slot fragment; complete root/use fibers, source grouping, compound/cross-slot
-arguments, effects, and the phase-by-phase symbolic lifecycle remain open.
+The regular-model argument has now been extended to a joint finite collection
+of already source-derived interval-valued `InvArgs` batches: include every
+shared argument identity alongside the roots and endpoints in one constraint
+graph, and add lower/upper endpoint constraints for each owner. Any satisfying
+powerset assignment to that full graph then has one regular satisfying
+assignment for all identities together, including correlations represented by
+shared variables or additional subtype edges. This is satisfiability only,
+not preservation of the complete root/use solution fiber; source grouping,
+non-subtyping cross-position relations, effects, and the phase-by-phase
+symbolic lifecycle remain open.
 A shared tagged encoding lemma now covers any finite-arity exact-head
 constructor with a fixed variance vector: one head atom distinguishes the
 constructor, and per-slot positive/negative channel tags make covariance,

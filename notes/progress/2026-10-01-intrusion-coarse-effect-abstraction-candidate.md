@@ -6730,7 +6730,8 @@ constructor. Fix finitely many type variables
 to be a finite expression over variables, `Bottom`, `Top`, finite union and
 intersection, and the exact-head variance constructors above. If
 there is any satisfying assignment `ν : V → P(N)`, then there is also a
-satisfying assignment `ν_reg : V → RegΣ(N)`.
+satisfying assignment `ν_reg : V → RegΣ(N)`. The variable constraint graph
+may contain arbitrary finite cycles; no acyclicity premise is used.
 
 Proof. Let `E` be the finite set of all endpoint subexpressions. At each tree
 `t ∈ N`, form a finite state containing (i) one bit for membership of `t` in
@@ -6760,48 +6761,49 @@ state closure. This gives a finite satisfiability search for the stated pure
 constraint fragment, although no practical complexity bound or implementation
 is established here. The result says that restricting this carrier to regular
 languages loses no **existence of a satisfying assignment** for these finite
-constraints. It does not preserve every arbitrary assignment, the joint
-root/use solution relation, principality, or the exact source acceptance
-judgment. It includes exact-head products such as fixed-arity covariant
-tuples only when their source subtype rule meets the preceding encoding
-premise. It excludes width-subtyped records, effects, methods, non-regular
-fixed anchors, and any constraint form not expressible by the finite local
-endpoint grammar. SCC intrusion and the required symbolic family-constraint
-lifecycle remain separate proof obligations.
+constraints, including cyclic subtype SCCs. It does not establish
+guarded/productive recursive Function semantics, preserve every arbitrary
+assignment, the joint root/use solution relation, principality, or the exact
+source acceptance judgment. It includes exact-head products such as fixed-
+arity covariant tuples only when their source subtype rule meets the preceding
+encoding premise. It excludes width-subtyped records, effects, methods,
+non-regular fixed anchors, and any constraint form not expressible by the
+finite local endpoint grammar. SCC intrusion and the required symbolic
+family-constraint lifecycle remain separate proof obligations.
 
-#### Regular-model extension for interval family batches
+#### Regular-model extension for joint interval family batches
 
-The regular-witness theorem also applies to a finite, already decomposed
-interval-valued `InvArgs` batch in this pure fragment. For each source-owned
-shared argument position `i`, retain one symbolic variable `w_i` for the
-shared argument value. For every occurrence owner `o` in the batch with
-finite endpoint sets `L_o,U_o`, add the constraints
+The regular-witness theorem applies to a finite collection of already
+source-derived interval-valued `InvArgs` batches in this pure fragment. Put
+every shared argument identity `w_i` from every batch in the same finite
+variable set as the roots and endpoint variables. For each occurrence owner
+`o` constraining `w_i`, with finite endpoint sets `L_{o,i},U_{o,i}`, add
 
 ```text
-l ≤ w_i    for each l ∈ L_o
-w_i ≤ u    for each u ∈ U_o
+l ≤ w_i    for each l ∈ L_{o,i}
+w_i ≤ u    for each u ∈ U_{o,i}
 ```
 
-Keep `w_i` and its owner/incidence key in the relation; do not replace them
-with a materialized join or merge different source batches. These are
-ordinary finite subtype constraints in the regular-witness grammar when each
-endpoint is a permitted finite expression. If the extended constraint
-system has any solution in `P(N)`, the regular-witness theorem yields a
-solution in `RegΣ(N)` for the entire system, including each `w_i`. The
-constraints therefore give the same regular `w_i` as a common inhabitant of
-every interval in its source batch. Fixed outer anchors are covered only
-when their supplied denotations are regular, as required by the theorem's
-finite-regular-environment premise.
+Retain each `w_i` and its batch/owner incidence; do not replace it with a
+materialized join or merge different source batches. Include any other
+cross-position or root-coupling subtype constraints in the same finite graph.
+If the resulting graph has a solution in `P(N)`, the regular-witness theorem
+gives one joint solution in `RegΣ(N)` for all its variables, including all
+the shared `w_i`. Thus identities and correlations already expressed by the
+finite subtype graph are solved together; no independent-per-position witness
+choice is made. Fixed outer anchors are covered only when their supplied
+denotations are regular, as required by the finite-regular-environment
+premise.
 
-This is a regular-model existence result for finite, independent interval
-slots. It does not preserve each arbitrary solution or its complete root/use
-observation fiber, derive which source occurrences share a binder, decompose
-compound arguments, handle cross-position or graph-variable correlations,
-cover open effect tails, or prove principal SCC intrusion. It strengthens
-the pure satisfiability fragment without discharging the required symbolic
-lifecycle invariant: `w_i`, its batch key, and every owner edge still travel
-through solving, residualization, generalization, use freshening, and
-intrusion.
+This is a regular-model existence result for the finite subtype presentation,
+not preservation of each arbitrary solution or its complete root/use
+observation fiber. It does not derive which source occurrences share a
+binder, encode a cross-position relation that is not expressible as finite
+subtype constraints, cover open effect tails, or prove principal SCC
+intrusion. It strengthens the pure satisfiability fragment without
+discharging the symbolic lifecycle invariant: every `w_i`, batch key, and
+owner edge still must travel through solving, residualization,
+generalization, use freshening, and intrusion.
 
 #### Variable-edge propagation into interval constraints (conditional)
 
