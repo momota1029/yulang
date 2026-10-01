@@ -3655,37 +3655,51 @@ The per-view alpha result does not by itself justify taking a union of
 independently rebased member views. For each external use `j=(d,u)`, let
 `C_j` and `root_j` be that member's complete selected constraint view and root;
 all internal SCC edges and recursive-bound links selected for that view stay
-inside `C_j`. Let `A_shared` be the receiver anchors, and let `L_j` be this
-use's local identities after the member-view rebase. Independent uses have
+inside `C_j`. Also include `C_base`, the complete base/group-validity view.
+For every copy `j∈J={base}⊎Uses(e)`, let `L_j` be its local identities after
+rebasing; for external uses, `root_j` is the observed member root. Let
+`A_shared` be the receiver anchors. Independent copies have
 disjoint `L_j`, even when their saved views contain the same raw TypeVar ID.
-Their batch identity space is
+Let `A_fixed` contain every identity fixed in the receiving context: receiver
+anchors, caller/continuation identities, and any other free identity observed
+by a copied root or constraint. `A_shared ⊆ A_fixed`. Every occurrence in a
+copied constraint, evidence item, and root observation must have exactly one
+owner: either a fixed identity in `A_fixed`, or a tagged local `(j,v)` for one
+copy. Raw IDs alone do not assign ownership. The batch source and target
+identity spaces are
 
 ```text
-I_batch = A_shared ⊎ ⊔_j L_j
-rho(a) = a                              for a ∈ A_shared
+I_src = A_fixed ⊎ ⊔_(j∈J) L_j
+I_dst = A_fixed ⊎ ⊔_(j∈J) rho_j(L_j)
+rho(a) = a                              for a ∈ A_fixed
 rho(j,v) = rho_j(v)                     for v ∈ L_j
 ```
 
-Each `rho_j` must consistently transport every occurrence in `C_j`,
-`root_j`, recursive-bound payloads, and mapped evidence. It is injective on
-`L_j`; its image is disjoint from `A_shared` and every other `rho_k(L_k)`.
-The batch relation also contains receiver/continuation constraints `K_ctx`
-that connect one or more renamed roots to caller variables or to each other.
-Those constraints and their type-bearing evidence must be transported under
-the same product map; non-type proof IDs use their evidence-specific map and
-their validity must be preserved or rechecked. Identities in the receiving
-context remain fixed. No additional
+Here each `C_j` for `j∈Uses(e)` is the complete selected member view, including its
+internal SCC and recursive-bound edges. Their local namespaces are disjoint
+even when source views reuse a raw ID. Each `rho_j` consistently transports
+every occurrence in its copy, including roots, recursive-bound payloads, and
+mapped evidence. It is injective on `L_j`; its image avoids all of `A_fixed`
+and every other fresh image. The batch relation also contains
+receiver/continuation constraints `K_ctx` that connect one or more copied roots
+to fixed caller variables or to each other. Each occurrence in `K_ctx`, its
+type-bearing evidence, and every root observation must use the same unique
+fixed-or-tagged-local ownership classification. Non-type proof IDs use their
+evidence-specific map and their validity must be preserved or rechecked. No
+additional
 cross-use equality is implied solely by coincident raw IDs in two saved
 member views. If the declarative source-use rule does require such a link, it
 must be present in `K_ctx` or represented by one shared identity before the
 fresh ranges are allocated.
 
-Assume the selected type-constraint predicates and family matches commute
+Thus `rho` is a bijection from `I_src` to `I_dst`, fixing `A_fixed` and mapping
+each tagged local copy to its fresh namespace. Assume the selected
+type-constraint predicates and family matches commute
 with this capture-avoiding renaming, as required by the preceding typed
 alpha-transport lemma. Then the assignment map from the original batch domain
-to `I_batch` is a bijection on each local namespace and the identity on
-`A_shared`. By structural evaluation of endpoint expressions and the assumed
-predicate equivariance, every obligation in each `C_j`, every `K_ctx`
+to `I_dst` is a bijection. By structural evaluation of endpoint expressions
+and the assumed predicate equivariance, every obligation in each copied view,
+every `K_ctx`
 obligation, and every root observation has the same truth/value under
 corresponding assignments. The inverse map gives reflection. Hence the
 complete batch solution relation, including an empty fiber, is preserved.
@@ -3739,10 +3753,10 @@ cross-use sharing.
 
 For the conditional pure recursive-group-plus-nested-let theorem in
 `2026-09-30-intrusion-parent-transport-composition.md`, every SCC-created
-identity is local in every member view and every referenced outer identity is
-a fixed anchor. Thus each base/use copy contributes one disjoint local
-namespace, while the same `A_J ∪ K` is fixed. Its joint map `Λ` transports the
-base graph, every member-use copy, caller-root constraints, and cross-use
+identity is local in the base and each member-use view, and every referenced
+outer identity is fixed. Thus the base copy and each use copy contribute one
+disjoint local namespace, while the same `A_J ∪ K` is fixed. Its joint map
+`Λ` transports the base graph, every member-use copy, caller-root constraints, and cross-use
 constraints in one assignment relation. This supplies an explicit `K_ctx` and
 satisfies the criterion above for that already reviewed pure fragment; in
 particular, the root selected from a group copy does not create a different

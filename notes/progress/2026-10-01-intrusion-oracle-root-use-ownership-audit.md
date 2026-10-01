@@ -29,20 +29,22 @@ At `crates/infer/src/generalize/mod.rs:900-914`,
 `quantified_vars_in_root_and_roles` collects free variables from that member's
 `CompactRoot` and role predicates, then keeps only variables whose level is
 strictly above the chosen boundary and which are not in `non_generic`. The
-current generalization path supplies an empty `non_generic` set. Thus, for an
-already prepared compact root view `H_d`, the initial generalized-root
-quantifier set is characterized by
+current generalization path supplies an empty `non_generic` set. Thus, for the
+compact root and roles of the returned, stack-cleaned `GeneralizedCompactRoot`
+`H_d`, the initial quantifier set is characterized by
 
 ```text
 Q_d^root = { v ∈ FreeVars(H_d, roles_d) | level(v) > boundary_d }
 ```
 
-This formula is about the compact prepared view and its epoch. It is not
-necessarily the final scheme quantifier set: finalization applies ancestor
-simplifications, dead-quantifier pruning, and stack cleanup before publishing
-the scheme (`finalize_generalized_compact_root_with_ancestors` in
-`crates/infer/src/generalize/mod.rs:837-853`). Let `Q_d^final` denote the
-published scheme's actual `quantifiers`. Neither set classifies every ID in a
+`generalize_stack_cleaned_compact_root` cleans stack state before computing
+this set and can prune stray stack weights and recompute quantifiers
+(`crates/infer/src/generalize/mod.rs:188-241`). Later finalization applies
+ancestor simplifications and dead-quantifier pruning before publishing the
+scheme (`finalize_generalized_compact_root_with_ancestors` in
+`crates/infer/src/generalize/mod.rs:837-864`). Let `Q_d^final` denote the
+published scheme's actual `quantifiers`; this is the set used by ordinary
+instantiation. Neither set classifies every ID in a
 successor's retained full constraint graph, and neither authorizes dropping
 source constraints. The exact source-to-successor ownership partition still
 needs its own declarative binder rule.
@@ -52,7 +54,7 @@ needs its own declarative binder rule.
 `SchemeInstantiator::instantiate_scheme_parts` in
 `crates/infer/src/instantiate.rs:620-650` allocates fresh variables for the
 scheme quantifiers and every recursive-bound variable, plus fresh stack IDs
-for listed stack quantifiers. Its `fresh_var` map in `:720-750` is shared by
+for listed stack quantifiers. Its `fresh_var` map in `:732-739` is shared by
 positive, negative, neutral, role, and Function-effect occurrences during one
 clone. Repeated occurrences of one mapped source variable therefore share one
 fresh ID within that instantiation; a later use creates a new instantiator and
@@ -64,10 +66,25 @@ Imported-boundary and freshen-all callers have separate policies.
 `crates/infer/src/analysis/session/instantiate.rs:342-535` then inserts the
 instantiated predicate at the use site. An eligible direct-lower shape is
 added as a lower predicate; other shapes are related to the use variable by a
-subtype constraint. Role predicates take a separate insertion path. These
-caller/use constraints are part of the joint receiver context when comparing
+subtype constraint. Role predicates take a separate insertion path. Cloning
+recursive bounds also inserts two subtype constraints
+(`crates/infer/src/instantiate.rs:1002-1029`). These caller/use constraints are part of the joint receiver context when comparing
 multiple uses. A quantified source ID does not create an equality between
 independent instantiations; a preserved free ID intentionally remains shared.
+
+The use insertion split is shape-based in
+`crates/infer/src/analysis/session/instantiate.rs:717-729`. `Con`, `Fun`,
+record, tuple, row, and polyvariant positive predicates take the direct-lower
+path. Other positive shapes take the general subtype path against
+`Neg::Var(use_value)`. The direct path inserts an unweighted lower bound at
+`crates/infer/src/constraints/machine/entry.rs:734-750` and merges
+scheme-instantiation derivations into that bound. The subtype path records
+scheme-instantiation routes on the subtype constraint. Both paths connect the
+instantiated predicate to the caller's use variable, but they expose different
+provenance and solver routes. For a successor, `K_ctx` should come from the
+declarative use/subsumption judgment; this Oracle branch split is evidence for
+the comparison relation, not an instruction to copy the dispatch or proof
+records. Their equivalence for final acceptance is unproved.
 
 Define `RVar_d^final = { b.var | b ∈ recursive_bounds_d^final }`. For a
 published Oracle scheme, the set that the ordinary instantiator maps to fresh
@@ -92,8 +109,10 @@ and to neither `Q_e^final` nor `RVar_e^final` for another, a use of the first
 member freshens it while a use of the second preserves it. Root reachability,
 boundary selection, finalization, and recursive-bound ownership can all affect
 these sets. Independent uses share only identities the latter scheme leaves
-free, plus caller identities explicitly connected by their use constraints. A
-cross-use relation must come from those caller constraints or from the
+free, plus caller identities explicitly connected by their use constraints,
+as a statement about source-variable map reuse. Distinct allocator outputs
+also require the allocator's type-ID namespace/uniqueness contract, which this
+source scope did not inspect. A cross-use relation must come from those caller constraints or from the
 successor's declarative source rule; it must not be inferred solely from the
 raw numeric ID.
 

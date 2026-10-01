@@ -1914,16 +1914,27 @@ local/free map algebra, including a continuation constraint that relates the
 independently instantiated roots; it assumes rather than proves those
 ownership classes. The reviewed uniform pure-SCC joint transport theorem
 supplies the all-local instance but does not cover member-specific root
-partitions. The corrected assignment argument still needs independent review.
+partitions. The compiler-referee review found two major gaps in that
+criterion: its batch domain omitted fixed caller/continuation identities, and
+the pure-SCC corollary omitted the base validity copy. The repaired criterion
+now defines a fixed identity set plus tagged locals for the base and every
+external use, requires fresh images to avoid the whole fixed context, and
+requires unique ownership for every copied constraint/evidence/root
+occurrence. A focused compiler-referee delta review found no remaining finding
+in the conditional type-identity map algebra. Source-derived construction of
+these views and `K_ctx` remains unproved.
 A focused Oracle source audit now records the per-root boundary and quantifier
 predicate, the use map over quantifiers plus recursive-bound variables,
-free-variable preservation, and use-constraint insertion at exact source
+free-variable preservation, recursive-bound constraint insertion, and
+use-constraint insertion at exact source
 locators in
 `notes/progress/2026-10-01-intrusion-oracle-root-use-ownership-audit.md`.
 It characterizes a conditional mixed map when one final scheme freshens an ID
 that another leaves free; no concrete source fixture for that exact split is
 claimed. The audit does not define successor ownership or the full public
-root relation. Next compare actual root epochs and inserted use constraints
-with the candidate member view and `K_ctx`, then prove source-step
-preservation. Effect-row principality, route quotient completeness, and
-Oracle acceptance remain open.
+root relation. The independent lifecycle audit corrected the quantifier
+description to the stack-cleaned generalized root and published scheme, and
+bounded claims about allocator uniqueness. Next compare actual root epochs
+and inserted use constraints with the candidate member view and `K_ctx`, then
+prove source-step preservation. Effect-row principality, route quotient
+completeness, and Oracle acceptance remain open.
