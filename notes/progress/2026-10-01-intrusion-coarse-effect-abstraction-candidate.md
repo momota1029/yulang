@@ -3649,6 +3649,70 @@ identity that must be both fixed and fresh inside one rebased view invalidates
 this corollary and must reject the candidate transition unless a separate
 quotient/ownership proof resolves it.
 
+#### Joint member/use transport criterion (conditional)
+
+The per-view alpha result does not by itself justify taking a union of
+independently rebased member views. Make the joint interface explicit. Let
+`O_d` be the tagged occurrences in member view `d`, so the same raw ID in two
+views is represented as `(d,v)` and `(e,v)`, not silently identified by its
+integer spelling. Let `≈` be the source-proved identity-sharing relation on
+these occurrences. Quotient preserved occurrences by their component-stable
+anchor identity, while keeping each member/use-local binder in a separate
+`(d,u)` namespace. The resulting canonical identity space is
+`I_joint = A_shared ⊎ ⊔_(d,u) L_(d,u)`. A source relation that equates one local
+identity with a shared anchor is not silently put in either class; it must
+resolve the ownership conflict or reject the transition. Let `K` be the
+complete set of cross-view constraints and evidence connecting occurrences,
+including recursive-bound links and the internal live-root edges that remain
+in the component. For a batch of external uses, the map on `I_joint` is
+
+```text
+rho(a) = a                              for a ∈ A_shared
+rho((d,u), v) = rho_(d,u)(v)            for v ∈ L_(d,u)
+```
+
+with one component-stable image for every preserved anchor, and disjoint
+fresh images for every independent `(d,u)` local namespace. It is required to
+be injective on `I_joint` and to fix `A_shared`; member-view maps are its
+restrictions after applying the occurrence-to-identity quotient.
+
+The joint transport claim is valid only if each `k ∈ K` has one of these two
+forms:
+
+1. it is an identity-sharing link, in which case all linked occurrences must
+   have the same image under `rho`; or
+2. it is a relational constraint with an explicit transported counterpart
+   `Tr_rho(k)`, and its semantic predicate is equivariant under the product
+   renaming.
+
+Under those conditions, transporting each member constraint and each `k`
+preserves and reflects joint satisfaction: map a satisfying assignment by the
+product bijection on local namespaces while fixing shared anchors, and use the
+inverse bijection for reflection. Therefore an empty joint solution fiber
+stays empty. This is the ordinary assignment-transport argument; it does not
+require the independent member constraints to have independent solutions,
+because every cross-view relation in `K` is transported in the same joint
+assignment.
+
+This criterion makes the cross-member counterexample precise. If raw ID `x`
+is local in view `a` and free in view `b`, then an external use of `a` maps
+`(a,x)` to a fresh port while `b` maps `(b,x)` to the shared anchor. If the
+source lifecycle says those occurrences are one identity, condition 1 fails;
+the use transition must preserve a shared identity or encode and transport a
+proved equality link. If the lifecycle says the member scheme binders are
+independent, the tagged occurrences may differ, but every recursive or
+internal edge between them must still appear in `K` under condition 2. The
+raw ID alone cannot decide which interpretation holds. A missing or
+unclassified cross-view link rejects publication.
+
+This is a necessary transport condition, not a proof that the Oracle lifecycle
+chooses either ownership interpretation or emits a complete `K`. In
+particular, the component's internal live-root edges and external saved-scheme
+views may have different ownership rules. The Oracle root projection,
+source-generated cross-member constraints, and their public observations must
+instantiate the condition before the individual alpha lemmas can compose
+into a batch adequacy theorem.
+
 An architect review recommended this conditional semantic-lowering boundary;
 the exact-source review found no conflict with syntax-v0 or current HIR. The
 compiler-referee review then found three gaps: possible calls/forces were not

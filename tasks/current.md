@@ -1901,7 +1901,12 @@ identity support, rebase local IDs to disjoint ports, preserve shared anchors,
 and apply one fresh map per external use. Its typed alpha invocation requires
 fixed-`Γ` well-formedness and equivariant family/type constraints; compiler-
 referee review closed the support-partition and map-domain gaps. Source
-ownership and joint cross-member composition remain unproved. Next prove
-source-step preservation and instantiate the maps on the actual SCC lifecycle.
-Effect-row principality, route quotient completeness, and Oracle acceptance
-remain open.
+ownership and joint cross-member composition remain unproved. A conditional
+composition criterion now treats cross-view occurrences as tagged identities
+and requires every bridge to preserve identity or transport an explicit
+equivariant relation in one joint assignment. This new criterion is an
+unreviewed proof candidate. Next have the compiler-referee review its joint
+assignment argument, then instantiate the bridge set from the Oracle root/use
+lifecycle and prove source-step preservation; otherwise reject the candidate
+batch transition. Effect-row principality, route quotient completeness, and
+Oracle acceptance remain open.
