@@ -3815,3 +3815,13 @@ the actual final well-typed-program gate, paired with the existing two-member
 independent-use fixture. The unified declarative relation remains the target;
 these Oracle phases are characterization evidence, not semantic constructs.
 No tests or Oracle executions were run.
+
+Final-gate source tracing narrows the comparison target: `check` stops at
+poly inference; `build` and default `run` require runtime-ready poly output,
+then use runtime-evidence specialization, and default `run` selects Evidence
+VM. `run --interpreter` follows the distinct mono-specialization path. Therefore
+the recorded `dump-mono` rejection cannot stand in for default build/run
+acceptance. Next compare the singleton and mutual-SCC witnesses at the
+user-facing build/default-run specialization gate, keeping the mono result as
+a separate compatibility observation. No compiler or Oracle execution was
+performed.

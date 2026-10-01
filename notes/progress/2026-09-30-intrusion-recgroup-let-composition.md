@@ -303,3 +303,20 @@ derive SCC transport and finite solver bookkeeping from it. Local self
 endpoints, quantifier events, root projections, and specialization checks are
 Oracle pipeline facts to compare against that relation, not semantic
 constructs to copy into it.
+
+### Identify the user-facing final gate
+
+Further read-only CLI tracing distinguishes three gates. `check` stops after
+`check_poly_from_entry` and reports inference diagnostics. `build` and default
+`run` use `build_control_from_poly_output`, which first requires runtime-ready
+poly output and then calls `specialize_with_runtime_evidence_and_source_provenance`
+before control lowering; default `run` selects the Evidence VM backend. The
+explicit `run --interpreter` path instead calls `specialize_mono_program` and
+executes the mono runtime. Thus `dump-mono` is not the sole final acceptance
+path, and an inference-level `check` result is not sufficient evidence for
+runtime-build acceptance. The `f 1` mono rejection does not establish the
+default build/run result without tracing that specialization path or running
+the source through it. The next Oracle comparison should state which public
+acceptance gate it targets and distinguish build/default Evidence VM from the
+optional mono interpreter. This is source-path characterization only; no
+compiler or Oracle execution was performed.
