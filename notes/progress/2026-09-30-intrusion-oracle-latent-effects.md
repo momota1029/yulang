@@ -1546,3 +1546,125 @@ instantiation, or nested effect families. The new focused commands were:
 /tmp/yulang-intrusion-scc-owned-target/debug/yulang --no-prelude --no-cache dump /tmp/yulang-intrusion-weight-outer-owned-inline.yu --mono
 /tmp/yulang-intrusion-scc-owned-target/debug/yulang --no-prelude --no-cache dump /tmp/yulang-intrusion-weight-inner-owned.yu --mono
 ```
+
+### Declarative provider-scope judgment candidate
+
+The paired runs suggest a small independent semantic relation to challenge. It
+uses source-level scopes and runtime handler activations, not `StackWeight`,
+`SubtractId`, or left/right constraint routing. This is a **candidate judgment**
+for further falsification, not a selected language rule.
+
+Let a runtime handler activation be
+`h = (activation_id, covered_operations, entry_depth)`, with a fresh identity
+for each catch evaluation. A delayed computation value `v` carries an origin
+scope `Origin(v)`: the set/ordered stack of handler activations whose scope is
+captured when that computation value is formed or crosses a value boundary.
+When evaluating its body, nested catches written inside that body add their
+activations to the local request scope. A request occurrence `r` therefore
+carries a set of origin/local scope IDs `Scope(r)` independently of its type or
+effect-row support. The currently active handlers are ordered outermost to
+innermost as `H`.
+
+Candidate dispatch is:
+
+```text
+Eligible(r, h) := h is active in H
+               and h covers r.operation
+               and h.id ∈ Scope(r)
+
+Route(r, H) := the innermost h ∈ H satisfying Eligible(r, h),
+               or residual(r) if there is none
+```
+
+A callback created in the outer handler has the outer activation in its
+origin scope. Passing it through the inner function does not add the inner
+activation to that callback's scope, so the inner handler is active but
+ineligible for its request; the outer activation remains eligible and handles
+it. In the inner-owned fixture, callback creation occurs while the inner
+activation is already in scope, so that activation is captured and is the
+innermost eligible handler. This accounts for `[1]` and `[20]` without any
+weighted type rule. The provider set also explains why “nearest active handler
+with matching family” is too coarse.
+
+The judgment deliberately distinguishes (a) a concrete request's route and
+(b) a type abstraction's possible family support. An inferred row may safely
+over-approximate exact traces; it still must retain enough scoped evidence to
+avoid claiming that a handler catches a request outside its eligibility set.
+Residual requests keep their operation, family instance, payload/result
+constraints, and remaining scope evidence. This does not impose exact
+continuation-sensitive row inference or linear usage tracking.
+
+The current runtime's marker engine is only evidence for this candidate. The
+interpreter shows that values inherit marker plans from the active scope
+(`mono-runtime/src/runtime/flow.rs:279-294`), request occurrences collect
+active marker IDs (`runtime/flow.rs:152-183`), and a matching catch can skip a
+request when its guards block that handler (`runtime/eval.rs:455-475`,
+`runtime/flow.rs:296-350`). These are operational implementation details, not
+the declarative definition above and not proof of soundness. The candidate's
+source-level `Origin(v)` construction rule is still underspecified: it must
+explain values from globals, aliases, nested closures, returned thunks, function
+adapters, and independently instantiated callbacks without copying runtime
+marker IDs as static identities.
+
+Before this can serve as the source semantics, challenge it with at least:
+
+- direct requests in nested same-family handlers (ordinary dynamic nesting);
+- outer-owned callbacks called repeatedly beneath one inner handler;
+- two fresh instantiations of one callback scheme under distinct activations;
+- callbacks returned from inner/outer scopes and forced after those scopes end;
+- nested effect families and incomplete inner handlers;
+- resumed and non-resumed operation clauses, including effects in handler arms;
+- residual requests whose support and typed payload constraints are shared.
+
+For each, record the trace-level eligible activation set and compare it with
+interpreter outcomes. Only after this judgment is stable should the inference
+abstraction and its weight encoding be derived. A route mismatch would be a
+semantic counterexample to this candidate; only a separate soundness argument
+can establish that Oracle behavior should be dropped.
+
+### Correction: the first inner-owned control did not force its request
+
+The paired-control interpretation above needs correction. The first
+`inner-owned.yu` program returns `[20]`, but its mono dump shows that the catch
+scrutinee evaluates a function application to a thunk and does not force that
+thunk inside the catch. The `_ -> 20` clause is therefore the catch's value
+fallback; this run does not show the inner handler receiving an effect request.
+The earlier statement that it was an inner-owned request routed to the
+wildcard effect arm is withdrawn.
+
+A forced version annotated the helper as
+`my force_callback(f: () -> [_] int): int = f()` and placed the callback
+creation/call inside the inner catch scrutinee. Its mono tree contains
+`catch marker[choose](force-thunk(...))`, so an effect request is actually
+forced under the inner handler. When nested under the outer same-family
+handler, this version returns `[1]`: the outer reject arm runs. A direct
+`catch choose::reject()` inside the same nested function arrangement also
+returns `[1]`. As a control, the same direct inner catch run without the outer
+catch returns `[2]`, so the inner handler can handle the operation when it is
+the only matching activation. The outer-owned-inline request also returns
+`[1]`.
+
+These results refute the provider-scope candidate immediately above in its
+current form: capturing both outer and inner activation IDs predicts that the
+innermost inner activation is eligible, but the nested forced trace routes to
+the outer arm. “Created inside the inner catch” alone is not enough to make an
+activation eligible when the computation runs under the outer handler's
+provider context. The same-family source judgment needs a more precise notion
+of provider ownership or boundary masking, derived without copying Oracle
+weight routing. This remains runtime characterization, not proof that Oracle
+is sound or that the outer route is the successor rule.
+
+The supporting scratch CLI observations were:
+
+```text
+/tmp/yulang-intrusion-scc-owned-target/debug/yulang --no-prelude --no-cache run --interpreter --print-roots /tmp/yulang-intrusion-weight-inner-owned.yu
+/tmp/yulang-intrusion-scc-owned-target/debug/yulang --no-prelude --no-cache run --interpreter --print-roots /tmp/yulang-intrusion-weight-inner-owned-forced.yu
+/tmp/yulang-intrusion-scc-owned-target/debug/yulang --no-prelude --no-cache run --interpreter --print-roots /tmp/yulang-intrusion-weight-inner-direct.yu
+/tmp/yulang-intrusion-scc-owned-target/debug/yulang --no-prelude --no-cache run --interpreter --print-roots /tmp/yulang-intrusion-weight-inner-only.yu
+```
+
+Observed roots were respectively `[20]` (returned thunk/value fallback, not a
+request), `[1]` (forced request, outer handler), `[1]` (direct request nested
+under outer, outer handler), and `[2]` (direct request with only inner
+handler). The exact request guard/activation transition has not yet been
+captured; that is the next evidence needed before revising the judgment.
