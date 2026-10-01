@@ -696,6 +696,19 @@ the inclusion strict. This distinction is why relational composition can be
 the common core while splitting a may-row cannot by itself justify applying a
 handler transfer separately to each half.
 
+The strictness can arise from losing a value/effect correlation. Let a
+previous transformer `H` have two possible outputs: `Request(A,(),λ_.Return(0))`
+and `Return(1)`. Their collected support is `{A}`. A support-only
+concretization of `{A}` also admits `Request(A,(),λ_.Return(1))`, which was not
+an output of `H`. Let `G` handle `A` by resuming its raw continuation and emit
+`B` only when the resumed result is `1`. Then `G` after either actual output of
+`H` emits no `B`, but `May_G({A})` contains `B` because of the extra admitted
+computation. Thus abstraction between the two transformers makes
+`May_{G∘H}(X) ⊊ May_G(May_H(X))` for the two-output input fiber `X`. A complete
+relational interface can avoid this particular widening only if it retains
+the value/effect correlation; a may-row cannot assume exact handler
+composition.
+
 For the direct shallow fragment, the trace rules give the corresponding
 operational cases: `Return` executes the value arm; a covered, eligible
 request executes its operation arm with the raw continuation; an uncovered or

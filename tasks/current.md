@@ -3043,3 +3043,11 @@ equals the domain of `R ∩ P_H`. This identifies where a handler may
 legitimately constrain symbolic assignments and rules out a later accidental
 loss caused by support materialization. Derivation of `P_H` from actual source
 typing remains open.
+
+A finite value/effect countermodel now exhibits strict handler-composition
+loss for support-only rows: `H` can produce either `A; return 0` or `return 1`,
+while `γ({A})` invents the correlated case `A; return 1`; a later shallow
+handler emits `B` only in that invented case. Therefore the composed exact
+support is empty while reabstracting between handlers yields `{B}`. This
+strengthens the requirement to retain complete value/effect fibers where
+possible and use only a proved sound over-approximation when they are widened.
