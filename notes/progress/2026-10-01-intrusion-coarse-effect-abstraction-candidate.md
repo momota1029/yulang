@@ -5104,6 +5104,45 @@ The source judgment must establish that this is the right comparison
 relation. Until then the result is a conditional bridge from symbolic tail
 expansion to the delayed obligation rule, not a solver correctness theorem.
 
+#### Assignment-wise open typed-row characterization (conditional lemma)
+
+For a fixed joint assignment `(ν,μ)` to type variables and row tails, write
+`r₁ = Occ(R₁,μ)` and `r₂ = Occ(R₂,μ)`. Define
+`O_open(R₁,R₂,μ)` as the keyed collection of `(pair, InvArgs(...))` for each
+tagged within-left, within-right, and cross-row pair in `Pairs_F`, over every
+family head `F`. This collection keeps duplicate pair keys and owner incidence.
+Let `K_open` be its formula projection, which may collapse equal formulas.
+Define assignment-wise typed coverage by the chosen open-row relation:
+
+```text
+TypedRowLeq_ν,μ(R₁,R₂) iff
+  support(r₁) ⊆ support(r₂)
+  and ν satisfies K_open(R₁,R₂,μ)
+```
+
+Then the formula projection of the pair-obligation generator is exact for
+this relation at each fixed assignment: its structural support check and
+emitted `K_open` hold exactly when `TypedRowLeq_ν,μ` holds. The keyed
+collection `O_open`, rather than its formula projection, is the object that
+must be transported to preserve duplicate owner incidence. Consequently, the
+set of satisfying joint assignments is exactly the denotation of the retained
+symbolic `RowLeq` when the latter is interpreted by this assignment-wise
+relation. Tail expansion
+does not add a heuristic constraint: the exposure lemma gives a bijective
+correspondence between the obligations before and after occurrence-preserving
+substitution, including duplicates and owners. When support inclusion passes,
+no additional same-head argument atom is needed for this selected relation,
+and deleting a non-entailed emitted formula would admit an assignment outside
+it. This is pointwise exactness, not a normalization algorithm; it does not
+permit deleting duplicate keyed obligations or their incidence merely because
+their formulas are equal.
+
+The conclusion is conditional on choosing this typed relation as the source
+meaning of `RowLeq`. It does not prove that callback compatibility, handler
+matching, or any source construct should be governed by this relation; it
+does not establish termination, principal solving over unknown tails, or
+global effect principality. Those need independent source and solver proofs.
+
 #### Source-rule derivation of family obligation keys (candidate)
 
 The source-rule audit gives a concrete candidate derivation point for the

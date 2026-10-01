@@ -2390,3 +2390,15 @@ direction/bijection precision. This remains conditional on the candidate
 denotation and source rule; solver correctness and source-level appropriateness
 are unproved. See "Open-tail obligation exposure lemma (conditional)" in the
 candidate progress record.
+
+The assignment-wise open-row characterization now states that typed coverage
+is exactly support inclusion plus satisfaction of the formula projection of
+all within-row and cross-row pair obligations for each joint type/row
+assignment. A compiler-referee review found this exact relative to the
+candidate `RowLeq` denotation, and its minor finding is closed by distinguishing
+the formula projection from the keyed obligation collection: equal formulas
+may share satisfaction but must retain distinct occurrence owners and
+incidence. This is pointwise exactness only; source-rule appropriateness,
+normalization, and global effect principality remain unproved. See
+"Assignment-wise open typed-row characterization (conditional lemma)" in the
+candidate progress record.
