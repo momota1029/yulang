@@ -1649,6 +1649,33 @@ context simulation that tracks the complete application result (including its
 latent interface), inserts no demand by guessing from its row, and commutes
 with `Step_H` only when the source context actually demands the thunk.
 
+The frozen execution witness makes the simulation boundary concrete. In
+`runtime.rs`, `MakeThunk` returns a thunk value without evaluating a suspended
+body. An expression thunk stores that body, its captured environment, provider
+environment, and hygiene-mark requirement; an immediate value may use the
+`Value` thunk form. `eval_catch` keeps the catch active while evaluating its
+body, then dispatches a returned `Value` to value arms and a returned request
+to operation search. `ForceThunk` evaluates its operand and forces the thunk;
+forcing an expression thunk evaluates its saved body under the captured
+environment/provider context. A later request therefore enters the same
+request/activation visibility relation as any other request at that force
+boundary. A matched shallow arm gets the raw continuation after the catch has
+unwound; a forwarded request wraps its continuation to re-enter the catch
+after resumption. These are runtime transition facts, not source typing rules.
+They motivate the obligation to show that the complete interface composes the
+context's actual force with the proposed resumable computation relation, while
+transporting saved value and activation lineage; a row annotation cannot
+decide this boundary.
+
+The evidence is in the frozen checkout `a58eefc31`,
+`crates/evidence-vm/src/runtime.rs` (`MakeThunk`, `ForceThunk`,
+`force_thunk_result`, `eval_catch`, and shallow continuation handling),
+`spec/2026-06-13-mono-vm-contract.md` § Catch/effect handler, and
+`spec/2026-06-13-runtime-guard-markers.md`. It establishes runtime ordering
+only. It does not establish that a successor source typing derivation gives
+the callback the required thunk type, which source contexts insert the force,
+or that specialization simulates every such accepted derivation.
+
 The same simulation must transport dynamic visibility. Exact operation
 identity alone does not imply that activation `κ` handles a request: the
 frozen guard contract also compares request-carried guard lineage with the

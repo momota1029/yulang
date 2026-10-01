@@ -176,6 +176,16 @@ relational composition, not another callback selector or support-distribution
 rule. Typed-family `K,D` transport still requires its separate symbolic
 preservation premise, and the source typing/execution simulation remains open.
 
+The callback/shallow-catch section now records the exact frozen runtime
+boundary sequence: thunk construction may preserve an expression lazily,
+catch dispatches returned values separately from requests, force evaluates a
+suspended body, and shallow matched/forwarded continuations differ. A
+compiler-referee audit checked these facts against checkout `a58eefc31` and
+the VM contracts. It corrected the immediate-value thunk fast path and keeps
+the successor relational-composition claim as an obligation to prove, not a
+runtime fact. This adds characterization evidence only; source typing,
+specialization adequacy, and symbolic `K,D` transport remain open.
+
 A companion transport lemma now states that once a source rule creates one
 indexed `FamAgree_A` batch, a natural type substitution maps the full shared
 witness relation by reindexing, including its N-way and cross-position
