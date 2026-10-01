@@ -2072,6 +2072,47 @@ whether reference identity tests have enough must-alias information, or
 whether a returned value/effect bound is principal. It only supplies the
 heap-coordinate step needed by a later full-state simulation.
 
+#### RefSet operands and the source state they update
+
+A focused compiler-referee audit establishes the frozen control-flow fact but
+also locates the missing abstraction link. In `a58eefc3`, `RefSet` retains the
+forced reference while evaluating and forcing the assigned value through
+`continue_with`; if either phase yields a request, `continue_with_rc` puts the
+remaining computation in that request's resume closure. `handle_ref_set_result`
+then retains the assigned value while resolving callback results, forwarding
+requests, and resuming them. The runtime's continuation table stores these
+resumptions, and forcing a continuation invokes it with the current mutable
+`Runtime`. Thus an environment-only root relation is insufficient: an assigned
+value may point to a cell reachable only through a suspended continuation.
+The candidate `ctl` relation intends to cover evaluated operands and pending
+continuations, but the current `γ` definition does not yet extract and relate
+all values captured by pending or stored continuation closures. The local
+heap lemma remains valid under its explicit live-root premise; this audit does
+not discharge that premise.
+
+There is a second boundary: the frozen runtime has no primitive heap update
+for `RefSet`. `lib/std/control/var.yu` defines the standard reference protocol
+through the `ref_update` effect and implements mutable state in `var.run`'s
+`get`/`set` handler. Therefore `H[a ↦ v]` in the conditional heap lemma is an
+abstract state step, not a literal Oracle transition at `RefSet`. The
+source-level meaning is the relational composition already used in the
+`RefSet` characterization—operand evaluation, force, callback application,
+and ordinary typed request/handler transitions. Any cell abstraction must
+prove a bridge from that effect-owned state and its aliases to abstract cells;
+it cannot assume the bridge from the runtime helper name.
+
+The next proof target is a general live-root relation over the source
+configuration: current environments and state, control-held values, pending
+evaluation continuations, stored resumptions, and their transitively captured
+references/formulas. Prove its preservation across ordinary bind, force,
+forwarding, handler entry, and repeated resumption against the current state;
+then derive the RefSet operand cases by composition. Separately prove whether
+the standard `var.run` effect protocol admits the selected abstract cell view.
+This keeps captured roots and mutable semantics inside the one computation
+relation rather than introducing a RefSet-only semantic construct. Until those
+links are proved, neither the local heap lemma nor frozen-runtime
+characterization establishes source adequacy.
+
 A continuation invocation uses the current `H#` and the captured abstract
 reference graph; it does not reinstall a heap snapshot. Once a source
 resumption is shown to use the current concrete heap (as the frozen runtime

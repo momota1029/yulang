@@ -3581,8 +3581,11 @@ update-request resume transformer, and structural aggregate traversal; its
 focused compiler-referee review found no mismatch in request-header
 preservation, update-path matching, or live-state continuation threading. It
 remains characterization, not source authority.
-Next close the source-level live-operand, callback, capture, and resume
-correspondence, then establish source typing and SCC lifecycle. No compiler
-implementation is authorized by these candidate lemmas. The coupled-interface
-draft was also reconciled with the unified-theory direction: handler visibility
-is semantic, while route certificates are derivation evidence only.
+Next define and prove one source live-root relation over environments, current
+state, control-held values, pending/stored continuations, and captured
+references/formulas; prove bind/force/forwarding/handler/repeated-resume
+preservation; then establish the `var.run` effect-state bridge before using
+the abstract heap lemma for RefSet. Source typing and SCC lifecycle follow.
+No compiler implementation is authorized by these candidate lemmas. The
+coupled-interface draft treats handler visibility as semantic and route
+certificates as derivation evidence only.
