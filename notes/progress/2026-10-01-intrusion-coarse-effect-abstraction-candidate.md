@@ -8286,3 +8286,12 @@ rest of the pattern in its continuation, and its symbolic typed-family formula
 stays attached to the composed relation. This is a source-runtime
 characterization of frozen `continue_value_as_bind`, not a source typing rule;
 field-presence constraints and finite principal projection remain open.
+
+The injective bind-transport lemma now has a conditional `BindPat` instance:
+if type/boundary reindexing preserves field labels and runtime presence, and
+`Run` plus recursive pattern binding are equivariant, then transporting a
+record-default binding equals binding after transport. The missing-field case
+uses the ordinary resumable-bind equation, so requests and their `K_sym`
+incidence travel into the resumed remainder. This covers injective freshening
+and parent renaming for that fragment only; source typing and non-injective
+parent quotient preservation remain open.

@@ -1436,6 +1436,26 @@ operation relation are equivariant under the same map. It does not validate
 the withdrawn independent-support decomposition, and it says nothing about a
 non-injective parent quotient or solution-fiber completeness of a solver.
 
+**Pattern-default corollary.** Extend `Tr_θ` structurally to the record
+pattern, its field subpattern, and its default expression. Assume it preserves
+field labels and the runtime present/missing test, and that `Run_ν` and the
+recursive `BindPat` relation are equivariant under `θ`. Then:
+
+```text
+Tr_θ(BindField_{p,e}(r,η,s)) =
+  BindField_{Tr_θ(p),Tr_θ(e)}(Tr_θ(r,η,s))
+```
+
+When the field is present, this is the assumed `BindPat` equivariance. When it
+is missing, apply `Run` equivariance and then the resumable-bind lemma above;
+the resumed default continuation still reaches the transported remainder of
+the pattern. Since `Tr_θ` maps each request formula and incidence with the same
+identity action, this transports typed-family constraints emitted by a
+default through freshening or injective parent renaming without rebuilding
+them from the residual row. The result is conditional on source `BindPat`
+adequacy and injective transport; it does not prove source typing of field
+presence or the non-injective parent quotient theorem.
+
 #### Conditional handler naturality under solver substitution
 
 Type solving can be non-injective on flexible type variables without merging

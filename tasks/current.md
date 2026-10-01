@@ -3542,4 +3542,7 @@ The transfer soundness lemma now requires only coverage of source computations
 and a transition/observation simulation; totality is isolated to exact-domain
 preservation. A single record-pattern default now has an explicit
 state-threaded `BindPat` presence split; source typing of field presence and the
-finite principal projection remain open.
+finite principal projection remain open. An injective reindexing corollary now
+transports that binding through `Run`/bind equivariance, including the default
+request's symbolic family incidence; non-injective intrusion and source typing
+are still open.
