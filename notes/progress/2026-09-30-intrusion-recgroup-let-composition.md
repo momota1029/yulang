@@ -443,3 +443,49 @@ remaining pure adequacy task is to state and prove the top-level SCC fold
 against the source declaration/export rules, including the computed-root
 boundary, then compare multiple dependency-ordered SCCs and imported outer
 anchors. This remains before effects, handlers, or implementation.
+
+#### Conditional module theorem
+
+For the current pure value fragment, make that fold explicit. Assume a finite
+module environment is resolved into a dependency-ordered list of ordinary
+function SCCs `G₁,…,Gₙ`, plus a list of top-level pure computation roots
+`e₁,…,eₖ`. Let the candidate semantic environment after component `i` be
+`Γᵢ`, with `Γ₀=Γ_import`; define
+
+```text
+Pᵢ,d = MemberTypes_{Gᵢ,d}(Γᵢ₋₁,η)
+Γᵢ   = Γᵢ₋₁[d ↦ Poly(Pᵢ,d)]_{d∈Gᵢ}
+```
+
+Then the pure module relation is nonempty exactly when every component
+`RecGroup` relation is valid and each root has a derivable type in `Γₙ`. The
+root list is an execution-order observation over those already-typed bodies;
+it contributes no additional subtype premise. This is a derived fold of the
+existing group/environment rules, not another selector or binding-specific
+semantic rule.
+
+**Conditional adequacy proof.** Suppose each component graph scheme `Hᵢ,d`
+denotes `Pᵢ,d` at the fixed outer assignment, and the generator/semantic
+environments satisfy `Ξᵢ≈_ηΓᵢ`. At `i=0`, this is the imported-environment
+assumption. For each `Gᵢ`, the reviewed recursive-group adequacy theorem maps
+its base graph assignment to `ValidRec`; its exact root-set equation gives
+`Inst_{Hᵢ,d}=Pᵢ,d`. Environment extension therefore preserves
+`Ξᵢ₊₁≈_ηΓᵢ₊₁`. Induction yields the relation for `Gₙ`; applying the reviewed
+nested-expression adequacy theorem to each `eⱼ` gives equality of its
+generated and semantic type sets. Nonempty graph witnesses combine because
+each fresh component/use range is disjoint and every shared imported anchor
+uses the same `η`. Conversely, a module derivation supplies one `RecGroup`
+witness per component and one expression witness per root; group adequacy,
+environment extensionality, and the inverse fresh-renaming maps combine them
+into graph witnesses.
+
+This proves the fold only **if** the source declaration semantics has exactly
+this component rule and the SCC partition is acyclic after dependency edges
+are condensed. It does not establish that premise from Yulang's top-level
+syntax, binding-fetch classification, export rules, or runtime-root producer.
+It also excludes non-function value SCCs, computed definitions referenced by
+other declarations, effects, roles, and methods. The witness `f` plus pure
+root `f (λz.z)` lies in the stated class after treating the unused public
+computed binding's RHS as a root body. Independent review of this module lemma
+and a source-rule correspondence proof remain required before claiming pure
+top-level adequacy.
