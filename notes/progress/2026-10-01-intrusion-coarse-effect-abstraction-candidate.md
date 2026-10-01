@@ -4841,6 +4841,39 @@ request, handler, residual, and scheme view that depends on it. This rules out
 the earlier weaker reading in which invariance was generated only when two
 already-materialized row heads happened to meet.
 
+#### Review finding: symbolic lifecycle is a requirement, not yet a proof
+
+A focused compiler-referee audit confirms that the phase-transport result
+below remains conditional: its premises assume the very generation,
+substitution, residual carriage, ownership-aware generalization, and use
+freshening rules that a complete proof must establish. The structural
+renaming argument does not prove those transitions for an actual machine.
+Likewise, retaining formulas in one global `K_sym` set is insufficient if a
+generalized root, residual, or use view loses its owner path to the formula.
+
+The delayed open-row case gives a concrete failure mode. Start with
+`RowLeq([F<α>], ρ)` and solve `ρ := [F<β>]`. A support-only normalizer that
+consumes the relation before recording both `InvArgs(F<α>, F<β>)` and its
+dependency on the resulting view admits `α = Int, β = String` under the
+candidate typed relation. The formula must be emitted while the symbolic tail
+assignment and source occurrence provenance are still available; the
+incidence path must then survive generalization and each use. This is stronger
+than merely retaining an unowned formula.
+
+The next proof unit is a transition simulation for each actual phase, with
+independently source-derived obligation keys and `Demand(view, key)`: show
+that every output view still demanded by the source retains a path to
+pending/proved symbolic evidence. The open-tail exposure lemma above provides
+only the pair-derivation part conditional on occurrence-preserving
+substitution; the incidence invariant gives only the target property.
+Neither yet proves a concrete solver transition. The compiler-referee audit
+also confirmed that mutual subtype is only a shorthand: the common-witness /
+cross-bound meaning for interval-valued invariant arguments remains
+necessary, so proving transport of the shorthand alone would not close
+source semantics. This finding blocks any claim that the typed-family
+lifecycle is proved or implementation-ready; it does not weaken the user's
+symbolic-retention requirement.
+
 #### Conditional phase-transport lemma and parent-map quotient obligation
 
 For a symbolic obligation `I = InvArgs(F<τ̄>, F<ῡ>)`, type substitution is
@@ -5104,6 +5137,44 @@ with `P` on typed endpoints and `Theta` on hygiene identities. Until these
 transition rules and their source ownership are proved, this remains an
 abstract proof obligation, not a selected storage representation or
 implementation contract.
+
+#### Conditional incidence preservation for a fresh use copy
+
+One phase can be isolated as a graph-copy lemma. Let `G` be the incidence
+subgraph for one generalized root and its live dependent typed views. For
+every independently source-derived `Demand(v,o)` in that set, `G` contains a
+record representing `o` and the complete owner path from that record to `v`;
+thus closure traverses incoming `κ -> v` edges to include their obligation
+records, as well as all dependent views in the component. Let external-use
+instantiation copy exactly the ledger/view vertices and owner edges of `G`
+using an incidence-graph isomorphism `j` on ledger-record, use-view, and
+obligation-occurrence identities, and an injective map `ι` on component-owned
+type identities. The image of local type identities
+under `ι` is disjoint from fixed outer anchors; `ι` fixes those anchors. The
+isomorphism `j` preserves source-origin labels and gives this use a range
+disjoint from every other external use. Assume the independent source-derived
+`Demand` relation commutes with the copy: an output view demands key `j(o)`
+exactly when its preimage demands `o`, where key transport `j(o)` means the
+use-occurrence identity is mapped by `j`, symbolic type endpoints by `ι`, and
+source-origin labels remain fixed.
+
+Then the copy preserves the incidence invariant in both directions. Each
+owner path `κ ->* v` maps edge-by-edge to `j(κ) ->* j(v)`, and every path
+inside the copied incidence graph has a preimage because the copy is an
+isomorphism. Formula endpoints are transformed by `ι`, so an
+`InvArgs` record remains the same symbolic relation up to the injective type
+renaming; pending/proved state and transportable proof evidence are copied
+with it. Disjoint ranges prevent obligations from separate instantiations
+from being accidentally merged, while fixed anchors remain shared. The proof
+is induction on path length plus the assumed commutation of `Demand` and the
+homomorphic formula action.
+
+This establishes the graph-theoretic obligation for a use-copy transition
+that satisfies these premises. It does not prove the premises for a proposed
+instantiator, choose the ledger representation, or establish that the
+candidate interval-valued invariant relation is transported by the selected
+type renaming. It also says nothing about internal SCC uses, which retain live
+component identities rather than copying this subgraph.
 
 #### Delayed open-row family obligations (conditional solver rule)
 

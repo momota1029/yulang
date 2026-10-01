@@ -2577,3 +2577,24 @@ can be carried through actual solve, residualize, generalize, freshen, and
 intrusion transitions while preserving satisfiability and root/use
 observations. The regular-witness result does not establish that lifecycle,
 SCC principality, effects/handlers, or Oracle final acceptance.
+
+A focused compiler-referee audit confirms that the existing typed-family
+transport theorem assumes, rather than proves, the concrete phase transitions.
+In particular, global formula retention without root/residual/use ownership
+incidence is insufficient. The witness is an open relation
+`RowLeq([F<α>], ρ)` followed by `ρ := [F<β>]`: consuming it after support-only
+normalization admits an argument assignment forbidden by the typed relation.
+Next prove per-phase transition simulation from independent obligation keys
+and `Demand(view,key)` to owner-path preservation, including open-tail
+exposure before consumption, then generalization, per-use cloning, and
+intrusion incidence. Keep the common-witness meaning for interval-valued
+invariant arguments distinct from the mutual-subtype shorthand. No actual
+solver transition or complete typed-family preservation proof is established.
+A conditional external-use graph-copy lemma now proves two-way owner-path
+preservation when the copy is an incidence-graph isomorphism over the full
+dependency closure, with injective type renaming disjoint from outer anchors.
+Compiler-referee review found and closed the closure-direction and exact-copy
+premise gaps; the final notation explicitly separates use-ID transport from
+symbolic endpoint transport. This closes only the abstract graph-copy step,
+not the actual instantiator premises or solve/residualize/generalize/intrusion
+transitions.
