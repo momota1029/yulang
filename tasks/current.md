@@ -163,6 +163,12 @@ under the full source constraint relation, and interface/formula denotations
 must respect that equivalence. This preserves the complete fiber modulo type
 equivalence; `FamAgree_A` overlap alone does not meet the condition. General
 parent-map quotient and recursive/interface cases remain open.
+A constrained component scheme also yields an independent-use product law
+when each external use consistently freshens all local identities and fixes
+the same outer anchors. Internal SCC references remain inside one shared
+component relation, rather than forming product factors. This is conditional
+on the source generalization rule and complete binder ownership; caller
+constraints may couple uses only after their separate instances are formed.
 
 ## Objective
 

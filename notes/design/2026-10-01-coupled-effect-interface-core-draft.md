@@ -511,6 +511,55 @@ assignment-dependent route/coverage, or recursive SCC closure. It is a local
 representability/principality result conditional on exact source-rule
 generation, not yet the successor scheme theorem.
 
+### Independent external uses versus internal SCC references
+
+The constrained presentation gives a direct product lemma for independent
+external uses. Assume one generalized component has relation
+
+```text
+Inst_C(ρ) = { (ν,I) | K_C(ρ,ν,I) }
+```
+
+and its source scheme rule instantiates every component-owned identity at
+each external use. For every use `u`, let `ι_u` be one injective,
+capture-avoiding renaming of all locally owned identities in the complete
+interface and formula, fixing the same rigid `ρ`. Require the ranges of the
+`ι_u` to be pairwise disjoint. The unconstrained joint relation is:
+
+```text
+Joint_U(ρ) = { ((ν_u,I_u))_u | (ν_u,I_u) ∈ ι_u(Inst_C(ρ)) for every u }
+```
+
+It has the equivalent finite presentation
+
+```text
+K_U = ⋀_u ι_u(K_C)
+```
+
+over the disjoint union of the local identity ranges and the one shared
+outer assignment `ρ`. Proof in each direction is restriction/union of
+assignments: a joint assignment satisfies the conjunction exactly when its
+restriction to every disjoint use namespace satisfies that use's renamed
+`K_C`. Since each `K_C` includes typed-family formulas and incidence, the
+product duplicates those together with the roots; it does not share their
+local identities across uses. A caller constraint `K_ctx` may relate copies,
+but it intersects with `K_U` only after the independent instances exist.
+
+Internal SCC references are different because the component interface
+already contains all mutually recursive roots and their shared graph. They
+remain references inside one `Inst_C(ρ)` and receive no `ι_u` per recursive
+edge. The product factors over external use sites of the generalized
+component, not over SCC members or internal calls. This is the relational
+form of open live-root sharing inside a component and independent freshening
+at its boundary.
+
+This proves the product equation only if the source generalization rule gives
+each external use an independent instance and correctly classifies all free
+outer anchors. It does not prove that the source builds `K_C` exactly, that
+the constrained formula solver terminates, or that root-scheduler mutations
+are captured by the component relation. Those are still required for the
+intrusion redesign's Oracle-capability theorem.
+
 ## Open gates
 
 This draft does not yet define the supported source semantics or prove the
