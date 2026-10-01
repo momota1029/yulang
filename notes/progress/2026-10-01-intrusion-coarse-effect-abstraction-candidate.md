@@ -8157,6 +8157,15 @@ transition, or use a separately proved sound output widening rather than
 filtering away the source fiber. This is a completeness proof obligation,
 not a new handler rule or justification for Oracle routing.
 
+The finite-interface adequacy condition is now explicit: each source fiber
+must have some finite input view that both over-approximates all of its source
+computations and remains handler-safe over the whole abstract fiber; its
+finite output must cover every source transition result. Final-acceptance
+capability requires such a view for every well-typed source fiber.
+Principality then asks for the least sound expressible output for that view.
+This isolates the exact representation theorem behind the unified candidate;
+whether the proposed constrained-interface language satisfies it is open.
+
 #### Freshening lemma: quantify semantic binders, reindex presentation labels
 
 The generalization/fresh-use lemma is now scoped to one complete published

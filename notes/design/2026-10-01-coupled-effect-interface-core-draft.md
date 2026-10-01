@@ -1207,6 +1207,29 @@ retain enough of the complete relation or widen the output by a separately
 proved sound abstraction instead of filtering out the source fiber. Ground
 support soundness alone is insufficient for this gate.
 
+The precise requirement on a finite interface language can be stated without
+choosing a handler-specific fallback. For a source fiber `Src(ν,O)`, let
+`γ(A)` be the computations represented by finite input interface `A`, and
+let `Out_H(Src(ν,O))` be the outputs of the declarative source transition.
+An input presentation is adequate for this handler when
+
+```text
+Src(ν,O) ⊆ γ(A)                         (input soundness)
+∀c ∈ γ(A). ∃c'. Step_H(ν,A,c,c')       (handler-safe fiber)
+Out_H(Src(ν,O)) ⊆ γ_out(Ĥ(A))           (output soundness)
+```
+
+Final-acceptance capability requires that every well-typed source fiber have
+at least one finite `A` satisfying the first two conditions and an output
+presentation satisfying the third. Principality additionally requires the
+selected output to be least among the sound outputs expressible for that
+input fiber. This exposes the real finite-presentation theorem: retain enough
+typed request, payload/result, and continuation correlation to cover the
+source fiber while keeping the abstract fiber handler-safe. It adds no source
+rule; it is the adequacy condition the unified relation/presentation must
+meet. If no such `A` exists in the chosen finite language, the language does
+not meet the charter's final-acceptance target for that fiber.
+
 **Conditional transfer theorem.** If (1) `C_ρ(I,ν)` covers every concrete
 scrutinee represented by each `(ν,I) ∈ R_{H,κ,ρ}`, (2) `H_κ` is total on those
 fibers and agrees with the source shallow-handler transition, and (3) `Obs_H`

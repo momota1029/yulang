@@ -3498,3 +3498,8 @@ typed request/payload pairing and thereby reject a valid source fiber. This
 is an abstract countermodel, not an observed Yulang mismatch. The solver must
 preserve the relevant correlation or prove a sound output widening; ground
 support soundness alone does not ensure final-acceptance capability.
+The resulting adequacy gate is: every well-typed source fiber needs a finite
+input view that covers its source computations, is handler-safe over that
+whole abstract fiber, and has an output presentation covering every source
+result. Principality requires the least sound expressible output. Existence
+of this view for the full supported envelope remains open.
