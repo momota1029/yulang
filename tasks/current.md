@@ -3289,4 +3289,10 @@ can influence a later multi-shot resume. `MayReq` is then projected from the
 whole resumable relation; support separability needs its own theorem. Frozen
 runtime code confirms the relevant shared-`Runtime` continuation composition
 and effectful `RefSet` path, but there is not yet a typed source witness for
-the exact `q`/`g` pattern or an Oracle acceptance mismatch.
+the exact `q`/`g` pattern or an Oracle acceptance mismatch. The same node
+presentation now states the single handler-image cases: value arm on return,
+matching visible request gets the raw continuation outside the frame, and an
+unmatched request is forwarded with same-activation re-entry on resume.
+Family formulas stay in `K` with updated incidence when a request is consumed;
+only support is projected. These handler equations remain a candidate pending
+runtime/source simulation and symbolic-preservation proof.

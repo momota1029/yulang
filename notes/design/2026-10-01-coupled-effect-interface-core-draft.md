@@ -587,6 +587,28 @@ The node presentation and live-state argument remain candidates until their
 simulation against Yulang's runtime contract and typed-family transport are
 proved.
 
+The already introduced `Step_{H,κ,ρ}` relation can be presented as one
+activation transformer on these resumable nodes. On `Return(v,c)`, it runs
+the value arm after leaving activation `H`. On `Request(q,c,k)`, it evaluates
+the source-ordered arm matching relation using exact operation identity and
+`Visible(q,H,c)`. If an arm accepts, it runs outside `H` and receives the raw
+`k`; the result is the arm computation composed with whatever it does to `k`.
+If no arm accepts, the request is forwarded after unwinding `H`, and its
+continuation is wrapped to re-enter the same activation before continuing
+`H(k(r))` after resumption. Pattern failure and false guards try later arms;
+effects from arm guards run under the outer active context. These are cases
+of one `Step_H` image, not a separate row-subtraction or callback rule.
+
+The request's family/argument formulas remain in `K`, with `D` updated to
+the dependent arm, continuation, and root views even when a matched request
+node is consumed. The handler choice uses operation and visibility
+coordinates, while operation-signature and payload/result constraints restrict
+the same solution relation before its output support is projected. Thus
+handling a visible request can remove an immediate support fact while its
+symbolic family condition remains live through a raw continuation or another
+root. This is the node-level form of the existing `K,D` transport obligation;
+it does not make family equality or handler visibility a row-set property.
+
 Application and shallow catch use the same relational operations, without a
 callback-specific effect selector. Under the frozen runtime contract's
 call-by-value evaluation of callee and argument expressions, the candidate
