@@ -58,7 +58,13 @@ instances of the same family head; that determines whether a single-slot row
 is justified or a contract-set relation needs disjunctive matching. The frozen
 `03_parameterized_effect_capture.yu` corpus case has `ask.get` at both `int`
 and `str`, but tests separately specialized handlers and does not settle one
-polymorphic arm. No candidate is yet proved sound or principal.
+polymorphic arm. A direct one-arm probe now shows `check` accepts a shallow
+handler that ignores its continuation and returns a fixed pair, while frozen
+`run` rejects on `int`/`str` family candidates; its exact shallow trace never
+executes the second request. This is a concrete candidate Oracle over-rejection.
+The successor candidate keeps support but checks separately retained request
+contracts; source typing and leastness for that rule remain open. No candidate
+is yet proved sound or principal.
 
 ## Objective
 

@@ -4937,6 +4937,44 @@ single-slot premise; a source typing/acceptance argument for a polymorphic
 family row is still required. The frozen fixture is a counterexample search
 target, not authority for the successor rule.
 
+##### One-arm discriminator probe
+
+I evaluated a minimal variant with one handler arm whose body ignores both the
+payload and continuation:
+
+```yu
+pub act ask 'a:
+    pub echo: 'a -> 'a
+
+catch (ask::echo 1, ask::echo "s"):
+    ask::echo _, k -> (1, "s")
+    v -> v
+```
+
+Against the frozen binary at `a58eefc31e22141574b6f20c6a5748151c6d79f1`,
+`check --no-prelude` exits successfully, while `run --no-prelude --no-cache`
+rejects with `conflicting type candidates: int vs std::text::str::str`.
+The program's direct shallow trace is `Request(ask.echo, 1, k)`; the handler
+returns `(1,"s")` without invoking `k`, so the continuation containing the
+second request is never executed. The payload pattern is irrefutable and the
+arm result matches the value arm's pair result. Thus the exact shallow
+semantics has no type collision on this execution. Oracle accepts its
+inference stage but its final specialization rejects it before runtime.
+
+This is concrete evidence against treating the different type arguments as
+two different runtime operations, but it is also a candidate over-rejection by
+the frozen final pipeline. A successor that keeps the family support
+projection while retaining typed request contracts separately can check the
+single arm against the possible requests without equating unrelated request
+occurrences merely because their `FamHead` agrees. The exact trace does not
+require a linear continuation type: it only shows this arm does not resume.
+The remaining proof is to derive the arm/request compatibility and its
+least-solution behavior from source typing, then prove that the coarse
+may-request abstraction remains sound when other arms do resume. This is a
+proposed compatibility expansion (successor acceptance where frozen `run`
+rejects), not an approved semantic rule or an inference that every
+same-family pair must be kept independent.
+
 A suitable proof sequence is therefore: settle the family-uniformity lemma
 from operation typing and handler application semantics; prove the ground
 algebra for its resulting row domain; lift the relation symbolically and test
