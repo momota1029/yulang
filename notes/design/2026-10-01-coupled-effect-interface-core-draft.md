@@ -517,6 +517,14 @@ state without the `F` mutation, the displayed right side contains `q` but
 misses `g`, while the composed relation contains `g`. This is a semantic
 counterexample to the decomposition under that `Ret*` interpretation, not a
 claim about a particular Oracle fixture.
+The frozen runtime has the relevant interaction shape: `continue_with_rc`
+resumes the saved request through the same mutable `Runtime` before running
+the appended continuation, and `ExprKind::RefSet` invokes the reference's
+`update_effect` before completing the assignment
+(`main` at `a58eefc3`, `crates/mono-runtime/src/runtime/thunk.rs` and
+`runtime/eval.rs`). This is characterization evidence that the stateful
+pattern is reachable in the runtime model; it does not prove a typed source
+program realizing the exact `q`/`g` witness or any Oracle mismatch.
 
 The sound general statement is only that support is projected from the
 complete composed relation. The displayed equation can be recovered under
@@ -529,6 +537,33 @@ identities, and dependent symbolic formulas. A formula remains in the
 composed relation unless a retained proof establishes equivalence for every
 dependent view; the failed support equation does not authorize projecting a
 typed-family constraint after its last request was filtered away.
+
+The operational composition must therefore act on the complete resumable
+computation, not on two support sets. As a candidate presentation, write its
+observable nodes as `Return(v,c)`, `Request(q,c,k)`, and finite
+`Prefix(τ,c)`, where `c` is the current machine configuration and a saved
+resumption `k` accepts the response and re-entry configuration allowed by
+the source handler semantics. Continuation substitution is:
+
+```text
+Return(v,c) >>= F       = F(v,c)
+Request(q,c,k) >>= F    = Request(q,c, λr. k(r) >>= F)
+Prefix(τ,c) >>= F       = Prefix(τ,c)
+```
+
+Here `r` carries the permitted resumed value and live machine state. In
+particular, the store is not rolled back to the state captured when `k` was
+created; dynamic handler/frame re-entry follows the source resumption wrapper
+inside `k`. Thus after a first resume runs `F` and changes a shared cell, a
+second resume feeds the changed state back into the original continuation.
+The counterexample above is represented by this single substitution law.
+Handlers inspect and transform these same nodes, and `MayReq` is projected
+from the resulting complete relation. This avoids adding a stateful-bind
+exception to the effect algebra: the algebra acts on resumable behavior, and
+separability of its support is a theorem only under proven conditions.
+The node presentation and live-state argument remain candidates until their
+simulation against Yulang's runtime contract and typed-family transport are
+proved.
 
 Application and shallow catch use the same relational operations, without a
 callback-specific effect selector. Under the frozen runtime contract's

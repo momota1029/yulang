@@ -3282,4 +3282,11 @@ draft. Relational composition itself remains the semantic definition; an
 independent union of the two support projections is not generally valid.
 Complete-interface composition still shares `ν`, owner identities, and
 symbolic formulas; support projection cannot discard a formula when its last
-request disappears.
+request disappears. The draft's replacement is to define bind by continuation
+substitution over `Return`, `Request`, and finite-prefix observations. The
+saved continuation receives the live resumed state, so an effectful suffix
+can influence a later multi-shot resume. `MayReq` is then projected from the
+whole resumable relation; support separability needs its own theorem. Frozen
+runtime code confirms the relevant shared-`Runtime` continuation composition
+and effectful `RefSet` path, but there is not yet a typed source witness for
+the exact `q`/`g` pattern or an Oracle acceptance mismatch.
