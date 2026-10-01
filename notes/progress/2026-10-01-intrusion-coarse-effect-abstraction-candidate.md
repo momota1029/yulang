@@ -2345,6 +2345,45 @@ and interpreter execution; roots were `[2]` and `[7]`. `--mono` dumps and
 described above. These additional probes further falsify receiver-local grant
 sufficiency; they do not establish an Oracle soundness conflict.
 
+#### Conditional pure-currying trace law
+
+A useful source-semantic law to test independently is pure-currying
+permutation invariance. Let `v` and `w` be values whose evaluation emits no
+requests, and let the callback argument be used only after both parameters
+have been received. Under ordinary call-by-value beta semantics,
+
+```text
+((λx. λf. body(f)) v) w
+((λf. λx. body(f)) w) v
+```
+
+reduce to the same `body(w)` configuration. If effect annotations constrain
+latent support but do not change runtime dispatch, both configurations enter
+the body with the same handler stack and must have the same request trace and
+handler route. This is a conditional semantic law, not yet an approved Yulang
+rule; the source authority has not defined whether callback contracts affect
+dispatch.
+
+The immediate callback-first/callback-second fixtures instantiate this law's
+shape: the reordered `int` and lambda arguments are pure values, the same
+callback is invoked under the same nested complete catches, and both programs
+pass `check`. The frozen Oracle returns `[2]` (inner catch) for callback-first
+and `[9]` (outer catch) for callback-second. Thus, if the successor adopts
+ordinary pure beta/currying invariance, this is a concrete Oracle runtime
+compatibility difference to record; it is not an acceptance-capability
+difference, since both sources are accepted. The staged pair further shows
+that placing the callback receipt before versus after construction of a
+residual partial function changes the frozen route. No weight law follows
+from these observations.
+
+The next semantic decision to settle is therefore whether a callback effect
+contract is purely a static latent-row bound or also a source-level dispatch
+boundary. If it is only a bound, the pure-currying trace law is a direct
+soundness check on handler routing. If it changes dispatch, define that rule
+without referring to adapter markers, then test capture, partial application,
+closure escape, and independent instantiation against it. This semantic
+distinction must be settled before treating the routed support as principal.
+
 The independent-use case checked successfully; both interpreter runs and
 `--poly-raw` / `--mono` dumps completed. Relevant temp fixtures are
 `/tmp/yulang-intrusion-grant-independent-uses.yu`,

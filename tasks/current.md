@@ -2108,8 +2108,14 @@ first and supplied a callback under that catch bypasses both function-local
 handlers and reaches the caller (`[7]`). The mono tree places a carry-marker
 adapter on the residual function only in the first variant; runtime tracing
 confirms the frozen route but does not justify it semantically. Define
-argument-contract scope across a residual partial application independently
-of marker transport, then check it against immediate and staged cases under
-the chosen coarse effect abstraction. Evidence is in
+whether callback effect contracts are static latent-row bounds or also
+source-level dispatch boundaries. Under ordinary call-by-value semantics,
+permuting receipt of pure independent arguments leaves the same body
+configuration, so the immediate pair's `[2]` versus `[9]` is a conditional
+runtime compatibility difference if contracts are static-only. Both programs
+are accepted, so this is not an acceptance-capability mismatch. If contracts
+alter dispatch, specify that source rule independently of adapter markers and
+challenge it with staged receipt, closure escape, and independent uses.
+Evidence is in
 `notes/progress/2026-10-01-intrusion-coarse-effect-abstraction-candidate.md`,
 section "Partial-application order stress on the receiver-grant candidate".
