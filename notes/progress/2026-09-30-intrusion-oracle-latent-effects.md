@@ -1668,3 +1668,43 @@ request), `[1]` (forced request, outer handler), `[1]` (direct request nested
 under outer, outer handler), and `[2]` (direct request with only inner
 handler). The exact request guard/activation transition has not yet been
 captured; that is the next evidence needed before revising the judgment.
+
+### Frozen runtime guard transition for nested same-family requests
+
+An env-gated diagnostic in the disposable frozen checkout recorded request
+coloring and catch-boundary decisions for the forced inner-owned callback,
+direct nested request, inner-only direct request, and outer-owned inline
+request. The forced nested request was created while frames for both outer
+`GuardId(0)` and inner `GuardId(1)` activations were present. Its active add-ID
+markers included outer-owned `choose` markers for ID 0 and inner-owned markers
+for ID 1. Marker selection added only ID 0 to the request's `guard_ids`; the
+inner own-path markers did not color that request. The request had no carried
+guards.
+
+When the inner `choose` boundary closed, the request received
+`HandlerBoundary { id: GuardId(1), handler_path: ["choose"], blocked: true }`.
+The inner arm was skipped with `Preserve(GuardId(1))`. The enclosing outer
+boundary then had `HandlerBoundary { id: GuardId(0), handler_path: ["choose"],
+blocked: false }`, and the outer arm handled it. The direct nested request
+showed the same decision. With only the inner handler, there were no active
+add-ID markers, no request guards, and no blocked inner boundary; its arm
+handled the request. The outer-owned inline control was colored with ID 0 and
+also skipped the inner boundary before reaching the outer arm.
+
+This identifies the immediate operational reason for the observed routing:
+the inner boundary is explicitly marked blocked before the request reaches the
+outer catch. It does not establish that the marker/weight rule is semantically
+sound. In particular, `guard_ids` and `HandlerBoundary` are frozen runtime
+mechanisms, not a source-level provider judgment. The earlier provider-scope
+candidate is refuted; any successor explanation must account for origin color,
+own-path exclusion, and boundary blocking without treating IDs or their
+current propagation algorithm as semantic authority.
+
+The scratch-only diagnostic used `YULANG_INTRUSION_GUARD_TRACE=1` and was added
+only in `/tmp/yulang-intrusion-scc-owned-trace`. The focused CLI build completed
+and these four interpreter runs produced the transition above. No branch test
+or compiler source was changed. The diagnostic source edits are disposable
+scratch changes and are not part of this branch. A productive next
+characterization is to vary one semantic factor at a time (callback ownership,
+inner handler completeness, repeated calls, and independent instantiation) and
+compare both the final handler and the generated boundary-block reason.

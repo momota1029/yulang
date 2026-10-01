@@ -2048,10 +2048,13 @@ callback and direct nested request both route to the outer handler (`[1]`);
 the direct request reaches the inner handler (`[2]`) when no outer handler is
 present. These observations refute the first provider-scope candidate, which
 predicted that the innermost captured matching handler would handle the forced
-inner request. Exact request-guard/activation transitions remain uncaptured,
-and this is runtime characterization rather than a soundness result. Next
-capture that transition in the frozen scratch runtime, then derive a source
-judgment independently of Oracle weight routing. The correction and evidence
-are in
+inner request. The frozen scratch runtime now shows the forced request colored
+only by the outer guard ID; the inner same-family boundary is marked blocked,
+then the outer boundary is unblocked and handles it. Inner-only direct handling
+has no request guard and no blocked boundary. This explains Oracle's immediate
+runtime path, not a semantic justification of its propagation rule. Next vary
+callback ownership, inner-handler completeness, repeated calls, and independent
+instantiation, then derive a source judgment independently of weight routing.
+The correction and transition evidence are in
 `notes/progress/2026-09-30-intrusion-oracle-latent-effects.md`, section
-"Correction: the first inner-owned control did not force its request".
+"Frozen runtime guard transition for nested same-family requests".
