@@ -1939,7 +1939,13 @@ now records per-root constraint-epoch intervals, order-sensitive root settling,
 and the distinct `InstantiateUse` versus `OpenUse` relations in
 `notes/progress/2026-10-01-intrusion-oracle-root-epochs-and-use-context.md`.
 It confirms these facts are comparison evidence only: the interval metrics do
-not reconstruct each compact iteration, and no concrete mixed-ownership source
-fixture has been found. Next derive source-step preservation for the complete
-base/member views and `K_ctx`, including a mixed-ownership fixture. Effect-row
-principality, route quotient completeness, and Oracle acceptance remain open.
+not reconstruct each compact iteration. A focused fixture audit in
+`notes/progress/2026-10-01-intrusion-mixed-ownership-fixture-audit.md` found
+the exact raw-ID local/free split in the nested diamond, but no same-SCC
+two-member fixture with finalized Q/R/free occurrences. A naive
+computed-fetch cycle is rejected; this does not rule out root-projection or
+other source shapes. Next establish the source-defined ownership rule from
+root reachability, sequential shared-constraint mutation, and finalization;
+apply it to the recorded guarded two-member SCC, or prove the needed same-SCC
+fixture cannot be expressed. Effect-row principality, route quotient
+completeness, and Oracle acceptance remain open.
