@@ -1517,6 +1517,19 @@ Both are characterization only; the successor source typing relation must
 establish which source boundaries require this transport, its activation
 lineage, and the symbolic family-incidence updates they induce.
 
+The annotated `ask` callback is one concrete instance of this same equation:
+the frozen mono dump shows the underlying `call` body returning
+`Thunk([ask],unit)` while its adapter exposes return type `unit`. Thus
+`B_s=Thunk([ask],unit)` and `B_t=unit`; the result leg of `CallView` is the
+existing `Adapt(Thunk(E,A),T,v) = Force(v) >>= Adapt(A,T)` clause. For this
+fixture the force first emits `ask`, so the first-request lemma carries that
+request through the remaining result conversion before the adapted call
+returns. This explains the observed mono boundary as a composition of the
+ordinary typed boundary and call relation, without a callback-only effect
+selector or an Oracle weight rule. It remains a runtime instance proof: the
+successor source typing judgment must derive this boundary from its function
+types and prove the same adapter simulation for every accepted conversion.
+
 `Delay(C)` is a value whose force executes `C`; it does not run `C` while being
 passed or returned. `Force(v)` exposes the thunk's complete computation
 relation, including its typed-family formulas and resumptions. The clauses

@@ -3873,5 +3873,9 @@ witness. The exact executable build provenance was not reconstructed; the mono
 artifact is paired with the frozen source/spec path and treated only as
 characterization. A compiler-referee delta review checked this adapter-to-force
 path and closed the lemma's multi-shot overclaim and symbolic-incidence scope.
-The successor's declarative Function contract, source boundary adequacy, and
-finite principal presentation remain open.
+The mono adapter is an instance of the draft's general typed-boundary
+composition `CallView`/`Adapt`, which avoids adding a callback-only rule. The
+successor's declarative Function contract, source boundary adequacy, and finite
+principal presentation remain open. A focused compiler-referee delta review
+confirmed the `CallView`/`Adapt` instantiation without finding a residual issue;
+the broader source typing derivation remains outside that review.
