@@ -2301,3 +2301,16 @@ obligation generation, solver/residual preservation, and the intrusion
 allocator must establish its premises. It does not authorize implementation.
 See "Conditional `InvArgs` transport theorem for an injective parent map" in
 `notes/progress/2026-10-01-intrusion-coarse-effect-abstraction-candidate.md`.
+
+The set-level theorem has now been strengthened with a candidate incidence
+invariant: independently derived obligation keys identify symbolic family
+relations before ledger creation, and each typed view that demands a key must
+retain a path to its pending/proved record through every phase. The candidate
+separates immutable source provenance from fresh per-use occurrence IDs and
+requires intrusion's view/evidence map `M` to preserve incidence alongside
+type map `P` and hygiene map `Theta`. A scoped compiler-referee review found
+no remaining findings after closing provenance, vacuity, and map-commutation
+gaps. Source derivation of the keys/demand relation and all phase transition
+proofs remain open; this is not an implementation contract. See "Symbolic
+family-constraint incidence invariant (candidate)" in the same progress
+record.

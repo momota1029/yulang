@@ -4964,3 +4964,75 @@ proposed intrusion allocator actually chooses an injective map over the
 complete typed view, callback/handler visibility, row/effect principality, or
 final acceptance. Those premises and the non-injective quotient alternative
 remain open.
+
+#### Symbolic family-constraint incidence invariant (candidate)
+
+The phase theorem above treats `K_sym` as a set of formulas. To make its
+required coupling to the typed effect view explicit, model it as an abstract
+incidence ledger rather than as a constraint set recovered from current row
+heads:
+
+```text
+κ = (formula, endpoints, source_origins, use_occurrences, state)
+formula = InvArgs(F<τ̄>, F<ῡ>)
+state   = Pending | Proved(proof)
+```
+
+`source_origins` are immutable source provenance labels; `use_occurrences`
+are fresh elaboration/view identities for this occurrence in a particular
+component or instantiated use. Independent uses preserve the provenance label
+but get disjoint use-occurrence IDs and cloned ledger records/owner edges.
+These are abstract source/evidence identities, not concrete materialized
+family rows. A formula may be `Proved` only with evidence that remains
+transportable with its symbolic endpoints. It may not transition to an
+unlinked `Discharged` state.
+
+Define an obligation key `o` independently from the ledger record:
+`o = (family head, symbolic endpoint terms, source provenance, use occurrence)`.
+Each source rule that relates same-head family instances derives this key
+before row movement. Define `Demand(v, o)` independently from the ledger: it
+holds when the source typing derivation for live view `v` uses that
+family-argument equality to type, match, resume, export, or constrain the
+view. For each transition, derive the output `Demand` relation and
+transported obligation keys from source-rule premises and transition
+correspondence, not from ledger owner edges. The owner relation is directed
+`κ -> v`; its transitive closure allows a component/root view to retain the
+obligation through intermediate residual, handler, or continuation views.
+The invariant is: for every live `v` and independently derived key `o` with
+`Demand(v, o)`, there is a `Pending`/`Proved` ledger record `κ` representing
+the transported `o` and a path from `κ` to `v`, with endpoints equal after the
+phase's uniform substitution or alpha map. If a transition removes an input
+view, each output view that still satisfies `Demand` for the transported key
+must retain a path to its record. Erasing both the dependence and owner edge
+cannot establish preservation; the dependence relation and key come from the
+source derivation independently.
+
+Row splitting, handler matching, subtraction, and residualization create a
+record before removing/moving a family head and transfer edges to every
+resulting dependent view. Solving substitutes formula endpoints and proof
+payload uniformly. Generalization closes over locally owned endpoint IDs and
+transports owner edges. Fresh instantiation renames endpoints and use
+occurrences together, preserves source provenance, and clones the relevant
+record/owner subgraph for each use. Intrusion needs a graph map `M` over all
+live view and evidence vertices, in addition to type map `P` and hygiene map
+`Theta`. `M` must preserve and reflect typed dependency incidence (or satisfy
+a separately proved quotient condition); `P` maps formula endpoints, and
+`Theta` maps only the relevant handler/hygiene identities. Support projection
+may discard family arguments from `E`, but it cannot delete ledger records or
+owner paths from `Q`, `H`, `C`, residual constraints, or the component graph
+while `Demand` remains true.
+
+This incidence invariant strengthens the earlier set-level transport
+condition: `K_sym' = K_sym ∪ NewInvArgs` alone is insufficient if the newly
+added formula is detached from the result view that relies on it. The
+invariant can be proved phase by phase by checking (a) source derivation of
+`Demand` and obligation keys, (b) same-head constraint generation, (c)
+substitution of formula and proof evidence, (d) preservation of dependency
+incidence during residualization, (e) source-label preservation plus per-use
+record cloning and key transport, and (f) incidence-preserving graph
+transport during intrusion. The intrusion graph map `M` preserves and
+reflects incidence relative to independently derived `Demand` and commutes
+with `P` on typed endpoints and `Theta` on hygiene identities. Until these
+transition rules and their source ownership are proved, this remains an
+abstract proof obligation, not a selected storage representation or
+implementation contract.
