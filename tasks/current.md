@@ -110,6 +110,17 @@ the relation must retain occurrence/provenance/route coordinates. Freshening
 and injective intrusion may use equivariance; generalization needs fixed-outer
 fiber projection and independent-use product; non-injective intrusion needs a
 quotient/root-observation proof.
+An explicit strict-application candidate now covers only the pure-argument
+subcase needed by the `call`/`invoke` witness: function evaluation effects
+join the callback's latent row. Its conditional support simulation preserves
+`ask` in the caller effect without a weight-routing premise. Compiler-referee
+review found the restricted rule algebraically sound under its latent-contract
+premise. It remains a candidate annotation meaning, not an approved source
+rule. Full application remains open because characterization shows some
+effectful arguments may be deferred as thunks; derive strict/deferred behavior
+from one source computation relation, then prove callback contract validity
+after instantiation and preserve that relation fiber through generalization,
+freshening, and intrusion.
 
 ## Objective
 

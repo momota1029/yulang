@@ -5077,6 +5077,106 @@ and the independent-use product law, and non-injective intrusion needs its
 quotient/root-observation proof. These distinctions are reflected above;
 finite presentation and source-step adequacy remain open.
 
+#### First source-step candidate: callback application
+
+The callback-forwarding Oracle conflict gives a focused test of whether the
+relational interface can be generated compositionally. Let `R` range over
+typed request bounds with order
+`R ⊑ S iff RowDen_A(R) ⊆ RowDen_A(S)` and join `R ⊔ S` given by union. Use a
+computation judgment `Γ ⊢ e : T ! R`, where `R` bounds immediate requests
+while evaluating `e`. Give function values the latent type `Fun(T, R, U)`:
+every invocation of a value at this type has result in `U` and request support
+bounded by `R`.
+
+For a first source-step lemma, restrict application to the pure-argument case
+`Ea = ∅`. This is enough for the recorded `f ()` callback witness. The rules
+below do not define the language's general application semantics:
+
+```text
+Γ, x:T ⊢ e : U ! R
+────────────────────────────────────── Lambda
+Γ ⊢ λx.e : Fun(T, R, U) ! ∅
+
+Γ ⊢ f : Fun(T, Rf, U) ! Ef    Γ ⊢ a : T ! ∅
+──────────────────────────────────────────────── App
+Γ ⊢ f a : U ! Ef ⊔ Rf
+
+Fun(T, R, U) ≤ Fun(T', R', U')
+  when T' ≤ T, R ⊑ R', and U ≤ U'
+```
+
+In this pure-argument subcase, call-by-value sequencing contributes no
+argument requests. The trace contains events from evaluating `f` and then
+from invoking the function, so its support is contained in `Ef ∪ Rf`. No
+request count, linear-use premise, or exact continuation trace is needed.
+The latent row is looked up from the function value's type, so this same
+subcase covers local callbacks, imported callbacks, and generalized functions;
+ownership and type substitution act on the complete `Fun` and row coordinates
+together. Effect weakening uses `⊑`. The variance condition on latent rows
+follows from the meaning of an upper-bound contract: a function with fewer
+possible requests may be used where a wider bound is expected. This is a
+declarative candidate, not a claim that Yulang source annotations already have
+this meaning.
+
+The language's full application rule remains open. Existing runtime
+characterization distinguishes pure arguments from computations represented
+as deferred thunks, whose effects may occur only if forced. That observation
+does not authorize an Oracle-specific mode selector as source semantics. A
+successor should derive strict evaluation, delayed computation, and the
+activation/handler context in which a deferred effect is observed from one
+source-level computation relation. Until that relation is established, this
+lemma makes no claim for `Ea ≠ ∅` and does not settle how function argument
+effect coordinates interact with latent return effects.
+
+Conditional simulation lemma: assume the function-type interpretation is
+sound, a well-typed function value satisfies its latent contract for every
+argument in `T` under the call-site type/row instantiation and activation
+context, and evaluation composes request traces by concatenation.
+Then if `Γ ⊢ f : Fun(T,Rf,U) ! Ef` and `Γ ⊢ a : T ! ∅`, every finite trace
+of `f a` has support contained in `Ef ∪ Rf`. Proof: partition the strict
+application trace into the finite prefixes from evaluating `f`, evaluating
+the pure argument, and the called body's invocation; apply the function and
+callback premises and the support-of-concatenation law. Since set union is
+the join in the powerset request domain, it is the least upper bound of these
+two supplied abstract summaries. It is principal for this *restricted
+compositional rule* relative to that domain. It does not prove that all
+members of `Rf` are realizable by well-typed functions, or that a finite
+symbolic row language has principal solutions for matching and
+generalization.
+
+On the recorded source witness,
+`call(f: () -> [ask] ()) = f()` receives `Rf = {ask}`, so its body bound
+contains `ask`. The lambda's latent row therefore contains `ask`, and applying
+`call` to `\() -> ask::get()` keeps `ask` in the enclosing result bound. The
+explicit `[]` annotation on `invoke` fails. Frozen Oracle `check` accepts this
+source but execution reaches an unhandled `ask::get`, so this is a concrete
+final-acceptance difference required by the soundness priority. The proof uses
+the callback contract semantics and source computation rule; it does not
+derive anything from `StackWeight`, `SubtractId`, or the Oracle's route split.
+
+This application lemma establishes neither handler subtraction nor ordinary
+effect principality. Proving that a callback's latent contract remains valid
+after fresh instantiation and at the receiving activation is still required;
+provider visibility and handler eligibility remain separate questions. A
+surrounding shallow handler must still transform the continuation-bearing
+relational interface, and its output may depend on the type valuation and
+activation context. The callback source rule also still needs review against
+the language's declarative annotation semantics. Its strong evidence is the
+independently witnessed soundness conflict and the standard upper-bound
+reading of the callback annotation, not Oracle weight propagation. The next
+gate is to establish annotation adequacy, then prove this rule's latent row
+constraint remains in the same `Rel_C(ρ)` fiber through generalization, fresh
+instantiation, and intrusion.
+
+An independent compiler-referee review found no algebraic error in the
+strict sequencing rule under its latent-contract premise: the argument here
+is pure, and union is least for the supplied summaries in the powerset row
+domain. The review kept the claim conditional on a well-typed callback
+satisfying its latent contract after instantiation and in the call-site
+activation context. This review does not validate effectful or deferred
+arguments. Scheme/route preservation for the pure-argument premise remains
+open.
+
 ##### Denotational candidates for typed rows
 
 The current `TypedRow` sketch hides the key choice: whether a row has one
