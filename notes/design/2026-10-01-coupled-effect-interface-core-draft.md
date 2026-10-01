@@ -466,6 +466,52 @@ of this carrier. If Oracle routing conflicts with these proofs, record the
 concrete counterexample, the dropped Oracle behavior, the adopted rule, and
 the final-acceptance impact.
 
+#### Candidate comparison and preferred layering
+
+These are not three equally fundamental semantic choices. Candidate 3 is the
+cleanest reference semantics: source evaluation denotes a relation over
+continuation-bearing computations, and handlers are ordinary relational
+transformations. It is compositional and reuses one handler proof, but exact
+behaviors are generally too rich to serve as a finite principal inference
+language. It is therefore a soundness reference, not the preferred compiler
+representation.
+
+Candidate 1 is the smallest likely executable abstraction. It can be finite
+and familiar, but rows erase correlations; the handler image need not commute
+with row join, and open duplicate rows already give a principality barrier for
+eager matching. Symbolic typed-family formulas repair some lost information,
+but a row-plus-ledger design risks promoting each solver bookkeeping category
+into another semantic rule. Use this candidate only if its relation to the
+source behavior and its principal projection are proved for the claimed
+fragment.
+
+Candidate 2 is the preferred bridge: present a source-derived solution
+relation by a finite constrained formula, and define row views as projections
+of that formula. Relational composition gives one account of callback
+invocation, row restriction, handler transfer, and lifecycle substitution;
+principality is stated in the chosen formula language. This has the best proof
+reuse and compositionality if that language has terminating, principal
+projection. That closure property is not proved, so this is a preference for
+the next proof target, not a selected representation or implementation gate.
+
+Keep mathematical facts distinct from their solver witnesses. A source
+relation may depend on which requests are dynamically visible at a handler
+activation, but a route ledger is only one way to prove that fact. Formula
+incidence `D`, stable obligation keys, owner/version maps, and parent maps are
+transport bookkeeping; they are not additional semantic coordinates unless a
+source observation can distinguish them. Typed-family invariance belongs in
+the denotation of the symbolic constraint formula, not in an independently
+evolving obligation store. A transport implementation must preserve that
+formula's satisfying fibers and all dependent projections; preserving its
+bookkeeping graph alone is insufficient.
+
+This gives a compact test for proposed special machinery: state the source
+observation it distinguishes, then derive it from the complete relation. If
+the machinery only tells the solver where to find or transport a formula, keep
+it in the presentation. If no relation/projection can express a distinction
+that changes source behavior or admissible solutions, do not add a semantic
+construct for it.
+
 ### Finite point-row constrained presentation (conditional lemma)
 
 There is a finite presentation candidate for the point-valued closed-row

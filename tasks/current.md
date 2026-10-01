@@ -2886,3 +2886,13 @@ each still creates its own target-scheme instance. This is characterization
 only and does not dictate successor semantics; source generalization rules
 must determine the semantic instantiation unit. Imported or multi-root source
 constructs remain to be checked.
+
+The unified-theory comparison now treats continuation-bearing relations as
+the soundness reference, finite typed rows as a possible but correlation-losing
+implementation abstraction, and finite constrained relations as the preferred
+bridge if principal projection can be proved. Route ledgers, formula incidence,
+owner/version maps, and stable keys are classified as solver bookkeeping
+unless a source observation distinguishes them. Typed-family invariance stays
+inside the symbolic formula's denotation. This is a proof-target preference,
+not a selected calculus: finite representability, termination, principal
+projection, and the source-to-formula correspondence remain open.
