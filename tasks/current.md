@@ -2638,3 +2638,13 @@ review closed the owner-embedding premise gap and found no residual issue in
 these conditional lemmas. Next derive the invariant argument formula for
 interval-valued family arguments and connect these candidate transitions to
 the actual source-rule/solver correspondence; neither is established yet.
+
+The interval-leaf case now has a conditional symbolic batch obligation:
+combine lower/upper endpoints only for occurrences a source rule requires to
+share an argument, and retain a stable batch/owner key while endpoint
+inequalities remain symbolic. Under a carrier with bottom and finite joins,
+those cross-bound inequalities are equivalent to existence of one common
+argument witness. Compiler-referee review found the proof sound within this
+fragment and closed a stable-key premise gap. This avoids the incorrect
+mutual-subtype test for interval descriptions, but compound arguments, the
+selected type carrier, and source derivation of each batch remain open.

@@ -5816,6 +5816,65 @@ the result does not authorize replacing the symbolic formula with its current
 finite set of cross-bound consequences before later graph changes have been
 accounted for.
 
+#### Symbolic batch formula for interval-valued family arguments (conditional)
+
+The endpoint theorem gives a concrete formula for the interval-leaf case of
+the family-argument obligation. Let `B` be one finite batch of occurrences
+that a source rule independently requires to share one invariant argument at
+position `i`; `B` is not inferred from all same-head occurrences. Each owner
+`o ∈ B` contributes a symbolic interval `[L_o,U_o]` with finite endpoint
+sets. Define the keyed obligation:
+
+```text
+MeetKey(B,i) = (source_site, stable_batch_id, family, argument_position,
+                occurrence_owner_ids(B))
+MeetFormula(B,i) = { l <: u | l ∈ ⋃_{o∈B} L_o,
+                              u ∈ ⋃_{o∈B} U_o }
+```
+
+The endpoint expressions are transported payload, not part of the stable key.
+Substitution may change or identify their formula text, but it does not merge
+distinct batch/owner identities; existing records are reconciled by the
+transported stable key while preserving proof state and owner paths.
+
+Assume all endpoint expressions are interpreted under one joint assignment
+`ν`, each interval is feasible in the selected type preorder, and that
+carrier has a least element and all finite joins (or the equivalent finite
+interval-realization property). Then `MeetFormula(B,i)` is satisfiable under
+`ν` exactly when one concrete argument value satisfies every interval in
+`B`. If the formulas hold, choose the join of the union of lowers as the
+shared witness; each upper endpoint bounds that join by the least-upper-bound
+property. Conversely, any shared witness composes every lower-to-witness and
+witness-to-upper inequality. For a family with several independent argument
+positions, apply this formula at each position under the same `ν`. It does not
+permit independent assignments to shared variables or model additional
+cross-position witness correlations.
+
+The symbolic record is the batch key plus its endpoint expressions, not a
+materialized join witness. The required phase contract is: solving substitutes
+the endpoints uniformly; residualization transfers the key and its owner
+paths to every still-demanded view; generalization binds the locally owned
+endpoint identities together with the family rows; fresh instantiation maps
+all endpoints and occurrence owners in one use-local map; intrusion transports
+endpoints through `P` and incidence through `M`. Under injective
+capture-avoiding maps, the formula is alpha-transported and satisfaction is
+preserved by assignment reindexing. If a solver derives the current
+cross-bound inequalities, it retains the batch key and proof/equivalence
+evidence while a dependent view remains live; it does not reconstruct the
+batch from concrete rows or discard occurrence ownership merely because some
+endpoint formulas become equal. These are required transition properties,
+not claims that an actual solver has proved them.
+
+This supplies a symbolic interval-leaf candidate in place of mutual subtype
+between interval descriptions, which rejects valid overlaps such as `[0,2]`
+and `[1,3]`. It does not define common witnesses for compound `Con`, `Tuple`,
+or `Fun` arguments, establish that the chosen successor type domain has the
+assumed joins, or prove which source rules form each batch. It is a conditional
+local formula plus transport obligation, not a selected row semantics or an
+actual solver correctness theorem. The existing `InvArgs` notation remains a
+shorthand only where its endpoint terms denote point types or another proved
+equivalent relation.
+
 Let an operation declaration at exact path `p` have signature
 `op : A -> [E] B` and declaration binders `ā`. Resolving one source request
 allocates one capture-avoiding map `θ` for those binders. Declaration
