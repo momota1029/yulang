@@ -3120,3 +3120,22 @@ symbolic family constraints through solving without rebuilding them from a
 materialized output row. Its scope remains factor assignments and it does not
 establish solver completeness, finite principal presentation, or parent/boundary
 quotient correctness.
+
+An independent architect review found no contradiction in the coupled-relation
+candidate and confirmed it is the most unified recorded research candidate,
+while emphasizing that its concretization, source handler transition, and
+finite principal presentation are still undefined or unproved. The handler
+draft now derives its input predicate as totality of one typed
+`Step_{H,κ,ρ}` relation, indexed by activation and fixed imports. A focused
+semantic review caught the missing activation index; it was repaired and
+closed by a fresh delta review. The same review found a minor omission in the
+solve-naturality lift: it now states set-valued observation transport with the
+valuation and explicitly uses the preceding transition-witness equivariance.
+Operation, family, signature, and visibility premises therefore remain in the
+one transition, not a second handler construct. Next proof slice: define one
+callback application followed by one
+shallow catch at a fixed activation, prove source simulation for the complete
+typed interface, and construct or refute a finite principal residual without
+source-site selectors. If that slice fails, return to the carrier's observable
+coordinates before adding machinery. Typed-row ownership and argument
+denotation remain a separate open semantic dependency.

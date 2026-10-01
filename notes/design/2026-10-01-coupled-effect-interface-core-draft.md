@@ -391,28 +391,48 @@ latent function/thunk behavior, and activation lineage needed to interpret
 later calls and forces. Let `H_κ` be
 the source shallow-handler transformation at activation context `κ`. The
 context includes the active handler stack and the source-defined visibility
-relation; it is not calculated from a family row alone. Require `H_κ` to be
-defined for every computation in `C_ρ(I,ν)` whenever `(ν,I) ∈ R_H`. If typing
-can establish only an existential subset of a represented fiber, the
-universal abstraction below is not justified.
+relation; it is not calculated from a family row alone. The totality predicate
+below requires a transition for every computation in the represented fiber;
+typing that covers only an existential subset does not justify this universal
+abstraction.
 
 For an interface relation `R` over owned valuations and root interfaces, let
-`P_H(ν,I)` be the domain predicate of the *declarative typed transition
-relation* for this handler and complete input interface. It contains exactly
-the source typing premises needed to make the transition well-typed; it is not
-a selector or separate obligation kind added for this source site. In a finite
+`P_{H,κ,ρ}(ν,I)` be the totality predicate of the *declarative typed
+transition relation* for this handler at activation context `κ`, under fixed
+imports `ρ`, and complete input interface `I`. It contains exactly the source
+typing premises needed to make the transition well-typed; it is not a selector
+or separate obligation kind added for this source site. In a finite
 presentation, its formula is conjoined to the existing `K` before the handler
 image/residual support is formed. Define
-`R_H = { (ν,I) ∈ R | P_H(ν,I) }`, its concrete fiber, and the least semantic
-output relation:
+`R_{H,κ,ρ} = { (ν,I) ∈ R | P_{H,κ,ρ}(ν,I) }`, its concrete fiber, and the
+least semantic output relation:
 
 ```text
-C_ρ(R_H, ν) = ⋃ { C_ρ(I,ν) | (ν, I) ∈ R_H }
+C_ρ(R_{H,κ,ρ}, ν) = ⋃ { C_ρ(I,ν) | (ν, I) ∈ R_{H,κ,ρ} }
 
 H#_κ(R) = { (ν, J) |
-    there are I, c, c' with (ν, I) ∈ R_H, c ∈ C_ρ(I,ν),
-    c' = H_κ(c), and J ∈ Obs_H(I, ν, c') }
+    there are I, c, c' with (ν, I) ∈ R_{H,κ,ρ}, c ∈ C_ρ(I,ν),
+    Step_{H,κ,ρ}(ν,I,c,c'), and J ∈ Obs_H(I, ν, c') }
 ```
+
+To make the common relational core explicit, `P_{H,κ,ρ}` should be derived from one
+typed source transition relation rather than generated as an independent
+handler-side predicate. Write
+`Step_{H,κ,ρ} ⊆ { (ν,I,c,c') | c ∈ C_ρ(I,ν) }` for the declarative
+shallow-handler step at the fixed activation, including operation identity,
+family argument, payload/result, and activation eligibility premises. Then
+
+```text
+P_{H,κ,ρ}(ν,I) iff ∀c ∈ C_ρ(I,ν). ∃c'. Step_{H,κ,ρ}(ν,I,c,c')
+```
+
+and `H#_κ` is the image of this context-indexed relation followed by the
+common observation map, ranging over every represented `c`. The notation
+`P_{H,κ,ρ}` is only the totality predicate derived from this relation and
+needed to state the fiber theorem; it is not another semantic construct. This
+also identifies the proof boundary: a source rule that cannot be stated in
+`Step_{H,κ,ρ}` without a source-site selector would expose a genuinely missing observable coordinate
+or refute this candidate's claimed unification.
 
 Here the complete observation includes output values with their latent
 interfaces, typed request facts, family-argument denotations, occurrence
@@ -432,16 +452,16 @@ part of this definition. The collecting support projection below deliberately
 states only ground support soundness and leastness; it does not prove that a
 finite presentation transports `K,D` correctly.
 
-The handler image has a useful fiber-domain criterion. If each `I` in `R_H`
-has a represented concrete computation and the handler plus symbolic
-observation are total on those fibers, then:
+The handler image has a useful fiber-domain criterion. If each `I` in
+`R_{H,κ,ρ}` has a represented concrete computation and the handler plus
+symbolic observation are total on those fibers, then:
 
 ```text
-dom_ν(H#_κ(R)) = dom_ν(R_H)
+dom_ν(H#_κ(R)) = dom_ν(R_{H,κ,ρ})
 ```
 
 For the forward inclusion, an element of `H#` supplies its input `(ν,I)`,
-which must satisfy the transition's domain premise. For the reverse inclusion,
+which must satisfy `P_{H,κ,ρ}`. For the reverse inclusion,
 choose the represented computation guaranteed by nonemptiness and apply the
 total transition and observation to obtain an output at the same `ν`. This
 locates any legitimate assignment restriction at the declarative handler
@@ -451,8 +471,8 @@ premises are already entailed by `R`, the criterion reduces to preservation
 of the whole input valuation domain.
 
 **Conditional transfer theorem.** If (1) `C_ρ(I,ν)` covers every concrete
-scrutinee represented by each `(ν,I) ∈ R_H`, (2) `H_κ` is total on those fibers
-and agrees with the source shallow-handler transition, and (3) `Obs_H`
+scrutinee represented by each `(ν,I) ∈ R_{H,κ,ρ}`, (2) `H_κ` is total on those
+fibers and agrees with the source shallow-handler transition, and (3) `Obs_H`
 is a sound output observation, then `H#_κ(R)` is sound: every concrete handled
 result represented on an input fiber is represented on the corresponding
 output fiber. Moreover, among exact relations over the chosen
@@ -514,7 +534,8 @@ the raw continuation. The argument is conditional on the subtype/coercion
 relation being sound for runtime values and on the exact operation declaration
 being the same on both sides. It does not assign ownership to `Eθ`/`Eφ`,
 select a route, or determine when this arm is eligible; those remain in the
-same complete transition relation. Thus these are premises of `P_H`, not an
+same complete transition relation. Thus these are premises of
+`P_{H,κ,ρ}`, not an
 additional per-operation obligation kind. The full source rule and
 principality of its finite presentation remain open.
 
@@ -522,7 +543,8 @@ The family predicate alone is insufficient even in a closed point case. Let
 `F<>` have no family arguments and let the request payload be `Bool`, while
 the arm expects `Int`. `family_relation(F<>,F<>)` is vacuously true, but no
 runtime-safe `Bool <: Int` payload transfer exists in the ordinary disjoint
-base-type fragment. The pair must therefore fail the complete `P_H` relation;
+base-type fragment. The pair must therefore fail the complete
+`P_{H,κ,ρ}` relation;
 support-head equality cannot justify consuming it. This
 is a test of the unified operation relation: payload/result behavior is
 already part of the same transition, not a new family-specific selector.
@@ -623,9 +645,12 @@ transition-domain predicate, and output observation are natural under the
 same map:
 
 ```text
-C_ρ(T_σ(O),ν') = C_ρ(O,σ*ν')
-P_H(ν',T_σ(O)) iff P_H(σ*ν',O)
-Obs_H(T_σ(O),c') = T_σ(Obs_H(O,c'))
+C_ρ(T_σ(O),ν') = T_σ[C_ρ(O,σ*ν')]
+P_{H,κ,ρ}(ν',T_σ(O)) iff P_{H,κ,ρ}(σ*ν',O)
+Step_{H,κ,ρ}(ν',T_σ(O),T_σ(c),T_σ(c'))
+  iff Step_{H,κ,ρ}(σ*ν',O,c,c')
+Obs_H(T_σ(O),ν',T_σ(c'))
+  = T_σ[Obs_H(O,σ*ν',c')]
 ```
 
 Then the relational handler image satisfies:
@@ -634,10 +659,12 @@ Then the relational handler image satisfies:
 σ^*(H#_κ(R)) = H#_κ(σ^*R)
 ```
 
-Each side is generated by the same witnesses `(O,c,c')`; the three naturality
-identities map input validity, concrete computations, transition premises,
-and outputs in both directions. This is exact on assignments factoring
-through `σ` and proves that handler residualization can transport symbolic
+Each side is generated by the same reindexed witnesses `(O,c,c')`. The
+pointwise transition lemma above supplies the `Step` witness equation; the
+other identities map input validity, concrete computations, and output
+observations. These assumptions map witnesses in both directions. This is
+exact on assignments factoring through `σ` and proves that handler
+residualization can transport symbolic
 family constraints through a solve step without reconstructing them from the
 output row. It still does not show that all source solutions factor through
 `σ`, nor that the output has a finite principal presentation.
