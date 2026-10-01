@@ -2741,6 +2741,14 @@ extended pure graph then has a regular satisfying assignment, retaining that
 shared variable. This proves satisfiability only for the finite independent-
 slot fragment; complete root/use fibers, source grouping, compound/cross-slot
 arguments, effects, and the phase-by-phase symbolic lifecycle remain open.
+A shared tagged encoding lemma now covers any finite-arity exact-head
+constructor with a fixed variance vector: one head atom distinguishes the
+constructor, and per-slot positive/negative channel tags make covariance,
+contravariance, and invariance all reduce to language inclusion. Exact-arity
+covariant tuples fit this shape conditionally, and the finite regular-witness
+argument extends when their ranks are added to the fixed signature. This is a
+carrier lemma, not proof that all source tuple/nominal rules fit it or that
+root/use fibers and Oracle final acceptance are preserved.
 
 A focused compiler-referee audit confirms that the existing typed-family
 transport theorem assumes, rather than proves, the concrete phase transitions.

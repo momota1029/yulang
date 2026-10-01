@@ -6675,12 +6675,49 @@ compilation unit. This does not prove that every satisfying SCC assignment is
 regular, that regular assignments preserve the intended source typing
 relation, or that a principal root/use scheme is representable by finite
 automata. Recursive/polarity-reversing constraints, shared identity
-incidence, effect rows and effectful Function slots, tuples/products/records,
-method selection, and Oracle final-acceptance adequacy remain unproved. In
-particular, the regular-tree restriction may lose a source solution that
-requires a non-regular language; that cannot be excluded from this local
-closure argument. Keep all symbolic family constraints and owner edges in the
-graph until those adequacy and principality obligations are closed.
+incidence, effect rows and effectful Function slots, width-subtyped records,
+method selection, and Oracle final-acceptance adequacy remain unproved. A
+conditional uniform encoding for exact-head fixed-variance constructors,
+including fixed-arity covariant tuples, is given immediately below; its
+source adequacy and complete root/use preservation remain open. In particular,
+the regular-tree restriction may lose a source solution that requires a
+non-regular language; that cannot be excluded from this local closure
+argument. Keep all symbolic family constraints and owner edges in the graph
+until those adequacy and principality obligations are closed.
+
+#### One encoding for exact-head variance constructors
+
+The tagged carrier has a uniform extension to any finite-arity exact-head
+constructor whose source subtype rule is componentwise by a fixed variance
+vector. Give constructor `K` a unique head atom `h_K`, and give each slot `i`
+two disjoint unary channel tags `p_{K,i}` and `n_{K,i}`, all disjoint from
+every other head and channel. For child denotations `X_i ⊆ N`, define
+
+```text
+Enc_K(X₁,…,Xₙ) = {h_K}
+  ∪ ⋃_{i covariant} p_{K,i}(X_i)
+  ∪ ⋃_{i contravariant} n_{K,i}(N \\ X_i)
+  ∪ ⋃_{i invariant} (p_{K,i}(X_i) ∪ n_{K,i}(N \\ X_i))
+```
+
+where a channel maps a language to the language of trees prefixed by that
+channel tag. Unique heads make inclusion between different constructors
+impossible. For the same head, disjoint channels reduce inclusion exactly to
+`X_i ⊆ Y_i` on covariant slots, `Y_i ⊆ X_i` on contravariant slots, and
+`X_i = Y_i` on invariant slots; the latter follows from the two opposite
+channel inclusions. Thus ordinary structural variance is one encoding lemma,
+not a separate semantic carrier per type constructor.
+
+When endpoint languages are regular, finite channel-prefix images, relative
+complements, and unions remain regular. A tuple constructor with exact arity
+and covariant element subtyping is one instance of this encoding; tuple arity
+is distinguished by the unique head. This extension applies to the finite
+regular-witness argument when the constructor's ranked symbols are included
+in the fixed signature. It is conditional on the actual source rule having
+that exact-head variance form. It does not cover width-subtyped records,
+dependent/shared slots, or Function effect rows, and it does not prove that
+the regular restriction preserves complete root/use fibers. The channel tags
+are a denotational encoding choice, not source-level selectors.
 
 #### Regular-witness property for finite pure constraints (candidate theorem)
 
@@ -6691,7 +6728,7 @@ constructor's assigned head/channel tags contribute no membership in that
 constructor. Fix finitely many type variables
 `V`, and a finite set of subtype constraints `e ≤ f`. Require every endpoint
 to be a finite expression over variables, `Bottom`, `Top`, finite union and
-intersection, and the tagged nominal/pure-Function constructors above. If
+intersection, and the exact-head variance constructors above. If
 there is any satisfying assignment `ν : V → P(N)`, then there is also a
 satisfying assignment `ν_reg : V → RegΣ(N)`.
 
@@ -6725,10 +6762,12 @@ is established here. The result says that restricting this carrier to regular
 languages loses no **existence of a satisfying assignment** for these finite
 constraints. It does not preserve every arbitrary assignment, the joint
 root/use solution relation, principality, or the exact source acceptance
-judgment. It excludes lifted tuples/products, records, effects, methods,
-non-regular fixed anchors, and any constraint form not expressible by the
-finite local endpoint grammar. SCC intrusion and the required symbolic
-family-constraint lifecycle remain separate proof obligations.
+judgment. It includes exact-head products such as fixed-arity covariant
+tuples only when their source subtype rule meets the preceding encoding
+premise. It excludes width-subtyped records, effects, methods, non-regular
+fixed anchors, and any constraint form not expressible by the finite local
+endpoint grammar. SCC intrusion and the required symbolic family-constraint
+lifecycle remain separate proof obligations.
 
 #### Regular-model extension for interval family batches
 
