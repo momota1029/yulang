@@ -1991,19 +1991,16 @@ so it is not source-reachability or final-acceptance evidence. The candidate
 edge is absent because the candidate impl is visible, but helper has no
 owner-local role constraints during either scan. The InstantiateUse to the
 role read signature appears later without a helper→make dependency.
-Continue with cross-epoch lowering and root-local R/free ownership; the
-shared-TypeVar Q/free source case is now characterized. A self-application
-recursive-result variant produced R/R in both roots but failed final mono
-specialization, so it does not close the accepted R/free case. Details are in
-the same progress note. Oracle source inspection confirms R collection is
-root-local by `(TypeVar, Polarity)` back-edge reachability, then independently
-pruned from each root; Q remains a separate boundary/non-generic predicate.
-This rules out a component-wide Q/R/free ownership tag but is not an accepted
-R/free source witness. Search next for a retained identity that is recursive
-in one mixed-boundary root and free in another, using a productive guarded
-cycle and final mono acceptance. A direct `make` use from owner forms the
-mixed SCC but triggers `ComputedFetchCycle` and leaves both roots without
-Q/R; avoid explicit use of the computed member when constructing the next
-witness.
+The shared-TypeVar Q/free source case is characterized. Oracle source
+inspection confirms R collection is root-local by `(TypeVar, Polarity)`
+back-edge reachability, then independently pruned from each root; Q remains a
+separate boundary/non-generic predicate. A guarded candidate now gives an
+inference-stage R/free split (`Q=[47,57,58]`, `R=[57]` versus `Q=[]`,
+`R=[57]`) in one mixed-fetch SCC, but mono specialization rejects it with a
+Function-versus-unit subtype failure. A productive control is accepted but
+keeps Q/R uniform. A direct `make` use from owner triggers
+`ComputedFetchCycle`. Next, locate and diagnose the final rejection, then
+search for an accepted guarded R/free witness. Details are in the same
+progress note.
 Effect-row principality, route quotient completeness, and Oracle acceptance
 remain open.

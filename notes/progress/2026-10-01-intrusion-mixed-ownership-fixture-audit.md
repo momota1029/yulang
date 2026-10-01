@@ -328,7 +328,7 @@ per-root Q and R ownership is now explicit.
 ## Rejected explicit recursive computed-member use
 
 A follow-up tried to create recursive Function structure in the mixed-fetch
-fixture by returning `\\x -> make x` from the local value-fetch owner while
+fixture by returning `\x -> make x` from the local value-fetch owner while
 the receiverless computed `make` remained `owner()`. The source lowering did
 form the owner/make component, but it emitted `ComputedFetchCycle` for that
 component; both finalized schemes had empty Q/R. The focused scratch command
@@ -341,6 +341,50 @@ candidate. This rules out that direct computed-member use as an accepted
 R/free witness; the search must create the recursive bound without adding an
 explicit use of the computed member. The scratch-only test was removed after
 capturing the result.
+
+## Productive mixed-fetch R/free candidate and final rejection
+
+A guarded variant does produce the desired inference-stage ownership split
+without an explicit reference to `make` in the owner body. It uses
+`struct wrap 'a { value: 'a }`, the prior `Pair` role and `demand` predicate,
+and these implementation members:
+
+```text
+impl int: Pair:
+  my owner = \f ->
+    demand(1)
+    1.probe
+    \x -> x (wrap {value: x})
+  our make = owner (\z -> z (wrap {value: z}))
+  our x.probe = 1
+```
+
+The `owner`/`make` component has no inference diagnostics. Its finalized
+schemes share TypeVar 57 and recursive bound `R=[57]`; owner has
+`Q=[47,57,58]`, while make has `Q=[]`. This is a source-reachable R/free
+split in the frozen inference machine. However, the same complete source with
+`pub result = 0` fails `specialize_mono_from_sources` with
+`UnsatisfiedSubtype` (`Fun <: unit`). It therefore is not evidence of final
+well-typed acceptance and cannot be used as the successor's capability
+witness.
+
+A productive control that removes the outer `f` layer and defines
+`our make = owner` is accepted by both source lowering and final mono
+specialization, but both roots then publish `Q=[33,56,58,59]`, `R=[56]`.
+That control confirms nominal guarding alone can pass final specialization;
+it does not produce root-local ownership. The difference suggests the next
+candidate must preserve the mixed boundary while avoiding the
+function-versus-unit obligation observed when extracting the guarded
+recursive result through the computed member; this causal explanation is not
+proved. The probes ran in the detached Oracle worktree; no branch compiler or
+test files changed.
+
+Focused scratch commands:
+
+```text
+YULANG_INTRUSION_OWNER_TRACE=1 YULANG_INTRUSION_ROLE_DEP_TRACE=1 CARGO_TARGET_DIR=/tmp/yulang-intrusion-scc-owned-target cargo test --offline --jobs=1 -p infer scratch_intrusion_source_mixed_fetch_productive_recursive_result -- --nocapture --test-threads=1
+YULANG_INTRUSION_ROLE_DEP_TRACE=1 CARGO_TARGET_DIR=/tmp/yulang-intrusion-scc-owned-target cargo test --offline --jobs=1 -p yulang scratch_intrusion_mixed_fetch_productive_recursive_q_free_acceptance -- --nocapture --test-threads=1
+```
 
 There is a useful conditional exclusion for Q-versus-free ownership. For a
 variable `v` that occurs in both roots' compact-plus-role views where their
