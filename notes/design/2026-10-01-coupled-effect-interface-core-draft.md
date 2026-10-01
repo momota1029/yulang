@@ -330,17 +330,25 @@ later calls and forces. Let `H_κ` be
 the source shallow-handler transformation at activation context `κ`. The
 context includes the active handler stack and the source-defined visibility
 relation; it is not calculated from a family row alone. Require `H_κ` to be
-defined for every computation in `C_ρ(I,ν)`. If typing can establish only an
-existential subset, the universal abstraction below is not justified.
+defined for every computation in `C_ρ(I,ν)` whenever `(ν,I) ∈ R_H`. If typing
+can establish only an existential subset of a represented fiber, the
+universal abstraction below is not justified.
 
-For an interface relation `R` over owned valuations and root interfaces,
-define its concrete fiber and the least semantic output relation:
+For an interface relation `R` over owned valuations and root interfaces, let
+`P_H(ν,I)` be the domain predicate of the *declarative typed transition
+relation* for this handler and complete input interface. It contains exactly
+the source typing premises needed to make the transition well-typed; it is not
+a selector or separate obligation kind added for this source site. In a finite
+presentation, its formula is conjoined to the existing `K` before the handler
+image/residual support is formed. Define
+`R_H = { (ν,I) ∈ R | P_H(ν,I) }`, its concrete fiber, and the least semantic
+output relation:
 
 ```text
-C_ρ(R, ν) = ⋃ { C_ρ(I,ν) | (ν, I) ∈ R }
+C_ρ(R_H, ν) = ⋃ { C_ρ(I,ν) | (ν, I) ∈ R_H }
 
 H#_κ(R) = { (ν, J) |
-    there are I, c, c' with (ν, I) ∈ R, c ∈ C_ρ(I,ν),
+    there are I, c, c' with (ν, I) ∈ R_H, c ∈ C_ρ(I,ν),
     c' = H_κ(c), and J ∈ Obs^sym_H(I, ν, c') }
 ```
 
@@ -364,8 +372,26 @@ part of this definition. The collecting support projection below deliberately
 states only ground support soundness and leastness; it does not prove this
 symbolic interface-transport condition.
 
+The handler image has a useful fiber-domain criterion. If each `I` in `R_H`
+has a represented concrete computation and the handler plus symbolic
+observation are total on those fibers, then:
+
+```text
+dom_ν(H#_κ(R)) = dom_ν(R_H)
+```
+
+For the forward inclusion, an element of `H#` supplies its input `(ν,I)`,
+which must satisfy the transition's domain premise. For the reverse inclusion,
+choose the represented computation guaranteed by nonemptiness and apply the
+total transition and observation to obtain an output at the same `ν`. This
+locates any legitimate assignment restriction at the declarative handler
+premises. It cannot arise later because row materialization or residual
+support dropped a symbolic formula. For a handler transition whose source
+premises are already entailed by `R`, the criterion reduces to preservation
+of the whole input valuation domain.
+
 **Conditional transfer theorem.** If (1) `C_ρ(I,ν)` covers every concrete
-scrutinee represented by each `(ν,I) ∈ R`, (2) `H_κ` is total on those fibers
+scrutinee represented by each `(ν,I) ∈ R_H`, (2) `H_κ` is total on those fibers
 and agrees with the source shallow-handler transition, and (3) `Obs^sym_H`
 is a sound output observation that preserves the `K,D` obligations described
 above, then `H#_κ(R)` is sound: every concrete handled result represented on

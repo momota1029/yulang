@@ -3034,3 +3034,12 @@ and the domain of assignments/root views is unchanged. This establishes a
 local residualization invariant on the candidate complete relation; it still
 depends on a finite presentation being able to retain `K,D` after a row entry
 is removed.
+
+The shallow-handler image now separates its typed transition domain `P_H`
+from the continuation-bearing transfer: add the source premises to the
+existing `K`, then image the complete relation. Under nonempty input
+concretizations and total transition/observation, the output valuation domain
+equals the domain of `R ∩ P_H`. This identifies where a handler may
+legitimately constrain symbolic assignments and rules out a later accidental
+loss caused by support materialization. Derivation of `P_H` from actual source
+typing remains open.

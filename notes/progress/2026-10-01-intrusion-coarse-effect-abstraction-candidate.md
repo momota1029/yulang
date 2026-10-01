@@ -7838,3 +7838,15 @@ the local proof that filtering preserves all satisfying type/root fibers,
 including fibers whose output support becomes empty. A finite solver still
 needs a presentation that retains `K,D` and does not reconstruct them from
 the remaining row entries.
+
+The coupled-effect draft also separates a typed handler's input-domain
+predicate `P_H` from its continuation-bearing relational image. The finite
+presentation adds `P_H` to the existing `K` before residual support is
+computed. If each admitted interface has a nonempty concrete fiber and the
+source transition plus symbolic observation are total there, then the output
+valuation domain is exactly `dom_ν(R ∩ P_H)`: every output witnesses such an
+input, and every admitted input yields an output at the same valuation. This
+makes explicit that a handler may constrain assignments through its source
+typing relation, while row materialization cannot silently constrain them
+afterward. Source derivation of `P_H` and the required totality theorem remain
+open.
