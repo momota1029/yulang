@@ -2583,19 +2583,20 @@ operator. Let `R ⊆ A × I` relate assignments `ν ∈ A` to complete interface
 `R₂ ⊆ A × I₂`, their fiber product is
 `{(ν,i₁,i₂) | (ν,i₁)∈R₁ ∧ (ν,i₂)∈R₂}`. Let
 `T ⊆ A × I × J` be a source-typed transition relation; source steps keep the
-same assignment `ν`. The basic operations are:
+same assignment `ν`. The core needs four ordinary relational constructions:
 
 ```text
 fiber product:   R₁ ×_A R₂ (join only equal assignments ν)
-image:           T[R]      = { (ν,j) | (ν,i)∈R ∧ T(ν,i,j) }
+composition:     T ∘ R     = { (ν,j) | ∃i. (ν,i)∈R ∧ T(ν,i,j) }
 restriction:     R ↾ P     = { (ν,i)∈R | P(ν,i) }
-projection:      π_X(R)    = forget a view while preserving its surviving indices
 reindexing:      f_*R      = direct image under a consistent identity map
                  f^*R      = pullback along a map of assignments/interfaces
 ```
 
-Sequential composition of two source steps is the usual relational
-composition at the shared complete interface:
+Projection is a direct image under the coordinate-forgetting map, so it does
+not require a separate semantic primitive. A request-support projection, for
+example, maps a complete interface to its row view while leaving `ν` fixed.
+Sequential source steps use composition at their shared complete interface:
 
 ```text
 (U ∘ T)(ν,i,k) iff ∃j. T(ν,i,j) ∧ U(ν,j,k)
@@ -2603,7 +2604,7 @@ composition at the shared complete interface:
 
 Its associativity follows by reassociating the two existential intermediate
 interfaces; no source-specific law is needed for that step. A view projection
-does not existentially discard a type assignment: `π_X` retains `ν` and every
+does not existentially discard a type assignment: it retains `ν` and every
 constraint on it. Generalization is the separate abstraction boundary that
 binds the component-owned identities.
 
@@ -2611,16 +2612,17 @@ The `ν` component is held fixed by source transitions. A transition may add
 ordinary typing predicates to the same joined relation; it cannot solve a
 typed-family formula by forgetting the assignment and rebuilding a row later.
 `K` and its view incidence are a finite notation for that relation, not a
-second operator or evolving obligation store.
+second operator or evolving obligation store. Image notation `T[R]` means
+relational composition `T ∘ R`.
 
 With those operators, the intended derivations are:
 
 | Operation in the inference problem | Relational derivation |
 | --- | --- |
-| Source sequencing and callback invocation | Join on the shared value/environment interface, then image through the source transition relation |
+| Source sequencing and callback invocation | Join on the shared value/environment interface, then compose with the source transition relation |
 | Row splitting | Project request views while retaining the common assignment and every formula dependency that still constrains a surviving view |
 | Filtering | Restrict the complete relation by the source predicate, then project the request view |
-| Handler residualization | Image through the declarative shallow-handler transition, then project its residual request support |
+| Handler residualization | Compose with the declarative shallow-handler transition, then project its residual request support |
 | Generalization | Abstract/close component-owned identities while retaining the relation over rigid imports and every exported root |
 | Fresh instantiation | Rename all locally owned identities with one capture-avoiding injection, fixing the same rigid imports |
 | Intrusion | Pull back the complete relation along the parent assignment map `μ ↦ μ∘P`; a non-injective parent map is valid only when the relation factors through its fibers up to the chosen observation equivalence |
@@ -2628,7 +2630,9 @@ With those operators, the intended derivations are:
 This classification intentionally does not give rows, callbacks, handlers, or
 SCC transport separate semantic rule families. Their source syntax supplies
 different transition relations and interface maps; the proof obligations are
-instances of image, join, restriction, projection, and reindexing preservation.
+instances of relational composition, fiber product, restriction, and
+identity-map transport. Projection is a direct image under a coordinate map;
+identity-map transport changes type-identity indices.
 Numeric selector IDs, demand edges, route certificates, and parent tables may
 implement those operations, but they do not enlarge the semantic algebra.
 

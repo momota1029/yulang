@@ -9069,24 +9069,27 @@ must respect that equivalence. Establishing those premises for useful parent
 maps from source typing remains open.
 
 The coupled-interface draft now makes its conceptual economy explicit through
-one relational operator basis: join/relational composition, image, restriction,
-projection, and identity-map reindexing. Sequencing and callback invocation
-are joins and images; splitting/filtering are projection and restriction;
-handler residuals are a handler image followed by support projection;
-generalization and instantiation abstract or rename owned identities; intrusion
-is a parent-map pullback subject to the quotient lemma. These are derivations
-over the same complete relation, not new source constructs. The generic laws
-include associativity, intersection of restrictions, and composition of
-injective renamings. Projection/image commutation, handler distribution over
-marginal rows, and non-injective quotient preservation are explicitly not
-assumed. This sharpens the preferred theory but does not prove source adequacy,
-finite principal presentation, or authorize implementation.
+four relational constructions: fiber product, relational composition,
+restriction, and identity-map transport. Projection and image are derived
+from composition/direct image. Sequencing and callback invocation compose
+relations; splitting/filtering are projection and restriction; handler
+residuals compose with the handler transition then project support;
+generalization abstracts owned identities, instantiation renames them, and
+intrusion pulls back along the parent map subject to the quotient lemma. These
+are derivations over the same complete relation, not new source constructs.
+The generic laws include associativity, intersection of restrictions, and
+composition of injective renamings. Projection/image commutation, handler
+distribution over marginal rows, and non-injective quotient preservation are
+explicitly not assumed. This sharpens the preferred theory but does not prove
+source adequacy, finite principal presentation, or authorize implementation.
 
 A follow-up formalization made the relational operator signatures explicit.
 Transitions are ternary over a fixed assignment and complete input/output
 interfaces; sequencing existentially joins the intermediate interface, while
 view projection keeps the full type assignment and its constraints. The
-associativity proof is the ordinary reassociation of the two intermediate
+operator basis was reduced to fiber product, relational composition,
+restriction, and identity-map transport; projection is a derived direct image.
+The associativity proof is the ordinary reassociation of the two intermediate
 existentials. This prevents projection from being mistaken for erasing a
 symbolic type variable. This is a notation/proof-reuse refinement only; source
 transition adequacy, finite-principal closure, and SCC quotient premises

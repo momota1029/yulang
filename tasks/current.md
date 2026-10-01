@@ -3696,10 +3696,12 @@ argument groups and handler visibility in this relation from source typing,
 then show a finite principal presentation preserves its fibers. The design is
 still draft and implementation remains unauthorized.
 
-The relational algebra notation was tightened to explicit signatures: each
-source transition relates `(ν, input-interface, output-interface)` at fixed
-`ν`, sequential composition existentially joins a complete intermediate
-interface, and view projection retains the assignment and its constraints.
-This closes a notation ambiguity only. Next source-semantic gate remains the
-operation/handler judgment and its correspondence to the complete relation;
-no implementation or source-adequacy claim follows.
+The relational algebra notation was tightened to four constructions:
+fiber product, relational composition, restriction, and identity-map
+transport; image/projection are derived. Each source transition relates
+`(ν, input-interface, output-interface)` at fixed `ν`, sequential composition
+existentially joins a complete intermediate interface, and view projection
+retains the assignment and its constraints. This closes a notation ambiguity
+only. Next source-semantic gate remains the operation/handler judgment and its
+correspondence to the complete relation; no implementation or source-adequacy
+claim follows.
