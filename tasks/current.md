@@ -1934,7 +1934,12 @@ that another leaves free; no concrete source fixture for that exact split is
 claimed. The audit does not define successor ownership or the full public
 root relation. The independent lifecycle audit corrected the quantifier
 description to the stack-cleaned generalized root and published scheme, and
-bounded claims about allocator uniqueness. Next compare actual root epochs
-and inserted use constraints with the candidate member view and `K_ctx`, then
-prove source-step preservation. Effect-row principality, route quotient
-completeness, and Oracle acceptance remain open.
+bounded claims about allocator uniqueness. A follow-up source characterization
+now records per-root constraint-epoch intervals, order-sensitive root settling,
+and the distinct `InstantiateUse` versus `OpenUse` relations in
+`notes/progress/2026-10-01-intrusion-oracle-root-epochs-and-use-context.md`.
+It confirms these facts are comparison evidence only: the interval metrics do
+not reconstruct each compact iteration, and no concrete mixed-ownership source
+fixture has been found. Next derive source-step preservation for the complete
+base/member views and `K_ctx`, including a mixed-ownership fixture. Effect-row
+principality, route quotient completeness, and Oracle acceptance remain open.
