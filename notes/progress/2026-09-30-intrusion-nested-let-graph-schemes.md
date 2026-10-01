@@ -174,6 +174,34 @@ follows from this equality and ordinary upward subsumption, not from defining
 `Inst` alone. No least simultaneous value for all graph identities is
 required.
 
+### Composition after a recursive SCC
+
+The nested-let theorem composes with the recursive-group theorem without
+introducing a second instantiation rule. Suppose a completed pure SCC exposes
+each member `d` through a graph scheme `H_d`, and for the fixed outer
+assignment its denotation equals the declarative member set `P_d`:
+
+```text
+Inst_{H_d}(η|A_d) = P_d
+```
+
+Relate the endpoint environment entry `Ξ(d)=Poly(H_d)` to the semantic entry
+`Γ(d)=Poly(P_d)` by the already-defined environment relation `Ξ ≈_η Γ`.
+The extended-expression adequacy theorem then applies to any ordinary
+non-recursive `let x=e₁ in e₂` generated under that environment. Each use of
+`d` in `e₁` or `e₂` freshens the member scheme's complete local graph, fixes
+the same outer anchors, and contributes its renamed constraints to the
+enclosing graph. The Let induction case therefore combines the SCC root
+fiber with independently fresh use fibers by the same disjoint-assignment
+argument; it does not reopen or freshen the SCC's internal recursive uses.
+
+This is a compositional corollary conditional on the SCC scheme denotation
+equation and the common anchor assignment. It covers ordinary lets after a
+pure SCC, but not a recursive group nested inside a let RHS, effectful
+bindings/value restrictions, distinct per-member fetch boundaries, or the
+Oracle scheduler's versioned root projections. It establishes no new
+source-to-Oracle adequacy premise.
+
 ## Ownership witnesses
 
 For `let id = λx.x in id 1`, RHS generation yields

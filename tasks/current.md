@@ -3379,6 +3379,15 @@ proves each call fiber nonempty. This closes the local vacuity subclaim only;
 typing-store adequacy, all-context coverage, and finite principality remain
 open.
 
+The pure nested-let adequacy note now records a compositional corollary for
+ordinary lets after a completed recursive SCC: if each SCC member graph
+scheme denotes its exact declarative root fiber over the same rigid anchors,
+the existing environment relation lets the nested-let theorem carry that
+scheme through independent fresh uses without reopening internal recursion.
+This closes only that composition step; the SCC denotation equation remains
+conditional, and effects, mixed member boundaries, recursive groups nested in
+let RHSs, and Oracle scheduler-version simulation remain open.
+
 The case-sequencing candidate now writes source-ordered matching as a
 state-threaded composition of the existing pattern-binding, guard, and body
 relations. Conditional pattern defaults and request continuations stay in that
