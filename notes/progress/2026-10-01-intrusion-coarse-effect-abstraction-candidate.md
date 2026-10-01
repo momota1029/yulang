@@ -7829,3 +7829,12 @@ interface. This is necessary for the user's solve/residualize/generalize/
 instantiate/intrude invariant. The support equations hold for that relational
 restriction; they do not prove that the present row-only `J_R` notation is a
 durable residual representation.
+
+The same correction now has an exact relation-image statement. For
+`Rel ⊆ {(ν,V,Q,K,D)}`, define `Filter_φ(Rel)` by replacing only `Q` with
+`Q ∩ φ`. Then `dom_{ν,V}(Filter_φ(Rel)) = dom_{ν,V}(Rel)`, since every
+relation member maps to one member and no other coordinate changes. This is
+the local proof that filtering preserves all satisfying type/root fibers,
+including fibers whose output support becomes empty. A finite solver still
+needs a presentation that retains `K,D` and does not reconstruct them from
+the remaining row entries.

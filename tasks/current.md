@@ -3027,3 +3027,10 @@ transport maps reindex the relation. The table records side conditions for
 filtering, residualization, generalization, instantiation, and intrusion. It
 is a design economy claim to test against source semantics, not evidence that
 the current carrier is complete or implementable.
+
+The filter correction is now stated as an exact relation image: change only
+the request-support coordinate from `Q` to `Q ∩ φ`, keep `(ν,V,K,D)` fixed,
+and the domain of assignments/root views is unchanged. This establishes a
+local residualization invariant on the candidate complete relation; it still
+depends on a finite presentation being able to retain `K,D` after a row entry
+is removed.

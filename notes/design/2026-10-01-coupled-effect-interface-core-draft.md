@@ -152,6 +152,25 @@ filtered, and
 `J^K_R(ν) = { Q | K(ν) ∧ Q = { (head(o),ν(g(o))) | o∈R } }`.
 The notation keeps that persistent predicate explicit in the filter laws.
 
+More generally, for the complete interface relation
+`Rel ⊆ { (ν,V,Q,K,D) }`, filtering is the image of a coordinate map:
+
+```text
+Filter_φ(Rel) =
+  { (ν,V,Q ∩ φ,K,D) | (ν,V,Q,K,D) ∈ Rel }
+dom_{ν,V}(Filter_φ(Rel)) = dom_{ν,V}(Rel)
+```
+
+The second equation follows because the map changes only `Q`; every satisfying
+valuation and value-root view remains represented, including fibers whose
+filtered support becomes empty. `K` and its incidence `D` remain attached;
+they may be projected away only after their dependencies have no retained
+observation or a proof discharges them. Thus filtering preserves the
+satisfying fiber rather than asking the surviving row to recreate it.
+Projection to roots after filtering preserves the original root solutions;
+projection that also observes the effect row returns the intentionally
+filtered rows together with their original symbolic correlations.
+
 The first equality concerns support only. It does not say that the joint
 assignment relation factors across a split: when a binder occurs on both
 sides, the shared assignment and its incidence remain in force. The second
