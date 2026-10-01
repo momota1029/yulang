@@ -4908,7 +4908,7 @@ shape and failure modes rather than selecting a semantics:
 | Candidate | Conceptual economy | Composition | Principality risk | Proof reuse |
 | --- | --- | --- | --- | --- |
 | Single-slot family map | Smallest row domain, but requires a source theorem that each head has one invariant instance per row. | Simple when joins reconcile same-head entries; otherwise union is partial. | A forced reconciliation can reject distinct safe paths; a type join needs independent variance evidence. | Strong reuse if the one-slot invariant is real; otherwise every merge recreates the disputed rule. |
-| Finite set of family instances | One support algebra plus one `FamCompat`; handler coverage is a separate semantic fact. | Union and fixed removal compose as set operations; duplicate/open inclusion introduces existential matching. | Concrete disjunctive residuals can lack a principal solution in the current scheme language. | Row laws and transport can be proved once, then reused by filters, callbacks, and handlers. |
+| Finite set of family instances | One support algebra plus one `FamCompat`; handler coverage is a separate semantic fact. | Union and fixed removal compose as set operations; duplicate/open inclusion introduces existential matching. | Eager matching may be non-principal. A relational constrained scheme could retain the whole inclusion formula, if its denotation and generalization are proved. | Row laws and transport can be proved once, then reused by filters, callbacks, and handlers. |
 | Support with symbolic contract projection | Compact solver state, but its denotation is candidate 2 plus attached symbolic evidence. | Compositional only if the projection commutes with union, inclusion, removal, and transport. | Same as candidate 2 unless it conservatively forgets distinctions; forgetting needs a least sound abstraction theorem. | Reuses candidate 2's proofs only after representation adequacy is proved. |
 | Exact trace sets | Closest to operational meaning and useful as a soundness reference. | Handler sequencing is direct over traces. | Exactness may require continuation usage/linearity and may not have a principal solution in the intended type language. | Good reference for soundness proofs, but weak reuse for an inference solver that intentionally abstracts traces. |
 
@@ -5038,11 +5038,18 @@ The existential match is part of the declarative relation, not permission for
 the solver to choose one target and discard alternatives. For example,
 inclusion of `{F<int>}` in `{F<α>, F<β>}` denotes
 `(α ≈ int) ∨ (β ≈ int)`. The two branches are incomparable in a scheme
-language without disjunction. This relation alone therefore does not provide
-a principal symbolic solver. A successor must retain such relations as
-residual constraints, prove a principal normalization for the source row
-domain, or use a stated conservative abstraction and record its acceptance
-cost. Unifying both targets is not a principality-preserving shortcut.
+conjunctive solver language cannot choose either branch without loss. This
+relation alone therefore does not provide
+a principal *eager* symbolic solver. A successor can instead keep the whole
+`RowIncl` formula as one residual relation in its constrained scheme language;
+the solver must not select a witness or unify both targets. This is the most
+unified current route because it adds no per-site matching construct, but it
+shifts the proof obligation: define scheme denotation as all binder
+substitutions satisfying the retained relations, then show generalization
+projects exactly the environment-independent constraints and yields a
+principal denotation. If that language cannot express the relation or its
+projection, use a proved principal normalization or an explicitly conservative
+abstraction with its acceptance cost recorded.
 
 `FamCompat` is the sole typed-family comparison; the `InvArgs` formulas are
 its symbolic presentation. Callback contracts and concrete filters are

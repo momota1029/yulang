@@ -56,11 +56,13 @@ This is a frozen phase mismatch and only a conditional candidate
 over-rejection: the parametric handler-arm source rule is not yet established.
 The successor candidate keeps distinct symbolic family instances, with
 support as a projection, and checks handler coverage per typed request fact.
-Symbolic `RowIncl` matching has a concrete principality barrier on duplicate
-open rows; unknown request evidence also needs to survive removal. Prefer one
-declarative relation with transport laws over source-site-specific selectors,
-and keep solver keys/evidence as projections of it. No candidate is yet proved
-sound or principal.
+Eager symbolic `RowIncl` matching has a concrete principality barrier on
+duplicate open rows; retaining the whole relation as a constrained-scheme
+formula is a more unified candidate, but its denotation and generalization
+principality are unproved. Unknown request evidence also needs to survive
+removal. Prefer one declarative relation with transport laws over selectors
+tied to individual source sites, and keep solver keys/evidence as projections
+of it. No candidate is yet proved sound or principal.
 
 ## Objective
 
