@@ -8167,3 +8167,12 @@ quantifiers. Source generation of the complete relation, solver preservation,
 the independent-use source premise, and non-injective intrusion remain open.
 See `Generalization and fresh use as abstraction and reindexing` in the
 coupled-effect draft.
+
+The freshening argument now also covers finite joint use batches under an
+arbitrary shared receiver context `W`: disjoint local renamings preserve the
+conjunction of each copied component formula and `W`, even when `W` relates
+observations from different uses. This is equivariance of a joint relation,
+not a claim that it factors as a product. It aligns the effect-interface
+presentation with the reviewed conditional joint-use theorem in
+`notes/progress/2026-09-30-intrusion-joint-use-renaming-review.md`; source
+event partition and Oracle root/scheduler projection remain open.

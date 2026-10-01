@@ -3483,3 +3483,7 @@ independent-use rule, or non-injective intrusion.
 The binder map remains one map per identity sort across every view: a shared
 source `TypeVar` occurring in value, recursive, or Function-effect positions
 must not be freshened independently by position.
+The transport law extends to finite use batches with arbitrary shared-receiver
+constraints: it preserves the whole joint fiber even when the context couples
+uses, without assuming a Cartesian factorization. The source's use-event
+partition and root/scheduler projection are separate obligations.

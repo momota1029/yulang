@@ -1789,6 +1789,39 @@ stores every required incidence edge, or that non-injective solving/intrusion
 preserves fibers. Those remain separate correspondence and quotient
 theorems; identity reindexing cannot justify merging independent variables.
 
+#### Joint uses under a shared receiver context
+
+For a finite set of independent source instantiation events `U`, give each
+event `u` a copy map `(ι_u, î_u)` of the kind above. Require pairwise disjoint
+owned ranges, all disjoint from the shared receiver identities `ρ`; each map
+fixes `ρ`. The product map acts by the corresponding copy map on each local
+namespace and by identity on `ρ`. Let `W` be any well-sorted joint receiver
+constraint/observation formula over `ρ` and the use-local views. It may
+correlate distinct uses; it need not factor into per-use conjuncts. If it is
+transported by the product map, then a joint assignment satisfies
+
+```text
+(⋀_{u∈U} K_{C,u}) ∧ W
+```
+
+iff its transported assignment satisfies
+
+```text
+(⋀_{u∈U} K_{C,u}^{copy}) ∧ W^{copy}
+```
+
+Proof: the product map is a bijection on the disjoint local assignment
+domains and identity on the receiver domain. The single-use structural
+satisfaction equivalence applies to each `K_{C,u}`; equivariance of `W`
+preserves any cross-use relation. Thus the complete joint satisfying fiber is
+preserved without asserting that it factors. A `TypeVar` shared across value,
+recursive, and Function-effect positions uses the same `ι_u` in all three.
+This is only a renaming theorem for source events already known to be
+independent; it neither establishes the source's event partition nor proves
+the independent-use product equation or SCC-root scheduler simulation. This
+is the coupled-interface form of the reviewed conditional joint-use theorem
+in `notes/progress/2026-09-30-intrusion-joint-use-renaming-review.md`.
+
 ### Exact criterion for a non-injective parent quotient
 
 Let `P` fix outer identities and map owned identities to parent identities,
