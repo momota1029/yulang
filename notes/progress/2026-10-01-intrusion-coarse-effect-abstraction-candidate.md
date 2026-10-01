@@ -7743,3 +7743,10 @@ nonempty. This captures where pairwise solver witnesses are useful without
 making them semantic selectors. It remains conditional on source binder
 ownership and does not generalize to interval/compound arguments or establish
 the current Oracle's `InvArgs` expansion as sound.
+
+The quotient caveat now has a concrete model: with `Never < Int < Any`,
+independent roots constrained to `[Never,Int]` and `[Int,Any]` have a shared
+family-argument witness `Int`, while the complete relation still admits roots
+`Never` and `Any`. Merging those roots admits only `Int` and loses a source
+solution. Thus interval `FamAgree` is not enough to justify a non-injective
+intrusion parent map; quotient preservation must cover root observations too.

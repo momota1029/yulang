@@ -2962,3 +2962,9 @@ handler identities. It transports family matching, operation signatures,
 forwarding, arm output, and raw continuation behavior together; it does not
 rewrite or route weights. Non-injective solver/intrusion quotients remain
 outside the lemma.
+
+Recorded an interval quotient counterexample: `[Never,Int]` and `[Int,Any]`
+have a shared inhabitant `Int`, but their symbolic endpoint descriptions
+remain distinct. Merging their identities can discard joint-interface
+solutions. `FamAgree` therefore cannot stand in for the full quotient
+equivalence premise during intrusion.

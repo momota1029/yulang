@@ -685,6 +685,17 @@ cannot be replaced by `FamAgree_A`. Non-injective intrusion outside these
 premises still needs the general quotient/root-observation theorem; injective
 transport remains the renaming case.
 
+The distinction has a concrete interval witness. In the finite chain
+`Never < Int < Any`, let independently observable roots `x` and `y` have
+admissible values `[Never,Int]` and `[Int,Any]`. Their family-argument
+denotations have the common witness `Int`, so the shared-witness relation
+holds. The source relation still admits the joint root assignment
+`x=Never, y=Any`. A quotient identifying `x` and `y` admits only the
+intersection `[Never,Int] ∩ [Int,Any] = {Int}` and loses that source solution.
+Thus a shared inhabitant proves compatibility of the two sets, not equivalence
+of the symbolic identities. The quotient condition must inspect the complete
+joint interface solution relation, not just the family-coherence projection.
+
 ## Principality and finite presentation
 
 The relation above is intentionally more expressive than any proposed solver:
