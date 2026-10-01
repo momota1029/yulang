@@ -8890,3 +8890,24 @@ computation before taking one handler image, rather than assuming handler image
 commutes with callback/bind effects or row joins. The witness is abstract and
 does not establish source typing reachability, `K,D` finite transport, or
 principal presentation. No tests were run.
+
+## 2026-10-02: composition associativity under shared identities
+
+Added a reusable law for the unified carrier. Static composition is
+associative when independent owners are alpha-renamed apart and
+source-shared identities remain one coordinate of the joint assignment:
+both associations quantify the same intermediate interfaces and satisfy the
+same component formulas. The formula conjunction and dependency incidence
+remain present through regrouping, even if an intermediate support projection
+no longer mentions a request.
+
+The execution counterpart is state-threading bind associativity up to
+observation bisimulation: returns apply both continuations in order, requests
+receive the recursively associated continuation, and internal steps plus
+finite prefixes of nonreturning behavior are matched. This relies on live
+resumed state and appended continuations. A focused independent
+compiler-referee review found no issue in these conditional algebraic claims.
+The same review confirmed that the law does not authorize moving handler image
+through bind; the separate shallow-handler counterexample rules that out.
+Source derivation of owner sharing, finite presentation closure, and global
+principality remain open. No tests or code were run.

@@ -433,6 +433,35 @@ composed under one valuation. The algebraic definition is straightforward;
 the open adequacy obligation is to prove that source typing creates exactly
 these shared identities and intermediate interfaces.
 
+**Associativity at one identity environment.** Let `R,S,T` have interfaces
+`X→Y`, `Y→Z`, and `Z→W`, and first alpha-rename independent local owners so
+that the three owner maps agree exactly on source-shared identities. Then
+`Comp(Comp(R,S),T) = Comp(R,Comp(S,T))`: both contain precisely those
+`(ρ,ω,X,W)` for which there are intermediate `Y,Z` satisfying `R`, `S`, and
+`T` under restrictions of the same `ω`. Reassociation changes only the order
+in which the same existential interface witnesses are introduced; it does
+not give each subcomputation an independent type/family assignment.
+
+If finite presentations carry formulas `K_R,K_S,K_T` with incidence maps,
+their composite retains the conjunction
+`K_R(ω|Ω_R) ∧ K_S(ω|Ω_S) ∧ K_T(ω|Ω_T)` and the induced incidence to all
+dependent output views. Reassociation can regroup this conjunction but cannot
+project a formula away merely because an intermediate row no longer mentions
+its request. This is an exact carrier law; it does not prove that a chosen
+finite syntax is closed under the existential interface projection or that
+the source typing derivation generates these relations.
+
+The execution-level counterpart is associativity of state-threading
+continuation bind, up to observation bisimulation, provided each saved
+continuation receives the appended bind and the live resumed environment and
+state. For `Return`, both associations apply `F` then `G`; for `Request`, both
+attach the same recursively associated continuation to the request; internal
+steps preserve the bisimulation, including finite prefixes of nonreturning
+paths. This law permits regrouping source sequencing and callback invocation.
+It does not permit moving a shallow handler image across bind: the adjacent
+counterexample shows that handler image is a transformation on the already
+composed computation, not an algebra homomorphism.
+
 #### Formulation choice and semantic/bookkeeping boundary
 
 There are three plausible presentations of this same design problem:

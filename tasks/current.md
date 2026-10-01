@@ -143,8 +143,14 @@ calculation shows that shallow handler image cannot in general commute with
 continuation composition: forwarding then re-entering can handle a request
 that becomes visible only after sequencing. A compiler referee reviewed the
 calculation with its visibility and resumption premises explicit. The
-collected may-support projection is least in the full powerset for each fixed
-valuation, while pointwise row join is distinct
+same common relation now has a reviewed associativity lemma for static
+composition under one owned-identity assignment and for state-threading
+execution bind up to observation bisimulation. This permits regrouping
+sequencing while retaining `K,D`; the separate handler-image counterexample
+prevents treating handlers as bind homomorphisms. Source adequacy and finite
+presentation closure remain open. The collected may-support projection is
+least in the full powerset for each fixed valuation, while pointwise row join
+is distinct
 from relational disjunction and only gives a monotonicity inclusion without
 an additional theorem. A further audit found that this ground support result
 alone does not establish the required symbolic family transport. The handler
