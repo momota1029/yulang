@@ -320,3 +320,50 @@ the source through it. The next Oracle comparison should state which public
 acceptance gate it targets and distinguish build/default Evidence VM from the
 optional mono interpreter. This is source-path characterization only; no
 compiler or Oracle execution was performed.
+
+### Final-gate observation for the identity-function use
+
+Using the already-built executable in the frozen `a58eefc31` worktree, with
+`--no-prelude`, I queried a temporary source file containing
+`pub f x = x f; pub main = f (\\z -> z)` directly:
+
+```text
+target/debug/yulang --no-prelude dump-poly /tmp/yulang_intrusion_fid.yu
+target/debug/yulang --no-prelude build /tmp/yulang_intrusion_fid.yu
+target/debug/yulang --no-prelude run /tmp/yulang_intrusion_fid.yu
+```
+
+`dump-poly` exited 0 and printed `f: any -> ['a] 'b`, `main: never`, and
+`main` as a runtime root. Both public `build` and default `run` exited 1 in
+runtime-evidence specialization with
+`open2 -[never, open1]-> open0 <: unit`, pointing at the recursive `f` use in
+the body. This establishes the actual standard final-gate result for this
+fixture; the earlier `dump-mono` observation was not used as a proxy.
+
+The temporary checkout was at the frozen commit but had local trace and test
+changes. I inspected the production-source deltas in the inference and mono
+runtime modules: they add only environment-gated diagnostics, and no trace
+environment variables were set for these commands. The executable was
+prebuilt in that checkout; no checkout files were changed during this query.
+
+The candidate pure recursive-group relation has a satisfying assignment for
+the same source. Let `Top` be greatest and `Fun` obey contravariant argument
+subtyping. In the group constraints
+`q ≤ Fun(s,v)`, `Fun(q,v) ≤ s`, and `Fun(q,v) ≤ r`, choose
+`q = Fun(Top,Top)`, `s = Top`, `v = Top`, and
+`r = Fun(Fun(Top,Top),Top)`. The recursive constraints hold. Instantiate the
+inline identity lambda at `Fun(Top,Top)` and the external `f` use at `r`; the
+call constraint holds by equality. Operationally, the call evaluates to
+`id f`, then to the `f` closure, so it terminates without a request.
+
+This is a concrete candidate-versus-Oracle final-acceptance mismatch inside
+the pure one-SCC fragment: the custom declarative relation admits a terminating
+pure use that frozen Oracle build/default-run rejects after successful
+inference. The candidate derivation relies on its pure source/group rules and
+the stated `Top`/`Fun` laws; source-language adequacy and Oracle-wide
+principality are still unproved. If those rules are adopted, the compatibility
+impact is to accept this additional well-typed program at build/run; the
+inference dump already succeeds on Oracle. This records a precise candidate
+compatibility delta, not an authoritative decision to change the source
+contract. No tests were run; these were direct CLI queries against the
+prebuilt frozen-worktree executable.

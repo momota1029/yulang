@@ -3801,27 +3801,22 @@ subtraction requires the handler-image proof. No grant-lifetime policy was
 selected.
 
 Independent pure-SCC audit: the reviewed `RecGroup`/`LetRec` proof establishes
-adequacy only for its custom declarative rules, and no recorded concrete
-final-acceptance mismatch exists in its pure one-SCC envelope. Oracle
-source-to-rule correspondence remains missing, especially per-member
-fetch/root projection and latent effect endpoints even for pure-looking
-Functions. A read-only frozen-source trace found that self recursion is a
-local monomorphic endpoint, while external uses pass through per-member SCC
-quantification and independent scheme freshening. The recorded `f 1`
-`dump-mono` rejection occurs in a later specialization body check; ordinary
-`check` does not run that same gate. Neither terminal `check`/`run` behavior
-nor the `f (\\z -> z)` outcome is recorded, so the next discriminator must use
-the actual final well-typed-program gate, paired with the existing two-member
-independent-use fixture. The unified declarative relation remains the target;
-these Oracle phases are characterization evidence, not semantic constructs.
-No tests or Oracle executions were run.
+adequacy only for its custom declarative rules. A read-only frozen-source trace
+found that self recursion is a local monomorphic endpoint, while external uses
+pass through per-member SCC quantification and independent scheme freshening.
+The candidate relation remains distinct from this Oracle pipeline.
 
-Final-gate source tracing narrows the comparison target: `check` stops at
-poly inference; `build` and default `run` require runtime-ready poly output,
-then use runtime-evidence specialization, and default `run` selects Evidence
-VM. `run --interpreter` follows the distinct mono-specialization path. Therefore
-the recorded `dump-mono` rejection cannot stand in for default build/run
-acceptance. Next compare the singleton and mutual-SCC witnesses at the
-user-facing build/default-run specialization gate, keeping the mono result as
-a separate compatibility observation. No compiler or Oracle execution was
-performed.
+Final-gate tracing established that `check` stops at poly inference; `build`
+and default `run` use runtime-evidence specialization, while
+`run --interpreter` uses mono specialization. Direct CLI queries against the
+prebuilt `a58eefc31` worktree executable now give a pure one-SCC mismatch:
+`pub f x = x f; pub main = f (\\z -> z)` succeeds at `dump-poly` but both
+`build` and default `run` reject with an open Function-to-`unit` subtype error
+inside the recursive body. The reviewed custom `RecGroup` relation admits a
+terminating assignment with `Top`/`Fun` and fresh use of the identity lambda.
+The candidate successor rule would retain that complete member/use relation
+instead of forcing the failed concrete specialization; if source adequacy
+confirms this derivation, the compatibility delta is accepting this program
+at build/run. This is not yet an authoritative source-contract decision.
+Source-to-rule adequacy and latent effect coordinates remain open. No tests
+were run; these were direct CLI queries with `--no-prelude`.
