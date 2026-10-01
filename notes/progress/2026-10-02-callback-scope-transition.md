@@ -124,6 +124,35 @@ result, and any final-acceptance difference if it cannot, remain open. A
 spec-auditor delta review closed the correction with no remaining findings.
 Neither preserve nor suspend is selected.
 
+## Handler-relative visibility repair
+
+A later adversarial audit found a separate formal issue in the candidate
+notation: `Visible(q,κ)` was existential over all active frames, while ordered
+search could test that same fact at each frame. With
+`κ = [h_inner,h_outer]`, a request connected only to `h_outer` would make the
+global fact true and could therefore be stolen by a same-family `h_inner`.
+That contradicts the documented caller-hygiene rule.
+
+The draft now uses the handler-relative judgment `Visible(q,h,κ)`. Search
+checks request origin and capture incidence against each candidate `h`; it
+does not distribute an outer handler's evidence to other frames. The concrete
+counterexample and revised signature are in the coupled-interface draft's
+visibility section. A compiler-referee delta review closed this quantifier
+finding. The reviewer also confirmed that the deeper certification blocker
+remains: source rules for contract incidence through nested boundaries,
+concrete/concrete propagation, and escaped-value lineage are still absent.
+
+Architecture and source-spec audits agree that an origin-indexed relation over
+ordered boundary transitions is the most economical candidate carrier. The
+public source contract supports capture by handlers inside a concrete
+receiving function and protection of uncontracted callback effects. It does
+not uniquely settle nested concrete receiver propagation or escaped-value
+lifetime. Preserve/composition is the simpler hypothesis; a visibility cut
+would need a source-defined boundary rule beyond family equality. Neither is
+approved. A concrete user decision remains before that source rule can be
+selected; finite symbolic presentation and principality follow as separate
+proof gates.
+
 ## Next proof gate
 
 Define one source call/handler transition over ordered activation contexts and

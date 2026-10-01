@@ -4044,6 +4044,17 @@ compiler-referee, and spec-auditor reviews closed the relevant wording; neither
 nested-boundary policy is selected. See
 `notes/progress/2026-10-02-callback-scope-transition.md`.
 
+The formal visibility judgment was then tightened to the candidate-handler
+form `Visible(q,h,κ)`. A global existential `Visible(q,κ)` could transfer an
+outer handler's grant to an inner same-family handler, violating caller
+hygiene. Compiler-referee delta review closed that quantifier defect. The
+remaining source-semantic decision is how origin incidence composes across
+nested concrete callback contracts and whether escaped values carry
+activation lineage; the public contract does not decide either. The
+origin-indexed ordered-boundary relation is the lowest-cost candidate, with
+preservation favored as a hypothesis but not approved. See the latest section
+of `notes/progress/2026-10-02-callback-scope-transition.md`.
+
 Source-contract clue for that gate: the frozen reference says handlers inside
 a concrete callback receiver can consume matching callback-origin effects.
 The witness's `catch` is inside `handle`, while nested `invoke` has no handler;

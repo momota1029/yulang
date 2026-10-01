@@ -100,12 +100,13 @@ this candidate cannot decide those cases.
 
 Likewise, handler visibility is decided by the ordinary ordered machine
 search over its complete configuration and source typing relation. There is
-no second `Capture` store or family-level grant bit: `Visible(q,κ)` abbreviates
-the fact that the source derivation and the active configuration permit this
-request occurrence to reach this activation. Request origin, binder
-assignment, frame entry/unwind, and saved-continuation re-entry are coordinates
-of the common relation when observable. A route record or capture-incidence
-map may witness the derivation, but cannot independently grant visibility.
+no second `Capture` store or family-level grant bit: `Visible(q,h,κ)` is
+relative to one candidate handler activation `h` and states that the source
+derivation and complete active configuration permit this request occurrence
+to reach that activation. Request origin, binder assignment, frame
+entry/unwind, and saved-continuation re-entry are coordinates of the common
+relation when observable. A route record or capture-incidence map may witness
+the derivation, but cannot independently grant visibility.
 The callback annotation, helper, escape, and force rules that derive this
 judgment remain an explicit source-semantics obligation. This formulation
 keeps two genuinely different observations—type sharing and dynamic reachability—
@@ -1172,11 +1173,16 @@ rule. The frozen evaluator has known deviations from this contract, recorded
 below; they are not silently adopted as successor semantics.
 
 Use one machine relation over configurations with an ordered activation stack
-and request visibility evidence. At the semantic level, a request and an
-activation are related by one `Visible(q,κ)` judgment; it determines whether
-that activation handles or forwards the request. This coordinate is needed
-because it changes observable behavior. The runtime-guard contract represents
-it with request-carried guard identities and the active stack, and defines
+and request visibility evidence. At the semantic level, `Visible(q,h,κ)` is a
+request-to-candidate-activation judgment: it determines whether this
+particular activation may handle the request. Ordered search checks it for
+each candidate handler while traversing `κ`; it must not first collapse the
+stack to a global `Visible(q,κ)` fact and then treat that fact as permission
+for every frame. Such an existential shortcut would let a request connected
+only to an outer handler grant an inner same-family handler permission to
+capture it, contrary to the caller-hygiene contract. This coordinate is
+needed because it changes observable behavior. The runtime-guard contract
+represents it with request-carried guard identities and the active stack, and defines
 `add_id` coloring from an entry snapshot. The frozen evaluator also carries a
 `handler_boundary` field. These concrete forms are implementation witnesses
 for `Visible`, not separate inference rules or mathematical constructs. A
@@ -1219,10 +1225,15 @@ A candidate context shape, leaving the contract interpretation symbolic, is:
 ```text
 κ = ordered active frames, each paired with its source-typed capture relation
 Origin(q) = source-owned request occurrence plus its typed boundary incidence
-Visible(q, κ) iff a handler frame in κ covers q.operation and
-  the complete source relation connects Origin(q) to that frame's
-  capture relation
+Visible(q, h, κ) iff h is an active frame in κ, h covers q.operation, and
+  the complete source relation connects Origin(q) to h's capture relation
 ```
+
+The handler-relative form is required even before the boundary-composition
+rule is selected. For `κ = [h_inner,h_outer]`, a request connected only to
+`h_outer` must fail `Visible(q,h_inner,κ)` and may pass
+`Visible(q,h_outer,κ)`. Exact operation-family equality and an existential
+outer witness cannot transfer that connection to `h_inner`.
 
 This formulation makes the required distinctions explicit without choosing a
 weight algebra: the source transition determines how nested calls relate their
@@ -1729,10 +1740,10 @@ audit found implicit force code for `RefSet` and some handler-result paths;
 only the case path has a confirmed source run witness so far. It also found
 that callee expressions receive a typed `Fun` consumer and normally get an
 explicit boundary, so its fallback remains unproven. The semantic relation
-uses `Visible(q,κ)` for routing; the evaluator's concrete guard fields and
-`handler_boundary` remain implementation evidence, not additional inference
-rules. No soundness or final-acceptance claim follows until these simulation
-obligations are closed.
+checks `Visible(q,h,κ)` for each candidate handler during routing; the
+evaluator's concrete guard fields and `handler_boundary` remain implementation
+evidence, not additional inference rules. No soundness or final-acceptance
+claim follows until these simulation obligations are closed.
 
 This anchor does not decide which source expressions specialization must
 lower to `MakeThunk` or `ForceThunk`, nor does it prove that Function effect
@@ -1803,7 +1814,7 @@ traces:
 (b) Catch_κ(Force(d) >>= F)
     first dispatch is Request(q) under the active κ;
     ordered Search_H uses exact operation identity, arm order/guards,
-    and Visible(q,κ) as one eligibility premise.
+    and Visible(q,H,κ) as one eligibility premise for this candidate handler.
 
 (c) Catch_κ(Return(d)) >>= (λd'. Force(d'))
     with a non-forcing value arm that returns d unchanged, and no saved
