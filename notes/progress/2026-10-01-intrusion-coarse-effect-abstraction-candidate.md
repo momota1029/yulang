@@ -9070,12 +9070,13 @@ maps from source typing remains open.
 
 The coupled-interface draft now makes its conceptual economy explicit through
 four relational constructions: fiber product, relational composition,
-restriction, and identity-map transport. Projection and image are derived
-from composition/direct image. Sequencing and callback invocation compose
-relations; splitting/filtering are projection and restriction; handler
-residuals compose with the handler transition then project support;
-generalization abstracts owned identities, instantiation renames them, and
-intrusion pulls back along the parent map subject to the quotient lemma. These
+restriction, and consistent assignment/interface transport. Projection and
+image are derived from composition/direct image. Sequencing and callback
+invocation compose relations; splitting/filtering are projection and
+restriction; handler residuals compose with the handler transition then
+project support; generalization abstracts owned identities, instantiation
+renames them, and intrusion pulls back along the parent map subject to the
+quotient lemma. These
 are derivations over the same complete relation, not new source constructs.
 The generic laws include associativity, intersection of restrictions, and
 composition of injective renamings. Projection/image commutation, handler
@@ -9088,9 +9089,16 @@ Transitions are ternary over a fixed assignment and complete input/output
 interfaces; sequencing existentially joins the intermediate interface, while
 view projection keeps the full type assignment and its constraints. The
 operator basis was reduced to fiber product, relational composition,
-restriction, and identity-map transport; projection is a derived direct image.
+restriction, and consistent assignment/interface transport; projection is a
+derived direct image, not necessarily a type-identity renaming.
 The associativity proof is the ordinary reassociation of the two intermediate
 existentials. This prevents projection from being mistaken for erasing a
 symbolic type variable. This is a notation/proof-reuse refinement only; source
 transition adequacy, finite-principal closure, and SCC quotient premises
 remain open.
+
+An independent architect review of the relational-core delta found no major
+issue in relational composition, coordinate projection, or the distinction
+between direct image and parent-map pullback. It explicitly left source-owned
+typed-family grouping, complete fixed-outer semantics, and finite principal
+presentation unverified; none is closed by this notation change.

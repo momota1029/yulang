@@ -3697,11 +3697,16 @@ then show a finite principal presentation preserves its fibers. The design is
 still draft and implementation remains unauthorized.
 
 The relational algebra notation was tightened to four constructions:
-fiber product, relational composition, restriction, and identity-map
-transport; image/projection are derived. Each source transition relates
+fiber product, relational composition, restriction, and consistent
+assignment/interface transport; image/projection are derived. Each transition relates
 `(ν, input-interface, output-interface)` at fixed `ν`, sequential composition
 existentially joins a complete intermediate interface, and view projection
 retains the assignment and its constraints. This closes a notation ambiguity
 only. Next source-semantic gate remains the operation/handler judgment and its
 correspondence to the complete relation; no implementation or source-adequacy
 claim follows.
+
+A narrow architect review of the relational-core change found no major issue in
+composition, coordinate projection, or the distinction between parent
+pullback and direct image. It left source ownership rules and finite principal
+presentation explicitly unverified; those remain active gates.

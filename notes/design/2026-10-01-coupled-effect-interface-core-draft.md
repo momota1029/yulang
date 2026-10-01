@@ -2589,13 +2589,15 @@ same assignment `ν`. The core needs four ordinary relational constructions:
 fiber product:   R₁ ×_A R₂ (join only equal assignments ν)
 composition:     T ∘ R     = { (ν,j) | ∃i. (ν,i)∈R ∧ T(ν,i,j) }
 restriction:     R ↾ P     = { (ν,i)∈R | P(ν,i) }
-reindexing:      f_*R      = direct image under a consistent identity map
+transport:       f_*R      = direct image under a consistent assignment/interface map
                  f^*R      = pullback along a map of assignments/interfaces
 ```
 
 Projection is a direct image under the coordinate-forgetting map, so it does
-not require a separate semantic primitive. A request-support projection, for
-example, maps a complete interface to its row view while leaving `ν` fixed.
+not require a separate semantic primitive. It is among these interface maps,
+not necessarily an identity renaming of type variables. A request-support
+projection, for example, maps a complete interface to its row view while
+leaving `ν` fixed.
 Sequential source steps use composition at their shared complete interface:
 
 ```text
@@ -2631,8 +2633,8 @@ This classification intentionally does not give rows, callbacks, handlers, or
 SCC transport separate semantic rule families. Their source syntax supplies
 different transition relations and interface maps; the proof obligations are
 instances of relational composition, fiber product, restriction, and
-identity-map transport. Projection is a direct image under a coordinate map;
-identity-map transport changes type-identity indices.
+consistent interface-map transport. Projection is a direct image under a
+coordinate map; binder renaming changes type-identity indices.
 Numeric selector IDs, demand edges, route certificates, and parent tables may
 implement those operations, but they do not enlarge the semantic algebra.
 
