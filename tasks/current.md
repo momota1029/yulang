@@ -2154,3 +2154,20 @@ do not select or implement a weight-routing rule before that derivation.
 Details are in `notes/progress/2026-09-30-intrusion-weight-routing-counterexample-search.md`
 under "Conservative lifting for an unknown family tail" and the
 `2026-10-01` coarse-effect candidate record.
+
+A second algebraic step isolates monotonicity of handler subtraction. With a
+fixed handler activation and stable per-contribution route evidence, the
+combined residual-plus-arm result is monotone as contributions and arm support
+grow. Review found that a raw-only contribution could become droppable only
+when its family is added to the arm bound, so residual subtraction alone is
+not monotone; the statement now includes that charging condition. This is
+conditional: type refinement that removes unknown routes, changes admissible
+targets, or adds activation visits must be modeled explicitly, and the lemma
+does not prove the coupled type/effect operator or source derivation. The
+compiler-referee found and closed the missing condition that raw-only effects
+must be charged into the arm bound before subtraction; its closure review
+found no remaining issue under the stated premises.
+Details are in the candidate record under "Conditional monotonicity of
+route-certified subtraction". Next close the review, then derive whether the
+source solver can meet the evidence-stability premise or must use a different
+least-solution method.

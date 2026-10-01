@@ -3251,6 +3251,61 @@ tree lemma; source lowering, route-certificate construction, the finite
 quotient, visibility correctness, and returned-callable correspondence remain
 open.
 
+#### Conditional monotonicity of route-certified subtraction
+
+The remaining fixed-point obligation can be split into a small support lemma
+and the still-open source-evidence theorem. Fix one handler activation and
+consider a set `O` of route-classified family contributions. Each contribution
+has immutable typed identity and route evidence. For a family `f`, define
+`Safe_H(o,A)` to mean: an offer contribution has complete coverage and
+visibility evidence at every represented visit; a raw-only contribution has
+its `f`-effect charged into the arm summary `A` on every invocation of raw
+`k`, and every returned/exported value preserves the corresponding latent
+bound; and no unknown/unclassified alternative is present. A mixed
+contribution must satisfy both offer and raw obligations. Define
+
+```text
+Drop_H(O,A) = { f ∈ support(O) | for every o ∈ O with family(o)=f, Safe_H(o,A) }
+Result_H(O,A) = (support(O) \ Drop_H(O,A)) ∪ A
+```
+
+Assume evidence is stable when contributions are added: old contributions
+keep their family, route alternatives, and offer-certificate validity, and
+adding a contribution cannot rewrite or discharge an old offer obligation.
+Also assume `O₁ ⊆ O₂` and `A₁ ⊆ A₂`. Then
+`Result_H(O₁,A₁) ⊆ Result_H(O₂,A₂)`. For a family already in `A₁`, this follows
+from `A₁ ⊆ A₂`. For a family in the first residual, it remains in the second
+residual unless the second certificate drops it. A formerly unsafe offer or
+unknown route cannot become safe under stable evidence. The only old
+obligation that can become safe as `A` grows is a raw-only obligation; its
+definition requires that the corresponding family now belong to `A₂`, so the
+family remains in the second result. Thus the combined result, rather than
+residual subtraction alone, is monotone. If `A_H(O)` is monotone in `O`, the
+composite `Result_H(O,A_H(O))` is monotone. This argument does not assume
+Oracle's left/right weight routing or treat family support as the route proof.
+
+The stability premise is essential and not yet derived from source solving.
+If type refinement removes an `Unknown` route or changes the admissible target
+set, evidence is not merely extended by inclusion; the relation must model
+that refinement explicitly and prove a corresponding solution/leastness
+result. The lemma also requires complete contribution enumeration, stable
+handler activation classes, and sound raw-value latent summaries. It proves
+neither those properties nor monotonicity of the coupled type/effect operator.
+For the separate open-world `TopEff` abstraction, any unknown or unclassified
+route sets the input and result to absorbing `TopEff`; only a proved finite
+support enters this finite-family theorem. This is the Top transfer premise,
+not a consequence of the finite-set proof. The result isolates one algebraic
+obligation for the eventual source-to-constraint proof, rather than claiming
+that the current conditional transfer is already a principal recursive
+inference system.
+
+A scoped compiler-referee review found that the first version did not require
+raw-only continuation effects to be charged into `A`; a raw suffix could then
+be unsoundly dropped. The revised `Safe_H(o,A)` condition and combined-result
+monotonicity proof close that counterexample. The closure review found no
+remaining issue under the stated evidence-stability and monotone-arm premises.
+This review does not establish those premises from source constraints.
+
 The direct exact-trace lemma in
 `2026-09-30-intrusion-shallow-handler-trace-calculus.md` isolates the first
 handler-coverage table row: covered-operation metadata does not itself emit a
