@@ -3503,3 +3503,10 @@ input view that covers its source computations, is handler-safe over that
 whole abstract fiber, and has an output presentation covering every source
 result. Principality requires the least sound expressible output. Existence
 of this view for the full supported envelope remains open.
+
+The shallow trace audit gives a minimal witness against family-wide row
+subtraction: a handler consumes the first `q`, resumes its raw continuation
+once, and the continuation emits another request with the same row key
+outside that activation. The family therefore remains in output support. This
+is source-semantic evidence for deriving removal from the full handler image;
+it does not use Oracle weight routing or a Yulang acceptance fixture.

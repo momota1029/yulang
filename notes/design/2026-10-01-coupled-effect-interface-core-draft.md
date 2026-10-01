@@ -1616,6 +1616,20 @@ coarser image. Thus `Drop` certificates, route ledgers, and `Demand` edges can
 serve as proof or implementation evidence for computing this image, but none
 is an independent semantic rule.
 
+A direct shallow trace refutes subtraction based only on matching the first
+request. Let `q` be one well-typed request instance, with continuation
+`k(r)=Request(q',c',k')` where `q'` has the same row key as `q` (same
+operation and family arguments) and the arm signature accepts both
+payload/result instances. Let the `q` arm resume its raw continuation once and
+return its result. The first `q` is consumed at this activation, but `q'` runs
+outside the activation and appears in the handled output trace. Thus the row
+key of `q` belongs to both input and output support, while the row difference
+`supp(c) \ {q}` is empty. This counterexample uses one
+resume; two sequential occurrences suffice, and it does not depend on Oracle
+weights, repeated continuation use, or typed-family ambiguity. It follows
+directly from the shallow raw-continuation clause; only the complete handler
+image can justify a family-wide `Drop`.
+
 This removes source-site-specific subtraction from the mathematical core,
 but the transfer remains deliberately abstract. A family may occur in an
 input path and not in the output path after non-resumption; another may escape

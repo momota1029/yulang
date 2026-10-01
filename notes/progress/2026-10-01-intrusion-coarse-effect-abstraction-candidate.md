@@ -8203,3 +8203,16 @@ not a claim that it factors as a product. It aligns the effect-interface
 presentation with the reviewed conditional joint-use theorem in
 `notes/progress/2026-09-30-intrusion-joint-use-renaming-review.md`; source
 event partition and Oracle root/scheduler projection remain open.
+
+#### Shallow trace: a handled family can escape through one raw resume
+
+The shallow handler clauses admit a minimal semantic counterexample to
+subtracting a family after its first matching request. A request `q` whose
+continuation immediately issues another request with the same row key is
+handled by an arm that resumes the raw continuation once. The first request
+is consumed at this activation; the second runs outside it and remains in
+the output trace. Thus the family is present in both input and output
+support, although row difference would remove it. Two sequential occurrences
+and one resume suffice. This is a trace-level proof against family-wide
+subtraction, independent of Oracle weight routing; `Drop` requires absence
+from the complete handler image.
