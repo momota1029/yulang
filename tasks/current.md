@@ -3257,3 +3257,11 @@ fiber entails their identification. The discriminator is at
 `notes/progress/2026-09-30-simple-sub-paper-mlsub-audit.md`; the relation-level
 quotient condition is in the coupled-effect draft. The finite principal
 presentation and source-to-interface simulation remain the next proof work.
+
+The coupled-effect draft now makes interface composition explicit as a
+relational join under one shared outer/type assignment, with only the
+intermediate interface existentially hidden. Source-shared family binders
+remain one identity through the join; independent binders are freshened apart
+before it. This gives a common algebraic basis for callback composition and
+row views while preserving typed-family correlations. The source typing rule
+that establishes those identity-sharing choices is still open.

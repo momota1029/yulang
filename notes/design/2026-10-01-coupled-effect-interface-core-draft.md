@@ -382,6 +382,42 @@ continuations. Soundness requires an over-approximation of the relational
 image; principality asks for the most-general representable result in the
 chosen interface language.
 
+#### Composition over a shared assignment
+
+The static interface composition used below is ordinary relational join with
+one fixed outer assignment and one identity environment. For predicates
+`R(ρ,ω_R,X,Y)` and `S(ρ,ω_S,Y,Z)`, first reindex locally owned identities so
+that distinct owners are disjoint and source-shared owners remain identical.
+Then let `ω` assign their union, with restrictions agreeing on any
+source-shared identity; its type-variable component is `ν`. Define:
+
+```text
+Comp(R,S)(ρ,ω,X,Z) iff
+  ∃Y. R(ρ,ω|Ω_R,X,Y) ∧ S(ρ,ω|Ω_S,Y,Z)
+```
+
+The existential is only over the intermediate interface `Y`. It does not
+choose separate type assignments for the two premises: both predicates see
+the same `ρ`, and every shared owned identity has one value in the joined
+assignment. Their symbolic formulas therefore compose by conjunction before
+any local identity is projected away. For example, if `R` requires
+`FamAgree_A(B₁,g,ν)` and `S` observes the same source-owned `g` in a result or
+request, the composite retains both facts under that one `ν(g)`; it cannot
+solve each side with independently chosen family arguments and then join only
+their row projections. Conversely, independent source-owned binders are
+alpha-renamed apart before composition and can be related only by an explicit
+source constraint in `R` or `S`.
+
+This is the static counterpart of state-threading execution bind: both join
+relations at their shared interface and preserve the identity environment.
+The execution relation additionally carries resumable continuations and
+dynamic machine state; those are its intermediate coordinates, not extra
+static row rules. Support union, callback invocation, filtering, and handler
+image can thus be derived as projections or transformations of a relation
+composed under one valuation. The algebraic definition is straightforward;
+the open adequacy obligation is to prove that source typing creates exactly
+these shared identities and intermediate interfaces.
+
 #### Formulation choice and semantic/bookkeeping boundary
 
 There are three plausible presentations of this same design problem:
