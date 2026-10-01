@@ -4084,3 +4084,21 @@ does not define how concrete receiver contracts compose or prove where every
 `CallView` adaptation runs. Treat preserve as the simpler hypothesis, not a
 settled source rule. Details and compatibility evidence are in
 `notes/progress/2026-10-02-callback-scope-transition.md`.
+
+Theory-economy audit: an independent architect and compiler-referee review
+found the coupled complete-interface relation remains the smallest candidate
+so far, with fiber product, relational composition, restriction, and
+consistent transport as its core operations. Row splitting/filtering,
+handler subtraction, callbacks, generalization, instantiation, and intrusion
+are projections/images or lifecycle transports over that shared carrier;
+`Sel_s`, `Demand`, route certificates, obligation keys, and transport tables
+remain presentation evidence unless source semantics proves otherwise. The
+review found no new contradiction in the corrected conditional lemmas. It
+identified four unresolved certification gates: source binder/visibility
+rules, actual solver solution-factorization, finite principal closure, and an
+independent meaning/preservation proof for any retained weight routing. These
+results and the comparison with simpler row and selector-based formulations
+are in `notes/progress/2026-10-02-unified-core-audit.md`. This does not select
+the nested receiver or escaped-value policy and does not authorize compiler
+implementation. Continue with a bounded source transition/interface fragment
+that preserves the full symbolic typed-family fiber.
