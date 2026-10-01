@@ -2521,3 +2521,18 @@ the frozen sandwich spec confirmed it requires cross-bound generation but
 does not claim finite joins or witness existence. The successor has not
 selected or proved that carrier property, so the actual Yulang type-domain
 realization remains open.
+
+A further interval-argument counterexample clarifies why symbolic retention
+alone is insufficient: when invariant arguments are represented by intervals,
+their same-argument condition is nonempty intersection/common witness, not
+mutual subtyping of interval descriptions. The frozen sandwich spec's
+cross-bound constraints express the former. For `[0,2]` and `[1,3]` in a
+four-element chain, the intervals overlap although neither admissible set
+includes the other. A scoped compiler-referee review found no issue; the
+candidate records this only as a representation/proof obligation, not as a
+selected successor rule. `InvArgs` still needs a denotation covering concrete
+and interval-valued arguments and must remain symbolic through the full
+lifecycle. See `Overlap is not mutual subtyping for interval arguments` in
+the candidate record. Next, define that relation over polarized interval
+terms and compose it with compound constructor decomposition and the actual
+carrier realization theorem.

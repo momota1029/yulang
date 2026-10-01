@@ -5237,6 +5237,41 @@ invariant relation, including interval-valued arguments. Until then,
 preserving the symbolic formula is necessary for the candidate relation but
 does not by itself establish Oracle-equivalent argument invariance.
 
+#### Overlap is not mutual subtyping for interval arguments
+
+The frozen invariant-type sandwich spec distinguishes a bounded argument
+from a concrete type term. An interval `[L,U]` describes the arguments admitted
+by its lower and upper constraints; coalescing two occurrences as one
+invariant argument requires a common witness satisfying both intervals. For
+intervals `A=[L_A,U_A]` and `B=[L_B,U_B]`, the endpoint condition is
+
+```text
+for every l in L_A ∪ L_B and u in U_A ∪ U_B: l <: u
+```
+
+This is the condition in the frozen spec's cross-bound generation (with each
+interval's own feasibility retained). It is not equivalent to mutual subtype
+of the two interval descriptions when those descriptions denote sets of
+admissible concrete arguments. In a four-element chain
+`0 <: 1 <: 2 <: 3`, let `A=[0,2]` and `B=[1,3]`. Their intersection is
+nonempty (`1` and `2` are common witnesses), and all cross-bound inequalities
+hold. But the admissible sets differ, so neither interval denotes a subtype of
+the other by set inclusion; mutual subtyping rejects this valid shared-
+argument case. Conversely, treating the two endpoint pairs as point types
+would confuse the interval constraints with concrete values.
+
+Thus the candidate `InvArgs` name must not silently mean mutual subtyping of
+interval objects. The successor needs a symbolic *common-witness / interval
+intersection* relation for interval-valued invariant arguments, with a
+separate pointwise equality relation only for already concrete argument
+values. Its solver encoding must retain the lower/upper endpoint ownership and
+all cross-bound obligations through solving, residualization, generalization,
+fresh instantiation, and intrusion. The finite-join lemma below supplies
+common-witness existence only conditionally; it does not justify replacing
+the symbolic relation with its current finite consequences or choosing the
+carrier. This is a specification distinction and proof obligation, not a
+change to the frozen spec or a selected successor rule.
+
 #### Variable-edge propagation into interval constraints (conditional)
 
 This identifies one solver expansion of the `InvArgs` shorthand; it does not
