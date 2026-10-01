@@ -107,7 +107,7 @@ later calls and forces. Let `H_κ` be
 the source shallow-handler transformation at activation context `κ`. The
 context includes the active handler stack and the source-defined visibility
 relation; it is not calculated from a family row alone. Require `H_κ` to be
-defined for every computation in `C_ρ(I)`. If typing can establish only an
+defined for every computation in `C_ρ(I,ν)`. If typing can establish only an
 existential subset, the universal abstraction below is not justified.
 
 For an interface relation `R` over owned valuations and root interfaces,
@@ -154,6 +154,53 @@ symbolically transported observation of every such `H_κ(c)` must contain
 image has a finite formula, that a solver computes it, or that the whole type
 inference system is principal. The `K,D` transport premise is a separate open
 lemma, not a consequence of the ground collecting support argument.
+
+### Symbolic preservation at one shallow-handler step
+
+The required `K,D` premise can be stated without adding another obligation
+kind. Write `K` for the existing formulas in the coupled interface and `D`
+for their dependency incidence. A source handler step partitions the
+scrutinee's typed request facts into facts forwarded, facts selected by the
+source eligibility rule, and facts whose route is not known. It then acts as
+follows:
+
+1. A forwarded fact is mapped to the forwarded occurrence, with its boundary
+   lineage extended by the handler transition. Its family-argument formulas
+   and incidence move with that occurrence.
+2. Before a selected request fact leaves the residual support, apply the
+   source operation-signature relation to the symbolic request arguments and
+   the arm's symbolic payload/result types. Add the resulting formulas to the
+   same `K`; map their incidence to the arm, continuation, and output views
+   that depend on them. The original formulas attached to the request remain
+   in `K` until a solver proof establishes a semantics-preserving discharge.
+3. An unknown route is not selected for removal. Keep its request fact or a
+   sound unknown-support view, and retain its `K,D` incidence.
+
+Whenever a request is matched to an arm, one source operation-signature
+relation checks operation identity, invariant family arguments, and
+payload/result compatibility. Forwarding carries the existing request
+constraints unchanged. The handler's selection determines which computation
+relation runs; it does not choose a different family-argument comparison.
+Route eligibility remains a separate coordinate of the same source relation.
+
+For any capture-avoiding type substitution `θ`, formula transport is
+structural: `K_θ = θ(K)` and the same occurrence/owner map is applied to `D`.
+If formula satisfaction is equivariant under type substitution, then
+`ν' ⊨ θ(K)` exactly when the induced assignment `θ*ν'` satisfies `K`. This
+proves substitution does not silently discard a symbolic family condition.
+It is conditional on the chosen denotation of typed family arguments,
+including the shared-witness behavior for interval-valued arguments; the
+point-valued mutual-subtype shorthand alone is insufficient for that case.
+
+The same transport obligation applies later: solving substitutes endpoints;
+residualization changes request views only after their formulas and incidence
+are carried; generalization quantifies locally owned endpoints with the
+constraint; each use freshens endpoints, occurrence identities, and incidence
+with one consistent map; intrusion applies its type-parent map to endpoints
+and its boundary map to lineage. This is a formula-transport lemma, not the
+fiber-preservation theorem for generalization or non-injective intrusion.
+Those lifecycle theorems must still prove that the transformed relation has
+the same observable solutions and independent-use behavior.
 
 The shallow operational cases are consequences of the same image. A covered
 visible request enters its arm with the raw continuation; a request not

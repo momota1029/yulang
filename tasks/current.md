@@ -138,7 +138,12 @@ an additional theorem. A further audit found that this ground support result
 alone does not establish the required symbolic family transport. The handler
 image now has an explicit `K,D` preservation premise and symbolic observation
 map; proving that source handler transitions construct and retain it is the
-immediate next step. Finite principal presentation, termination, and global
+next step. A conditional one-step argument now specifies the transport:
+forwarded facts carry their formulas/incidence, selected facts receive
+operation-signature constraints before residual removal, and unknown routes
+cannot be removed. It proves only structural formula substitution under
+equivariant typed-family denotation; handler source adequacy, fixed-fiber
+preservation, finite principal presentation, termination, and global
 principality remain open.
 
 ## Objective
