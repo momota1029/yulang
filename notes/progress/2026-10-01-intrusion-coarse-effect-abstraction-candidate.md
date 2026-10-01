@@ -3652,66 +3652,60 @@ quotient/ownership proof resolves it.
 #### Joint member/use transport criterion (conditional)
 
 The per-view alpha result does not by itself justify taking a union of
-independently rebased member views. Make the joint interface explicit. Let
-`O_d` be the tagged occurrences in member view `d`, so the same raw ID in two
-views is represented as `(d,v)` and `(e,v)`, not silently identified by its
-integer spelling. Let `≈` be the source-proved identity-sharing relation on
-these occurrences. Quotient preserved occurrences by their component-stable
-anchor identity, while keeping each member/use-local binder in a separate
-`(d,u)` namespace. The resulting canonical identity space is
-`I_joint = A_shared ⊎ ⊔_(d,u) L_(d,u)`. A source relation that equates one local
-identity with a shared anchor is not silently put in either class; it must
-resolve the ownership conflict or reject the transition. Let `K` be the
-complete set of cross-view constraints and evidence connecting occurrences,
-including recursive-bound links and the internal live-root edges that remain
-in the component. For a batch of external uses, the map on `I_joint` is
+independently rebased member views. For each external use `j=(d,u)`, let
+`C_j` and `root_j` be that member's complete selected constraint view and root;
+all internal SCC edges and recursive-bound links selected for that view stay
+inside `C_j`. Let `A_shared` be the receiver anchors, and let `L_j` be this
+use's local identities after the member-view rebase. Independent uses have
+disjoint `L_j`, even when their saved views contain the same raw TypeVar ID.
+Their batch identity space is
 
 ```text
+I_batch = A_shared ⊎ ⊔_j L_j
 rho(a) = a                              for a ∈ A_shared
-rho((d,u), v) = rho_(d,u)(v)            for v ∈ L_(d,u)
+rho(j,v) = rho_j(v)                     for v ∈ L_j
 ```
 
-with one component-stable image for every preserved anchor, and disjoint
-fresh images for every independent `(d,u)` local namespace. It is required to
-be injective on `I_joint` and to fix `A_shared`; member-view maps are its
-restrictions after applying the occurrence-to-identity quotient.
+Each `rho_j` must consistently transport every occurrence in `C_j`,
+`root_j`, recursive-bound payloads, and mapped evidence. It is injective on
+`L_j`; its image is disjoint from `A_shared` and every other `rho_k(L_k)`.
+The batch relation also contains receiver/continuation constraints `K_ctx`
+that connect one or more renamed roots to caller variables or to each other.
+Those constraints and their evidence must be transported under the same
+product map; identities in the receiving context remain fixed. No additional
+cross-use equality is implied solely by coincident raw IDs in two saved
+member views. If the declarative source-use rule does require such a link, it
+must be present in `K_ctx` or represented by one shared identity before the
+fresh ranges are allocated.
 
-The joint transport claim is valid only if each `k ∈ K` has one of these two
-forms:
+Then the assignment map from the original batch domain to `I_batch` is a
+bijection on each local namespace and the identity on `A_shared`. By structural
+evaluation of endpoint expressions, every obligation in each `C_j`, every
+`K_ctx` obligation, and every root observation has the same truth/value under
+corresponding assignments. The inverse map gives reflection. Hence the
+complete batch solution relation, including an empty fiber, is preserved.
+This argument allows `K_ctx` to couple distinct uses; it does not factor the
+solution relation into independent use fibers unless `K_ctx` only references
+fixed shared anchors.
 
-1. it is an identity-sharing link, in which case all linked occurrences must
-   have the same image under `rho`; or
-2. it is a relational constraint with an explicit transported counterpart
-   `Tr_rho(k)`, and its semantic predicate is equivariant under the product
-   renaming.
+This corrects an ambiguity in the first wording of the criterion: internal
+live-root and recursive edges are transported within each `C_j`, not treated
+as identity links between separate external use copies. For example, if raw
+ID `x` is local in saved view `H_a` and free in `H_b`, a use of `a` maps its
+copy of `x` to a fresh local while a use of `b` resolves its occurrence to
+the receiver anchor. That is valid when the two external scheme uses are
+independent under the declarative rule. If some source constraint or
+monomorphic use context requires these occurrences to denote one value, the
+constraint must be carried in `K_ctx`; omitting it can change the joint
+solution set. The raw ID alone decides neither case.
 
-Under those conditions, transporting each member constraint and each `k`
-preserves and reflects joint satisfaction: map a satisfying assignment by the
-product bijection on local namespaces while fixing shared anchors, and use the
-inverse bijection for reflection. Therefore an empty joint solution fiber
-stays empty. This is the ordinary assignment-transport argument; it does not
-require the independent member constraints to have independent solutions,
-because every cross-view relation in `K` is transported in the same joint
-assignment.
-
-This criterion makes the cross-member counterexample precise. If raw ID `x`
-is local in view `a` and free in view `b`, then an external use of `a` maps
-`(a,x)` to a fresh port while `b` maps `(b,x)` to the shared anchor. If the
-source lifecycle says those occurrences are one identity, condition 1 fails;
-the use transition must preserve a shared identity or encode and transport a
-proved equality link. If the lifecycle says the member scheme binders are
-independent, the tagged occurrences may differ, but every recursive or
-internal edge between them must still appear in `K` under condition 2. The
-raw ID alone cannot decide which interpretation holds. A missing or
-unclassified cross-view link rejects publication.
-
-This is a necessary transport condition, not a proof that the Oracle lifecycle
-chooses either ownership interpretation or emits a complete `K`. In
-particular, the component's internal live-root edges and external saved-scheme
-views may have different ownership rules. The Oracle root projection,
-source-generated cross-member constraints, and their public observations must
-instantiate the condition before the individual alpha lemmas can compose
-into a batch adequacy theorem.
+The criterion is conditional on complete member views, correct source binder
+ownership, and a complete `K_ctx`. It does not prove that the Oracle's ordered
+root projections or the successor's source elaboration construct those
+objects. In particular, the same original SCC edge may be copied into each
+external scheme use while its local identities are freshened independently;
+the proof must preserve that per-use copy semantics rather than force
+cross-use sharing.
 
 #### Instantiation in the reviewed uniform pure-SCC subcase
 
@@ -3721,7 +3715,7 @@ identity is local in every member view and every referenced outer identity is
 a fixed anchor. Thus each base/use copy contributes one disjoint local
 namespace, while the same `A_J ∪ K` is fixed. Its joint map `Λ` transports the
 base graph, every member-use copy, caller-root constraints, and cross-use
-constraints in one assignment relation. This supplies an explicit `K` and
+constraints in one assignment relation. This supplies an explicit `K_ctx` and
 satisfies the criterion above for that already reviewed pure fragment; in
 particular, the root selected from a group copy does not create a different
 identity partition.
@@ -3771,3 +3765,13 @@ current condition states injectivity separately on `LocalView_d`,
 to be injective on `IdView_d`. The scoped factorization remains conditional:
 source ownership, cross-member composition, handler observations, and
 effect-solution principality are still open.
+
+A primary adversarial reread found that the first joint-use criterion
+conflated internal SCC edges in a saved graph view with identity links between
+separate external scheme uses. The criterion now transports each complete
+member-view copy under its own local map and reserves `K_ctx` for actual
+receiver/continuation constraints coupling those copies. Repeated raw TypeVar
+IDs across independent uses do not imply shared assignments; a source-required
+link must be explicit. This correction is primary-reviewed only. The exact
+mixed `Local_d`/`Free_d` source ownership relation and completeness of
+`K_ctx` remain open.

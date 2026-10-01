@@ -1901,14 +1901,15 @@ identity support, rebase local IDs to disjoint ports, preserve shared anchors,
 and apply one fresh map per external use. Its typed alpha invocation requires
 fixed-`Γ` well-formedness and equivariant family/type constraints; compiler-
 referee review closed the support-partition and map-domain gaps. Source
-ownership and joint cross-member composition remain unproved. A conditional
-composition criterion now treats cross-view occurrences as tagged identities
-and requires every bridge to preserve identity or transport an explicit
-equivariant relation in one joint assignment. This new criterion is an
-unreviewed proof candidate. The reviewed uniform pure-SCC joint transport
-theorem instantiates it with one local namespace per graph copy and fixed
-anchors; this does not cover member-specific root partitions. Next have the
-compiler-referee review the general criterion, then instantiate the bridge
-set from the Oracle root/use lifecycle and prove source-step preservation;
-otherwise reject the candidate batch transition. Effect-row principality,
-route quotient completeness, and Oracle acceptance remain open.
+ownership and joint cross-member composition remain unproved. A new
+batch-transport criterion separates each external use's copied member
+constraints from receiver/continuation constraints that couple uses; equal
+raw IDs across independent scheme uses do not imply shared assignment. A
+primary audit caught and corrected the first draft's conflation of internal
+SCC edges with cross-use identity links. The corrected criterion is still
+unreviewed. The reviewed uniform pure-SCC joint transport theorem supplies a
+conditional instance with one local namespace per graph copy and fixed
+anchors, but does not cover member-specific root partitions. Next review the
+corrected assignment argument, then derive `K_ctx` and member ownership from
+the Oracle root/use lifecycle and prove source-step preservation. Effect-row
+principality, route quotient completeness, and Oracle acceptance remain open.
