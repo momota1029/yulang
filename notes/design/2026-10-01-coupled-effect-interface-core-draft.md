@@ -732,7 +732,16 @@ that happens to construct `f` and `x`. This is a logical-relations closure of
 the ordinary typing and evaluation judgments, not a new source typing rule.
 Keeping the tested values out of the context environment avoids the direct
 circularity where defining `f ∈ ⟦A ->[E] B⟧` first requires that same fact to
-admit the environment containing `f`. Let
+admit the environment containing `f`. Make the projection explicit with the
+derived notation `Γ ⊢ C : (A ->[E] B, A) ↝ T` for an ordinary source evaluation
+context with those two typed value holes and result type `T`, and
+`Env_ν(Γ)` for semantic environments of its other free variables. Then
+`CallCfg_{ρ,ν}(f,x)` consists of the call-boundary configurations obtained by
+plugging `f,x` into every such `C`, running it under every
+`η ∈ Env_ν(Γ)`, and projecting each execution to its application transition.
+This notation abbreviates ordinary context typing and machine execution; it
+does not add a call-site rule. The exact judgment remains open until the
+source typing and machine relations are fixed. Let
 `Beh_{ρ,ν,c}(f,x)` be the source-defined relation of finite evaluation
 observations from applying `f` to `x` at configuration `c`. These inputs matter:
 the same closure or thunk can be called under different active handler stacks,

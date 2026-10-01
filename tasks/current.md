@@ -3311,6 +3311,10 @@ argument occupy separate typed value holes, so denotational values can be
 plugged into the immediate application context without making that context's
 environment interpretation depend on the arrow contract being defined. This
 avoids current-program reachability vacuity and a direct semantic circularity.
+The draft now abbreviates this projection by a derived two-hole context
+typing judgment plus ordinary machine execution; the notation creates no new
+source rule, and its exact judgment awaits the successor typing/evaluation
+semantics.
 The source context/environment relation, its guarded account of ambient
 recursive callbacks, and a finite principal presentation remain open. Simple
 row variance is conditional on the same call configurations and preserved
