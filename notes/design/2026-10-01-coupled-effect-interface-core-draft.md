@@ -1169,6 +1169,23 @@ activation lineage. This follows from relational call composition and the
 ordinary lambda value rule. It is independent of callback-use counts and does
 not require exact continuation-sensitive effects.
 
+For a typed family argument, the same constraint must remain symbolic. If
+`E` contains `F<α>` and the source family relation contributes `K_F(α)`, the
+generalized returned-arrow view is the joint formula
+
+```text
+∀α. K_F(α) ∧ (Unit -[F<α>]-> Int)
+```
+
+up to the chosen constrained-scheme notation. Independent uses `u₁,u₂` apply
+one capture-avoiding map each to the entire formula:
+`K_F(αᵢ) ∧ (Unit -[F<αᵢ>]-> Int)`. They cannot freshen the row argument and
+family constraint independently or recover `K_F` from a later concrete row.
+An internal SCC use keeps the live `α`; an incoming use gets its own map. This
+is exactly the generalization/instantiation transport law already required by
+the coupled relation. The pure renaming case is established conditionally;
+preservation under a non-injective intrusion parent quotient remains open.
+
 This formulation is preferable to either a family/path-only selector or a
 sticky grant bit because its parts are ordinary relational composition,
 activation scope, and transport of the complete returned interface. It remains

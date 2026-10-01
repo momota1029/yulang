@@ -9011,3 +9011,9 @@ instantiation use the same binder map for `E` and its `K` formula while
 transporting activation lineage separately. This is a conditional ordinary
 call/lambda consequence, not a global escape proof or a complete inference
 rule.
+For typed families, the draft now instantiates the exact lifecycle obligation:
+generalize `K_F(α)` jointly with the returned arrow's `F<α>` row entry, then
+map both through each independent use's same freshening map. Internal SCC use
+keeps the live identity. This applies the already proved injective-renaming
+law to the closure preservation lemma; it does not establish the non-injective
+parent quotient required by intrusion.

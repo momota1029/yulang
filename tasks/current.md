@@ -3656,4 +3656,8 @@ for callbacks, adapters, and escaping values. The local `λ_. f()` rule states
 the closure proof obligation: construction is effect-free while the returned
 arrow retains the body's row and symbolic `K`; handler eligibility applies at
 later invocation. SCC transport must freshen row/formula identities
-consistently and move activation lineage separately.
+consistently and move activation lineage separately. The typed-family
+instance now quantifies `K_F(α)` together with the returned `F<α>` arrow row;
+each incoming use maps both with the same freshening, while internal SCC use
+keeps `α` live. Injective renaming is covered by the existing conditional
+lemma; non-injective parent-fiber preservation remains open.
