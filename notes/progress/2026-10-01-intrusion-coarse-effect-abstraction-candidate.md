@@ -3536,6 +3536,119 @@ property for support, typed constraints, and type solutions, not source
 elaboration soundness, full `Drop` invariance, row-solver principality, or
 Oracle-equivalent acceptance.
 
+#### Scoped member-view factorization for SCC use maps (conditional)
+
+The preceding alpha lemma takes one map that fixes its receiver environment.
+The candidate graph-boundary operation instead has a per-member/per-use map:
+`Gen_d ∪ Cycle_d` goes through `Phi_d` and `sigma_(d,u)`, while `Free_d`
+resolves through the component-stable anchor map `beta_C`. A raw source ID
+therefore cannot necessarily be renamed by one global map across all member
+views.
+
+For a prepared member view `H_d`, the existing `V_d` partition covers only
+identities occurring in `H_d`. The typed interface also carries identities in
+`C/Q/R/H` and in selected evidence. Define the full interpreted identity
+support of the member view as
+
+```text
+IdView_d = VarIds(H_d, root_d, selected_edges_d, recursive_bounds_d,
+                  C_d, Q_d, R_d, Hfacts_d)
+           ∪ ⋃ Supp_d(e) for mapped evidence items e
+```
+
+Here `VarIds` includes every type-variable occurrence in each listed product;
+`Supp_d(e)` is the graph draft's transitive evidence payload/proof/validation
+support. For a mapped-evidence route, require a complete disjoint partition
+`IdView_d = LocalView_d ⊎ FreeView_d`, extending
+`Gen_d ∪ Cycle_d ⊆ LocalView_d` and `Free_d ⊆ FreeView_d`. `Gen_d ∩ Cycle_d`
+is allowed and remains one identity. Every ID must be classified once per
+member view; any ID that cannot be classified rejects the candidate transition
+before publication. An `Erase_d` ID must be absent from `IdView_d` and unread by
+all four products and their evidence. A pinned-evidence route is not inserted
+into `Supp_d` for type renaming: its proof snapshot remains opaque and must
+remain valid by the separate pinned-evidence condition. Other non-type proof
+IDs and validation dependencies use their evidence-specific map, such as
+`Xi_d`, with validity preserved or rechecked; they are never silently treated
+as type-variable IDs.
+
+Extend `Phi_d` injectively to a member-view port map on **all** of
+`LocalView_d`, and extend `beta_C` injectively to all of `FreeView_d`, retaining
+the same receiver anchor for each preserved identity. First form a
+member-scoped view by rebasing **every occurrence** in the root, selected
+edges, recursive bounds, `C/Q/R/H` products, and mapped identity-bearing
+evidence:
+
+```text
+B_d(v) = Port_d(v)       if v ∈ LocalView_d
+       = beta_C(v)        if v ∈ FreeView_d
+```
+
+Here `Port_d` is the member-owned image of the extended `Phi_d`; its namespace
+is disjoint from the shared anchors and receiver identities. `beta_C` maps
+`FreeView_d` to those shared anchors.
+
+For one external use `u`, define one map on the rebased view:
+
+```text
+theta_(d,u)(Port_d(v)) = sigma_(d,u)(Port_d(v))
+theta_(d,u)(a)         = a                         for receiver anchor a
+```
+
+To invoke the preceding alpha lemma, assume the rebased four-product view is
+well-formed under a fixed `Γ` containing these receiver anchors, and that its
+family-match predicate and type-constraint rules commute with this renaming.
+Those source/interface premises are not established by the graph map itself.
+
+Require extended `Phi_d` to be injective on `LocalView_d`, `beta_C` to be
+injective on `FreeView_d` with an image disjoint from the member ports,
+`sigma_(d,u)` to be injective on `Port_d(LocalView_d)`, and the composed map
+
+```text
+rho_(d,u)(v) = sigma_(d,u)(Phi_d(v))   if v ∈ LocalView_d
+             = beta_C(v)               if v ∈ FreeView_d
+```
+
+to be injective on all of `IdView_d`. The use's fresh range avoids the full
+`I_recv`, every member port domain, and all other use ranges. The map is applied
+consistently to all four elaboration products, roots, both edge directions,
+recursive-bound payloads, and their validity evidence. Because
+the local port domain is disjoint from the fixed receiver environment, this
+finite injective map can be extended to a capture-avoiding permutation of the
+type-identity namespace, under the candidate assumption that the namespace
+has an infinite fresh supply. The typed alpha-transport lemma then gives
+support invariance, typed-constraint transport, and alpha-equivalent type
+solutions for this one member view. It gives no row/effect solution theorem or
+dynamic `Drop` result.
+
+For distinct external uses of the same member, require disjoint local fresh
+ranges while keeping the same receiver anchors fixed. Thus a source-shared
+identity within one member/use has one image, independent uses do not alias,
+and imported/non-generic anchors remain shared. Internal SCC uses bypass this
+freshening map and continue to reference the open live root by identity; they
+are not instances of the external-use alpha theorem. `Theta` continues to
+transport hygiene binders separately from type identities.
+
+A cross-member witness shows why the rebase cannot be omitted. Let raw type ID
+`x` be local in one saved view `H_a` but free in another `H_b`, with
+`beta_C(x) = x`. An external use of `a` maps its occurrence of `x` to a fresh
+identity, while `H_b` must preserve `x` as the receiver anchor. No single
+global map on the raw ID can do both. The scoped `B_a`/`B_b` maps distinguish
+the two ownership roles before use freshening. This is only a map-shape
+counterexample: the source partition and cross-member root/use relation still
+need proof.
+
+This factorization is conditional on complete classification of `IdView_d`,
+injectivity, evidence closure/validity, freshness, and the common type-binder
+ownership relation across each view's `C/Q/R/H`. In particular, a type
+variable appearing only in `C/Q/R/H` still receives a local port or shared
+anchor and cannot be left at its raw ID. It does not prove that Oracle
+root projection constructs such views, that member maps compose in a joint
+cross-member continuation, that handler activation observations correspond,
+or that the full source/effect solution is principal. A collision or an
+identity that must be both fixed and fresh inside one rebased view invalidates
+this corollary and must reject the candidate transition unless a separate
+quotient/ownership proof resolves it.
+
 An architect review recommended this conditional semantic-lowering boundary;
 the exact-source review found no conflict with syntax-v0 or current HIR. The
 compiler-referee review then found three gaps: possible calls/forces were not
@@ -3561,3 +3674,17 @@ included while whole row-solver equivariance remains excluded. A fresh
 compiler-referee closure review found no remaining issue in this delta. The
 required dynamic correspondence and all source/effect solver theorems remain
 unproved.
+
+The SCC-use-map architect review found that a raw type ID can be local in one
+member view and free in another, so the per-use renaming cannot be treated as
+one global map. The candidate now factors each member view through a complete
+`IdView_d` classification, a local port rebase, and then the external-use map;
+the counterexample is limited to map shape and does not claim a source-level
+failure. Compiler-referee review required the full support partition and fixed
+`Γ`/equivariance premises before applying the typed alpha lemma. Those gaps
+were repaired. Its closure review then caught a map-domain wording error; the
+current condition states injectivity separately on `LocalView_d`,
+`FreeView_d`, and `Port_d(LocalView_d)`, and requires the composed `rho_(d,u)`
+to be injective on `IdView_d`. The scoped factorization remains conditional:
+source ownership, cross-member composition, handler observations, and
+effect-solution principality are still open.

@@ -1894,6 +1894,14 @@ separate evaluation/observation bijection preserving offers, route classes,
 dynamic eligibility, and the RawOnly continuation/arm/result row accounting.
 Compiler-referee review found and closed overclaims around ambient constraints,
 dynamic activation correspondence, and RawOnly bounds; the focused closure
-review is clean. Next prove source-step preservation and instantiate these
-conditional maps on the actual SCC lifecycle. Effect-row principality, route
-quotient completeness, and Oracle acceptance remain open.
+review is clean.
+
+The SCC use-map candidate is now factored per member view: classify the full
+identity support, rebase local IDs to disjoint ports, preserve shared anchors,
+and apply one fresh map per external use. Its typed alpha invocation requires
+fixed-`Γ` well-formedness and equivariant family/type constraints; compiler-
+referee review closed the support-partition and map-domain gaps. Source
+ownership and joint cross-member composition remain unproved. Next prove
+source-step preservation and instantiate the maps on the actual SCC lifecycle.
+Effect-row principality, route quotient completeness, and Oracle acceptance
+remain open.
