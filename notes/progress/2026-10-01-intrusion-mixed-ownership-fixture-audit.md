@@ -420,15 +420,18 @@ recursive bound was not scanned, the placeholder queue is empty and
 member body is inferred or consumed. This precisely explains the observed
 rejection and separates it from source-body constraints.
 
-This is a concrete Oracle specializer conversion behavior and a candidate
-false-negative mechanism: an unconstrained recursive lower side becomes a
-`unit` lower constraint. It is not yet a proved well-typed-source
-counterexample, so it does not yet authorize dropping this Oracle behavior or
-count as an accepted guarded R/free witness. The next proof must establish the
-source typing of this guarded recursive term under the selected declarative
-Simple-sub semantics, then record the exact final-acceptance compatibility
-delta if the false-negative is confirmed. Temporary specializer instrumentation
-was removed from the detached scratch worktree after this probe.
+This is a concrete Oracle specializer conversion behavior: an empty recursive
+lower side becomes a `unit` lower constraint when no placeholder was collected.
+In isolation, this could cause a false negative. The current source is not a
+counterexample, however, because its role contract independently requires
+arbitrary method inputs. The role declaration is `make: 'b -> 'b`, while the
+returned lambda calls its argument as a function. Choosing `b = unit` makes
+that implementation invalid. The frozen lowering path connects the
+implementation value to the negative method signature via
+`connect_impl_method_requirement_from_continuation`, so the role conflict is
+not an unrelated post-hoc selection check. This source cannot establish an
+Oracle capability gap. Temporary specializer instrumentation was removed
+from the detached scratch worktree after this probe.
 
 To isolate the recursive application from the role-generated SCC, a scratch
 source control containing only `struct wrap 'a { value: 'a }`,
@@ -437,12 +440,30 @@ the same final mono source entrypoint. It passed. Thus the recursive
 application form alone is accepted; the earlier rejection depends on its
 surrounding receiverless role-method/SCC context. This does not prove the
 role-method candidate is well typed or that the two programs have equivalent
-constraints. It does identify a concrete dependency for one narrow early
-question: compare only the declared polymorphic `make` requirement with this
-member's inferred definition to determine whether the rejection is a valid
-method-conformance constraint or an incidental recursive-bound materializer
-constraint. This does not open the broad method-selection/roles/impl-resolution
-gate; that remains later, after ordinary effect/handler semantics settle.
+constraints. A narrow source-semantic check resolves the main ambiguity: the
+declared `make: 'b -> 'b` method requires its argument to be arbitrary, while
+the implementation body applies that argument as a function. Instantiating
+`'b` with `unit` gives a direct counterexample to method conformance. The
+receiverless implementation path connects the implementation value to the
+negative signature constraint (`infer/src/lowering/expr/method_body.rs`,
+`connect_impl_method_requirement_from_continuation`). Thus this source
+candidate is expected to fail its role contract; its `Bot`-to-`unit`
+materialization observation is not evidence of an Oracle false negative or a
+reason to discard that rejection. The roleless accepted control only shows
+that the lambda is typable under a narrower domain, such as `Bottom`.
+
+This closes the specific early dependency without opening the broad
+method-selection/roles/impl-resolution gate; that remains later, after ordinary
+effect/handler semantics settle. The candidate still cannot serve as an
+accepted guarded R/free witness.
+
+One attempted repair kept the method result as identity while evaluating the
+recursive lambda as an argument to the owner parameter before returning. Its
+final mono specialization still failed with `Function <: unit`: the owner
+parameter's input had materialized as `unit`. This is another rejected
+candidate, not an acceptance or principality witness. Its focused scratch test
+was removed after recording the result; temporary probes have not changed the
+pre-existing Oracle scratch fixtures.
 
 There is a useful conditional exclusion for Q-versus-free ownership. For a
 variable `v` that occurs in both roots' compact-plus-role views where their

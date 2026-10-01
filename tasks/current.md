@@ -2007,11 +2007,15 @@ recursive binder has lower `Bot`, but frozen Oracle materialization turns this
 into `unit`: `collect_scheme_kinds` omits recursive bounds, so the empty-bound
 placeholder queue is empty and falls back to the value default. This inserts
 `unit <: recursive Function` before computed-body inference. A roleless control
-with the same recursive application passes final mono specialization. Narrowly
-compare the declared polymorphic `make` type with the member definition to
-decide whether this is a valid method-conformance constraint or a materializer
-artifact; this is the concrete dependency allowing that limited early role
-inquiry, not the broad later role gate.
+with the same recursive application passes final mono specialization. The
+rejected member's declared `make: 'b -> 'b` requires arbitrary inputs, but its
+returned lambda calls the input as a function; `b=unit` proves this candidate
+does not satisfy the method contract. The lowering directly connects the
+implementation value to the negative signature constraint. So this is not an
+Oracle false-negative witness. A second attempt returned identity after
+passing the recursive lambda to the owner parameter, but final specialization
+still rejected it with `Function <: unit`. The concrete role dependency is
+closed narrowly; the broad method/roles/impl-resolution gate remains later.
 Details are in the same progress note.
 Effect-row principality, route quotient completeness, and Oracle acceptance
 remain open.
