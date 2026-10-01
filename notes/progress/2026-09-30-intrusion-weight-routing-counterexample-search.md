@@ -512,3 +512,39 @@ yulang --no-prelude --no-cache run --evidence-vm --print-roots /tmp/yulang-intru
 yulang --no-prelude --no-cache run --interpreter --print-roots /tmp/yulang-intrusion-weight-repeated-callback-abort.yu
 yulang --no-prelude --no-cache run --evidence-vm --print-roots /tmp/yulang-intrusion-weight-repeated-callback-abort.yu
 ```
+
+#### Counterexample-search update (2026-10-02): annotated callback cancellation
+
+The earlier inventory above predates the isolated annotated-callback trace and
+must not be read as saying that the current weight-routing path has no concrete
+soundness conflict. The source witness and frozen run evidence are recorded in
+`notes/progress/2026-10-01-intrusion-coarse-effect-abstraction-candidate.md`,
+section "Higher-order callback effect loss in frozen Oracle". A callback
+parameter is annotated with latent `[ask]`; invoking it inside an enclosing
+function with no handler nevertheless produces an empty inferred return row,
+and the frozen checker accepts the enclosing empty-row annotation although
+runtime reports the unhandled `ask` request. A direct operation control keeps
+`[ask]`, isolating the discrepancy to annotated callback forwarding.
+
+The traced path ties the loss to the full current weighted transfer: the
+annotation contributes `push(SubtractId(s), Set{ask})`, invocation contributes
+the matching filtered pop to the enclosing lambda predicate, and positive
+scheme projection composes them through `StackWeight::push_pops`, leaving only
+a filter on an open tail and no `ask` support. Thus the concrete conflict is
+the current *routing/cancellation path across callback invocation without a
+handler*. This does not prove that the standalone `push_pops` algebra is
+incorrect for its abstract weight domain; it proves that this source-generated
+push/pop pairing does not preserve runtime may-support in this context.
+
+The successor rule for this witness is relational application: callback
+invocation composes the callback's latent request behavior into the enclosing
+computation, and only an actual shallow-handler transition with proven
+operation coverage and visibility may remove a request from outward support.
+With no such handler, `ask` remains in the result effect, so the sound
+successor rejects the empty-row annotation or exposes `[ask]`. The frozen
+Oracle's acceptance of this source is the precise compatibility behavior to
+drop under the user's soundness priority. This is a final-source-acceptance
+difference, not merely an inference-stage formatting difference. Source
+typing adequacy, a reviewed effect abstraction, and the full handler/weight
+calculus remain open; do not generalize this witness into a verdict on every
+push/pop route.

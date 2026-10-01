@@ -3398,3 +3398,15 @@ does not close the source typing rule for implicit case demand, mono/runtime
 simulation, or the finite principal presentation. The added equations are
 still a non-authoritative semantic candidate; no implementation or tests were
 authorized.
+
+The counterexample-search ledger now incorporates the isolated annotated
+callback trace: frozen Oracle cancellation of the annotation's `push(ask)` and
+the invocation/lambda `pop` removes the only unhandled `ask` from an accepted
+empty-row result. This is a concrete conflict in the full callback routing
+path, while the standalone `StackWeight::push_pops` algebra is not thereby
+classified in isolation. Successor behavior is to compose the callback's
+latent request relation and allow removal only through a proven handler image;
+the Oracle's acceptance of this empty-row program is the recorded final
+acceptance difference to drop for soundness. The exact source typing gate,
+effect principality, and broader counterexample matrix remain open; see
+`notes/progress/2026-09-30-intrusion-weight-routing-counterexample-search.md`.
