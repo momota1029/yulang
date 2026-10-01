@@ -4930,6 +4930,27 @@ typed-row relation; it does not prove that source typing should impose this
 relation at every same-head encounter, nor does it define a solver or
 residualization algorithm.
 
+The same witness rules out a generic reconstruction interface that receives
+only materialized rows while claiming to recover the original symbolic
+solution relation. Let `C⁺` be the state retaining `InvArgs` and `C⁻` the state
+that discarded it but kept only support inclusion. Under the assumptions
+above, `(Int,String) ∉ Sol(C⁺)` and `(Int,String) ∈ Sol(C⁻)`, while
+`Mat_σ(C⁺) = Mat_σ(C⁻)` for `σ = {α := Int, β := Int}`. Here `σ` is a lossy
+observation probe, not a committed solver refinement; the comparison target is
+the pre-`σ` solution sets over `α` and `β`. Any reconstruction function whose
+only input is `Mat_σ(C)` must return the same symbolic relation for both
+states. That relation cannot equal both original solution sets: admitting the
+distinguishing assignment is wrong for `C⁺`, while rejecting it is too strong
+for `C⁻`.
+
+Consequently, a phase that discards the original obligation before committing
+any substitution and then relies only on concrete row observations to recover
+the original generalized relation cannot preserve that relation. It must
+transport the symbolic obligation or equivalent proof/evidence. This does not
+apply to an ordinary solver rewrite after a committed substitution when
+equivalence is required only over remaining assignments under that
+substitution; such a rewrite needs its own solution-preservation proof.
+
 #### Conditional `InvArgs` transport theorem for an injective parent map
 
 This gives a sufficient proof route for the user's symbolic-lifecycle

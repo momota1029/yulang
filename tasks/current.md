@@ -2482,3 +2482,12 @@ excluding that assignment. The review closed. This is conditional evidence for
 the declared typed-row relation, not proof that every source row encounter
 creates `InvArgs`. See `Materialization cannot recover a lost symbolic
 invariant` in the candidate record.
+
+The note also records a scoped corollary: a materialized-row-only
+reconstruction cannot recover the original pre-substitution solution set.
+Initial review found a phase mismatch with ordinary post-substitution
+residual equivalence. The statement now treats substitution as a lossy
+observation probe and explicitly excludes committed solver rewrites; a
+compiler-referee delta check closed the finding. This only rules out
+post-hoc reconstruction of the earlier symbolic relation, not residualization
+that transports it or proves an equivalent residual after substitution.
