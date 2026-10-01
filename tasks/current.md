@@ -48,9 +48,12 @@ describes a different semantic fact. The source-site checklist is retained as
 Oracle characterization and as a proof audit, not as the successor core. A
 closed point-valued filter subcase has a conditional `RowIncl` characterization,
 and interval-valued common-witness compatibility has a conditional endpoint
-lemma. Duplicates, open rows, whether common witness is the right
-`FamilyCompat` denotation, the row algebra itself, and concrete solver
-transitions remain open. No candidate is yet proved sound or principal.
+lemma. The current candidate comparison distinguishes single-slot family maps,
+finite sets of typed request contracts, and coarse family support paired with
+symbolic contract evidence. A ground finite contract-set algebra is recorded
+conditionally; symbolic lifting, duplicate matching, coupled handler coverage,
+open rows, and the least representable schemes remain open. No candidate is yet
+proved sound or principal.
 
 ## Objective
 

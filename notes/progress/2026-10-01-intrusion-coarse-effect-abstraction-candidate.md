@@ -4852,6 +4852,116 @@ as lemmas; keep exact traces as the soundness reference. Compare the
 alternatives on conceptual size, composition, principality relative to the
 chosen abstraction, and proof reuse before selecting one.
 
+##### Denotational candidates for typed rows
+
+The current `TypedRow` sketch hides the key choice: whether a row has one
+payload per family head, or can retain several typed request contracts for
+the same runtime operation identity. These are different mathematical
+domains, not representation details.
+
+1. **Single-slot family map.** A row maps each family head to one argument
+   tuple. Union of two rows that contain the same head must reconcile the two
+   tuples. This makes `FamilyCompat` immediate and keeps rows small, but
+   `RowUnion` is partial or rejects a program when two compatible execution
+   paths use different instances. A join on argument types could fix that only
+   if the type domain supplies a sound least join and the effect signature is
+   covariant in it; invariant arguments do not supply that rule for free.
+   This candidate is compact but has an unproved expressibility/principality
+   risk.
+2. **Finite set of typed request contracts.** A row denotes a finite set of
+   symbolic records containing canonical operation identity, family
+   arguments, payload/result signature, and latent request bound. `RowUnion`
+   is set union; `RowIncl` is inclusion modulo a single source-defined
+   contract-equivalence relation; `RowRemove` filters records only when a
+   complete coverage and route certificate proves removal. Splitting and
+   residualization are set identities. The common relation compares complete
+   records, so argument invariance is one component of compatibility rather
+   than a private selector for every source site. This is compositionally
+   attractive and naturally retains typed arguments, but symbolic inclusion
+   may require disjunctive matching against duplicate candidates. Principality
+   therefore depends on whether generalized constraints can represent that
+   finite disjunction or on a proof that a deterministic quotient removes the
+   choice without loss.
+3. **Family-support abstraction with a symbolic contract ledger.** The
+   mathematical row is a pair consisting of a coarse finite-family support
+   bound (possibly `Top`) and symbolic request/contract constraints whose
+   validity is coupled to that bound. Support union/inclusion/removal use the
+   powerset algebra; one contract relation supplies the typed premises and
+   route evidence needed to justify each narrowing/removal. This is the most
+   conservative fit for the accepted may-effect abstraction and avoids
+   continuation-use tracking. It may lose precision, and it is principled only
+   if the paired denotation has a least solution and its schemes retain every
+   symbolic contract dependency. The ledger must be a projection of one
+   denotational object, not a second after-the-fact repair pass.
+
+The set-of-contracts candidate is the cleanest starting denotation because
+union, inclusion, and removal are ordinary set operations; the coarse support
+candidate is its plausible sound abstraction when exact continuation
+correlations are inexpressible. The single-slot map is simpler only if its
+reconciliation operation is proved to be the least sound union. None is
+selected: source operation identity, contract equivalence, the abstraction
+function, and least-scheme expressibility are still unproved. A suitable next
+lemma should first fix a finite closed universe and ground contracts, prove
+the algebraic laws for union/inclusion/removal, then lift the relation
+symbolically and test whether finite duplicate matching creates a real
+principality counterexample. This compares the mathematical cores before
+adding solver keys, owner incidence, transport maps, or intrusion.
+
+##### Ground contract-set algebra (conditional lemma)
+
+Here is a minimal algebraic base for candidate 2. Fix a finite universe of
+canonical operation identities and closed, ground family-argument tuples.
+Let `c ≈ d` mean same operation identity, mutual subtype of each invariant
+family argument, and source-approved representation-safe agreement of the
+payload/resume contracts. Assume those component relations make `≈` an
+equivalence relation; quotient contracts by `≈` and write `Q` for the
+resulting finite set. This fragment uses only closed first-order signatures
+and abstracts away nested latent signatures. Whether the source contract
+relation has the required equivalence and what coercion evidence it carries
+remain open.
+
+Ground rows are finite subsets of `Q`, with:
+
+```text
+R ≤ S          iff R ⊆ S
+R ⊔ S          = R ∪ S
+remove_C(R)    = { q ∈ R | q ∉ C }
+```
+
+For fixed complete-coverage-and-route set `C ⊆ Q`, `≤` is a partial order,
+`⊔` is its least upper bound, and removal is monotone in `R`. Union is
+associative, commutative, and idempotent; fixed removal distributes over
+union: `remove_C(R ∪ S) = remove_C(R) ∪ remove_C(S)`. A closed filter is
+`R ≤ A`. For a split target `A ∪ B`, inclusion is equivalent to
+`R = (R ∩ A) ∪ (R ∩ B)` together with both intersections being subsets of
+their respective sides. A residual is fixed removal. Thus these operations
+need no separate family-pair selector in this ground fragment.
+
+The fixed-`C` premise is essential. In the real typed case,
+`C = C_H(ν, route)` depends on a type assignment `ν` and handler evidence.
+The denotationally direct residual is therefore assignment-indexed:
+
+```text
+Residual_H(R)(ν) = remove_{C_H(ν, route(ν))}(R(ν))
+```
+
+A symbolic implementation has to preserve this dependency through solving,
+generalization, freshening, and intrusion. Replacing it with the set obtained
+under the current solution set can be nonmonotone as type solutions are
+refined, as shown by the fixed-evidence monotonicity counterexample below.
+The principality question is whether the scheme language can retain this
+assignment-indexed relation, or whether a sound coarser row is the least
+representable bound. Keeping a detached `FamilyCompat` formula after erasing
+the typed request would not preserve the correlation.
+
+This lemma proves only the elementary finite ground algebra, conditional on
+the equivalence relation and fixed coverage set. It does not prove source
+elaboration, correct operation identity, handler visibility, symbolic
+principal solving, or intrusion transport. It does give a small proof target:
+lift the quotient-set operations to symbolic rows by a denotation-preserving
+relation, then establish the substitution and binder-renaming laws for that
+relation before choosing an implementation representation.
+
 #### Required symbolic typed-family constraint lifecycle
 
 The user has now made an additional mandatory successor invariant explicit:
