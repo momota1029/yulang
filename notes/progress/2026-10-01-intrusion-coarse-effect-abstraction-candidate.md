@@ -5051,6 +5051,39 @@ principal denotation. If that language cannot express the relation or its
 projection, use a proved principal normalization or an explicitly conservative
 abstraction with its acceptance cost recorded.
 
+##### Principality relative to the may-effect abstraction
+
+Let `A` be the selected abstract request domain and `γ_A` its concretization
+into finite operation-request prefixes. The source trace semantics is used to
+prove `Traces(e) ⊆ γ_A(E)` for an inferred effect `E`; inference is not
+required to represent exact continuation-use correlations. Let
+`Judg_A(Γ,e)` be the set of closed type/effect judgments expressible in `A`
+that satisfy the source typing relations and the concrete trace soundness
+condition. A constrained scheme `S` denotes the closed judgments obtained by
+capture-avoiding instantiation of its type and row binders, subject to its
+retained symbolic relations and owned evidence.
+
+Relative principality means `S` is itself valid and
+`Inst_A(S) = Judg_A(Γ,e)` modulo alpha-equivalence and the selected subtype
+equivalence. In particular, keeping `RowIncl` as a relation is useful only if
+all and only its satisfying instantiations remain available; choosing an
+existential match loses valid instances, while replacing the relation with a
+weaker support-only fact admits judgments not justified by the typing rules.
+Generalization must quantify exactly the component-owned binders, leave
+environment-owned identities shared, and retain each symbolic family
+invariance premise. Fresh instantiation renames the quantified binders and
+their owned relation/evidence together. Intrusion composes the same
+capture-avoiding transport through type parents and separately owned boundary
+identities. These are candidate definitions and laws, not a proof that the
+constrained scheme language has principal solutions.
+
+Oracle compatibility is a separate comparison between final accepted
+programs after validation, runtime construction, and specialization. A
+constrained scheme can be principal relative to `A` while intentionally
+accepting a program the frozen pipeline rejects, or rejecting one it accepts.
+Each such difference needs its own concrete witness, the Oracle behavior being
+dropped, the successor behavior, and the final-acceptance impact recorded.
+
 `FamCompat` is the sole typed-family comparison; the `InvArgs` formulas are
 its symbolic presentation. Callback contracts and concrete filters are
 instances of `RowIncl`; support inclusion follows from matching equal heads.

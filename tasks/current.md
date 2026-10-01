@@ -59,8 +59,11 @@ support as a projection, and checks handler coverage per typed request fact.
 Eager symbolic `RowIncl` matching has a concrete principality barrier on
 duplicate open rows; retaining the whole relation as a constrained-scheme
 formula is a more unified candidate, but its denotation and generalization
-principality are unproved. Unknown request evidence also needs to survive
-removal. Prefer one declarative relation with transport laws over selectors
+principality are unproved. A candidate criterion now defines schemes by their
+instantiations subject to retained relations, with principality relative to
+the selected may-effect abstraction and concrete traces used for soundness.
+Unknown request evidence also needs to survive removal. Prefer one declarative
+relation with transport laws over selectors
 tied to individual source sites, and keep solver keys/evidence as projections
 of it. No candidate is yet proved sound or principal.
 
