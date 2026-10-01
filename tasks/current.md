@@ -2168,6 +2168,16 @@ compiler-referee found and closed the missing condition that raw-only effects
 must be charged into the arm bound before subtraction; its closure review
 found no remaining issue under the stated premises.
 Details are in the candidate record under "Conditional monotonicity of
-route-certified subtraction". Next close the review, then derive whether the
-source solver can meet the evidence-stability premise or must use a different
-least-solution method.
+route-certified subtraction". A typed-family case now shows why source solving
+may violate its evidence-stability premise: strengthening `α` to `Int` can
+change a request `F<α>.op` from not universally covered by a `F<Int>.op`
+handler to covered, shrinking residual support while the erased family head is
+unchanged. This is schematic and does not assert a concrete Yulang source
+construct. It rules out assuming monotonicity merely from an add-only type
+constraint store under the explicit premises of a nonempty refined solution
+set, no other/raw/unknown contributions of that family, fixed eligibility,
+and arm support not already containing it. A scoped architect review
+confirmed this conditional result and its scope. Next evaluate whether a
+coupled type/effect solution relation, a justified phase boundary, or a typed
+symbolic residual can preserve principality and final acceptance; do not
+implement any route until its adequacy argument is reviewed.

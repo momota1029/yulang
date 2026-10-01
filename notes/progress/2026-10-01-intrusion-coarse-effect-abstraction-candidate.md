@@ -3705,6 +3705,56 @@ failed or unknown matching must retain the residual family. This schematic
 conflict is not a claim about currently accepted Yulang3 syntax; the syntax
 authority has not selected effect declaration or handler semantics.
 
+#### Type refinement breaks the fixed-evidence monotonicity premise
+
+The stability condition in the route-subtraction lemma is not a routine
+property of a coupled type/effect solver. A typed-family witness shows why.
+Let `α` be a type variable, let the only offer be `F<α>.op`, and let a handler
+cover only the exact invariant instance `F<Int>.op`. Assume exact typed
+matching, fixed non-type eligibility, no raw/unknown or other `FHead`
+contributions, and a fixed arm support `A` with `FHead ∉ A`. Initially the
+nonempty admissible type solution set contains both `α=Int` and `α=String`;
+the family cannot be dropped for all assignments, so the projected support
+retains `FHead`. Add the type constraint `α=Int`, with the refined solution set
+still nonempty. All remaining offers match the handler, and the same support
+family is now droppable. Thus constraint accumulation can shrink the combined
+effect result even though erased `FamHead` support is unchanged.
+
+Formally, if `Sol(C)` is the set of type substitutions satisfying `C`, the
+universal drop test ranges over `Sol(C)`. For `C ⊆ C'`,
+`Sol(C') ⊆ Sol(C)`, so a family that fails universal coverage under `C` may
+pass it under `C'`. `Drop(C)` can grow as constraints accumulate;
+consequently, the residual support can shrink. This is a counterexample to
+support-inclusion monotonicity of the coupled transfer in the product order
+where type constraints grow by inclusion and effect supports grow by
+inclusion, with arm support fixed as above. It does not rule out monotonicity
+under another refinement order or a different solution representation. The
+preceding fixed-evidence lemma does not apply when evidence validity depends
+on the admissible type solution set.
+
+This is a schematic semantic counterexample, not a claim about a concrete
+Yulang3 source form or a verdict that nonmonotone iteration is impossible. It
+rules out only the unqualified claim that the type/effect operator is monotone
+because its constraint store grows. Candidate routes still requiring proof
+include a coupled solution relation over pairs `(type substitution, effect
+bound)`, a proven phase order that freezes type matching before effect
+subtraction, or a richer symbolic typed-row constraint that keeps the
+match-dependent residual explicit. A phase order is valid only if effect
+constraints cannot later refine the relevant types; otherwise it needs a
+recomputation/fixed-point theorem. A typed-row relation must preserve
+principality and final acceptance when projected to the chosen scheme
+language. These are alternatives to investigate, not selected semantics or
+implementation authority.
+
+A scoped architect review confirmed the conditional counterexample and
+required explicit premises: the refined solution set stays nonempty, there
+are no additional/raw/unknown contributions of `FHead`, non-type eligibility
+is fixed, and the arm support does not already contain `FHead`. The text now
+states these conditions and limits the conclusion to support-inclusion
+monotonicity in the stated product order. The review does not choose among the
+candidate solver routes or establish a source construct for the schematic
+family case.
+
 The source boundary needed by this candidate is therefore an elaboration
 relation from source declarations/annotations and operation uses to canonical
 family and operation identities, typed arguments/signatures, payload/result
