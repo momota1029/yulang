@@ -1224,18 +1224,18 @@ Visible(q, κ) iff a handler frame in κ covers q.operation and
   capture relation
 ```
 
-This formulation makes two constraints explicit without choosing a weight
-algebra: entering a helper extends the active context and cannot erase an
-already active receiver relation; unwinding removes that relation, while
-resuming a saved continuation restores the corresponding context. A returned
-closure or thunk carries context only when its complete value interface
-contains the source-derived escaping lineage. The helper probe supports the
-first condition; runtime guard characterization supports unwind/re-entry; the
-source rule for escape remains open. `Capture` is not a Boolean copied onto a
-family: its relation must retain the source occurrence, symbolic contract,
-and activation incidence together. This context form is a proof notation for
-the existing common interface, not a new source construct, solver obligation,
-or implementation data structure.
+This formulation makes the required distinctions explicit without choosing a
+weight algebra: the source transition determines how nested calls relate their
+activation contexts; unwinding and resuming determine which context is active;
+and a returned closure or thunk carries later re-entry lineage only when its
+complete value interface entails that dependency. The concrete-helper probe
+does not establish whether a nested concrete receiver preserves or shadows an
+enclosing capture relation. That is an unresolved clause of the source
+transition, not a new selector attached to helper call sites. `Capture` is not
+a Boolean copied onto a family: its relation must retain the source
+occurrence, symbolic contract, and activation incidence together. This
+context form is proof notation for the common interface, not a new source
+construct, solver obligation, or implementation data structure.
 
 #### Capture grants as scoped context, not request flags
 
@@ -1317,6 +1317,45 @@ abstraction must reject it, nor that the outer catch handles the request.
 Accordingly, the runtime outcome and caller acceptance remain conditional on
 the still-open visibility and handler-image rules. No grant-lifetime policy
 or implementation authority is selected here.
+
+#### Nested concrete receiver: unresolved transition clause
+
+The frozen both-concrete witness establishes a checker/runtime conflict:
+Oracle accepts the program with `invoke` and `handle` reporting `ret_eff=Bot`,
+then the runtime leaves `choose::get` unhandled after the nested `invoke`
+adapter forces the callback result. The wildcard-helper and direct-receiver
+controls distinguish this path, but do not decide its successor semantics.
+The exact witness is recorded in
+`notes/progress/2026-10-02-callback-scope-transition.md`. Do not reproduce
+either the empty Oracle row or the runtime route as authority.
+
+There are two sound source-transition candidates within the same ordered
+activation relation:
+
+| Candidate | Consequence | Theory cost and open proof |
+| --- | --- | --- |
+| Preserve enclosing capture incidence across nested calls | An outer handler may consume a request emitted by the complete nested `CallView`; the handler image may remove it only when the universal typed transition proof covers it. | Fits compositional context extension and the documented receiving-function capture promise. Still needs source/runtime simulation for argument adaptation, call, result adaptation, origin eligibility, shallow resumption, and `K,D` transport. |
+| Let an inner concrete receiver shadow the enclosing incidence | The outer handler cannot consume the request on that route; any unconsumed request stays in outward support. This may reject programs accepted by Oracle or expose an effect that Oracle erased. | Can fit the same relation but narrows capture behavior and needs a source-level precedence rule. The frozen runtime alone does not justify it. |
+
+These are not separate `Sel_s`, `Demand`, route, or callback obligations. They
+are alternative clauses for the context argument of the one source call and
+handler relation. The abstract context remains ordered; request origin and
+typed-family formulas remain attached; handler subtraction remains the image
+of the complete computation. Candidate one is more economical if it passes
+the stated simulation theorem. Candidate two is not a soundness shortcut: it
+must preserve outward support and show principality relative to the narrower
+source semantics. Neither candidate is selected here. In particular, the
+single Oracle witness cannot decide outer-handler eligibility. A source
+transition rule and a final-acceptance comparison are required before this
+clause can be closed.
+
+The caller-hygiene control is also part of that proof: a receiver's contract
+must not capture an unrelated caller-owned request solely because its family
+matches. Visibility must use the request's source-owned boundary incidence as
+well as operation identity and ordered active frames. Any typed-family
+predicate and incidence `K,D` must survive `CallView`, `Force`, handler image,
+and SCC lifecycle transport at the same assignment; immediate support becoming
+empty does not discharge that dependency.
 
 **Closure construction keeps the latent effect independently.** In the ordinary
 compositional fragment, if

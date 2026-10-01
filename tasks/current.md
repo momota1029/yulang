@@ -29,6 +29,15 @@ compiler-referee, and spec-auditor review closed; details are in
 `notes/progress/2026-10-02-relational-abstraction-congruence.md`. The source
 typing relation, least finite presentation, and lifecycle proofs remain open.
 
+The abstraction criterion was tightened after review: local handler/bind
+examples may be checked in one fixed `(ρ,ν,κ)` fiber, but generalization and
+intrusion require congruence over the complete assignment-indexed relation
+and their projection/parent maps. Empty output sets witness only absence of a
+represented output; divergence or stuckness must be observable members of the
+chosen semantic result domain if they need distinction. Fresh
+compiler-referee review closed the scope repair. No broader source or
+principality theorem follows yet.
+
 The user's current priority is soundness, then principality, then Oracle
 compatibility. A concrete graph-level q-erasure conflict, proposed Oracle
 behavior to drop, successor rule, and compatibility impact are now recorded;
@@ -132,6 +141,7 @@ that single relation, then show its solution fibers survive solving,
 residualization, generalization, freshening, and intrusion. See the new
 `A single abstraction pair for ordinary effect operations` section in
 `notes/progress/2026-10-01-intrusion-coarse-effect-abstraction-candidate.md`.
+
 Compiler-referee review closed the local transfer-domain gap by indexing
 computations by value and activation context and requiring handler totality on
 that fiber; source typing has not yet been proved to supply those premises.
@@ -1328,6 +1338,23 @@ soundness or principality is found, record the precise Oracle behavior dropped,
 the successor rule, and the compatibility impact. A conservative
 continuation-summary candidate and its independent review are recorded in
 `notes/progress/2026-10-01-intrusion-coarse-effect-abstraction-candidate.md`.
+
+Nested concrete callback precedence is now recorded as an unresolved clause of
+the common ordered activation-context relation. The frozen witness accepts
+with Oracle `ret_eff=Bot` but leaves `choose::get` unhandled at runtime; that
+is a checker/runtime conflict, not authority for the successor. Reviewed
+alternatives are (1) preserve enclosing capture incidence through nested
+`CallView`, with universal handler-image and source/runtime simulation proofs,
+or (2) allow source-defined shadowing while retaining every unconsumed request
+outward. The first is more economical if proved; the witness does not select
+it. Architect, compiler-referee, and spec-auditor reviews converge that neither
+precedence rule is specified by current source authority. Next define the
+shared source call/handler relation and compare final acceptance under these
+clauses, while retaining symbolic typed-family invariance through solving,
+residualization, lifecycle transport, and intrusion. Method/roles/impl
+resolution remain gated on ordinary effect/handler closure. See
+`notes/progress/2026-10-02-callback-scope-transition.md`. No compiler
+implementation is authorized.
 
 A local closed-row fragment now defines typed coverage as support inclusion
 plus invariant argument constraints at each common family head. The
@@ -3990,3 +4017,13 @@ failed under multi-shot state feedback. M3 compiler-referee and spec-auditor
 review closed the equation/support inconsistency without selecting that source
 rule. See the latest entry in
 `notes/progress/2026-10-01-intrusion-coarse-effect-abstraction-candidate.md`.
+
+Immediate next gate: define the common source call/handler transition over
+ordered activation contexts and source-owned request origins. Compare the two
+reviewed nested-receiver clauses within that relation, retaining every
+unconsumed request and carrying symbolic typed-family invariance through
+solving, residualization, call/force, handler image, generalization, fresh
+instantiation, and intrusion. The frozen `ret_eff=Bot`/unhandled-request pair is
+characterization only; do not mimic it as a rule. Method/roles/impl resolution
+remain gated until ordinary effect/handler semantics closes unless a proved
+dependency requires them sooner. No compiler implementation is authorized.
