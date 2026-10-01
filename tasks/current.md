@@ -1885,3 +1885,15 @@ delta review. Next prove source-step coverage and transport conditional on a
 declared source interface, then close route quotient and coupled leastness.
 Concrete syntax/handler semantics still needs an approved successor contract;
 no implementation rule is selected here.
+
+A conditional alpha-transport lemma now covers family-support invariance,
+operation/family/payload constraint renaming, and alpha-equivalence of the
+type-constraint solution set with outer environment fixed. It explicitly
+excludes row/effect solution transport. Full `Drop` invariance requires a
+separate evaluation/observation bijection preserving offers, route classes,
+dynamic eligibility, and the RawOnly continuation/arm/result row accounting.
+Compiler-referee review found and closed overclaims around ambient constraints,
+dynamic activation correspondence, and RawOnly bounds; the focused closure
+review is clean. Next prove source-step preservation and instantiate these
+conditional maps on the actual SCC lifecycle. Effect-row principality, route
+quotient completeness, and Oracle acceptance remain open.

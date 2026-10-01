@@ -3478,6 +3478,64 @@ and principality relative to the selected abstraction remain the targets.
 These are conditional proof obligations, not selected Yulang3 rules or
 implementation authority.
 
+#### Typed-evidence alpha-transport lemma (conditional)
+
+Fix a well-formed candidate elaboration result
+`E = (C, Q, R, H)` from the interface above under a fixed type environment
+`Γ`. Let `θ` be a bijective, capture-avoiding renaming of local/generalized
+type variables in `C`, typed requests `Q`, row constraints `R`, and typed
+grants in `H`. It fixes every free outer/interface variable in `Γ`, and leaves
+`FamHead`, `OpId`, source origins, and route tags fixed. Let `Trθ(E)` apply
+that same map to every type position in all four products.
+
+Then the following structural transport facts hold, provided the selected
+family-match predicate is defined from `FamHead`, `OpId`, and ordinary type
+constraints that are themselves equivariant under `θ`:
+
+1. `support(Trθ(Q)) = support(Q)`, because `fam_head` erases only type
+   arguments and `θ` does not rename the canonical family constructor;
+2. each generated payload, result, and invariant family-argument constraint
+   maps to its corresponding renamed constraint;
+3. every typed request/grant match under a type assignment corresponds to the
+   match under the alpha-renamed assignment, and the converse holds for the
+   inverse renaming; and
+4. the type-constraint solution sets
+   `Sol_type(Γ,C) = {ν | ν satisfies Γ and C}` and
+   `Sol_type(Γ,Trθ(C))` are alpha-equivalent, by the bijection that renames
+   assignments to local/generalized variables along `θ` and fixes `Γ`.
+
+This fourth claim is only about the stated type-constraint relation. It does
+not transport row/effect solution sets: that would additionally require every
+row transfer, fixed `Drop`, interface filter, and callback input to commute
+with `θ`, premises not established here.
+
+The typed-match part of a `Drop` certificate is alpha-invariant under the same
+assignment bijection. Full certificate invariance additionally assumes an
+evaluation/observation correspondence between the two elaborations that gives
+a bijection on reachable request/handler configurations and preserves current
+and forwarded offers, `RawOnly`/mixed/unknown route classes, operation-arm
+coverage, and per-activation eligibility. It must also preserve and reflect
+the row-side certificate: the matched continuation's latent `E`, and every
+arm/result/callback row obligation that charges `E` when the continuation is
+invoked or exported. This is a local evidence-transport premise; it does not
+claim equivariance of the whole row solver or its solution set. If compile-time
+hygiene identities participate in the correspondence, `Θ` must map their
+ordered boundary lineage and scope evidence. Dynamic activation identities
+are related by this assumed correspondence; they are not renamed as
+compile-time IDs. The correspondence itself is unproved, so no unconditional
+full-`Drop` invariance follows.
+
+The proof is structural: `θ` fixes family and operation constructors, fixes
+outer variables, maps each local type-bearing constraint homomorphically, and
+is bijective. Typed matching and type-constraint satisfaction are therefore
+preserved and reflected for corresponding assignments; the same bijection
+transports the universal quantifier over those type solutions. Route tags and
+ordered provenance labels are unchanged, but this alone does not relate their
+reachable dynamic configurations. This proves a conditional alpha-transport
+property for support, typed constraints, and type solutions, not source
+elaboration soundness, full `Drop` invariance, row-solver principality, or
+Oracle-equivalent acceptance.
+
 An architect review recommended this conditional semantic-lowering boundary;
 the exact-source review found no conflict with syntax-v0 or current HIR. The
 compiler-referee review then found three gaps: possible calls/forces were not
@@ -3490,3 +3548,16 @@ acceptance loss (with unsoundness only if erased-head matching is used). A
 focused compiler-referee closure review confirmed all findings are closed.
 Source elaboration, route completeness, finite activation abstraction, and
 coupled leastness remain unproved.
+
+The compiler-referee review of the alpha-transport lemma found two major
+scope gaps: the initial solution-set claim included row/effect behavior under
+an untransported interface, and the initial `Drop` claim inferred dynamic
+configuration correspondence from static binder transport. The revision fixes
+outer/interface variables, limits the solution claim to `Sol_type(Γ,C)`, and
+makes full `Drop` invariance conditional on an explicit evaluation/observation
+bijection. A follow-up review found that this premise also needed to preserve
+the `RawOnly` latent-`E` and arm/result/callback row obligations; those are now
+included while whole row-solver equivariance remains excluded. A fresh
+compiler-referee closure review found no remaining issue in this delta. The
+required dynamic correspondence and all source/effect solver theorems remain
+unproved.
