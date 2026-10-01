@@ -1152,8 +1152,10 @@ returned closure's latent `choose` request. This rejects that Oracle
 under-approximation; it does not decide whether a more precise successor can
 still accept the outer handler through its scoped visibility relation.
 
-The economical source-level candidate is to scope grants to dynamic execution
-contexts and carry only *dormant re-entry lineage* on values that escape:
+The common representation candidate for either lifetime rule is an ordered
+dynamic context plus optional *dormant re-entry lineage* on values that escape.
+This representation does not choose whether source semantics retains such
+lineage:
 
 ```text
 enter boundary: extend the ordered context with its source-typed capture relation
