@@ -3419,3 +3419,14 @@ uses the common application relation rather than a callback-specific rule.
 The conclusion remains conditional on the source typing/evaluation relation
 and the finite principal presentation; it does not select the candidate
 Function clause or complete the effect gate.
+
+An audit found that the older pure-argument application lemma still assumed
+support composition too broadly: `Ea=∅` does not rule out multi-shot state
+feedback through a saved caller continuation. Its upper bound is now
+explicitly conditional on application-specific support composition. The
+single direct `ask` witness remains a narrower result because its request is
+emitted before any caller return and no handler intervenes. General application
+still needs the complete joint continuation relation and its support
+projection; no union formula is assumed from bind alone. The `q`/`g` witness
+is a semantic decomposition counterexample, not yet a typed source program
+showing application-specific acceptance failure.

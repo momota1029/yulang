@@ -5128,9 +5128,12 @@ Fun(T, R, U) ≤ Fun(T', R', U')
 ```
 
 In this pure-argument subcase, call-by-value sequencing contributes no
-argument requests. The trace contains events from evaluating `f` and then
-from invoking the function, so its support is contained in `Ef ∪ Rf`. No
-request count, linear-use premise, or exact continuation trace is needed.
+argument requests. If the source application semantics proves support
+composition for the function-evaluation and invocation prefixes, their
+support is contained in `Ef ∪ Rf`. This is a conditional upper-bound
+calculation; `Ea=∅` alone does not establish the support-composition premise
+when continuations can be resumed after state changes. No request-count or
+linear-use premise is proposed.
 The latent row is looked up from the function value's type, so this same
 subcase covers local callbacks, imported callbacks, and generalized functions;
 ownership and type substitution act on the complete `Fun` and row coordinates
@@ -5165,6 +5168,33 @@ compositional rule* relative to that domain. It does not prove that all
 members of `Rf` are realizable by well-typed functions, or that a finite
 symbolic row language has principal solutions for matching and
 generalization.
+
+#### Scope correction: pure arguments do not prove support composition
+
+The `Ea=∅` restriction removes requests from evaluating the argument, but it
+does not by itself establish the assumed support-of-concatenation law. The
+coupled-effect draft gives a stateful multi-shot counterexample to generic
+support decomposition: a request continuation can be resumed again after an
+appended suffix changes the live store, exposing a request absent from the
+independently computed support of the first relation. The same shape can occur
+around application if the saved request continuation includes the caller's
+post-call context. Thus the bound `Ef ⊔ Rf` is valid only after the source
+application relation specifies which continuation suffix belongs to
+`Beh(f,x)` and proves that its support is included in those coordinates. A
+pure argument is not that proof. The recorded `q`/`g` pattern refutes generic
+support decomposition, but it is not yet a typed source program exhibiting an
+application-specific failure; this correction withdraws an unconditional
+proof premise rather than claiming a new Oracle acceptance counterexample.
+
+For the isolated `ask` forwarding witness, the request is emitted directly by
+the callback body before any return into a caller suffix, and there is no
+handler between that request and the exported observation. Under that local
+source transition premise, ordinary application preserves the observed
+`ask`; this suffices to refute the empty row for the witness. Do not extend
+that one-request result to arbitrary applications or resumptive handlers.
+Those require the complete joint application/continuation relation and a
+support projection from that relation, as in the state-threaded bind candidate
+in `notes/design/2026-10-01-coupled-effect-interface-core-draft.md`.
 
 On the recorded source witness,
 `call(f: () -> [ask] ()) = f()` receives `Rf = {ask}`, so its body bound
