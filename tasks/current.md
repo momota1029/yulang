@@ -1995,6 +1995,12 @@ Continue with cross-epoch lowering and root-local R/free ownership; the
 shared-TypeVar Q/free source case is now characterized. A self-application
 recursive-result variant produced R/R in both roots but failed final mono
 specialization, so it does not close the accepted R/free case. Details are in
-the same progress note.
+the same progress note. Oracle source inspection confirms R collection is
+root-local by `(TypeVar, Polarity)` back-edge reachability, then independently
+pruned from each root; Q remains a separate boundary/non-generic predicate.
+This rules out a component-wide Q/R/free ownership tag but is not an accepted
+R/free source witness. Search next for a retained identity that is recursive
+in one mixed-boundary root and free in another, using a productive guarded
+cycle and final mono acceptance.
 Effect-row principality, route quotient completeness, and Oracle acceptance
 remain open.

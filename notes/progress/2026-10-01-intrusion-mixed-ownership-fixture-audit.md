@@ -300,6 +300,31 @@ R/free ownership. This illustrates why inference-only schemes cannot close
 the compatibility gate. The yulang scratch fixture was restored to the
 accepted identity result after this probe.
 
+## Root-local R ownership condition
+
+The collector's R decision is rooted and polarity-sensitive. During compact
+projection it tracks recursion by `(TypeVar, Polarity)` and records a
+recursive side only when that same key is revisited while in progress
+(`compact/collect/mod.rs:752-785`; the lower/upper side is stored separately
+in `compact/collect/type_nodes.rs:653-670`). Generalization then prunes those
+recursive bounds from the current root's structural and role reachability
+(`generalize/core/prune.rs:90-123`). Q selection is a separate root-local
+pass over the retained root and roles, filtered by that root's boundary and
+`non_generic` set (`generalize/mod.rs:900-913`).
+
+This means a successor cannot model a variable with one component-wide
+`Q/R/free` tag. The observed guarded SCC already has overlapping Q and R for
+the same variable within a root: helper publishes `Q=[11,97,98]` and `R=[97]`,
+while g publishes `Q=[11,97,98]` and `R=[98]`. An R/free split across roots
+would require the same pre-finalization identity to be a retained recursive
+back-edge in one root, remain reachable in another root's view, and fail that
+second root's independent Q predicate (for example through its boundary or
+`non_generic` set). The accepted Q/free witness demonstrates a boundary-based
+Q difference, but does not establish this R/free conjunction. The rejected
+self-application probe supplies no such witness. Thus the concrete R/free
+source case remains open, while the machine-level reason to preserve separate
+per-root Q and R ownership is now explicit.
+
 There is a useful conditional exclusion for Q-versus-free ownership. For a
 variable `v` that occurs in both roots' compact-plus-role views where their
 quantifiers are selected, if both roots use the same boundary and
