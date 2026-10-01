@@ -122,6 +122,18 @@ from one source computation relation, then prove callback contract validity
 after instantiation and preserve that relation fiber through generalization,
 freshening, and intrusion.
 
+A compact carrier proposal is now recorded in
+`notes/design/2026-10-01-coupled-effect-interface-core-draft.md`. It puts
+typed-family constraints, request views, roots, ownership, and route evidence
+inside one fixed-outer relational interface; rows, selectors, and dependency
+records are presentations or projections. Callback application is ordinary
+relational composition, while handlers map continuation-bearing interfaces.
+This responds to the preference for a theory that does not mirror Oracle
+source sites. It remains a draft, not a selected semantics. The next work is
+to derive the shallow-handler transition and finite principal-presentation
+obligations from this carrier, while preserving symbolic family formulas
+through every lifecycle phase.
+
 ## Objective
 
 Prove that the SCC-intrusion redesign can match the frozen Yulang2 Oracle's
