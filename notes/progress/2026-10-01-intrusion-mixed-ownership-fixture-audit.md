@@ -407,16 +407,42 @@ specialization path. It does not by itself authorize beginning the broader
 method-selection/roles/impl-resolution gate; that later gate remains required
 after ordinary effect/handler semantics settle.
 
-A follow-up inspected the computed member's instantiated signature immediately
-after scheme materialization. Its recursive-bound side table already contains
-`lower: unit` for the recursive value and a Function-containing upper bound;
-the failing subtype is therefore added by `constrain_recursive_bounds` before
-the member body is inferred or consumed. The trace rules out the body operation
-as the source of this particular lower bound. It does not yet determine which
-scheme occurrence or defaulting path turns the inference-stage recursive data
-into `unit`, so this is still not an accepted R/free witness or a complete
-source-to-specializer explanation. The temporary specializer instrumentation
+A follow-up aligned the inference scheme with its instantiated recursive bound.
+For computed member `make` (`DefId(9)`), inference publishes no quantifiers and
+one recursive binder (`TypeVar(63)`) whose bound has lower `Bot` and a
+Function-containing upper side. The specializer's `collect_scheme_kinds`
+visits the predicate and role predicates but omits `scheme.recursive_bounds`
+(`specialize/src/types/setup.rs`). During inference-style materialization,
+`materialize_pos(Bot)` requests an empty-bound placeholder; because the
+recursive bound was not scanned, the placeholder queue is empty and
+`materialize_empty_bound` falls back to value default `unit`. Then
+`constrain_recursive_bounds` adds `unit <: TypeVar(63)` before the computed
+member body is inferred or consumed. This precisely explains the observed
+rejection and separates it from source-body constraints.
+
+This is a concrete Oracle specializer conversion behavior and a candidate
+false-negative mechanism: an unconstrained recursive lower side becomes a
+`unit` lower constraint. It is not yet a proved well-typed-source
+counterexample, so it does not yet authorize dropping this Oracle behavior or
+count as an accepted guarded R/free witness. The next proof must establish the
+source typing of this guarded recursive term under the selected declarative
+Simple-sub semantics, then record the exact final-acceptance compatibility
+delta if the false-negative is confirmed. Temporary specializer instrumentation
 was removed from the detached scratch worktree after this probe.
+
+To isolate the recursive application from the role-generated SCC, a scratch
+source control containing only `struct wrap 'a { value: 'a }`,
+`my make = \x -> x (wrap {value: x})`, and `pub result = 0` was run through
+the same final mono source entrypoint. It passed. Thus the recursive
+application form alone is accepted; the earlier rejection depends on its
+surrounding receiverless role-method/SCC context. This does not prove the
+role-method candidate is well typed or that the two programs have equivalent
+constraints. It does identify a concrete dependency for one narrow early
+question: compare only the declared polymorphic `make` requirement with this
+member's inferred definition to determine whether the rejection is a valid
+method-conformance constraint or an incidental recursive-bound materializer
+constraint. This does not open the broad method-selection/roles/impl-resolution
+gate; that remains later, after ordinary effect/handler semantics settle.
 
 There is a useful conditional exclusion for Q-versus-free ownership. For a
 variable `v` that occurs in both roots' compact-plus-role views where their
@@ -498,3 +524,12 @@ member-root observations, effects, principality, or final acceptance
 equivalence. The scratch Oracle worktree and instrumentation are temporary
 characterization only; no compiler code or test file was changed on this
 branch.
+
+The roleless control used this focused command in the detached Oracle worktree:
+
+```text
+CARGO_TARGET_DIR=/tmp/yulang-intrusion-scc-owned-target cargo test --offline --jobs=1 -q -p yulang scratch_intrusion_unconstrained_recursive_bottom_without_roles -- --nocapture --test-threads=1
+```
+
+It passed once. The temporary control test was removed afterward; the earlier
+mixed-ownership scratch tests remain as they were before this probe.

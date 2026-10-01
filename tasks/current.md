@@ -2001,12 +2001,17 @@ Function-versus-unit subtype failure. The first rejection came from an unused
 outer function parameter defaulting to `Any` and being specialized as `unit`.
 Using that parameter changes the final rejection to `unit <: recursive
 Function`, still unresolved. A productive control is accepted but keeps Q/R
-uniform. A direct `make` use from owner triggers `ComputedFetchCycle`. Next,
-trace the scheme-to-specializer conversion of the recursive lower bound and
-find an accepted guarded R/free witness. The failing `unit <: Function`
-constraint is already present immediately after recursive-bound materialization
-and is inserted before computed-body inference, but its exact scheme/defaulting
-source is not yet identified.
+uniform. A direct `make` use from owner triggers `ComputedFetchCycle`. For
+role member `make`, the inference scheme's
+recursive binder has lower `Bot`, but frozen Oracle materialization turns this
+into `unit`: `collect_scheme_kinds` omits recursive bounds, so the empty-bound
+placeholder queue is empty and falls back to the value default. This inserts
+`unit <: recursive Function` before computed-body inference. A roleless control
+with the same recursive application passes final mono specialization. Narrowly
+compare the declared polymorphic `make` type with the member definition to
+decide whether this is a valid method-conformance constraint or a materializer
+artifact; this is the concrete dependency allowing that limited early role
+inquiry, not the broad later role gate.
 Details are in the same progress note.
 Effect-row principality, route quotient completeness, and Oracle acceptance
 remain open.
