@@ -48,23 +48,19 @@ describes a different semantic fact. The source-site checklist is retained as
 Oracle characterization and as a proof audit, not as the successor core. A
 closed point-valued filter subcase has a conditional `RowIncl` characterization,
 and interval-valued common-witness compatibility has a conditional endpoint
-lemma. The current candidate comparison distinguishes single-slot family maps,
-finite sets of typed request contracts, and coarse family support paired with
-symbolic contract evidence. A ground finite contract-set algebra is recorded
-conditionally; symbolic lifting, duplicate matching, coupled handler coverage,
-open rows, and the least representable schemes remain open. The next semantic
-discriminator is whether one computation may carry multiple invariant type
-instances of the same family head; that determines whether a single-slot row
-is justified or a contract-set relation needs disjunctive matching. The frozen
-`03_parameterized_effect_capture.yu` corpus case has `ask.get` at both `int`
-and `str`, but tests separately specialized handlers and does not settle one
-polymorphic arm. A direct one-arm probe now shows `check` accepts a shallow
-handler that ignores its continuation and returns a fixed pair, while frozen
-`run` rejects on `int`/`str` family candidates; its exact shallow trace never
-executes the second request. This is a concrete candidate Oracle over-rejection.
-The successor candidate keeps support but checks separately retained request
-contracts; source typing and leastness for that rule remain open. No candidate
-is yet proved sound or principal.
+lemma. The one-arm discriminator favors finite family-instance rows as a proof
+candidate: frozen `check` accepts a shallow handler that ignores its
+continuation and returns a fixed pair, while frozen `run` rejects on `int`/`str`
+family candidates; the exact shallow trace never executes the second request.
+This is a frozen phase mismatch and only a conditional candidate
+over-rejection: the parametric handler-arm source rule is not yet established.
+The successor candidate keeps distinct symbolic family instances, with
+support as a projection, and checks handler coverage per typed request fact.
+Symbolic `RowIncl` matching has a concrete principality barrier on duplicate
+open rows; unknown request evidence also needs to survive removal. Prefer one
+declarative relation with transport laws over source-site-specific selectors,
+and keep solver keys/evidence as projections of it. No candidate is yet proved
+sound or principal.
 
 ## Objective
 

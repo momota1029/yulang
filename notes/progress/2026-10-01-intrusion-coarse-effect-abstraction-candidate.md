@@ -4868,60 +4868,49 @@ domains, not representation details.
    covariant in it; invariant arguments do not supply that rule for free.
    This candidate is compact but has an unproved expressibility/principality
    risk.
-2. **Finite set of typed request contracts.** A row denotes a finite set of
-   symbolic records containing canonical operation identity, family
-   arguments, payload/result signature, and latent request bound. `RowUnion`
-   is set union; `RowIncl` is inclusion modulo a single source-defined
-   contract-equivalence relation; `RowRemove` filters records only when a
-   complete coverage and route certificate proves removal. Splitting and
-   residualization are set identities. The common relation compares complete
-   records, so argument invariance is one component of compatibility rather
-   than a private selector for every source site. This is compositionally
-   attractive and naturally retains typed arguments, but symbolic inclusion
-   may require disjunctive matching against duplicate candidates. Principality
-   therefore depends on whether generalized constraints can represent that
-   finite disjunction or on a proof that a deterministic quotient removes the
-   choice without loss.
-3. **Family-support abstraction with a symbolic contract ledger.** The
-   mathematical row is a pair consisting of a coarse finite-family support
-   bound (possibly `Top`) and symbolic request/contract constraints whose
-   validity is coupled to that bound. Support union/inclusion/removal use the
-   powerset algebra; one contract relation supplies the typed premises and
-   route evidence needed to justify each narrowing/removal. This is the most
-   conservative fit for the accepted may-effect abstraction and avoids
-   continuation-use tracking. It may lose precision, and it is principled only
-   if the paired denotation has a least solution and its schemes retain every
-   symbolic contract dependency. The ledger must be a projection of one
-   denotational object, not a second after-the-fact repair pass.
+2. **Finite set of typed family instances.** A row denotes a finite set of
+   symbolic `(FamHead, argument tuple)` instances; request facts carrying
+   `OpId`, payload/result signature, latent bounds, and route lineage remain
+   attached for handler coverage. `RowUnion` is set union; `RowIncl` uses one
+   source-defined family-instance relation; `RowRemove` filters request facts
+   only when a complete coverage and route certificate proves removal, then
+   projects the survivors back to family instances. Splitting and
+   residualization follow from the same set operations. This avoids equating
+   requests merely because their family heads match, but symbolic inclusion
+   may require disjunctive matching against duplicate target instances.
+   Principality therefore depends on whether generalized constraints can
+   represent that finite relation or whether a deterministic quotient removes
+   the choice without loss.
+3. **Support-only solver projection.** A finite support bound (possibly
+   `Top`) plus symbolic request/contract records may be a compact solver
+   representation of candidate 2. This is bookkeeping, not a distinct
+   mathematical core: it is valid only if one denotation-preservation theorem
+   proves that the support and symbolic records together retain all family
+   instances, typed premises, and route dependencies needed by union,
+   inclusion, and removal. Projection to support alone is lossy and cannot
+   justify `FamCompat` or `Drop`.
 
-The set-of-contracts candidate is the cleanest starting denotation because
+The finite set of family instances is the cleanest starting denotation because
 union, inclusion, and removal are ordinary set operations; the coarse support
-candidate is its plausible sound abstraction when exact continuation
-correlations are inexpressible. The single-slot map becomes the smaller
-candidate if the source semantics says a family head has one invariant
-instantiation per row: same-head requests are then one family contract, while
-their distinct operation paths remain separate dispatch identities. This
-cannot be inferred from runtime path matching alone. None is selected: source
+representation is only a solver projection of it. The single-slot map is
+smaller only if the
+source semantics says a family head has one invariant instantiation per row.
+Runtime path matching cannot establish that premise. None is selected: source
 operation identity, per-row family uniformity, contract equivalence, the
 abstraction function, and least-scheme expressibility are still unproved. The
-ground algebra below proves the easy set laws; the next semantic test is the
-family-uniformity premise that decides whether contract sets contain genuine
-same-head alternatives or must quotient them through one symbolic slot.
+ground algebra below proves only the basic set laws. The one-arm probe that
+follows is a source-level discriminator for whether distinct same-head
+instances must be preserved.
 
-That distinction has a source-level discriminator. Consider one computation
-that calls the same polymorphic family operation at two different argument
-types, with both results used at their respective types, under one handler arm
-that is independently type-safe for each request. A single-slot family row
-requires the two argument tuples to satisfy one invariant slot equation. A
-contract-set row keeps both request contracts; checking one arm against both
-may be valid without equating their family arguments. The frozen runtime
-collision probe uses two separately specialized handlers and therefore does
-not decide this case. The source typing semantics must decide whether the
-single-arm program is well-typed before we choose the smaller map. If multiple
-instances are permitted, candidate 2's inclusion formula needs a principality
+If one computation calls the same polymorphic family operation at two
+different argument types, a single-slot family row requires the two argument
+tuples to satisfy one invariant equation. A contract-set row keeps both
+instances and checks a handler parametrically against each request. The
+source typing semantics must determine which model applies. If multiple
+instances are allowed, candidate 2's inclusion formula needs a principality
 analysis; if they are forbidden by the family-indexed row contract, the map
-quotient follows from that source invariant and avoids artificial disjunctive
-matching. This is a characterization witness, not a new special-case rule.
+quotient follows from that source invariant. This is a characterization
+witness, not a new special-case rule.
 
 There is an existing frozen corpus witness close to this shape:
 `tests/yulang/yulang-adversarial-corpus/03_parameterized_effect_capture.yu`
@@ -4961,39 +4950,155 @@ arm result matches the value arm's pair result. Thus the exact shallow
 semantics has no type collision on this execution. Oracle accepts its
 inference stage but its final specialization rejects it before runtime.
 
-This is concrete evidence against treating the different type arguments as
-two different runtime operations, but it is also a candidate over-rejection by
-the frozen final pipeline. A successor that keeps the family support
+Under the candidate parametric operation-arm rule, the key typing premise is
+uniform in the operation parameter `α`:
+
+```text
+Γ, payload : α, k : α -> (int * str) ⊢ (1, "s") : int * str
+```
+
+The wildcard does not inspect the payload and the body does not use `k`, so
+the judgment holds for every `α`. In a shallow handler the operation arm gets
+the raw `k`; because the body never invokes it, the suffix is outside the
+resulting trace. This proves the local value-transfer case, conditional on the
+source rule allowing an operation arm to be checked parametrically at its
+declaration binder. It does not establish that rule for other arm bodies.
+
+This is concrete runtime evidence that one operation identity may be reached
+with different typed request instances on distinct paths. The `check`/`run`
+disagreement is a frozen phase mismatch, not yet a proven source-typing
+over-rejection: the candidate's parametric arm premise is still unapproved.
+If the source rule is derived and adopted, this becomes a concrete
+compatibility expansion (successor acceptance where frozen `run` rejects).
+A successor that keeps the family support
 projection while retaining typed request contracts separately can check the
 single arm against the possible requests without equating unrelated request
 occurrences merely because their `FamHead` agrees. The exact trace does not
 require a linear continuation type: it only shows this arm does not resume.
 The remaining proof is to derive the arm/request compatibility and its
 least-solution behavior from source typing, then prove that the coarse
-may-request abstraction remains sound when other arms do resume. This is a
-proposed compatibility expansion (successor acceptance where frozen `run`
-rejects), not an approved semantic rule or an inference that every
-same-family pair must be kept independent.
+may-request abstraction remains sound when other arms do resume. The proposed
+difference is conditional: frozen specialization reconnects the generic
+operation effect to one invariant family item, while the candidate checks an
+arm uniformly for each request instance. Its source-level validity, including
+sharing of captured outer variables, must be proved before treating this
+acceptance difference as intentional.
 
-A suitable proof sequence is therefore: settle the family-uniformity lemma
-from operation typing and handler application semantics; prove the ground
-algebra for its resulting row domain; lift the relation symbolically and test
-whether finite duplicate matching creates a real principality counterexample;
-then prove substitution and binder-transport laws before adding solver keys,
-owner incidence, or intrusion.
+##### Preferred proof candidate: one relation over family instances
+
+The one-arm probe makes candidate 2 the current preferred **proof target**.
+The semantic request fact starts from a typed shallow trace: an operation
+family head, exact operation identity, family arguments, payload/result types,
+and latent effect obligations. A source-origin or occurrence ID is provenance
+for transport and route evidence; it is not a new type-semantic distinction
+unless handler visibility depends on that lineage. A row value is a finite set
+of typed family instances `FamInst = (FamHead, argument tuple)`. Possible
+request facts remain attached to this row for handler coverage; they are not
+folded into row identity. Thus the two `ask` calls can project to one support
+head while retaining distinct `ask<int>` and `ask<str>` instances and their
+separate `OpId`/signature evidence.
+
+Use one family-instance relation for every row comparison:
+
+```text
+FamInst(q) = (family_head(q), q.args)
+
+FamCompat(x, y, ν) iff
+  x.head = y.head
+  and ν(x.args[i]) <: ν(y.args[i])
+  and ν(y.args[i]) <: ν(x.args[i]) for every i
+
+RowIncl(R, S, ν) iff
+  every x ∈ R has some y ∈ S with FamCompat(x, y, ν)
+```
+
+The existential match is part of the declarative relation, not permission for
+the solver to choose one target and discard alternatives. For example,
+inclusion of `{F<int>}` in `{F<α>, F<β>}` denotes
+`(α ≈ int) ∨ (β ≈ int)`. The two branches are incomparable in a scheme
+language without disjunction. This relation alone therefore does not provide
+a principal symbolic solver. A successor must retain such relations as
+residual constraints, prove a principal normalization for the source row
+domain, or use a stated conservative abstraction and record its acceptance
+cost. Unifying both targets is not a principality-preserving shortcut.
+
+`FamCompat` is the sole typed-family comparison; the `InvArgs` formulas are
+its symbolic presentation. Callback contracts and concrete filters are
+instances of `RowIncl`; support inclusion follows from matching equal heads.
+`RowUnion` is set union of family instances, so it does not identify two
+instances merely because their heads agree. A row split is `RowIncl` evaluated
+against the union's two parts. Handler removal filters request facts with one
+independent coverage predicate, then projects the remaining facts back to
+family instances:
+
+```text
+Covered_H(q, ν, route) iff
+  an exact-operation arm completely covers q
+  and FamCompat(FamInst(q), arm_family_instance, ν)
+  and its payload/resume signature constraints hold
+  and q is visible and offered at this handler activation
+
+Q_H = { q ∈ Q | not Covered_H(q, ν, route) }
+RowRemove_H(Q, ν, route) = FamInsts(Q_H)
+```
+
+Removal is defined on a coupled row/request state, not a possibly partial list
+of known requests. Let `E` be the row denotation and `Q` its request evidence.
+The required invariant is `E = FamInsts(Q)` for closed rows; open or opaque
+sources need an explicit unknown component whose support is `Top` (or another
+proved sound upper bound). Coverage may remove only represented facts with
+complete certificates; unknown support survives. An empty known `Q` cannot
+justify removing a family from a row that may contain an opaque callback
+request. The projection and unknown case need one preservation theorem through
+solving and transport.
+
+The operation arm is checked parametrically against its operation scheme;
+each typed request instance instantiates that scheme under its own capture-
+avoiding map. This is the source premise that needs proof. In the probe, the
+wildcard payload and unused continuation make the fixed pair arm valid for
+both `int` and `str`; the first handled request returns without evaluating
+the raw suffix. A row keyed only by `FamHead` instead equates the two argument
+vectors before the handler relation runs, producing the conflict under that
+candidate source rule. The frozen check/run mismatch is not itself proof that
+this rule is the source contract.
+
+This common contract relation removes `Sel_s` from the mathematical core:
+operation identity and type arguments come from request elaboration,
+`RowIncl` supplies the family comparison, and `Covered_H` supplies the
+different runtime/handler fact. A solver may maintain keyed obligations and
+`Demand` edges, but they are projections of these relational premises and
+their dependent views. Solve substitutions, residuals, generalization,
+freshening, and intrusion all transport the same symbolic contracts and
+`FamCompat` formulas; a family support projection alone never discharges
+them.
+
+This is not a selected or approved effect semantics. The remaining principality
+gate is symbolic inclusion: for duplicate or open annotation candidates,
+`RowIncl` contains a finite existential match and must either have a principal
+residual representation in the scheme language or be conservatively
+approximated with its final-acceptance cost recorded. Handler coverage must
+also be proved monotone or kept assignment-indexed, and recursive request sets need a finite
+least fixed point. The probe establishes a final-stage Oracle behavior
+difference for the candidate's minimal closed fragment, conditional on its
+source arm rule; it does not prove that rule, the general relation, or the
+global compatibility result.
+
+A suitable proof sequence is therefore: derive the per-request arm typing
+relation from operation polymorphism and handler application semantics; prove
+the finite row-set algebra; lift the relation symbolically and settle the
+principality of duplicate/open-row matching; prove the recursive least fixed
+point and substitution/binder-transport laws; then connect those laws to the
+intrusion parent transport theorem.
 
 ##### Ground contract-set algebra (conditional lemma)
 
-Here is a minimal algebraic base for candidate 2. Fix a finite universe of
-canonical operation identities and closed, ground family-argument tuples.
-Let `c ≈ d` mean same operation identity, mutual subtype of each invariant
-family argument, and source-approved representation-safe agreement of the
-payload/resume contracts. Assume those component relations make `≈` an
-equivalence relation; quotient contracts by `≈` and write `Q` for the
-resulting finite set. This fragment uses only closed first-order signatures
-and abstracts away nested latent signatures. Whether the source contract
-relation has the required equivalence and what coercion evidence it carries
-remain open.
+Here is a minimal algebraic base for family-instance rows. Fix a finite
+universe of canonical family heads and closed, ground argument tuples. Let
+`x ≈ y` mean equal family head and mutual subtype of each invariant family
+argument. Assume the selected type subtyping is a preorder, so `≈` is an
+equivalence relation; quotient family instances by `≈` and write `Q` for the
+resulting finite set. Exact operation identity and payload/resume safety are
+separate request/handler evidence and are not erased into this row quotient.
 
 Ground rows are finite subsets of `Q`, with:
 
@@ -5003,8 +5108,9 @@ R ⊔ S          = R ∪ S
 remove_C(R)    = { q ∈ R | q ∉ C }
 ```
 
-For fixed complete-coverage-and-route set `C ⊆ Q`, `≤` is a partial order,
-`⊔` is its least upper bound, and removal is monotone in `R`. Union is
+For fixed `C ⊆ Q` containing only instances whose attached request facts have
+already been proved completely covered and route-eligible, `≤` is a partial
+order, `⊔` is its least upper bound, and removal is monotone in `R`. Union is
 associative, commutative, and idempotent; fixed removal distributes over
 union: `remove_C(R ∪ S) = remove_C(R) ∪ remove_C(S)`. A closed filter is
 `R ≤ A`. For a split target `A ∪ B`, inclusion is equivalent to
@@ -5031,7 +5137,7 @@ the typed request would not preserve the correlation.
 
 This lemma proves only the elementary finite ground algebra, conditional on
 the equivalence relation and fixed coverage set. It does not prove source
-elaboration, correct operation identity, handler visibility, symbolic
+elaboration, request-to-family projection, handler visibility, symbolic
 principal solving, or intrusion transport. It does give a small proof target:
 lift the quotient-set operations to symbolic rows by a denotation-preserving
 relation, then establish the substitution and binder-renaming laws for that
