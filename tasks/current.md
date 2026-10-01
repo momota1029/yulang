@@ -16,6 +16,14 @@ full parent semantics and Oracle projection remain open. See
 `notes/progress/2026-09-30-intrusion-oracle-priority.md`. The q-erasure
 inference view is followed by a frozen-Oracle mono specialization rejection
 for `f 1`, so the view alone does not establish an unsound accepted program.
+An additional hard successor invariant is that typed-family argument
+invariance remains symbolic through solving, residualization, generalization,
+fresh instantiation, and intrusion. It cannot be reconstructed only after
+concrete row materialization. The current conditional lifecycle and transport
+obligations are in the `Required symbolic typed-family constraint lifecycle`
+section of
+`notes/progress/2026-10-01-intrusion-coarse-effect-abstraction-candidate.md`;
+their concrete solver transition rules and preservation proof remain open.
 
 ## Objective
 
@@ -2452,3 +2460,14 @@ certificates, source-to-runtime correspondence, and global principality remain
 open. This is still non-authoritative and does not open implementation. See
 "One callback application feeding one shallow catch (conditional composition)"
 in the candidate record.
+
+An independent compiler-referee audit of the user's symbolic typed-family
+invariance requirement found no blocking or major gap in the recorded
+conditional lifecycle. It confirmed the distinction between proved
+assignment/renaming lemmas and unproved source obligation derivation, actual
+solver discovery, residual equivalence, and parent-map construction. The next
+proof must derive each `InvArgs` key and its dependent view links from source
+rules before open-tail normalization consumes `RowLeq`, then prove joint
+solution and root-observation preservation through residualization, fresh
+instantiation, and intrusion. The audit did not inspect implementation code or
+tests and ran no tests. No implementation follows from this conditional review.
