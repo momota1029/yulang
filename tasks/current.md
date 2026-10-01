@@ -2355,3 +2355,15 @@ solver normalization, subtraction, handler routing, and the requested
 independent push/pop calculus remain unproved. See "Open typed-row relation
 without shape invention (candidate)" in
 `notes/progress/2026-10-01-intrusion-coarse-effect-abstraction-candidate.md`.
+
+A joint transport lemma now describes open `RowLeq` under one type map, row
+tail map, occurrence/evidence graph map, and separate hygiene map. It transports
+the values assigned to row tails, preserves typed ledger incidence and proof
+validity, and requires disjoint owned ranges across independent uses. Solver
+substitutions are distinguished from alpha-renamings and receive only a
+pullback identity absent a quotient theorem. Compiler-referee review closed
+the tail-value, evidence, and freshness gaps; the final wording restricts the
+equivalence to related assignments with values in the transported image or
+fixed environment. Actual map construction and phase invariants remain
+unproved. See "Joint transport of open typed-row constraints (conditional
+lemma)" in the same candidate record.

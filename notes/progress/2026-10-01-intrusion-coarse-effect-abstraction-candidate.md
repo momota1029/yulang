@@ -5309,3 +5309,85 @@ pops, nested boundary frames, handler completeness, residual routing, or
 runtime request ownership. In particular, the extensional `RowLeq` definition
 does not validate any Oracle weight push/pop rule. Those need independent
 operational semantics and preservation proofs.
+
+#### Joint transport of open typed-row constraints (conditional lemma)
+
+The open-row denotation needs one map across type arguments, row tails, and
+evidence incidence. Let `Θ_map = (P_t, P_r, M, Theta_h)` consist of:
+
+- a capture-avoiding type-identity map `P_t`;
+- a capture-avoiding row-tail binder map `P_r`;
+- a bijection `M` on the transported live row/evidence occurrence graph;
+- a separate capture-avoiding handler/hygiene identity map `Theta_h`.
+
+For this lemma, assume the maps are injective on their owned domains, their
+fresh ranges do not capture fixed outer anchors, and `M` preserves and
+reflects occurrence ownership and the independently derived `Demand` edges.
+It must also preserve and reflect incidence between each ledger record and
+its occurrence/formula endpoints. The maps' domains include every owned
+identity that can occur in assigned closed tail values; all non-owned caller
+and outer identities are fixed. Proof validity must be equivariant: a
+`Proved(proof)` record maps to `Proved(Tr_Θ(proof))` exactly when the original
+proof is valid. Family heads and exact `OpId`s are fixed; source provenance
+labels stay fixed, while per-use occurrence IDs are mapped by `M`. Every type
+occurrence in `RowLeq`, `InvArgs`, row entries, requests, handlers, and proofs
+is mapped by the same `P_t`; every row-tail occurrence uses the same `P_r`;
+every hygiene identity uses `Theta_h`.
+
+The action extends to values assigned to row tails, not only to the syntax of
+the row variable. Define `Tr_Θ^row` on a closed tail value occurrence by
+applying `P_t` to its argument terms, `M` to its occurrence/owner identities,
+and `Theta_h` to any hygiene identity; it preserves family heads, exact
+`OpId`s, and immutable source labels. Source and target row assignments are
+related by
+`μ'(P_r(ρ)) = Tr_Θ^row(μ(ρ))` for every owned row tail `ρ`; assignments on
+fixed caller/outer identities agree. `M` extends to the complete row values
+in these assignments and is a bijection over the transported owner domain.
+
+For a batch of independent uses, require the owned ranges of `P_t`, `P_r`,
+`M`, and `Theta_h` to be pairwise disjoint across uses and disjoint from fixed
+anchors. Shared outer anchors remain identical in every use map. A single-use
+renaming theorem alone does not establish this joint-use condition.
+
+Write `Tr_Θ` for this joint action. Relate type assignments by pullback:
+`ν_t = ν'_t ∘ P_t`; relate row assignments by the row-value equation above.
+The target assignment ranges over the transported target identity/owner
+image plus fixed external identities, so each admitted target tail value has
+a source inverse under `Tr_Θ^row`. The law is quantified over these related
+source/target assignment pairs, not over arbitrary target-only identities.
+Under equivariance of type satisfaction, row denotation, and proof validity,
+the conditional transport law is:
+
+```text
+Sat_{ν'_t, μ'}(Tr_Θ(RowLeq(R₁,R₂)))
+  iff Sat_{ν_t, μ}(RowLeq(R₁,R₂))
+```
+
+The same equivalence holds for every attached `InvArgs` formula, incidence
+edge, and proof payload. Proof: `Tr_Θ` preserves each typed occurrence,
+including duplicate occurrences, with a one-to-one correspondence by the
+extended `M`. Therefore row concatenation, support projection, and the set of
+same-head occurrence pairs commute with transport. `P_t` commutes with
+argument evaluation and preserves and reflects each mutual-subtyping
+conjunct by type equivariance; `P_r` reindexes tail evaluation through
+`Tr_Θ^row`; and `M` carries each ledger/formula incidence and independently
+derived `Demand` edge to exactly its transported edge. Proof validity and
+`Proved` state are preserved by premise. `Theta_h` changes only the
+handler/hygiene identities and does not rewrite type or family identity.
+Combining these facts proves both directions for related assignments.
+
+The alpha-renaming lemma applies to generalization/use freshening and to an
+injective intrusion transport only while `RowLeq` and its dependent evidence
+remain in the graph; for multiple uses it also requires the batch
+disjointness condition above. A solver substitution may be non-injective and is a
+separate case: if row substitution/evaluation commutes with the denotation,
+its homomorphic action on `RowLeq` has the pullback identity under the
+composed assignment, but that identity alone is not a bijection on
+source solution sets or preservation of root/use observations. The solver
+must retain the substituted relation/proof; a non-injective type or row
+parent map still needs a quotient proof over joint solutions and root/use
+observations. Residualization may remove a row view only if it carries the
+derived `InvArgs`/proof incidence and preserves an equivalent residual
+`RowLeq` relation. This lemma does not prove that residualization rule, source
+annotation lowering, or any handler Drop criterion. It is a conditional
+transport result, not implementation authority.
