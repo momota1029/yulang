@@ -3295,4 +3295,9 @@ matching visible request gets the raw continuation outside the frame, and an
 unmatched request is forwarded with same-activation re-entry on resume.
 Family formulas stay in `K` with updated incidence when a request is consumed;
 only support is projected. These handler equations remain a candidate pending
-runtime/source simulation and symbolic-preservation proof.
+runtime/source simulation and symbolic-preservation proof. A structural
+equivariance lemma now shows capture-avoiding injective transport commutes
+with bind on `Return`, `Request`, and finite-prefix nodes, mapping `K,D` and
+continuations together while keeping the live store behavior fixed. This
+supports freshening and injective intrusion only; quotient/fiber preservation
+for non-injective parent maps remains open.

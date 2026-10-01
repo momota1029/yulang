@@ -1165,6 +1165,44 @@ or handlers whose eligibility semantics distinguishes untransported dynamic
 identities. The latter quotient cases require their own observational
 preservation theorem.
 
+#### Injective transport commutes with resumable bind
+
+The same injective transport also commutes with the stateful continuation
+substitution above. Let `θ` be capture-avoiding on the complete static
+identity set used by one component: type and row binders, request/owner
+occurrences, and static boundary identities. It fixes rigid imports and
+operation labels and maps ordered boundary stacks to ordered stacks. Let
+`Tr_θ` transport typed values, request arguments, symbolic formulas, their
+incidence, and boundary lineage while preserving the live store and the
+operational behavior of the machine state. For a continuation `F`, define its
+transported form on the image of `Tr_θ` by
+
+```text
+F_θ(r') = Tr_θ(F(Tr_θ⁻¹(r')))
+```
+
+Then the candidate resumable-tree bind satisfies
+
+```text
+Tr_θ(T >>= F) = Tr_θ(T) >>= F_θ
+```
+
+Proof is by the three node cases. For `Return(v,c)`, both sides reduce to
+`Tr_θ(F(v,c))`. For `Request(q,c,k)`, both sides retain the transported
+request and attach the continuation
+`λr'. Tr_θ(k(Tr_θ⁻¹(r')) >>= F)`; the induction hypothesis rewrites this to
+`λr'. Tr_θ(k(Tr_θ⁻¹(r'))) >>= F_θ`. For a finite `Prefix`, both sides retain
+the transported prefix. Since `Tr_θ` also maps every `K` formula and its
+incidence, the equality transports typed-family constraints through each
+request and every resumed suffix without recreating them from support.
+
+This is an equivariance lemma for capture-avoiding generalization freshening
+and injective intrusion. Combined with the preceding handler equivariance, it
+transports the whole `Handle_H(T >>= F)` image when `Visible` and the source
+operation relation are equivariant under the same map. It does not validate
+the withdrawn independent-support decomposition, and it says nothing about a
+non-injective parent quotient or solution-fiber completeness of a solver.
+
 #### Conditional handler naturality under solver substitution
 
 Type solving can be non-injective on flexible type variables without merging
