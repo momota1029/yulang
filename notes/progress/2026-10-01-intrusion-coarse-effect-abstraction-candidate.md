@@ -4590,3 +4590,43 @@ evidence-specific transport/validity condition. Weighted rows, effect
 solutions, hygiene transport, and dynamic handler observations are explicitly
 outside this batch result. No independent review has yet been run on the
 corrected criterion or its two-view example.
+
+#### Source-rule audit: operation typing and handler reconnection
+
+A read-only architecture audit checked the active successor candidates against
+the current syntax reference and the frozen Oracle specification/source. The
+current Yulang3 syntax reference defines effect-row and catch syntax but does
+not specify their typing or visibility semantics. The frozen material is
+characterization evidence only: it documents exact operation-path dispatch,
+invariant constraints on same-path family arguments when rows meet, operation
+payload/result reconnection through a common signature-variable map, and the
+shallow rule where a matching arm receives the raw continuation while a
+forwarded request retains the handler around its suffix. None of those Oracle
+weight or runtime-marker rules is adopted as successor authority.
+
+The smallest source-elaboration obligation is now explicit: produce typed
+request and handler facts carrying exact `OpId`, typed family arguments,
+payload/result types, and all declared latent effects; reconnect request, arm,
+and continuation through one capture-avoiding binder map; then define
+per-stage callback receipt, residual-closure capture, invocation/force, and
+visibility against a fresh live handler activation. The finite-trace transfer
+may conservatively retain support, as directed; exact continuation-sensitive
+inference is not required. A `Drop` certificate must cover every possible
+typed current or forwarded offer. Principality still needs a leastness proof
+for the coupled row/evidence abstraction (or a justified phase-separated
+construction).
+
+The frozen `ask<bool>` action accepted under an `ask<int>` handler and returned
+as an integer remains a concrete soundness conflict. The successor should
+reject this typed mismatch; the precise Oracle dispatch defect remains
+unisolated. This records an acceptance delta without treating the Oracle's
+path-only matching or weight propagation as semantics.
+
+Audit scope: `syntax-reference/en/src/types/effect-row-type.md`,
+`syntax-reference/en/src/expressions/case-catch.md`, the candidate source and
+operation/continuation sections above, and frozen commit `a58eefc31` effect and
+runtime-guard specifications plus relevant inference lowering. This is a
+conditional proof handoff, not a selected rule, authority change, or
+implementation gate. The callback contract's grant meaning and lifetime,
+operation-latent-effect ownership, open-row denotation, coupled leastness, and
+full source-to-trace simulation remain unresolved.

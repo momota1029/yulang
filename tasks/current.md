@@ -2232,3 +2232,25 @@ selecting a rule or requesting a user choice. Details and review boundaries
 are in the candidate progress record's "Parameterized source-transition
 skeleton for handler visibility" section and the trace calculus's "Ordered
 active-handler stack" lemma.
+
+#### Source-rule audit follow-up (2026-10-01)
+
+A read-only architecture audit confirmed that current Yulang3 syntax does not
+specify effect/handler typing. Frozen Oracle materials characterize exact
+operation dispatch, invariant same-path family-argument constraints, common
+signature-binder reconnection for handler payload/result/continuation, and
+shallow raw-versus-forwarded continuation behavior; none supplies successor
+authority for weights or runtime-marker routing. The `ask<bool>` under
+`ask<int>` accepted-and-misreturned witness remains a concrete soundness delta,
+with its Oracle failure phase still unisolated.
+
+Immediate next proof step: write and review the source elaboration judgment
+that carries exact operation identity, family arguments, payload/result types,
+and latent effects through request, handler arm, and continuation under one
+binder map. Then define callback receipt/capture/invocation and live handler
+visibility, prove finite-trace coverage and route-certified subtraction, and
+establish leastness relative to the selected coarse effect abstraction. Keep
+unknown routes residual. No semantic choice or implementation gate is closed
+by this audit. Full evidence and inspected sources are recorded in
+`notes/progress/2026-10-01-intrusion-coarse-effect-abstraction-candidate.md`,
+"Source-rule audit: operation typing and handler reconnection".
