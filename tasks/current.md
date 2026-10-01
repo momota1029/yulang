@@ -3265,3 +3265,17 @@ remain one identity through the join; independent binders are freshened apart
 before it. This gives a common algebraic basis for callback composition and
 row views while preserving typed-family correlations. The source typing rule
 that establishes those identity-sharing choices is still open.
+
+The source-sequencing candidate now writes ordinary application as two
+state-threaded binds followed by value application, then models shallow catch
+as the image of its common handler transition. Operation and continuation
+application retain latent thunks until force; handler routing uses activation
+visibility. This connects callback calls and catches without adding an
+effect rule for either source site. The source typing contract, emitted/runtime
+simulation, and finite principal presentation remain unproved.
+
+The relational-bind section also states its generic typed may-support equation:
+requests already observed in the first relation are unioned with the support
+of the continuation relation at every reachable return, including returns
+after resumption. Application and case are instances of this same equation;
+the claim depends on the still-candidate finite-observation bind semantics.

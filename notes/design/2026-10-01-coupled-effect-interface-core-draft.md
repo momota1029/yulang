@@ -491,6 +491,56 @@ typed-request support at fixed assignment `ν` by
 MayReq(R,ν) = ⋃ { typed_requests(τ) | (τ,o) ∈ R at assignment ν }
 ```
 
+The state-threading bind definition gives the general support equation
+
+```text
+MayReq(R >>= F,ν) = MayReq(R,ν)
+  ∪ ⋃ { MayReq(F(r),ν) | r ∈ Ret*(R) }
+```
+
+where `F(r)` receives the returned value, environment, and state. Every
+request in an `R` prefix is retained; `F` runs only after a reachable return,
+including returns reached after resuming a saved continuation. Conversely,
+each such return composes exactly its `F` behavior into the continuation.
+This is the support projection of relational composition, not a separate
+rule for application or case. The equation is conditional on the complete
+finite-observation bind semantics and the definition of `Ret*` below.
+
+Application and shallow catch use the same relational operations, without a
+callback-specific effect selector. Under the frozen runtime contract's
+call-by-value evaluation of callee and argument expressions, the candidate
+application equation is:
+
+```text
+Run_ν(e₁ e₂,η,s) =
+  Run_ν(e₁,η,s) >>= (λ(f,η₁,s₁).
+    Run_ν(e₂,η₁,s₁) >>= (λ(x,η₂,s₂).
+      ApplyValue_ν(f,x,η₂,s₂)))
+```
+
+`ApplyValue` is the application case of the same machine relation on already
+evaluated values. It dispatches a closure by evaluating its body in the
+captured environment and applies primitives by their source semantics. An
+effect operation or saved continuation application returns a thunk value
+whose latent relation remains unrun until a later force. A thunk used as
+callee follows the machine's force transition before dispatch. Thus callee
+and argument evaluation compose immediately, while a returned thunk's
+requests remain latent. The Function row contract must bound requests at the
+source-defined call boundary; this equation alone does not prove that typing
+rule.
+
+A shallow `catch` applies the handler transition relation to this complete
+call computation. On return it selects the value arm; on a request it tests
+operation identity and activation visibility, then either enters the matching
+arm with the raw continuation or forwards the request with the handler
+restored on resumption. Its effect is the support projection of that
+relational image. Thus call followed by catch is composition followed by one
+image; row inclusion, callback invocation, and handler residualization need
+no independent source-site effect constructs. These are conditional
+source-semantics candidates: the runtime contract fixes the observed
+evaluation and force cases, but the source typing relation and its finite
+principal presentation remain unproved.
+
 Let `Ret*(R)` be returns reached from `R` along every well-typed finite
 resumption of its saved continuations, where resume values are admitted by the
 operation signature and active handler/source context. Retain each returned
