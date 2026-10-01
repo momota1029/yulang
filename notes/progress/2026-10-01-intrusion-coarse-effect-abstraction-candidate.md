@@ -9214,3 +9214,31 @@ of grant lifetime, while subtraction of emitted immediate support still
 requires a handler-image proof. The remaining grant-lifetime alternatives are
 unselected; no acceptance or runtime-routing result is inferred from the
 latent-row preservation lemma.
+
+## 2026-10-02: first-dispatch force/catch cut
+
+Added a local operational cut to the unified carrier. For one delayed
+computation with fixed symbolic family predicate/incidence and saved lineage,
+`Return(d)` first reaches catch as a value; forcing before catch dispatch
+reaches it as the computation's first request; returning the thunk through a
+non-forcing value arm leaves the catch before a later force, provided saved
+lineage does not re-enter that activation. The latter's request is determined
+by the post-arm state and need not equal the request from the initial state.
+Ordered `Search_H` uses exact operation identity,
+arm/guard order, and `Visible` as a premise; path or visibility alone does not
+select an arm. This derives the three observations from ordinary context
+composition and the handler relation, without adding a callback selector or
+subtraction rule.
+
+M3 delta review by a compiler referee and spec auditor caught and closed two
+material wording gaps: a non-forcing value arm may still mutate state, and a
+visible request may fail ordered arm search. The proof now states a post-catch
+request `q'`, a no-reentry premise for the third case, and full search premises.
+A minor phrase equating the three cases
+with three distinct first dispatches was corrected directly: (a) and (c) both
+first dispatch `Value(d)`, while their later force points differ. The lemma is
+conditional on transition behavior and makes no claim about which source
+typing contexts choose each boundary. Source typing adequacy, complete `K,D`
+fiber preservation by a finite presentation, principality, and SCC parent
+quotient remain open. No tests or compiler changes were made; `git diff
+--check` is the only local check for this note delta.

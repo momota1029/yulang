@@ -1667,6 +1667,58 @@ context's actual force with the proposed resumable computation relation, while
 transporting saved value and activation lineage; a row annotation cannot
 decide this boundary.
 
+##### First-dispatch force/catch cut lemma (conditional)
+
+Fix one complete type assignment `ν`, live state `(η,s)`, ordered activation
+context `κ`, and a thunk value `d = Delay(C)` whose saved environment, provider
+context, symbolic family formula/incidence `K,D`, and dormant activation
+lineage are carried by the complete interface. Suppose forcing `d` from this
+state has first outward event `q`. The ordinary source transition equations
+distinguish the first dispatch and force point across these three context
+traces:
+
+```text
+(a) Catch_κ(Return(d))
+    first dispatch is Value(d); C has not executed before that dispatch.
+
+(b) Catch_κ(Force(d) >>= F)
+    first dispatch is Request(q) under the active κ;
+    ordered Search_H uses exact operation identity, arm order/guards,
+    and Visible(q,κ) as one eligibility premise.
+
+(c) Catch_κ(Return(d)) >>= (λd'. Force(d'))
+    with a non-forcing value arm that returns d unchanged, and no saved
+    lineage that re-enters κ during this later force:
+    catch first dispatches Value(d) and unwinds κ; any first request q'
+    from the subsequent Force(d) is outside κ.
+```
+
+Proof: `Return(d)` presents a value to `eval_catch`, whose first dispatch is
+the value arm and does not step the suspended body before dispatch. In (b),
+`Force(d)` steps the saved computation before catch dispatch; state-threaded
+bind preserves its first request as the first event of the body, so catch
+tests that request at `κ`. In (c), the premise makes the value arm return the
+identical thunk without forcing; catch completes that value-arm computation
+and leaves `κ` before the outer bind forces `d`. The value arm may change
+state, so its later force may emit `q' ≠ q`; under the no-reentry premise,
+that request is outside `κ`. These are cases of the same `Run`, bind, and
+handler-image relations, not callback selectors or row-subtraction rules.
+
+The lemma is only a local operational cut. It assumes the stated first-event
+and value-arm premises; a forcing value arm does not satisfy case (c), while a
+state-changing arm can change the event produced by the later force. Without
+the no-reentry premise, the later routing context must be determined by the
+saved-lineage transition itself. The lemma does not prove which source typing
+contexts choose these boundaries, that `Visible` holds for a particular
+callback, or that the frozen adapter behavior is the successor rule. It does
+show why a latent row alone cannot choose handler subtraction: the same
+`K,D`-indexed delayed computation can first be dispatched as a `Value` or
+yield a `Request` before the catch returns, depending on ordinary context
+composition. The source typing proof
+must derive the boundary, and any finite presentation must transport its
+symbolic family predicate, incidence, and saved lineage unchanged through the
+corresponding relation image.
+
 Textual nesting and exact operation path still do not prove that the request
 is eligible for the active arm. Focused frozen-Oracle witnesses place the same
 `choose::get` callback under a matching catch outside `call(...)`, or outside

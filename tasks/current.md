@@ -3935,3 +3935,16 @@ successor's declarative Function contract, source boundary adequacy, and finite
 principal presentation remain open. A focused compiler-referee delta review
 confirmed the `CallView`/`Adapt` instantiation without finding a residual issue;
 the broader source typing derivation remains outside that review.
+The common carrier now has a reviewed conditional first-dispatch cut lemma:
+the same delayed computation is first a value at a return boundary, a request
+when forced before catch dispatch, or a later request after a non-forcing
+value arm returns it and the catch unwinds, assuming saved lineage does not
+re-enter that activation. A state-changing arm can make the later request
+differ from the initial one. Ordered `Search_H` still decides selection using
+operation identity, arm/guard order, and `Visible`; family predicate and
+incidence remain attached throughout. Compiler-referee and spec-auditor delta
+review closed the state-change, re-entry, and search-premise findings. This is
+operational evidence in the unified relation, not a source typing rule or
+implementation approval. Next prove which source typing contexts select each
+boundary, then show the finite symbolic presentation preserves its `K,D`
+fibers through that relation and SCC lifecycle.
