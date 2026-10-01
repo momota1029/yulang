@@ -506,6 +506,15 @@ This is the support projection of relational composition, not a separate
 rule for application or case. The equation is conditional on the complete
 finite-observation bind semantics and the definition of `Ret*` below.
 
+For the left-to-right inclusion, any request in a composed observation is
+either in its `R` prefix or in an `F(r)` suffix after some finite sequence of
+permitted resumptions reaches `r`; these are the two right-hand terms. For the
+reverse inclusion, bind preserves every `R` request prefix, and for each
+`r ∈ Ret*(R)` the resumption path witnessing `r` remains available after `F`
+is attached to the continuation, so each request in `F(r)` occurs in a
+composed observation. This proof uses may-support union, so it does not claim
+that `R`'s and `F`'s requests occur on one common execution path.
+
 Application and shallow catch use the same relational operations, without a
 callback-specific effect selector. Under the frozen runtime contract's
 call-by-value evaluation of callee and argument expressions, the candidate
