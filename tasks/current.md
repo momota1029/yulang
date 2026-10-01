@@ -2289,3 +2289,15 @@ injective transport or a solution/observation-preserving quotient for every
 jointly observed `K_sym` and root/use view. This corrected proof obligation is
 in the candidate progress record under "Conditional phase-transport lemma and
 parent-map quotient obligation"; it remains unproved.
+
+A separate conditional `InvArgs` transport theorem now covers the complete
+typed/evidence view and distinguishes locally generalizable, retained
+internal/live, outer-anchor, and selected-boundary identities. It keeps mixed
+constraints anchored, requires pairwise-disjoint external-use fresh ranges,
+and treats intrusion as an injective rename on the selected complete view.
+Compiler-referee review found no blocking/major issue after correcting the
+ownership classes. The theorem is still conditional: actual source ownership,
+obligation generation, solver/residual preservation, and the intrusion
+allocator must establish its premises. It does not authorize implementation.
+See "Conditional `InvArgs` transport theorem for an injective parent map" in
+`notes/progress/2026-10-01-intrusion-coarse-effect-abstraction-candidate.md`.

@@ -4891,3 +4891,76 @@ later. The sketch's generic `parent: InnerVar -> BoundaryVar` does not by itself
 establish injectivity, a valid quotient, or preservation of symbolic
 `InvArgs`. The type/SCC theorem must establish one of these properties for
 each jointly observed family constraint and root/use view.
+
+#### Conditional `InvArgs` transport theorem for an injective parent map
+
+This gives a sufficient proof route for the user's symbolic-lifecycle
+requirement. Let the complete typed view be
+`S = (Roots, Rows, Q, H, G, C, K_sym, Γ)`, where `H` contains handler facts,
+`G` grant/annotation facts, and `C` the remaining typed constraints and
+evidence. Define `Ids(S)` as every type identity occurring in these fields,
+including proof/equivalence evidence payloads and `FV(Γ)`, partitioned by
+ownership into locally generalizable identities, retained internal/live
+identities, fixed outer anchors, and selected boundary identities. These
+classes are disjoint for a given transition; a boundary identity is mapped to
+a parent only in the intrusion transition that selects it. Each phase states
+its bind/freshen/fix sets explicitly: an external use freshens
+component-owned binders, an internal SCC use keeps retained live identities,
+and outer anchors stay fixed.
+`Tr_P` is the homomorphic action of a typed identity renaming on all
+type-bearing fields and evidence; it leaves family heads, `OpId`s, and
+source/evidence labels fixed. For intrusion, the map is identity on retained
+internal identities and outer anchors, and maps only selected boundary
+identities to fresh parent identities. Generalizable identities not selected
+for that boundary follow their owning binder map. The map over the complete
+view must be injective, with parent destinations disjoint from retained
+identities and anchors.
+
+Assume (i) type-expression evaluation and subtype satisfaction commute with
+this capture-avoiding renaming; (ii) each same-head row interaction emits its
+symbolic `InvArgs` obligation before splitting, subtracting, moving, or
+residualizing a head; (iii) solving applies its substitution uniformly to
+all type-bearing fields and `K_sym`, retaining proof evidence for any
+discharged constraint; (iv) residualization carries forward all of `K_sym`
+and adds newly emitted obligations from interactions represented in `H`,
+`G`, `C`, or `Rows`; and (v) generalization binds only locally generalizable
+identities in `K_sym`, retaining mixed constraints with outer anchors fixed.
+Each independent use has an injective freshening map; their local ranges are
+pairwise disjoint and avoid all fixed anchors.
+
+Then:
+
+1. **Solve transport:** for any solver substitution `σ` and assignment `ν`,
+   `ν ⊨ σ(K_sym)` iff `(ν ∘ σ) ⊨ K_sym`. This is the structural substitution
+   identity; it does not claim that a non-injective `σ` is a bijection on
+   source assignments.
+2. **Residual transport:** every pre-existing symbolic obligation remains in
+   the residual evidence (or as proof-carrying solved evidence), and every
+   constraint created by a matched family interaction in the represented
+   typed view is present before its row heads disappear. Thus residualization
+   cannot lose `InvArgs` by losing the only visible copy of a family head.
+3. **Generalization/use transport:** the generalized component closes over
+   component-owned identities in `K_sym` together with root/row identities;
+   retained internal/live endpoints stay shared on internal SCC uses, while
+   outer endpoints remain fixed anchors. An external-use map freshens its
+   component-owned binders across rows and constraints together, giving the
+   alpha-equivalent constraint view. Independent external-use maps have
+   pairwise disjoint local ranges and preserve shared outer anchors.
+4. **Intrusion transport:** injectivity and freshness make `P` a
+   capture-avoiding renaming on the complete typed view. In particular,
+   `Tr_P(InvArgs(F<τ̄>,F<ῡ>)) =
+   InvArgs(F<P(τ̄)>,F<P(ῡ)>)`, so typed alpha-transport preserves and reflects
+   its solutions and the symbolic relation remains available after the parent
+   graph is formed.
+
+The proof is structural: substitution evaluation commutes by induction on
+type expressions; residualization preserves the constraint ledger by its
+explicit union rule; binder and parent maps are injective renamings fixing the
+outer environment; and `InvArgs` is built only from those type expressions.
+Composition gives the stated phase-by-phase transport for this complete typed
+view, conditional on every phase actually maintaining the listed fields and
+ownership partition. This does not prove Oracle view completeness, that the
+proposed intrusion allocator actually chooses an injective map over the
+complete typed view, callback/handler visibility, row/effect principality, or
+final acceptance. Those premises and the non-injective quotient alternative
+remain open.
