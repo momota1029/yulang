@@ -2697,10 +2697,22 @@ The annotated callback source path is now traced through lowering and outer
 function construction: annotation bounds connect both polarities, application
 constrains the callback's bare call effect into the enclosing result, and
 function return effects propagate covariantly into the lambda output. The
-`lambda_param_public_arg` projection can instead publish a closed
-`call_public_upper`; this is a candidate cut, not the proven loss point.
-Weighted propagation and concrete compact projection still need a variable-
-level trace. The typed-family symbolic-lifecycle invariant remains independent
-and mandatory across solving, residualization, generalization, fresh
-instantiation, and intrusion; it must not be reconstructed from materialized
-rows.
+earlier `call_public_upper` projection hypothesis is unsupported because its
+negative effect projection retains the concrete `[ask]` prefix. The call
+instead installs the annotation's pop on the enclosing lambda predicate, and
+lambda output applies that filtered pop despite there being no handler in the
+source. This identifies the source-generated discharge edge that conflicts
+with callback may-effect soundness. The exact lower-bound/weight replay and
+compact root projection that yield the final empty scheme remain untraced. The
+typed-family symbolic-lifecycle invariant remains independent and mandatory
+across solving, residualization, generalization, fresh instantiation, and
+intrusion; it must not be reconstructed from materialized rows. The coarse
+`EffAbs` result is only family-head support and must be
+paired with symbolic typed-occurrence arguments and owner/evidence incidence;
+open tails must derive newly exposed same-head constraints before relation
+consumption. Injective freshening is an alpha-transport case; non-injective
+solving/intrusion and residual removal need quotient or solution-equivalence
+proofs. Handler coverage cannot discard typed constraints based on the support
+set alone. This support/payload split and its proof obligations are now
+explicit in the weight-routing candidate. The typed transition and
+principal-source proof remain open.

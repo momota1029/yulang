@@ -464,6 +464,29 @@ finite-closed refinement above close it. The reviewer found no remaining
 finding in this delta. This review does not certify the surrounding source
 semantics or effect/handler gate.
 
+The support abstraction above is only the family-head component of the
+successor state. It must be paired with a symbolic typed-occurrence/evidence
+ledger containing exact family arguments, source owners, live typed-row
+relations, and every source-derived invariant formula. A support element does
+not encode those arguments, and no later phase may recover them by inspecting a
+materialized row. When solving or row merge exposes a new same-head pair (for
+example, substituting a typed family into an open tail), the transition must
+derive its keyed invariant obligation before consuming that relation, or keep
+the original `RowLeq`/typed-row relation until an equivalent residual is
+proved. Thus `F_C` proves only the support projection; the paired typed
+relation must separately prove that the projected handler transfer preserves
+its symbolic argument constraints.
+
+These are required transition obligations, not an established transport law
+for an implementation. Capture-avoiding injective renaming can transport
+formula endpoints and incidence by alpha-equivalence. A non-injective solver
+substitution or intrusion parent map instead needs a joint-solution quotient
+and root/use-observation proof; residualization may remove a live row view only
+with a solution-equivalent residual carrying every still-demanded invariant
+and owner edge. If typed matching changes whether a family is covered, that
+eligibility must be proved before placing the head in `C`; the support
+equation alone cannot justify the removal.
+
 ## Focused probes
 
 All commands used `/tmp/yulang-intrusion-oracle/target/debug/yulang`; sources

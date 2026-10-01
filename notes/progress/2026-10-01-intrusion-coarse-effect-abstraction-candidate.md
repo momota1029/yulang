@@ -6610,10 +6610,17 @@ filtered stack. At application, the annotated branch uses the bare call-effect
 variable and constrains it into the enclosing result effect. Function
 subtyping propagates return effects covariantly, and lambda output lowering
 places the body effect into the enclosing positive function return effect.
-However, `lambda_param_public_arg` can publish `call_public_upper` instead of
-the parameter's negative variable when that closed upper is available. This is
-a plausible projection cut in the callback relation, but weighted propagation
-and concrete compact projection have not been traced far enough to prove that
-this is where `[ask]` disappears. Keep the exact loss phase open; the source
-counterexample remains established. No claim here licenses Oracle's weighted
-routing as successor semantics.
+The earlier hypothesis that `lambda_param_public_arg` publishing
+`call_public_upper` cuts this route is not supported: its negative effect
+projection retains the concrete `[ask]` filter family as a row prefix. The
+stronger source finding is that calling the annotated local parameter installs
+its annotation pop on the enclosing lambda's latent predicate; lambda output
+then wraps the body effect in `NonSubtract` with that filtered pop, despite no
+handler in the source. This is the identified source-generated discharge edge
+and violates the successor rule that callback invocation contributes its
+latent effect to the enclosing computation. The exact solver/compact-projection
+transition that turns this concrete graph into the observed empty result scheme
+is still untraced: it needs the selected body-effect lowers and weights before
+and after root compaction. Thus the erroneous pop route is now localized, but
+the final scheme derivation remains open. This characterization does not make
+the Oracle's weighted routing successor authority.
