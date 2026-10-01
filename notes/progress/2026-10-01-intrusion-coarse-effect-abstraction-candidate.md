@@ -8145,3 +8145,19 @@ makes explicit that a handler may constrain assignments through its source
 typing relation, while row materialization cannot silently constrain them
 afterward. Source derivation of `P_H` and the required totality theorem remain
 open.
+
+#### Freshening lemma: quantify semantic binders, reindex presentation labels
+
+The generalization/fresh-use lemma now separates the owned type/row binders
+whose assignments belong to the semantic fiber from request, owner, and
+handler labels used to present sharing and boundary structure. One
+capture-avoiding binder renaming is extended to an isomorphism of those
+presentation labels; typed-family formulas and incidence are renamed with
+that same action. Formula satisfaction is preserved under the paired map,
+so each independent use has an isomorphic typed-family fiber over the same
+rigid outer assignment. Internal SCC references still use the live relation.
+This avoids treating arbitrary instrumentation labels as extra semantic
+quantifiers. Source generation of the complete relation, solver preservation,
+the independent-use source premise, and non-injective intrusion remain open.
+See `Generalization and fresh use as abstraction and reindexing` in the
+coupled-effect draft.

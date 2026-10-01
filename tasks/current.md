@@ -3470,3 +3470,11 @@ clarifies the finite-closure proof obligation: its abstraction map must
 preserve typed fibers and dynamic visibility, while bookkeeping maps need
 only commute with that denotation. The source-to-presentation adequacy and
 finite principal projection are still unproved.
+
+The fresh-use equivariance statement now quantifies semantic type/row binders
+and reindexes presentation labels through one structure-preserving map.
+Request/owner/handler labels do not become extra solution coordinates, while
+typed-family constraints and their incidence still travel with them. This
+proves the conditional relational freshening step over a fixed outer fiber;
+it does not prove source generation, solver preservation, the source's
+independent-use rule, or non-injective intrusion.
