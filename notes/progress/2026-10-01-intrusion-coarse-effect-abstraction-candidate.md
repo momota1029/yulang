@@ -8239,3 +8239,14 @@ rows. For a handler, the terminal no-arm outcome is mapped by `Step_H` to
 forwarding the original request with re-entry. This is conditional on the
 candidate state-threaded `BindPat`/`Guard` relations being source-adequate; it
 does not yet prove their source typing premises or finite solver projection.
+
+The frozen runtime has the pattern-default continuation shape assumed by
+`BindPat`: `bind_record_pat` evaluates a field default only when that field is
+absent, then passes the result through `continue_value_as_bind`. If the default
+returns a request, that helper wraps its continuation so resumption re-enters
+the same binding continuation; subsequent pattern fields run only after the
+default value is obtained. This corroborates preservation of pattern-prefix
+effects, but only characterizes `a58eefc3` runtime behavior. It does not define
+the successor's `BindPat` typing rule or dynamic handler visibility.
+Evidence: `crates/mono-runtime/src/runtime/bind.rs` and `runtime/thunk.rs` at
+the `bind_record_pat` and `continue_value_as_bind` implementations.

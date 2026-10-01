@@ -3521,3 +3521,8 @@ guard prefixes by state-threaded composition; a finite-arm induction shows
 those requests remain in the handler image. Its support is not an independent
 union of arm rows. Source adequacy of `BindPat`/`Guard` and a finite principal
 projection remain open.
+Frozen-runtime characterization also confirms that record-pattern defaults
+run only on missing fields and that a default request's resumption re-enters
+the remaining bind continuation. This supports, but does not prove, source
+adequacy of the candidate `BindPat` relation; its typing and visibility rules
+remain open.
