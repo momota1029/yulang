@@ -68,13 +68,14 @@ admissibility, and dynamic boundary visibility respectively.
 #### One denotational row relation (candidate)
 
 For a fixed type/row assignment, interpret a typed row jointly with its
-source-owned family-instantiation binders. Let `g(o)` identify the binder
-whose invariant argument is shared by occurrence `o`; occurrences with no
-shared binder receive distinct local binders. This identity comes from
-lexical/source ownership and is transported with the complete relation, not
-selected by a row-comparison call site. If `ArgDen_A(o,ν)` interprets the
-complete argument tuple of occurrence `o`, define the joint typed-request
-relation:
+source-owned family-instantiation binders. Let `g(o)` identify the already
+owned type binder or binder tuple whose invariant argument is shared by
+occurrence `o`; it is not a fresh semantic variable added solely for row
+matching. Occurrences with no shared binder receive distinct local identities.
+This identity comes from lexical/source ownership and is transported with the
+complete relation, not selected by a row-comparison call site. If
+`ArgDen_A(o,ν)` interprets the complete argument tuple of occurrence `o`,
+define the joint typed-request relation:
 
 ```text
 J_R(ν) = { (b, Q) |
@@ -118,6 +119,18 @@ but still conditional on the source meaning of duplicate family occurrences,
 the concrete argument denotation, and the actual source rule that creates a
 shared-instantiation batch. Until those are established, it is a common
 candidate relation, not the selected successor semantics.
+
+The frozen typed-family use probe is a useful consistency check on binder
+ownership. Its generalized `generic` has result type `α` and effect request
+`ask<α>`; the same owned `α` must feed both views. The two external uses map
+that identity independently, then the enclosing handlers constrain one copy
+to `int` and the other to `bool`. In the candidate relation, the request's
+`g(o)` is that already shared scheme binder, so its request projection remains
+coupled to the result type; it is not a new row-only binder. This matches the
+observed independent-use behavior, but the frozen probe is only characterization
+evidence and does not prove the Oracle's internal symbolic transport. The
+fixture and its artifact limitation are recorded in
+`notes/progress/2026-10-01-intrusion-typed-family-independent-instantiation-probe.md`.
 
 #### Closed point-row expansion
 

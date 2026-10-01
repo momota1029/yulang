@@ -2926,3 +2926,10 @@ typed-request matching disjunction. This shows the pair alternatives are a
 solver expansion of `J_R`, while family coherence remains in that same
 relation. Source group formation and equivalence to actual `InvArgs` rules
 remain open.
+
+The frozen `generic` typed-family probe is a binder-coupling consistency case
+for `J_R`: the scheme's one owned `α` links result type and `ask<α>`, while
+independent uses map that identity separately before handlers constrain it to
+`int` and `bool`. The candidate's row binder is therefore an existing owned
+identity projection, not a row-only fresh semantic variable. This is
+behavioral characterization, not Oracle internal transport evidence.
