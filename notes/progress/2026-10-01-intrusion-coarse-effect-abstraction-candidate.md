@@ -1856,32 +1856,54 @@ before choosing the fallback for the supported envelope.
 #### Concrete-to-abstract relation for the top fallback
 
 For the fallback proof only, write a concrete source configuration as
-`κ = (D, L, Env, ctl)`: `D` is the ordered word of live dynamic delimiter
-instances, `L` is ordered request-boundary lineage, `Env` contains every
-reachable local, stored, exported, and imported value root (including
-closures, thunks, and captured continuations), and `ctl` is the current
-return/request/arm/call/force/resume control point plus pending wrappers.
-Continuation values denote the source `k_offer` closures, including their
-already-composed handler transformers; they are not reduced to raw stack
-slices.
+`κ = (D, L, σ, Env, ctl)`: `D` is the ordered word of live dynamic delimiter
+instances, `L` is ordered request-boundary lineage, `σ` is the live source
+store/state, `Env` contains lexical roots and references reachable from locals,
+exports, imports, closures, thunks, and captured continuations, and `ctl` is
+the current return/request/arm/call/force/resume control point plus pending
+wrappers. Continuation values denote the source `k_offer` closures, including
+their already-composed handler transformers; they are not reduced to raw stack
+slices or to a snapshot of `σ`. For this candidate, factor `σ` into its live
+heap and any other mutable machine-state coordinates; `UnknownStore` covers
+untracked heap cells, while `UnknownState` covers untracked non-heap state.
 
 An abstract state `A` contains finite sets of projected stack and lineage
 facts, a finite set of abstract control facts, a finite map from static
-value/allocation slots to sets of value facts, a map from static handler slots
-to offered `ReqFact` plus scope relations, and effect bounds for each static
-effect slot. A control fact names a control slot or `UnknownControl`, plus any
-pending continuation kind and wrapper references. `TopControl` denotes all
-control slots and pending wrappers and necessarily carries `TopKont`, `⊤Eff`,
-and top request observations at every possible handler destination. A value
-fact contains its value kind, latent row (possibly `⊤Eff`), and any captured
-continuation summary.
+value/allocation slots to sets of value facts, an abstract live-state `Σ#`, a
+map from static handler slots to offered `ReqFact` plus scope relations, and
+effect bounds for each static effect slot. A reference value fact carries a
+finite points-to set of abstract cell slots. `Σ#` maps each finite cell slot
+to possible stored value facts, with `UnknownCell`/`UnknownStore` for targets
+not represented precisely and `UnknownState` for other live state not
+represented precisely. A strong update is allowed
+only for a proven singleton concrete cell; otherwise the abstract write is a
+weak update that retains every old and new value possibility. If pointer
+identity or mutable state is lost, branch/read behavior widens to every
+possible result, and any behavior that cannot be bounded that way takes the
+existing `TopControl`/`TopKont`/`⊤Eff` fallback. A control fact names a control
+slot or `UnknownControl`, plus any pending continuation kind and wrapper
+references. `TopControl` denotes all control slots and pending wrappers and
+necessarily carries `TopKont`, `⊤Eff`, and top request observations at every
+possible handler destination. A value fact contains its value kind, latent row
+(possibly `⊤Eff`), and any captured continuation summary or live-cell
+references.
 Define `κ ∈ γ(A)` when all of the following hold:
 
 1. `αK(D)` and the bounded projection of `L` occur in the corresponding
    abstract stack/lineage alternatives.
 2. Every concrete environment value maps to a static value slot whose fact
-   covers its kind, latent effects, and captured scope/continuation evidence.
-3. Every concrete request offered to a dynamic handler maps to that handler's
+   covers its kind, latent effects, captured scope/continuation evidence, and
+   reference targets.
+3. Every concrete cell reachable from these roots maps to an abstract cell
+   slot in `Σ#`, and its current contents are covered by that slot's possible
+   stored value facts. Every alias of a concrete cell remains represented by
+   the same abstract target or by a may-alias set containing it. If a target
+   is lost, `UnknownStore` covers it and all reads or control decisions
+   depending on it use the unknown/top transfer.
+4. Every other concrete mutable machine-state component is related to its
+   `Σ#` abstraction or represented by `UnknownState`; transitions reading or
+   branching on it then use the unknown/top transfer.
+5. Every concrete request offered to a dynamic handler maps to that handler's
    static slot (or `UnknownHandler`) and to a fact whose family, operation,
    origin, and ordered lineage cover the concrete request, and whose
    `γscope` for each corresponding boundary occurrence contains the concrete
@@ -1890,19 +1912,41 @@ Define `κ ∈ γ(A)` when all of the following hold:
    guards. Dynamic boundary instances at one site keep distinct bounded
    occurrence positions; if a projection merges them, the union must contain
    every concrete class and include `UnknownMask` where identity is lost.
-4. Every concrete immediate and latent effect is included in its abstract row.
-5. The current `ctl` and all pending wrappers/continuations map to an abstract
+6. Every concrete immediate and latent effect is included in its abstract row.
+7. The current `ctl` and all pending wrappers/continuations map to an abstract
    control fact. Unknown control identity maps to `UnknownControl`/`TopControl`;
    pending lost wrapper identity maps to `UnknownRef` with top control. Any
    `TopControl` fact carries the top effect/provenance/offer summary above; it
    cannot exist as an untainted control-only marker.
-6. For every family in a scrutinee effect bound, its contribution is
+8. For every family in a scrutinee effect bound, its contribution is
    classified by route: a current or forwarded route to a handler is covered
    by an offer fact at every possibly receiving slot; a route confined to a
    matched raw continuation is preserved in that continuation's latent effect
    and the arm/value slot that invokes or exports it; an unresolved or mixed
    route retains all possibilities or widens to unknown. For `⊤Eff`, all
    effect, continuation, offer, and compatible interface destinations are top.
+
+The store clause is a liveness relation, not a snapshot relation. A saved
+continuation resumes against the current concrete `σ`; its abstract transfer
+reads/writes the same `Σ#` cell slots. Repeated resumes therefore start from
+the abstract state produced by the preceding arm/continuation path and join
+their possible resulting stores. They do not restore the store values present
+when the continuation was captured. Static allocation-site abstraction and
+weak updates are finite for a fixed source, but their monotonicity and
+simulation are still obligations: `read#`, `write#`, alias/equality tests,
+closure capture, and resume must each preserve the stated `γ` relation. In
+particular, the candidate has not established that finite site abstraction
+preserves enough correlation for useful (or principal) handler subtraction;
+top widening is sound only when its value, effect, and request consequences
+are propagated together.
+
+If reference identity is observable, `read#`/`write#` are not enough: an
+abstract identity comparison must retain a proven must-alias or must-differ
+fact, or branch to both equality outcomes. Otherwise the comparison result is
+unknown and its dependent control/effect behavior takes the top path. Likewise,
+`UnknownCell`/`UnknownStore`/`UnknownState` used by an edge counts as
+top-tainted even when the current control slot and continuation are exact;
+otherwise an unknown store-dependent branch could escape the fallback.
 
 The projection of a dynamic handler or boundary identity to a static site is
 only a carrier for a *set* of possible dynamic instances; it is never an
@@ -1915,8 +1959,9 @@ included rather than reconstructed from source-site equality.
 
 Define `step#(A)` as a set of pairs `(A', Obs#)`, where `Obs#` is the set of
 request offers emitted on that abstract edge. The top-taint predicate for an
-abstract edge holds when its control point, a pending wrapper, or a value used
-by the edge is represented by `TopControl`, `TopKont`, or `UnknownValue`.
+abstract edge holds when its control point, a pending wrapper, or a value/store
+location/state component used by the edge is represented by `TopControl`,
+`TopKont`, `UnknownValue`, `UnknownCell`, `UnknownStore`, or `UnknownState`.
 An abstract observation is a tuple `(handler_slot, operation, family,
 origin, bounded_lineage, scope_relation, may_blockers)` over the finite domains
 above. `may_blockers` ranges over subsets of finite boundary and active-mask
@@ -1935,30 +1980,35 @@ abstract tuple, including tuples with every possible scope relation and
 blocker set, so for
 every concrete offer `o` some `ô ∈ TopObs` satisfies `CoverObs(o, ô)`.
 The top-edge simulation goal is: if `κ ∈ γ(A)`, `κ →[Obs] κ'`, and that edge
-uses top-tainted control/value, then some `(A', Obs#) ∈ step#(A)` satisfies
+satisfies the top-taint predicate, then some `(A', Obs#) ∈ step#(A)` satisfies
 `κ' ∈ γ(A')` and, for every concrete offer `o ∈ Obs`, some `ô ∈ Obs#`
 satisfies `CoverObs(o, ô)`. Silent edges have empty `Obs`. This labelled-edge condition covers
 requests that are handled and disappear before the successor state.
 
-When the top-taint predicate holds, `step#` preserves or widens the complete
-top summary across each control and value transition:
+When the top-taint predicate holds, the abstract transfer first installs the
+complete top summary on the affected state/value/control coordinates before
+branching, then `step#` preserves or widens it across each transition:
 
 | Concrete transition | Required abstract transfer when the full top summary is present |
 |---|---|
 | A request is offered, then matched or forwarded | Before either branch, put every possible `TopObs(handler, operation, family, origin, lineage, scope, blockers)` in `Obs#` for all local/unknown handler destinations; retain `TopKont`/`⊤Eff` in the successor. A fact stored only in `A'` does not cover an offer handled on this edge. |
 | Catch entry/exit, arm entry/exit | Retain `TopKont`/`⊤Eff` and fan top request, scope, and blocker facts to every possible handler slot. |
 | Raw or forwarded continuation resume | Preserve top on the continuation slot; forwarded resume additionally retains the captured `H` wrapper possibility. |
+| Read/write or identity test on live state | For exact points-to/state targets, update/read the represented `Σ#` alternatives monotonically; for `UnknownCell`/`UnknownStore`/`UnknownState` or uncertain identity, take the top-tainted transfer and retain top heap/non-heap state, control, value, effect, and offer consequences. |
 | Return, closure/thunk construction, storage, or escape | Copy top latent row and top provenance to every result slot that may capture the continuation; otherwise use `UnknownValue`. |
 | Call, force, or recursive re-entry | Load the top value summary and emit top observations under every possible current handler slot. |
 | Scheme instantiation or imported call | Do not freshen away top; instantiate/export `⊤Eff` and top provenance, or widen to `Unknown*`. |
 
 This transfer table is sufficient for top-tainted edges if the concretization
-and finite-interface premises hold: the next concrete control point, reachable
-value, request observation, and effect all lie in the top summary. Induction
-over finite labelled paths proves `γ` coverage for executions after loss; it
-does not prove how a non-top `KontFact` is computed or when it must widen.
-Escaped roots and imported open rows are part of the induction, not separate
-post-processing.
+and finite-interface premises hold: the successor `Σ#` covers the concrete
+heap and non-heap state, and the next concrete control point, reachable value,
+request observation, and effect all lie in the abstract successor. For an
+unknown state read/write/branch, `Σ#` retains `UnknownStore`/`UnknownState` and
+the top behavior summary; it cannot reset state to the pre-edge value.
+Induction over finite labelled paths proves `γ` coverage for executions after
+loss; it does not prove how a non-top `KontFact` is computed or when it must
+widen. Escaped roots and imported open rows are part of the induction, not
+separate post-processing.
 
 #### Exact-or-top wrapper-step simulation target
 
@@ -2011,12 +2061,13 @@ remain full-machine obligations.
 #### Finite-carrier proposition
 
 For one fixed finite checked source and finite interface declarations, fix
-finite sets of handler, arm, continuation, value/thunk allocation, operation,
-family, origin, boundary, control, and effect slots. Open or unenumerated
-imported families map to `UnknownFam`/`⊤Eff`; unenumerated interface
-destinations map to the corresponding `Unknown*` slot. Fix `K < ∞` for the
-bounded stack and lineage suffixes. Then the abstract carrier described above
-is finite:
+finite sets of handler, arm, continuation, value/thunk allocation, heap-cell,
+non-heap-state, operation, family, origin, boundary, control, and effect
+slots. Open or unenumerated imported families map to `UnknownFam`/`⊤Eff`;
+untracked cells and mutable state map to `UnknownCell`/`UnknownStore` and
+`UnknownState`; unenumerated interface destinations map to the corresponding
+`Unknown*` slot. Fix `K < ∞` for the bounded stack and lineage suffixes. Then
+the abstract carrier described above is finite:
 
 - The stack and lineage domains are bounded words over a finite tag set, a
   saturated prefix count `{Zero, One, Many}`, and a subset of finite prefix
@@ -2030,6 +2081,11 @@ is finite:
   finite map from static value slots to subsets of these facts; it therefore
   forgets dynamic multiplicity and joins repeated instances at their static
   allocation slot.
+- The abstract live store is a finite map from the finite cell slots plus
+  `UnknownCell` to subsets of the finite value facts, together with finite
+  non-heap state facts plus `UnknownState`. Its powerset is finite; strong or
+  weak update policy affects precision and transfer correctness, not this
+  cardinality argument.
 - Effect maps, control facts, and edge observations are finite products or
   powersets over the declared finite slots and labels. `TopKont`, `TopControl`,
   and unknown interface labels are symbolic elements of these finite domains,
@@ -8363,22 +8419,27 @@ already-recorded two-resume state-feedback witness.
 
 The concrete configuration for this candidate is now read as
 `κ = (D,L,σ,Env,ctl)`, where `σ` is the live source store/state passed through
-ordinary steps and saved continuations. The finite presentation must include a
-corresponding abstract store coordinate `Σ#`, with static cell/value slots and
-an unknown-store case for locations or state distinctions it cannot track.
-Its concretization must include every concrete cell reachable through local,
+ordinary steps and saved continuations. The finite presentation now includes
+a candidate abstract store coordinate `Σ#`, with static cell/value slots and
+unknown cases for locations or state distinctions it cannot track. Its
+concretization must include every concrete cell reachable through local,
 stored, exported, or imported values; a lost alias or state distinction must
 widen the affected state and dependent continuation/effect observations, not
-silently restore the store captured when a continuation was created. Until
-that coordinate and its read/write/resume transfer are defined, the old
-concrete-to-abstract relation is withdrawn as a full machine invariant and is
-only a partial stack/environment/control sketch. Whether a useful finite
+silently restore the store captured when a continuation was created. The
+earlier relation omitting `σ` is withdrawn as a full-machine invariant; the
+revised `Σ#` relation remains a candidate until read/write, alias, state-test,
+and resume simulation are proved. Whether a useful finite
 `Σ#` retains enough correlation for principal handler subtraction remains
 open; sound top widening is the fallback candidate, not an acceptance or
 precision claim.
 
-The adjunction repair received a focused compiler-referee delta review with no
-finding: under `α ⊣ γ`, `F`-pre-fixed points are exactly initial-containing,
+The least-closure repair received a focused compiler-referee delta review with
+no finding: under `α ⊣ γ`, `F`-pre-fixed points are exactly initial-containing,
 `Post`-closed abstract states, so its within-abstraction leastness follows.
-That review did not inspect the machine/store abstraction or source
-transitions.
+A separate compiler-referee audit caught gaps in the first live-state
+transfer sketch: store taint was absent from the top-edge premise, and the
+successor relation did not explicitly preserve non-heap state. The revised
+predicate includes `UnknownCell`, `UnknownStore`, and `UnknownState`; the
+transfer table covers reads, writes, identity tests, and branches on unknown
+state, and requires the successor `Σ#` to cover concrete state without
+resetting it. Focused delta review of these repairs found no remaining issue.

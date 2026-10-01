@@ -3565,7 +3565,10 @@ separate. Next derive the concrete abstraction pair and monotonic transformer
 for the actual call/force/resume/store/handler transitions. A newly found gap
 in the prior `γ` sketch is that it omitted the live store `σ`, despite the
 source `Run` and continuation equations threading that state. Define finite
-abstract store slots and unknown-store widening, then show read/write/resume
-transfers preserve the live-state relation before proving source typing and
-SCC lifecycle correspondence. No compiler implementation is authorized by
-this candidate lemma.
+abstract cell and non-heap state slots with unknown-state widening. A focused
+compiler-referee audit caught and the repair closed missing store taint and
+successor-state preservation in the top-edge condition; that is candidate
+proof bookkeeping only. Next prove read/write, alias-test, closure-capture,
+and multi-shot resume transfers preserve the `γ` relation, then establish
+source typing and SCC lifecycle correspondence. No compiler implementation
+is authorized by this candidate lemma.
