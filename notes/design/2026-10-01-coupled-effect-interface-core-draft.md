@@ -1742,6 +1742,14 @@ Generalization packages `(Ω,K_C,I)` as a scheme template, binding the owned
 semantic identities and leaving `ρ` free. It does not evaluate `K_C` after
 materializing rows or drop its incidence structure.
 
+The identity action is sort-preserving but shared across all occurrences of
+one identity. In particular, when a source `TypeVar` occurs in a value type,
+recursive bound, and Function latent-effect position, every occurrence maps
+through the same `ι`; these positions do not get independent fresh copies. If
+a successor representation has a genuinely distinct row-tail binder sort,
+its binders also receive one consistent injective map, without splitting any
+source identity that the typing relation shares across type and effect views.
+
 For one use, choose a capture-avoiding bijection `ι` from `Ω` onto fresh owned
 identities, fixing `ρ`. Extend it to an isomorphism `î` of the presentation's
 occurrence, owner, and handler labels. This isomorphism must preserve request

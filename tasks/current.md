@@ -3480,3 +3480,6 @@ groups, owner/view incidence, and handler activation/stack structure. This
 proves the conditional relational freshening step over a fixed outer fiber;
 it does not prove source generation, solver preservation, the source's
 independent-use rule, or non-injective intrusion.
+The binder map remains one map per identity sort across every view: a shared
+source `TypeVar` occurring in value, recursive, or Function-effect positions
+must not be freshened independently by position.

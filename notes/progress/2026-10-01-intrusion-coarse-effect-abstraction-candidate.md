@@ -8158,6 +8158,10 @@ handler activation links/stack order; typed-family formulas are renamed with
 that same action. Formula satisfaction is preserved under the paired map,
 so each independent use has an isomorphic typed-family fiber over the same
 rigid outer assignment. Internal SCC references still use the live relation.
+The map is sort-preserving but shared by identity: one source `TypeVar` seen
+in value, recursive, or Function latent-effect positions receives one fresh
+identity everywhere. A distinct row-tail namespace, if the successor needs
+one, cannot split source identities shared with those views.
 This avoids treating arbitrary instrumentation labels as extra semantic
 quantifiers. Source generation of the complete relation, solver preservation,
 the independent-use source premise, and non-injective intrusion remain open.
