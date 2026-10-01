@@ -7750,3 +7750,11 @@ family-argument witness `Int`, while the complete relation still admits roots
 `Never` and `Any`. Merging those roots admits only `Int` and loses a source
 solution. Thus interval `FamAgree` is not enough to justify a non-injective
 intrusion parent map; quotient preservation must cover root observations too.
+
+The coupled draft now states the exact semantic criterion for any direct
+non-injective parent substitution: quotient assignments lift to source
+solutions, so no solutions are added; equality of complete observable
+solution sets holds iff every source solution has an observationally
+equivalent representative that is constant on each parent-map fiber. This
+subsumes the point-fragment sufficient condition but is not an implementable
+check until the source relation and future-client observation are fixed.

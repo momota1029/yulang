@@ -639,6 +639,39 @@ all of `Ω`, or that non-injective solving/intrusion preserves fibers. Those
 remain separate correspondence and quotient theorems; identity reindexing
 cannot justify merging independent variables.
 
+### Exact criterion for a non-injective parent quotient
+
+Let `P` fix outer identities and map owned identities to parent identities,
+possibly identifying several owned identities. Define the quotient only by
+direct substitution through the complete formula and interface:
+
+```text
+K_P(ρ,μ) = K_C(ρ, μ∘P, I[P])
+```
+
+Every satisfying quotient assignment `μ` lifts to the source assignment
+`μ∘P`, so this construction cannot add source solutions. It can remove
+solutions: it keeps only assignments that are constant on every fiber of
+`P`. Let `Obs_C(ρ,ν,I)` be the complete external observation chosen for
+principality, including every projected root and the typed request/handler
+behavior clients may constrain. The quotient preserves the source relation
+exactly up to that observation iff:
+
+```text
+for every (ν,I) satisfying K_C(ρ), there exists μ such that
+  K_P(ρ,μ) and
+  Obs_C(ρ,ν,I) ≈_Obs Obs_C(ρ, μ∘P, I[P]).
+```
+
+The forward direction is exactly the condition that every source observable
+has a `P`-constant representative; the reverse direction follows from the
+lifting property above. This is necessary and sufficient for the direct
+quotient construction, but not by itself a practical solver test: both the
+source relation and the complete future-client observation must be defined.
+The point-fragment entailment condition below is a tractable sufficient
+criterion for one chosen `≈_Obs`; `FamAgree_A` alone fails the exact criterion
+for the interval counterexample that follows.
+
 ### A sufficient parent-quotient condition (point fragment)
 
 There is a useful sufficient condition for non-injective intrusion that is

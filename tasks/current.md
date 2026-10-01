@@ -2968,3 +2968,11 @@ have a shared inhabitant `Int`, but their symbolic endpoint descriptions
 remain distinct. Merging their identities can discard joint-interface
 solutions. `FamAgree` therefore cannot stand in for the full quotient
 equivalence premise during intrusion.
+
+Added the exact criterion for direct non-injective parent substitution: it
+cannot add source solutions because every quotient assignment lifts, and it
+preserves the solution relation iff every source solution's complete external
+observation has a `P`-constant representative. This is necessary/sufficient
+semantically but not an executable test until the source relation and
+future-client observation are fixed; the point entailment condition is only a
+sufficient subcase.
