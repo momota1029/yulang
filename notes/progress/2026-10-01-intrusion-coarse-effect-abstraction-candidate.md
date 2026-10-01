@@ -2113,6 +2113,53 @@ relation rather than introducing a RefSet-only semantic construct. Until those
 links are proved, neither the local heap lemma nor frozen-runtime
 characterization establishes source adequacy.
 
+##### `var.run` as one instance of the generic handler relation
+
+The frozen source `lib/std/control/var.yu` provides a direct handler instance,
+not evidence for a primitive cell rule. Its arms are `get(),k -> run s:k s`
+and `set s',k -> run s':k()`. Let `H_s` be the generic candidate shallow
+handler relation instantiated with those operation clauses; let `c` denote the
+separately threaded live machine state, and let a saved continuation accept
+both its resume value and the state present when it is invoked. The clauses
+derive:
+
+```text
+H_s(Return(x,c))         = Return(x,c)
+H_s(Get((),k,c))         = H_s(k(s,c))
+H_s(Set(s',k,c))         = H_{s'}(k(Unit,c))
+H_s(Request(q,p,k,c))    = Request(q,p, λr. H_s(k(r,c_live)))
+```
+
+The last equation applies to requests not selected by this activation; the
+source handler's ordered eligibility and unwind/re-entry semantics still
+govern it. It is the ordinary `Step_H` forwarding clause, not a new `var`
+rule. The `get`/`set` equations follow by substituting the source arm bodies
+into the generic matched-arm clause, whose continuation is raw relative to
+this activation. Any typed-family predicate and its incidence remain attached
+to the same complete relation through these calls; the equations act on that
+relation, not on a materialized may-row.
+
+The two states must not be conflated. `s` is the value parameter of one
+recursive `run` activation. A saved continuation resumed more than once may
+re-enter that same captured `s`; a `set` arm creates a recursive activation
+with `s'`. By contrast, `c_live` is the current machine state and must flow
+from one resume to the next, including mutations made by a previous resume.
+Treating `s` as a shared heap cell or restoring `c_live` from a continuation
+snapshot would change the source behavior. `var_ref` constructs methods that
+issue `get`/`set` operations, so an escaped reference's later dynamic handler
+and alias identity cannot be inferred from the fact that the closure was
+created during a particular `run` activation.
+
+A focused architect review confirms this conditional derivation from the
+frozen source clauses and the generic shallow rule. It also rejects identifying
+`s` with an abstract heap cell without a separate ownership/alias theorem.
+Unproved premises remain source catch shallowness, operation eligibility and
+ordering, continuation capture/re-entry, repeated-resume simulation, and
+whether escaping `var_ref` closures address the same state after dynamic
+re-entry. The source file is absent at current branch `19f6eba7a`; it was read
+from frozen Oracle revision `a58eefc3`, so this is characterization and a
+candidate corollary, not source-typing authority.
+
 #### One live capture graph for values, stores, and resumptions
 
 The root obligation can be stated without a `RefSet`-specific semantic rule.

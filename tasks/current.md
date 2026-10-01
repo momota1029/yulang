@@ -3584,12 +3584,14 @@ remains characterization, not source authority.
 Next define and prove one source live-root relation over environments, current
 state, control-held values, pending/stored continuations, and captured
 references/formulas; prove ordered wrapper/raw-versus-forwarded control
-simulation across bind/force/forwarding/handler/repeated-resume; then establish
-the `var.run` effect-state bridge before using the abstract heap lemma for
-RefSet. A conditional induction for finite forwarded-wrapper order is recorded
-and compiler-referee reviewed; the source-machine simulation and live-root
-relation remain unproved. Source typing (including case scrutinee demand and
-pattern defaults) and SCC lifecycle remain open.
+simulation across bind/force/forwarding/handler/repeated-resume. A conditional
+`var.run` state-handler instance of the generic `Step_H` is now recorded; prove
+escape/re-entry and alias ownership before relating that handler parameter to
+abstract cells or applying the heap lemma to RefSet. Conditional finite
+forwarded-wrapper induction is compiler-referee reviewed, but source-machine
+simulation and live-root preservation remain unproved. Source typing
+(including case scrutinee demand and pattern defaults) and SCC lifecycle remain
+open.
 No compiler implementation is authorized by these candidate lemmas. The
 coupled-interface draft treats handler visibility as semantic and route
 certificates as derivation evidence only.
