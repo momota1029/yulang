@@ -52,8 +52,11 @@ lemma. The current candidate comparison distinguishes single-slot family maps,
 finite sets of typed request contracts, and coarse family support paired with
 symbolic contract evidence. A ground finite contract-set algebra is recorded
 conditionally; symbolic lifting, duplicate matching, coupled handler coverage,
-open rows, and the least representable schemes remain open. No candidate is yet
-proved sound or principal.
+open rows, and the least representable schemes remain open. The next semantic
+discriminator is whether one computation may carry multiple invariant type
+instances of the same family head; that determines whether a single-slot row
+is justified or a contract-set relation needs disjunctive matching. No
+candidate is yet proved sound or principal.
 
 ## Objective
 

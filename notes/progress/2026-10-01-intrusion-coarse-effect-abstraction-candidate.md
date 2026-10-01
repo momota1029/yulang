@@ -4897,15 +4897,38 @@ domains, not representation details.
 The set-of-contracts candidate is the cleanest starting denotation because
 union, inclusion, and removal are ordinary set operations; the coarse support
 candidate is its plausible sound abstraction when exact continuation
-correlations are inexpressible. The single-slot map is simpler only if its
-reconciliation operation is proved to be the least sound union. None is
-selected: source operation identity, contract equivalence, the abstraction
-function, and least-scheme expressibility are still unproved. A suitable next
-lemma should first fix a finite closed universe and ground contracts, prove
-the algebraic laws for union/inclusion/removal, then lift the relation
-symbolically and test whether finite duplicate matching creates a real
-principality counterexample. This compares the mathematical cores before
-adding solver keys, owner incidence, transport maps, or intrusion.
+correlations are inexpressible. The single-slot map becomes the smaller
+candidate if the source semantics says a family head has one invariant
+instantiation per row: same-head requests are then one family contract, while
+their distinct operation paths remain separate dispatch identities. This
+cannot be inferred from runtime path matching alone. None is selected: source
+operation identity, per-row family uniformity, contract equivalence, the
+abstraction function, and least-scheme expressibility are still unproved. The
+ground algebra below proves the easy set laws; the next semantic test is the
+family-uniformity premise that decides whether contract sets contain genuine
+same-head alternatives or must quotient them through one symbolic slot.
+
+That distinction has a source-level discriminator. Consider one computation
+that calls the same polymorphic family operation at two different argument
+types, with both results used at their respective types, under one handler arm
+that is independently type-safe for each request. A single-slot family row
+requires the two argument tuples to satisfy one invariant slot equation. A
+contract-set row keeps both request contracts; checking one arm against both
+may be valid without equating their family arguments. The frozen runtime
+collision probe uses two separately specialized handlers and therefore does
+not decide this case. The source typing semantics must decide whether the
+single-arm program is well-typed before we choose the smaller map. If multiple
+instances are permitted, candidate 2's inclusion formula needs a principality
+analysis; if they are forbidden by the family-indexed row contract, the map
+quotient follows from that source invariant and avoids artificial disjunctive
+matching. This is a characterization witness, not a new special-case rule.
+
+A suitable proof sequence is therefore: settle the family-uniformity lemma
+from operation typing and handler application semantics; prove the ground
+algebra for its resulting row domain; lift the relation symbolically and test
+whether finite duplicate matching creates a real principality counterexample;
+then prove substitution and binder-transport laws before adding solver keys,
+owner incidence, or intrusion.
 
 ##### Ground contract-set algebra (conditional lemma)
 
