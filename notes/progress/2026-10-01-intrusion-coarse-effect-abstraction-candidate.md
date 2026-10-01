@@ -5142,3 +5142,77 @@ This preserves unknown shape without postponing a known obligation until
 materialization. The candidate source derivation still depends on a selected
 language rule for effect-row annotations and handlers, and the route/owner of
 `Eθ` remains unresolved; those gaps prevent treating this rule as authoritative.
+
+#### Closed typed-row subtyping fragment (conditional lemma)
+
+The callback comparison above needs a precise local meaning independent of
+Oracle weight propagation. Fix a preorder `(Ty, ≤)` for value types whose
+satisfaction is equivariant under capture-avoiding type-variable renaming.
+Consider only canonical closed rows with one item per family head and a fixed
+arity for each family:
+
+```text
+r = { F₁<τ̄₁>, ..., Fₙ<τ̄ₙ> }
+support(r) = { F₁, ..., Fₙ }
+```
+
+For two such rows `r` and `s`, define a typed coverage judgment under a type
+assignment `ν`:
+
+```text
+r ⊑ᵗ s  iff
+  support(r) ⊆ support(s)
+  and for every F in support(r) ∩ support(s),
+      ν(τᵢ) ≤ ν(υᵢ) and ν(υᵢ) ≤ ν(τᵢ) for every family argument i
+```
+
+The symbolic constraint generator returns the structural support check plus:
+
+```text
+K(r,s) = ⋃_{F<τ̄> ∈ r, F<ῡ> ∈ s} InvArgs(F<τ̄>, F<ῡ>)
+```
+
+The soundness/completeness lemma for this finite fragment is direct: for every
+assignment `ν`, `r ⊑ᵗ s` iff support inclusion holds and `ν` satisfies
+`K(r,s)`. When support inclusion passes, the generated formula is an exact
+characterization, hence weakest up to logical equivalence relative to this
+row relation: it asserts the argument relations required at common family
+heads. A non-entailed constraint
+for absent heads or unrelated binders would strictly restrict the solution
+relation without being required by `⊑ᵗ`; an atom entailed by the other
+constraints is redundant even if syntactically present. This is not a
+principality claim for the full source language. If the row
+relation fails structurally, the failure is reported independently of type
+constraints. If it passes structurally but `K` is unsatisfiable, no typed row
+comparison exists.
+
+For the minimized callback witness, both supports are `{ask}`, so the
+structural check passes; `K` contains `bool <: int` and `int <: bool`, which
+has no solution when `bool` and `int` are inequivalent in the candidate
+primitive preorder (at least one direction of subtyping fails). For `[ask α]`
+against `[ask int]`, `K` instead retains the
+symbolic pair `α <: int` and `int <: α`; it is not reconstructed from a
+materialized row. The request's exact `OpId` remains outside this row relation
+and must be carried separately for handler selection.
+
+Type substitutions act homomorphically on formula syntax:
+`σ(K(r,s)) = K(σ(r),σ(s))` while both canonical rows and their attached
+obligations remain present. Semantic satisfaction is preserved by assignment
+pullback: for every formula set `K`, substitution `σ`, and assignment `ν`,
+`ν ⊨ σ(K)` iff `(ν ∘ σ) ⊨ K`, assuming type-expression evaluation commutes
+with substitution. Under a fresh renaming, compare assignments related by
+`ν' ∘ σ = ν` on the renamed variables; keeping the same assignment while
+changing an identity is not a preservation claim. No phase may recompute the
+formula after row projection/removal from materialized items alone; the
+symbolic obligation must travel with the transformed graph. Independent row
+maps preserve the relation only when they respect the ownership shared by
+these endpoints.
+
+This establishes only a simple closed-row fragment. It does not define open
+tails, duplicate-head normalization, multi-path nested family rows, actual
+source annotation lowering, latent operation-effect ownership, row weight
+transport, handler eligibility, shallow continuation routing, recursive SCC
+generalization, or full effect principality. Duplicate and open cases need
+separate rules that preserve the same symbolic obligations. The lemma is a
+local proof component for the candidate actual/formal row comparison, not an
+implementation gate or a complete successor effect semantics.

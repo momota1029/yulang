@@ -1068,6 +1068,18 @@ soundness or principality is found, record the precise Oracle behavior dropped,
 the successor rule, and the compatibility impact. A conservative
 continuation-summary candidate and its independent review are recorded in
 `notes/progress/2026-10-01-intrusion-coarse-effect-abstraction-candidate.md`.
+
+A local closed-row fragment now defines typed coverage as support inclusion
+plus invariant argument constraints at each common family head. The
+conditional proof characterizes exactly when a fixed closed-row pair relates,
+and the formula is weakest up to logical equivalence when support inclusion
+passes. Its substitution argument uses assignment pullback and explicitly
+retains obligations after row projection. Compiler-referee review closed the
+preorder, substitution, and weakestness findings; no blocking/major issue
+remains. This proves no open-tail, duplicate, handler-routing, or full source
+principality result. See "Closed typed-row subtyping fragment (conditional
+lemma)" in
+`notes/progress/2026-10-01-intrusion-coarse-effect-abstraction-candidate.md`.
 Next: define provider/capture eligibility independently of family rows and
 prove the candidate's complete-coverage side condition and least-derivable
 bound property. The contract principle is source-backed, but provider identity,
