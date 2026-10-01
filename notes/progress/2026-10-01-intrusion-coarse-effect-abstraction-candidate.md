@@ -4893,14 +4893,36 @@ domains, not representation details.
 The finite set of family instances is the cleanest starting denotation because
 union, inclusion, and removal are ordinary set operations; the coarse support
 representation is only a solver projection of it. The single-slot map is
-smaller only if the
-source semantics says a family head has one invariant instantiation per row.
+smaller only if the source semantics says a family head has one invariant
+instantiation per row.
 Runtime path matching cannot establish that premise. None is selected: source
 operation identity, per-row family uniformity, contract equivalence, the
 abstraction function, and least-scheme expressibility are still unproved. The
 ground algebra below proves only the basic set laws. The one-arm probe that
 follows is a source-level discriminator for whether distinct same-head
 instances must be preserved.
+
+The candidates are not yet proven sound, so this comparison describes proof
+shape and failure modes rather than selecting a semantics:
+
+| Candidate | Conceptual economy | Composition | Principality risk | Proof reuse |
+| --- | --- | --- | --- | --- |
+| Single-slot family map | Smallest row domain, but requires a source theorem that each head has one invariant instance per row. | Simple when joins reconcile same-head entries; otherwise union is partial. | A forced reconciliation can reject distinct safe paths; a type join needs independent variance evidence. | Strong reuse if the one-slot invariant is real; otherwise every merge recreates the disputed rule. |
+| Finite set of family instances | One support algebra plus one `FamCompat`; handler coverage is a separate semantic fact. | Union and fixed removal compose as set operations; duplicate/open inclusion introduces existential matching. | Concrete disjunctive residuals can lack a principal solution in the current scheme language. | Row laws and transport can be proved once, then reused by filters, callbacks, and handlers. |
+| Support with symbolic contract projection | Compact solver state, but its denotation is candidate 2 plus attached symbolic evidence. | Compositional only if the projection commutes with union, inclusion, removal, and transport. | Same as candidate 2 unless it conservatively forgets distinctions; forgetting needs a least sound abstraction theorem. | Reuses candidate 2's proofs only after representation adequacy is proved. |
+| Exact trace sets | Closest to operational meaning and useful as a soundness reference. | Handler sequencing is direct over traces. | Exactness may require continuation usage/linearity and may not have a principal solution in the intended type language. | Good reference for soundness proofs, but weak reuse for an inference solver that intentionally abstracts traces. |
+
+The emerging economy is to keep only two mathematical layers: a chosen
+may-effect denotation with `RowIncl`/`RowUnion`, and a handler transformer
+whose removal authority is a proof that a request is covered at that activation.
+`Sel_s`, `Demand`, solver obligation keys, route lineage, and endpoint/owner
+maps then describe how derivations are produced and transported; they are not
+independent semantic operators. This remains conditional on showing that the
+coverage transformer composes with the chosen abstraction and that its
+symbolic constraints have principal least solutions. The family instance
+relation and runtime route predicate are different only because the source
+semantics asks two different questions (type compatibility versus dispatch
+visibility), not because Oracle stores them separately.
 
 If one computation calls the same polymorphic family operation at two
 different argument types, a single-slot family row requires the two argument
