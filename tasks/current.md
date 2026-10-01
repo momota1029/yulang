@@ -2671,6 +2671,12 @@ the frozen sandwich spec confirmed it requires cross-bound generation but
 does not claim finite joins or witness existence. The successor has not
 selected or proved that carrier property, so the actual Yulang type-domain
 realization remains open.
+The carrier premise is now sharpened: finite joins realize any nonempty set
+of lower endpoints; only an empty lower-endpoint set additionally needs a
+common lower bound of the upper endpoints. A least element suffices for that
+empty-lower case but is not needed when lower endpoints exist. This narrows a
+sufficient carrier assumption without asserting that the actual successor
+type domain satisfies it.
 
 A further interval-argument counterexample clarifies why symbolic retention
 alone is insufficient: when invariant arguments are represented by intervals,

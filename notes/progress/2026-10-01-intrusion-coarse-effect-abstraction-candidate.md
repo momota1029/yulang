@@ -6807,6 +6807,19 @@ preserves their joint observations. The finite-join carrier remains an
 unselected candidate assumption; the actual type-domain realization proof is
 still open.
 
+The least-element premise is stronger than needed whenever the batch has at
+least one lower endpoint. For finite nonempty `L`, finite joins alone give the
+same proof with `t = ⋁L`; pairwise `l ≤ u` implies `t ≤ u` for each upper
+endpoint. If `L = ∅`, the pairwise condition is vacuous and cannot by itself
+guarantee a witness: the exact remaining requirement is that `U` have a
+common lower bound (with nonempty `D` needed when `U` is empty). Thus a
+uniform carrier condition for all finite endpoint sets can be stated as
+finite nonempty joins plus common lower bounds for finite upper sets; a least
+element is one simple sufficient way to satisfy the latter. This separates
+the join property that realizes constrained lower endpoints from the bottom
+assumption needed only for unconstrained lower sides. It still does not show
+that the Yulang type carrier has either property.
+
 #### N-way typed-family argument overlap (carrier-parametric)
 
 The endpoint result extends to any finite batch of occurrences that one
