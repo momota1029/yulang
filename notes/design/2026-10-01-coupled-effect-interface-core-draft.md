@@ -382,6 +382,70 @@ continuations. Soundness requires an over-approximation of the relational
 image; principality asks for the most-general representable result in the
 chosen interface language.
 
+#### Closed callback/catch calculation
+
+Fix an assignment `ν`, imports `ρ`, and activation `κ`. Let `γ^row_{ν,κ,ρ}(E)`
+be the row-only concretization: all continuation-bearing computations allowed
+by the typed row view at `ν` whose immediate request-family support is
+contained in `E`. It retains the listed typed-request formulas but forgets
+additional callback-body relations on continuation suffixes, so it can be
+strictly broader than the complete callback relation. Write `supp_F(c)` for
+the family projection of immediate requests. Define its best support transfer by
+`H#^row_{κ,ρ}(E) = ⋃ { supp_F(H_κ(c)) | c ∈ γ^row_{ν,κ,ρ}(E) }`.
+This is a projection of the relational image for this coarse abstraction; it
+is not the complete-interface `H#` above.
+
+Assume evaluating the callee and callback value is pure, and `call` invokes
+that callback once. Its formal function view admits `F<a>`. The actual
+callback produces `Request(op_F<a>,p,k)`, with family formula `K_F(a)` and
+payload/result interfaces attached to that request occurrence. Ordinary
+function-value compatibility relates the actual callback interface to the
+formal interface; it is not a callback-specific selector. Evaluation of
+`call(actual)` composes the callee, argument, and callback-body relations. The
+complete scrutinee retains `K_F(a)`. For this single-family calculation,
+assume every computation in that composed relation belongs to
+`γ^row_{ν,κ,ρ}({F})`. This premise covers the callee and argument evaluation,
+the call body, the callback body, and every continuation suffix; it rules out
+an unaccounted `G` request from any of them. Thus the call's support is a
+subset of `{F}`, not merely a support containing `F`.
+
+For the non-resuming case, require that every typed `F` request represented by
+`γ^row_{ν,κ,ρ}({F})` is eligible at `κ`, is covered by a matching arm, and
+satisfies its family and payload/resumption typing relation. Require the
+value arm and every matching operation arm to return an immediate pure base
+value without invoking or exporting the raw continuation. Then a `Return`
+uses the pure value arm; a request in the tree is handled at its first `F`,
+and no continuation suffix is entered. Thus
+`H#^row_{κ,ρ}({F}) = ∅`. This is a universal coverage condition on the
+concretization, not coverage of only the callback's observed operation. The
+complete output relation still records its returned value and all latent
+views; the equality concerns immediate request support.
+
+For the resuming case, assume the same typed and eligible coverage, and that
+the arms produce no requests of their own apart from those exposed by invoking
+the raw continuation; their final returned values are pure base values. Also
+assume there is a computation in this row-only concretization
+whose first `F` request reaches an arm execution that invokes its raw
+continuation, and that continuation then produces a second `F` request. The
+first is handled, but resuming the raw continuation exposes the second outside
+this shallow activation. Hence `H#^row_{κ,ρ}({F}) = {F}`. This reachable
+resumption witness is essential: if the complete
+callback relation constrains its continuation to a pure suffix, the exact
+complete-interface image may be empty. The row-only transfer is conservative
+because its concretization forgets that restriction, not because continuation
+usage is typed linearly.
+
+In both cases, `K_F(a)` remains in the complete symbolic relation, including
+when the immediate residual support is empty; only a proof that all dependent
+output and future-use views are preserved may discharge it. For the fixed
+assignment and finite support powerset, the displayed unions are the least
+representable support results: each union contains every concrete handled
+support, and any other sound row must contain each member of that union.
+Hence these are principal in that ground row abstraction.
+This calculation does not prove the source callback-compatibility rule,
+universal handler coverage for arbitrary rows, or a finite principal symbolic
+scheme for typed families and result correlations.
+
 ### Handler transfer as a relational image
 
 Let `C_ρ(I,ν)` be the set of well-typed continuation-bearing computations

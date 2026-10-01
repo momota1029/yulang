@@ -3132,10 +3132,25 @@ closed by a fresh delta review. The same review found a minor omission in the
 solve-naturality lift: it now states set-valued observation transport with the
 valuation and explicitly uses the preceding transition-witness equivariance.
 Operation, family, signature, and visibility premises therefore remain in the
-one transition, not a second handler construct. Next proof slice: define one
-callback application followed by one
-shallow catch at a fixed activation, prove source simulation for the complete
-typed interface, and construct or refute a finite principal residual without
-source-site selectors. If that slice fails, return to the carrier's observable
-coordinates before adding machinery. Typed-row ownership and argument
-denotation remain a separate open semantic dependency.
+one transition, not a second handler construct. Next proof slice: derive the
+source typing premises for one callback application followed by a shallow
+catch at a fixed activation, prove simulation for the complete typed interface,
+and establish a finite principal residual without source-site selectors. If
+that slice fails, return to the carrier's observable coordinates before
+adding machinery. Typed-row ownership and argument denotation remain a
+separate open semantic dependency.
+
+The coupled-effect draft now records the closed callback/catch calculation:
+ordinary function-interface compatibility and callback evaluation compose to
+one scrutinee relation; one typed shallow-handler image determines the residual.
+An independent review found that the first statement overreached from one
+covered operation to every tree in a family-only concretization. The draft now
+states universal eligible coverage for every represented `F` request, excludes
+effectful evaluation and arm outputs, and separates the row-only concretization
+from the complete-interface image. It also states when a two-request witness
+exists and limits `{F}` leastness to that coarse support abstraction. The
+symbolic family formula stays in the complete relation even when immediate
+support becomes empty. A fresh semantic delta review closed the blocking and
+major findings; its minor ambiguity between pure arm output and requests from
+raw resumption is clarified in the draft. Source-rule adequacy, typed-family
+ownership, and a finite principal symbolic scheme remain open.
