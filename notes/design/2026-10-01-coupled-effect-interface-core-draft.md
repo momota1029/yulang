@@ -141,7 +141,7 @@ their shared-binder constraints are evaluated in the same assignment, support
 union holds when both input fibers are nonempty:
 
 ```text
-supp(J_{R ∪ S}(ν)) = supp(J_R(ν)) ∪ supp(J_S(ν))
+supp(J^K_{R ∪ S}(ν)) = supp(J^K_R(ν)) ∪ supp(J^K_S(ν))
 supp(Filter_φ(J^K_R(ν))) = { q ∈ supp(J^K_R(ν)) | φ(q) }
 Filter_ψ(Filter_φ(J^K_R(ν))) = Filter_{φ ∧ ψ}(J^K_R(ν))
 ```
