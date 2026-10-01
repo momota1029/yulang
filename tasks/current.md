@@ -2107,7 +2107,10 @@ before a caller catch routes to the inner arm (`[2]`), while `outer 10` formed
 first and supplied a callback under that catch bypasses both function-local
 handlers and reaches the caller (`[7]`). The mono tree places a carry-marker
 adapter on the residual function only in the first variant; runtime tracing
-confirms the frozen route but does not justify it semantically. Define
+confirms the frozen route but does not justify it semantically. Direct
+application under the same caller catch gives the same pair of roots (`[2]`,
+`[7]`), so a named partial value is not itself necessary; parameter position
+and adapter placement still covary. Define
 whether callback effect contracts are static latent-row bounds or also
 source-level dispatch boundaries. Under ordinary call-by-value semantics,
 permuting receipt of pure independent arguments leaves the same body

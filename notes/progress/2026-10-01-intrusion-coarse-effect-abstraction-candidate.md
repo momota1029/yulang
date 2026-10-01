@@ -2327,15 +2327,23 @@ expose the inner guard and the inner boundary is unblocked. In the second,
 the request has only the caller guard; the inner and outer function boundaries
 are blocked, and the caller boundary handles it.
 
+Direct-application controls under the same caller catch return the same roots:
+`catch (outer callback 10)` returns `[2]`, while
+`catch (outer 10 callback)` returns `[7]`. Their mono trees show the same
+parameter-position-associated adapter distinction. Therefore the presence of
+a named partial value is not itself necessary for the route difference. The
+staged pair characterizes how the adapter is represented across the residual
+function boundary, but it does not isolate that boundary crossing as the
+cause; argument position and adapter placement still vary together.
+
 This demonstrates that grant eligibility cannot be summarized only by the
-receiving activation or by a marker on the callback value: whether the
-callback-bearing contract crossed a residual partial-application boundary
-changes the frozen result. It is still only Oracle characterization. The
-successor must define, from source evaluation and the chosen effect
-abstraction, whether an argument contract remains in force on a returned
-partial function, and what happens when the final callback argument arrives
-later. It must then show a semantic preservation argument for the inferred
-route; the mono adapter topology is not that argument.
+receiving activation or by a marker on the callback value: argument position
+changes the frozen result in both direct and staged applications. It is still
+only Oracle characterization. The successor must define from source
+evaluation and the chosen effect abstraction whether and how a callback
+contract constrains the residual function at each currying stage, then show a
+semantic preservation argument for the inferred route; the mono adapter
+topology is not that argument.
 
 Fixtures:
 `/tmp/yulang-intrusion-grant-callback-first-staged.yu` and
@@ -2343,7 +2351,10 @@ Fixtures:
 and interpreter execution; roots were `[2]` and `[7]`. `--mono` dumps and
 `YULANG_INTRUSION_GUARD_TRACE=1` showed the adapter and guard differences
 described above. These additional probes further falsify receiver-local grant
-sufficiency; they do not establish an Oracle soundness conflict.
+sufficiency; they do not establish an Oracle soundness conflict. Direct-catch
+controls `/tmp/yulang-intrusion-grant-callback-first-direct-catch.yu` and
+`/tmp/yulang-intrusion-grant-callback-second-direct-catch.yu` also passed
+`check`; the first returned `[2]`, and the second `[7]`.
 
 #### Conditional pure-currying trace law
 
