@@ -2491,3 +2491,18 @@ observation probe and explicitly excludes committed solver rewrites; a
 compiler-referee delta check closed the finding. This only rules out
 post-hoc reconstruction of the earlier symbolic relation, not residualization
 that transports it or proves an equivalent residual after substitution.
+
+The candidate now separates the five relation sites explicitly named by the
+frozen effect-subtraction spec from callback comparison and the general open
+`RowLeq`, which remain successor rules requiring source typing proofs. A
+spec-auditor checked this against the frozen effect, invariant-type-sandwich,
+principal-monomorphization, and runtime-marker specs. Two minor precision
+repairs are closed: specialization's matched effect items emit subtype
+constraints but do not establish a universal invariant callback rule; and
+invariant arguments can be represented by lifted concrete bounds as well as
+intervals. The `InvArgs` mutual-subtyping shorthand remains an unproved
+encoding for interval-valued arguments, so symbolic retention alone does not
+yet establish Oracle-equivalent invariance. The next proof should define the
+successor relation between two typed family arguments over polarized interval
+terms and establish whether mutual subtype is equivalent; then connect only
+source-justified relation sites to the lifecycle ledger and residual solver.

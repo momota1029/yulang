@@ -5214,6 +5214,29 @@ path. These are characterization evidence: they do not define successor
 source typing, callback argument comparison, or handler eligibility, and
 they do not authorize Oracle weight routing.
 
+The source audit supports the following narrow applicability map:
+
+| Relation site | Frozen source evidence | Successor status |
+| --- | --- | --- |
+| Row split at the common weighted heads | The effect-subtraction spec names `K ∩ Common(L)` and requires invariant argument constraints when the same-path items meet there. | Characterization target; derive a keyed obligation before splitting. |
+| Residual subtraction | The spec names `L - J` and same-path family argument constraints at residual subtraction. | Characterization target; move or retain the same obligation and owner evidence with the residual. |
+| Duplicate row-head collection | The spec requires same-path family arguments to constrain invariantly when duplicate heads are collected. | Characterization target; equal formula text does not erase occurrence ownership. |
+| Concrete filter check | The spec checks same-path typed family items against the annotation and requires invariant arguments; checked filter metadata is then removed from replay. | Characterization target; retain proof evidence if any later view still depends on the check. |
+| `Neg::Stack` common-stack check | The spec explicitly includes common-stack matching among invariant sites. | Characterization target; keep the relation attached to the stack-derived view. |
+| Generic callback/Function row comparison | Principal monomorphization matches effect-row items by family and emits subtype constraints in its specialization graph, but this is not a source typing rule requiring invariant comparison for every actual/formal same-head pair. | Candidate successor rule only; prove it from callback typing and the selected effect abstraction. |
+| Arbitrary open `RowLeq` and all same-head occurrence pairs | The frozen list does not define this general relation. | Candidate denotation only; prove source adequacy and solver principality before selecting it. |
+
+The shorthand `InvArgs(F<τ̄>,F<ῡ>) = ⋀ᵢ(τᵢ <: υᵢ ∧ υᵢ <: τᵢ)` is a
+candidate symbolic encoding, not a statement copied literally from the frozen
+specs. The frozen effect spec asks for invariant ordinary constraints, while
+the invariant-type sandwich spec can represent invariant arguments as
+lower/upper intervals or lifted concrete bounds; interval merges generate
+cross-bound obligations. A successor must define `τ <: υ` for its actual
+type-term representation and prove that this shorthand denotes the required
+invariant relation, including interval-valued arguments. Until then,
+preserving the symbolic formula is necessary for the candidate relation but
+does not by itself establish Oracle-equivalent argument invariance.
+
 Let an operation declaration at exact path `p` have signature
 `op : A -> [E] B` and declaration binders `ā`. Resolving one source request
 allocates one capture-avoiding map `θ` for those binders. Declaration
