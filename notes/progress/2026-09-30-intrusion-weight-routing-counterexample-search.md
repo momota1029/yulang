@@ -714,3 +714,47 @@ successor source typing/transition theorem or symbolic `K,D` transport. These
 observations refine the proof obligation: the common relation must preserve
 the callback owner's activation lineage so a same-path outer handler does not
 become eligible by row matching alone.
+
+### Symbolic family argument through callback handling (2026-10-02)
+
+This accepted frozen-Oracle source makes the family argument shared by the
+callback contract and its handled operation:
+
+```yu
+pub act choose 'a:
+  pub get: 'a -> unit
+
+pub handle(f: () -> [choose 'a] ()) = catch f():
+  choose::get value, k -> k ()
+  v -> v
+pub int_result = handle(\() -> choose::get 1)
+pub bool_result = handle(\() -> choose::get true)
+```
+
+The `--poly-raw` output gives `handle` one quantifier `'7`; its callback
+argument has latent row `choose<u1>`, and `u1 = Bounds(p6,n3)` where both
+endpoints are `'7`. The handled function's own result effect is `Bot`. Thus
+residualizing the request from the handler result does not remove `'7`: the
+exported callback input still depends on it. `--mono` instantiates the same
+scheme twice, with `choose(int)` and `choose(bool)` respectively. Both
+interpreter and evidence-VM runs exit successfully.
+
+This is a characterization witness for the symbolic lifecycle requirement:
+filtering handler output support must retain family predicates and binders
+that remain observable through another root/interface view, and freshening
+must map those views together. The frozen dump demonstrates the shared binder
+and independent uses, but does not expose an explicit `K,D` store, prove the
+successor's source rule or principality, or test intrusion/non-injective
+parent transport. Commands used:
+
+```text
+/tmp/yulang-intrusion-scc-owned-trace/target/debug/yulang --no-prelude --no-cache check /tmp/yulang-typed-family-callback-capture.yu
+/tmp/yulang-intrusion-scc-owned-trace/target/debug/yulang --no-prelude --no-cache dump /tmp/yulang-typed-family-callback-capture.yu --poly-raw
+/tmp/yulang-intrusion-scc-owned-trace/target/debug/yulang --no-prelude --no-cache dump /tmp/yulang-typed-family-callback-capture.yu --mono
+/tmp/yulang-intrusion-scc-owned-trace/target/debug/yulang --no-prelude --no-cache run --interpreter /tmp/yulang-typed-family-callback-capture.yu
+/tmp/yulang-intrusion-scc-owned-trace/target/debug/yulang --no-prelude --no-cache run --evidence-vm /tmp/yulang-typed-family-callback-capture.yu
+```
+
+The exact executable build provenance has the same limitation recorded above;
+these outputs are frozen CLI characterization, not an identity proof between
+the dirty checkout and the binary.

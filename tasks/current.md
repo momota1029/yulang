@@ -199,6 +199,18 @@ symbolic `K,D` preservation remain open. Compiler-referee delta review found
 no remaining mismatch; the ledger records the exact source variants, command
 evidence, traces, and the binary-provenance limit.
 
+A parameterized `choose 'a` callback captured by a handler adds a second
+targeted lifecycle observation. The frozen raw scheme quantifies `'a` jointly
+with the callback's `choose<'a>` latent row even though the handler result row
+is pure; separate uses specialize to `choose<int>` and `choose<bool>`. Both
+runtimes accept and execute the source. This is direct evidence that handler
+residual support does not justify dropping a family binder still visible in
+another exported interface. It does not prove symbolic `K,D` transport or
+intrusion, and the build-provenance caveat remains. See the appended typed
+family witness in the Oracle progress ledger. A compiler-referee delta review
+checked the exact source, raw scheme, two mono instances, and interpreter and
+evidence-VM exits; it closed without findings in this witness scope.
+
 A companion transport lemma now states that once a source rule creates one
 indexed `FamAgree_A` batch, a natural type substitution maps the full shared
 witness relation by reindexing, including its N-way and cross-position
