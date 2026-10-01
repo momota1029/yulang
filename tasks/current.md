@@ -2941,3 +2941,10 @@ so choosing one right partner for an entire left occurrence is not complete;
 mere pairwise overlap also misses uncovered values. Symbolic finite
 representability depends on exact coverage procedures for the selected type
 algebra and remains open.
+
+Row-split union now has an explicit factorization condition: the support
+equation holds when split pieces own disjoint family binders, but can be strict
+when one shared binder crosses the split. In the latter case both projections
+must retain its common-witness relation. The `{int,bool}` / `{bool,str}`
+example leaves only `bool` in the joint view, while detached projections
+incorrectly admit `int` and `str`.

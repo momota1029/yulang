@@ -110,15 +110,33 @@ reconstructed from materialized family-head support. Handler eligibility
 remains a property of the source handler transition on typed requests and
 active boundaries, not a variant of `RowSub`.
 
-Under this candidate, splitting and union are set projections/union on typed
-request denotations, filtering is restriction of that denotation, and
-handler subtraction is the residual support projection of the relational
-handler image. Any coverage witnesses or route records used by a solver are
-proof evidence for those operations. This equation is conceptually compact,
-but still conditional on the source meaning of duplicate family occurrences,
-the concrete argument denotation, and the actual source rule that creates a
-shared-instantiation batch. Until those are established, it is a common
-candidate relation, not the selected successor semantics.
+Under this candidate, splitting is a projection of the joint relation while
+preserving its binder environment; union combines the occurrence views and
+their binder constraints. Filtering is restriction of the joint request
+relation, and handler subtraction is the residual support projection of the
+relational handler image. Any coverage witnesses or route records used by a
+solver are proof evidence for those operations. This equation is conceptually
+compact, but still conditional on the source meaning of duplicate family
+occurrences, the concrete argument denotation, and the actual source rule that
+creates a shared-instantiation batch. Until those are established, it is a
+common candidate relation, not the selected successor semantics.
+
+Splitting does not in general justify discarding the shared binder context.
+For occurrence-disjoint rows `R` and `S`, if no binder is shared across the
+split, their joint assignment factors and:
+
+```text
+TypedRow(R ∪ S,ν) = TypedRow(R,ν) ∪ TypedRow(S,ν)
+```
+
+If the split separates occurrences that share a binder, the equality may be
+strict. Let their argument denotations be `{int,bool}` and `{bool,str}`. The
+whole relation permits only the common witness `bool`; projecting the two
+pieces independently admits `int` and `str` as well. The relational split
+therefore carries the original binder and its full incidence; a solver may
+factor it only after proving the factorization condition. This is a direct
+criterion for when row splitting is a harmless view and when it would lose a
+typed-family constraint.
 
 The frozen typed-family use probe is a useful consistency check on binder
 ownership. Its generalized `generic` has result type `α` and effect request
