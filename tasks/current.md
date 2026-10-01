@@ -3575,6 +3575,12 @@ findings about mismatched points-to/content witnesses and newly reachable
 referents. The lemma assumes evaluated write operands are represented as live
 roots; it does not establish source operation typing, identity-test or
 closure-capture adequacy, non-heap state simulation, or multi-shot
-continuation simulation. Close those transfer proofs before establishing
-source typing and SCC lifecycle correspondence. No compiler implementation
-is authorized by these candidate lemmas.
+continuation simulation. A `RefSet` decomposition has also been drafted from
+the frozen runtime as composition of ordinary Run/Force/Apply, one exact
+update-request resume transformer, and structural aggregate traversal; its
+focused compiler-referee review found no mismatch in request-header
+preservation, update-path matching, or live-state continuation threading. It
+remains characterization, not source authority.
+Next close the source-level live-operand, callback, capture, and resume
+correspondence, then establish source typing and SCC lifecycle. No compiler
+implementation is authorized by these candidate lemmas.

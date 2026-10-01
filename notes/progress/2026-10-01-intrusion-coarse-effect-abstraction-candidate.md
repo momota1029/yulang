@@ -959,6 +959,83 @@ callbacks, and latent rows flow to the right slots. No offer from these cases
 may authorize `Drop` until those transfer and global handler-scope proofs
 close.
 
+#### `RefSet` as a relational composition (runtime characterization)
+
+The frozen implementation does not make `RefSet` equivalent to a primitive
+heap write. In `a58eefc3:crates/mono-runtime/src/runtime/eval.rs`, it evaluates
+and forces the reference, evaluates and forces the assigned value, projects
+the reference's `update_effect` field, applies it to `Unit`, and passes its
+result through `handle_ref_set_result`. That routine resumes the exact
+`std.control.var.ref_update.update` request with the assigned value; other
+requests are forwarded after recursively resolving their payload, with a
+continuation that re-enters the same result handler. At final return it
+recursively resolves the returned value and then returns `Unit`.
+
+The helper can be expressed using the same resumable computation, bind, force,
+and structural value traversal already used elsewhere. Write `u` for the exact
+internal update operation, `v` for the forced assigned value, and `F` for the
+result action. The runtime's two result handlers are instances of one
+parameterized transformer:
+
+```text
+Finish_v^F(Return(x,c)) = Resolve_v(x,c) >>= F
+
+Finish_v^F(Request(h,p,k,c)) =
+  if path(h) = [std, control, var, ref_update, update]
+    then Finish_v^F(k(v))
+  else Resolve_v(p,c) >>= (λ(p',c').
+         Request(h,p', λx. Finish_v^F(k(x)), c'))
+```
+
+Here `h=(path, guard_ids, carried_guards, handler_boundary)` is the request
+header. Forwarding preserves `h` exactly; only the resolved payload and the
+continuation wrapper change. `c'` is the live state after resolving the payload,
+and resumption continues from that state.
+
+The outer `handle_ref_set_result` uses `F(x)=Return(Unit)`; nested thunk
+resolution uses `F(x)=Return(x)`. `Resolve_v` is the ordered structural
+traversal from `resolve_ref_set_value`: scalars return unchanged; marked
+values resolve the wrapped value and reapply the marker to its eventual
+result; tuple/list/record/variant/constructor children are resolved
+left-to-right with ordinary state-threaded bind; a thunk-like value is forced
+and its `EvalResult` is fed through `Finish_v^{Return}`. Thus a request while
+resolving a child keeps the remaining aggregate traversal in its continuation.
+The full `RefSet` sequence is:
+
+```text
+Run(e_ref) >>= ForceValue >>= (λr.
+  Run(e_value) >>= ForceValue >>= (λv.
+    Finish_v^{Return(Unit)}(
+      ApplyValue(Project(r, "update_effect"), Unit))))
+```
+
+This equation is a reconstruction of the frozen runtime helper, not a new
+typing rule or an assumption that mutation itself is pure. The exact update
+callback's effects and state changes remain in `ApplyValue` and its resumed
+continuations. Each non-update request remains observable after payload
+resolution and is re-forwarded with re-entry; each update request is resumed
+with `v`, and effects in that resumed suffix are handled by the same
+transformer. Aggregate traversal adds no independent row rule: its requests
+are those of ordinary `Resolve` composition and `Force`.
+
+The local equation supports a conditional endpoint/observation simulation:
+if `Run`, `ForceValue`, `ApplyValue`, `Project`, `Resolve`, and the exact
+operation identity `u` already have related source/abstract steps, then a case
+analysis on the `EvalResult` constructors preserves each request edge, and
+structural induction on finite aggregate values preserves traversal order and
+the remaining-child continuation. On a thunk, the induction reduces to the
+same `Finish` request cases. It must carry `v` as a complete live value root
+through every resume and preserve its symbolic family formulas and reference
+graph. This conditional proof does not show the source typing meaning of
+`update_effect`, that source lowering makes the evaluated operands live roots,
+that arbitrary/cyclic aggregate traversal has a finite abstraction, or that
+the resulting `Σ#`/effect interface is principal. The frozen runtime observation
+is characterization evidence only; any successor rule still has to follow
+the independent declarative source semantics and soundness proof. A focused
+compiler-referee delta review found no mismatch in exact request-header
+preservation, update-path matching, payload resolution, or live-state
+continuation threading.
+
 #### Candidate runtime-value coverage for one ghost-tagged mono executable
 
 The concrete runtime audit supports a structural slot relation for one frozen
