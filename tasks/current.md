@@ -2540,4 +2540,9 @@ compiler-referee review found omitted carrier/finite-set premises and an
 overbroad occurrence reading; both were repaired, and delta review closed the
 findings. The proof remains carrier-parametric. Next, derive the endpoint
 decomposition for compound arguments from the chosen constructor variance and
-invariance semantics, then prove the actual carrier realization property.
+invariance semantics, then prove the actual carrier realization property. A
+new conditional three-element-chain example shows that nested invariant bounds
+can share a witness even when the naively lifted outer endpoints are
+incomparable; this rejects that exact flattening step, while explicitly
+leaving other outer encodings open. Compiler-referee and spec-auditor review
+confirmed the example and source scope; a minor overbroad claim was narrowed.

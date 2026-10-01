@@ -5272,6 +5272,41 @@ the symbolic relation with its current finite consequences or choosing the
 carrier. This is a specification distinction and proof obligation, not a
 change to the frozen spec or a selected successor rule.
 
+#### Naive outer-endpoint flattening loses nested invariant overlap
+
+The overlap relation cannot be implemented *exactly* by turning every
+compound bound into its lifted lower and upper outer types and then applying
+the endpoint theorem. Consider a three-element chain `0 <: 1 <: 2` and a
+unary constructor `C` with invariant subtyping:
+
+```text
+C(a) <: C(b)  iff  a = b
+```
+
+Under the recursive lifted-bound interpretation, `C([0,2])` admits the
+shape-locked values `C(0)`, `C(1)`, and `C(2)`. Two occurrences
+`C([0,1])` and `C([1,2])` share `C(1)`. But flattening their bounds to outer
+interval endpoints and requiring `C(0) <: x <: C(2)` fails immediately:
+invariance gives `C(0) </: C(2)`, even though the nested argument intervals
+overlap. Thus endpoint overlap must be computed at the invariant argument
+position while retaining the constructor path and its variance; whole-term
+mutual subtyping or this naive outer-endpoint interval is not an exact
+replacement. A more permissive outer interval could over-approximate these
+admissible sets; this example does not rule out every possible interval
+encoding, but such an encoding would need its own exactness/principality proof.
+
+This is a conditional counterexample for the stated recursive-bound meaning
+and invariant constructor rule. The frozen sandwich spec's lifted
+`CompactBounds::Con` shape is characterization evidence for retaining
+constructor structure, not semantic authority for the successor. The
+successor still needs a structural admissible-value relation for lifted
+`Con`, `Tuple`, and `Fun` bounds, with variance-specific witness conditions
+proved sound and complete against its selected type domain. Every nested
+endpoint and constructor-path incidence must remain symbolic through the
+same solve/residualize/generalize/freshen/intrude lifecycle. The N-way
+endpoint theorem applies only after such a sound decomposition has produced
+the argument-position endpoint sets.
+
 #### Variable-edge propagation into interval constraints (conditional)
 
 This identifies one solver expansion of the `InvArgs` shorthand; it does not
