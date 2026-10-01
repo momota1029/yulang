@@ -152,6 +152,11 @@ dependencies. A bounded interval fragment reduces `ArgDen_A` naturality to
 compositional endpoint interpretation, conditionally. It does not establish
 that interpretation for compound types or which source rules create batches;
 non-injective intrusion still needs the separate quotient/fiber theorem.
+A finite point-row formula can preserve the full disjunction of duplicate
+target matches, giving a local principal presentation when its source
+constraints and complete interface are represented exactly. This avoids
+eager branch selection but does not establish ordinary source adequacy,
+solver termination, handler principality, or recursive SCC closure.
 
 ## Objective
 

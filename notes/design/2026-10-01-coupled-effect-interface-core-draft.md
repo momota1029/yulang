@@ -420,6 +420,51 @@ of this carrier. If Oracle routing conflicts with these proofs, record the
 concrete counterexample, the dropped Oracle behavior, the adopted rule, and
 the final-acceptance impact.
 
+### Finite point-row constrained presentation (conditional lemma)
+
+There is a finite presentation candidate for the point-valued closed-row
+fragment that avoids choosing an eager row match. For finite rows `R` and
+`S`, define symbolic inclusion by:
+
+```text
+RowIncl_A(R,S,ν) =
+  ⋀_{x ∈ R} ⋁_{y ∈ S, head(y)=head(x)} FamCompat_A(x,y,ν)
+```
+
+An empty disjunction is false. For point-valued family arguments,
+`FamCompat_A` is the symmetric subtype-equivalence formula, under the
+conditional premise that this equivalence is the source argument relation.
+Every occurrence in the formula shares the same valuation `ν`; no disjunct
+is selected while another branch remains possible. A finite row produces a
+finite formula DAG, and repeated subformulas may be shared without changing
+its denotation.
+
+For a source component whose typing constraints and complete interface graph
+are exactly represented by a finite formula `K_C` in these row relations,
+present its fixed-environment scheme by the relation
+
+```text
+Inst_C(ρ) = { (ν,I) | ν assigns component-owned β ∧ K_C(ρ,ν,I) }
+```
+
+If `K_C` is sound and complete for that fragment's derivation relation and
+records every observable root/use view, then `Inst_C(ρ)` equals the complete
+derivable interface relation. It is therefore principal in the extensional
+interface preorder: it contains every derivable instance and introduces
+none. A direct corollary is that an existential row match with two
+incomparable branches remains principal when retained as a disjunction;
+replacing it with either conjunctive branch loses a derivable instance.
+
+For example, inclusion of `{F<int>}` in `{F<α>,F<β>}` denotes
+`(α ≈ int) ∨ (β ≈ int)`. The formula is finite and preserves both solutions.
+The current evidence does not establish that this fragment covers ordinary
+Yulang source constraints, that all component constraints admit such a finite
+formula, or that evaluating/generalizing the formulas is terminating. It
+also does not cover interval or compound arguments, handlers with
+assignment-dependent route/coverage, or recursive SCC closure. It is a local
+representability/principality result conditional on exact source-rule
+generation, not yet the successor scheme theorem.
+
 ## Open gates
 
 This draft does not yet define the supported source semantics or prove the
