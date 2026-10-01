@@ -3002,3 +3002,14 @@ filtering is outside row algebra. Handler residualization remains the
 relational image of continuation-bearing computations under a proved totality
 and coverage premise; it does not follow from set difference. This is a
 conditional algebraic lemma, not a source rule or implementation authority.
+
+The support abstraction also has a finite witness for the shallow Oracle
+over-approximation: `γ({F})` includes both one and two `F` requests. A resuming
+shallow arm leaves the second request outside the handler, so its best transfer
+must return `{F}` even though the one-request tree itself becomes pure. A
+non-resuming pure arm consumes the first request for every tree in the same
+concretization and returns the empty row. This explains the observed contrast
+without continuation-use typing, but only for the finite ground fragment;
+typed payloads, higher-order boundaries, symbolic transport, and principal
+presentation remain open. The derivation is in the single abstraction-pair
+section of the coarse-effect candidate record.

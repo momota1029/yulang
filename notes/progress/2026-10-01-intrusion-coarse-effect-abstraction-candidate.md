@@ -4928,6 +4928,28 @@ generalization, fresh instantiation, and intrusion. A proof that `α` and `γ`
 preserve concrete traces does not prove that the resulting constrained scheme
 language is principal or effectively solvable.
 
+##### Finite witness for the shallow one-request over-approximation
+
+The support abstraction explains the frozen shallow pair without adding a
+one-request source rule. Restrict to one covered operation family `F`, pure
+handler arms, and finite resumable trees. The concretization `γ({F})` includes
+both the one-request tree `F; return` and the two-request tree `F; F; return`.
+For the handler whose arm resumes the raw continuation, transforming the
+second tree leaves its second `F` outside the shallow handler. Hence
+`F ∈ H#({F})`, even though transforming the one-request tree alone has empty
+support. The best sound transfer in this abstraction therefore returns `{F}`.
+
+For a handler whose matching arm ignores the continuation and whose arms are
+pure, every tree in `γ({F})` is consumed at its first `F` request and no
+continuation suffix is entered. Thus its best sound transfer returns the empty
+row. These are direct consequences of one concretization and one relational
+handler image. They explain how the abstraction can conservatively reject the
+pure annotation for the resuming one-request example while accepting it for
+the non-resuming example, without linear or affine usage tracking. They are
+only a finite ground witness: typed payload constraints, operation result
+types, nested activations, callbacks, symbolic ownership, SCC lifecycle, and
+principal finite presentation remain unproved.
+
 Three transfer facts follow once `H#` is defined over this fixed context. It is
 monotone because `R ⊆ S` implies
 `γ_{Γ,ν,κ,τ}(R) ⊆ γ_{Γ,ν,κ,τ}(S)`. For typed and context-compatible
