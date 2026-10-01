@@ -80,8 +80,9 @@ source-backed hypothesis, not a selected rule or proof of soundness.
   caller-owned request.
 - **spec_auditor**: frozen public references establish a scoped capture
   promise, not nested-contract precedence or universal sticky composition;
-  runtime markers characterize re-entry only. No source rule or implementation
-  approval follows.
+  runtime markers specify lineage persistence/re-entry but do not select the
+  disputed source eligibility rule. No source rule or implementation approval
+  follows.
 
 The three reviews converge: this is a genuine source-semantic decision, not an
 Oracle implementation fact. The exact request lifetime and caller-handler
@@ -140,16 +141,21 @@ counterexample and revised signature are in the coupled-interface draft's
 visibility section. A compiler-referee delta review closed this quantifier
 finding. The reviewer also confirmed that the deeper certification blocker
 remains: source rules for contract incidence through nested boundaries,
-concrete/concrete propagation, and escaped-value lineage are still absent.
+concrete/concrete propagation, and handler eligibility of escaped values are
+still absent. Runtime lineage transport itself is specified; it must not be
+conflated with the unresolved source permission calculus.
 
 Architecture and source-spec audits agree that an origin-indexed relation over
 ordered boundary transitions is the most economical candidate carrier. The
 public source contract supports capture by handlers inside a concrete
-receiving function and protection of uncontracted callback effects. It does
-not uniquely settle nested concrete receiver propagation or escaped-value
-lifetime. Preserve/composition is the simpler hypothesis; a visibility cut
-would need a source-defined boundary rule beyond family equality. Neither is
-approved. A concrete user decision remains before that source rule can be
+receiving function and protection of uncontracted callback effects. The
+authoritative Yulang3 architecture and frozen runtime guard specification fix
+that activation-specific lineage travels with closures, thunks and
+continuations and is reinstalled on resume. They do not uniquely settle
+nested concrete receiver propagation or which source handler may consume an
+escaped request. Preserve/composition is the simpler hypothesis; a visibility
+cut would need a source-defined boundary rule beyond family equality. Neither
+is approved. A concrete user decision remains before that source rule can be
 selected; finite symbolic presentation and principality follow as separate
 proof gates.
 
@@ -165,3 +171,64 @@ role, or impl-resolution work before ordinary effect/handler semantics closes,
 unless a proved dependency requires it earlier. No compiler code or tests were
 changed or run. `git diff --check` is the only mechanical check for this
 record/design slice.
+
+## 2026-10-02 authority split: annotation contract vs runtime lineage
+
+A source-spec audit checked the exact frozen annotation contract and the
+Yulang3 runtime-hygiene authority. This narrows, but does not select, the
+nested-receiver policy.
+
+The frozen source contract distinguishes annotation position and form:
+
+| Source position/form | Contract fixed by the reference | Successor-relation reading |
+|---|---|---|
+| Unannotated callback argument | Grants no new capture contract; callback-origin effects remain hygienic at that boundary | No new visibility derivation follows from this boundary |
+| Wildcard callback argument | Exposes inferred surface effects but does not erase other hygiene evidence | Preserve other lineage/visibility facts in the same relation |
+| Concrete callback computation argument | Lets handlers inside the receiving function consume only the named family from that argument computation | A source capture relation is required for that receiver scope; its transport through a nested concrete receiver remains open |
+| Covariant result | A concrete row statically filters escaping effects; omission/wildcard remains open | A result filter is checked at the result view and is not a runtime capture marker |
+
+These are source-level distinctions in annotation syntax and polarity. They
+can be clauses of the same source typing/interface relation; they do not
+justify separate effect-obligation stores, selectors, or route rules. In
+particular, a concrete result filter must not be confused with a contravariant
+callback capture contract.
+
+Runtime activation lineage has a firmer authority boundary than the prior
+record suggested. The approved Yulang3 architecture requires fresh
+activation-specific scope identities to travel with closures, thunks, and
+continuations and to be reinstated on resume. This is an approved runtime
+hygiene invariant. The frozen guard-marker specification characterizes
+shape-directed transport through force, call, projection, adapters, unwind,
+and re-entry, but its concrete marker transformations are not independently
+selected semantic rules: the successor must derive and prove the corresponding
+transitions from source semantics. Neither source fixes whether a particular
+escaped request remains eligible for a particular handler after nested
+concrete contracts. Static identity, runtime fresh identity, and source
+visibility therefore remain separate coordinates of one relation.
+
+The nested `handle`/`invoke` witness has positive source-text support for the
+preserve hypothesis: its catch lies inside a concrete callback receiver, and
+the nested `invoke` contains no handler that could consume the request. The
+contract says such an inner handler may consume the named family. However, the
+text does not explicitly specify the transport of that permission through the
+second concrete argument boundary and all generated adaptations/forces. The
+source audit therefore leaves preserve versus suspend unresolved; the frozen
+runtime trace and Oracle's empty row cannot choose it. The immediate proof
+target is to define the common typed call/handler transition so that source
+capture clauses and the specified runtime lineage transport compose, then
+check the witness against the complete transition. No implementation or test
+expectation change follows from this record.
+
+Source anchors: frozen Yulang2 `a58eefc31`, `web/docs/reference/effects.md`,
+“Effect annotations and visibility,” lines 244–265; frozen
+`web/docs/reference/type-theory.md`, “What Effect Annotations Mean,” lines
+154–177; frozen `spec/2026-06-13-runtime-guard-markers.md`, §§ runtime
+elements, marker, add_id, function guard marker, and dynamic unwind; current
+`docs/yulang3-architecture.md:710`.
+
+Independent source-spec audit: the three annotation forms/positions above and
+the high-level activation-identity transport invariant are fixed by these
+sources. Exact nested concrete permission propagation and per-handler
+eligibility after escape are not. No policy was selected. The reviewer delta
+closed after narrowing the frozen marker spec to characterization evidence;
+this does not approve its routing algorithm or any successor source rule.

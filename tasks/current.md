@@ -4102,3 +4102,25 @@ are in `notes/progress/2026-10-02-unified-core-audit.md`. This does not select
 the nested receiver or escaped-value policy and does not authorize compiler
 implementation. Continue with a bounded source transition/interface fragment
 that preserves the full symbolic typed-family fiber.
+
+Two independent research slices now refine the next work. First, the source
+contract audit separates annotation syntax semantics from runtime lineage:
+unannotated, wildcard, and concrete callback positions plus covariant result
+filters are distinct source contracts inside the same interface relation. The
+Yulang3 architecture fixes high-level activation identity transport and
+reinstatement on resume; frozen marker transformations remain characterization
+and need independent derivation. Preserve versus suspend through a second
+concrete receiver remains unresolved. The source-spec audit closed its delta
+review with no findings; see
+`notes/progress/2026-10-02-callback-scope-transition.md`.
+
+Second, a conditional pure-SCC theorem now composes arbitrary finite
+saturation snapshots—even when roots/use copies save different stages—with
+the existing injective parent/use transport and coupled continuation. It
+preserves the complete assignment fiber when source collection is finished
+before freezing, while explicitly showing that a later independent source
+constraint can invalidate an early view. A spec-auditor found a domain issue,
+which was corrected and delta-reviewed clean. The theorem does not establish
+source graph adequacy, solver completeness, principality, effects, or final
+Oracle acceptance. See
+`notes/progress/2026-10-02-intrusion-heterogeneous-freeze-transport.md`.
