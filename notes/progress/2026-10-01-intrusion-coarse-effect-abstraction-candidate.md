@@ -3713,6 +3713,25 @@ source-generated cross-member constraints, and their public observations must
 instantiate the condition before the individual alpha lemmas can compose
 into a batch adequacy theorem.
 
+#### Instantiation in the reviewed uniform pure-SCC subcase
+
+For the conditional pure recursive-group-plus-nested-let theorem in
+`2026-09-30-intrusion-parent-transport-composition.md`, every SCC-created
+identity is local in every member view and every referenced outer identity is
+a fixed anchor. Thus each base/use copy contributes one disjoint local
+namespace, while the same `A_J ∪ K` is fixed. Its joint map `Λ` transports the
+base graph, every member-use copy, caller-root constraints, and cross-use
+constraints in one assignment relation. This supplies an explicit `K` and
+satisfies the criterion above for that already reviewed pure fragment; in
+particular, the root selected from a group copy does not create a different
+identity partition.
+
+This is only a consistency corollary of the reviewed conditional theorem. It
+does not establish any mixed `Local_d`/`Free_d` case: the pure fragment has no
+member-specific fetch boundary, effects, or post-boundary mutation. Applying
+the criterion to the Oracle's ordered root projections still requires the
+source-derived per-view ownership classes and every root/use bridge.
+
 An architect review recommended this conditional semantic-lowering boundary;
 the exact-source review found no conflict with syntax-v0 or current HIR. The
 compiler-referee review then found three gaps: possible calls/forces were not

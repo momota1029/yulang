@@ -1905,8 +1905,10 @@ ownership and joint cross-member composition remain unproved. A conditional
 composition criterion now treats cross-view occurrences as tagged identities
 and requires every bridge to preserve identity or transport an explicit
 equivariant relation in one joint assignment. This new criterion is an
-unreviewed proof candidate. Next have the compiler-referee review its joint
-assignment argument, then instantiate the bridge set from the Oracle root/use
-lifecycle and prove source-step preservation; otherwise reject the candidate
-batch transition. Effect-row principality, route quotient completeness, and
-Oracle acceptance remain open.
+unreviewed proof candidate. The reviewed uniform pure-SCC joint transport
+theorem instantiates it with one local namespace per graph copy and fixed
+anchors; this does not cover member-specific root partitions. Next have the
+compiler-referee review the general criterion, then instantiate the bridge
+set from the Oracle root/use lifecycle and prove source-step preservation;
+otherwise reject the candidate batch transition. Effect-row principality,
+route quotient completeness, and Oracle acceptance remain open.
