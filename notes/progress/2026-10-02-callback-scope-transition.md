@@ -101,6 +101,29 @@ unproved-soundness wording with no remaining blocking or major finding. Review
 closure applies only to these clauses and records; it selects neither policy
 or authorizes implementation.
 
+The conditional nested-receiver calculation was corrected after adversarial
+review. Keeping the request occurrence, owner incidence, capture relation,
+and outer frame does not entail that `Visible` remains derivable: its ordered
+context rule may include negative premises such as the absence of an
+intervening competing boundary. The preserve candidate therefore needs a
+transport proof for the complete visibility derivation, including all
+contextual premises, across its declared helper class. The witness alone does
+not prove monotonicity.
+
+Under explicit premises covering that complete visibility derivation, the
+entire `CallView` and force placement, one exact request, one raw resumption,
+request-free arm/suffix behavior, operation compatibility, and shared
+symbolic `K,D`, the closed witness yields empty immediate request support after
+the whole handler image. The conclusion is only a support projection: it does
+not claim singleton `Return(unit)`, termination, or a nonempty image. It also
+does not establish finite presentation or pure generalized inference for
+`handle`. The generic callback contract admits two sequential requests, so a
+row-only abstraction must conservatively retain `choose` after shallow raw
+resumption. A finite presentation that recovers the closed witness's pure
+result, and any final-acceptance difference if it cannot, remain open. A
+spec-auditor delta review closed the correction with no remaining findings.
+Neither preserve nor suspend is selected.
+
 ## Next proof gate
 
 Define one source call/handler transition over ordered activation contexts and

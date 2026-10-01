@@ -4030,6 +4030,20 @@ as a rule. Method/roles/impl resolution remain gated until ordinary
 effect/handler semantics closes unless a proved dependency requires them
 sooner. No compiler implementation is authorized.
 
+The latest callback witness correction rejects the inference that retaining
+request incidence and an outer frame automatically preserves `Visible`.
+Visibility can have negative ordered-context premises; the preserve candidate
+must transport the complete derivation, including those premises, over its
+supported boundary class. A conditional whole-image corollary now claims only
+empty immediate request support under explicit one-request, complete-CallView,
+shallow-resumption, arm, visibility, and symbolic-fiber premises. It does not
+claim termination, singleton return, finite representability, or a pure
+generalized scheme. The generic callback row admits repeated requests, so a
+row-only presentation must retain the residual possibility. Architect,
+compiler-referee, and spec-auditor reviews closed the relevant wording; neither
+nested-boundary policy is selected. See
+`notes/progress/2026-10-02-callback-scope-transition.md`.
+
 Source-contract clue for that gate: the frozen reference says handlers inside
 a concrete callback receiver can consume matching callback-origin effects.
 The witness's `catch` is inside `handle`, while nested `invoke` has no handler;

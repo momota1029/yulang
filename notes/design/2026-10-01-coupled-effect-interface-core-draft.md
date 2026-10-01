@@ -1406,15 +1406,67 @@ implementation/specification conflict on own-path request coloring, and the
 successor must define its own one-step handler semantics and prove that this
 context formulation is sound and principal before deriving row removal.
 
-There is one immediate conditional consequence. Suppose a helper call extends
-`κ` with a new frame but its source relation preserves the request occurrence,
-owner incidence, and the earlier receiver's capture relation. Any witness
-that established `Visible(q,κ)` is then still a witness in the extended
-context, so the helper cannot revoke that receiver's visibility grant. This
-is the relational explanation of the concrete helper probe. It does not say
-that every helper preserves the witness: source typing must prove the stated
-incidence-preservation premise, especially when the helper adapts, returns, or
-stores the callback.
+Retaining the request occurrence, owner incidence, capture relation, and outer
+frame does not by itself preserve `Visible`. A visibility derivation may have
+contextual premises, including the absence of an intervening competing
+boundary; extending the context can invalidate such a premise while retaining
+all those positive facts. The helper probe therefore does not prove visibility
+monotonicity. A preserve-clause proof must transport the *complete* `Visible`
+derivation across its declared helper class, including every positive and
+negative context premise and the entire `CallView`. A suspension clause changes
+derivability in this same source judgment while keeping the frame, request, and
+symbolic `K,D` intact. Neither behavior follows from graph or context
+retention alone.
+
+**Conditional whole-image calculation for the concrete helper witness.** Let
+`S` be the complete scrutinee relation for `catch invoke(f)`, including callee
+and argument evaluation, both `CallView` adaptations, the underlying call,
+callback invocation, and any force required before catch dispatch. Assume all
+of the following in one source transition relation and at one symbolic
+assignment:
+
+1. The request originates from the exact `f` callback occurrence supplied to
+   `handle`; the active catch belongs to that receiving function's
+   `[choose]` capture contract; and its complete `Visible` derivation is
+   preserved across the handler-free nested `invoke` boundary.
+2. The complete `S` behavior has no unrelated requests or escaping values.
+   Every reachable request path emits exactly `choose::get`; after the
+   operation arm resumes its raw continuation once with `unit`, that suffix
+   and the remaining arm computation return `unit` without another request.
+   The value arm is also pure, and operation payload/result compatibility
+   holds.
+3. Every argument/result conversion and force that can expose this request
+   occurs before the catch's dispatch completes. State, ordered frames, and
+   all dependent symbolic predicates and incidence are retained under the
+   same assignment.
+
+Then the one handler image has empty immediate request support
+
+```text
+ReqSupport(H#_outer(S)) = ∅
+```
+
+for the immediate request observation: each visible request is selected, the
+arm runs outside the shallow frame, and its single raw resumption exposes only
+the stipulated request-free suffix. This does not claim that every output is
+`Return(unit)`, that every execution terminates, or that the image is nonempty.
+It is a conditional source-image corollary of relational composition and the
+handler image, not a fixture-specific rule. It does not follow from incidence
+retention alone, and it proves neither a finite presentation nor a pure
+generalized scheme for `handle`.
+
+That distinction is necessary for the final-acceptance gate. The generic
+parameter type `() -> [choose] ()` admits callbacks with two sequential
+`choose` requests; resuming the first raw continuation leaves the second
+outside the shallow catch. A row-only input abstraction must therefore retain
+`choose` in the residual support for the generic `handle` behavior. A more
+precise application result may use additional callback/suffix correlation,
+but a finite presentation must prove that it retains enough information
+without requiring an unapproved linear or usage type system. Whether it can
+preserve the exact witness's pure output in a context that requires purity, or
+must record a final-acceptance difference, remains open. Symbolic `K,D` must
+remain attached to all dependent output views even when this particular closed
+operation has no family parameter and immediate support is empty.
 
 - `Apply` evaluates callee and argument expressions before applying the
   resulting values. A `MakeThunk` expression captures a suspended computation
