@@ -2113,6 +2113,91 @@ relation rather than introducing a RefSet-only semantic construct. Until those
 links are proved, neither the local heap lemma nor frozen-runtime
 characterization establishes source adequacy.
 
+#### One live capture graph for values, stores, and resumptions
+
+The root obligation can be stated without a `RefSet`-specific semantic rule.
+For a source configuration `κ`, let `G(κ)=(N,E,R)` be its reachable object
+graph. Nodes are values, mutable cells/state locations, continuation frames or
+saved resumptions, and active handler-state instances. Edges are source-defined
+containment/capture, reference, current-cell-content, continuation-resume, and
+handler-state ownership links. A continuation node also carries its ordered
+wrapper composition, the distinction between raw and forwarded resumption,
+dynamic activation-identity relationships, boundary lineage, and state needed
+to decide eligibility and offers. Activation labels themselves are only
+indices; the relation is modulo consistent renaming and observes their
+identity/sharing and order. These are continuation semantics, not a
+route-certificate ledger. `R` contains the current environment and
+control-held values, externally retained roots, and active handler state.
+Define `Live(κ)` as the least set containing `R` and closed under `E`. A
+continuation is represented by its source evaluation context and captured
+environment, not by an opaque host closure; invoking a saved continuation
+re-enters it with the current state `σ`, never a state snapshot captured at
+creation time.
+
+A finite abstract configuration covers `κ` when there is a node map from every
+node in `Live(κ)` to an abstract value/cell/control/handler slot such that:
+(i) every root maps to a covered abstract root; (ii) every labeled edge maps to
+an abstract edge of the same source meaning; and (iii) each mapped node retains
+its complete value, effect, and symbolic typed-family facts with their
+incidence. This is one graph-homomorphism condition over the whole live data
+configuration, rather than separate reachability tests for environment, heap,
+or captured values. By itself it does not preserve continuation behavior:
+there must also be an ordered control-simulation relation between source and
+abstract continuation nodes. It preserves the wrapper spine, raw-versus-
+forwarded status, activation identity/lineage, eligibility, and every request
+offer made before or after resume. Abstract slots may merge concrete nodes
+only when their joined facts, edges, and continuation denotations still
+satisfy both relations. If an activation merge loses that distinction, the
+abstract transfer must widen to all compatible offers and cannot subtract a
+request on that evidence.
+
+The preservation proof has one reusable shape. For each source transition,
+show that new roots either were already reachable or are produced with a
+covered value fact; show each new capture/reference/store/handler edge is
+present in the abstract transition; then induction on edge-path length gives
+coverage of every node reachable in the successor. A source transition that
+actually updates a cell is covered because the assigned value node and all
+nodes reachable from it were live before the write, and the new cell-content
+edge is simulated. `RefSet` only qualifies once its effect-handler state has
+been related to such a cell update. Capturing a continuation is covered because
+its evaluation context, environment values, ordered wrappers, activation
+state, and lineage become outgoing capture edges before the continuation can
+escape. Forwarding and multi-shot resumption preserve both these edges and
+their order; resumption reads the current abstract `Σ#`, and join records the
+stores from all resumed paths. For example, if `I` handles `p` by emitting
+`g` while `H` handles `g`, and both forward `u`, resuming forwarded `u` runs
+the composed continuation `H(I(k(r)))`: it offers `p` to `I` and then `g` to
+`H`. A graph that retains both handler nodes but loses their order or treats
+the resumption as raw can change the residual. The control-simulation premise
+rules this out. These are consequences of the same relation; they do not
+create per-site `Demand` or route obligations.
+
+This is a proof skeleton, not a completed source theorem. The source machine
+and its evaluation-context grammar have not yet been fixed; its capture edges
+must correspond to the actual source binding and continuation rules, and the
+ordered control simulation must be proved against the source handler clauses.
+An escaped continuation must retain edges to captured handler activations,
+their state, and lineage even after they leave the active stack. The finite
+slot map must be effectively representable and monotone, including unknown
+control/state widening; when identity merges make wrapper order uncertain it
+must use a sound top transfer rather than infer eligibility. In particular,
+`a58eefc3`'s Rust
+`Request.resume` closures can only serve as characterization evidence for the
+reified source continuation. The `var.run` handler-state ownership edge and
+its relationship to abstract cell identity remain to prove. The local
+read/weak-write lemma becomes applicable once this general live-graph
+simulation establishes its premise; it cannot establish the graph simulation
+itself.
+
+A focused compiler-referee review found that node/edge coverage alone is
+insufficient: the ordered `H(I(k(r)))` wrapper example changes which handler
+sees `p` and the resulting `g` if wrapper order or raw/forwarded status is
+lost. The graph clause now explicitly leaves a separate ordered
+control-simulation obligation, with activation/lineage edges retained after
+escape and top widening when merges lose identity. The review also confirmed
+that the `var.run` effect-state bridge is separate from the local heap lemma.
+The added condition names the missing theorem; it does not prove it.
+
 A continuation invocation uses the current `H#` and the captured abstract
 reference graph; it does not reinstall a heap snapshot. Once a source
 resumption is shown to use the current concrete heap (as the frozen runtime

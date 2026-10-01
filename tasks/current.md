@@ -3583,9 +3583,11 @@ preservation, update-path matching, or live-state continuation threading. It
 remains characterization, not source authority.
 Next define and prove one source live-root relation over environments, current
 state, control-held values, pending/stored continuations, and captured
-references/formulas; prove bind/force/forwarding/handler/repeated-resume
-preservation; then establish the `var.run` effect-state bridge before using
-the abstract heap lemma for RefSet. Source typing and SCC lifecycle follow.
+references/formulas; prove ordered wrapper/raw-versus-forwarded control
+simulation across bind/force/forwarding/handler/repeated-resume; then establish
+the `var.run` effect-state bridge before using the abstract heap lemma for
+RefSet. Source typing (including case scrutinee demand and pattern defaults)
+and SCC lifecycle remain open.
 No compiler implementation is authorized by these candidate lemmas. The
 coupled-interface draft treats handler visibility as semantic and route
 certificates as derivation evidence only.
