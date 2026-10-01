@@ -1992,7 +1992,9 @@ edge is absent because the candidate impl is visible, but helper has no
 owner-local role constraints during either scan. The InstantiateUse to the
 role read signature appears later without a helper→make dependency.
 Continue with cross-epoch lowering and root-local R/free ownership; the
-shared-TypeVar Q/free source case is now characterized. Details are in the
-same progress note.
+shared-TypeVar Q/free source case is now characterized. A self-application
+recursive-result variant produced R/R in both roots but failed final mono
+specialization, so it does not close the accepted R/free case. Details are in
+the same progress note.
 Effect-row principality, route quotient completeness, and Oracle acceptance
 remain open.

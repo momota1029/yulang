@@ -285,6 +285,21 @@ YULANG_INTRUSION_OWNER_TRACE=1 YULANG_INTRUSION_ROLE_DEP_TRACE=1 CARGO_TARGET_DI
 YULANG_INTRUSION_ROLE_DEP_TRACE=1 CARGO_TARGET_DIR=/tmp/yulang-intrusion-scc-owned-target cargo test --offline --jobs=1 -p yulang scratch_intrusion_mixed_fetch_shared_q_free_runtime_acceptance -- --nocapture --test-threads=1
 ```
 
+## Rejected recursive-result variant
+
+One follow-up replaced the owner's identity result with an argument
+self-application (x applied to itself) to look for a recursive-binder
+ownership split. Inference finalized owner with
+`Q=[38,41,42]`, `R=[41]`; make had `Q=[]`, `R=[41]`. The shared recursive
+variable was therefore R/R. This trace does not establish the ownership of
+TypeVar 38 in make's finalized predicate.
+The scratch lowerer reported no diagnostics, but the final monomorphic
+specializer rejected this variant with `UnsatisfiedSubtype` (`unit` against a
+function). It is not a final-accepted source witness and does not settle
+R/free ownership. This illustrates why inference-only schemes cannot close
+the compatibility gate. The yulang scratch fixture was restored to the
+accepted identity result after this probe.
+
 There is a useful conditional exclusion for Q-versus-free ownership. For a
 variable `v` that occurs in both roots' compact-plus-role views where their
 quantifiers are selected, if both roots use the same boundary and
