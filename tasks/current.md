@@ -2654,3 +2654,14 @@ endpoint expressions are mutable payload and remain symbolically transported.
 The audit's minor key-stability finding is closed. This conditional formula
 does not establish actual source batch derivation or compound-bound
 decomposition, so the ordinary effect gate remains incomplete.
+
+Oracle source inspection found that `collect_neg_effect_items` emits direct
+pairwise argument constraints from each duplicate item to the first item for
+that family path. For interval-valued arguments, the chain
+`Never <: Int <: Any` with `[Never,Int]`, `[Int,Any]`, `[Never,Never]`
+satisfies both star comparisons but has no all-three witness. A
+compiler-referee audit verified the local code path and algebra, while
+confirming that no reachable source program or final Oracle acceptance result
+has been established. Treat this as a candidate collision with N-way
+common-witness semantics, not yet a recorded compatibility exception; next
+establish source reachability/final behavior before deciding the boundary.

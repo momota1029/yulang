@@ -5875,6 +5875,52 @@ actual solver correctness theorem. The existing `InvArgs` notation remains a
 shorthand only where its endpoint terms denote point types or another proved
 equivalent relation.
 
+#### Representative-star merge is not an N-way interval meet (Oracle characterization)
+
+The frozen Oracle source has a concrete representative-star pattern in
+`crates/infer/src/constraints/row_effect.rs` at commit
+`a58eefc31e22141574b6f20c6a5748151c6d79f1`. In
+`collect_neg_effect_items`, the first item for a family path is retained;
+each later duplicate calls `enqueue_row_invariant_args(existing_args,
+args)` against that first argument vector, then is discarded from the row
+item list. `enqueue_row_invariant_args` zips argument positions and emits the
+two polarized subtype obligations for each pair. This is a source-code
+characterization of this collector, not a claim that weight routing is
+semantically sound or that every source program reaches this input.
+
+For interval-valued arguments, the directly emitted representative-star
+pairwise formulas are weaker than the formula for one common witness across
+all duplicates. Use the chain
+`Never <: Int <: Any` and three feasible intervals:
+
+```text
+A = [Never, Int]
+B = [Int, Any]
+C = [Never, Never]
+```
+
+The star comparisons `A` with `B` and `A` with `C` each have a witness
+(`Int` and `Never`, respectively), so their pairwise cross-bound formulas
+hold. No value satisfies all three: `B` requires `Int <: t`, while `C`
+requires `t <: Never`, which would imply the false `Int <: Never`. Therefore,
+if duplicate collection's source meaning is that all same-path items share
+one argument, comparing every duplicate only with the first does not prove
+that meaning. The whole-batch `MeetKey` formula must combine endpoints from
+all occurrences, or preserve a relation whose denotation does so.
+
+The effect-subtraction specification lists duplicate row-head collection as
+an invariant site, and the frozen sandwich design says same-slot merges need
+cross-bound constraints. These are characterization evidence for the
+common-witness interpretation, not authority for the successor's complete
+effect semantics. The algebraic counterexample proves a mismatch between
+representative-star constraints and N-way common-witness semantics; it does
+not yet prove that a well-typed Yulang source program can produce exactly
+these three interval arguments or that frozen `check` accepts that program.
+Do not record a final Oracle compatibility exception until that reachable
+source case is constructed and observed. If reachable, the successor should
+prefer the sound whole-batch condition and record the concrete final-acceptance
+difference before treating the Oracle result as unsupported behavior.
+
 Let an operation declaration at exact path `p` have signature
 `op : A -> [E] B` and declaration binders `ā`. Resolving one source request
 allocates one capture-avoiding map `θ` for those binders. Declaration
