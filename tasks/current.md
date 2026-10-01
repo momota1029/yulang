@@ -2367,3 +2367,14 @@ equivalence to related assignments with values in the transported image or
 fixed environment. Actual map construction and phase invariants remain
 unproved. See "Joint transport of open typed-row constraints (conditional
 lemma)" in the same candidate record.
+
+A lifecycle review found that open-tail normalization could expose a new
+same-family pair without a source-head rule deriving its symbolic invariant
+obligation. The candidate solver rule now requires deriving `InvArgs`,
+`Demand`, and owner incidence from the symbolic `RowLeq`, tail assignment, and
+both occurrence provenances before consuming the relation; otherwise it must
+retain a provenance-preserving residual. This closes the review's major gap
+conditionally. The minor provenance wording was clarified. Termination,
+complete obligation discovery, and joint solution preservation remain open;
+no implementation is authorized. See "Delayed open-row family obligations
+(conditional solver rule)" in the candidate progress record.

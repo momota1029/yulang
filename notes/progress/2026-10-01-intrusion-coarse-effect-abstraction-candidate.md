@@ -5013,7 +5013,15 @@ resulting dependent view. Solving substitutes formula endpoints and proof
 payload uniformly. Generalization closes over locally owned endpoint IDs and
 transports owner edges. Fresh instantiation renames endpoints and use
 occurrences together, preserves source provenance, and clones the relevant
-record/owner subgraph for each use. Intrusion needs a graph map `M` over all
+record/owner subgraph for each use. For open rows, solving also includes tail
+assignment, unification, and normalization: before any such step consumes or
+replaces a symbolic `RowLeq`, it must inspect the relation's retained
+occurrence provenance and derive every same-head `InvArgs` key and `Demand`
+edge implied by the newly exposed symbolic pair. Record the key and incidence
+before replacing the relation; they cannot be recovered later from a
+materialized closed row. If derivation is not yet available, retain the
+original `RowLeq` or a two-way solution-equivalent residual that preserves its
+provenance and dependent typed views. Intrusion needs a graph map `M` over all
 live view and evidence vertices, in addition to type map `P` and hygiene map
 `Theta`. `M` must preserve and reflect typed dependency incidence (or satisfy
 a separately proved quotient condition); `P` maps formula endpoints, and
@@ -5026,16 +5034,37 @@ This incidence invariant strengthens the earlier set-level transport
 condition: `K_sym' = K_sym ∪ NewInvArgs` alone is insufficient if the newly
 added formula is detached from the result view that relies on it. The
 invariant can be proved phase by phase by checking (a) source derivation of
-`Demand` and obligation keys, (b) same-head constraint generation, (c)
-substitution of formula and proof evidence, (d) preservation of dependency
-incidence during residualization, (e) source-label preservation plus per-use
-record cloning and key transport, and (f) incidence-preserving graph
+`Demand` and obligation keys, (b) same-head constraint generation including
+delayed pairs exposed by symbolic open-tail normalization, (c) substitution
+of formula and proof evidence, (d) preservation of dependency incidence
+during residualization, (e) source-label preservation plus per-use record
+cloning and key transport, and (f) incidence-preserving graph
 transport during intrusion. The intrusion graph map `M` preserves and
 reflects incidence relative to independently derived `Demand` and commutes
 with `P` on typed endpoints and `Theta` on hygiene identities. Until these
 transition rules and their source ownership are proved, this remains an
 abstract proof obligation, not a selected storage representation or
 implementation contract.
+
+#### Delayed open-row family obligations (conditional solver rule)
+
+An open relation can constrain family arguments before the compared heads
+exist syntactically in the same row expression. For example,
+`RowLeq([F<α>], ρ)` followed by a symbolic tail solution
+`ρ := [F<β>]` exposes a same-head pair. The solver must not consume the
+`RowLeq` merely because its current support projection is satisfiable. Before
+replacing or discharging it, normalization derives
+`InvArgs(F<α>, F<β>)` and the corresponding `Demand`/owner incidence from the
+original relation and its occurrence provenance, then transports both through
+the same substitution. The derivation uses the original relation together
+with the symbolic tail assignment and both sides' occurrence provenance. If
+the relation does not carry enough provenance to
+derive that obligation while still symbolic, it remains as a residual
+relation; concrete row materialization is not a fallback obligation
+generator. This rule is conditional on the open-row denotation's occurrence
+provenance being sufficient to identify both endpoints and dependent views.
+It does not yet prove that a proposed solver can discover all such pairs,
+terminate, or preserve the complete joint solution set.
 
 #### Source-rule derivation of family obligation keys (candidate)
 
