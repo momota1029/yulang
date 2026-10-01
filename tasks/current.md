@@ -2648,3 +2648,9 @@ argument witness. Compiler-referee review found the proof sound within this
 fragment and closed a stable-key premise gap. This avoids the incorrect
 mutual-subtype test for interval descriptions, but compound arguments, the
 selected type carrier, and source derivation of each batch remain open.
+
+The batch key uses a stable source/batch/family/position/owner identity;
+endpoint expressions are mutable payload and remain symbolically transported.
+The audit's minor key-stability finding is closed. This conditional formula
+does not establish actual source batch derivation or compound-bound
+decomposition, so the ordinary effect gate remains incomplete.
