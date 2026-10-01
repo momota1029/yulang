@@ -382,6 +382,76 @@ continuations. Soundness requires an over-approximation of the relational
 image; principality asks for the most-general representable result in the
 chosen interface language.
 
+#### Candidate Function contract over the same relation
+
+The source-rule map found no authoritative effectful Function contract in Y3:
+F5 defines only its closed pure subset, and the application/catch references
+specify syntax without typing or evaluation rules. The callback upper-bound
+meaning must therefore remain a successor conjecture until the source
+computation relation is selected and reviewed.
+
+A compact candidate gives ordinary Function types a relational reading. Let
+`Beh_{ρ,ν}(f,x)` be the source-defined relation of finite evaluation
+observations from applying callable value `f` to argument value `x`. Each
+observation is a pair `(τ,o)`, where `τ` is a finite typed-request prefix and
+`o` is either `Return(v)` for a completed call or `Prefix` when evaluation has
+not yet returned. Include every finite prefix, including prefixes of runs that
+eventually diverge, so an emitted request is still checked when there is no
+return value. A returned value records its latent interfaces. Whether delayed
+requests belong to `τ` or only to a returned latent interface must follow the
+source thunk/force rules; `Beh` does not assume that boundary. Write
+`supp_now(τ)` for the **typed-request** support observed at the source-defined
+call boundary, retaining each family argument. Then a candidate denotation is:
+
+```text
+f ∈ ⟦A ->[E] B⟧_{ρ,ν} iff
+  ∀x ∈ ⟦A⟧_{ρ,ν}.
+  ∀(τ,o) ∈ Beh_{ρ,ν}(f,x).
+    supp_now(τ) ⊆ TypedRow(E,ν) ∧
+    (o = Return(v) ⇒ v ∈ ⟦B⟧_{ρ,ν})
+```
+
+Define semantic Function compatibility by inclusion between these denotations.
+Application composes callee evaluation, argument evaluation, and `Beh`; a
+surrounding handler acts on the resulting complete computation relation. A
+finite structural rule is a sufficient compatibility condition: formal
+arguments are admitted by the actual domain, actual results fit the formal
+result, and `RowSub(E_actual,E_formal,ν)` holds, if the source semantics
+establishes that `E` bounds these call-boundary requests. This yields the usual
+argument contravariance, result covariance, and effect inclusion in the safe
+direction. For fixed `Beh`, the direct proof is: every value admitted by
+`A_formal` is admitted by `A_actual`; each observed result in `B_actual` is
+also in `B_formal`; and each actual request support admitted by
+`E_actual` is admitted by `E_formal` through `RowSub`. Thus every behavior
+satisfying the actual contract satisfies the formal one. It need not
+characterize all denotationally included function
+types: an empty formal argument domain or an effect bound containing requests
+that the actual function never emits can make semantic inclusion hold without
+componentwise `RowSub`. The converse needs a saturation/full-abstraction
+theorem and is not claimed. This structural rule uses the same row relation
+as other interface comparisons, not a callback-site relation. The same `ν`
+and family formula remain shared with root values and operation payloads.
+
+The contract predicate checks the return and request bounds but does not by
+itself express a chosen correlation between a particular result and request
+trace. `Beh` retains that pair for each callable; if an inference scheme must
+retain a correlation beyond these independent bounds, it must remain in the
+ambient complete `Rel_C` constraint relation rather than be rebuilt from
+function-type marginals.
+
+There are two formulations to compare. An explicit finite product rule can
+state the sufficient variance premises directly; it may be easier to execute,
+but each boundary must still be justified and the product can lose
+value/request correlation. Denotational inclusion is more permissive and
+compositional, but its exact decision procedure and finite principal
+presentation may be unavailable. Choosing the structural rule trades that
+precision for a simpler solver and requires a final-acceptance comparison on
+any resulting rejection. The relational denotation remains the candidate
+mathematical core, not an established successor rule. Its source meaning must
+define `supp_now`, delayed operations/thunks, callback invocation, and
+nonreturning prefixes in one evaluation relation; neither Oracle routing nor
+the pure F5 Function rule settles them.
+
 #### Closed callback/catch calculation
 
 Fix an assignment `ν`, imports `ρ`, and activation `κ`. Let `γ^row_{ν,κ,ρ}(E)`
@@ -400,7 +470,12 @@ that callback once. Its formal function view admits `F<a>`. The actual
 callback produces `Request(op_F<a>,p,k)`, with family formula `K_F(a)` and
 payload/result interfaces attached to that request occurrence. Ordinary
 function-value compatibility relates the actual callback interface to the
-formal interface; it is not a callback-specific selector. Evaluation of
+formal interface; it is not a callback-specific selector. Under the candidate
+meaning that a formal latent row is an upper bound on emitted typed requests,
+the row projection of that compatibility is the same `RowSub` relation
+defined above, `RowSub(R_actual,R_formal,ν)`. That equation is conditional on
+the source meaning of Function effect annotations; it does not create a
+separate callback rule. Evaluation of
 `call(actual)` composes the callee, argument, and callback-body relations. The
 complete scrutinee retains `K_F(a)`. For this single-family calculation,
 assume every computation in that composed relation belongs to

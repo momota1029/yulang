@@ -3154,3 +3154,42 @@ support becomes empty. A fresh semantic delta review closed the blocking and
 major findings; its minor ambiguity between pure arm output and requests from
 raw resumption is clarified in the draft. Source-rule adequacy, typed-family
 ownership, and a finite principal symbolic scheme remain open.
+
+A source-rule map now establishes that no current authority supplies the
+callback rule being requested: [F5 Function scheme foundation](/home/momota1029/rust/yulang/notes/design/2026-09-21-f5-general-function-scheme-foundation-draft.md)
+is explicitly pure-only; [call syntax](/home/momota1029/rust/yulang/syntax-reference/en/src/expressions/call-field-path-tails.md)
+and [catch syntax](/home/momota1029/rust/yulang/syntax-reference/en/src/expressions/case-catch.md)
+define grammar, not typing or evaluation semantics; and
+`crates/yu-hir/src/module.rs::lower_simple_chain` rejects expression
+application in the current Y3 path. The callback latent-row upper bound
+therefore remains a successor conjecture; frozen Oracle behavior cannot fill
+that gap. The next work is to settle the computation relation needed for a
+Function contract, especially strict calls, delayed operations/thunks, and
+force boundaries, then test derivation of application and handler behavior
+without `TypedRowLeq_s_cb` or another site-specific selector. Keep candidate
+rules as drafts until source adequacy, soundness, principality, and the
+compatibility delta are reviewed.
+
+The coupled-effect draft now compares two Function formulations. Its relational
+candidate interprets a Function type as a contract on all complete call
+behaviors; application composes evaluation and invocation, while handlers use
+the same relational image. Architect review caught two overclaims:
+denotational inclusion does not imply componentwise `RowSub`, and return-only
+observations miss requests before divergence. The draft now states variance
+and `RowSub` as a sufficient structural rule, includes all finite request
+prefixes with optional return outcomes, and keeps result/request correlation
+in the ambient relation when needed. Its `supp_now` observation still depends
+on source rules for strict calls, delayed operations/thunks, and force
+boundaries. The architecture and semantic findings are adjudicated in the
+draft; the repaired candidate has not received a second full semantic review,
+and remains conditional on the source rule and proof. Do not implement until
+the source rule and finite principal presentation are reviewed and approved.
+
+The semantic review also caught a sort mismatch: the Function contract had
+compared family-only support with a typed-row denotation, which could have
+erased invariant arguments. The draft now defines `supp_now` as typed-request
+support at the same assignment `ν`; a fresh exact-conformance delta review
+closed this correction with no findings. The remaining proof target is source
+adequacy for that typed contract through application and shallow-handler
+composition, followed by a finite principal presentation and acceptance
+comparison.
