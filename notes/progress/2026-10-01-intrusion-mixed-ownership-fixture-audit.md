@@ -336,6 +336,29 @@ detached scratch worktree; its earlier fixtures and owner/dependency tracing
 remain. The mapping from the original Q/free member's free TypeVar to an
 intrusion parent and use overlay is still unproved.
 
+## Consequence for a parent-map design
+
+The accepted mixed-fetch fixture gives a concrete constraint on the proposed
+representation. The component has one live source identity `v = TypeVar(38)`;
+the owner view selects it as Q, while the computed-make view retains it as a
+free occurrence. Thus a component-global `freshen(v)` / `preserve(v)` bit is
+insufficient: either choice loses one observed member view. This does not rule
+out a single graph parent `p(v)`; it requires the root/use interface to say
+separately when an occurrence of `p(v)` is a member-local port and when it is
+a preserved component/environment anchor. A candidate relation therefore
+needs at least a root-indexed ownership projection over parent vertices, with
+per-use substitution applied only after that projection. Whether a common
+parent can support both views while preserving the Oracle's later use
+constraints is still an open proof obligation.
+
+This requirement is based on source evidence, not a general theorem: the
+receiverless Q/free source compiles, but direct external `Pair::make` calls
+were observed to use the role declaration body rather than the computed
+implementation. The separate subject-bearing fixture exercises actual
+implementation calls and fresh per-use signatures, but has Q/Q ownership.
+The evidence therefore demands that the successor model each behavior; it
+does not yet prove their simultaneous interaction in one reachable program.
+
 ## Rejected recursive-result variant
 
 One follow-up replaced the owner's identity result with an argument

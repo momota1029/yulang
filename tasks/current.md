@@ -2022,9 +2022,12 @@ mixed-fetch Q/free component with its internal live-root edge, and the
 subject-bearing method fixture with two concrete implementation instances.
 The first has no demonstrated external call to the computed member; the second
 uses a value-fetch member and has Q/Q ownership. Derive the member-parent and
-per-use overlay relation across these cases before claiming that the source
-free identity is an outer anchor. R/free ownership remains exploratory and is
-not itself a successor requirement.
+per-use overlay relation across these cases: a component-global fresh/free bit
+cannot represent the Q/free root views, so specify how each root projects a
+shared parent as a local port or preserved anchor. Do not claim the source's
+free identity is an outer anchor until its use constraints establish that
+meaning. R/free ownership remains exploratory and is not itself a successor
+requirement.
 Details are in the same progress note.
 Effect-row principality, route quotient completeness, and Oracle acceptance
 remain open.
