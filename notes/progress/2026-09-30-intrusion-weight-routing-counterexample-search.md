@@ -347,13 +347,15 @@ Eff(catch_C e with arms) = (E minus C) ∪ A(E)
 ```
 
 The continuation is shallow: `k` denotes the raw suffix of `e`, outside this
-handler. Typing `k` with latent support `E` is conservative because every
-suffix trace is a suffix of a trace of `e`, hence its family support is a
-subset of `E`. Ordinary application typing adds that latent support to `A(E)`
-whenever an arm resumes `k`; no linearity, exact request count, or special
-continuation-use analysis is required. If the arm does not resume `k`, `E` is
-not added by this mechanism. Families in `E minus C` can escape without being
-consumed, and arm-generated effects are included by `A(E)`.
+handler. Typing `k` with latent support `E` is conservative only if `E`
+uniformly covers the suffix under every live state and response reachable
+through handler-arm execution and prior resumptions; a suffix after a store
+change need not be a suffix of a run from the initial state. Ordinary
+application typing adds that latent support to `A(E)` whenever an arm resumes
+`k`; no linearity, exact request count, or special continuation-use analysis
+is required. If the arm does not resume `k`, `E` is not added by this
+mechanism. Families in `E minus C` can escape without being consumed, and
+arm-generated effects are included by `A(E)`.
 
 For a fixed solution of the continuation/arm constraints, soundness follows by
 case analysis on a finite execution prefix. An unhandled family from `e` is
@@ -364,6 +366,31 @@ of the continuation call includes `E` in `A(E)`. Repeating this argument
 covers any finite number of shallow re-entries. The proof is only about
 family support; operation payload/result types and handler eligibility require
 their own preservation lemmas.
+
+#### Resumption-state closure premise
+
+The preceding proof requires a stronger meaning of its `E` premise than
+support from the initial machine state. With mutable state and multi-shot
+resumption, a handler arm can change the store before it calls the raw
+continuation; the later suffix can then emit a family impossible from the
+initial store. The `q`/`g` pattern in
+`notes/design/2026-10-01-coupled-effect-interface-core-draft.md` is an abstract
+witness: an initial `q` continuation sees `c=0`, while a handler arm changes
+`c` to `1` before a later resume, enabling `g`.
+
+Accordingly, the support-transfer argument is valid only if `E` uniformly
+bounds every finite suffix of every continuation captured from `e`, under each
+response and live state reachable after any handler-arm prefix and any earlier
+resume in this same shallow-handler execution. `A(E)` must likewise bound arm
+requests under every represented request, activation, and state admitted by
+that envelope. This is a universal closure premise on the existing
+continuation-bearing relation, not a new per-site effect rule. If the solver
+knows only the support from the initial configuration, the proof fails and
+must not use `(E minus C) ∪ A(E)` as a sound upper bound; it needs a wider
+relation/envelope, potentially the unknown top support. Choosing a
+conservative wider `E` is compatible with principality relative to that
+coarser abstraction, but the existence and leastness of an effective such
+envelope remain unproved.
 
 For principality relative to this abstraction, rows range over the finite
 powerset lattice `P(Fam)` ordered by inclusion. Given exact abstract inputs

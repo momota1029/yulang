@@ -3430,3 +3430,11 @@ still needs the complete joint continuation relation and its support
 projection; no union formula is assumed from bind alone. The `q`/`g` witness
 is a semantic decomposition counterexample, not yet a typed source program
 showing application-specific acceptance failure.
+
+The independent shallow-handler support proof now states its missing state
+closure premise: the continuation row `E` must bound raw suffixes under every
+live state and response reachable after arm prefixes and prior resumptions.
+Initial-state trace support alone is insufficient, as the `q`/`g` pattern
+shows. `A(E)` needs the same uniformity. The transfer formula is not sound if
+these envelopes are unavailable; a wider relation or top support is required.
+Existence and effective leastness of such an envelope remain unproved.
