@@ -3661,3 +3661,9 @@ instance now quantifies `K_F(α)` together with the returned `F<α>` arrow row;
 each incoming use maps both with the same freshening, while internal SCC use
 keeps `α` live. Injective renaming is covered by the existing conditional
 lemma; non-injective parent-fiber preservation remains open.
+The quotient criterion now has a minimal typed-family counterexample: two
+exported closure roots with independent `F<α>`/`F<β>` rows and assignment
+`(Int,Bool)` lose an observable when one parent identifies the binders. Thus
+SCC-wide sharing needs an entailment or root-observation premise. The exact
+source SCC witness and positive non-injective quotient theorem are still
+unproved.

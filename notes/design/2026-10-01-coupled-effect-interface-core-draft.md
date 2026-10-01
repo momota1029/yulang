@@ -2413,6 +2413,17 @@ cannot be replaced by `FamAgree_A`. Non-injective intrusion outside these
 premises still needs the general quotient/root-observation theorem; injective
 transport remains the renaming case.
 
+Concretely, take the point-interface fragment `K_C = True` with two exported
+closure roots whose latent rows are `F<α>` and `F<β>`. The complete observation
+is the ordered pair of root rows. The satisfying assignment
+`α=Int, β=Bool` distinguishes those roots. A parent map that identifies
+`α,β` can produce only pairs `(F<t>,F<t>)`, so no parent assignment represents
+that source observation. This is a direct counterexample to unconditional
+one-parent-per-SCC-variable sharing. It is an interface-level discriminator;
+whether a particular source SCC can generate exactly this pair is a separate
+source-adequacy question, not needed to reject the unconditional quotient
+claim.
+
 The distinction has a concrete interval witness. In the finite chain
 `Never < Int < Any`, let independently observable roots `x` and `y` have
 admissible values `[Never,Int]` and `[Int,Any]`. Their family-argument

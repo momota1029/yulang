@@ -9017,3 +9017,9 @@ map both through each independent use's same freshening map. Internal SCC use
 keeps the live identity. This applies the already proved injective-renaming
 law to the closure preservation lemma; it does not establish the non-injective
 parent quotient required by intrusion.
+The quotient section now spells out the minimal counterexample: two exported
+closure roots carry independent `F<α>` and `F<β>` rows, and the satisfying
+assignment `α=Int, β=Bool` cannot factor through a parent map identifying the
+binders. This refutes unconditional one-parent-per-SCC-variable sharing at
+the interface level. Source adequacy for this exact paired-root witness and
+the positive quotient theorem under entailed point equivalence remain open.
