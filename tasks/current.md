@@ -2471,3 +2471,14 @@ rules before open-tail normalization consumes `RowLeq`, then prove joint
 solution and root-observation preservation through residualization, fresh
 instantiation, and intrusion. The audit did not inspect implementation code or
 tests and ran no tests. No implementation follows from this conditional review.
+
+A materialization-loss witness now makes the symbolic-retention requirement
+non-reconstructible from concrete rows alone: two symbolic states differ on an
+admissible `(Int, String)` assignment but both materialize to `[ask<Int>]` /
+`[ask<Int>]` under one later substitution. Compiler-referee review found only
+a minor missing-premise issue; the record now requires unary `ask` to admit
+both types, independent well-kinded variables, and no other constraint
+excluding that assignment. The review closed. This is conditional evidence for
+the declared typed-row relation, not proof that every source row encounter
+creates `InvArgs`. See `Materialization cannot recover a lost symbolic
+invariant` in the candidate record.

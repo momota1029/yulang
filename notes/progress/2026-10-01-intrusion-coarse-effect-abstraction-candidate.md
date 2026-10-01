@@ -4896,6 +4896,40 @@ establish injectivity, a valid quotient, or preservation of symbolic
 `InvArgs`. The type/SCC theorem must establish one of these properties for
 each jointly observed family constraint and root/use view.
 
+#### Materialization cannot recover a lost symbolic invariant
+
+This gives a direct information-loss witness for the user's requirement.
+Assume `ask` is unary and accepts both `Int` and `String`, and that `α` and
+`β` are independent well-kinded variables with no other constraints excluding
+`α := Int, β := String`. Let `Int` and `String` be incomparable under the
+source subtype relation, and consider the same-head comparison
+
+```text
+RowLeq([ask<α>], [ask<β>])
+```
+
+with support inclusion satisfied. Its typed interpretation requires
+`InvArgs(ask<α>, ask<β>)`, so the joint assignment
+`α := Int, β := String` is excluded. If an implementation consumes the row
+relation while discarding that symbolic obligation, it admits this assignment.
+Now consider the later substitution `σ = { α := Int, β := Int }`. Both the
+constraint-preserving and constraint-dropping states materialize to the same
+closed rows, `[ask<Int>]` and `[ask<Int>]`. A scan of those materialized rows
+can only regenerate the reflexive concrete fact for `Int`; it cannot decide
+whether the original symbolic state excluded `(Int, String)` assignments.
+
+Formally, materialization at `σ` is not injective over symbolic constraint
+states: a state with `InvArgs` and one without it have identical materialized
+row observations under `σ`, while their pre-materialization assignment sets
+differ. Therefore no reconstruction function of concrete row observations
+alone can preserve the original solution relation for both states. The
+obligation must be retained symbolically, or be replaced by proof-carrying
+evidence whose denotation is equivalent for every assignment before
+materialization. This proves necessity of symbolic retention for the selected
+typed-row relation; it does not prove that source typing should impose this
+relation at every same-head encounter, nor does it define a solver or
+residualization algorithm.
+
 #### Conditional `InvArgs` transport theorem for an injective parent map
 
 This gives a sufficient proof route for the user's symbolic-lifecycle
