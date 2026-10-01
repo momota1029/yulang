@@ -2001,6 +2001,9 @@ pruned from each root; Q remains a separate boundary/non-generic predicate.
 This rules out a component-wide Q/R/free ownership tag but is not an accepted
 R/free source witness. Search next for a retained identity that is recursive
 in one mixed-boundary root and free in another, using a productive guarded
-cycle and final mono acceptance.
+cycle and final mono acceptance. A direct `make` use from owner forms the
+mixed SCC but triggers `ComputedFetchCycle` and leaves both roots without
+Q/R; avoid explicit use of the computed member when constructing the next
+witness.
 Effect-row principality, route quotient completeness, and Oracle acceptance
 remain open.

@@ -325,6 +325,23 @@ self-application probe supplies no such witness. Thus the concrete R/free
 source case remains open, while the machine-level reason to preserve separate
 per-root Q and R ownership is now explicit.
 
+## Rejected explicit recursive computed-member use
+
+A follow-up tried to create recursive Function structure in the mixed-fetch
+fixture by returning `\\x -> make x` from the local value-fetch owner while
+the receiverless computed `make` remained `owner()`. The source lowering did
+form the owner/make component, but it emitted `ComputedFetchCycle` for that
+component; both finalized schemes had empty Q/R. The focused scratch command
+was `YULANG_INTRUSION_OWNER_TRACE=1 YULANG_INTRUSION_ROLE_DEP_TRACE=1
+CARGO_TARGET_DIR=/tmp/yulang-intrusion-scc-owned-target cargo test --offline
+--jobs=1 -p infer scratch_intrusion_source_mixed_fetch_recursive_identifier
+-- --nocapture --test-threads=1` in the detached Oracle worktree. The focused
+test failed its no-diagnostics assertion, as expected for this rejected
+candidate. This rules out that direct computed-member use as an accepted
+R/free witness; the search must create the recursive bound without adding an
+explicit use of the computed member. The scratch-only test was removed after
+capturing the result.
+
 There is a useful conditional exclusion for Q-versus-free ownership. For a
 variable `v` that occurs in both roots' compact-plus-role views where their
 quantifiers are selected, if both roots use the same boundary and
