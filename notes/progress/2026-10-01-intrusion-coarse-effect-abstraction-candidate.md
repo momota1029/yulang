@@ -5234,6 +5234,50 @@ The source judgment must establish that this is the right comparison
 relation. Until then the result is a conditional bridge from symbolic tail
 expansion to the delayed obligation rule, not a solver correctness theorem.
 
+#### Entailed known-pair obligations while tails remain open (conditional lemma)
+
+There is a safe partial-solving step before tails are committed. Write each
+open row as its explicit occurrence list concatenated with its unknown tails.
+Let `O_known(R₁,R₂)` contain the keyed same-head pairs that can be formed
+using only explicit occurrences: within each explicit side and across the
+two explicit sides. Each key retains the originating `RowLeq`, pair category,
+and both occurrence owners. Let `C` be the other current constraints. Derive
+`Demand(v,o)` independently from source typing for each output view `v` and
+key `o`; do not infer it from the ledger edges being constructed.
+
+For every occurrence-preserving assignment `μ` to the unknown tails, the
+explicit occurrence lists embed into `Occ(R₁,μ)` and `Occ(R₂,μ)`. Therefore
+every key in `O_known` is also a key in `O_open(R₁,R₂,μ)`. Under the candidate
+assignment-wise `TypedRowLeq` denotation, satisfying `r` entails every
+formula in the projection of `O_known`, for every remaining type assignment
+`ν`. So this transition is solution-preserving:
+
+```text
+C ∧ r  ==>  C ∧ r ∧ formulas(O_known)
+```
+
+The reverse implication follows because `r` remains in the output. Keep the
+full keyed `O_known` ledger records even when formula text duplicates another
+record, and add an owner path to each view `v` for which `Demand(v,o)` holds.
+Apply subsequent type and tail substitutions uniformly to `r`,
+these formulas, their occurrence owners, and the incidence edges. When later
+tail assignments expose additional pairs, derive the full `O_open` from the
+still-live symbolic relation and add newly exposed keyed records before any
+equivalent closed-tail extraction. Reuse matching transported keys and their
+existing evidence/owner edges; do not duplicate or silently replace them. Do
+not remove `r` while tails remain unresolved unless a residual has separately
+been proved equivalent for all remaining assignments.
+
+This proves a narrow open-tail constraint-generation rule: known symbolic
+family obligations may be emitted early because they are entailed by every
+satisfying assignment of the retained relation, while unknown-tail obligations
+remain pending in `r`. It does not prove that arbitrary source constructs use
+this candidate typed-row denotation, nor that a concrete solver maintains the
+occurrence injection, independently derived `Demand`, or uniform substitutions.
+Interval-valued invariant arguments still require the separately selected
+common-witness relation, and the proof must then use that relation's formula
+projection in place of the current `InvArgs` shorthand.
+
 #### Assignment-wise open typed-row characterization (conditional lemma)
 
 For a fixed joint assignment `(ν,μ)` to type variables and row tails, write
@@ -5283,17 +5327,20 @@ committed, occurrence-preserving tail substitution such that both
 `Occ(R₁,μ)` and `Occ(R₂,μ)` are closed finite occurrence collections. The
 substitution is applied uniformly to the complete live typed view, all
 existing symbolic obligations, and their owner edges. The transition then
-evaluates the support inclusion and constructs the full keyed collection
-`O_open(R₁,R₂,μ)`:
+evaluates the support inclusion and reconciles the full keyed collection
+`O_open(R₁,R₂,μ)` with existing records for `r`:
 
 ```text
 if support(r₁) ⊄ support(r₂): retain a failing support certificate for r
-otherwise: replace r by O_open and its support certificate
+otherwise: replace r by the reconciled O_open ledger and its support certificate
 ```
 
 The replacement is symbolic: each record in `O_open` contains the original
 family head, symbolic argument endpoints after `μ`, source origins, pair
 category, endpoint occurrence owners, and the original relation identity.
+Reuse each existing record whose transported key occurs in `O_open`,
+preserving its pending/proved state, proof evidence, and owner edges. Add only
+absent keys; if distinct keys share formula text, retain both records.
 Transfer the `r` owner paths to every output view that remains independently
 `Demand`-dependent on these facts; do not replace the keyed collection with
 its deduplicated formula projection. If the row-tail assignment is not
@@ -5312,7 +5359,8 @@ incidence invariant for every dependent output view. If support inclusion
 fails, the retained failure certificate denotes the empty solution set for
 that committed tail assignment, inherits `r`'s dependent-view owner links,
 and prevents publication of a successful dependent output view before the
-rejection.
+rejection. Preserve any existing keyed records and their proof/owner state
+alongside that certificate until rejection is published.
 
 This is a local solution-preserving transition under the candidate
 assignment-wise `TypedRowLeq` and its `InvArgs` formula semantics. It does not

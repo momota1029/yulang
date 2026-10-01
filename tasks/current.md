@@ -2608,3 +2608,14 @@ support-failure path is scoped to that fixed tail assignment and publishes no
 successful dependent view. The only review clarification was recorded. This
 does not prove how an actual solver commits tails, source adequacy, interval
 invariant semantics, or principal solving for still-open tails.
+
+For still-open tails, a conditional partial-solving lemma now permits adding
+only explicit-occurrence `InvArgs` keys while retaining the original
+`RowLeq`; each added formula is entailed under every satisfying tail
+assignment. Keys carry occurrence owners and independently derived
+`Demand(v,o)`. Closed-tail extraction now reconciles the completed key set
+with existing records, preserving proof state and owner edges instead of
+duplicating keys. Compiler-referee review closed the exposed-key handoff
+finding. The rule remains conditional on the candidate open-row denotation
+and actual occurrence-preserving solver transitions; interval-valued
+invariance and source adequacy remain open.
