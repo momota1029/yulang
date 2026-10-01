@@ -285,6 +285,57 @@ YULANG_INTRUSION_OWNER_TRACE=1 YULANG_INTRUSION_ROLE_DEP_TRACE=1 CARGO_TARGET_DI
 YULANG_INTRUSION_ROLE_DEP_TRACE=1 CARGO_TARGET_DIR=/tmp/yulang-intrusion-scc-owned-target cargo test --offline --jobs=1 -p yulang scratch_intrusion_mixed_fetch_shared_q_free_runtime_acceptance -- --nocapture --test-threads=1
 ```
 
+## Use-path distinctions around the accepted Q/free component
+
+An initial attempt extended the accepted receiverless Q/free source with
+`Pair::make(1)` and `Pair::make(\x -> x)`. Inference did independently freshen
+the declaration's Q binder (`TypeVar(1)` to `TypeVar(85)` and `TypeVar(86)`),
+but the final mono dump showed both calls targeting the role declaration
+instance `d1`, while the computed implementation `DefId(6)` was emitted as a
+separate root. Therefore those calls did **not** exercise the Q/free
+computed-member implementation. The original source still proves the
+accepted mixed-fetch Q/free root views, but no external use of that
+receiverless implementation is claimed.
+
+A second source made the role subject explicit as an input so method selection
+could reach the implementation at two concrete types:
+
+```text
+role Pair 'subject:
+  our make: 'subject -> 'b -> 'b
+  our x.probe: int
+...
+pub int_use = Pair::make(1, 1)
+pub function_use = Pair::make(1, \x: bool -> x)
+```
+
+This source passes final mono specialization, and the mono dump contains two
+instances of computed implementation `DefId(6)`:
+
+```text
+d6 : int -> int -> int
+d6 : int -> (bool -> bool) -> bool -> bool
+```
+
+The resolved typeclass-use trace sends the first call to `DefId(6)` at
+`int -> int -> int` and the second at
+`int -> (bool -> bool) -> (bool -> bool)`. This directly characterizes
+independent use-site specialization of one actual implementation. In this
+variant both owner and make quantify `TypeVar(38)`; adding the subject input
+changes the fetch boundary and removes the Q/free split. These two fixtures
+therefore provide complementary observations, not one combined witness.
+
+The focused scratch command was:
+
+```text
+YULANG_INTRUSION_OWNER_TRACE=1 YULANG_INTRUSION_USE_TRACE=1 YULANG_DEBUG_MONO=1 CARGO_TARGET_DIR=/tmp/yulang-intrusion-scc-owned-target cargo test --offline --jobs=1 -q -p yulang scratch_intrusion_mixed_fetch_shared_q_free_impl_two_uses -- --nocapture --test-threads=1
+```
+
+It passed once. The added tests and temporary trace code were removed from the
+detached scratch worktree; its earlier fixtures and owner/dependency tracing
+remain. The mapping from the original Q/free member's free TypeVar to an
+intrusion parent and use overlay is still unproved.
+
 ## Rejected recursive-result variant
 
 One follow-up replaced the owner's identity result with an argument
@@ -464,6 +515,17 @@ parameter's input had materialized as `unit`. This is another rejected
 candidate, not an acceptance or principality witness. Its focused scratch test
 was removed after recording the result; temporary probes have not changed the
 pre-existing Oracle scratch fixtures.
+
+A follow-up made the owner callback itself recursively call its argument, in
+an attempt to constrain that input to the recursive Function shape. Lowering
+then rejected the method with `type shape wrap is not compatible with required
+shape function`. This confirms the identity method requirement constrains the
+whole exposed type shape before final specialization; the shape-changing
+recursive callback does not provide a valid workaround. This probe was also
+removed from the scratch test file. The next useful path is to return to the
+already accepted shared-Q/free SCC witness and establish its per-use
+parent/anchor mapping; the R/free split remains an unresolved source-search
+question, not an equivalence prerequisite.
 
 There is a useful conditional exclusion for Q-versus-free ownership. For a
 variable `v` that occurs in both roots' compact-plus-role views where their

@@ -2015,7 +2015,16 @@ implementation value to the negative signature constraint. So this is not an
 Oracle false-negative witness. A second attempt returned identity after
 passing the recursive lambda to the owner parameter, but final specialization
 still rejected it with `Function <: unit`. The concrete role dependency is
-closed narrowly; the broad method/roles/impl-resolution gate remains later.
+closed narrowly; a recursive callback variant also fails the declared method
+shape during lowering. The broad method/roles/impl-resolution gate remains
+later. The next work must keep two observations separate: the accepted
+mixed-fetch Q/free component with its internal live-root edge, and the
+subject-bearing method fixture with two concrete implementation instances.
+The first has no demonstrated external call to the computed member; the second
+uses a value-fetch member and has Q/Q ownership. Derive the member-parent and
+per-use overlay relation across these cases before claiming that the source
+free identity is an outer anchor. R/free ownership remains exploratory and is
+not itself a successor requirement.
 Details are in the same progress note.
 Effect-row principality, route quotient completeness, and Oracle acceptance
 remain open.
