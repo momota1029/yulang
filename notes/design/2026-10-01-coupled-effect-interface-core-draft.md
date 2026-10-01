@@ -1530,6 +1530,31 @@ selector or an Oracle weight rule. It remains a runtime instance proof: the
 successor source typing judgment must derive this boundary from its function
 types and prove the same adapter simulation for every accepted conversion.
 
+**Conditional adapter request theorem.** Choose one execution of the argument
+adaptation and underlying call that emits no request and returns
+`(v_s, η', s')`. Suppose `B_s = Thunk(E,A)`, `B_t = T` with `T` not a thunk
+and `B_s ≉ B_t`; and suppose `Force(v_s)` has an execution from exactly
+`(η', s')`, under the same `ν` and live activation, whose first outward
+request is typed request `q`. The result leg of `CallView` is then
+`Force(v_s) >>= Adapt(A,T,v)`. Stateful bind starts the result leg at that same
+configuration, so the first-request lemma gives a corresponding execution of
+the composition with the same first request `q`. In the absence of an
+enclosing handler that consumes it, the complete adapter call's typed support
+contains `q`; every target Function row that bounds this complete call via the
+candidate typed-inclusion contract must include it. This is not a distributive
+support equation: it uses one first-request trace witness and the defined bind
+operation. The `call` / `ask::get()` dump meets these premises with
+`A=T=unit` and `q=ask`.
+
+For typed families, the operational premise alone is insufficient. The
+complete interface image must additionally carry `K` and its incidence `D`
+through `Force` and the later `Adapt`, under the same assignment and source
+owner. This follows from the candidate composition rule only when the
+transition presentation explicitly conjoins the predicates and transports
+their dependencies to the views that remain. Thus the adapter theorem reuses
+the common boundary relation and the symbolic lifecycle theorem; it does not
+introduce a callback effect selector or silently discharge family invariance.
+
 `Delay(C)` is a value whose force executes `C`; it does not run `C` while being
 passed or returned. `Force(v)` exposes the thunk's complete computation
 relation, including its typed-family formulas and resumptions. The clauses

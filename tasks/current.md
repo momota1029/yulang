@@ -166,6 +166,16 @@ cannot be removed. It proves only structural formula substitution under
 equivariant typed-family denotation; handler source adequacy, fixed-fiber
 preservation, finite principal presentation, termination, and global
 principality remain open.
+
+The same draft now states a conditional adapter-request lemma from the shared
+`CallView`/`Adapt` relation: a first request from a thunk force is preserved
+through result adaptation when it starts from the exact state and activation
+returned by the call. A compiler-referee delta review closed the state-match
+and identity-branch premise gaps. This is a trace-witness consequence of
+relational composition, not another callback selector or support-distribution
+rule. Typed-family `K,D` transport still requires its separate symbolic
+preservation premise, and the source typing/execution simulation remains open.
+
 A companion transport lemma now states that once a source rule creates one
 indexed `FamAgree_A` batch, a natural type substitution maps the full shared
 witness relation by reindexing, including its N-way and cross-position
