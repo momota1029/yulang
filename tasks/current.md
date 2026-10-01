@@ -3642,4 +3642,7 @@ source pair changes handler result when the receiver's capture contract
 changes, and its explicit grant survives a wildcard helper. Next formalize
 source-owner incidence and capture scope from ordinary annotation typing,
 including closure escape and scheme lifecycle; do not encode it as an Oracle
-route ledger.
+route ledger. A draft context formulation pairs ordered active frames with
+source-typed capture relations and request-origin incidence; it is only a
+proof notation until source annotation rules and escape/re-entry preservation
+are derived.

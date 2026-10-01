@@ -8981,3 +8981,12 @@ the source annotation relation, including helper, escape, thunk-force, and
 scheme lifecycle cases. See
 `notes/progress/2026-09-30-intrusion-weight-routing-counterexample-search.md`
 for the frozen fixture evidence.
+
+The draft now records a candidate activation-context shape: ordered frames are
+paired with source-typed capture relations, and each request occurrence keeps
+its source owner and typed-boundary incidence. Visibility asks whether that
+same complete relation connects the request to a covering active frame. This
+predicts why a helper extends rather than replaces an active receiver grant,
+and why continuation re-entry must restore context; it does not yet define
+annotation denotations or the escape rule. It is proof notation over the
+existing coupled relation, not a new weight or solver construct.

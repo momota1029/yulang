@@ -1084,6 +1084,29 @@ obligation is to define how ordinary source typing assigns and scopes those
 owner/incidence links for each supported annotation form, including helper
 calls, closure escape, thunk force, generalization, and instantiation.
 
+A candidate context shape, leaving the contract interpretation symbolic, is:
+
+```text
+κ = ordered active frames, each paired with its source-typed capture relation
+Origin(q) = source-owned request occurrence plus its typed boundary incidence
+Visible(q, κ) iff a handler frame in κ covers q.operation and
+  the complete source relation connects Origin(q) to that frame's
+  capture relation
+```
+
+This formulation makes two constraints explicit without choosing a weight
+algebra: entering a helper extends the active context and cannot erase an
+already active receiver relation; unwinding removes that relation, while
+resuming a saved continuation restores the corresponding context. A returned
+closure or thunk carries context only when its complete value interface
+contains the source-derived escaping lineage. The helper probe supports the
+first condition; runtime guard characterization supports unwind/re-entry; the
+source rule for escape remains open. `Capture` is not a Boolean copied onto a
+family: its relation must retain the source occurrence, symbolic contract,
+and activation incidence together. This context form is a proof notation for
+the existing common interface, not a new source construct, solver obligation,
+or implementation data structure.
+
 - `Apply` evaluates callee and argument expressions before applying the
   resulting values. A `MakeThunk` expression captures a suspended computation
   and returns a thunk value; it does not evaluate that body.
