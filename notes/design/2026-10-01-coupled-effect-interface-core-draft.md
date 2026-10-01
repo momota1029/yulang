@@ -1574,6 +1574,33 @@ source typing/elaboration relation must still show which `(S,T)` boundary
 arises at each expression, and prove that its symbolic typed-family fiber
 survives this adaptation, handler transfer, and every SCC lifecycle map.
 
+**Conditional value-demand corollary.** Suppose the ordinary source typing
+relation assigns an expression the boundary from source value shape `S` to a
+consumer's required value shape `T`, then composes that boundary before the
+consumer's eliminator. When `S = Thunk(E,A)`, `T` is not a thunk, and `S ≉ T`,
+the same `Adapt` relation derives
+`Force(v) >>= (λv'. Adapt_ν(A,T,v'))` before the eliminator. A case arm
+matcher is one such eliminator if its source rule requires the scrutinee's
+value; a function result boundary is another instance when its target result
+type is `T`. Their
+immediate support and handler image follow from composition at that context,
+not from separate case or callback effect rules. If the source/target boundary
+is equivalent, the identity `Adapt` clause applies. If it is not equivalent
+and `T` has a thunk outer shape, the delayed thunk-target clause applies
+instead.
+
+The conclusion is conditional on source typing deriving `(S,T)` and the
+evaluation context placing `Adapt` before the consumer. It does not establish
+that every case scrutinee or callback result has this shape. Frozen Y3
+characterization sharpens the open premise: `case_type` splits a scrutinee
+computation shape and includes its row, but does not record a consumer
+boundary; the emitter retains the operand and the runtime forces it before
+matching. The accepted `file::load` case is evidence that any successor source
+rule must account for this observed demand if it is to preserve that final
+acceptance. It does not make the runtime fallback an inference rule. The same
+generic boundary must carry the complete symbolic family fiber and saved
+lineage through the force and subsequent eliminator.
+
 #### Live conflict: computation demand at a case scrutinee
 
 There is now a concrete reachable conflict, not just a suspected evaluator

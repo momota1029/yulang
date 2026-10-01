@@ -3948,3 +3948,12 @@ operational evidence in the unified relation, not a source typing rule or
 implementation approval. Next prove which source typing contexts select each
 boundary, then show the finite symbolic presentation preserves its `K,D`
 fibers through that relation and SCC lifecycle.
+The same `Adapt` relation now conditionally derives value-demand for both a
+case matcher and a FunctionAdapter result: when source typing supplies a
+non-equivalent `Thunk(E,A) → T` boundary with non-thunk `T`, `Force` composes
+before the consumer. Compiler-referee and spec-auditor review found no major
+issue; a minor recursive-binder/shape clarification was fixed. Frozen Y3 does
+not derive those case operand boundaries in its current specialization path,
+so the successor must establish them from its source typing judgment. No
+site-specific rule is approved. See the latest entry in
+`notes/progress/2026-10-01-intrusion-coarse-effect-abstraction-candidate.md`.

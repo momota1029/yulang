@@ -9242,3 +9242,22 @@ typing contexts choose each boundary. Source typing adequacy, complete `K,D`
 fiber preservation by a finite presentation, principality, and SCC parent
 quotient remain open. No tests or compiler changes were made; `git diff
 --check` is the only local check for this note delta.
+
+## 2026-10-02: eliminator demand as an Adapt instance
+
+Added a conditional value-demand corollary to the same `Adapt` relation. If a
+source typing derivation gives a non-equivalent `Thunk(E,A) → T` boundary with
+non-thunk `T` before a value eliminator, then `Adapt` itself composes `Force`
+before that eliminator. Case matching and FunctionAdapter result conversion
+are instances of this one relation, not separate `Demand`/callback rules. The
+corollary also states the identity and thunk-target branches from the existing
+outer-shape partition.
+
+A compiler-referee review found only minor precision issues: the recursive
+`Adapt` result binder is now explicit and the delayed case is stated by `T`'s
+thunk outer shape. A spec-auditor review found no conformance issue. Both
+reviews confirmed the central limit: no current authority derives which
+source contexts receive the `(S,T)` boundary. Frozen case runtime demand is
+characterization evidence; the successor typing rule remains unselected.
+Complete `K,D` fiber preservation, principal finite presentation, and SCC
+transport remain open. No tests or code ran; only `git diff --check` was used.
