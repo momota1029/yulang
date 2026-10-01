@@ -8990,3 +8990,16 @@ predicts why a helper extends rather than replaces an active receiver grant,
 and why continuation re-entry must restore context; it does not yet define
 annotation denotations or the escape rule. It is proof notation over the
 existing coupled relation, not a new weight or solver construct.
+
+The closure-escape evidence now narrows the lifecycle candidate further: a
+capture grant is scoped to active execution, not a permanent family/request
+flag. Return unwinds the grant, while a function/thunk value may carry dormant
+lineage for later re-entry; the returned closure's latent effect remains in
+its type relation regardless of whether a future handler is eligible. This
+explains how a sound successor can reject the frozen Oracle's pure returned
+closure scheme without conflating effect preservation with handler routing.
+The source-level escape condition and exact acceptance effect remain open.
+A conditional helper-extension lemma is also recorded: when a helper's source
+relation preserves the request occurrence, owner incidence, and prior capture
+relation, appending its frame preserves the existing `Visible` witness. The
+source typing proof must establish that premise for each helper/adapter path.

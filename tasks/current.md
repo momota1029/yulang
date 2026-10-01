@@ -3645,4 +3645,11 @@ including closure escape and scheme lifecycle; do not encode it as an Oracle
 route ledger. A draft context formulation pairs ordered active frames with
 source-typed capture relations and request-origin incidence; it is only a
 proof notation until source annotation rules and escape/re-entry preservation
-are derived.
+are derived. Closure-escape evidence narrows the candidate lifecycle: grants
+are active-context scoped, returned closure effects remain latent constraints,
+and any later re-entry lineage travels with the complete value interface.
+Formalize this together with the shallow request unwind/resume rule; do not
+erase the returned effect based on capture metadata. A conditional context-
+extension lemma now states the exact incidence-preservation premise needed for
+a helper not to revoke an earlier grant; source typing must prove that premise
+for callbacks, adapters, and escaping values.

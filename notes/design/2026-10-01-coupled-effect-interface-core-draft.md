@@ -1107,6 +1107,62 @@ and activation incidence together. This context form is a proof notation for
 the existing common interface, not a new source construct, solver obligation,
 or implementation data structure.
 
+#### Capture grants as scoped context, not request flags
+
+The closure-escape probe rules out treating a capture grant as a permanent
+property of an effect family or request. In the frozen Oracle, a concrete
+`[choose]` callback contract can erase the returned closure's `choose` effect;
+the pure caller is accepted, but both runtimes report the request unhandled.
+The direct-closure control retains the effect. The complete probe and its
+compatibility impact are in
+`notes/progress/2026-10-01-intrusion-coarse-effect-abstraction-candidate.md`,
+“Frozen-Oracle closure-escape probe.” A sound successor must preserve the
+returned closure's latent `choose` request. This rejects that Oracle
+under-approximation; it does not decide whether a more precise successor can
+still accept the outer handler through its scoped visibility relation.
+
+The economical source-level candidate is to scope grants to dynamic execution
+contexts and carry only *dormant re-entry lineage* on values that escape:
+
+```text
+enter boundary: extend the ordered context with its source-typed capture relation
+run helper:     extend the context; retain enclosing capture relations
+request search: unwind exited frames before testing an outer handler
+resume:         restore the unwound frames around the saved continuation
+return value:   remove active grants; retain re-entry lineage only if its
+                complete value interface carries that source dependency
+```
+
+This separates three facts that a family flag would conflate: the symbolic
+capture contract, whether its activation is currently active, and whether a
+returned function/thunk must restore that activation when later entered. The
+concrete-versus-wildcard helper probe supports context extension; the shallow
+request semantics supports unwind and resume; frozen guard-marker behavior
+characterizes value-carried re-entry. The source typing rule for whether a
+grant dependency escapes in a closure remains unproved. In particular, do not
+drop the callback effect from the returned function merely because a capture
+contract constrained behavior during the maker activation. The exact escape
+and re-entry relation must keep the same type-family assignment and `K,D`
+incidence through generalization and each fresh use.
+
+This formulation is preferable to either a family/path-only selector or a
+sticky grant bit because its parts are ordinary relational composition,
+activation scope, and transport of the complete returned interface. It remains
+a candidate, not a selected successor rule: the frozen runtime has an
+implementation/specification conflict on own-path request coloring, and the
+successor must define its own one-step handler semantics and prove that this
+context formulation is sound and principal before deriving row removal.
+
+There is one immediate conditional consequence. Suppose a helper call extends
+`κ` with a new frame but its source relation preserves the request occurrence,
+owner incidence, and the earlier receiver's capture relation. Any witness
+that established `Visible(q,κ)` is then still a witness in the extended
+context, so the helper cannot revoke that receiver's visibility grant. This
+is the relational explanation of the concrete helper probe. It does not say
+that every helper preserves the witness: source typing must prove the stated
+incidence-preservation premise, especially when the helper adapts, returns, or
+stores the callback.
+
 - `Apply` evaluates callee and argument expressions before applying the
   resulting values. A `MakeThunk` expression captures a suspended computation
   and returns a thunk value; it does not evaluate that body.
