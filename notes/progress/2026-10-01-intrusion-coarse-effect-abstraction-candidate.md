@@ -6730,6 +6730,40 @@ non-regular fixed anchors, and any constraint form not expressible by the
 finite local endpoint grammar. SCC intrusion and the required symbolic
 family-constraint lifecycle remain separate proof obligations.
 
+#### Regular-model extension for interval family batches
+
+The regular-witness theorem also applies to a finite, already decomposed
+interval-valued `InvArgs` batch in this pure fragment. For each source-owned
+shared argument position `i`, retain one symbolic variable `w_i` for the
+shared argument value. For every occurrence owner `o` in the batch with
+finite endpoint sets `L_o,U_o`, add the constraints
+
+```text
+l ≤ w_i    for each l ∈ L_o
+w_i ≤ u    for each u ∈ U_o
+```
+
+Keep `w_i` and its owner/incidence key in the relation; do not replace them
+with a materialized join or merge different source batches. These are
+ordinary finite subtype constraints in the regular-witness grammar when each
+endpoint is a permitted finite expression. If the extended constraint
+system has any solution in `P(N)`, the regular-witness theorem yields a
+solution in `RegΣ(N)` for the entire system, including each `w_i`. The
+constraints therefore give the same regular `w_i` as a common inhabitant of
+every interval in its source batch. Fixed outer anchors are covered only
+when their supplied denotations are regular, as required by the theorem's
+finite-regular-environment premise.
+
+This is a regular-model existence result for finite, independent interval
+slots. It does not preserve each arbitrary solution or its complete root/use
+observation fiber, derive which source occurrences share a binder, decompose
+compound arguments, handle cross-position or graph-variable correlations,
+cover open effect tails, or prove principal SCC intrusion. It strengthens
+the pure satisfiability fragment without discharging the required symbolic
+lifecycle invariant: `w_i`, its batch key, and every owner edge still travel
+through solving, residualization, generalization, use freshening, and
+intrusion.
+
 #### Variable-edge propagation into interval constraints (conditional)
 
 This identifies one solver expansion of the `InvArgs` shorthand; it does not

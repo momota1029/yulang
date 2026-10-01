@@ -2733,6 +2733,14 @@ can be carried through actual solve, residualize, generalize, freshen, and
 intrusion transitions while preserving satisfiability and root/use
 observations. The regular-witness result does not establish that lifecycle,
 SCC principality, effects/handlers, or Oracle final acceptance.
+The regular-model argument has now been extended to finite, already
+decomposed interval-valued `InvArgs` batches: include each shared argument as
+an explicit symbolic variable and add its lower/upper endpoint constraints
+for every source-owned occurrence. Any satisfying powerset assignment to the
+extended pure graph then has a regular satisfying assignment, retaining that
+shared variable. This proves satisfiability only for the finite independent-
+slot fragment; complete root/use fibers, source grouping, compound/cross-slot
+arguments, effects, and the phase-by-phase symbolic lifecycle remain open.
 
 A focused compiler-referee audit confirms that the existing typed-family
 transport theorem assumes, rather than proves, the concrete phase transitions.
