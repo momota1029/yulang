@@ -2040,3 +2040,14 @@ sections “Root-indexed parent projection: the required interface” and
 “Operational meaning of the computed root's free occurrence”.
 Effect-row principality, route quotient completeness, and Oracle acceptance
 remain open.
+
+A paired frozen-Oracle runtime probe now supplies the inner-owned callback
+control: an otherwise nested same-family arrangement routes an outer-owned
+callback to the outer handler (`[1]`) and a callback created under the inner
+handler to its wildcard arm (`[20]`). This supports provider-sensitive
+eligibility but is not a routing soundness counterexample. The next effect
+step is to define that eligibility judgment from source semantics, then compare
+the Oracle's weighted routes against it; repeated shared pushes, instantiation,
+and nested families remain open. Evidence and exact commands are in
+`notes/progress/2026-09-30-intrusion-oracle-latent-effects.md`, section
+“Paired inner-owned callback control”.

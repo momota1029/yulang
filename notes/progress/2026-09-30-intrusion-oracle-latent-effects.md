@@ -1479,3 +1479,70 @@ All three commands succeeded; no source/build changes were made in the frozen
 checkout. The scratch source was removed after recording this result. An
 independent compiler-referee review agrees that the observation is consistent
 with provider-sensitive routing and is not, by itself, a routing defect.
+
+### Paired inner-owned callback control
+
+The missing paired source case is now characterized using two fresh temp
+programs and the debug CLI built in the detached Oracle worktree. That worktree
+is at frozen commit `a58eefc31e22141574b6f20c6a5748151c6d79f1`; its only
+production-source changes are the previously recorded environment-gated trace
+prints in `instantiate.rs` and `selection.rs`, and no trace environment flags
+were set for these runs. No repository source was changed by this probe.
+
+The outer-owned-inline program places callback creation inside `outer`, before
+calling `inner`, while both functions install a same-family `choose` handler:
+
+```yu
+act choose:
+  our branch: () -> int
+  our reject: () -> never
+
+my inner(f: () -> [_] _) = catch f():
+  choose::reject(), _ -> 2
+  _ -> 20
+my outer() = catch inner(\() -> choose::reject()):
+  choose::reject(), _ -> 1
+  v -> v
+outer()
+```
+
+The paired inner-owned program creates and forces the callback inside the
+inner handler's scrutinee:
+
+```yu
+act choose:
+  our branch: () -> int
+  our reject: () -> never
+
+my inner() = catch (\() -> choose::reject())():
+  choose::reject(), _ -> 2
+  _ -> 20
+my outer() = catch inner():
+  choose::reject(), _ -> 1
+  v -> v
+outer()
+```
+
+Both compile through `dump --mono` and execute under the interpreter. The
+outer-owned-inline version returns root `[1]`; its mono tree sends the request
+through `inner` and shows the outer `choose::reject` arm as the matching
+handler. The inner-owned version returns root `[20]`; its mono tree shows the
+request created in the inner scrutinee and the inner catch's wildcard arm, so
+the outer reject arm does not run. These results match the prior top-level
+`rejecter` witness (`[1]`) and supply the missing inner-owned control.
+
+The pair supports this characterization: the nearest dynamically active
+same-family handler is not sufficient to predict the selected arm; the
+callback's source/provider context affects routing. It still does **not** show
+that Oracle weight propagation is unsound. The declarative source semantics
+must now say how a handler activation becomes eligible for a request captured
+or created by a callback, and explain both results independently of
+`StackWeight` routing. The paired cases also do not yet vary repeated pushes,
+instantiation, or nested effect families. The new focused commands were:
+
+```text
+/tmp/yulang-intrusion-scc-owned-target/debug/yulang --no-prelude --no-cache run --interpreter --print-roots /tmp/yulang-intrusion-weight-outer-owned-inline.yu
+/tmp/yulang-intrusion-scc-owned-target/debug/yulang --no-prelude --no-cache run --interpreter --print-roots /tmp/yulang-intrusion-weight-inner-owned.yu
+/tmp/yulang-intrusion-scc-owned-target/debug/yulang --no-prelude --no-cache dump /tmp/yulang-intrusion-weight-outer-owned-inline.yu --mono
+/tmp/yulang-intrusion-scc-owned-target/debug/yulang --no-prelude --no-cache dump /tmp/yulang-intrusion-weight-inner-owned.yu --mono
+```
