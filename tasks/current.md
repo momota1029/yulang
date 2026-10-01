@@ -2177,7 +2177,16 @@ construct. It rules out assuming monotonicity merely from an add-only type
 constraint store under the explicit premises of a nonempty refined solution
 set, no other/raw/unknown contributions of that family, fixed eligibility,
 and arm support not already containing it. A scoped architect review
-confirmed this conditional result and its scope. Next evaluate whether a
-coupled type/effect solution relation, a justified phase boundary, or a typed
-symbolic residual can preserve principality and final acceptance; do not
-implement any route until its adequacy argument is reviewed.
+confirmed this conditional result and its scope. A separate expressibility
+lemma now shows that a substitution-uniform row cannot represent exact
+instance-dependent residuals, while `{FHead}` can remain principal in the
+coarser abstraction. Frozen Oracle characterization evidence now cautions
+that effect arguments may constrain one operation's types without changing
+its path identity: the adversarial corpus explicitly rejects treating
+same-path `ask.get` at `int` and `str` as distinct operations. Thus the
+exact-instance monotonicity witness is not established as an Oracle
+compatibility case, and `FamInst` is not authority for handler identity. Next
+characterize parameterized-operation behavior and derive the path/type-
+constraint split independently; then revisit solver-route choices against
+Oracle's final accepted programs. Do not implement before the adequacy argument
+is reviewed.

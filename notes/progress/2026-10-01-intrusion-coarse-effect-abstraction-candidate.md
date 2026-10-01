@@ -3755,6 +3755,95 @@ monotonicity in the stated product order. The review does not choose among the
 candidate solver routes or establish a source construct for the schematic
 family case.
 
+#### Pointwise expressibility boundary for type-indexed handling
+
+The same typed-family example tests what an ordinary, substitution-uniform
+family row can express. Assume one request `F<α>.op` under a shallow handler
+whose only exact invariant arm is `F<Int>.op`; the matching handler is
+eligible, its arm/value path is pure and does not resume, and there are no
+other contributions. In this typed exact-trace semantics, outward support is
+empty when a use maps `α` to `Int`, and contains `F<String>` when it maps `α`
+to `String`. The two uses have identical source row syntax before
+substitution.
+
+Suppose a generalized scheme can express only a fixed row template whose
+membership is determined by its syntax and ordinary type substitution, with
+no type-match predicate or delayed handler constraint. If the template omits
+`F`, it is unsound for the `String` instance. If it includes `F<α>` (or just
+`FHead`), it over-approximates the `Int` instance and can reject a pure use
+that would be accepted by the pointwise semantics. Thus this row language has
+no scheme that is pointwise least for both instances. The constant row
+`{FHead}` can still be a sound principal result relative to a deliberately
+coarser abstraction; the result here is a precision boundary, not a proof that
+the coarse abstraction is non-principal. If final-acceptance compatibility
+requires both pointwise outcomes, the generalized representation must retain
+the type/handler correlation through a typed symbolic residual, per-use
+re-elaboration, or an equivalent scheme relation. Merely delaying row solving
+is insufficient only when generalization freezes a uniform row template and
+discards that correlation; a later use phase that retains or reconstructs it
+could recover the distinction.
+
+This is an expressibility lemma under the stated source feature and scheme
+language, not a claim that a concrete Yulang program has this shape or that
+Oracle accepts either instance, or accepts the matching instance as pure. It
+also does not show that the successor must use a negative type predicate
+specifically: any equivalent correlated type/effect scheme can satisfy the
+requirement. The capability audit therefore needs a frozen-Oracle fixture for
+a type-indexed family request handled at one instance, with two independent
+instantiations, and must separately check whether the matching instance is
+accepted under a pure result bound and whether the nonmatching residual is
+retained. Only if both outcomes belong to Oracle's supported final-acceptance
+envelope does matching both become a compatibility requirement. No syntax or
+implementation rule is selected here.
+
+A scoped compiler-referee review initially found that this argument overstated
+the need for a correlated scheme: the constant support row may be principal in
+the deliberately coarse abstraction. The revision separates pointwise
+expressibility from coarse principality and conditions compatibility on the
+two Oracle outcomes. The closure review found no remaining issue in this
+subsection; it does not characterize Oracle acceptance or authorize a richer
+scheme language.
+
+#### Oracle characterization limits the typed-instance premise
+
+The pointwise witness above assumes that `F<Int>.op` and `F<String>.op` are
+distinct exact handler identities. That premise is not established for
+Yulang. Frozen Yulang2's adversarial-corpus contract for
+`tests/yulang/yulang-adversarial-corpus/03_parameterized_effect_capture.yu`
+explicitly says the same path `ask.get` at `int` and `str` must not be treated
+as two operations; a collision must reject at execution rather than be hidden
+by type-argument-based dispatch. Its effect documentation separately allows
+parameterized families such as `ref_update 'a` and rows such as
+`ref_update int`. A bug record states the intended expectation that
+`[state int]` specializes the declared operation result type, but also records
+that the probe failed and only conjectures which inference step is missing.
+These observations point to a plausible split: operation/family path
+determines handler identity, while family arguments constrain the operation's
+type, rather than defining different operations. They are characterization
+evidence, not a successor semantic rule.
+
+The frozen implementation's `effect_family_matches_item` is an allow/filter
+helper: it accepts a family path prefix and either empty family arguments or
+matching argument arity, but does not compare argument values. This is
+implementation evidence only and cannot establish dispatcher identity or
+soundness. The precise source relation between a parameterized family
+instance, operation signature, row annotation, and handler matching remains
+to be proved. Therefore the `F<Int>`/`F<String>`
+counterexample above only refutes support-inclusion monotonicity under the
+conditional exact-instance matching semantics. It is not yet a valid Oracle
+compatibility counterexample. The capability fixture must instead establish
+the accepted behavior of one polymorphic operation path across independent
+typed uses and handler specialization. As a successor proof obligation, keep
+the meaningful type constraints without assuming that type arguments split
+one operation identity; the source semantics must settle their relation.
+No Oracle weight or runtime route is adopted by this correction.
+
+A scoped architect review confirmed that the characterization limit is
+accurate. It required distinguishing the bug record's expected behavior from
+its observed failure, and describing the matcher as a path-prefix/arity helper
+rather than exact dispatch identity. The revision closes those wording risks;
+the source semantics itself remains open.
+
 The source boundary needed by this candidate is therefore an elaboration
 relation from source declarations/annotations and operation uses to canonical
 family and operation identities, typed arguments/signatures, payload/result
