@@ -8159,7 +8159,14 @@ not a new handler rule or justification for Oracle routing.
 
 #### Freshening lemma: quantify semantic binders, reindex presentation labels
 
-The generalization/fresh-use lemma now separates the owned type/row binders
+The generalization/fresh-use lemma is now scoped to one complete published
+member-root view at its own source boundary, or to a tuple when one use event
+exposes roots jointly. It does not assume that every SCC member shares one
+generalization boundary, binder set, or constraint epoch. If root preparation
+produces versioned views, they remain separate until scheduler simulation
+proves they are projections of one relation.
+
+For that view, the lemma separates the owned type/row binders
 whose assignments belong to the semantic fiber from request, owner, and
 handler labels used to present sharing and boundary structure. One
 capture-avoiding binder renaming is extended to an isomorphism of those

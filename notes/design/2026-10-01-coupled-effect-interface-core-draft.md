@@ -1747,18 +1747,24 @@ reference discriminator and its scope.
 ### Generalization and fresh use as abstraction and reindexing
 
 This gives an exact lifecycle lemma without a special rule for typed-family
-obligations. Let `Ω` contain the owned semantic binders of one frozen
-component: type and row variables, plus any other identities whose assigned
-values occur in the interface relation. Let `ρ` be the fixed outer
-identities. Present the component by one predicate `K_C(ρ,ω,I)`; `K_C`
-includes every source-derived family-invariance formula. The finite
-presentation `I` also records source-binder sharing,
-request occurrences, owner incidence, and locally bound handler identities.
-Those labels are not extra assignment coordinates: `I` is considered modulo
-consistent relabeling that preserves the sharing and boundary structure.
-Generalization packages `(Ω,K_C,I)` as a scheme template, binding the owned
-semantic identities and leaving `ρ` free. It does not evaluate `K_C` after
-materializing rows or drop its incidence structure.
+obligations. Fix one complete generalizable view `V`: this is a member-root
+view selected at its source generalization boundary, or a tuple if one source
+use event exposes several roots jointly. Let `K_V(ρ,ω,I)` present that view,
+and let `Ω_V` contain its owned semantic binders: type and row variables,
+plus any other identities whose assigned values occur in the interface
+relation. `ρ` is the fixed outer environment of that view. If root preparation
+produces several versioned views, keep their relations distinct until a
+simulation proves they are projections of one relation; do not infer one
+component-wide binder set from SCC membership alone.
+
+`K_V` includes every source-derived family-invariance formula. The finite
+presentation `I` also records source-binder sharing, request occurrences,
+owner incidence, and locally bound handler identities. Those labels are not
+extra assignment coordinates: `I` is considered modulo consistent relabeling
+that preserves the sharing and boundary structure. Generalization packages
+`(Ω_V,K_V,I)` as a scheme template, binding the owned semantic identities and
+leaving `ρ` free. It does not evaluate `K_V` after materializing rows or drop
+its incidence structure.
 
 The identity action is sort-preserving but shared across all occurrences of
 one identity. In particular, when a source `TypeVar` occurs in a value type,
@@ -1768,7 +1774,7 @@ a successor representation has a genuinely distinct row-tail binder sort,
 its binders also receive one consistent injective map, without splitting any
 source identity that the typing relation shares across type and effect views.
 
-For one use, choose a capture-avoiding bijection `ι` from `Ω` onto fresh owned
+For one use, choose a capture-avoiding bijection `ι` from `Ω_V` onto fresh owned
 identities, fixing `ρ`. Extend it to an isomorphism `î` of the presentation's
 occurrence, owner, and handler labels. This isomorphism must preserve request
 heads and payload/result positions, formula endpoints and incidence, the
@@ -1777,16 +1783,16 @@ activation links and stack order. Rigid imported identities and source
 constructors are fixed. Instantiate by reindexing the *whole* presentation:
 
 ```text
-K_{C,ι}(ρ,ω',I') = K_C(ρ, ι⁻¹(ω'), î⁻¹(I'))
+K_{V,ι}(ρ,ω',I') = K_V(ρ, ι⁻¹(ω'), î⁻¹(I'))
 ```
 
 where `î` consistently relabels presentation indices and leaves fixed outer
 identities and source constructors unchanged. For each source assignment `a`
 and target assignment `a'` related by `a'(ι(x)) = a(x)` for all semantic
-binders `x ∈ Ω` and equal on `ρ`, structural satisfaction gives:
+binders `x ∈ Ω_V` and equal on `ρ`, structural satisfaction gives:
 
 ```text
-a' ⊨ K_{C,ι}(ρ,ω',I')  iff  a ⊨ K_C(ρ,ω,I)
+a' ⊨ K_{V,ι}(ρ,ω',I')  iff  a ⊨ K_V(ρ,ω,I)
 ```
 
 The proof is induction on the formula and interface syntax. Atomic type and
@@ -1796,13 +1802,13 @@ denotations; and conjunction/disjunction preserve equivalence componentwise.
 Therefore every independent use gets an isomorphic satisfying fiber when it
 receives a disjoint `ι`, while all uses retain the same rigid outer
 assignment. No formula is regenerated from its materialized row. For an
-SCC's internal use, there is no `ι`: its roots and formulas remain in the one
-live `K_C` relation.
+SCC's internal use, there is no `ι`: its roots and formulas remain in the
+live component relation.
 
 This is exact for injective alpha-renaming and establishes the typed-family
 lifecycle requirement across generalization and fresh instantiation at the
 relational-presentation level. It does not prove that source lowering builds
-the correct `K_C` and `I`, that a solver preserves them, that an implementation
+the correct `K_V` and `I`, that a solver preserves them, that an implementation
 stores every required incidence edge, or that non-injective solving/intrusion
 preserves fibers. Those remain separate correspondence and quotient
 theorems; identity reindexing cannot justify merging independent variables.
@@ -1819,18 +1825,18 @@ correlate distinct uses; it need not factor into per-use conjuncts. If it is
 transported by the product map, then a joint assignment satisfies
 
 ```text
-(⋀_{u∈U} K_{C,u}) ∧ W
+(⋀_{u∈U} K_u) ∧ W
 ```
 
 iff its transported assignment satisfies
 
 ```text
-(⋀_{u∈U} K_{C,u}^{copy}) ∧ W^{copy}
+(⋀_{u∈U} K_u^{copy}) ∧ W^{copy}
 ```
 
 Proof: the product map is a bijection on the disjoint local assignment
 domains and identity on the receiver domain. The single-use structural
-satisfaction equivalence applies to each `K_{C,u}`; equivariance of `W`
+satisfaction equivalence applies to each `K_u`; equivariance of `W`
 preserves any cross-use relation. Thus the complete joint satisfying fiber is
 preserved without asserting that it factors. A `TypeVar` shared across value,
 recursive, and Function-effect positions uses the same `ι_u` in all three.

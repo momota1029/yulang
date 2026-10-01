@@ -3487,6 +3487,10 @@ The transport law extends to finite use batches with arbitrary shared-receiver
 constraints: it preserves the whole joint fiber even when the context couples
 uses, without assuming a Cartesian factorization. The source's use-event
 partition and root/scheduler projection are separate obligations.
+The lemma is now explicitly per complete published member-root view at its
+own source boundary (or one jointly exposed root tuple). It does not assume a
+component-wide boundary, binder set, or epoch; versioned root views stay
+distinct until scheduler simulation connects them.
 
 The handler fiber-domain proof now has an explicit completeness side: a finite
 over-approximation can make universal handler totality fail on a spurious
