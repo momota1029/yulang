@@ -1139,9 +1139,10 @@ or implementation data structure.
 
 #### Capture grants as scoped context, not request flags
 
-The closure-escape probe rules out treating a capture grant as a permanent
-property of an effect family or request. In the frozen Oracle, a concrete
-`[choose]` callback contract can erase the returned closure's `choose` effect;
+The closure-escape probe exposes the insufficiency of treating a capture grant
+as a permanent property of an effect family or request. In the frozen Oracle,
+a concrete `[choose]` callback contract can erase the returned closure's
+`choose` effect;
 the pure caller is accepted, but both runtimes report the request unhandled.
 The direct-closure control retains the effect. The complete probe and its
 compatibility impact are in
@@ -1174,6 +1175,46 @@ drop the callback effect from the returned function merely because a capture
 contract constrained behavior during the maker activation. The exact escape
 and re-entry relation must keep the same type-family assignment and `K,D`
 incidence through generalization and each fresh use.
+
+#### Candidate and open boundary lifetime for callback capture contracts
+
+One candidate is to make a concrete callback contract available while the
+receiving function activation is dynamically active. Its active context would
+be inherited by nested helper calls, so a wildcard helper cannot erase a grant
+established by an enclosing receiver. The returned closure retains its complete
+latent request interface, including symbolic family constraints, regardless of
+whether a capture grant remains active; subtraction of emitted immediate
+support at a handler requires the handler-image proof. Whether a returned
+closure can later restore any of that boundary lineage is unresolved.
+Dynamic-only expiry at return and value-carried re-entry when called are
+competing candidate rules. The handler visibility of that later request must
+be derived from the complete ordered search and its origin; neither preserving
+the latent effect nor expiring a grant alone proves that an outer caller
+handler can consume it.
+
+This is one interpretation of the existing source phrase “handlers inside the
+receiving function may consume” the contracted family, not an adopted rule.
+Both lifetime candidates may be presentable with the existing activation
+context and ordered search, without a family-global grant bit; finite
+presentation remains open. Their distinguishing source rules are function
+entry, helper calls,
+return/unwind, closure escape/re-entry, and saved-continuation resume. Each
+must transport the request's origin and typed-family formula. The source
+reference does not settle whether return removes or suspends the entry, and
+the frozen marker implementation is characterization evidence rather than
+authority for that choice.
+
+The separate closure-effect soundness invariant is firmer: constructing
+`\_ -> f()` emits no request, but the returned arrow retains the callback's
+symbolic latent effect. In the recorded `maker` fixture the Oracle accepts a
+pure caller while both runtimes leave `choose::reject` unhandled. The
+successor must not repeat the lost-effect under-approximation. This records a
+concrete final-acceptance divergence for the coarse abstraction that rejects
+the pure result annotation; it does not prove that every sound finite
+abstraction must reject it, nor that the outer catch handles the request.
+Accordingly, the runtime outcome and caller acceptance remain conditional on
+the still-open visibility and handler-image rules. No grant-lifetime policy
+or implementation authority is selected here.
 
 **Closure construction keeps the latent effect independently.** In the ordinary
 compositional fragment, if

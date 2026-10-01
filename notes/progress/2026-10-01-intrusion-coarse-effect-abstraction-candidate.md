@@ -9193,3 +9193,24 @@ introduced by approximation. It cannot constrain on a spurious route or omit a
 reachable incompatible one. This closes the soundness ambiguity in the
 mathematical statement; the finite termination/principality result and search
 simulation needed to meet it remain unproved.
+
+The first callback-grant lifetime candidate was reviewed by an architect and a
+compiler referee. Both found that it overclaimed the closure probe: preserving
+`[choose]` on the escaped arrow does not prove the caller's handler is eligible
+or that successor runtime routing changes. The frozen reference says
+receiving-function handlers may consume contracted effects but does not settle
+whether grant lineage expires or re-enters through escaped values. Frozen
+runtime marker behavior is evidence, not semantic authority. The draft now
+keeps dynamic expiry and value-carried re-entry as competing hypotheses and
+requires source rules for entry, helper propagation, return/unwind, closure
+escape, and continuation resume. It records only the proven lost-effect
+compatibility conflict: Oracle accepts the pure caller while both runtimes
+leave the request unhandled; rejection is established for the coarse candidate
+only, and a more precise sound abstraction may behave differently. Effect
+preservation remains mandatory; later handler eligibility is unresolved.
+Delta review closed the blocking/major findings after the candidate was
+narrowed: the returned closure retains its latent typed interface independently
+of grant lifetime, while subtraction of emitted immediate support still
+requires a handler-image proof. The remaining grant-lifetime alternatives are
+unselected; no acceptance or runtime-routing result is inferred from the
+latent-row preservation lemma.

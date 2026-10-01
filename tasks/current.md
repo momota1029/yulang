@@ -3780,3 +3780,22 @@ only to spurious abstract routes. The unresolved finite principal-presentation
 gate must prove it can distinguish those cases; otherwise the candidate has
 not met final-acceptance capability. Next prove or refute that route property
 for the source handler semantics.
+
+The callback capture-lifetime candidate was challenged by independent
+architect/compiler-referee review. The Oracle closure probe proves that the
+returned arrow must retain the callback's latent effect, but it does not prove
+that the caller's catch can consume the later request. The source reference
+limits capture contracts to handlers inside the receiving function without
+specifying escape lifetime; runtime marker behavior remains evidence only.
+The draft now compares dynamic expiry with value-carried re-entry and leaves
+the choice open, requiring source rules for helper calls, return/unwind,
+closure escape, and continuation resume. The established compatibility fact
+is that Oracle accepts a pure caller while both runtimes leave the request
+unhandled; rejection is known only for the current coarse candidate. Next
+derive and review the scoped visibility judgment against these boundaries;
+the universal handler-compatibility/finite-principality gate remains active.
+Delta review by architect and compiler referee closed the overclaim findings:
+the returned closure's latent typed interface is retained, but neither caller
+handler eligibility nor routing follows from that alone; immediate support
+subtraction requires the handler-image proof. No grant-lifetime policy was
+selected.
