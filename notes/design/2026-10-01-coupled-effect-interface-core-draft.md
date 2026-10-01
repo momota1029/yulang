@@ -432,6 +432,32 @@ constraints unchanged. The handler's selection determines which computation
 relation runs; it does not choose a different family-argument comparison.
 Route eligibility remains a separate coordinate of the same source relation.
 
+For one exact operation declaration with request instantiation `θ` and arm
+instantiation `φ`, the local value-safety premises have the following
+conditional form:
+
+```text
+same OpId
+family_relation(F<θ(ρ̄)>, F<φ(ρ̄)>)
+Aθ <: Aφ
+Bφ <: Bθ
+```
+
+Here `op : ∀b̄. A -> [E] B` and `F<ρ̄>` is the declaration's family
+projection; `ρ̄` need not contain every operation binder. The family relation
+is the chosen symbolic invariant-argument meaning, retained in `K`; the two
+value inequalities include every operation-only binder that occurs in the
+payload or result. The payload premise lets the arm consume a request value,
+and the resume premise lets the request's raw continuation consume any value
+the arm supplies. This follows from the shallow boundary where the arm gets
+the raw continuation. The argument is conditional on the subtype/coercion
+relation being sound for runtime values and on the exact operation declaration
+being the same on both sides. It does not assign ownership to `Eθ`/`Eφ`,
+select a route, or determine when this arm is eligible; those remain in the
+same complete transition relation. Thus these are premises of `P_H`, not an
+additional per-operation obligation kind. The full source rule and
+principality of its finite presentation remain open.
+
 For any capture-avoiding type substitution `θ`, formula transport is
 structural: `K_θ = θ(K)` and the same occurrence/owner map is applied to `D`.
 If formula satisfaction is equivariant under type substitution, then

@@ -3059,3 +3059,11 @@ handler emits `B` only in that invented case. Therefore the composed exact
 support is empty while reabstracting between handlers yields `{B}`. This
 strengthens the requirement to retain complete value/effect fibers where
 possible and use only a proved sound over-approximation when they are widened.
+
+The handler `P_H` discussion now includes a conditional operation-arm safety
+lemma: with one exact `OpId`, a request payload subtype of the arm payload, and
+the arm's resumed result subtype of the request's continuation input, the raw
+continuation transfer is type-safe. The same relation retains the invariant
+family-argument formula; effect binders, handler routing, and eligibility are
+not inferred from these value inequalities. This is a local semantic premise,
+not yet the language's complete handler rule or a solver obligation kind.
