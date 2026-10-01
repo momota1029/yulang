@@ -2023,14 +2023,20 @@ fixture with two concrete implementation instances. The first has no
 demonstrated external call to the computed member; the second uses a
 value-fetch member and has Q/Q ownership. A candidate root-indexed interface
 now separates the shared parent vertex, each member's local-port /
-preserved-identity / absent projection, and each use's fresh overlay. It is
-representational only: parent-row mutability, selected-edge completeness,
-cross-view noninterference, joint principality, and the source meaning of the
-computed member's preserved identity remain open. The accepted Q/free source
-does not demonstrate an external call to that computed implementation. R/free
-remains exploratory and is not itself a successor requirement. Details are
-in
+preserved-identity / absent projection, and each use's fresh overlay. Frozen
+Oracle source clarifies that ordinary same-session scheme instantiation
+preserves an unquantified TypeVar ID, sharing constraints through it; imported
+unit-boundary remapping is separate. For the witness, the operational maps are
+`rho_(owner,u)(v)=fresh_u(v)` and `rho_(make,u)(v)=v`; the member root must be
+part of the ownership key. This does not show how intrusion transports source
+constraint rows into the fresh owner view. The accepted Q/free source still
+does not demonstrate an external call to that computed implementation. The
+candidate remains representational only: parent-row mutability, selected-edge
+completeness, cross-view noninterference, and joint principality remain open.
+R/free remains exploratory and is not itself a successor requirement. Details
+are in
 `notes/progress/2026-10-01-intrusion-mixed-ownership-fixture-audit.md`,
-section “Root-indexed parent projection: the required interface”.
+sections “Root-indexed parent projection: the required interface” and
+“Operational meaning of the computed root's free occurrence”.
 Effect-row principality, route quotient completeness, and Oracle acceptance
 remain open.

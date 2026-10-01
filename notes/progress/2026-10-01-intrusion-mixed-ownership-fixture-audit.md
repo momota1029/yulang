@@ -648,7 +648,7 @@ the observed views is a pair of maps with different domains:
 
 ```text
 parent_C : SourceVar -> ParentVertex
-view_d  : ParentVertex -> LocalPort_d | PreservedIdentity_d | Absent
+view_d  : ParentVertex -> LocalPort_d | SharedSessionIdentity_d | Absent
 use_(d,u) : LocalPort_d -> FreshIdentity_(d,u)
 ```
 
@@ -657,16 +657,16 @@ to one backing parent `p = parent_C(v)`, while their root projections differ:
 
 ```text
 view_owner(p) = LocalPort_owner
-view_make(p)  = PreservedIdentity_make
+view_make(p)  = SharedSessionIdentity_make
 ```
 
 The first path then maps the local port through that member's per-use overlay;
-the second path keeps the projected identity shared according to the selected
-view's environment relation. `Absent` represents a variable removed by a
-proved root projection; it must not be conflated with either a local port or a
-preserved occurrence. The current accepted source establishes only the
-Q/free distinction, not which concrete identity `PreservedIdentity_make`
-resolves to at later external uses.
+the second path keeps the projected identity shared in the current inference
+session under ordinary local scheme instantiation. `Absent` represents a
+variable removed by a proved root projection; it must not be conflated with
+either a local port or a shared occurrence. The accepted source establishes
+the Q/free distinction; ordinary instantiation specifies the free identity's
+transport, but this fixture does not exercise an external use of that member.
 
 This factoring is a representational requirement, not yet a semantics. In
 particular, it does **not** license resolving both projections to one mutable
@@ -688,7 +688,7 @@ G_C       = shared parent graph
 R_d       = root-specific selected observation of G_C
 pi_d      = root-specific ownership projection on identities in R_d
 J_d       = transport(R_d, pi_d)
-J_(d,u)   = instantiate_local_ports(J_d, u) + shared_preserved_constraints(J_d)
+J_(d,u)   = instantiate_local_ports(J_d, u) + shared_session_constraints(J_d)
 ```
 
 The observational obligation is joint, not per-root in isolation: for every
@@ -717,7 +717,7 @@ maps and selected obligations have been supplied.
    projections present. Prove the joint solution set is principal under the
    chosen effect abstraction; separate per-root principality is insufficient
    if a later continuation relates the roots through a shared identity.
-5. **Source adequacy.** Connect the abstract `PreservedIdentity_make` to the
+5. **Source adequacy.** Connect the abstract `SharedSessionIdentity_make` to the
    source's actual member/use semantics. The fixture has an internal live-root
    edge and final acceptance, but the attempted direct external role call
    invokes the declaration body, not this computed implementation.
@@ -727,7 +727,74 @@ source identity as storage, but it cannot claim that the canonical parent
 itself is the generalized scheme variable or the final anchor. Nor can the
 accepted Q/free trace yet prove that a shared-parent design matches all Oracle
 final acceptance behavior. The next useful work is to derive `R_d` and the
-preserved-identity meaning from accepted member uses or from the source-defined
-constraint construction, then give a small joint solution relation for this
-fixture. R/free remains an optional characterization target, not a prerequisite
-for this Q/free obligation.
+shared-session identity meaning from accepted member uses or from the
+source-defined constraint construction, then give a small joint solution
+relation for this fixture. R/free remains an optional characterization target,
+not a prerequisite for this Q/free obligation.
+
+## Operational meaning of the computed root's free occurrence
+
+A source-use trace still cannot call this fixture's computed `make` member
+through receiverless `Pair::make`: that expression selects the role declaration
+body. Frozen-source inspection does, however, settle what a free occurrence
+means if a finalized scheme reaches the ordinary definition-use path.
+
+The reference checkout is exactly `a58eefc31e22141574b6f20c6a5748151c6d79f1`.
+In `crates/infer/src/instantiate.rs`, `instantiate_scheme_parts` preallocates
+fresh variables for `scheme.quantifiers` and recursive-bound roots before
+cloning the predicate (`620-640`). `clone_var` returns an existing mapping
+when present, freshens an unmapped identity only in the separate
+`freshen_unmapped` mode, and otherwise returns the original TypeVar unchanged
+(`750-761`). The normal `instantiate_scheme_with_roles_and_provenance` path
+uses that latter behavior; freshening all unmapped variables is reserved for a
+different role-implementation candidate path. The ordinary definition-use
+path then constrains the cloned predicate against that use's `use_value` and
+inserts cloned role predicates (`analysis/session/instantiate.rs:520-535` and
+`insert_instantiated_role_predicates`).
+
+Consequently, under ordinary same-session use instantiation, a retained
+non-quantified `TypeVar(38)` is not a new use-local port and is not freshly
+allocated for each use: its identity remains `TypeVar(38)`, so constraints
+that reach it are shared through that identity. In the mixed-fetch witness,
+this is the operational consequence of `make` having boundary `TypeLevel(1)`
+with the shared variable also at level 1, while `owner` has boundary
+`TypeLevel(0)` and quantifies it. `BindingFetch::generalize_boundary` confirms
+that FetchComputation advances its boundary by one child level
+(`typing.rs:96-103`).
+
+For this exact root pair, the operational variable maps can be stated
+concretely. Let `v = TypeVar(38)`, shared by both finalized predicates, and
+let `u` be an ordinary incoming use:
+
+```text
+rho_(owner,u)(v) = fresh_owner_use_u(v)  // v occurs in owner.quantifiers
+rho_(make,u)(v)  = v                     // v occurs in make but not its Q set
+```
+
+The first identity is fresh within each owner use; the second remains shared
+with the inference-session identity. This directly explains why the ownership
+projection must be keyed by `(member root, source identity)`, with the use map
+applied after root projection. It is an Oracle operational equation for this
+fixture, not evidence that its use of sharing is semantically sound or
+principal. Also, the Oracle's saved scheme is already a selected compact view;
+the equation does not tell an intrusion implementation how to transport the
+shared source constraint rows into the owner-local fresh instance without
+losing bounds. That edge/payload correspondence remains the hard proof step.
+
+This narrows `SharedSessionIdentity_make`: for a root view built from an ordinary
+scheme, the free occurrence retains its source/session identity and ordinary
+instantiations share constraints through it. It does **not** establish an
+outer lexical anchor, nor does the accepted fixture show an external use of
+this particular computed member. Imported schemes use an explicit unit-boundary
+substitution and have a different identity transport; that path must not be
+conflated with local SCC member use. The successor obligation is therefore
+more precise: represent a boundary-retained identity as shared state in the
+current inference component/session, with import remapping as a separate
+operation, and prove that per-use overlays do not rewrite that shared state.
+
+This is frozen-Oracle operational evidence, not semantic authority. It says
+what the implementation does and constrains the compatibility relation; it does
+not show that sharing every such free variable is sound or principal. If the
+independent successor semantics requires a different behavior, it must identify
+a concrete soundness/principality conflict and record the final-acceptance
+effect under the user's priority order.
