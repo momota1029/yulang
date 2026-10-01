@@ -2091,3 +2091,15 @@ closures and separately instantiated callbacks, retaining unknown eligibility
 conservatively until those transports are proved. Evidence is under
 "Receiver-grant transport through an ordinary helper: focused probe" in
 `notes/progress/2026-10-01-intrusion-coarse-effect-abstraction-candidate.md`.
+
+The receiver-grant candidate is now challenged by a result-shape stress case.
+With the same concrete callback contract, helper, operation, and complete
+handlers, scalar `inner` returns `[2]` (inner catches), but a fixed tuple result
+returns `(9, 10)` (outer catches); a polymorphic tuple specialization repeats
+the outer route independently at `int` and `str`. The `--mono` boundary changes
+from a forced `thunk[[choose], int]` to `thunk[[choose], (int, int)]`. This
+refutes the current eligibility candidate as sufficient, not Oracle
+soundness. Next isolate the source-to-materialized-boundary transfer that
+introduces this route difference; grant lifetime cannot be settled from family
+and annotation alone. Evidence is in the same candidate note under
+"Return-shape stress on the receiver-grant candidate".

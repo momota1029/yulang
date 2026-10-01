@@ -2249,6 +2249,47 @@ were `[2]` and `[1]`; the env-gated scratch guard trace for the concrete case
 shows the inner operation arm matched without a skip. No repository compiler
 code or frozen checkout source was changed by this probe.
 
+#### Return-shape stress on the receiver-grant candidate
+
+Changing the receiving functions' ordinary result from `int` to `(int, x)`
+changes the nested route even though the effect family, callback contract,
+helper call, and complete operation arms are held fixed. With
+`inner(x: int, f: () -> [choose] int): (int, int)` and the corresponding
+`outer`, the nested program returns `(9, 10)`: the outer arm handles the
+request. Removing the outer catch and running the same inner function returns
+`(2, 10)`, so the inner arm handles it when alone. Generalizing `x` to `'a`
+and making two incoming uses at `int` and `str` independently returns
+`((9, 10), (9, "s"))`; the raw scheme has quantifiers for the value and latent
+effect identities, and the mono dump has separate `inner` specializations for
+the two result tuples. Their guard traces use distinct dynamic IDs (outer/inner
+`0/1`, then `4/5`), but both inner boundaries are blocked and both outer arms
+handle the request.
+
+The scalar-return control with the same nested concrete `[choose]` parameter
+and wildcard helper returns `[2]` from the inner arm. The monos show the
+relevant shape change: the forced thunk carries `[[choose], (int, int)]` in the
+fixed-tuple case and `[[choose], int]` in the scalar case. Thus “concrete
+callback grant in the receiver activation” is not yet a sufficient
+eligibility rule. The route difference correlates with the materialized
+computation/value boundary or its inferred latent row, not just the shared
+source family, annotation, operation coverage, and lexical receiver
+activation. The causal step is not localized to that representation or to
+weight routing. This is a counterexample to that *candidate rule*, not a
+soundness counterexample to the frozen Oracle; the successor must account for
+shape-dependent delayed effects before it can decide which behavior is
+required.
+
+The independent-use case checked successfully; both interpreter runs and
+`--poly-raw` / `--mono` dumps completed. Relevant temp fixtures are
+`/tmp/yulang-intrusion-grant-independent-uses.yu`,
+`/tmp/yulang-intrusion-grant-independent-inner-only.yu`, and
+`/tmp/yulang-intrusion-grant-outer-fixed-tuple.yu`. The failed earlier probe
+that put the type variable in the effect-family argument panicked at the
+Oracle's `one stack id must not use multiple families` assertion; it is not
+used as evidence here. This also leaves a separate diagnostic-quality issue to
+classify if such family-argument polymorphism lies in the supported source
+envelope.
+
 The nested-provider probes in
 `2026-09-30-intrusion-weight-routing-counterexample-search.md` characterize the
 first two behaviors as outer result `[1]` without the concrete contract and
