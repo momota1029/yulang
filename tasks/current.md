@@ -3710,3 +3710,22 @@ A narrow architect review of the relational-core change found no major issue in
 composition, coordinate projection, or the distinction between parent
 pullback and direct image. It left source ownership rules and finite principal
 presentation explicitly unverified; those remain active gates.
+
+Operation/handler progress: the handler draft now represents exact operation
+identity, invariant family arguments, payload/resume transfer, and declared
+latent interfaces as coordinates of one source-level `OpCompat` relation
+between a request instance and an arm. A solver can split its formula for
+storage only if all pieces retain one request/arm binder map and one complete
+interface incidence. The source rule for family equality, runtime-safe value
+conversion, and latent-effect ownership is still unproved; this notation does
+not select the rule or authorize implementation. Next derive those premises
+from the successor operation and handler semantics, while preserving dynamic
+visibility as a distinct coordinate.
+
+The first `OpCompat` draft had an architect finding: it called all operation
+effects latent despite unresolved ownership and omitted the local operation
+scheme binding the type variables. The draft now restores the scheme and family
+projection and calls `Λ` the complete declared effect interface without
+preclassifying ownership. Architect delta review closed both findings. Source
+family matching, runtime coercion soundness, effect ownership, and principal
+finite presentation remain open.

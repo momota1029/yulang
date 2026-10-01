@@ -1687,38 +1687,55 @@ follows:
 3. An unknown route is not selected for removal. Keep its request fact or a
    sound unknown-support view, and retain its `K,D` incidence.
 
-Whenever a request is matched to an arm, one source operation-signature
-relation checks operation identity, invariant family arguments, and
-payload/result compatibility. Forwarding carries the existing request
-constraints unchanged. The handler's selection determines which computation
-relation runs; it does not choose a different family-argument comparison.
-Route eligibility remains a separate coordinate of the same source relation.
-
-For one exact operation declaration with request instantiation `θ` and arm
-instantiation `φ`, the local value-safety premises have the following
-conditional form:
+Whenever a request is matched to an arm, the handler transition compares
+their complete instances of the same source operation declaration. For path
+`p`, write the declaration as
 
 ```text
-same OpId
-family_relation(F<θ(ρ̄)>, F<φ(ρ̄)>)
-Aθ <: Aφ
-Bφ <: Bθ
+op : ∀b̄. A -> [E] B
 ```
 
-Here `op : ∀b̄. A -> [E] B` and `F<ρ̄>` is the declaration's family
-projection; `ρ̄` need not contain every operation binder. The family relation
-is the chosen symbolic invariant-argument meaning, retained in `K`; the two
-value inequalities include every operation-only binder that occurs in the
-payload or result. The payload premise lets the arm consume a request value,
-and the resume premise lets the request's raw continuation consume any value
-the arm supplies. This follows from the shallow boundary where the arm gets
-the raw continuation. The argument is conditional on the subtype/coercion
-relation being sound for runtime values and on the exact operation declaration
-being the same on both sides. It does not assign ownership to `Eθ`/`Eφ`,
-select a route, or determine when this arm is eligible; those remain in the
-same complete transition relation. Thus these are premises of
-`Step_{H,κ,ρ}`, not an additional per-operation obligation kind. The full
-source rule and principality of its finite presentation remain open.
+and let `F<ρ̄>` be its family projection, where `ρ̄` is the subtuple of
+declaration binders used by the family. Let `Λ` name all effect
+obligations/interfaces declared with the operation; this notation does not
+classify any member as immediate, latent, or owned by a particular value.
+For binder substitution `θ`, use:
+
+```text
+OpInst(p, θ) = (OpId(p), F<θ(ρ̄)>, Aθ, Bθ, Λθ)
+```
+
+for its exact operation identity, declared family projection, payload and
+result types, and all declared effect obligations/interfaces. This tuple is
+only a view of the declaration under one substitution; it is not a new source
+construct or separate solver obligation. The request and arm may use distinct
+capture-avoiding substitutions `θ` and `φ` for the same declaration.
+
+Define one source-level compatibility relation
+`OpCompat_ν(q,h)` between a typed request occurrence and an arm. Its
+candidate premises are exact `OpId` agreement; the source-selected invariant
+relation between `F<θ(ρ̄)>` and `F<φ(ρ̄)>`; safe transport of payload `Aθ` to
+the arm's input `Aφ`; safe transport from the arm's supplied resume value `Bφ`
+to the request continuation's input `Bθ`; and the source-defined transport of
+the complete declared effect interfaces `Λθ,Λφ`. Family, value, and effect coordinates
+belong to this one relation because they come from one operation declaration
+and binder maps. A finite solver may present its denotation as several
+formulas, but those formulas are projections of one `OpCompat` fact and must
+share the same `θ`, `φ`, assignment `ν`, and incidence with the request, arm,
+continuation, and output interfaces.
+
+The first two value-transfer directions have a conditional safety
+justification: a request supplies a value of `Aθ`, so the arm must accept it;
+the arm resumes with `Bφ`, so the raw request continuation must accept that
+value at `Bθ`. The shallow transition gives the arm the raw continuation, so
+the resume direction follows from that boundary. The exact family relation,
+runtime-compatible subtype/coercion relation, and ownership of `Λ` still
+require source semantics. In particular, do not guess whether a member of
+`Λθ` is immediate or latent: retain it on the complete operation instance
+until the source transition identifies its owner. `Step_{H,κ,ρ}` may consume a request
+only with a witness of `OpCompat` and the separate dynamic visibility fact;
+forwarding retains the request instance and its constraints. The full source
+rule and principality of its finite presentation remain open.
 
 The family predicate alone is insufficient even in a closed point case. Let
 `F<>` have no family arguments and let the request payload be `Bool`, while
@@ -1727,8 +1744,8 @@ runtime-safe `Bool <: Int` payload transfer exists in the ordinary disjoint
 base-type fragment. The pair must therefore fail the complete
 typed transition relation;
 support-head equality cannot justify consuming it. This
-is a test of the unified operation relation: payload/result behavior is
-already part of the same transition, not a new family-specific selector.
+tests the complete operation relation: payload/result behavior is already
+part of `OpCompat`, not a new family-specific selector.
 
 For any capture-avoiding type substitution `θ`, formula transport is
 structural: `K_θ = θ(K)` and the same occurrence/owner map is applied to `D`.

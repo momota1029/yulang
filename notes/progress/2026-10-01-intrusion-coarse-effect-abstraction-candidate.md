@@ -9102,3 +9102,34 @@ issue in relational composition, coordinate projection, or the distinction
 between direct image and parent-map pullback. It explicitly left source-owned
 typed-family grouping, complete fixed-outer semantics, and finite principal
 presentation unverified; none is closed by this notation change.
+
+## 2026-10-02: one complete operation/arm compatibility relation
+
+The coupled-interface draft now treats handler matching as one source-level
+`OpCompat` relation between a typed request instance and an arm instance of the
+same operation declaration. `OpInst(p,θ)` is notation for the declaration's
+exact operation identity, family arguments, payload/result types, and declared
+latent interfaces under one binder map. The candidate compatibility relation
+connects request and arm instantiations using one joint assignment: exact
+operation identity, the source-selected family-argument relation, payload and
+raw-resumption safety, and transport of the complete latent interface. These
+are coordinates of one transition premise; a finite solver may factor its
+formula for storage only while preserving the common binder maps and all
+request/arm/continuation/output incidence.
+
+This removes the temptation to treat family, payload, result, and latent
+constraints as independent source-site obligation kinds. Dynamic visibility
+remains a separate semantic coordinate because it depends on the active
+handler context. The family relation, runtime-safe value relation, and
+immediate-versus-latent ownership of declared effects remain unresolved source
+semantics. No successor rule, proof of principality, or implementation is
+approved by this notation.
+
+An independent architect review found two wording issues in the initial
+`OpCompat` passage: `Λ` had been called latent before its owner was known, and
+`A`, `B`, and the family projection lacked their local declaration binding.
+The draft now restores `op : ∀b̄. A -> [E] B`, defines the family projection,
+and treats `Λ` as all declared effect obligations/interfaces without
+classifying immediate/latent ownership. Delta review confirms both findings
+closed. The review does not establish the source family relation, value
+coercion semantics, latent ownership, or finite principality.
