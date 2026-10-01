@@ -131,11 +131,13 @@ relational composition, while handlers map continuation-bearing interfaces.
 This responds to the preference for a theory that does not mirror Oracle
 source sites. It remains a draft, not a selected semantics. The next work is
 to check the conditional shallow-handler relational-image theorem against the
-source trace semantics, then derive a finite principal presentation while
-preserving symbolic family formulas through every lifecycle phase. The image
-theorem establishes leastness only in the unrestricted relation carrier; it
-does not establish finite representability, solver termination, or global
-principality.
+source trace semantics. The collected may-support projection is least in the
+full powerset for each fixed valuation, while pointwise row join is distinct
+from relational disjunction and only gives a monotonicity inclusion without
+an additional theorem. Next derive a finite principal presentation while
+preserving symbolic family formulas through every lifecycle phase. Neither
+leastness result establishes finite representability, solver termination, or
+global principality.
 
 ## Objective
 

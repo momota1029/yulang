@@ -158,6 +158,60 @@ owner incidence, and route lineage must survive in the formula presented to
 the solver. Grounding each fiber and rebuilding those constraints from
 materialized rows would not implement this definition.
 
+### The collecting support projection and two kinds of union
+
+For one fixed admissible valuation `ν`, let `γ(A,ν)` be the concrete
+continuation-bearing computations represented by an abstract input interface
+`A`. Define the handler's may-support reference transfer by:
+
+```text
+May_H(A, ν) = ⋃ { TraceSupport(H_κ(c)) | c ∈ γ(A, ν) }
+```
+
+`TraceSupport` is a set of typed request instances appearing on finite traces
+of the handled computation, including arm requests and requests exposed by
+shallow resumption. The definition is indexed by `ν`, rather than merging
+ground instances from different valuations. The symbolic input relation
+continues to state which valuations and occurrence groups are admissible.
+
+For this fixed fiber, the support theorem is direct: every result represented
+by `γ(A,ν)` has each of its finite-trace requests in `May_H(A,ν)`. It is also
+least in the full powerset of typed request instances: if a set `E` bounds
+every result of `H_κ` on `γ(A,ν)`, then every element of the union defining
+`May_H(A,ν)` belongs to `E`. This exact collecting projection is a semantic
+reference, not a requirement that the compiler track exact traces or
+continuation usage. A practical finite row language may over-approximate this
+set; its principality claim must then be relative to its own expressible
+ordering and denotation.
+
+Two unions must not be conflated. Relational disjunction `R ∪ S` chooses one
+of two complete interface relations. Pointwise row join `A ⊔row B` combines
+support coordinates inside an interface and admits computations that mix
+requests from both rows. The first obeys exact relational-image distribution
+for a fixed `H_κ`, because its concretization is a union. For row join,
+`γ(A,ν) ∪ γ(B,ν) ⊆ γ(A ⊔row B,ν)`, so monotonicity gives only:
+
+```text
+May_H(A,ν) ∪ May_H(B,ν) ⊆ May_H(A ⊔row B,ν)
+```
+
+Equality requires an additional theorem about the row concretization and
+handler behavior. A finite row abstraction that forgets correlations may make
+the inclusion strict. This distinction is why relational composition can be
+the common core while splitting a may-row cannot by itself justify applying a
+handler transfer separately to each half.
+
+For the direct shallow fragment, the trace rules give the corresponding
+operational cases: `Return` executes the value arm; a covered, eligible
+request executes its operation arm with the raw continuation; an uncovered or
+ineligible request is forwarded with the handler around its continuation.
+Applying the support projection to those outputs includes arm effects, keeps
+forwarded requests, and includes any suffix exposed by raw resumption. This
+checks the image definition against the direct trace model without introducing
+a separate subtraction rule. The callback/thunk visibility extension and its
+finite symbolic presentation remain open, so this is not yet the complete
+source-to-inference proof.
+
 The callback `call` / `invoke` witness is an instance of ordinary invocation
 composition. Its pure argument permits a small sequencing lemma, but that
 lemma is evidence for the general relation, not a callback-specific source
