@@ -400,3 +400,46 @@ pure adequacy theorem; it is not attributed to
 the original Simple-sub paper. The frozen inference/specialization behavior is
 an Oracle implementation observation, not semantic authority. The trace flag
 only prints inference diagnostics; no runtime trace flags were set.
+
+### Top-level lift for the pure witness
+
+The gap between the custom `LetRec` witness and a one-module source program
+can be narrowed without adding a top-level-specific typing construct. For a
+module whose ordinary value definitions are partitioned into dependency-ordered
+Function SCCs `G₁,…,Gₙ`, use the existing semantic environment fold:
+
+```text
+Γ₀ = imported semantic environment
+Γᵢ₊₁ = Γᵢ[d ↦ Poly(MemberTypes_{Gᵢ,d}(Γᵢ,η))] for each d ∈ Gᵢ
+```
+
+Each step is the already-defined `RecGroup` conclusion plus environment
+extension. The nested-let environment-extensionality lemma composes later
+components against the exact member sets; a lookup of an earlier member makes
+an independent choice from that set, while the SCC bodies retain their shared
+monomorphic self vector. A final top-level computation body is typed as an
+expression under `Γₙ`; runtime-root selection observes its result but does not
+change its typing rule. This fold presumes ordinary function SCCs only: role,
+method, effectful-fetch, and cross-kind dependency semantics remain excluded.
+
+For the witness, take `G₁={f=λx.(x f)}` and
+`Γ₁(f)=Poly(MemberTypes_{G₁,f}(∅))`. The assignment in the previous subsection
+proves this set contains
+`r=Fun(Fun(Top,Top),Top)`. The final body
+`f (λz.z)` chooses that member type and assigns the inline identity function
+`Fun(Top,Top)`, so the ordinary application rule derives result `Top`. The
+frozen mono VM contract says a computed runtime root evaluates once and keeps
+its result value; it supplies no extra `unit` typing premise. Thus, conditional
+on the module SCC fold being the source-level environment rule, the custom
+source derivation lifts to the exact one-module witness.
+
+This lift is a proof sketch from two reviewed pure lemmas, not an independently
+reviewed theorem: the missing premise is the correspondence between Yulang's
+top-level resolved-SCC/export lifecycle and the environment fold above. The
+Oracle path confirms the operational split for this example—local monomorphic
+self inside `f`, generalized external `f` lookup in the root—but its scheme
+erasure and specialization failure are not used to define the fold. The
+remaining pure adequacy task is to state and prove the top-level SCC fold
+against the source declaration/export rules, including the computed-root
+boundary, then compare multiple dependency-ordered SCCs and imported outer
+anchors. This remains before effects, handlers, or implementation.

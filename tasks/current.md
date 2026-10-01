@@ -3826,3 +3826,14 @@ backed by the custom pure theorem, not a Simple-sub original result or an
 authoritative source-contract decision. Source-to-rule adequacy, complete
 Oracle principality, and effect coordinates remain open. No tests were run;
 these were direct CLI queries with `--no-prelude`.
+
+Pure source-adequacy follow-up: a candidate top-level module lift now reuses
+the existing `RecGroup` member relation and fixed-environment composition.
+Dependency-ordered ordinary Function SCCs extend the semantic environment
+with `Poly(MemberTypes)`; later component lookups choose independently, while
+internal SCC bodies keep one monomorphic self vector. This lifts the
+`f`/identity witness to a one-module `LetRec`-style derivation without a
+fixture-specific rule. The top-level SCC/export lifecycle correspondence is
+still only a proof sketch and needs an explicit source declaration rule and
+independent review before it can close pure adequacy. Effects, handlers, and
+method/role selection remain later gates. No implementation is authorized.
