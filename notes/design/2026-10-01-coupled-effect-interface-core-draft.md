@@ -65,6 +65,49 @@ eligibility are the same predicate. They are observations of different
 coordinates in the same coupled relation: request denotation, symbolic type
 admissibility, and dynamic boundary visibility respectively.
 
+#### One denotational row relation (candidate)
+
+For a fixed type/row assignment, interpret a typed row as a set of concrete
+typed requests, not just a set of family heads. If `ArgDen_A(o,ν)` is the
+chosen interpretation of occurrence `o`'s complete argument tuple, define:
+
+```text
+⟦R⟧_ν = ⋃ { {(head(o),a) | a ∈ ArgDen_A(o,ν)} | o ∈ occurrences(R,ν) }
+RowSub(R,S,ν) iff ⟦R⟧_ν ⊆ ⟦S⟧_ν
+```
+
+Open tails are evaluated in the same assignment before taking this relation;
+they are not replaced by a second source-site rule. `RowSub` is the candidate
+meaning behind row splitting, filtering, and row comparison. A solver may
+expand subset into finite witness formulas, but a `Sel_s`/`Demand` pair list
+then records a derivation of membership, not an additional semantic choice.
+For finite point rows the expansion is the familiar per-left-occurrence
+disjunction over compatible right occurrences. For interval or compound
+arguments, the set denotation controls the expansion and preserves shared
+tuple dependencies; pairwise overlap is not assumed equivalent.
+
+Typed-family invariance asks a different query on the same occurrence
+denotations. For a source-derived batch `B` whose occurrences share one family
+instantiation, its candidate common-witness condition is
+`⋂_{o∈B} ArgDen_A(o,ν) ≠ ∅`. `B` is the semantic scope of one shared family
+instantiation, not a source-site selector; if the source semantics does not
+establish shared ownership, this condition must not be imposed. Thus inclusion
+uses subset, while shared-family coherence uses intersection nonemptiness;
+both are formulas over the same denotation and neither is inferred from
+materialized family-head support. Handler eligibility remains a property of
+the source handler transition on typed requests and active boundaries, not a
+variant of `RowSub`.
+
+Under this candidate, splitting and union are set projections/union on typed
+request denotations, filtering is restriction of that denotation, and
+handler subtraction is the residual support projection of the relational
+handler image. Any coverage witnesses or route records used by a solver are
+proof evidence for those operations. This equation is conceptually compact,
+but still conditional on the source meaning of duplicate family occurrences,
+the concrete argument denotation, and the actual source rule that creates a
+shared-instantiation batch. Until those are established, it is a common
+candidate relation, not the selected successor semantics.
+
 ## Source constructs as relational composition
 
 Each source construct denotes a relation from its input interfaces and

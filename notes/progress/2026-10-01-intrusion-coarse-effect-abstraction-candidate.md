@@ -7695,3 +7695,24 @@ yet proved sound or principal, nor generalized to other lower sets and
 contexts. The concrete final acceptance counterexample remains established.
 This characterization does not make Oracle's weighted routing successor
 authority.
+
+#### Unification correction: row selectors are derivations, not semantic rules
+
+The earlier exploratory notation `RowRel_s`, `R₁ ⊑ᵗ_s R₂`, and its
+source-site-selected pair collection should not be read as a preferred
+successor architecture. The user's later direction prefers one declarative
+typed-row relation. The current candidate is to interpret each assigned row
+as a set of typed requests and define comparison by denotational inclusion;
+finite `Sel_s`/`Demand`-like witness data would only explain how the solver
+proved inclusion. Shared-family invariance is a distinct intersection query
+over the same argument denotations, for source-derived occurrences that truly
+share one family instantiation. Handler eligibility is derived from the
+handler transition and activation context. The all-pairs relation above stays
+only as a stress case, and the `s`-indexed relations stay as historical
+Oracle/source-characterization notation. See `One denotational row relation
+(candidate)` in `notes/design/2026-10-01-coupled-effect-interface-core-draft.md`.
+
+This is not yet a selected semantics. Duplicate-row denotation, concrete
+argument interpretation, and source derivation of a shared-instantiation
+batch remain to be established before subset/intersection can be connected to
+the actual source typing relation.

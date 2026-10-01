@@ -2904,3 +2904,12 @@ preserves satisfying fibers, including `FamAgree_A`, without reconstructing
 constraints from materialized rows. It covers relational presentation and
 injective renaming only; it does not establish source formula adequacy,
 solver preservation, or non-injective intrusion.
+
+Unified typed-row candidate now defines comparison as subset of assigned
+typed-request denotations; solver pair lists are only witness derivations.
+Shared-family invariance is intersection nonemptiness over one
+source-derived shared-instantiation group, while handler eligibility comes
+from the handler transition. This replaces `RowRel_s`/`Sel_s` as candidate
+semantic architecture; the older notation remains historical characterization
+only. Duplicate-row denotation, argument interpretation, and source derivation
+of shared groups remain open.
