@@ -5036,3 +5036,109 @@ with `P` on typed endpoints and `Theta` on hygiene identities. Until these
 transition rules and their source ownership are proved, this remains an
 abstract proof obligation, not a selected storage representation or
 implementation contract.
+
+#### Source-rule derivation of family obligation keys (candidate)
+
+The source-rule audit gives a concrete candidate derivation point for the
+independent obligation keys above. The frozen effect-subtraction spec says
+same-path family arguments meeting in listed row set operations are
+constrained invariantly. The principal-monomorphization spec reconnects a
+generic operation's return effect to the corresponding typed family item in a
+handler's scrutinee row. The runtime spec matches requests by exact operation
+path. These are characterization evidence: they do not define successor
+source typing, callback argument comparison, or handler eligibility, and
+they do not authorize Oracle weight routing.
+
+Let an operation declaration at exact path `p` have signature
+`op : A -> [E] B` and declaration binders `ā`. Resolving one source request
+allocates one capture-avoiding map `θ` for those binders. Declaration
+elaboration must also supply the associated family identity `F` and its
+family-argument expression tuple `ρ̄`, under explicit ownership; `ρ̄` is not
+assumed to be the full binder list `ā`, and its terms may be compound
+expressions. The map `θ` applies consistently to every owned occurrence in
+`A`, `B`, `E`, and `ρ̄`. If the language derives `ρ̄` from `E`, that projection
+must be part of the declaration rule and proved to preserve binder ownership.
+The request view is:
+
+```text
+Request(p, q, θ) =
+  (OpId(p), FamInst(F<ρ̄θ>), payload : Aθ,
+   result : Bθ, latent : Eθ, source_origin, use_occurrence)
+```
+
+The request typing premises constrain its payload against `Aθ`, its result
+against `Bθ`, and retain `Eθ` pending a source-defined owner/route rule.
+Operation-only binders remain in the shared signature map even when they do
+not occur in `ρ̄`. The family instance is typed data; its projection to
+`FamHead(F)` is only support. The
+exact `OpId(p)` remains the operation identity used by handler selection.
+
+For any candidate source rule that relates two typed row items with the same
+family head, write them as
+`FamInst(F<χ̄>)@o₁` and `FamInst(F<ῡ>)@o₂`; `o₁` and `o₂` retain the distinct
+source/use owners of the two row occurrences. The rule derives the obligation
+key before changing either structure:
+
+```text
+o = (relation_site, left_origin/use, right_origin/use, F, χ̄, ῡ)
+Formula(o) = ⋀ᵢ (χᵢ <: υᵢ  and  υᵢ <: χᵢ)
+```
+
+In the source that generates the relation, `χ̄` and `ῡ` are obtained by
+projecting the family arguments from the two row items, not from all operation
+scheme binders. The frozen spec directly characterizes invariant constraints
+for row split, residual subtraction, duplicate-head collection, filter
+check, and common-stack check. Other cases below are candidate successor
+rules and require their own typing proof.
+
+For a callback/function argument comparison, the candidate source rule
+compares the actual and formal latent rows as typed row views. If both contain
+the same family head, it emits `Formula(o)` for their two independently owned
+family argument vectors before row projection or residualization. This is a
+new source rule; neither the frozen row-set spec nor runtime path matching
+proves it. For an operation arm matching `p`, the candidate resolves the same
+operation declaration under its own capture-avoiding map `φ`; the
+monomorphization evidence supports reconnecting its return-effect family item
+to the selected typed scrutinee item, from which the candidate derives the
+family arguments. The arm payload is typed at `Aφ`; the raw continuation
+accepts `Bφ` and returns the scrutinee result with the scrutinee's suffix
+bound, as in the shallow catch judgment above. This does not identify the
+request's separate instantiation `θ` with `φ`, and does not establish callback
+visibility or effect routing.
+
+Every proposed relation derives `Demand(v,o)` from its source-rule premises
+for the result views whose validity uses it. For callback comparison those
+views include the actual/formal row relation and typed application result;
+for handler reconnection they include the selected scrutinee item, arm, and
+continuation. The demand precedes ledger insertion. Each transition must add
+a pending formula or proof-carrying record and establish its directed paths
+to demanded outputs. The arm's own requests remain separate origins and are
+not offered to this activation. A same-head conflict cannot be hidden by
+retaining only the erased family head.
+
+In the minimized witness, the actual callback has latent row `[ask bool]`,
+while the handler function's formal callback row is `[ask int]`. Under the
+candidate callback-row comparison, these are the two endpoints of one
+same-head row relation, so it emits `bool <: int` and `int <: bool`. Since the
+candidate's distinct primitive bases have no common solution, the source
+application is rejected before runtime. A request-local comparison alone
+would not reject this case: it could compare `ask<bool>` to its actual row and
+the handler arm to its formal `ask<int>` independently, with both
+constraints reflexive. The cross-boundary actual/formal row relation is the
+necessary source premise. This deliberately drops the frozen Oracle's
+observed acceptance of that ill-typed program if the candidate rule is
+approved; it does not make `ask<int>` and `ask<bool>` distinct operation
+identities. The compatibility exception was already recorded from concrete
+VM and interpreter results. The candidate locates the constraint at function
+argument row comparison, but this source rule remains unapproved and must be
+proved sound and principal.
+
+An open row whose family shape is not yet known generates no invented row
+head and no premature pairwise constraint. It retains the typed request and
+its family arguments; when a later row operation establishes a same-head
+match, that transition emits the key before moving/removing the head. If no
+such match is established, the request remains in the open/support evidence.
+This preserves unknown shape without postponing a known obligation until
+materialization. The candidate source derivation still depends on a selected
+language rule for effect-row annotations and handlers, and the route/owner of
+`Eθ` remains unresolved; those gaps prevent treating this rule as authoritative.

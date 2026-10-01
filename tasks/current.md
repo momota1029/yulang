@@ -2314,3 +2314,18 @@ gaps. Source derivation of the keys/demand relation and all phase transition
 proofs remain open; this is not an implementation contract. See "Symbolic
 family-constraint incidence invariant (candidate)" in the same progress
 record.
+
+The next source-rule derivation now makes the obligation key from two typed
+row items and their independent source/use owners, with family arguments
+projected from declaration-owned expressions rather than equated to every
+operation binder. It identifies callback actual/formal latent-row comparison
+as the candidate rule that connects the minimized `[ask bool]`/`[ask int]`
+compatibility witness; request-local and arm-local reflexive matches alone
+would not reject it. Frozen-spec review confirmed the cited Oracle claims and
+the distinction between runtime path identity and candidate typed matching;
+compiler-referee review closed the missing cross-boundary relation. The
+callback comparison and declaration projection remain candidate semantics
+requiring proof and approval, while operation `Eθ` ownership/routing remains
+unresolved. See "Source-rule derivation of family obligation keys
+(candidate)" in
+`notes/progress/2026-10-01-intrusion-coarse-effect-abstraction-candidate.md`.
