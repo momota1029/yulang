@@ -8216,3 +8216,16 @@ support, although row difference would remove it. Two sequential occurrences
 and one resume suffice. This is a trace-level proof against family-wide
 subtraction, independent of Oracle weight routing; `Drop` requires absence
 from the complete handler image.
+
+Frozen-runtime control-flow characterization at `a58eefc3` supports these two
+shallow clauses: `eval_catch` dispatches returned values and requests
+separately; `handle_catch_request_arm` walks source-ordered arms, passes the
+stored raw `request.resume` to a matching arm's continuation, and on final
+fallthrough rebuilds the request with a continuation that resumes then calls
+`handle_catch_result` again. Pattern failure and false guards continue to the
+next arm. This matches the candidate's raw-resume and forward/re-entry shape.
+The path/guard-ID and `handler_boundary` checks still select whether an arm is
+skipped; they characterize the frozen runtime only and do not define the
+successor's `Visible` relation. Source-level visibility and typed transition
+adequacy remain open. Evidence: `crates/mono-runtime/src/runtime/eval.rs`
+at `eval_catch` and `handle_catch_request_arm` in frozen `a58eefc3`.

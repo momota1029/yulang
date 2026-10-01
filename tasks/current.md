@@ -3510,3 +3510,9 @@ once, and the continuation emits another request with the same row key
 outside that activation. The family therefore remains in output support. This
 is source-semantic evidence for deriving removal from the full handler image;
 it does not use Oracle weight routing or a Yulang acceptance fixture.
+Frozen-runtime source inspection at `a58eefc3` confirms the control-flow shape:
+matched arms receive stored raw continuations; final fallthrough forwards the
+request and re-enters `handle_catch_result` after resumption. Source-order
+pattern/guard fallthrough also matches the candidate. Guard-ID and handler-
+boundary tests remain runtime characterization only; they do not define the
+successor's dynamic `Visible` semantics.
