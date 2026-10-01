@@ -9003,3 +9003,11 @@ A conditional helper-extension lemma is also recorded: when a helper's source
 relation preserves the request occurrence, owner incidence, and prior capture
 relation, appending its frame preserves the existing `Visible` witness. The
 source typing proof must establish that premise for each helper/adapter path.
+The coupled-interface draft also states the local lambda rule behind the
+closure fixture: constructing `λ_. f()` is effect-free, but its returned arrow
+retains the body's symbolic latent row `E`; a scoped capture relation changes
+handler eligibility only when that arrow is called. Generalization and fresh
+instantiation use the same binder map for `E` and its `K` formula while
+transporting activation lineage separately. This is a conditional ordinary
+call/lambda consequence, not a global escape proof or a complete inference
+rule.

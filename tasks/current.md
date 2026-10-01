@@ -3652,4 +3652,8 @@ Formalize this together with the shallow request unwind/resume rule; do not
 erase the returned effect based on capture metadata. A conditional context-
 extension lemma now states the exact incidence-preservation premise needed for
 a helper not to revoke an earlier grant; source typing must prove that premise
-for callbacks, adapters, and escaping values.
+for callbacks, adapters, and escaping values. The local `λ_. f()` rule states
+the closure proof obligation: construction is effect-free while the returned
+arrow retains the body's row and symbolic `K`; handler eligibility applies at
+later invocation. SCC transport must freshen row/formula identities
+consistently and move activation lineage separately.

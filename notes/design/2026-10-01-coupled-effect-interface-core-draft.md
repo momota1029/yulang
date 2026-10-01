@@ -1145,6 +1145,30 @@ contract constrained behavior during the maker activation. The exact escape
 and re-entry relation must keep the same type-family assignment and `K,D`
 incidence through generalization and each fresh use.
 
+**Closure construction keeps the latent effect independently.** In the ordinary
+compositional fragment, if
+
+```text
+Γ, f : Unit -[E]-> Int ⊢ f() : Int ! E
+```
+
+then
+
+```text
+Γ, f : Unit -[E]-> Int ⊢ (λ(_:Unit). f()) : Unit -[E]-> Int ! ∅
+```
+
+The lambda construction emits no request; each later call executes `f()` and
+therefore has the callback's complete latent request bound `E`. A capture
+relation active while that later call runs may change which handler consumes
+those requests, but cannot turn the returned arrow's latent `E` into `∅`.
+For symbolic family arguments, the same owned identities and formula `K`
+remain attached to `E` in the returned arrow; generalization and each fresh
+instantiation transport them with one consistent binder map, separately from
+activation lineage. This follows from relational call composition and the
+ordinary lambda value rule. It is independent of callback-use counts and does
+not require exact continuation-sensitive effects.
+
 This formulation is preferable to either a family/path-only selector or a
 sticky grant bit because its parts are ordinary relational composition,
 activation scope, and transport of the complete returned interface. It remains
