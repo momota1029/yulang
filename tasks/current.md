@@ -3814,9 +3814,15 @@ prebuilt `a58eefc31` worktree executable now give a pure one-SCC mismatch:
 `build` and default `run` reject with an open Function-to-`unit` subtype error
 inside the recursive body. The reviewed custom `RecGroup` relation admits a
 terminating assignment with `Top`/`Fun` and fresh use of the identity lambda.
-The candidate successor rule would retain that complete member/use relation
-instead of forcing the failed concrete specialization; if source adequacy
-confirms this derivation, the compatibility delta is accepting this program
-at build/run. This is not yet an authoritative source-contract decision.
-Source-to-rule adequacy and latent effect coordinates remain open. No tests
-were run; these were direct CLI queries with `--no-prelude`.
+The env-gated owner trace shows finalized `f` has Top input, Q return/effect
+variables, and no recursive bound; it has lost `q ≤ Fun(s,v)`. The candidate
+successor rule retains the general `MemberTypes`/`LetRec` relation, with a
+monomorphic self assignment per SCC body and independent member choice per
+external use; it adds no fixture-specific exception. Its `Top`/`Fun`
+assignment makes this terminating program admissible. The proposed
+compatibility delta is accepting the program at build/run after inference
+success, if source adequacy confirms the derivation. This is a new conjecture
+backed by the custom pure theorem, not a Simple-sub original result or an
+authoritative source-contract decision. Source-to-rule adequacy, complete
+Oracle principality, and effect coordinates remain open. No tests were run;
+these were direct CLI queries with `--no-prelude`.

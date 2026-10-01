@@ -367,3 +367,30 @@ inference dump already succeeds on Oracle. This records a precise candidate
 compatibility delta, not an authoritative decision to change the source
 contract. No tests were run; these were direct CLI queries against the
 prebuilt frozen-worktree executable.
+
+An environment-gated `YULANG_INTRUSION_OWNER_TRACE=1` dump-poly query further
+ties the failure to the established q-erasure conflict. The finalized Oracle
+scheme for `f` has quantifiers for the returned value and return effect, a
+`Top` input, `Bot` argument effect, and no recursive bounds; the scheme for
+`main` is monomorphic `Bot` (`never`). The accepted poly use therefore loses
+the recursive input fact `q ≤ Fun(s,v)`. At build/run specialization, the
+inline identity use reaches a recursive-body check that constrains an open
+Function instance below `unit`, yielding the recorded failure. The candidate
+relation keeps `q` symbolic and admits the use by choosing
+`q = Fun(Top,Top)` while keeping the recursive self endpoint at `Top`.
+
+For this witness, the Oracle behavior proposed for removal is specifically
+the build/default-run rejection after `dump-poly` success caused by dropping
+that meaningful recursive input constraint. The candidate successor rule is
+the general `MemberTypes`/`LetRec` relation with one monomorphic self
+assignment per SCC body and an independently selectable member type at each
+external use; it adds no `f`-specific exception. The compatibility impact is
+acceptance of this pure terminating program at the final gate. This is a
+concrete candidate source-adequacy target under the user's instruction to
+retain meaningful constraints, but remains provisional until the general
+source typing relation is tied to the language's complete top-level and
+specialization semantics. This candidate derivation is a new source/group
+conjecture backed by the custom pure adequacy theorem; it is not attributed to
+the original Simple-sub paper. The frozen inference/specialization behavior is
+an Oracle implementation observation, not semantic authority. The trace flag
+only prints inference diagnostics; no runtime trace flags were set.
