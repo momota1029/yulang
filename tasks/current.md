@@ -145,6 +145,13 @@ cannot be removed. It proves only structural formula substitution under
 equivariant typed-family denotation; handler source adequacy, fixed-fiber
 preservation, finite principal presentation, termination, and global
 principality remain open.
+A companion transport lemma now states that once a source rule creates one
+indexed `FamAgree_A` batch, a natural type substitution maps the full shared
+witness relation by reindexing, including its N-way and cross-position
+dependencies. A bounded interval fragment reduces `ArgDen_A` naturality to
+compositional endpoint interpretation, conditionally. It does not establish
+that interpretation for compound types or which source rules create batches;
+non-injective intrusion still needs the separate quotient/fiber theorem.
 
 ## Objective
 

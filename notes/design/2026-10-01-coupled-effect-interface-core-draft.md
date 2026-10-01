@@ -202,6 +202,81 @@ fiber-preservation theorem for generalization or non-injective intrusion.
 Those lifecycle theorems must still prove that the transformed relation has
 the same observable solutions and independent-use behavior.
 
+### Shared-witness formula under symbolic transport
+
+The interval-valued family constraint has a direct transport law in the
+candidate denotation already recorded in the effect proof notes. For a
+source-derived indexed batch `B`, define
+
+```text
+FamAgree_A(B,ν) iff
+  ⋂ { ArgDen_A(args(o),ν) | o ∈ B } ≠ ∅
+```
+
+Assume the chosen argument denotation is natural under a type substitution
+`θ`, including its complete tuple dependencies:
+
+```text
+ArgDen_A(θ(args(o)),ν') = ArgDen_A(args(o),θ*ν')
+```
+
+Then substitution preserves the whole shared-witness formula:
+
+```text
+FamAgree_A(B[θ],ν') iff FamAgree_A(B,θ*ν')
+```
+
+Proof: apply the denotation identity to each indexed occurrence; the two
+families of tuple sets are equal, hence so are their intersections and their
+nonemptiness. This uses one intersection over the entire batch, so it
+preserves cross-position and N-way dependence; it does not reduce the formula
+to pairwise compatibility. A point-valued `InvArgs` encoding is a valid
+replacement only when a separate theorem proves that it denotes this same
+relation for the chosen arguments.
+
+Use one occurrence/owner map alongside `θ` for the formula's incidence. For
+solving, apply the solution substitution to both endpoints and occurrence
+payloads and keep the resulting formula attached to every dependent view.
+For residualization, the request row may change but the formula remains in
+the coupled relation until its dependency is discharged by proof. For
+generalization, bind the locally owned endpoints and formula together while
+fixing outer identities. For a use-site instantiation, rename all batch
+occurrences, endpoints, and incidence with the same injective map. For
+intrusion, apply the parent map to endpoints and evidence payloads, and the
+boundary map to route lineage. Substitution and injective renaming use the
+displayed reindexing law; residualization and generalization additionally
+need their own incidence and fiber-preservation laws.
+
+With a non-injective parent map, the displayed pullback identity still holds
+syntactically, but it does not prove that two formerly independent source
+assignments or root observations can be merged. That requires the separate
+quotient/fiber theorem. Likewise, naturality of `ArgDen_A` for intervals,
+compound types, and shared tuple positions has not yet been proved, and this
+lemma does not establish which source rules create `B`. Its result is narrower
+but concrete: once a source rule has created the symbolic batch, substitution
+can transport that very batch without rebuilding it from materialized rows.
+
+For the simple bounded-type fragment, naturality reduces to an ordinary
+structural lemma. Assume type interpretation is compositional and satisfies
+`⟦θτ⟧_{ν'} = ⟦τ⟧_{θ*ν'}`. Define an interval argument denotation by
+`ArgDen_A([L,U],ν) = { a | ⟦L⟧_ν ≤ a ∧ a ≤ ⟦U⟧_ν }`, with the subtype
+preorder fixed independently of the solver representation. Then:
+
+```text
+ArgDen_A(θ([L,U]),ν') = ArgDen_A([L,U],θ*ν')
+```
+
+Both sides are the set of `a` satisfying the same two inequalities after
+rewriting each endpoint by the interpretation identity. For a tuple of
+arguments, interpret the entire tuple under the one assignment before
+forming `ArgDen_A`; do not replace it with a product of independently
+projected positions unless that factorization is proved. The shared-witness
+formula then follows by the same intersection argument above for any finite
+batch. This closes substitution naturality conditionally for this interval
+fragment. It does not define the full Yulang denotation for unions,
+intersections, nominal recursion, or Function/effect arguments, nor show that
+the source generates the intended batches.
+
 The shallow operational cases are consequences of the same image. A covered
 visible request enters its arm with the raw continuation; a request not
 selected at this activation is forwarded with the shallow wrapper around its
