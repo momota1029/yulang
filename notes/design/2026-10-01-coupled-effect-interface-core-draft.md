@@ -2099,6 +2099,35 @@ reuse and compositionality if that language has terminating, principal
 projection. That closure property is not proved, so this is a preference for
 the next proof target, not a selected representation or implementation gate.
 
+The comparison is conditional: none of the candidates is yet proved sound and
+principal for the source language. Their current tradeoffs are:
+
+| Candidate | Conceptual economy | Compositionality and proof reuse | Principality risk |
+| --- | --- | --- | --- |
+| Typed may-rows plus symbolic family formulas | Smallest likely solver language, but risks treating row matches and family ledgers as separate semantic mechanisms | Cheap support operations; handler/callback composition needs additional correlation lemmas | Eager match selection loses alternatives; open duplicate rows expose this directly |
+| Constrained complete-interface relation | One semantic account for typed constraints, callback composition, handler images, and lifecycle transport; row selectors and route records become derived views/evidence | Strong reuse of relational image, restriction, reindexing, and fixed-outer projection laws | The relation may lack a finite terminating principal presentation; this is the main open theorem |
+| Continuation-bearing source computation relation | Most direct account of observable execution and handler behavior | Source sequencing, callbacks, and handlers compose naturally | Usually too precise or large to be the inference language; abstraction may lose symbolic fibers |
+
+The current proof strategy therefore uses the continuation-bearing relation as
+the adequacy reference and tests the constrained complete-interface relation
+as the inference-facing core. The typed-row candidate is a possible finite
+presentation of that core, not a parallel semantics. This layering is
+preferred only if a finite presentation can preserve the same fixed-outer
+solution fibers and independent-use behavior. If it cannot, the correct
+response is to narrow the supported expressible fragment or accept
+conservative loss of precision, not to add one selector or obligation for
+each Oracle source site.
+
+Under this layering, a source distinction is fundamental only when it changes
+the source computation relation, a complete typed interface, or which
+assignments satisfy that interface. A filter name, `Sel_s` case, `Demand`
+record, route certificate, or typed-family obligation is not independently
+fundamental merely because the frozen implementation stores it separately.
+Such objects may remain as finite proof witnesses when they are projections
+of the common relation and their transport preserves its denotation. Handler
+visibility remains a real semantic fact, but its bookkeeping representation
+must be derived from the active source boundary and continuation behavior.
+
 Keep mathematical facts distinct from their solver witnesses. A source
 relation may depend on which requests are dynamically visible at a handler
 activation, but a route ledger is only one way to prove that fact. Formula

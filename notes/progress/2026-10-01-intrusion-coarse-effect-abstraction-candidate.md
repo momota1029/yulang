@@ -8816,3 +8816,26 @@ bookkeeping construct from the mathematical carrier without erasing the
 underlying source-level boundary behavior. It is a consistency correction to
 the non-authoritative draft, not a new handler rule or proof of source
 adequacy.
+
+## 2026-10-02: compare candidate cores by proof reuse
+
+The coupled-interface draft now compares its three candidate layers explicitly:
+typed may-rows with symbolic formulas, constrained complete-interface
+relations, and continuation-bearing source computations. None is yet proved
+sound and principal for the source language. The working proof strategy keeps
+continuation-bearing computation as the adequacy reference, tests the
+constrained relation as the inference core, and treats typed rows only as a
+possible finite presentation of that core. This formulation reuses restriction,
+relational-image, fixed-outer projection, and reindexing laws across row
+filtering, callback composition, handlers, and SCC lifecycle transport.
+
+Source distinctions count as semantic only when they change computation,
+complete typed interfaces, or satisfying assignments. `Sel_s`, `Demand`,
+typed-family obligation records, route certificates, and owner/incidence IDs
+remain possible finite derivation evidence, not separate semantic constructs,
+unless a source observation demonstrates otherwise. Handler visibility is
+still semantic and must follow from active source boundaries. Typed-family
+predicates remain in the denotation through solve, residualization,
+generalization, freshening, and intrusion. The comparison is a proof-target
+preference only: finite principal projection, termination, source adequacy,
+and SCC quotient preservation remain open.

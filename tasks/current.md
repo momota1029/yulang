@@ -130,8 +130,12 @@ records are presentations or projections. Callback application is ordinary
 relational composition, while handlers map continuation-bearing interfaces.
 This responds to the preference for a theory that does not mirror Oracle
 source sites. It remains a draft, not a selected semantics. The next work is
-to check the conditional shallow-handler relational-image theorem against the
-source trace semantics. The collected may-support projection is least in the
+to prove one source typing/execution simulation for callback application
+followed by shallow catch at a fixed activation, including strict evaluation,
+force boundaries, typed request ownership, and live continuation state. The
+complete interface should be shared-assignment composition followed by one
+handler image; the finite constrained presentation must preserve its symbolic
+fibers. The collected may-support projection is least in the
 full powerset for each fixed valuation, while pointwise row join is distinct
 from relational disjunction and only gives a monotonicity inclusion without
 an additional theorem. A further audit found that this ground support result
