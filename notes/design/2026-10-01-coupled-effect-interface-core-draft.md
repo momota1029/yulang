@@ -1329,25 +1329,25 @@ The exact witness is recorded in
 `notes/progress/2026-10-02-callback-scope-transition.md`. Do not reproduce
 either the empty Oracle row or the runtime route as authority.
 
-There are two sound source-transition candidates within the same ordered
-activation relation:
+There are two candidate clauses for the same ordered source-transition
+relation. Neither clause has yet been proved sound or principal:
 
 | Candidate | Consequence | Theory cost and open proof |
 | --- | --- | --- |
 | Preserve enclosing capture incidence across nested calls | An outer handler may consume a request emitted by the complete nested `CallView`; the handler image may remove it only when the universal typed transition proof covers it. | Fits compositional context extension and the documented receiving-function capture promise. Still needs source/runtime simulation for argument adaptation, call, result adaptation, origin eligibility, shallow resumption, and `K,D` transport. |
-| Let an inner concrete receiver shadow the enclosing incidence | The outer handler cannot consume the request on that route; any unconsumed request stays in outward support. This may reject programs accepted by Oracle or expose an effect that Oracle erased. | Can fit the same relation but narrows capture behavior and needs a source-level precedence rule. The frozen runtime alone does not justify it. |
+| Suspend enclosing incidence across a competing inner concrete receiver | The enclosing frame, request, and symbolic constraints remain. The same `Visible` relation does not derive eligibility across the competing boundary for that route; any request actually emitted and not consumed remains in the complete handler image's outward support. The candidate may reject programs accepted by Oracle or expose an effect Oracle erased. | Fits the same relation but narrows capture behavior and needs source definitions of request ownership, competition, suspension extent, and restoration. Family equality alone cannot establish competition. The frozen runtime does not justify it. |
 
 These are not separate `Sel_s`, `Demand`, route, or callback obligations. They
-are alternative clauses for the context argument of the one source call and
+are alternative clauses for deriving visibility in the one source call and
 handler relation. The abstract context remains ordered; request origin and
 typed-family formulas remain attached; handler subtraction remains the image
 of the complete computation. Candidate one is more economical if it passes
 the stated simulation theorem. Candidate two is not a soundness shortcut: it
-must preserve outward support and show principality relative to the narrower
-source semantics. Neither candidate is selected here. In particular, the
-single Oracle witness cannot decide outer-handler eligibility. A source
-transition rule and a final-acceptance comparison are required before this
-clause can be closed.
+must show source preservation and principality relative to the narrower source
+semantics. Neither candidate is selected here. In particular, the single
+Oracle witness cannot decide outer-handler eligibility. A source transition
+rule and a final-acceptance comparison are required before this clause can be
+closed.
 
 The caller-hygiene control is also part of that proof: a receiver's contract
 must not capture an unrelated caller-owned request solely because its family
@@ -1968,6 +1968,15 @@ the extra represented computations may be spurious. Do not enforce totality by
 deleting valuations or symbolic constraints. A source distinction that cannot
 be expressed by `Step_H` and ordinary typing premises would expose a missing
 observable coordinate or refute this candidate's unification.
+
+Support preservation is quantified over this whole image. It does not require
+retaining every request in the input may-support minus selected operation
+heads: an aborting handler may make a continuation suffix unreachable. Raw
+resumption and arm execution may also expose requests that simple subtraction
+misses. For each request emitted on an output path, the source transition must
+account for it by consuming it, forwarding it, or continuing that execution;
+support is projected after the image. A finite presentation is sound when it
+covers those reachable outputs, not when it performs local row deletion.
 
 Here the complete observation includes output values with their latent
 interfaces, typed request facts, family-argument denotations, occurrence

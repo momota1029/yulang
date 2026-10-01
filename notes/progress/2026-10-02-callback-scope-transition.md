@@ -42,19 +42,21 @@ if it erases a request that the successor execution relation leaves outward.
    handler-image proof establish visibility, coverage, and typed compatibility.
    It fits the documented receiving-function capture promise, but has not been
    shown by the witness or frozen runtime.
-2. Let an inner concrete receiver shadow the enclosing incidence for that
-   transition. Any request not consumed by a proved handler step remains in
-   outward support. This can be sound, but may reject an outer-handler program
-   accepted by Oracle and needs a source-level precedence rule. A larger row is
-   not by itself a principality failure; principality is relative to this
-   selected source semantics and its expressible abstraction.
+2. Suspend derivability of the enclosing incidence across a competing inner
+   concrete receiver. Retain the ordered frame, request, and symbolic `K,D`;
+   family equality alone cannot define competition. This may reject an
+   outer-handler program accepted by Oracle and needs a source-level precedence
+   rule. A larger row is not by itself a principality failure; principality is
+   relative to this selected source semantics and its expressible abstraction.
 
 Both clauses use the same ordered context, source-owned request incidence,
 typed-family formula, `CallView`/`Adapt`, and whole-computation handler image.
-This keeps `Sel_s`, `Demand`, route records, and transport maps as derived
-views or proof bookkeeping. Candidate 1 is conceptually cheaper if source
-simulation proves it; candidate 2 cannot be chosen merely to fit the frozen
-route. The author has not selected either clause.
+The incidence is a derivability fact of that source relation, not a stored
+permission or an additional solver predicate. This keeps `Sel_s`, `Demand`,
+route records, and transport maps as derived views or proof bookkeeping.
+Candidate 1 is conceptually cheaper if source simulation proves it; candidate 2
+cannot be chosen merely to fit the frozen route. The author has not selected
+either clause.
 
 ## Reviews
 
@@ -74,6 +76,19 @@ The three reviews converge: this is a genuine source-semantic decision, not an
 Oracle implementation fact. The exact request lifetime and caller-handler
 eligibility remain unresolved. The later method/roles/impl-resolution gate is
 unchanged and must wait until ordinary effect/handler semantics is settled.
+
+Follow-up review clarified the support quantifier: handler soundness is stated
+over reachable outputs of the complete image. It does not retain every input
+may-request except selected heads, because an aborting arm can make a suffix
+unreachable. Raw resumption and arm execution can also expose requests missed
+by set subtraction. Output support is projected after the image; symbolic
+family predicates and `K,D` stay attached to every dependent output view.
+The architect and compiler-referee recommendations fit this single transition
+carrier; finite presentation and source adequacy remain open. A spec-auditor
+delta review closed the support, competition, derivability-versus-storage, and
+unproved-soundness wording with no remaining blocking or major finding. Review
+closure applies only to these clauses and records; it selects neither policy
+or authorizes implementation.
 
 ## Next proof gate
 

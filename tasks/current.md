@@ -4020,10 +4020,12 @@ rule. See the latest entry in
 
 Immediate next gate: define the common source call/handler transition over
 ordered activation contexts and source-owned request origins. Compare the two
-reviewed nested-receiver clauses within that relation, retaining every
-unconsumed request and carrying symbolic typed-family invariance through
-solving, residualization, call/force, handler image, generalization, fresh
-instantiation, and intrusion. The frozen `ret_eff=Bot`/unhandled-request pair is
-characterization only; do not mimic it as a rule. Method/roles/impl resolution
-remain gated until ordinary effect/handler semantics closes unless a proved
-dependency requires them sooner. No compiler implementation is authorized.
+reviewed nested-receiver clauses within that relation. Project support from
+the whole handler image: cover every request on a reachable output path, while
+allowing abort to make an unexecuted continuation suffix unreachable. Carry
+symbolic typed-family invariance through solving, residualization, call/force,
+handler image, generalization, fresh instantiation, and intrusion. The frozen
+`ret_eff=Bot`/unhandled-request pair is characterization only; do not mimic it
+as a rule. Method/roles/impl resolution remain gated until ordinary
+effect/handler semantics closes unless a proved dependency requires them
+sooner. No compiler implementation is authorized.
