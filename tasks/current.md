@@ -1944,8 +1944,14 @@ not reconstruct each compact iteration. A focused fixture audit in
 the exact raw-ID local/free split in the nested diamond, but no same-SCC
 two-member fixture with finalized Q/R/free occurrences. A naive
 computed-fetch cycle is rejected; this does not rule out root-projection or
-other source shapes. Next establish the source-defined ownership rule from
-root reachability, sequential shared-constraint mutation, and finalization;
-apply it to the recorded guarded two-member SCC, or prove the needed same-SCC
-fixture cannot be expressed. Effect-row principality, route quotient
-completeness, and Oracle acceptance remain open.
+other source shapes. A compiler-referee source audit established a conditional
+Q/free exclusion: with the same boundary and unchanged `level_of(v)` at both
+root quantifier-selection epochs, a retained variable receives the same Q
+classification; dead-quantifier pruning cannot leave it free while preserving
+the occurrence. The remaining Q split mechanisms are cross-epoch level
+lowering or a post-selection ancestor rewrite; R ownership remains a separate
+root-reachability question. Next extract per-root compact support, levels,
+ancestor substitutions, and finalized Q/R/free occurrences for the recorded
+guarded SCC, without assuming its current binder counts settle ownership.
+Effect-row principality, route quotient completeness, and Oracle acceptance
+remain open.
