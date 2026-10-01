@@ -2546,3 +2546,13 @@ can share a witness even when the naively lifted outer endpoints are
 incomparable; this rejects that exact flattening step, while explicitly
 leaving other outer encodings open. Compiler-referee and spec-auditor review
 confirmed the example and source scope; a minor overbroad claim was narrowed.
+An additional conditional denotation now gives nested overlap for finite
+acyclic bounds in the unselected tagged-powerset carrier: interval leaves
+intersect by endpoint joins, and same-head nominal/pure-Function nodes
+factor by their injective variance channels. Compiler-referee review found no
+remaining issue after excluding tuple/product, record, and effect heads that
+the carrier does not encode. Mixed Interval/Lifted comparisons, shared-slot
+constraints, cycles, effectful Functions, source adequacy, and principality
+remain open. Next, prove or refute that this candidate can be extended to the
+full required type/effect envelope while preserving symbolic incidence and
+root observations; do not advance to implementation on this lemma alone.

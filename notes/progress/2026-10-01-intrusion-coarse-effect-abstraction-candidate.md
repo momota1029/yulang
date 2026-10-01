@@ -5307,6 +5307,58 @@ same solve/residualize/generalize/freshen/intrude lifecycle. The N-way
 endpoint theorem applies only after such a sound decomposition has produced
 the argument-position endpoint sets.
 
+#### Conditional structural overlap in the tagged powerset carrier
+
+There is a candidate structural meaning for a finite acyclic lifted bound,
+but only inside the unselected tagged powerset carrier described in
+`notes/progress/2026-09-30-intrusion-powerset-carrier-candidate.md`. Let
+`D = P(N)` with subset order and fix one assignment `η` for all type
+identities in the endpoint expressions. Define the denotation of an interval
+leaf by
+
+```text
+[[Interval(L,U)]]η = { t ∈ D | (∀l∈L. lη ⊆ t) ∧ (∀u∈U. t ⊆ uη) }
+```
+
+For a lifted node with one known head `K`, define
+
+```text
+[[K(B₁,…,Bₙ)]]η = { Enc_K(t₁,…,tₙ) |
+                     tᵢ ∈ [[Bᵢ]]η for each i }
+```
+
+Here `K` is a well-kinded nominal constructor with its declared variance, or
+a pure Function, using the candidate's disjoint, injective variance channels.
+Tuple/product heads are excluded because the powerset candidate has no product
+encoding. The lifted-bound denotation is intentionally a set of candidate
+type values; it is not defined as the interval between one flattened pair of
+outer types.
+
+For two interval leaves with finite endpoint sets, intersection is nonempty
+exactly when every lower endpoint from either leaf is below every upper
+endpoint from either leaf. The powerset witness is the union of all lower
+endpoints. For two lifted nodes with the same head and independent child
+slots, injectivity and disjointness of `Enc_K` make their denotations overlap
+exactly when each pair of corresponding child denotations overlaps. Different
+lifted heads have disjoint images. Induction gives this result for finite
+acyclic trees whose comparison is aligned at each node as Interval/Interval
+or same-head Lifted/Lifted.
+
+This structural factorization does not cover an Interval/Lifted comparison,
+which needs its own membership rule. It does not cover tuple/product,
+record, or effect heads because the candidate has no encoding for them. It
+also does not factor child checks when slot witnesses have cross-slot identity
+constraints. In that case the
+condition is one existential choice of `η` and all child witnesses satisfying
+the complete incidence/constraint graph together; separate per-slot
+existentials can change the solution set. Recursive or polarity-reversing
+bounds, effectful Function slots, source-rule obligation generation, and
+root/use observations are outside this lemma. It is conditional evidence
+that retaining a variance-tagged structural graph can express nested overlap
+in this carrier, not proof that this carrier is selected, source-adequate,
+principal, or suitable for implementation. The type/evidence incidence
+required by the user remains symbolic through every phase.
+
 #### Variable-edge propagation into interval constraints (conditional)
 
 This identifies one solver expansion of the `InvArgs` shorthand; it does not
