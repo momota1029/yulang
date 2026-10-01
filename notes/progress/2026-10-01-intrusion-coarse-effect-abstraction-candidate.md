@@ -8277,3 +8277,12 @@ The conditional handler-transfer proof is now split accordingly: output
 soundness needs source-computation coverage and a transition/observation
 simulation; universal totality is used only by the separate exact-domain
 lemma, not by the soundness proof.
+
+The source-computation candidate now spells out one record-pattern field
+default as a presence split inside `BindPat`: a present field binds directly;
+a missing field composes `Run(default)` with the remaining pattern relation
+using the ordinary state-threaded bind. A default request therefore keeps the
+rest of the pattern in its continuation, and its symbolic typed-family formula
+stays attached to the composed relation. This is a source-runtime
+characterization of frozen `continue_value_as_bind`, not a source typing rule;
+field-presence constraints and finite principal projection remain open.

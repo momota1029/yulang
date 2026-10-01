@@ -3540,4 +3540,6 @@ required totality over every abstract behavior for final acceptance; that
 stronger condition only supports a total-transformer or exact-domain theorem.
 The transfer soundness lemma now requires only coverage of source computations
 and a transition/observation simulation; totality is isolated to exact-domain
-preservation.
+preservation. A single record-pattern default now has an explicit
+state-threaded `BindPat` presence split; source typing of field presence and the
+finite principal projection remain open.

@@ -504,6 +504,29 @@ source-machine pattern-binding relation for arm `i`, with outcomes
 expression evaluation when present. Then the arm sequence is the following
 recursive composition of those existing relations:
 
+For one record field with subpattern `p` and default expression `e`, the
+candidate binding relation is the corresponding presence split:
+
+```text
+BindField_{p,e}(r,η,s) =
+  BindPat(p,v,η,s)                                      if field(r)=Present(v)
+  Run_ν(e,η,s) >>= λ(v,η',s'). BindPat(p,v,η',s')       if field(r)=Missing
+```
+
+The second branch uses the same `>>=` as ordinary expression sequencing. If
+`Run_ν(e)` yields a request, `>>=` attaches the remaining pattern binding to
+that request's continuation; after resume it receives the resumed environment
+and state. This is the candidate explanation for the frozen runtime's
+`continue_value_as_bind` behavior. The row/effect view is projected from the
+whole relation, so it includes default requests on missing-field paths without
+adding a pattern-default effect rule or independently unioning support rows.
+Any symbolic typed-family predicate on such a request remains in the composed
+relation through that continuation; materializing the remaining row cannot
+recreate it if it has been dropped.
+This characterizes the frozen runtime at `a58eefc3`; the source typing rule
+that selects the branch from record shape, and its symbolic field-presence
+constraints, remain open.
+
 ```text
 Match_i(v,η,s) =
   BindPat_i(v,η,s) >>= λoutcome.
