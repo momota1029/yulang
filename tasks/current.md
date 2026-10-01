@@ -2877,3 +2877,12 @@ proofs. Handler coverage cannot discard typed constraints based on the support
 set alone. This support/payload split and its proof obligations are now
 explicit in the weight-routing candidate. The typed transition and
 principal-source proof remain open.
+
+Frozen SCC event inspection confirms that each ordinary resolved reference or
+selection produces one `UseResolved`/`InstantiateUse` carrying a single target
+and occurrence value; unresolved intra-component uses link to a live target
+root. Adjacent external events can be batched for constraint insertion, but
+each still creates its own target-scheme instance. This is characterization
+only and does not dictate successor semantics; source generalization rules
+must determine the semantic instantiation unit. Imported or multi-root source
+constructs remain to be checked.

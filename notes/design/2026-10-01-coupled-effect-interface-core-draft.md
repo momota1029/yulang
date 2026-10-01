@@ -571,6 +571,20 @@ outer anchors. It does not prove that the source builds any selected
 root-scheduler mutations are captured by the component relation. Those are
 still required for the intrusion redesign's Oracle-capability theorem.
 
+Frozen Oracle event characterization (not a successor rule): the SCC machine
+receives `UseResolved { parent, target, use_value }` for one resolved reference
+or one resolved selection. An unresolved intra-component use becomes an
+`OpenUse` linking that occurrence's `use_value` to the target's live root. A
+use of an already quantified target becomes one `InstantiateUse` event, which
+selects that target's scheme and freshens it once. Adjacent instantiate events
+may be grouped for constraint insertion, but the batch still prepares one
+target scheme instance per event; the batch is an execution optimization, not
+a shared multi-root instantiation. This supports root-indexed external use
+views for those frozen event paths. It does not establish the successor's
+source-level instantiation unit: the unified relation must derive that unit
+from the source generalization/use semantics, and imported schemes or any
+other source construct that exposes multiple roots need separate examination.
+
 The product equation applies to the selected published relations; it does not
 establish that all SCC member schemes come from one identical component
 snapshot. The source audit recorded in
