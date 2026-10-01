@@ -178,6 +178,60 @@ form that inserts a concrete role predicate on a value-fetch owner before
 an unready computed member. The trace instrumentation and fixture remain in
 the detached scratch checkout only.
 
+## Accepted source mixed-fetch dependency SCC
+
+A second source construction reaches the dependency-only mixed-fetch shape.
+The role has a receiverless `make` member and a receiver method `probe`; the
+generic `demand` function retains a `Pair` predicate through `x.probe`. Inside
+the `int: Pair` implementation, `owner` is a local lambda that instantiates
+`demand(1)` and selects `1.probe`, while the receiverless computed `make`
+calls `owner()`:
+
+```text
+role Pair 'subject:
+  our make: int
+  our x.probe: int
+my demand(x: 'a): int =
+  where 'a: Pair
+  x.probe
+impl int: Pair:
+  my owner = \() ->
+    demand(1)
+    1.probe
+  our make = owner()
+  our x.probe = 1
+pub result = 0
+```
+
+The owner scan first sees no roles. Later the instantiated concrete `Pair`
+constraint is present, passes `role_constraint_could_resolve`, and sees the
+candidate implementation with `make` still unready. The trace records
+`unready=[make]`; the owner-to-make dependency then closes the SCC with the
+ordinary make-to-owner use edge. Exactly one joint `QuantifyComponent`
+contains owner and make, with no lowering diagnostics. The focused final
+acceptance probe calls `specialize_mono_from_sources`, which passes the
+runtime-ready gate and monomorphic specialization with no errors.
+
+The boundary trace confirms the intended mixed fetch: owner selects
+`TypeLevel(0)` and receiverless make selects `TypeLevel(1)`. Both roots happen
+to have empty Q/R sets and concrete predicates. This is source reachability
+and final-acceptance evidence for a mixed-fetch dependency SCC; it is not a
+source witness for the earlier shared-variable Q/free split, nor a runtime
+execution result. Both fixtures and all instrumentation remain in the
+detached Oracle worktree; no compiler source or test file on this branch was
+changed. The focused commands were:
+
+```text
+YULANG_INTRUSION_ROLE_DEP_TRACE=1 CARGO_TARGET_DIR=/tmp/yulang-intrusion-scc-owned-target cargo test --offline --jobs=1 -p infer scratch_intrusion_source_local_value_computed_member_dependency_cycle -- --nocapture --test-threads=1
+YULANG_INTRUSION_ROLE_DEP_TRACE=1 CARGO_TARGET_DIR=/tmp/yulang-intrusion-scc-owned-target cargo test --offline --jobs=1 -p yulang scratch_intrusion_mixed_fetch_dependency_cycle_runtime_acceptance -- --nocapture --test-threads=1
+```
+
+The remaining ownership question is whether an accepted source can make the
+same pre-finalization TypeVar appear in both roots' retained views while one
+root quantifies it and the other leaves it free. This accepted mixed-fetch
+fixture does not answer that question. Cross-epoch lowering and root-local
+R/free ownership remain separate.
+
 There is a useful conditional exclusion for Q-versus-free ownership. For a
 variable `v` that occurs in both roots' compact-plus-role views where their
 quantifiers are selected, if both roots use the same boundary and

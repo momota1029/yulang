@@ -1963,28 +1963,32 @@ possibility, not an observed accepted source transition. The existing
 accepted role-method/helper
 cycle was run as a negative control: both roots use `TypeLevel(0)`, Q/R are
 empty, and no level transition occurs in the captured epoch. It does not close
-the dependency-only or R/free cases. No accepted mixed-fetch/shared-identity
-source fixture is known. A disposable synthetic AnalysisSession
+the dependency-only or R/free cases. A focused source fixture now forms a
+mixed-fetch dependency SCC: a value-fetch local lambda has a concrete role
+predicate, the candidate scan sees the receiverless computed member unready,
+and the reverse ordinary use edge closes the SCC. The joint component passes
+the source runtime-ready and mono specialization path. Its roots have concrete
+types and empty Q/R sets, so this is not a shared-identity Q/free witness.
+Details are in notes/progress/2026-10-01-intrusion-mixed-ownership-fixture-audit.md.
+A disposable synthetic AnalysisSession
 fixture now constructs a same-SCC mixed-fetch graph using payload-free
 dependency edges and one shared depth-1 variable. The Oracle jointly quantifies
 both roots without diagnostics, retaining the shared variable in both
 predicates but quantifying it only for the value-fetch root (`Q=[702]` versus
 `Q=[]` at the computation-fetch root). This confirms the machine-level Q/free
-split but not source reachability or final program acceptance; details are in
-`notes/progress/2026-10-01-intrusion-mixed-ownership-fixture-audit.md`. The
+split; the accepted mixed-fetch source fixture confirms dependency-SCC
+reachability and final compilation separately, but does not connect the shared
+variable split to source. The
 proposed graph-level exclusion of mixed-fetch dependency SCCs was refuted:
 `DependencyAdded` can target a receiverless computed role member, and the SCC
 diagnostic ignores payload-free dependency edges. A focused source candidate
 had no lowering errors but did not form the reverse dependency or a mixed SCC,
 so it is not source-reachability or final-acceptance evidence. The candidate
 edge is absent because the candidate impl is visible, but helper has no
-owner-local role constraints during either scan. The `InstantiateUse` to the
-role `read` signature appears later without a helper→make dependency. Next,
-find a source form that inserts a concrete role predicate on a value-fetch
-owner before `DefFinished`/`MethodDependencyResolved`, while its use edge
-reaches an unready computed member; then run the normal final-acceptance gate
-or prove why source lowering cannot create it. Details are in the same
-progress note.
-Cross-epoch level lowering and R/free ownership remain separate open cases.
+owner-local role constraints during either scan. The InstantiateUse to the
+role read signature appears later without a helper→make dependency.
+Continue with the shared-TypeVar Q/free source witness. Cross-epoch level
+lowering and root-local R/free ownership remain separate open cases. Details
+are in the same progress note.
 Effect-row principality, route quotient completeness, and Oracle acceptance
 remain open.
