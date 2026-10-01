@@ -2395,6 +2395,52 @@ without referring to adapter markers, then test capture, partial application,
 closure escape, and independent instantiation against it. This semantic
 distinction must be settled before treating the routed support as principal.
 
+#### Successor contract alternatives (unselected)
+
+The current source authority defines the `EffectRowType` syntax shape but
+explicitly leaves row meaning, effect inference, and lowering undefined. The
+research therefore cannot infer dispatch semantics from that syntax. Two
+coherent starting contracts remain:
+
+1. **Static latent bound.** An arrow's effect row bounds the requests produced
+   when its function is called; it does not grant a handler authority over
+   those requests. Runtime routing follows the selected operational handler
+   semantics (for the usual deep-handler rule, the innermost active complete
+   matching handler receives the request). Under this rule, the immediate
+   callback-order pair should route to the inner arm in both variants. The
+   frozen callback-second result `[9]` is a runtime-compatibility difference
+   if this rule is selected. The current probes show no final-acceptance
+   difference: both variants pass `check`.
+2. **Scoped handler grant.** A typed callback contract can authorize a
+   particular handler boundary to subtract matching callback requests from
+   its residual row and route them to its arm. The contract must identify the
+   typed family and its semantic owner/scope; a family-name Boolean is not
+   enough. To account for frozen behavior, this rule must define why argument
+   position and currying stage change eligibility, and transport that scope
+   through helper calls, partial applications, returned closures, and
+   independent instantiation without importing `FunctionAdapter` marker
+   behavior as its definition. It then needs a soundness proof showing that
+   every removed request is actually handled by the authorized activation.
+
+The concrete-versus-wildcard helper probe favors investigating a grant
+interpretation: a concrete `[choose]` callback contract allows the nested
+handler to handle the request, while wildcard callback rows route outward.
+That is evidence, not a decision. The callback-order probes challenge any
+grant rule that depends only on the receiving activation: direct and staged
+callback-first cases return `[2]`, while callback-second returns `[9]` with no
+caller catch and `[7]` with a caller catch. Both immediate programs are
+accepted, so these results establish a runtime distinction but not a final
+acceptance loss, unsound scheme, or nonprincipality result. No repeated-push,
+shared-pop routing theorem follows from either alternative.
+
+The semantic decision can be narrowed by a required law: every grant-based
+`Drop` must have a trace-level certificate that all requests it removes are
+handled at its named activation for every legal callback implementation and
+every application stage. If no such certificate can be defined from source
+contracts, use the static-bound alternative and preserve uncertain requests
+in the coarse row. This conditional criterion is a proof obligation, not a
+selected policy or implementation authorization.
+
 The independent-use case checked successfully; both interpreter runs and
 `--poly-raw` / `--mono` dumps completed. Relevant temp fixtures are
 `/tmp/yulang-intrusion-grant-independent-uses.yu`,

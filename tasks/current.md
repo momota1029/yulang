@@ -2110,15 +2110,16 @@ adapter on the residual function only in the first variant; runtime tracing
 confirms the frozen route but does not justify it semantically. Direct
 application under the same caller catch gives the same pair of roots (`[2]`,
 `[7]`), so a named partial value is not itself necessary; parameter position
-and adapter placement still covary. Define
-whether callback effect contracts are static latent-row bounds or also
-source-level dispatch boundaries. Under ordinary call-by-value semantics,
-permuting receipt of pure independent arguments leaves the same body
-configuration, so the immediate pair's `[2]` versus `[9]` is a conditional
-runtime compatibility difference if contracts are static-only. Both programs
-are accepted, so this is not an acceptance-capability mismatch. If contracts
-alter dispatch, specify that source rule independently of adapter markers and
-challenge it with staged receipt, closure escape, and independent uses.
-Evidence is in
+and adapter placement still covary. A concrete semantics decision remains:
+are callback effect contracts static latent-row bounds, or do they grant a
+scoped handler authority over requests? The syntax authority does not decide
+this. Under ordinary call-by-value semantics, permuting receipt of pure
+independent arguments leaves the same body configuration, so the immediate
+pair's `[2]` versus `[9]` is a conditional runtime compatibility difference
+if contracts are static-only. Both programs are accepted, so this is not an
+acceptance-capability mismatch. A scoped-grant rule must explain parameter
+position and partial-application stages from source meaning and prove every
+`Drop` is actually handled. Alternatives and obligations are recorded in
 `notes/progress/2026-10-01-intrusion-coarse-effect-abstraction-candidate.md`,
-section "Partial-application order stress on the receiver-grant candidate".
+sections "Partial-application order stress on the receiver-grant candidate"
+and "Successor contract alternatives (unselected)".
