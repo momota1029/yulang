@@ -6602,3 +6602,18 @@ generalized scheme, while comparing the generic control; then derive a
 preservation obligation without importing Oracle routing semantics. This
 counterexample concerns effect support and is independent of the separate
 symbolic `InvArgs`/typed-family lifecycle invariant, which remains mandatory.
+
+A source-level pass trace narrows the unresolved handoff. Annotation lowering
+connects both polarized function bounds to the parameter; the positive return
+effect is a pushed `[ask]` boundary row and the negative return effect is a
+filtered stack. At application, the annotated branch uses the bare call-effect
+variable and constrains it into the enclosing result effect. Function
+subtyping propagates return effects covariantly, and lambda output lowering
+places the body effect into the enclosing positive function return effect.
+However, `lambda_param_public_arg` can publish `call_public_upper` instead of
+the parameter's negative variable when that closed upper is available. This is
+a plausible projection cut in the callback relation, but weighted propagation
+and concrete compact projection have not been traced far enough to prove that
+this is where `[ask]` disappears. Keep the exact loss phase open; the source
+counterexample remains established. No claim here licenses Oracle's weighted
+routing as successor semantics.

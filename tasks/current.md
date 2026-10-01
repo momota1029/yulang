@@ -2692,3 +2692,15 @@ solve, and scheme projection is open. Next trace the symbolic annotated effect
 upper through application and generalization, independently of Oracle routing,
 while continuing the required typed-family lifecycle proof; neither gate is
 closed.
+
+The annotated callback source path is now traced through lowering and outer
+function construction: annotation bounds connect both polarities, application
+constrains the callback's bare call effect into the enclosing result, and
+function return effects propagate covariantly into the lambda output. The
+`lambda_param_public_arg` projection can instead publish a closed
+`call_public_upper`; this is a candidate cut, not the proven loss point.
+Weighted propagation and concrete compact projection still need a variable-
+level trace. The typed-family symbolic-lifecycle invariant remains independent
+and mandatory across solving, residualization, generalization, fresh
+instantiation, and intrusion; it must not be reconstructed from materialized
+rows.
