@@ -1436,21 +1436,29 @@ operation relation are equivariant under the same map. It does not validate
 the withdrawn independent-support decomposition, and it says nothing about a
 non-injective parent quotient or solution-fiber completeness of a solver.
 
-**Pattern-default corollary.** Extend `Tr_θ` structurally to the record
-pattern, its field subpattern, and its default expression. Assume it preserves
-field labels and the runtime present/missing test, and that `Run_ν` and the
-recursive `BindPat` relation are equivariant under `θ`. Then:
+**Pattern-binding transport.** Extend `Tr_θ` structurally to patterns and
+their embedded expressions. Assume it fixes field/constructor labels,
+preserves the runtime present/missing test, and that each atomic pattern test
+and embedded-expression `Run_ν` judgment is equivariant under `θ`. Assume the
+composite pattern rules are built from relational choice, composition, and
+projection over child bindings. Then `BindPat` is equivariant by structural
+induction. Its record-default case reduces to the following corollary. For a
+field with subpattern `p` and default `e`:
 
 ```text
 Tr_θ(BindField_{p,e}(r,η,s)) =
   BindField_{Tr_θ(p),Tr_θ(e)}(Tr_θ(r,η,s))
 ```
 
-When the field is present, this is the assumed `BindPat` equivariance. When it
-is missing, apply `Run` equivariance and then the resumable-bind lemma above;
-the resumed default continuation still reaches the transported remainder of
-the pattern. Since `Tr_θ` maps each request formula and incidence with the same
-identity action, this transports typed-family constraints emitted by a
+When the field is present, use the induction hypothesis for `p`. When it is
+missing, apply `Run` equivariance and then the resumable-bind lemma above; the
+resumed default continuation still reaches the transported remainder of the
+pattern. Alias and alternation rules preserve equivariance by composition and
+relational choice when their child rules do. A `RuleExpression` pattern must
+use its embedded-expression evaluation relation and its equivariance theorem;
+the syntax reference does not supply that semantic premise. Since `Tr_θ` maps
+each request formula and incidence with the same identity action, it transports
+typed-family constraints emitted by a
 default through freshening or injective parent renaming without rebuilding
 them from the residual row. The result is conditional on source `BindPat`
 adequacy and injective transport; it does not prove source typing of field

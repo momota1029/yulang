@@ -3539,6 +3539,7 @@ and a transition/observation simulation; totality is isolated to exact-domain
 preservation. A single record-pattern default now has an explicit
 state-threaded `BindPat` presence split; source typing of field presence and the
 finite principal projection remain open. An injective reindexing corollary now
-transports that binding through `Run`/bind equivariance, including the default
-request's symbolic family incidence; non-injective intrusion and source typing
-are still open.
+transports that binding by structural induction from atomic-test and
+embedded-expression equivariance, including the default request's symbolic
+family incidence. `RuleExpression` evaluation and non-injective intrusion
+remain open.
