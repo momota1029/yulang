@@ -3451,3 +3451,12 @@ existing producer origins; unknown targets widen to `TopEff`. Leastness is
 only within this origin abstraction. Source-step coverage, finite type/use
 ownership, K_sym transport, exported/client entry seeding, and handler Drop
 proof are still open, so this is not yet a usable or accepted semantics.
+This powerset is only a finite presentation of the coupled computation /
+interface relation; `ReqTpl`, producer/slot IDs, and edges are solver indices,
+not additional source semantics. The next proof target is a commuting
+abstraction diagram for concrete steps and the relation's filter, handler
+image, generalization, freshening, and intrusion operations, preserving
+symbolic typed-family fibers throughout. An abstraction gap is a limit of the
+presentation, not grounds for adding an Oracle-shaped special rule. See
+`Finite request-origin closure as a presentation, not a second semantics` in
+`notes/design/2026-10-01-coupled-effect-interface-core-draft.md`.

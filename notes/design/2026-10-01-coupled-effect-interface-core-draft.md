@@ -2091,6 +2091,38 @@ interface coordinate has been fixed, that signals a missing coordinate to
 identify before adding a site-specific rule. This is a design diagnostic, not
 a proof that the current interface carrier is complete.
 
+#### Finite request-origin closure as a presentation, not a second semantics
+
+The finite `Slot × Origin` / request-template closure recorded in the
+progress note is admissible only as a finite presentation of the same
+source-derived computation/interface relation. Its producer sites, slots,
+owner IDs, and edge witnesses are indices used to construct and solve that
+presentation; they are not new source-level effect constructors or extra
+coordinates in `Rel_C` merely because the finite algorithm needs them. The
+mathematical meaning remains the typed request behavior and complete
+value/activation/continuation interface represented by `Rel_C`.
+
+In particular, source calls, thunk forcing, continuation resumption, stores,
+and handler transitions must all be instances of the same source computation
+relation. The finite closure is a candidate abstraction/least-fixed-point
+presentation of its reachable interface projection. A proof must give an
+abstraction map and show each concrete step is simulated, while preserving
+symbolic family predicates and their owner incidence. Unknown abstract targets
+may widen the projected support to `Top`; widening is an abstraction choice,
+not a special source rule. Handler subtraction still has to follow from the
+relational handler image and its coverage proof, not from deleting an origin
+or request template in the closure.
+
+This restriction resolves an economy risk in the product-powerset sketch:
+finite `ReqTpl` facts may be an efficient solver representation, but they
+cannot become an independent semantic effect language parallel to `Rel_C`.
+If the finite closure cannot preserve the complete relation's typed fibers,
+it is an insufficient presentation; it does not justify a new site-specific
+obligation. The next proof target is therefore a commuting abstraction
+diagram from source steps through this finite presentation to the existing
+relational operations, including filter, handler image, fixed-outer
+generalization, fresh reindexing, and intrusion.
+
 ## Open gates
 
 This draft does not yet define the supported source semantics or prove the

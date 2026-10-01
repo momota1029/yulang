@@ -827,6 +827,23 @@ requires the separate handler visibility/coverage proof. This gives a
 conditional finite state-closed bound, not yet an effective or Oracle-complete
 effect inference machine.
 
+Conceptual-economy constraint from the user: this product powerset is not a
+second effect semantics and `ReqTpl` is not a new source-level construct or
+obligation kind. It is admissible only as a finite presentation of the
+existing coupled computation/interface relation: producer, slot, owner, and
+edge IDs are solver indices; typed request meaning and handler visibility
+remain observations of that relation. Calls, force, resumption, store
+mutation, filtering, and handlers must be simulated by one source computation
+relation, with the finite closure serving as its abstract reachable-interface
+projection. Unknown targets may widen that projection to `Top`, but a handler
+may remove support only through the relation's proved handler image/coverage.
+The proof target is now a commuting abstraction diagram preserving symbolic
+typed-family fibers through the existing relation operations and SCC
+lifecycle. If the finite closure cannot preserve those fibers, that is a limit
+of the presentation, not a reason to add source-site-specific semantics. See
+`Finite request-origin closure as a presentation, not a second semantics` in
+the coupled-effect draft.
+
 #### Source-step correction: operation and continuation application are lazy
 
 The frozen Oracle runtime's value-flow code sharpens the preceding transfer:
