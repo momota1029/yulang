@@ -5281,6 +5281,75 @@ rejecting that concrete unsound acceptance; it does not identify the Oracle's
 internal missing edge or settle compatibility for programs with differing
 effect supports.
 
+#### Conditional callback effect-contract rule
+
+This records one independently checkable rule under a narrow semantic premise:
+an effect row attached to a callback parameter denotes an upper bound on the
+typed requests that any supplied callback may emit when called. It does not
+derive when a handler may intercept those requests; visibility and grant
+lifetime remain separate.
+
+Let a supplied callback value have a sound finite-prefix summary
+`(R_actual,Q_actual)`, where `R_actual` is a typed latent row and
+`E_actual = support(R_actual)` is only its erased support projection. Require
+the source invariant that every known typed request in `Q_actual` is represented
+by its typed family occurrence in `R_actual`. If any possible request remains
+unknown, widen `R_actual` with `TopEff`; do not silently omit it or assign it a
+family. `TopEff` denotes unknown support, is not covered by a finite row, and
+is covered only by a formal top bound. Let the receiving parameter declare
+typed latent row `R_formal`. Before the receiving function is callable,
+require the symbolic typed-row constraint:
+
+```text
+TypedRowLeq(R_actual, R_formal)
+```
+
+with `TypedRowLeq` interpreted by support inclusion and the keyed
+within-row/cross-row `InvArgs` obligations defined above. Keep each obligation
+and its request/row incidence in `K_sym`; solve it before final acceptance or
+retain it as a residual scheme constraint. If the callback is generalized,
+freshened, or intruded, transport its actual row, the formal contract, and
+every `InvArgs` endpoint under their shared binder ownership. Never rebuild
+the relation from a materialized row.
+
+Conditional soundness: assume (i) every finite request prefix of the actual
+callback is represented in the typed `R_actual`, including `TopEff` for every
+unknown possible request, (ii) `TypedRowLeq` treats `TopEff` as uncovered by
+any finite formal row and preserves typed family relations, and (iii) every
+offered request/selected handler-arm pair has a source-derived signature
+coherence proof. For exact operation `p`, resolving the request under `θ` and
+the arm under `φ` must prove payload flow `Aθ <: Aφ` and resume flow
+`Bφ <: Bθ` (or a representation-compatible equality/coercion theorem),
+including binders in payload/result types that are absent from the family's
+argument projection. These obligations use the actual request and arm
+signature instantiations and remain attached to `K_sym` with their
+`InvArgs` evidence. Then row inclusion bounds request support, invariant
+arguments preserve the family-indexed part of the operation signature, and
+signature coherence makes handler delivery and resumption type-safe. Unknown
+identity or unknown typed family does not prove coherence and cannot justify
+handler subtraction. A callback with unknown requests is therefore rejected
+against a finite formal row or remains unaccepted until its summary is
+refined; it cannot use finite support inclusion as evidence of safety. For the
+minimized witness, support inclusion alone
+passes because both rows contain `ask`; its family constraint is unsatisfiable,
+so that particular application is rejected. This example does not discharge
+the separate operation-only-binder obligations.
+
+For this chosen upper-bound interpretation and the finite typed-row fragment,
+the assignment-wise open-row lemma makes only the `TypedRowLeq` comparison
+exact and weakest up to logical equivalence: dropping a non-entailed support
+or invariant constraint admits a typed row pair outside that comparison,
+while adding an unrelated non-entailed atom rejects a pair it permits. This
+local principality claim excludes `TopEff`; the rule that finite rows do not
+cover `TopEff` is a conservative rejection convention, not a proved greatest
+solution property for an unknown-row language. This is local principality of
+the finite row relation only; it proves no callback payload/result safety. It
+does not establish that the Yulang annotation
+syntax has this meaning, the outer function-argument variance, the scope of
+handler grants, callback receipt across curried stages, the adequacy of the
+family-argument projection, or principality of the combined effect system.
+Those premises require source semantics and approval before implementation.
+
 #### Closed typed-row subtyping fragment (conditional lemma)
 
 The callback comparison above needs a precise local meaning independent of

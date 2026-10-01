@@ -2413,3 +2413,16 @@ checked against the handler/continuation before final acceptance. Review found
 no blocking/major issue after these precision repairs. The independently
 derived successor variance rule remains open; see "Callback-row polarity is
 not determined by the typed-family witness" in the candidate record.
+
+A conditional callback upper-bound rule was derived from finite-prefix
+coverage rather than Oracle weight routing. Review caught that typed family
+rows alone do not constrain operation-only binders: the repaired rule now
+requires an exact request-to-arm signature coherence proof for payload and
+resumption types, compares typed latent rows separately from erased support,
+and widens unknown possible requests to `TopEff`. Finite formal rows cannot
+accept that unknown bound. The reviewer closed the major findings; the
+finite-row principality claim now explicitly excludes `TopEff`. This remains a
+conditional candidate, not a selected source meaning: annotation semantics,
+outer variance, grant lifetime, family projection adequacy, and full source
+simulation remain open. See "Conditional callback effect-contract rule" in
+the candidate progress record.
