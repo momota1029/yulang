@@ -1078,6 +1078,49 @@ static source-adequacy obligations. In particular, the inference relation
 must predict every runtime thunk boundary without consulting the frozen
 Oracle's weight routing.
 
+#### Callback result at a shallow catch boundary
+
+Frozen runtime source makes the missing boundary concrete. `eval_catch`
+evaluates its body and dispatches `EvalResult::Value` to value arms and
+`EvalResult::Request` to operation arms; it does not force a first-class thunk
+value. The mono contract separately says `MakeThunk` suspends its body,
+`ForceThunk` runs it, and an effect operation returns a thunk that emits its
+request only when forced. Therefore the same callback's latent operation row
+can lead to different catch images depending on the typed context:
+
+```text
+callback returns a thunk; catch transports it as a value
+    => catch value arm; request remains latent
+typed context forces the thunk before catch handles the result
+    => request is emitted inside this catch activation
+typed context forces the thunk after catch returns
+    => request is emitted outside this catch activation
+```
+
+This is a source computation/value distinction, not a reason to add a
+callback-specific selector or a new effect obligation. The source typing and
+evaluation-context relation must determine where computation is composed and
+where a thunk remains a value. `catchκ(e₁ e₂)` adequacy consequently needs one
+context simulation that tracks the complete application result (including its
+latent interface), inserts no demand by guessing from its row, and commutes
+with `Step_H` only when the source context actually demands the thunk.
+
+The same simulation must transport dynamic visibility. Exact operation
+identity alone does not imply that activation `κ` handles a request: the
+frozen guard contract also compares request-carried guard lineage with the
+active ordered frame stack, and forwarded resumptions restore the frame on
+re-entry. A typed request may therefore be forwarded despite matching an arm
+path. At fixed `ν`, the source-to-`Step_H` correspondence must preserve live
+state, ordered frames, request visibility, raw versus wrapped continuations,
+and the symbolic family predicate/incidence `K,D`. Rows and route records can
+present this relation, but cannot replace that correspondence proof.
+
+The frozen runtime contracts and `eval_catch` implementation establish these
+operational distinctions only. They do not establish the source typing rule
+that chooses each demand boundary, a source-level guard-lineage theorem, or a
+finite principal interface formula. No candidate successor rule is approved
+or implied here.
+
 #### Closed callback/catch calculation
 
 Fix an assignment `ν`, imports `ρ`, and activation `κ`. Let `γ^row_{ν,κ,ρ}(E)`

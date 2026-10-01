@@ -132,10 +132,14 @@ This responds to the preference for a theory that does not mirror Oracle
 source sites. It remains a draft, not a selected semantics. The next work is
 to prove one source typing/execution simulation for callback application
 followed by shallow catch at a fixed activation, including strict evaluation,
-force boundaries, typed request ownership, and live continuation state. The
-complete interface should be shared-assignment composition followed by one
-handler image; the finite constrained presentation must preserve its symbolic
-fibers. The collected may-support projection is least in the
+force versus latent-value boundaries, typed request ownership, live state,
+ordered frame visibility, and raw versus forwarded resumption. Frozen runtime
+characterization now exhibits why an operation path or latent row cannot
+choose the catch image alone: a returned operation thunk is seen as a value
+until the source context forces it. The complete interface should be
+shared-assignment composition followed by one handler image; the finite
+constrained presentation must preserve its symbolic fibers. The collected
+may-support projection is least in the
 full powerset for each fixed valuation, while pointwise row join is distinct
 from relational disjunction and only gives a monotonicity inclusion without
 an additional theorem. A further audit found that this ground support result

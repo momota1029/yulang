@@ -8839,3 +8839,34 @@ predicates remain in the denotation through solve, residualization,
 generalization, freshening, and intrusion. The comparison is a proof-target
 preference only: finite principal projection, termination, source adequacy,
 and SCC quotient preservation remain open.
+
+## 2026-10-02: callback result and shallow-catch boundary
+
+A focused compiler-referee audit found no contradiction in the common relation,
+but confirmed that the callback-then-catch simulation cannot yet be proved:
+`CallCfg`, `Beh`, source typing, and the immediate-versus-latent boundary are
+not defined by an authoritative source judgment. The frozen VM evidence gives
+a concrete reason these details matter. `eval_catch` dispatches a returned
+value to value arms and a request to operation arms; it does not force a
+first-class thunk. `MakeThunk` suspends computation, `ForceThunk` executes it,
+and an effect operation emits its request only when forced. A callback's
+latent operation row therefore does not determine whether a surrounding catch
+sees a request: source context may transport the thunk, force before catch, or
+force after catch.
+
+The corresponding minimal simulation must compose strict callee/argument
+evaluation, preserve the callback result's latent interface, and let typed
+context determine force versus value transport. The same proof must map source
+handler routing to `Step_H`, retaining exact operation identity plus request
+guard lineage and active ordered frames. A path-matching request may still be
+forwarded when its guard lineage hides it from that activation. At fixed type
+assignment `ν`, the proof must carry live state, raw versus re-entry-wrapped
+continuations, and symbolic family predicate/incidence `K,D`. These are
+source-visible computation distinctions represented in the common relation;
+they do not justify callback-specific selectors or route semantics.
+
+The new draft subsection records this evidence and proof boundary. It is
+operational characterization, not a successor typing rule or soundness proof.
+The source-level demand judgment, guard-lineage correspondence, finite
+principal presentation, and the resulting final-acceptance comparison remain
+open. No tests or implementation were run.
