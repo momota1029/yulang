@@ -2672,3 +2672,23 @@ invariance throughout every lifecycle phase; the materialized `Bounds(int,
 Bot)` cannot reconstruct it. Next trace this source through the exact weighted
 Oracle pass and establish the reviewed annotation meaning. Details and command
 outcome are in `notes/progress/2026-10-01-intrusion-coarse-effect-abstraction-candidate.md`.
+
+A second, simpler frozen-Oracle source probe exposes possible higher-order
+effect loss: `call(f: () -> [ask] ()) = f()` is inferred with an empty result
+effect, and an explicitly pure `invoke(): [] () = call(\() -> ask::get())`
+passes `check`; `run` reaches the unhandled `ask::get` request. The direct
+control `direct() = ask::get()` retains `[ask]`, while the unannotated generic
+control `h(f) = f()` retains the same latent effect variable on input and
+output. This is a concrete Oracle soundness conflict under may-effect
+semantics and a candidate final-acceptance divergence, with a clear successor
+rule: callback invocation contributes its latent effect through generalization
+and use. Review corrected the route attribution: the concrete failing `call`
+has an explicitly annotated parameter, so frozen lowering marks its return
+effect `Annotated` and bypasses the `Subtractability::Empty` push/pop helper.
+The unannotated generic control uses that push/pop path and correctly retains
+its open effect variable. The concrete loss therefore remains localized only
+to the annotated callback path; the exact stage among annotation constraints,
+solve, and scheme projection is open. Next trace the symbolic annotated effect
+upper through application and generalization, independently of Oracle routing,
+while continuing the required typed-family lifecycle proof; neither gate is
+closed.

@@ -6540,3 +6540,65 @@ derived `InvArgs`/proof incidence and preserves an equivalent residual
 `RowLeq` relation. This lemma does not prove that residualization rule, source
 annotation lowering, or any handler Drop criterion. It is a conditional
 transport result, not implementation authority.
+
+#### Higher-order callback effect loss in frozen Oracle (source counterexample)
+
+The frozen Oracle has a shallow source counterexample to sound effect
+forwarding that does not depend on exact continuation-sensitive rows or on
+typed family arguments:
+
+```yulang
+pub act ask:
+  pub get: () -> unit
+
+pub call(f: () -> [ask] ()) = f()
+pub invoke(): [] () = call(\() -> ask::get())
+pub result = invoke()
+```
+
+At frozen commit `a58eefc31e22141574b6f20c6a5748151c6d79f1`,
+`yulang --no-prelude --no-cache check` accepts this program. Its raw scheme for
+`call` has the parameter type `() -> [ask] ()` but gives `call` an empty
+return-effect bound (`Bot`); `invoke`, explicitly annotated with the empty row,
+is also inferred pure. The Core IR still contains the nested calls
+`invoke -> call -> f -> ask::get`. Running the source reaches the actual
+`ask::get` request and reports it as unhandled. A direct control
+`pub direct() = ask::get()` is inferred with `() -> [ask] ()`, so the missing
+effect is specific to the higher-order forwarding path rather than the
+operation declaration.
+
+This is a concrete accepted-source conflict with may-effect soundness: a
+program whose declared `invoke` effect is empty executes an `ask` request. The
+successor rule is that invoking a callback contributes its latent effect to
+the enclosing computation, and this relation remains connected through
+generalization and each fresh use. Exact trace multiplicity is irrelevant;
+the single possible request must not disappear. If the successor's ordinary
+effect semantics enforces this rule, it rejects the empty-row annotation or
+gives `invoke` an `ask` effect, while the frozen Oracle accepts the pure
+annotation. This is a concrete candidate compatibility difference in final
+source acceptance; the soundness priority requires keeping the effect.
+
+The probe localizes the observable gap to the inferred/public scheme path, but
+does not yet identify whether the responsible transition is constraint
+generation, root generalization, scheme projection, or fresh instantiation.
+The paired source characterization narrows the trigger: `pub h(f) = f()`
+generalizes as `(() -> ['a] 'b) -> ['a] 'b`, but adding the explicit callback
+contract `f: () -> [ask] ()` changes the inferred `call` result effect to
+empty. The annotated parameter takes a different lowering branch from the
+unannotated generic control: frozen `lambda.rs` marks a parameter with an
+explicit type expression as `LocalCallReturnEffect::Annotated`, and
+`unannotated_local_callee_return_effect` returns its bare `call_effect` before
+allocating a `SubtractId` or adding a frame pop. Thus the concrete failing
+source does **not** establish an incorrect push/pop route. The generic control
+does use the unannotated push/pop path, but it preserves its open effect
+variable and is not itself the counterexample.
+
+The observed loss is therefore somewhere in the annotated callback path,
+including its function-subtype constraints, explicit contract connections,
+solve, or scheme projection. The CLI provides no phase graph to choose among
+them. The next proof unit is to trace the annotated parameter's symbolic
+effect upper through its application constraint, outer function result, and
+generalized scheme, while comparing the generic control; then derive a
+preservation obligation without importing Oracle routing semantics. This
+counterexample concerns effect support and is independent of the separate
+symbolic `InvArgs`/typed-family lifecycle invariant, which remains mandatory.
