@@ -384,50 +384,86 @@ chosen interface language.
 
 #### Case sequencing as relational composition
 
-Write `Run_κ(e)` for the complete finite-observation relation of evaluating
-source expression `e` in activation context `κ`. Define relational
-continuation composition `R >>= F` by appending the behavior of `F(v)` only
-after an observation of `R` returns `v`; request observations retain their
-continuation and are composed with the same `F` when resumed. Prefixes of
-nonreturning behavior remain observations and do not invent a result. Then a
-case expression has the single sequencing equation
+Write `Run_ν(e,η,s)` for the candidate source-level computation relation of
+expression `e` under type assignment `ν`, value environment `η`, and dynamic
+machine state `s`. Its result is a computation observation; first-class
+thunk values carry a separate latent relation. This differs from the mono
+evaluator's raw `eval_expr` value, where a runtime `Thunk` may represent
+either a suspended value or a pending source computation. The candidate
+source typing/elaboration relation must determine which interpretation
+applies. Define state-threading continuation composition `R >>= F` by
+appending `F(v,η',s')` only after `R` returns `(v,η',s')`; for a request,
+compose `F` into its saved continuation so that it runs under the environment
+and state produced when that continuation is resumed. Thus handler-frame
+unwind/re-entry and visibility changes are threaded through composition
+rather than freezing the initial activation. Prefixes of nonreturning behavior
+remain observations and do not invent a result. A case expression then has
+the sequencing equation
 
 ```text
-Run_κ(case e of arms) = Run_κ(e) >>= (λv. Run_κ(select_first_matching_arm(v, arms)))
+Run_ν(case e of arms,η,s) =
+  Run_ν(e,η,s) >>= (λ(v,η',s'). Match(v,arms,η',s'))
 ```
 
-For a relation of such observations, define its collected typed-request
-support by
+`Match(v,arms,η,s')` tests patterns in source order using one pattern-binding
+relation and extends `η` with successful bindings. Pattern binding includes
+conditional field-default evaluation; a default request and its continuation
+remain in the relation. For each matching pattern, it evaluates the guard,
+if present, under the resulting environment and dynamic state; a false guard
+continues with the next arm, and a true or absent guard evaluates that arm's
+body. A guard request and its continuation remain in this same
+state-threading relation. For any observation relation `R`, define collected
+typed-request support at fixed assignment `ν` by
 
 ```text
 MayReq(R,ν) = ⋃ { typed_requests(τ) | (τ,o) ∈ R at assignment ν }
 ```
 
-`select_first_matching_arm` includes source pattern order and guard
-evaluation; a guard's own computation is part of the selected-arm relation.
+Let `Ret*(R)` be returns reached from `R` along every well-typed finite
+resumption of its saved continuations, where resume values are admitted by the
+operation signature and active handler/source context. Retain each returned
+value, environment, and dynamic state. Define the reachable match image
+
+```text
+MatchImg(R,arms) = ⋃ { Match(v,arms,η',s') | (v,η',s') ∈ Ret*(R) }
+```
+
 Thus requests emitted while evaluating the scrutinee precede matching, and
-requests from a selected arm follow its return. This is the source-level
-account of the frozen fixture that cases on `file::load`: the call's request
-belongs to the case computation even though current mono emission omits an
-explicit `ForceThunk` node. The frozen solver's effect calculation
-(`case_type`) already joins the scrutinee and arm effects, which agrees with
-the may-support projection of this sequencing equation.
+requests from attempted guards and the selected body follow in order. The
+source rule needed for the frozen `file::load` fixture is that a case
+scrutinee typed as an effectful computation uses `Run_ν` and composes its
+computation before matching. The fixture plus frozen runtime behavior
+supports this candidate reading, but current Y3 has no authoritative typing
+rule proving it. Current mono emission omits an explicit `ForceThunk`, and the
+evaluator supplies the demand at runtime.
 
 For fixed `ν`, the equation yields the sound support bound
 
 ```text
-MayReq(Run_κ(case e of arms),ν)
-  ⊆ MayReq(Run_κ(e),ν) ∪ ⋃ᵢ MayReq(Run_κ(armᵢ),ν)
+MayReq(Run_ν(case e of arms,η,s),ν)
+  ⊆ MayReq(Run_ν(e,η,s),ν)
+   ∪ MayReq(MatchImg(Run_ν(e,η,s),arms),ν)
 ```
 
-because every finite output request lies either in the scrutinee behavior or
-in the behavior of the arm selected after a scrutinee return. The union over
-all syntactic arms is conservative; the complete relation preserves which
-arm was selected and the result/request correlation. This proves a local
-soundness consequence of composition, not a principal row rule or a static
-source-typing theorem. `case_type`'s union of all arm effects may be less
-precise than the exact image; principality must be assessed in the chosen
-expressible row abstraction.
+because bind either retains a scrutinee request or composes the reachable
+continuation/return into `MatchImg`. That image includes pattern-bound
+environments, conditional defaults, attempted guards, false-guard fallthrough,
+and selected bodies at their actual dynamic states. The complete relation
+preserves which arms were reached and result/request correlation. This
+inclusion is a consequence of the candidate stateful bind equation, assuming
+`Ret*` ranges over all permitted typed resumptions. It does not establish a
+principal row rule.
+
+There is a further source/inference gap for record-pattern defaults. The
+frozen runtime evaluates a missing-field default during pattern binding, and
+the source language report says pattern matching can therefore perform
+effects. Frozen `case_type` calls `consume_expr_value` while binding defaults
+but discards the returned effect; its aggregate contains only scrutinee,
+guard, and body effects. The same pattern-binding relation must account for
+defaults in the successor. Whether Oracle accepts an effectful-default program
+and the final-acceptance impact are unverified; the current code is evidence
+of a possible under-approximation, not yet an accepted-program counterexample.
+Principality remains relative to the chosen expressible row abstraction.
 
 #### Candidate Function contract over the same relation
 

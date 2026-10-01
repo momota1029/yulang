@@ -3219,9 +3219,17 @@ them after row materialization. No implementation follows from these
 conditional lemmas.
 
 The draft now gives a conditional source-level sequencing lemma for `case`:
-the scrutinee relation is composed with the first matching arm relation, and
-typed may-support is bounded by the scrutinee support joined with all arm
-supports. This matches `case_type`'s effect join and preserves branch and
-result/request correlations in the complete relation. It is only a local
-soundness consequence of the candidate operational relation; source typing,
-handler interaction, and principal finite representation remain open.
+the source computation relation is composed with ordered pattern/guard checks
+and the selected body, with dynamic activation state and pattern environments
+threaded through resumed continuations. Typed may-support is bounded by the
+scrutinee and its reachable match image, preserving branch and
+result/request correlations. Compiler-referee review of the updated equation
+found the state-threading account conditionally adequate, while requiring
+resumable-continuation closure and pattern-default effects to remain explicit.
+The candidate source rule interpreting a typed effectful scrutinee as a
+computation, its simulation to the current implicit mono force, and support
+adequacy of `case_type`'s join remain unproved. In particular, `case_type`
+currently discards effects returned while consuming record-pattern defaults;
+this is a possible under-approximation, not yet a demonstrated accepted-
+program mismatch. Handler simulation and principal finite representation
+remain open too.
