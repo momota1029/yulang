@@ -28,15 +28,26 @@ language-design authority.
 Fix imported identities `ρ`. Let `β` be the identities owned by one component
 and `ν` an admissible assignment to them. For each complete component root,
 an interface records its value type and every immediate or latent computation
-view observable by clients. A computation view contains:
+view observable by clients. A computation view contains a may-bound on typed
+requests, symbolic request arguments and operation payload/result
+constraints, and the sharing among arguments induced by source binders. It
+also retains the dynamic handler context needed to determine which requests
+can be handled. These are semantic distinctions: changing them can change an
+admissible type assignment, client observation, or handler transition.
 
-- a may-bound on typed requests;
-- symbolic request arguments and operation payload/result constraints;
-- occurrence and owner incidence needed by future generalization;
-- origin and boundary lineage needed to determine handler eligibility.
+Allocation-site labels, request occurrence IDs, owner paths, and route
+certificates are not themselves observable interface coordinates. A finite
+presentation may use them as indices and proof witnesses. It must preserve
+the source-derived sharing equivalence and dynamic boundary behavior, modulo
+capture-avoiding renaming, but it need not preserve arbitrary label identity.
+In particular, an `owner ID` is bookkeeping for a source binder; the
+mathematical relation depends on which occurrences share that binder, not on
+the numeric or syntactic spelling of its ID. Likewise, a route record may
+witness visibility but does not define visibility independently of the source
+handler transition.
 
 The component meaning is one extensional relation over assignments and
-source-observable root interfaces:
+source-observable root interfaces, modulo renaming of bound identities:
 
 ```text
 Rel_C(ρ) ⊆ { (ν, O) | ν assigns β and O is a complete observable root interface }
@@ -54,10 +65,12 @@ For transport statements, write a finite presentation as
 `p = (V, M, Q, K, D)`: value views `V`, may-support coordinates `M`, typed
 request facts `Q`, symbolic formulas `K`, and incidence `D` connecting each
 formula to the views that depend on it. Its denotation `⟦p⟧_ρ` is a set of
-`(ν,O)` pairs; `K` contributes by formula satisfaction, while `D` records how
-the implementation preserves formula-to-view dependencies. Thus `K` is a
-symbolic presentation of a semantic restriction and `D` is transport
-bookkeeping, not part of the mathematical carrier. A post-solve or
+`(ν,O)` pairs; `K` contributes by formula satisfaction, while occurrence and
+owner labels in `Q,D` present the source-derived sharing relation. `D` also
+records how the implementation preserves formula-to-view dependencies. Thus
+`K` and the induced sharing predicate present semantic restrictions, while
+numeric labels and `D` are transport bookkeeping, not extra coordinates in
+the mathematical carrier. A post-solve or
 post-handler presentation must denote the required transformed relation. If
 a formula is discharged, the proof must establish equivalence for the
 affected views; equality of materialized rows is not such a proof.
@@ -426,7 +439,7 @@ There are three plausible presentations of this same design problem:
 |---|---|---|
 | A separate selector/obligation rule at each source site (`Sel_s`, `Demand`, typed-family pair obligations, and route-transfer cases) | Easy to attach to current solver events, but duplicates the meaning of row comparison, callback invocation, handler residualization, and variable transport. A new source form tends to need another rule. | Local checks can be executable, but their joint solution relation and cross-site preservation must be reconstructed. Proofs do not compose automatically. |
 | A ground may-support row plus a separate provenance/route analysis | Small support algebra and a finite least-support candidate; operational visibility remains explicit. | Support alone forgets valuation, result/request, and continuation correlations. Separate analyses need a proved coupling, and handler images need not distribute over row union. This can be a derived coarse solver view only when the coupling theorem holds. |
-| One assignment-indexed relation over complete root, typed-request, ownership, and visibility observations | One relation composes source evaluation, callbacks, and handler transitions; row splitting/filtering and lifecycle maps are projections or images. | Preserves correlations needed for principality and reuses image/transport lemmas, but may not have an effective finite principal presentation. That is an open theorem, not a reason to add site-specific semantic rules. |
+| One assignment-indexed relation over complete roots, typed-request fibers, source-binder sharing, and dynamic handler behavior | One relation composes source evaluation, callbacks, and handler transitions; row splitting/filtering and lifecycle maps are projections or images. | Preserves correlations needed for principality and reuses image/transport lemmas, but may not have an effective finite principal presentation. That is an open theorem, not a reason to add site-specific semantic rules. |
 
 The third presentation is the preferred mathematical candidate because it
 reuses composition and transport proofs while retaining the information the

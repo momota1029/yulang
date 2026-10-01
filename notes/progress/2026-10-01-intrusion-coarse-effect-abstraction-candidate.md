@@ -844,6 +844,20 @@ of the presentation, not a reason to add source-site-specific semantics. See
 `Finite request-origin closure as a presentation, not a second semantics` in
 the coupled-effect draft.
 
+#### Semantic coordinates versus presentation identities
+
+The unified carrier is now stated modulo alpha-renaming of bound identities.
+The semantics must preserve the equivalence relation saying which typed
+request occurrences share a source binder, plus dynamic handler behavior.
+Allocation-site, occurrence, owner-path, and route IDs are presentation
+indices or proof witnesses; their literal identity is not observable. The
+abstraction adequacy target is preservation of typed solution fibers and
+handler transitions, not equality of instrumentation labels. This separates
+the real semantics from the IDs used by the finite closure and transport
+maps, while leaving source-to-presentation adequacy and finite principality
+open. See the revised `One semantic carrier` section in the coupled-effect
+draft.
+
 #### Source-step correction: operation and continuation application are lazy
 
 The frozen Oracle runtime's value-flow code sharpens the preceding transfer:

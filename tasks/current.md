@@ -3460,3 +3460,13 @@ symbolic typed-family fibers throughout. An abstraction gap is a limit of the
 presentation, not grounds for adding an Oracle-shaped special rule. See
 `Finite request-origin closure as a presentation, not a second semantics` in
 `notes/design/2026-10-01-coupled-effect-interface-core-draft.md`.
+
+The candidate relation now separates actual semantic coordinates from labels
+used to present them: source-binder sharing and dynamic handler behavior must
+be preserved, while allocation-site, occurrence, owner-path, and route IDs
+are alpha-renamable proof/presentation indices. The relation observes the
+induced sharing and handler transition, not those IDs themselves. This
+clarifies the finite-closure proof obligation: its abstraction map must
+preserve typed fibers and dynamic visibility, while bookkeeping maps need
+only commute with that denotation. The source-to-presentation adequacy and
+finite principal projection are still unproved.
