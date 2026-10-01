@@ -3831,10 +3831,11 @@ Pure source-adequacy follow-up: a conditional module theorem now derives the
 typing relation of dependency-ordered ordinary Function SCCs and pure
 computation roots from the existing `RecGroup` member relation,
 environment-extensionality, and nested-expression adequacy results. It lifts
-the `f`/identity witness without a fixture-specific rule. The theorem assumes
-the source declaration rule is exactly this SCC fold; correspondence to
-top-level syntax, binding-fetch classification, exports, and runtime-root
-production remains unproved and needs independent review. Non-function value
-SCCs, referenced computed definitions, effects, roles, and methods are outside
-this slice. Method/role and ordinary effect/handler gates remain later. No
-implementation is authorized.
+the `f`/identity witness without a fixture-specific rule. Frozen source rules
+classify `f` as `FetchValue` and `main`'s application RHS as a monomorphic
+`FetchComputation` runtime root, matching the fold for this witness. The
+general correspondence to top-level declarations/exports still needs a
+complete source rule and independent review. Non-function value SCCs,
+referenced computed definitions, multiple roots, effects, roles, and methods
+remain outside this slice. Method/role and ordinary effect/handler gates stay
+later. No implementation is authorized.

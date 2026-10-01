@@ -489,3 +489,29 @@ root `f (λz.z)` lies in the stated class after treating the unused public
 computed binding's RHS as a root body. Independent review of this module lemma
 and a source-rule correspondence proof remain required before claiming pure
 top-level adequacy.
+
+#### Binding-fetch instance for `f` / identity
+
+The frozen source contract classifies function definitions and recursive
+lambdas as `FetchValue`: obtaining `f` does not execute its body. It classifies
+an outer direct application RHS such as `pub main = f (\\z -> z)` as
+`FetchComputation`: the RHS runs when fetched, its variables are not
+generalized at that binding, and the top-level binding is a source-order
+runtime root. The exact root is therefore not a polymorphic `Let` use. The
+corresponding source-level module fold is: establish the `f` value SCC and its
+`Poly(MemberTypes)` entry; type `main`'s RHS under that environment; retain its
+RHS identities monomorphically; and add its computed root to the execution
+observation. Because no later binding refers to `main`, its monomorphic
+binding identity does not affect the `f`-use witness. This is the general
+value-restriction rule applied to the source-derived value/computation
+classification, not a `main`-specific exception.
+
+The frozen inference trace confirms the corresponding implementation split:
+the self reference inside `f` is local monomorphic, while the `f` occurrence
+in `main` becomes an external component use with fresh scheme instantiation.
+The source contract and event path now justify the shape of the one-module
+translation for this witness. They do not establish the whole module theorem:
+its semantic definition must still cover computed bindings retained for later
+uses, their shared monomorphic constraints, multiple roots in source order,
+and imported/exported outer anchors. Those are the remaining top-level
+translation obligations before the effects gate.
