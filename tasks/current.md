@@ -32,31 +32,25 @@ bookkeeping invariant, not an approved representation.
 The frozen Oracle code paths for filter checks, duplicate collection, common
 stack matching, and residual rewriting are now mapped to the points where
 they emit pairwise subtype constraints and consume or collapse typed row data;
-this is characterization only. Source rules must still determine which of
-those encounters require successor obligations, and the successor's
-view-demand incidence proof remains open.
-The later source-rule notation now agrees with the stable-key rule: each
-relation site and argument position has a key, while endpoint type terms stay
-as substitutable formula payload.
-The open-row `Sel_all`/`RowLeq_all` proofs are now explicitly only maximal
-stress cases for duplicate, within-row, and cross-row preservation. A
-source-indexed selector `Sel_s` must determine which occurrence pairs each
-typing rule relates; the typed-family retention requirement does not license
-universal same-head constraints. Selector transport and source derivation
-remain open. The conditional callback theorem now names its pair selector as
-source-site-specific as well; its actual/formal row comparison is not yet an
-approved language rule. The callback theorem's soundness and local-principality
-claims are scoped to that selector; the existing all-pairs proof does not
-establish either property for a source-selected relation. A source-site
-checklist now distinguishes candidate endpoint groups for split, residual,
-collection, filter, stack, and callback rules from their still-unproved
-`Demand` outputs; Oracle's representative choice and weight route cannot fill
-those premises.
-A closed point-valued filter check now has a conditional source rule: unique
-same-head occurrences give a deterministic keyed selector, and support
-inclusion plus its symbolic argument formulas characterize acceptance.
-Duplicate heads, open rows, interval arguments, and concrete solver
-transitions remain outside that lemma.
+this is characterization only. The unified typed-row relation and its
+denotation must determine which symbolic premises exist and which row views
+depend on them; the incidence-preservation proof remains open. The checklist
+is not a source-site selector architecture.
+The obligation key keeps stable source/use identity separate from substitutable
+symbolic endpoint payload. The open-row `Sel_all`/`RowLeq_all` proofs remain
+maximal stress cases only. The user now prefers a unified typed-row algebra:
+`Sel_s` and `Demand` should be proof notation/bookkeeping derived from common
+relations, not a growing family of semantic selectors. Filter and callback
+constraints should be instances of a general row relation if the source theory
+supports that; splitting and subtraction should follow from row algebra and
+coverage evidence. Runtime route/visibility remains separate because it
+describes a different semantic fact. The source-site checklist is retained as
+Oracle characterization and as a proof audit, not as the successor core. A
+closed point-valued filter subcase has a conditional `RowIncl` characterization,
+and interval-valued common-witness compatibility has a conditional endpoint
+lemma. Duplicates, open rows, whether common witness is the right
+`FamilyCompat` denotation, the row algebra itself, and concrete solver
+transitions remain open. No candidate is yet proved sound or principal.
 
 ## Objective
 

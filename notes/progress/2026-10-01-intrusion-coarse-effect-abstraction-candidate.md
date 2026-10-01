@@ -4799,6 +4799,59 @@ lemma alone is insufficient if type refinement or stage evidence changes
 coverage. Treating this as an implementable rule before that coupled proof and
 independent semantic review would violate the design gate.
 
+#### Unified typed-row algebra (preferred direction, semantics open)
+
+The newest user direction rejects turning the source-site checklist below into
+a family of semantic selectors. The checklist is characterization/proof
+bookkeeping only. Prefer one typed-row algebra from which the familiar cases
+follow:
+
+```text
+TypedRow       finite family-indexed row value
+FamilyCompat   one source type relation for same-family argument slots
+RowIncl        typed support inclusion using FamilyCompat
+RowUnion       compositional combination of may-effect rows
+RowRemove      support removal justified by a handler coverage proof
+```
+
+Under this candidate, filtering and callback contracts invoke `RowIncl`;
+row splitting is a normalization of `RowIncl` against `RowUnion`/`RowRemove`;
+handler subtraction uses `RowRemove` after a separate route/coverage proof.
+They do not each define their own typed-family selector. A source site still
+chooses which general relation its typing rule invokes, but that is a typing
+rule boundary, not a new family-argument semantics. If the same family
+argument relation differs by site, that difference needs source-level evidence
+and a proof; a frozen weight helper is insufficient.
+
+`Sel_s` can remain as proof notation for the pairs exposed by evaluating
+these general relations, not as a core semantic object. Likewise, `Demand` is
+not a source construct: mathematically it is the dependency of an observed
+root/request/residual on a relational premise; an implementation may store
+those dependencies as graph edges or proof references. The operation's
+relation and its symbolic formulas remain in the semantic constraint graph.
+The maps for type endpoints, row occurrences/owners, and handler identities
+remain distinct components of one labeled graph morphism because they act on
+different identities, but transport is one compositional operation checked
+against one denotation-preservation theorem. Runtime route/visibility evidence
+stays separate from typed-row compatibility because it expresses a genuinely
+different fact: whether a concrete offered request is handled at an
+activation.
+
+This is a conceptual comparison, not a selected design. A source-indexed
+selector system is precise about each trigger but creates one semantic proof
+obligation per site and risks mirroring Oracle internals. A family-indexed row
+algebra offers more proof reuse and simpler composition, but its `RowUnion`
+and `FamilyCompat` denotations may overconstrain programs if two same-head
+effects with different type arguments are allowed to coexist. An exact trace
+set gives a clean reference semantics but is too precise as an inference
+requirement when continuation-use tracking would be needed. No alternative is
+currently proved sound or principal. The next proof should define the finite
+may-effect row denotation and its argument-slot algebra independently, then
+derive inclusion, filtering, splitting, residualization, and handler removal
+as lemmas; keep exact traces as the soundness reference. Compare the
+alternatives on conceptual size, composition, principality relative to the
+chosen abstraction, and proof reuse before selecting one.
+
 #### Required symbolic typed-family constraint lifecycle
 
 The user has now made an additional mandatory successor invariant explicit:
@@ -4813,14 +4866,16 @@ obligation is:
 InvArgs(F<τ̄>, F<ῡ>) = ⋀ᵢ (τᵢ <: υᵢ  and  υᵢ <: τᵢ)
 ```
 
-The solver carries its symbolic endpoints as constraints/evidence and applies
-each type substitution to those endpoints. It may discharge an obligation
-only with a recorded proof (including a symbolic solver proof); it may not
-drop the relation and later try to recreate it by comparing materialized
-family rows. When row split, subtraction, duplicate collection, handler
-matching, or residual construction removes or moves either head, the
-obligation is emitted and attached to the resulting constraint/evidence
-state before that structural change.
+The chosen typed-row denotation and its `FamilyCompat` relation carry symbolic
+argument endpoints. Solving substitutes those endpoints while preserving the
+same relational premise; it may discharge that premise only with a recorded
+proof (including a symbolic solver proof). It may not drop the relation and
+later recreate it by comparing materialized family rows. Row union, inclusion,
+removal, and residualization must transport every premise on which their
+denotation depends before changing the row representation. The familiar split,
+duplicate, filter, callback, and handler cases are candidate derivations from
+those relations, not independent semantic triggers. Whether each case follows
+from the source rules remains to be proved.
 
 Generalization closes over the symbolic constraint endpoints and maps them
 through the same binder ownership as their family arguments. One fresh
@@ -5203,32 +5258,27 @@ provenance being sufficient to identify both endpoints and dependent views.
 It does not yet prove that a proposed solver can discover all such pairs,
 terminate, or preserve the complete joint solution set.
 
-#### Source-selected pair relation for open rows (scope constraint)
+#### Relation-driven obligation exposure (unified direction)
 
-The all-pairs `Pairs_F` relation below is a maximal candidate used to test
-whether the ledger can preserve duplicate and cross-row obligations. It is not
-a successor source rule. In particular, it must not be read to mean that
-every same-head encounter creates an invariance obligation. A source relation
-site `s` must independently define its selected occurrence-pair collection
-`Sel_s(R₁,R₂,μ)`; it may select within-row pairs, cross-row pairs, both, or
-neither, according to that rule. The symbolic formula set is then the
-projection of those selected keyed pairs, and `Demand` comes from the source
-typing premises and dependent outputs of `s`.
+The earlier `Sel_s` notation over-factored the semantics. Following the user's
+conceptual-economy requirement, it is not a proposed semantic selector or a
+new construct per source site. The preferred direction is one denotational
+typed-row relation/algebra; family-argument formulas arise from evaluating
+that relation and its row operations. A source typing rule may invoke a
+general relation on particular operands, but it does not define a private
+same-head matching algorithm. `Sel_s` may be used temporarily in proofs to
+name the occurrence pairs exposed by an evaluation; `Demand` names the
+proof/implementation dependency of observed views on a relational premise.
+Neither belongs to the mathematical core if the common relation can derive
+them.
 
-For lifecycle transport, the source selector must commute with uniform
-occurrence-preserving substitution: old selected keys map through the
-occurrence transport, while newly exposed selected keys are derived from the
-still-symbolic relation and tail assignment before consumption. Selection
-must not be inferred from the existing ledger, and keys retain the source
-site and endpoint owner identities. The all-pairs selector satisfies this
-property by construction. Every narrower selector needs its own source-rule
-derivation and extension/naturality proof. Thus the all-pairs exposure lemma
-is useful as a stress case for symbolic retention but cannot authorize the
-candidate universal `RowLeq` semantics elsewhere in this record.
-
-The following all-pairs exposure and assignment-wise lemmas prove only the
-`Sel_all` stress instance. They do not establish the pair selector for any
-particular source construct.
+The all-pairs `Pairs_F` relation below is retained only as a maximal stress
+case for whether the incidence bookkeeping can preserve duplicate and
+cross-row obligations. It does not assert that every same-head encounter
+requires invariance. The relation denotation must decide which obligations
+exist uniformly; transport then maps that relation and its complete evidence
+graph. The exposure proof below establishes a property only for the all-pairs
+stress instance, not the unified relation itself or any source rule.
 
 #### Open-tail obligation exposure lemma (conditional)
 
@@ -5456,13 +5506,15 @@ The source audit supports the following narrow applicability map:
 | Generic callback/Function row comparison | Principal monomorphization matches effect-row items by family and emits subtype constraints in its specialization graph, but this is not a source typing rule requiring invariant comparison for every actual/formal same-head pair. | Candidate successor rule only; prove it from callback typing and the selected effect abstraction. |
 | Arbitrary open `RowLeq` and all same-head occurrence pairs | The frozen list does not define this general relation. | Candidate denotation only; prove source adequacy and solver principality before selecting it. |
 
-#### Closed point-row filter rule (conditional source lemma)
+#### Closed point-row filter as a `RowIncl` instance (conditional lemma)
 
-One source site admits a small declarative characterization without using
-weighted routing. Assume closed actual and annotation rows contain at most one
-typed occurrence per family head, their argument terms denote point values,
-and `≈` is the source type equivalence used for invariant family arguments.
-Define a concrete filter check by
+This is a check of whether the unified row relation can derive a frozen,
+closed filter case; it adds no filter-specific family semantics. Assume
+`RowIncl(E,A)` denotes typed support inclusion, closed actual and annotation
+rows contain at most one typed occurrence per family head, their argument
+terms denote point values, and `≈` is the source type equivalence used for
+invariant family arguments. Write the filter's acceptance condition as the
+following derived abbreviation:
 
 ```text
 FilterOK(E,A) iff
@@ -5470,14 +5522,13 @@ FilterOK(E,A) iff
   and for each F<τ̄> in E, the unique F<ῡ> in A satisfies τ̄ ≈ ῡ
 ```
 
-The source selector is deterministic: it selects the pair of unique
-same-head occurrences for each `F` in `support(E)`. For each argument
-position `i`, emit a symbolic formula encoding `τᵢ ≈ υᵢ`, keyed by the
-filter source site, both occurrence owners, `F`, `i`, and the checked-view
-occurrence. `FilterOK` then holds under assignment `ν` exactly when support
-inclusion passes and `ν` satisfies all selected formulas. If a family is
-absent from `A`, the support check fails; there is no same-head formula to
-reconstruct later.
+The generic row relation compares the unique same-head occurrences for each
+`F` in `support(E)`. For each argument position `i`, its symbolic formula
+encodes `τᵢ ≈ υᵢ`, keyed by the relation identity, both occurrence owners,
+`F`, `i`, and the checked-view occurrence. `FilterOK` then holds under
+assignment `ν` exactly when support inclusion passes and `ν` satisfies the
+row relation's formulas. If a family is absent from `A`, the support check
+fails; there is no same-head formula to reconstruct later.
 
 For this fragment, the lifecycle action is direct: solving substitutes each
 formula endpoint while retaining its stable key and owner incidence; a proof
@@ -5501,11 +5552,43 @@ point equivalence. This lemma therefore settles only a closed point-row
 filter subcase. It neither derives handler visibility nor validates any
 Oracle weight route.
 
-The source-site boundary can be recorded without importing Oracle's selector
-algorithm. For any eventual successor rule, an obligation key identifies the
-rule site, selected owner occurrences, family, and argument position; the
-formula payload uses the source-derived argument relation for that site. The
-current characterization narrows the candidate inputs as follows:
+#### Interval-valued family compatibility (conditional lemma)
+
+For one argument position `i`, assume the selected type-domain semantics
+soundly decomposes two symbolic argument descriptions into finite endpoint
+sets `[L_x,U_x]` and `[L_y,U_y]`. If the general `FamilyCompat` relation means
+that these descriptions have one shared witness, the candidate proof formula
+is:
+
+```text
+MeetKey(relation, x_owner, y_owner, F, i, dependent_view)
+MeetFormula(i) = { l <: u | l ∈ L_x ∪ L_y, u ∈ U_x ∪ U_y }
+```
+
+Assuming both input intervals are feasible and the selected carrier has the
+finite interval-realization property, `MeetFormula(i)` is satisfiable exactly
+when the two descriptions have a common argument witness. This is the
+two-occurrence instance of the N-way endpoint lemma below. It is a possible
+symbolic characterization of `FamilyCompat`, not a filter-specific semantic
+construct. Whether source-level family compatibility should mean common witness
+or another relation is still open.
+
+Keep the proof key and symbolic endpoints through solving, residualization,
+generalization, fresh instantiation, and intrusion. The previously stated
+substitution and alpha-transport laws apply to the formulas and owner graph;
+if normalization derives the cross-bound inequalities, it must retain the
+batch record/proof and every dependent-view path. It may not replace the
+symbolic obligation with a materialized join witness. This lemma applies only
+under a carrier premise. Accurate decomposition of compound argument types,
+the actual successor carrier, and the source proof that this is the right
+`FamilyCompat` relation remain open, so this is not an implementation rule.
+
+The table below is a frozen-Oracle characterization crosswalk, not a set of
+successor rules or implementation tasks. It records which operands its
+current implementation relates so a separately defined declarative row
+algebra can be tested against them. For the successor, obligation keys belong
+to relational premises and identify the relation, endpoint owners, family,
+and argument position; source sites do not get private selectors by default.
 
 | Site | Candidate endpoint group to inspect before mutation | Views whose `Demand` must be derived from the source rule |
 | --- | --- | --- |
