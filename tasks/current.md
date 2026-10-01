@@ -1,6 +1,6 @@
 # Current task: prove and implement SCC-intrusion Function inference
 
-Updated: 2026-10-01. Branch: `research/simple-sub-intrusion`.
+Updated: 2026-10-02. Branch: `research/simple-sub-intrusion`.
 
 The user's current priority is soundness, then principality, then Oracle
 compatibility. A concrete graph-level q-erasure conflict, proposed Oracle
@@ -3378,3 +3378,14 @@ already-evaluated value holes, the empty-stack immediate application context
 proves each call fiber nonempty. This closes the local vacuity subclaim only;
 typing-store adequacy, all-context coverage, and finite principality remain
 open.
+
+The case-sequencing candidate now writes source-ordered matching as a
+state-threaded composition of the existing pattern-binding, guard, and body
+relations. Conditional pattern defaults and request continuations stay in that
+composition; the notation adds no case-specific effect rule and leaves the
+source no-arm outcome unchanged. This makes the intended relation precise
+enough to state support only after the full scrutinee/match composition, but
+does not close the source typing rule for implicit case demand, mono/runtime
+simulation, or the finite principal presentation. The added equations are
+still a non-authoritative semantic candidate; no implementation or tests were
+authorized.

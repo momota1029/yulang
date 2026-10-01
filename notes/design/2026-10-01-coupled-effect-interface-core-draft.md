@@ -484,8 +484,35 @@ remain in the relation. For each matching pattern, it evaluates the guard,
 if present, under the resulting environment and dynamic state; a false guard
 continues with the next arm, and a true or absent guard evaluates that arm's
 body. A guard request and its continuation remain in this same
-state-threading relation. For any observation relation `R`, define collected
-typed-request support at fixed assignment `ν` by
+state-threading relation. The source-order structure can be made explicit
+without introducing a new semantic operation: let `BindPat_i` be the
+source-machine pattern-binding relation for arm `i`, with outcomes
+`NoMatch(η₁,s₁)` or `Matched(η₁,s₁)`, and let `Guard_i` be its ordinary
+expression evaluation when present. Then the arm sequence is the following
+recursive composition of those existing relations:
+
+```text
+Match_i(v,η,s) =
+  BindPat_i(v,η,s) >>= λoutcome.
+    case outcome of
+      NoMatch(η₁,s₁) -> Match_{i+1}(v,η₁,s₁)
+      Matched(η₁,s₁) ->
+        Guard_i(η₁,s₁) >>= λ(b,η₂,s₂).
+          if b then Run_ν(Body_i,η₂,s₂)
+          else Match_{i+1}(v,η₂,s₂)
+```
+
+For an arm without a guard, its guard relation returns `true` without a
+transition. `BindPat_i` includes defaults only on the source machine's
+missing-field path; defaults and guards that emit requests keep those
+requests and their saved continuations in the composed relation. The terminal
+case `Match_{n+1}` is the source machine's existing no-arm outcome; this
+notation does not choose whether that outcome is an exception, failure, or
+divergence. The equation is a sequencing decomposition, not an independent
+effect rule for patterns or cases.
+
+For any observation relation `R`, define collected typed-request support at
+fixed assignment `ν` by
 
 ```text
 MayReq(R,ν) = ⋃ { typed_requests(τ) | (τ,o) ∈ R at assignment ν }
