@@ -2017,17 +2017,20 @@ passing the recursive lambda to the owner parameter, but final specialization
 still rejected it with `Function <: unit`. The concrete role dependency is
 closed narrowly; a recursive callback variant also fails the declared method
 shape during lowering. The broad method/roles/impl-resolution gate remains
-later. The next work must keep two observations separate: the accepted
-mixed-fetch Q/free component with its internal live-root edge, and the
-subject-bearing method fixture with two concrete implementation instances.
-The first has no demonstrated external call to the computed member; the second
-uses a value-fetch member and has Q/Q ownership. Derive the member-parent and
-per-use overlay relation across these cases: a component-global fresh/free bit
-cannot represent the Q/free root views, so specify how each root projects a
-shared parent as a local port or preserved anchor. Do not claim the source's
-free identity is an outer anchor until its use constraints establish that
-meaning. R/free ownership remains exploratory and is not itself a successor
-requirement.
-Details are in the same progress note.
+later. Keep two observations separate: the accepted mixed-fetch Q/free
+component with its internal live-root edge, and the subject-bearing method
+fixture with two concrete implementation instances. The first has no
+demonstrated external call to the computed member; the second uses a
+value-fetch member and has Q/Q ownership. A candidate root-indexed interface
+now separates the shared parent vertex, each member's local-port /
+preserved-identity / absent projection, and each use's fresh overlay. It is
+representational only: parent-row mutability, selected-edge completeness,
+cross-view noninterference, joint principality, and the source meaning of the
+computed member's preserved identity remain open. The accepted Q/free source
+does not demonstrate an external call to that computed implementation. R/free
+remains exploratory and is not itself a successor requirement. Details are
+in
+`notes/progress/2026-10-01-intrusion-mixed-ownership-fixture-audit.md`,
+section “Root-indexed parent projection: the required interface”.
 Effect-row principality, route quotient completeness, and Oracle acceptance
 remain open.

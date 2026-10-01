@@ -639,3 +639,95 @@ CARGO_TARGET_DIR=/tmp/yulang-intrusion-scc-owned-target cargo test --offline --j
 
 It passed once. The temporary control test was removed afterward; the earlier
 mixed-ownership scratch tests remain as they were before this probe.
+
+## Root-indexed parent projection: the required interface
+
+The Q/free source witness rules out representing ownership as a property of the
+shared graph vertex alone. The smallest candidate interface that can express
+the observed views is a pair of maps with different domains:
+
+```text
+parent_C : SourceVar -> ParentVertex
+view_d  : ParentVertex -> LocalPort_d | PreservedIdentity_d | Absent
+use_(d,u) : LocalPort_d -> FreshIdentity_(d,u)
+```
+
+For the shared source variable `v = TypeVar(38)`, both member roots may refer
+to one backing parent `p = parent_C(v)`, while their root projections differ:
+
+```text
+view_owner(p) = LocalPort_owner
+view_make(p)  = PreservedIdentity_make
+```
+
+The first path then maps the local port through that member's per-use overlay;
+the second path keeps the projected identity shared according to the selected
+view's environment relation. `Absent` represents a variable removed by a
+proved root projection; it must not be conflated with either a local port or a
+preserved occurrence. The current accepted source establishes only the
+Q/free distinction, not which concrete identity `PreservedIdentity_make`
+resolves to at later external uses.
+
+This factoring is a representational requirement, not yet a semantics. In
+particular, it does **not** license resolving both projections to one mutable
+parent row and then applying a use substitution to that row globally. If the
+owner overlay mutates the shared row, the make view may observe the mutation;
+if it does not, the owner use may fail to receive constraints that belong to
+its fresh instance. A valid successor must define which bound/evidence
+occurrences are selected for each root, whether the backing parent row is
+immutable, and how each local overlay receives those occurrences. It must then
+prove that constraints reaching an identity projected as preserved are shared
+exactly where source semantics requires sharing.
+
+For one shared component, the candidate view construction therefore needs at
+least the following equations (notation only; all functions remain to be
+defined from successor semantics):
+
+```text
+G_C       = shared parent graph
+R_d       = root-specific selected observation of G_C
+pi_d      = root-specific ownership projection on identities in R_d
+J_d       = transport(R_d, pi_d)
+J_(d,u)   = instantiate_local_ports(J_d, u) + shared_preserved_constraints(J_d)
+```
+
+The observational obligation is joint, not per-root in isolation: for every
+finite sequence of internal and incoming uses, all member roots must retain
+one coherent shared component state, while each local port gets an independent
+use overlay. This is stronger than the injective renaming lemma: `pi_owner`
+and `pi_make` need not have the same local/free classification, so there is no
+single injective renaming from the backing parent graph to both view graphs.
+The existing joint-use transport lemma applies only after those view-specific
+maps and selected obligations have been supplied.
+
+### Immediate unresolved proof obligations
+
+1. **Parent-row ownership.** Decide whether `parent_C(v)` is only a stable graph
+   identity, an immutable row of source constraints, or an actual inference
+   variable whose bounds can change. State who may add bounds and whether a
+   member view snapshots, references, or projects those bounds.
+2. **Projection completeness.** Define `R_d` from source construction and show
+   that all constraints needed by a well-typed source use reach either its
+   local overlay or its preserved shared identity. Do not use Oracle's Q tag as
+   the successor definition.
+3. **Cross-view noninterference.** Show that instantiating the local projection
+   for one root/use cannot accidentally specialize the same backing row seen
+   through another root, while intended preserved constraints still flow.
+4. **Joint principality.** Define solutions for the whole component with both
+   projections present. Prove the joint solution set is principal under the
+   chosen effect abstraction; separate per-root principality is insufficient
+   if a later continuation relates the roots through a shared identity.
+5. **Source adequacy.** Connect the abstract `PreservedIdentity_make` to the
+   source's actual member/use semantics. The fixture has an internal live-root
+   edge and final acceptance, but the attempted direct external role call
+   invokes the declaration body, not this computed implementation.
+
+Until these are proved, the candidate may retain one canonical parent per
+source identity as storage, but it cannot claim that the canonical parent
+itself is the generalized scheme variable or the final anchor. Nor can the
+accepted Q/free trace yet prove that a shared-parent design matches all Oracle
+final acceptance behavior. The next useful work is to derive `R_d` and the
+preserved-identity meaning from accepted member uses or from the source-defined
+constraint construction, then give a small joint solution relation for this
+fixture. R/free remains an optional characterization target, not a prerequisite
+for this Q/free obligation.
