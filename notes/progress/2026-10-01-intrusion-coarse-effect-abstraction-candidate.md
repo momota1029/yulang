@@ -2484,6 +2484,32 @@ FunctionStage = (static function/parameter binder, stage index,
                  parameter contract, residual closure)
 ```
 
+The raw trace needs an occurrence-local lineage, rather than one visibility
+slot on a family or type variable. A small event vocabulary for the missing
+transport proof is:
+
+```text
+BoundaryEvent ::= Provided(provider_site)
+                | Received(parameter_stage, argument_index, contract_binder)
+                | Captured(partial_closure_site, dynamic_closure_id)
+                | Invoked(parameter_stage, dynamic_call_id)
+                | Forced(thunk_site, dynamic_force_id)
+
+BoundaryLineage ::= [BoundaryEvent]
+```
+
+The source/provider/stage/contract/closure *sites* and type binders are static
+identities. `dynamic_closure_id`, `dynamic_call_id`, and `dynamic_force_id` are
+fresh evaluation identities; they cannot be substituted by a compile-time
+`Theta` map or shared across independent evaluations. A value adapter or
+partial closure transports the ordered `BoundaryLineage` attached to that
+value. The request occurrence adds its own typed family and exact operation
+without replacing the path by family equality. This event vocabulary describes
+what a proof must observe, not which events create, mask, or discharge
+visibility. Any finite quotient used by inference must show that it preserves
+all `Visible` and `Drop` decisions over every finite trace; raw histories must
+not be collapsed to a parent-local state merely to force a finite domain.
+
 Function application is staged. At each argument receipt, the source rule
 resolves that stage's parameter contract and records its boundary-evidence
 transform on the received value or adapter. If arguments remain, the residual

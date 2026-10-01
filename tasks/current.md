@@ -2224,7 +2224,10 @@ capture as source transitions, alongside active handler identity and the
 shallow raw/forwarded continuation rule. The direct nested-handler fragment
 now derives nearest-eligible selection from the shallow transformer itself,
 without Oracle weights; callback `Visible` and stage-evidence transport remain
-open. Prove finite-trace coverage and route-certified subtraction before
+open. An occurrence-local `BoundaryEvent` alphabet now records provider,
+receipt stage, partial-closure capture, invocation, and force without choosing
+their eligibility effects. Next define those transitions from source semantics
+and prove finite-trace coverage and route-certified subtraction before
 selecting a rule or requesting a user choice. Details and review boundaries
 are in the candidate progress record's "Parameterized source-transition
 skeleton for handler visibility" section and the trace calculus's "Ordered
