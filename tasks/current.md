@@ -3569,6 +3569,13 @@ source `Run` and continuation equations threading that state. The candidate
 widening. A focused compiler-referee audit caught and the repair closed
 missing store taint and successor-state preservation in the top-edge
 condition; that is candidate proof bookkeeping only. Next prove read/write,
-alias-test, closure-capture, and multi-shot resume transfers preserve the `γ`
-relation, then establish source typing and SCC lifecycle correspondence. No
-compiler implementation is authorized by this candidate lemma.
+and weak writes now have a conditional heap-coordinate preservation argument
+in the progress record; it retains complete typed-family/value facts across
+cell-site joins. Two focused compiler-referee passes closed local findings
+about mismatched points-to/content witnesses and newly reachable referents.
+The lemma still assumes evaluated write operands are represented as live
+roots; it does not establish source operation typing, identity-test or
+closure-capture adequacy, non-heap state simulation, or multi-shot
+continuation simulation. Close those transfer proofs before establishing
+source typing and SCC lifecycle correspondence. No compiler implementation
+is authorized by these candidate lemmas.

@@ -1860,8 +1860,9 @@ For the fallback proof only, write a concrete source configuration as
 instances, `L` is ordered request-boundary lineage, `σ` is the live source
 store/state, `Env` contains lexical roots and references reachable from locals,
 exports, imports, closures, thunks, and captured continuations, and `ctl` is
-the current return/request/arm/call/force/resume control point plus pending
-wrappers. Continuation values denote the source `k_offer` closures, including
+the current return/request/arm/call/force/resume control point, evaluated
+operand values, and pending wrappers. Continuation values denote the source
+`k_offer` closures, including
 their already-composed handler transformers; they are not reduced to raw stack
 slices or to a snapshot of `σ`. For this candidate, factor `σ` into its live
 heap and any other mutable machine-state coordinates; `UnknownStore` covers
@@ -1914,7 +1915,9 @@ Define `κ ∈ γ(A)` when all of the following hold:
    every concrete class and include `UnknownMask` where identity is lost.
 6. Every concrete immediate and latent effect is included in its abstract row.
 7. The current `ctl` and all pending wrappers/continuations map to an abstract
-   control fact. Unknown control identity maps to `UnknownControl`/`TopControl`;
+   control fact, and every value held by that control point (including
+   evaluated write operands) maps through the same value/reference and heap
+   clauses above. Unknown control identity maps to `UnknownControl`/`TopControl`;
    pending lost wrapper identity maps to `UnknownRef` with top control. Any
    `TopControl` fact carries the top effect/provenance/offer summary above; it
    cannot exist as an untainted control-only marker.
@@ -1939,6 +1942,68 @@ particular, the candidate has not established that finite site abstraction
 preserves enough correlation for useful (or principal) handler subtraction;
 top widening is sound only when its value, effect, and request consequences
 are propagated together.
+
+##### Conditional heap read/weak-write preservation lemma
+
+The heap part of `γ` yields a small local preservation result, without yet
+proving source-level transfer adequacy. Let `addr#` map each concrete live
+address to exactly one abstract cell slot; this is a many-to-one allocation
+site map, and untracked addresses map to `UnknownCell`. Let `Pts#(r)` be the
+abstract points-to set for concrete reference `r`. Let `AbsVal(v)` be the complete abstract value facts covering
+`v`, including any captured continuation/reference facts and the symbolic
+typed-family predicate plus incidence on which that value depends. Require
+`H ∼ H#` to mean: every concrete reachable cell `a` has every current
+content `v ∈ H(a)` covered by a complete value fact in `H#(addr#(a))`, and
+for every concrete reference edge `r → a`, `addr#(a) ∈ Pts#(r)`. The
+relation covers the transitive heap reachable from every live root, including
+values currently held by `ctl` as evaluated operands; thus a write operand's
+referent graph is covered before the write step. These conditions share the
+same canonical abstract cell slot, so reference reachability cannot point to
+a slot unrelated to the one that covers the cell's contents. These are
+conjunctive facts, not independently marginalized row/type/store projections.
+
+For a concrete read through `r` whose target is `a`, define `read#(H#,Pts#(r))`
+as the union of value facts at all possible target slots. Since
+`addr#(a) ∈ Pts#(r)`, the slot that covers the concrete cell contents is among
+the read targets. If any target is `UnknownCell` or
+`UnknownStore`, include `UnknownValue` and its top continuation/effect/request
+summary. Then `H ∼ H#` implies the concrete read result is covered by
+`read#` directly by that shared slot. Thus the read result remains related
+before any subsequent control branch; if that branch depends on top/unknown
+data, the top transfer must emit `TopObs` before branching as above.
+
+For a concrete write through `r` that updates `a`, with the evaluated value
+`v` included among the live roots before the write, define a weak abstract
+write by adjoining `AbsVal(v)` to every possible target slot in `Pts#(r)` and
+retaining all old facts. The canonical `addr#(a)` slot is among those targets,
+so the updated cell is covered by `AbsVal(v)` there. Every unchanged concrete
+cell remains covered by its old fact. If two concrete cells share one abstract
+slot, retaining old facts is necessary for the non-updated cell and only adds
+a sound possibility for the updated one. Since the transitive referents of
+`v` were already covered through the live operand root, adding the reference
+edge from `a` introduces no uncovered cell. Therefore if `H ∼ H#`, then
+`H[a ↦ v] ∼ write#(H#,Pts#(r),AbsVal(v))`. A strong overwrite is sound only
+if the abstract target denotes exactly one concrete cell in every state
+represented by `H#` and the write target is definite; a singleton points-to
+set by itself is insufficient when allocation sites merge multiple cells.
+
+This proof relies on adjoining complete value facts. Dropping a symbolic
+family formula or its view incidence while weakly joining heap contents would
+not preserve `H ∼ H#`, even if the projected runtime values matched. The
+lemma says nothing about whether source read/write operations are typed,
+whether reference identity tests have enough must-alias information, or
+whether a returned value/effect bound is principal. It only supplies the
+heap-coordinate step needed by a later full-state simulation.
+
+A continuation invocation uses the current `H#` and the captured abstract
+reference graph; it does not reinstall a heap snapshot. Once a source
+resumption is shown to use the current concrete heap (as the frozen runtime
+characterization indicates), induction over its source steps can apply the
+read/write lemma after every resumed mutation, including the second
+multi-shot resume. The induction still depends on proving that continuation
+capture and resume preserve `addr#`, the full value/formula packages, active
+handlers, and all non-heap state. No whole-continuation simulation follows
+from the local heap lemma alone.
 
 If reference identity is observable, `read#`/`write#` are not enough: an
 abstract identity comparison must retain a proven must-alias or must-differ
@@ -8431,7 +8496,15 @@ revised `Σ#` relation remains a candidate until read/write, alias, state-test,
 and resume simulation are proved. Whether a useful finite
 `Σ#` retains enough correlation for principal handler subtraction remains
 open; sound top widening is the fallback candidate, not an acceptance or
-precision claim.
+precision claim. A conditional local heap-coordinate lemma has since been
+added: canonical many-to-one cell slots plus `Pts#` coverage justify union
+reads and weak writes when every current cell value and the transitive
+referents of live roots are covered by complete value/formula facts. Two
+focused compiler-referee passes found and closed counterexamples involving
+different content/reference witnesses and a newly reachable referent; the
+repaired local lemma has no remaining finding. Its premise that evaluated
+write operands are roots, and source read/write plus capture/resume simulation,
+remain unproved.
 
 The least-closure repair received a focused compiler-referee delta review with
 no finding: under `α ⊣ γ`, `F`-pre-fixed points are exactly initial-containing,
