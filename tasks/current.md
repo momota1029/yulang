@@ -47,7 +47,11 @@ remain open. The conditional callback theorem now names its pair selector as
 source-site-specific as well; its actual/formal row comparison is not yet an
 approved language rule. The callback theorem's soundness and local-principality
 claims are scoped to that selector; the existing all-pairs proof does not
-establish either property for a source-selected relation.
+establish either property for a source-selected relation. A source-site
+checklist now distinguishes candidate endpoint groups for split, residual,
+collection, filter, stack, and callback rules from their still-unproved
+`Demand` outputs; Oracle's representative choice and weight route cannot fill
+those premises.
 
 ## Objective
 

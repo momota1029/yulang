@@ -5456,6 +5456,30 @@ The source audit supports the following narrow applicability map:
 | Generic callback/Function row comparison | Principal monomorphization matches effect-row items by family and emits subtype constraints in its specialization graph, but this is not a source typing rule requiring invariant comparison for every actual/formal same-head pair. | Candidate successor rule only; prove it from callback typing and the selected effect abstraction. |
 | Arbitrary open `RowLeq` and all same-head occurrence pairs | The frozen list does not define this general relation. | Candidate denotation only; prove source adequacy and solver principality before selecting it. |
 
+The source-site boundary can be recorded without importing Oracle's selector
+algorithm. For any eventual successor rule, an obligation key identifies the
+rule site, selected owner occurrences, family, and argument position; the
+formula payload uses the source-derived argument relation for that site. The
+current characterization narrows the candidate inputs as follows:
+
+| Site | Candidate endpoint group to inspect before mutation | Views whose `Demand` must be derived from the source rule |
+| --- | --- | --- |
+| Row split `K ∩ Common(L)` | A row occurrence in `K` and the stack occurrences that make the same family available in the common set. | The source row and the split head/residual constraints that carry the selected family. |
+| Residual subtraction `L - J` | A removed family occurrence in `J` and each pushed-family occurrence whose payload is restricted by that removal. | The transformed residual weight and every row/tail constraint that consumes it. |
+| Duplicate collection | The occurrences in one source-defined collection that are coalesced to one family entry. The invariant formula may be a batch common-witness obligation, not an arbitrary star of pairwise formulas. | The collected output entry and any constraints whose payload used the removed duplicates. |
+| Concrete filter check | An incoming typed family occurrence and each same-head annotation occurrence that the check actually compares. | The checked source bound/result; retain proof evidence if a later view relies on the check. |
+| Common-stack check | Stack occurrences used by the source's common-frame operation, plus a typed row occurrence only when that rule compares it to the resulting common set. | The stack-derived row/inner view and any residual view that uses the match. |
+| Callback actual/formal comparison | Only the pairs selected by a separately approved callback typing rule; the actual/formal cross-pair is currently a conjecture. | The application result and callback contract views only if that rule makes them depend on the comparison. |
+
+This is a source-site checklist, not a selected pairing function. In
+particular, the first/representative item chosen by frozen
+`collect_neg_effect_items` is not a principled source identity, and the
+Oracle's weighted stack route does not decide the successor `Demand` edges.
+For each site, source semantics must establish the group, argument relation,
+and every dependent output independently; then the solver can attach the
+symbolic record before the row or frame mutation. The current evidence does
+not yet supply those derivations.
+
 The frozen implementation provides a source-code crosswalk for these named
 characterization sites. At revision `a58eefc31e22141574b6f20c6a5748151c6d79f1`,
 `crates/infer/src/constraints/row_effect.rs::constrain_effect_family_by_filter`
