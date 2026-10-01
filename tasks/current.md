@@ -164,14 +164,16 @@ must respect that equivalence. This preserves the complete fiber modulo type
 equivalence; `FamAgree_A` overlap alone does not meet the condition. General
 parent-map quotient and recursive/interface cases remain open.
 A constrained scheme relation gives an independent-use product law when each
-external use consistently freshens all local identities and fixes the same
-outer anchors. The factors may be different member-root/version relations;
-internal SCC references remain inside one shared live relation, not product
-factors. This is conditional on the source generalization rule and complete
-binder ownership; caller constraints may couple uses only after their
-separate instances are formed. Existing source audit shows root snapshots may
-reflect different solver versions, so root/version projection or scheduler
-simulation remains a separate obligation.
+source-defined instantiation event consistently freshens all its local
+identities and fixes the same outer anchors. A single event may expose a
+joint tuple of member roots and must use one map for that tuple. Independent
+events may select different member-root/version relations; internal SCC
+references remain inside one shared live relation, not product factors. This
+is conditional on the source generalization rule and complete binder
+ownership; caller constraints may couple instances only after they are
+formed. Existing source audit shows root snapshots may reflect different
+solver versions, so root/version projection or scheduler simulation remains
+a separate obligation.
 
 ## Objective
 

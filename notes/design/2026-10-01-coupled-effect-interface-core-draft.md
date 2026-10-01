@@ -514,13 +514,21 @@ generation, not yet the successor scheme theorem.
 ### Independent external uses versus internal SCC references
 
 The constrained presentation gives a direct product lemma for independent
-external uses. Let each use `u` refer to the published scheme relation
-selected for its member root `d_u` at scheduler version `v_u`:
+external uses. Let `u` range over semantic instantiation events as defined
+by the source scheme rule, not over member names by assumption. Each event
+selects a published scheme relation `S_u`; a single-member view can be
+indexed by root `d_u` and scheduler version `v_u`:
 
 ```text
 S_u(ρ) = Inst_{C,d_u,v_u}(ρ)
       = { (ν,I) | K_{C,d_u,v_u}(ρ,ν,I) }
 ```
+
+If one source instantiation event exposes a tuple of member roots, `S_u` and
+`I` are that joint relation and complete tuple; use one renaming for all of
+it. Do not split such an event into per-member factors. Determining whether
+the source rule instantiates one root view or a group is a source-semantics
+obligation.
 
 Assume the source scheme rule gives each external use an independent instance
 of its selected relation. For every use `u`, let `ι_u` be one injective,
@@ -551,10 +559,10 @@ the independent instances exist.
 Internal SCC references are different because the live component relation
 already contains all mutually recursive roots and their shared graph. They
 remain references inside that live relation and receive no `ι_u` per recursive
-edge. The product factors over external use sites of the generalized
-component, not over SCC members or internal calls. This is the relational
-form of open live-root sharing inside a component and independent freshening
-at its boundary.
+edge. The product factors only over distinct semantic instantiation events
+that the source rule treats independently, not over SCC members or internal
+calls. This is the relational form of open live-root sharing inside a
+component and independent freshening at its boundary.
 
 This proves the product equation only if the source generalization rule gives
 each external use an independent instance and correctly classifies all free
