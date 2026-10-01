@@ -130,9 +130,12 @@ records are presentations or projections. Callback application is ordinary
 relational composition, while handlers map continuation-bearing interfaces.
 This responds to the preference for a theory that does not mirror Oracle
 source sites. It remains a draft, not a selected semantics. The next work is
-to derive the shallow-handler transition and finite principal-presentation
-obligations from this carrier, while preserving symbolic family formulas
-through every lifecycle phase.
+to check the conditional shallow-handler relational-image theorem against the
+source trace semantics, then derive a finite principal presentation while
+preserving symbolic family formulas through every lifecycle phase. The image
+theorem establishes leastness only in the unrestricted relation carrier; it
+does not establish finite representability, solver termination, or global
+principality.
 
 ## Objective
 

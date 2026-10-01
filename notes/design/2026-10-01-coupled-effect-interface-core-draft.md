@@ -88,6 +88,76 @@ continuations. Soundness requires an over-approximation of the relational
 image; principality asks for the most-general representable result in the
 chosen interface language.
 
+### Handler transfer as a relational image
+
+Let `C_ρ(I)` be the set of well-typed continuation-bearing computations
+represented by a complete interface `I` over fixed imports `ρ`. It includes
+the values, captured environments, latent function/thunk behavior, and
+activation lineage needed to interpret later calls and forces. Let `H_κ` be
+the source shallow-handler transformation at activation context `κ`. The
+context includes the active handler stack and the source-defined visibility
+relation; it is not calculated from a family row alone. Require `H_κ` to be
+defined for every computation in `C_ρ(I)`. If typing can establish only an
+existential subset, the universal abstraction below is not justified.
+
+For an interface relation `R` over owned valuations and root interfaces,
+define its concrete fiber and the least semantic output relation:
+
+```text
+C_ρ(R, ν) = ⋃ { C_ρ(I) | (ν, I) ∈ R }
+
+H#_κ(R) = { (ν, J) |
+    there are c ∈ C_ρ(R, ν) and c' with c' = H_κ(c),
+    and J is the complete interface observation of c' }
+```
+
+Here the complete observation includes output values with their latent
+interfaces, typed request facts, symbolic argument constraints, occurrence
+ownership, and route lineage. The relation keeps `ν` fixed during transfer,
+so this image cannot validate a typed-family condition only after erasing its
+symbolic endpoints. The induced support view is the may-row effect of the
+handler. No `Drop` operation is part of this definition.
+
+**Conditional transfer theorem.** If (1) `C_ρ(R,ν)` covers every concrete
+scrutinee represented by `R`, (2) `H_κ` is total on that fiber and agrees
+with the source shallow-handler transition, and (3) the output interface
+observation is sound for every result `H_κ(c)`, then `H#_κ(R)` is sound:
+every concrete handled result represented on an input fiber is represented
+on the corresponding output fiber. Moreover, among exact relations over the
+chosen complete-interface carrier, `H#_κ(R)` is the least sound relational
+image: any relation containing the observation of every such `H_κ(c)` must
+contain `H#_κ(R)`. This is leastness for the semantic transfer, not a proof
+that the image has a finite formula, that a solver computes it, or that the
+whole type inference system is principal.
+
+The shallow operational cases are consequences of the same image. A covered
+visible request enters its arm with the raw continuation; a request not
+selected at this activation is forwarded with the shallow wrapper around its
+continuation; any request emitted by an arm is observed in that arm's output
+computation. A one-shot family removal is valid only if the image proves the
+family absent from every output observation represented by that fiber. When
+the carrier cannot express that fact, it must keep the family or use a sound
+coarser image. Thus `Drop` certificates, route ledgers, and `Demand` edges can
+serve as proof or implementation evidence for computing this image, but none
+is an independent semantic rule.
+
+This removes source-site-specific subtraction from the mathematical core,
+but the transfer remains deliberately abstract. A family may occur in an
+input path and not in the output path after non-resumption; another may escape
+only through a resumed raw continuation; an incomplete or invisible request
+is forwarded. The transformer distinguishes these by executing the same
+shallow relation on continuation-bearing computations, not by applying one
+row-level subtraction formula. For may-rows, the computable result must
+over-approximate the support of `H#`; it must not assume that `H#` distributes
+over row union.
+
+The unresolved work is to define a finite symbolic representation whose
+denotation is this dependent relation and whose output projection is both
+computable and principal. In particular, symbolic typed-family invariance,
+owner incidence, and route lineage must survive in the formula presented to
+the solver. Grounding each fiber and rebuilding those constraints from
+materialized rows would not implement this definition.
+
 The callback `call` / `invoke` witness is an instance of ordinary invocation
 composition. Its pure argument permits a small sequencing lemma, but that
 lemma is evidence for the general relation, not a callback-specific source
