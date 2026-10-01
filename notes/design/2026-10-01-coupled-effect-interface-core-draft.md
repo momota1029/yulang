@@ -162,6 +162,36 @@ groups. It does not decide how source syntax creates those groups, extend to
 interval/compound arguments, or prove that the compiler's current
 `InvArgs` generation is equivalent to `GroupEq`.
 
+#### Finite-domain coverage and why one selected match is insufficient
+
+For a fixed assignment, suppose each argument denotation is a finite subset of
+a finite carrier `U`. Then the same set-inclusion relation has the exact
+expansion:
+
+```text
+RowSub(R,S,ν) iff J_R(ν) ≠ ∅ ∧ J_S(ν) ≠ ∅ ∧
+  ⋀_{q∈TypedRow(R,ν)} ⋁_{p∈TypedRow(S,ν)} q = p
+```
+
+This is a finite formula over typed requests; it needs no distinguished
+left/right occurrence pairing. A useful boundary case has one left occurrence
+whose argument denotation is `{int,bool}` and two right occurrences whose
+denotations are `{int}` and `{bool}`. Inclusion holds because their union
+covers the left denotation, although neither right occurrence covers the
+whole left occurrence by itself. A solver that commits to one right partner
+per left occurrence loses this valid solution. Conversely, pairwise overlap
+alone is insufficient: for left `{int,bool,str}` and right `{int}` plus
+`{bool}`, each right occurrence overlaps the left, but `str` is uncovered.
+The inclusion formula rejects that case.
+
+The exact all-values formula for symbolic endpoints is
+`∀q∈TypedRow(R,ν). ∃p∈TypedRow(S,ν). q=p`. A finite solver can eliminate
+these quantifiers only when the selected type/argument algebra admits a
+terminating exact coverage procedure. The relation itself remains unified
+without such elimination, but its finite representation and principality do
+not follow. This makes coverage, rather than choosing a source-site selector,
+the concrete next proof obligation for interval-valued rows.
+
 ## Source constructs as relational composition
 
 Each source construct denotes a relation from its input interfaces and

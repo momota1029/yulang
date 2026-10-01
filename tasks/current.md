@@ -2933,3 +2933,11 @@ independent uses map that identity separately before handlers constrain it to
 `int` and `bool`. The candidate's row binder is therefore an existing owned
 identity projection, not a row-only fresh semantic variable. This is
 behavioral characterization, not Oracle internal transport evidence.
+
+For fixed assignments over finite argument domains, row inclusion reduces to
+all-left-request coverage by the union of right typed requests. A `{int,bool}`
+left occurrence is covered by separate `{int}` and `{bool}` right occurrences,
+so choosing one right partner for an entire left occurrence is not complete;
+mere pairwise overlap also misses uncovered values. Symbolic finite
+representability depends on exact coverage procedures for the selected type
+algebra and remains open.
