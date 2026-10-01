@@ -5237,6 +5237,64 @@ invariant relation, including interval-valued arguments. Until then,
 preserving the symbolic formula is necessary for the candidate relation but
 does not by itself establish Oracle-equivalent argument invariance.
 
+#### Variable-edge propagation into interval constraints (conditional)
+
+This identifies one solver expansion of the `InvArgs` shorthand; it does not
+prove that the expansion is complete for common-type existence. Let `x` and
+`y` be type variables with finite, transitively saturated lower endpoint sets
+`Lₓ`, `Lᵧ` and upper endpoint sets `Uₓ`, `Uᵧ`. Assume each current interval is
+feasible, all variable-alias paths affecting these endpoints are already
+included in the saturation, and ordinary subtype satisfaction is evaluated
+in a fixed preorder. Add the symbolic obligations
+
+```text
+x <: y
+y <: x
+```
+
+Both edge obligations remain part of the constraint graph. After saturating
+the variable-bound propagation, the endpoint sets are:
+
+```text
+L'ₓ = L'ᵧ = Lₓ ∪ Lᵧ
+U'ₓ = U'ᵧ = Uₓ ∪ Uᵧ
+```
+
+Each variable edge propagates the lower endpoints of its source to its target
+and the upper endpoints of its target to its source. Together the two edges
+give both variables the union of their lower demands and the union of their
+upper demands. Saturating the resulting bounds emits cross constraints
+`lₓ <: uᵧ` for `lₓ ∈ Lₓ, uᵧ ∈ Uᵧ` and `lᵧ <: uₓ` for
+`lᵧ ∈ Lᵧ, uₓ ∈ Uₓ`, in addition to the within-interval obligations already
+present. Every valuation satisfying both intervals and both mutual-subtype
+edges satisfies these cross constraints by transitivity. This is the
+necessary cross-bound generation described by the invariant-type sandwich
+spec.
+
+The converse, that these pairwise endpoint constraints guarantee a common
+argument witness, does not follow from an arbitrary preorder. For example,
+take a four-element partial order with incomparable `a,b` below incomparable
+`u,w`, with `a <: u`, `a <: w`, `b <: u`, and `b <: w`, but no common element
+between both lower and both upper endpoints. Intervals `[a,u]` and `[b,w]`
+are each feasible and every cross constraint holds, yet they have no common
+witness. Sufficiency therefore needs a finite interval-realization property
+proved for the successor's type domain; it is not supplied by this propagation
+lemma or the frozen sandwich spec.
+
+The symbolic edges remain necessary when `x` and `y` have distinct root or
+use observations. Replacing them with only the merged interval would need a
+separate quotient proof that preserves those observations. The generated
+endpoint constraints are solver consequences, not permission to erase their
+symbolic source.
+
+This does not prove the equivalence for arbitrary compound arguments,
+non-saturated recursive graphs, effect weights, or post-substitution
+residuals. Those require the structural subtype decomposition and fixed-point
+solver to preserve the relation and all endpoint ownership. In particular,
+the result does not authorize replacing the symbolic formula with its current
+finite set of cross-bound consequences before later graph changes have been
+accounted for.
+
 Let an operation declaration at exact path `p` have signature
 `op : A -> [E] B` and declaration binders `ā`. Resolving one source request
 allocates one capture-avoiding map `θ` for those binders. Declaration

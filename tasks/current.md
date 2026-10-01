@@ -2506,3 +2506,10 @@ yet establish Oracle-equivalent invariance. The next proof should define the
 successor relation between two typed family arguments over polarized interval
 terms and establish whether mutual subtype is equivalent; then connect only
 source-justified relation sites to the lifecycle ledger and residual solver.
+The new variable-edge lemma proves only that mutual subtype implies the
+invariant-sandwich cross-bound obligations after saturation. Independent
+compiler-referee and spec-auditor reviews rejected the converse for arbitrary
+preorders; the repaired note includes a four-element counterexample and leaves
+sufficiency to a separate interval-realization theorem. Both delta reviews
+closed the finding. Compound argument decomposition, the actual type-domain
+realization property, and full assignment/root preservation remain unproved.
