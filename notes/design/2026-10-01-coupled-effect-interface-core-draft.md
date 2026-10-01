@@ -2578,19 +2578,34 @@ construct for it.
 
 The preferred formulation needs only a small operator basis over the one
 complete interface relation. Fix imported identities `ρ` throughout each
-operator. Let `R ⊆ A × I` relate owned assignments `ν ∈ A` to complete
-interfaces `I`, and let `T ⊆ A × I × J` be a source-typed transition
-relation that preserves the owned assignment. Use these ordinary set
-operations:
+operator. Let `R ⊆ A × I` relate assignments `ν ∈ A` to complete interfaces
+`I`. For two independently described views `R₁ ⊆ A × I₁` and
+`R₂ ⊆ A × I₂`, their fiber product is
+`{(ν,i₁,i₂) | (ν,i₁)∈R₁ ∧ (ν,i₂)∈R₂}`. Let
+`T ⊆ A × I × J` be a source-typed transition relation; source steps keep the
+same assignment `ν`. The basic operations are:
 
 ```text
-fiber product:   R ⋈_I S   (join only equal intermediate interfaces and ν)
+fiber product:   R₁ ×_A R₂ (join only equal assignments ν)
 image:           T[R]      = { (ν,j) | (ν,i)∈R ∧ T(ν,i,j) }
 restriction:     R ↾ P     = { (ν,i)∈R | P(ν,i) }
 projection:      π_X(R)    = forget a view while preserving its surviving indices
 reindexing:      f_*R      = direct image under a consistent identity map
                  f^*R      = pullback along a map of assignments/interfaces
 ```
+
+Sequential composition of two source steps is the usual relational
+composition at the shared complete interface:
+
+```text
+(U ∘ T)(ν,i,k) iff ∃j. T(ν,i,j) ∧ U(ν,j,k)
+```
+
+Its associativity follows by reassociating the two existential intermediate
+interfaces; no source-specific law is needed for that step. A view projection
+does not existentially discard a type assignment: `π_X` retains `ν` and every
+constraint on it. Generalization is the separate abstraction boundary that
+binds the component-owned identities.
 
 The `ν` component is held fixed by source transitions. A transition may add
 ordinary typing predicates to the same joined relation; it cannot solve a

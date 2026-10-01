@@ -9081,3 +9081,13 @@ injective renamings. Projection/image commutation, handler distribution over
 marginal rows, and non-injective quotient preservation are explicitly not
 assumed. This sharpens the preferred theory but does not prove source adequacy,
 finite principal presentation, or authorize implementation.
+
+A follow-up formalization made the relational operator signatures explicit.
+Transitions are ternary over a fixed assignment and complete input/output
+interfaces; sequencing existentially joins the intermediate interface, while
+view projection keeps the full type assignment and its constraints. The
+associativity proof is the ordinary reassociation of the two intermediate
+existentials. This prevents projection from being mistaken for erasing a
+symbolic type variable. This is a notation/proof-reuse refinement only; source
+transition adequacy, finite-principal closure, and SCC quotient premises
+remain open.
