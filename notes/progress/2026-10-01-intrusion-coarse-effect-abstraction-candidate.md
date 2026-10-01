@@ -8958,3 +8958,12 @@ and visibility scope from source typing and prove that the three computations
 compose with one symbolic typed-family assignment. This gives a concrete
 source-adequacy target for callback application without a callback-specific
 effect rule.
+
+The boundary equation now makes escaping activation lineage explicit. The
+frozen guard-marker contract shows that a function adapter's scope is dynamic:
+argument/result adaptation participates in the frame, returned values can
+carry shape-directed markers, and later force/call re-enters with runtime
+identity. The complete interface must transport that lineage alongside `K,D`
+and keep runtime-fresh IDs separate from static binders. A plain row or a
+compile-time binder rename cannot establish this; the source machine
+simulation remains open.

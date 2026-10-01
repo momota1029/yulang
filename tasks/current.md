@@ -3633,4 +3633,7 @@ each boundary, and source-step/handler simulation plus full symbolic-fiber and
 finite-principality proofs remain the next gates. No compiler implementation
 is authorized. The immediate proof target is source typing/evaluation
 simulation for the function-boundary composition, including complete symbolic
-family-fiber and visibility transport.
+family-fiber and visibility transport. The callback result interface must
+include shape-directed escaping activation lineage and dynamic re-entry, with
+runtime identities distinct from static binders, as characterized by the
+frozen guard-marker contract.

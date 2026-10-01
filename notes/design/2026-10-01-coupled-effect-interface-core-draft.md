@@ -1155,7 +1155,12 @@ values, and `>>=` is the existing state-threading relational composition; each
 `Adapt` denotes the complete computation relation above, not a pure value
 cast. Any dynamic visibility scope required by the source function-boundary
 semantics surrounds the entire expression, including both conversions and the
-call. This equation
+call. The complete output interface must also carry whatever source-defined
+activation lineage escapes on the returned value: a later force or call must
+re-enter the required dynamic context, with fresh runtime identities kept
+distinct from static type/family binders. That lineage belongs to the same
+value/computation interface transported by `Adapt` and `Call`, not to a
+post-hoc row annotation. This equation
 derives callback argument/result transport from ordinary relational
 composition and the same typed boundary used for thunks; it adds no
 callback-specific row rule. It also identifies a key simulation obligation:
@@ -1163,8 +1168,11 @@ effects from argument adaptation, the call, and result adaptation must be
 observed at the activation where that complete boundary executes. The frozen
 Yulang2 `FunctionAdapter` contract at `a58eefc3`,
 `spec/2026-06-13-mono-vm-contract.md`, § FunctionAdapter, has this shape, but
-is characterization only; the successor source typing relation must establish
-which source boundaries require it and which visibility scopes they carry.
+the guard-marker contract in `spec/2026-06-13-runtime-guard-markers.md` further
+characterizes shape-directed argument/result marking and dynamic re-entry.
+Both are characterization only; the successor source typing relation must
+establish which source boundaries require this transport, its activation
+lineage, and the symbolic family-incidence updates they induce.
 
 `Delay(C)` is a value whose force executes `C`; it does not run `C` while being
 passed or returned. `Force(v)` exposes the thunk's complete computation
