@@ -3441,3 +3441,13 @@ The open-world `Top` row is an immediate state-closed but overly coarse
 envelope. The unresolved theorem is an effective least useful envelope per
 source/interface fiber, including symbolic typed-request ownership and
 transport.
+
+The finite source-origin/value-flow candidate now has a conditional route to a
+less coarse state-closed bound: combine its finite `Slot`/`Origin` powerset
+with request-template propagation through body calls, thunk force, and
+continuation slots. The least fixed point bounds all finite prefixes despite
+store mutation and repeated resumes, because those transitions revisit
+existing producer origins; unknown targets widen to `TopEff`. Leastness is
+only within this origin abstraction. Source-step coverage, finite type/use
+ownership, K_sym transport, exported/client entry seeding, and handler Drop
+proof are still open, so this is not yet a usable or accepted semantics.

@@ -765,6 +765,68 @@ points-to solution is not a sound `Drop` certificate or a principal effect
 solution. The universal source-origin set remains the fallback for unresolved
 local dispatch; its acceptance cost still needs measurement.
 
+#### Conditional state-closed request-origin envelope
+
+The finite origin/value-flow candidate gives one way to close the resumption
+state premise for *support*, without counting continuation uses. For a fixed
+finite source closure `S`, let `ReqSite(S)` be the finite operation-producer
+sites in `Origin(S)` and let `Slots(S)` be the finite value/call/force/
+continuation slots above. A request template retains its producer site,
+resolved `OpId` when known, symbolic family-argument tuple, payload/result
+types, and source/use owner; an open argument, operation target, or owner is
+represented by the corresponding unknown top fact rather than erased.
+
+Combine the value-flow edges with request-origin propagation in one finite
+product powerset lattice. Entering a known body origin exposes that body's
+request templates; forcing a known thunk exposes its stored body or latent
+templates; resuming a continuation exposes the templates attached to its
+finite continuation slot. Any transition whose value, body, or continuation
+target is `TopValue`/unknown contributes `TopEff` and `Unknown` request facts.
+Handler arms contribute their own producer templates, while requests from the
+raw continuation remain in its continuation slot. This transfer projects
+request origins from the same evaluation relation; it adds no source-site
+effect rule and does not authorize handler subtraction.
+
+Formally, with a fixed finite template universe `ReqTpl(S)`, write the abstract
+state as `X ∈ P(Slots(S)×Origin(S)) × P(ReqTpl(S))`. Let `Seed_S` contain all
+module/runtime-root and exported/client-entry seeds, and let `F_S` be the
+union of the table transfers plus the request-origin edges just described.
+This fixed-point claim assumes those transfers are encoded as positive
+inclusion edges (unknown cases widen, never filter), making `F_S` monotone.
+The candidate solution is the Kleene least fixed point
+`X* = ⋃_{n≥0} X_n`, where `X₀=Seed_S` and
+`X_{n+1}=X_n ∪ F_S(X_n)`. Finiteness of both factors makes this sequence
+stabilize. `E#` is the family-support projection of request templates in
+`X*`; any unknown request fact maps it to `TopEff`. The route component is
+deliberately not projected into a `Drop` decision by `E#`.
+
+Assume every concrete source step that creates a callable, suspension,
+operation request, or continuation is simulated by one of these finite slot
+transfers, with capture-avoiding type/use ownership maps applied to the whole
+request template and its `K_sym` incidence. The least fixed point then gives a
+state-closed envelope for every finite execution prefix: by induction on
+steps, a direct request comes from an included producer site; an application,
+force, or resumption follows an included target/slot edge; and a store update
+can change which existing branch or site is reached but cannot invent a new
+producer origin. Repeated multi-shot resumes can revisit sites, but set
+membership is idempotent, so no usage count is needed. Projection from request
+templates to family support is consequently uniform over all live states
+represented by the closure.
+
+Because the transfer is monotone over a finite product of powersets, its least
+fixed point is the least request-origin summary satisfying those abstract
+edges, hence principal **within this origin-set abstraction**. This is not
+leastness among exact trace supports or all typed row interfaces. Soundness
+still depends on the unproved source-to-slot simulation, complete exported and
+client-entry seeding, thunk/continuation capture coverage, and finite typed-use
+ownership. If any of those is unknown, top is required. The family support
+projection alone cannot carry `InvArgs`, payload/result coherence, or route
+visibility; their formulas and incidence stay in `K_sym`/request facts through
+solving, residualization, generalization, freshening, and intrusion. `Drop`
+requires the separate handler visibility/coverage proof. This gives a
+conditional finite state-closed bound, not yet an effective or Oracle-complete
+effect inference machine.
+
 #### Source-step correction: operation and continuation application are lazy
 
 The frozen Oracle runtime's value-flow code sharpens the preceding transfer:
