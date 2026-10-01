@@ -3103,3 +3103,11 @@ type variables, provided occurrence, family-owner, and handler identities stay
 distinct and the predicate is substituted naturally. This is a formula
 transport law only; whole solver fiber preservation and non-injective parent
 quotients remain separate obligations.
+
+The handler transition now has the analogous conditional naturality law for
+non-injective substitutions on type terms: if operation/family constructors
+and all request/owner/activation identities stay fixed, and typed match and
+visibility predicates are substitution-natural, then substitution commutes
+with the shallow transition and every finite observation. This extends the
+transport lemma to solve-phase type maps while explicitly leaving solver
+solution completeness and owner/boundary quotients unproved.

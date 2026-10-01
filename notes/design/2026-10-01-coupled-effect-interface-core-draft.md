@@ -577,10 +577,44 @@ equality.
 This theorem transports the full activation stack; it never commutes, erases,
 splits, or transfers a push/pop weight. It consequently supports freshening
 and injective parent renaming when those maps preserve all relevant identities.
-It does not cover solver substitutions that merge type identities, intrusion
-quotients that merge boundary/occurrence identities, or handlers whose
-eligibility semantics distinguishes untransported dynamic identities. Those
-cases require their own observational quotient theorem.
+It does not prove solver solution-fiber preservation for arbitrary
+substitutions, intrusion quotients that merge boundary/occurrence identities,
+or handlers whose eligibility semantics distinguishes untransported dynamic
+identities. The latter quotient cases require their own observational
+preservation theorem.
+
+#### Conditional handler naturality under solver substitution
+
+Type solving can be non-injective on flexible type variables without merging
+source request, family-owner, or handler identities. Let `σ` be a
+homomorphic type substitution that fixes rigid imports and operation/family
+constructors. Let `T_σ` substitute only type endpoints and typed request
+arguments, with induced assignment `σ*ν'`; it acts as the identity on request
+occurrences, family-ownership groups, and handler activation identities.
+Assume type and argument denotations are substitution-natural, and that the
+source handler transition bases arm matching and typed compatibility only on
+those denotations plus the unchanged operation and visibility identities.
+Write `H_κ(O)` for the semantic handler image of the observable interface
+defined above. Then:
+
+```text
+T_σ(H_κ(O)) = H_κ(T_σ(O))
+```
+
+For `Return`, substitution preserves the value/arm typing premises. For a
+request, exact operation and route tests are fixed; family and signature
+predicates commute with `σ` by naturality; the forwarded or selected branch
+therefore agrees on both sides. Arm output and raw/forwarded continuations
+are substituted by the same homomorphism. Induction gives equality of finite
+observations and their support projections. Because source occurrence and
+owner identities are not substituted, this naturality permits distinct
+family requests to become equal in type payload while their source groups
+and evidence remain distinct.
+
+This is the handler counterpart of filter transport through solving. It only
+shows formula/transition naturality on assignments factoring through `σ`;
+it does not show that every original solution factors through the solver
+substitution, so it is not a solver completeness or principality theorem.
 
 ### Shared-witness formula under symbolic transport
 
