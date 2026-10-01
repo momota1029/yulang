@@ -3474,7 +3474,9 @@ finite principal projection are still unproved.
 The fresh-use equivariance statement now quantifies semantic type/row binders
 and reindexes presentation labels through one structure-preserving map.
 Request/owner/handler labels do not become extra solution coordinates, while
-typed-family constraints and their incidence still travel with them. This
+typed-family constraints and their incidence still travel with them. The map
+must preserve request payload/result positions, formula endpoints, sharing
+groups, owner/view incidence, and handler activation/stack structure. This
 proves the conditional relational freshening step over a fixed outer fiber;
 it does not prove source generation, solver preservation, the source's
 independent-use rule, or non-injective intrusion.

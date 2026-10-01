@@ -8152,7 +8152,9 @@ The generalization/fresh-use lemma now separates the owned type/row binders
 whose assignments belong to the semantic fiber from request, owner, and
 handler labels used to present sharing and boundary structure. One
 capture-avoiding binder renaming is extended to an isomorphism of those
-presentation labels; typed-family formulas and incidence are renamed with
+presentation labels preserving request heads and argument positions, formula
+endpoints/incidence, shared-binder partitions, owner-to-view incidence, and
+handler activation links/stack order; typed-family formulas are renamed with
 that same action. Formula satisfaction is preserved under the paired map,
 so each independent use has an isomorphic typed-family fiber over the same
 rigid outer assignment. Internal SCC references still use the live relation.

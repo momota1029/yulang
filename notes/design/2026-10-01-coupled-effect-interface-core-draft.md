@@ -1744,17 +1744,20 @@ materializing rows or drop its incidence structure.
 
 For one use, choose a capture-avoiding bijection `ι` from `Ω` onto fresh owned
 identities, fixing `ρ`. Extend it to an isomorphism `î` of the presentation's
-occurrence, owner, and handler labels, preserving their incidence and ordered
-boundary structure. Instantiate by reindexing the *whole* presentation:
+occurrence, owner, and handler labels. This isomorphism must preserve request
+heads and payload/result positions, formula endpoints and incidence, the
+partition into shared-binder groups, owner-to-view incidence, and handler
+activation links and stack order. Rigid imported identities and source
+constructors are fixed. Instantiate by reindexing the *whole* presentation:
 
 ```text
 K_{C,ι}(ρ,ω',I') = K_C(ρ, ι⁻¹(ω'), î⁻¹(I'))
 ```
 
 where `î` consistently relabels presentation indices and leaves fixed outer
-identities unchanged. For each source assignment `a` and target assignment
-`a'` related by `a'(ι(x)) = a(x)` for all semantic binders `x ∈ Ω` and equal
-on `ρ`, structural satisfaction gives:
+identities and source constructors unchanged. For each source assignment `a`
+and target assignment `a'` related by `a'(ι(x)) = a(x)` for all semantic
+binders `x ∈ Ω` and equal on `ρ`, structural satisfaction gives:
 
 ```text
 a' ⊨ K_{C,ι}(ρ,ω',I')  iff  a ⊨ K_C(ρ,ω,I)
