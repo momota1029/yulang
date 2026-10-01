@@ -178,6 +178,23 @@ Projection to roots after filtering preserves the original root solutions;
 projection that also observes the effect row returns the intentionally
 filtered rows together with their original symbolic correlations.
 
+Filtering also commutes with an injective capture-avoiding reindexing. Let
+`T_θ(ν,O) = (θ*ν,T_θ(O))` be the induced map on assignments and complete
+observations, and transport the predicate with it so that
+`q ∈ φ` iff `T_θ(q) ∈ φ_θ`. Then elementwise:
+
+```text
+T_θ(Filter_φ(Rel)) = Filter_{φ_θ}(T_θ(Rel))
+```
+
+Both sides contain exactly the images of `(ν,O)` in `Rel` with request support
+`T_θ(Q(O) ∩ φ) = T_θ(Q(O)) ∩ φ_θ`; all other observable coordinates are
+mapped by the same `T_θ`. At presentation level, this law requires applying
+`θ` to `K` and its occurrence/view map to `D` together. It therefore supplies
+one reusable commutation lemma for row filtering through use-site freshening
+and injective intrusion, conditional on filter-predicate naturality. It does
+not cover a non-injective parent quotient.
+
 The first equality concerns support only. It does not say that the joint
 assignment relation factors across a split: when a binder occurs on both
 sides, the shared assignment and its incidence remain in force. The second

@@ -3082,3 +3082,10 @@ be consumed by an Int arm in the disjoint primitive fragment. The complete
 handler transition must include payload/result signature safety; row-head
 matching cannot justify consuming the request. This is characterization of
 the general operation relation, not another selector.
+
+The filter relation now has an injective-reindexing commutation lemma:
+`T_θ(Filter_φ(Rel)) = Filter_{φ_θ}(T_θ(Rel))` when `φ` is transported with
+typed requests. The pointwise proof preserves all non-row coordinates and
+applies the same identity map to presentation formulas and incidence. This
+reuses one lemma for fresh instantiation and injective intrusion; it does not
+cover non-injective parent quotients.
