@@ -148,11 +148,14 @@ composition under one owned-identity assignment and for state-threading
 execution bind up to observation bisimulation. This permits regrouping
 sequencing while retaining `K,D`; the separate handler-image counterexample
 prevents treating handlers as bind homomorphisms. Source adequacy and finite
-presentation closure remain open. The collected may-support projection is
-least in the full powerset for each fixed valuation, while pointwise row join
-is distinct
-from relational disjunction and only gives a monotonicity inclusion without
-an additional theorem. A further audit found that this ground support result
+presentation closure remain open. Static composition also commutes with
+injective reindexing when relation atoms and typed-family formulas are
+equivariant and the complete intermediate interface is injectively mapped;
+this remains a conditional transport lemma, not a source-typing proof. The
+collected may-support projection is least in the full powerset at each fixed
+valuation; pointwise row join differs from relational disjunction and gives
+only a monotonicity inclusion without an additional theorem. A further audit
+found that this ground support result
 alone does not establish the required symbolic family transport. The handler
 image now has an explicit `K,D` preservation premise and symbolic observation
 map; proving that source handler transitions construct and retain it is the

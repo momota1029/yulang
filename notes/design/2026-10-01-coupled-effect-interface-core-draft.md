@@ -462,6 +462,31 @@ It does not permit moving a shallow handler image across bind: the adjacent
 counterexample shows that handler image is a transformation on the already
 composed computation, not an algebra homomorphism.
 
+**Injective reindexing commutes with static composition.** Let `θ` be a
+sort-preserving capture-avoiding injection on the owned identities of `R` and
+`S`, fixing the common outer assignment and mapping the shared owner
+identities, intermediate interface, formula endpoints, and incidence by the
+same map. Assume every relation atom and typed-family formula is equivariant
+under `θ`, and the induced map is injective on complete intermediate
+interfaces, including every request, owner, and boundary identity observed
+there. Then:
+
+```text
+Tr_θ(Comp(R,S)) = Comp(Tr_θ(R),Tr_θ(S))
+```
+
+For either side, a witness consists of one intermediate interface `Y` and
+restrictions of one joint identity assignment `ω`. The bijection from the
+owned range of `θ` back to the original owned identities maps these witnesses
+both ways. Relation atoms and symbolic typed-family formulas then have the
+same satisfaction under the corresponding assignments; source-shared owner
+groups remain shared, and independent groups remain apart. `K_R ∧ K_S` and its
+incidence therefore transport together, even when a request in `Y` is later
+filtered from the support view. This proves naturality of static sequencing
+for fresh use and injective intrusion at the relation level. It does not
+establish that a solver computes the transported formula, that `θ` preserves
+source typing, or that a non-injective parent quotient preserves the fiber.
+
 #### Formulation choice and semantic/bookkeeping boundary
 
 There are three plausible presentations of this same design problem:

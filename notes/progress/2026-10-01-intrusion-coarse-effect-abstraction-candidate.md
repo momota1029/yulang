@@ -8911,3 +8911,17 @@ The same review confirmed that the law does not authorize moving handler image
 through bind; the separate shallow-handler counterexample rules that out.
 Source derivation of owner sharing, finite presentation closure, and global
 principality remain open. No tests or code were run.
+
+## 2026-10-02: injective transport across static composition
+
+Added the static counterpart to the already recorded handler and execution
+bind equivariance lemmas: one capture-avoiding injective reindexing commutes
+with `Comp(R,S)` by transporting the joint assignment and intermediate
+interface witness. This keeps shared owner identities shared, independent
+owners apart, and `K_R ∧ K_S` with its incidence. An independent focused review
+found the set-theoretic join argument valid and caught a missing premise for
+formula satisfaction; the draft now makes equivariance of every typed-family
+atom and injectivity on the complete intermediate interface explicit. This
+closes the local alpha-transport claim only. It does not prove source rule
+adequacy, solver implementation of the formula, or non-injective intrusion
+fiber preservation. No tests were run.
