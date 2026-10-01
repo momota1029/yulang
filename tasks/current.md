@@ -2099,15 +2099,17 @@ callback makes the outer handler run (`[9]`); placing the callback first makes
 the inner handler run (`[2]`). The earlier polymorphic tuple case still routes
 outward independently at `int` and `str`, but its result-shape interpretation
 was confounded by the extra curried parameter. This refutes receiver-local
-grant sufficiency as currently stated, not Oracle soundness. Next trace the
-source-to-adapter steps for staged argument receipt: `specialize2::emit`
-selects a parameter contract from the callee call-spine index, and hygiene
-turns `PreserveMatchingPath` into carry-after-frame markers. The guard trace
-shows those carried markers expose the inner guard only when the callback is
-first. Treat that as frozen-runtime characterization, not successor
-semantics. The next proof step is to define argument-grant scope independently
-of runtime marker transport, then test whether either observed route follows
-from that declarative rule and the chosen coarse effect abstraction. Evidence
-is in
+grant sufficiency as currently stated, not Oracle soundness. The source-to-
+adapter trace shows `specialize2::emit` selects a parameter contract from the
+callee call-spine index, and hygiene turns `PreserveMatchingPath` into
+carry-after-frame markers. A staged pair now shows `outer callback` formed
+before a caller catch routes to the inner arm (`[2]`), while `outer 10` formed
+first and supplied a callback under that catch bypasses both function-local
+handlers and reaches the caller (`[7]`). The mono tree places a carry-marker
+adapter on the residual function only in the first variant; runtime tracing
+confirms the frozen route but does not justify it semantically. Define
+argument-contract scope across a residual partial application independently
+of marker transport, then check it against immediate and staged cases under
+the chosen coarse effect abstraction. Evidence is in
 `notes/progress/2026-10-01-intrusion-coarse-effect-abstraction-candidate.md`,
 section "Partial-application order stress on the receiver-grant candidate".

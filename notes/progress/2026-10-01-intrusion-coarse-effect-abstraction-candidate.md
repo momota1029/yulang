@@ -2306,6 +2306,45 @@ lines 106-112 builds the `FunctionAdapter`. These locations characterize the
 frozen implementation only. No corresponding algorithm is adopted as
 successor authority.
 
+#### Partial application across a handler boundary
+
+The same argument-order pair was staged so callback receipt and execution
+occur in different expressions. In the callback-first variant,
+`partial = outer callback` is formed before the caller's `catch`, then
+`partial 10` is invoked inside that caller handler. It returns `[2]`, from the
+inner function's arm. In the callback-second variant,
+`partial = outer 10` is formed first and the callback is supplied under the
+caller's `catch`; the request bypasses both function-local handlers and the
+caller returns `[7]`.
+
+The mono trees explain where the frozen representation differs. The first
+variant has a `FunctionAdapter` around the residual partially applied
+`outer` function, carrying the callback argument marker, as well as an adapter
+around the callback. The second variant's residual `outer 10` has an empty
+hygiene adapter; the callback gets its argument adapter only when later
+supplied. Runtime tracing confirms the first request has carried markers that
+expose the inner guard and the inner boundary is unblocked. In the second,
+the request has only the caller guard; the inner and outer function boundaries
+are blocked, and the caller boundary handles it.
+
+This demonstrates that grant eligibility cannot be summarized only by the
+receiving activation or by a marker on the callback value: whether the
+callback-bearing contract crossed a residual partial-application boundary
+changes the frozen result. It is still only Oracle characterization. The
+successor must define, from source evaluation and the chosen effect
+abstraction, whether an argument contract remains in force on a returned
+partial function, and what happens when the final callback argument arrives
+later. It must then show a semantic preservation argument for the inferred
+route; the mono adapter topology is not that argument.
+
+Fixtures:
+`/tmp/yulang-intrusion-grant-callback-first-staged.yu` and
+`/tmp/yulang-intrusion-grant-callback-second-staged.yu`. Both passed `check`
+and interpreter execution; roots were `[2]` and `[7]`. `--mono` dumps and
+`YULANG_INTRUSION_GUARD_TRACE=1` showed the adapter and guard differences
+described above. These additional probes further falsify receiver-local grant
+sufficiency; they do not establish an Oracle soundness conflict.
+
 The independent-use case checked successfully; both interpreter runs and
 `--poly-raw` / `--mono` dumps completed. Relevant temp fixtures are
 `/tmp/yulang-intrusion-grant-independent-uses.yu`,
