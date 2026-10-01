@@ -5921,6 +5921,43 @@ source case is constructed and observed. If reachable, the successor should
 prefer the sound whole-batch condition and record the concrete final-acceptance
 difference before treating the Oracle result as unsupported behavior.
 
+#### Frozen source acceptance witness for duplicate typed-family collapse
+
+A bounded source probe now reaches a related final Oracle observation. The
+temporary source is:
+
+```yulang
+pub act ask 'a:
+  pub get: () -> 'a
+
+pub dup(f: () -> [ask int, ask _, ask never] ()) = f()
+```
+
+At frozen commit `a58eefc31e22141574b6f20c6a5748151c6d79f1`,
+`yulang --no-prelude --no-cache check` accepts this source with exit status 0
+and no diagnostics. `dump --poly-raw` for `dup` gives the callback effect as
+one `ask` item whose argument is `Bounds(int, Bot)`. Under the recorded
+candidate carrier where `Never` is bottom and `int` is not a subtype of
+`Never`, this interval has no inhabitant. The source therefore supplies a
+concrete final-acceptance observation involving three duplicate same-family
+items and a collapsed empty argument interval.
+
+This does not yet establish that weighted
+`collect_neg_effect_items` at `row_effect.rs:1064` is the pass that collapses
+these particular annotated items: the CLI exposes no phase trace, and that
+collector's invocation depends on nonempty weights. Nor does source acceptance
+alone decide whether the annotation denotes a required common typed argument;
+that is a successor semantic obligation. Keep symbolic `InvArgs`/batch
+evidence alive through solving, residualization, generalization, freshening,
+and intrusion. Do not rebuild it from this already-collapsed `Bounds(int,
+Bot)` row. If the reviewed successor relation requires one common inhabited
+argument, it would reject this source, so the eventual compatibility impact
+would be that Oracle-accepted annotation; record that divergence only after
+the full weighted route and successor source meaning are established. This is
+not yet the N-way interval witness from the previous subsection: source syntax
+here supplies fixed `int`, wildcard, and `never` arguments, not the abstract
+intervals `A`, `B`, and `C`.
+
 Let an operation declaration at exact path `p` have signature
 `op : A -> [E] B` and declaration binders `ā`. Resolving one source request
 allocates one capture-avoiding map `θ` for those binders. Declaration

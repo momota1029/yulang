@@ -2659,9 +2659,16 @@ Oracle source inspection found that `collect_neg_effect_items` emits direct
 pairwise argument constraints from each duplicate item to the first item for
 that family path. For interval-valued arguments, the chain
 `Never <: Int <: Any` with `[Never,Int]`, `[Int,Any]`, `[Never,Never]`
-satisfies both star comparisons but has no all-three witness. A
-compiler-referee audit verified the local code path and algebra, while
-confirming that no reachable source program or final Oracle acceptance result
-has been established. Treat this as a candidate collision with N-way
-common-witness semantics, not yet a recorded compatibility exception; next
-establish source reachability/final behavior before deciding the boundary.
+satisfies both star comparisons but has no all-three witness. A bounded
+frozen-CLI source probe also accepts three duplicate `ask` items
+`[ask int, ask _, ask never]`; its raw callback scheme collapses them to one
+`ask` argument `Bounds(int, Bot)`, empty under the candidate bottom-type
+interpretation. This establishes source reachability of duplicate typed-family
+collapse and final Oracle acceptance, but not that the weighted
+`collect_neg_effect_items` route caused this exact collapse. Do not yet record
+a final compatibility exception: the annotation's successor denotation and
+full solver route remain open. The successor must retain symbolic family
+invariance throughout every lifecycle phase; the materialized `Bounds(int,
+Bot)` cannot reconstruct it. Next trace this source through the exact weighted
+Oracle pass and establish the reviewed annotation meaning. Details and command
+outcome are in `notes/progress/2026-10-01-intrusion-coarse-effect-abstraction-candidate.md`.
