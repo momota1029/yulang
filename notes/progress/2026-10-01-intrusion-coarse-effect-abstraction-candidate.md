@@ -2441,6 +2441,30 @@ evidence; it does not invent boundary opening/closing or route rules. These
 requirements follow the user's existing draft and do not select a final
 dispatch policy or authorize implementation.
 
+An architect, compiler-referee, and specification audit agree that this split
+is only a candidate and neither obvious annotation reading can be selected
+yet. If annotations constrain support but are dispatch-inert, the frozen
+concrete-versus-wildcard helper pair is already a runtime routing difference
+(`[2]` versus `[1]`), though not a final-acceptance difference. If a concrete
+callback contract introduces stage-scoped visibility evidence, its receipt
+point, capture in residual partial functions, and expiration on
+call/return/escape/re-entry still need a source rule and preservation proof.
+The callback-order pair also remains a runtime divergence (`[2]` versus
+`[9]`), not a soundness, principality, or acceptance counterexample; its pure
+currying premise fails until elaboration proves equal boundary evidence.
+
+Review rejects both premature pure-currying invariance and a receiver-local
+family grant bit. Neither the current transfer-table fallback nor a finite
+probe matrix proves unbounded source-to-trace simulation or principality. The
+smallest next proof step is a source transition judgment that makes typed
+callback receipt at each curried stage and residual-closure capture explicit,
+while keeping request support, ordered boundary lineage, and live handler
+activation distinct. It must define handler eligibility and the shallow
+raw-versus-forwarded continuation transition, then prove that the route
+abstraction over-approximates every finite source trace. Only after that rule
+and its compatibility deltas have independent review is a user choice between
+any remaining semantic alternatives well-posed.
+
 #### Empty-row annotation control
 
 The route pair was also checked with `[] int` result annotations on both

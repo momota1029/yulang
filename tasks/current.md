@@ -74,12 +74,13 @@ goal is proof followed by implementation, not research-only completion.
 ## Stop conditions and next action
 
 Before implementation, prove the candidate semantics for its declared graph
-class and supported input envelope, then record the reviewed successor
-contract. Stop or revise if it
+class, ordinary effects/handlers, and supported input envelope, then record the
+reviewed successor contract. Stop or revise if it
 captures an enclosing non-generic variable, merges distinct polarized
 constraints, shares substitutions across independent uses, loses a recursive
-bound, or changes Oracle-observable behavior inside the supported envelope.
-Effect hygiene and runtime freshness remain a later separate gate.
+bound, or changes final acceptance of well-typed programs inside the supported
+envelope. Method selection, roles, and implementation resolution remain the
+later mandatory gate; ordinary effect/handler semantics do not.
 
 Finite examples characterize the candidate but do not alone prove soundness or
 principality. Do not run guarded-cycle resource captures: the current F5c plans
@@ -2209,3 +2210,18 @@ handler continuation, including ownership/routing of operation latent effects,
 then prove the subtraction/coverage coupling and leastness before any
 implementation gate. Record the accepted Oracle behavior and compatibility
 exception in the successor design when that judgment is settled.
+
+The callback-visibility proposal has now had scoped architect, compiler-
+referee, and specification review. The reviews support keeping typed support,
+ordered boundary evidence, and live activation distinct, but the source meaning
+of callback annotations and their transport through currying remains unresolved.
+The Oracle's `[2]`/`[1]` concrete-versus-wildcard pair and `[2]`/`[9]`
+callback-order pair are runtime route differences only; neither currently
+proves a soundness, principality, or final-acceptance conflict. Do not adopt
+dispatch-inert annotations, a stage-scoped grant, or pure-currying invariance
+yet. Next define callback receipt per curried stage and residual-closure
+capture as source transitions, alongside active handler identity and the
+shallow raw/forwarded continuation rule; prove finite-trace coverage and
+route-certified subtraction before selecting a rule or requesting a user
+choice. Details and review boundaries are in the candidate progress record's
+"Orthogonal effect support and handler visibility" section.
