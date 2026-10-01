@@ -8250,3 +8250,15 @@ effects, but only characterizes `a58eefc3` runtime behavior. It does not define
 the successor's `BindPat` typing rule or dynamic handler visibility.
 Evidence: `crates/mono-runtime/src/runtime/bind.rs` and `runtime/thunk.rs` at
 the `bind_record_pat` and `continue_value_as_bind` implementations.
+
+The handler-image formulation was tightened to prevent an auxiliary totality
+test from becoming a source constraint. The semantic transfer is the image of
+the ordinary typed handler transition over the complete input relation;
+`Total_H` is only a sufficient condition for preserving the valuation domain.
+Failure of universal totality on a finite over-approximation does not itself
+show loss of final acceptance. The direct adequacy test is inclusion of every
+source transition output in the finite image, with symbolic typed-family
+constraints carried by that same relation. Do not conjoin a totality formula
+to the scheme or filter its source fiber. This is a draft correction, not an
+approved handler calculus; source typing preservation and finite image
+principality remain open.

@@ -3526,3 +3526,13 @@ run only on missing fields and that a default request's resumption re-enters
 the remaining bind continuation. This supports, but does not prove, source
 adequacy of the candidate `BindPat` relation; its typing and visibility rules
 remain open.
+The handler-image candidate was tightened to keep totality as a meta-level
+adequacy condition, not a predicate conjoined to the scheme formula or a
+filter on source fibers. Handler transfer is the relational image of the same
+typed transition relation. Failure of universal totality on a finite
+over-approximation alone does not show loss of acceptance; the actual gate is
+coverage of every source transition output by the finite image.
+This remains an unreviewed draft correction. Next, prove the source step and
+typed-transition correspondence, then test whether finite image projection
+preserves symbolic typed-family fibers without a separate handler obligation
+store.
