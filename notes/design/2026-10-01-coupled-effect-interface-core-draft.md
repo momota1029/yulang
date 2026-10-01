@@ -1086,15 +1086,32 @@ over-approximate exact continuation-sensitive observations.
 
 ##### Typed value/computation boundary as one relation
 
-The needed distinction can be stated as an ordinary typed boundary relation,
-not a source-site `Demand` selector. Let `⟦A⟧^val_{ν}` be the relation of values
-of type `A`, including first-class thunk values. Let
-`⟦E,A⟧^comp_{ν}` be the continuation-bearing computations that can be forced
-from a thunk with latent row `E` and result value type `A`. Let
-`Adapt_ν(S,T,v)` be the general computation relation for adapting a source
-value `v` from boundary type `S` to expected type `T`, using only conversions
-admitted by the ordinary type relation. Its thunk-sensitive clauses are
-selected by a disjoint outer-shape partition:
+The semantic core should be one typed boundary transition, not a source-site
+`Demand` selector and not three unrelated effect rules. Let `B_{S,T}` be the
+ordinary source typing/evaluation relation for transporting a value from
+boundary type `S` to expected type `T`. It acts on complete interfaces, not
+rows alone. For an input interface relation `R`, define its image by the same
+relational-image pattern as handler transfer:
+
+```text
+Adapt#_{S,T}(R) = { (ν,J) |
+    there are I, v, v' with (ν,I) ∈ R,
+    v ∈ ⟦S⟧^val_ν, B_{S,T}(ν,I,v,v'), and
+    J ∈ Obs_B(I,ν,v')
+}
+```
+
+The input and output keep the same assignment `ν`; `I` and `J` include
+request occurrences, continuation behavior, symbolic typed-family formulas,
+and formula-to-view incidence. Thus `Adapt#` cannot validate a family
+condition only after materializing its row. Formula and incidence transport
+must be part of `B` and `Obs_B`; a support projection may follow the image but
+cannot define it. This is a semantic contract for the candidate relation, not
+yet a proved source rule or finite solver operation.
+
+For a value `v`, write `Adapt_ν(S,T,v)` for the computation observed through
+this boundary transition. Its thunk-sensitive behavior is characterized by a
+disjoint outer-shape partition:
 
 ```text
 Adapt_ν(S,T,v) = Return(v)                         when S ≈ T
@@ -1110,13 +1127,17 @@ Adapt_ν(Thunk(E,A), Thunk(F,B), v) =
 Here `≈` is the selected value boundary equivalence and has priority: when it
 holds, the identity branch is chosen and none of the thunk-adaptation branches
 apply. Otherwise the three thunk cases are mutually exclusive by their outer
-source/target shapes. The clauses are available only when the ordinary source
-type relation admits the payload/value conversion. In particular, the target
+source/target shapes. These equations are consequences that the source
+typing/evaluation relation must establish for `B_{S,T}`; they do not define
+independent row transformations. The clauses are available only when the
+ordinary source type relation admits the payload/value conversion. In
+particular, the target
 latent contract must cover the *whole* delayed computation, including the
 forced source computation and recursively adapted result, under the same `ν`
 and typed-family ownership assignment. It cannot choose independent witnesses
-for those parts. Ordinary non-thunk value conversions belong to the base
-`Adapt` relation and are not specified by this effect-boundary lemma.
+for those parts. Ordinary non-thunk value conversions are other instances of
+the same `B_{S,T}` relation and are not specified by this thunk-boundary
+characterization.
 `Delay(C)` is a value whose force executes `C`; it does not run `C` while being
 passed or returned. `Force(v)` exposes the thunk's complete computation
 relation, including its typed-family formulas and resumptions. The clauses

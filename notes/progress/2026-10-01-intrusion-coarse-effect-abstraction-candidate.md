@@ -8940,3 +8940,11 @@ repairs the local ambiguity only. The source typing/elaboration derivation must
 still establish which boundary applies, and source execution, handler
 visibility, complete fiber transport, and finite principality remain open.
 No compiler code or tests were run; `git diff --check` passed.
+
+The same refinement now puts the three thunk cases below a single
+typed-boundary relational image over complete interfaces. This makes their
+common status explicit: they are candidate consequences of source typing and
+evaluation for different outer type shapes, not independent row/effect
+transformers. The relation must carry typed-family formulas and incidence
+through its image under one valuation. No proof yet establishes the source
+boundary transitions, their finite presentation, or the global fiber laws.

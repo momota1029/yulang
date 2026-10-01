@@ -3617,11 +3617,13 @@ No compiler implementation is authorized by these candidate lemmas. The
 coupled-interface draft treats handler visibility as semantic and route
 certificates as derivation evidence only.
 
-Latest local refinement: the coupled-interface draft now states immediate
-force, latent-value preservation, and thunk adaptation through one `Adapt`
-relation with disjoint outer-shape cases and one shared typed-family assignment.
-A focused architect review caught overlap in the first formulation; the local
-ambiguity was repaired and recorded in
+Latest local refinement: the coupled-interface draft now defines adaptation
+as the relational image of one typed boundary transition over complete
+interfaces; immediate force, latent-value preservation, and thunk conversion
+are candidate consequences for disjoint outer type shapes. The image keeps one
+typed-family assignment and its formulas/incidence rather than deriving them
+from a row projection. A focused architect review caught overlap in the first
+formulation; the local ambiguity was repaired and recorded in
 `notes/progress/2026-10-01-intrusion-coarse-effect-abstraction-candidate.md`.
 This is still only a boundary-relation candidate. Source typing must derive
 each boundary, and source-step/handler simulation plus full symbolic-fiber and
