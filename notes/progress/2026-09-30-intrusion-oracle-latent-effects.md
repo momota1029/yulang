@@ -1708,3 +1708,38 @@ scratch changes and are not part of this branch. A productive next
 characterization is to vary one semantic factor at a time (callback ownership,
 inner handler completeness, repeated calls, and independent instantiation) and
 compare both the final handler and the generated boundary-block reason.
+
+### Partial inner handler and repeated requests
+
+Two more focused source variants separate operation coverage from provider
+color and exercise a single callback twice. In the partial-handler case, the
+inner catch has an arm for `choose::branch` but the request is
+`choose::reject`. The request is colored with outer ID 0, and the inner
+`choose` boundary is still recorded as blocked; however, no inner operation arm
+matches, so the operation mismatch itself passes the request outward. The
+outer reject arm handles it and the program returns `[1]`. Thus `blocked` is a
+boundary property in the runtime, not evidence that an operation is supported
+or even matched by that catch.
+
+For repeated requests, `force_twice` invokes the same callback twice. A
+recursive inner handler of the shape used by the existing deep-handler
+examples, `reject, k -> inner(k 2)`, catches both requests when it is the only
+handler; the result is `[4]`. In the nested case, the same inner handler is
+under a recursive outer handler, `reject, k -> outer(k 1)`. Both callback
+requests carry outer ID 0, both inner boundaries are blocked, and the outer
+handler handles both; the result is `[2]`. This distinguishes repeated
+operation occurrences from the earlier non-recursive handler experiment,
+where resuming a continuation without reinstalling a catch left the subsequent
+request unhandled. The repeated nested trace also shows fresh outer handler
+activation IDs across recursive re-entry, while the lexical protection
+continues to block the inner same-family catch.
+
+These are still frozen-runtime observations, not a declarative justification
+for the routing. The partial case says coverage matching and boundary blocking
+must be separate in any operational account. The repeated case says a source
+semantics must model continuation re-entry and cannot reduce a callback's
+effect to one request or one handler activation. The scratch fixtures were
+`/tmp/yulang-intrusion-weight-inner-partial.yu`,
+`/tmp/yulang-intrusion-weight-inner-repeat-recursive-alone.yu`, and
+`/tmp/yulang-intrusion-weight-inner-repeat-recursive.yu`; their roots were
+`[1]`, `[4]`, and `[2]` respectively.

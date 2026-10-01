@@ -2052,9 +2052,13 @@ inner request. The frozen scratch runtime now shows the forced request colored
 only by the outer guard ID; the inner same-family boundary is marked blocked,
 then the outer boundary is unblocked and handles it. Inner-only direct handling
 has no request guard and no blocked boundary. This explains Oracle's immediate
-runtime path, not a semantic justification of its propagation rule. Next vary
-callback ownership, inner-handler completeness, repeated calls, and independent
-instantiation, then derive a source judgment independently of weight routing.
-The correction and transition evidence are in
+runtime path, not a semantic justification of its propagation rule. New
+controls show an incomplete inner handler has a blocked boundary but passes
+the unmatched operation outward (`[1]`); recursively re-entered catches handle
+two callback requests as `[4]` inner-only and `[2]` under an outer recursive
+same-family handler. This confirms coverage, boundary blocking, and
+continuation re-entry must be modeled separately. Next vary callback ownership
+and independent instantiation, then derive a source judgment independently of
+weight routing. The correction and transition evidence are in
 `notes/progress/2026-09-30-intrusion-oracle-latent-effects.md`, section
-"Frozen runtime guard transition for nested same-family requests".
+"Partial inner handler and repeated requests".
