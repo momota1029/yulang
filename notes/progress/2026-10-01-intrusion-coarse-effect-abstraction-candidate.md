@@ -8317,3 +8317,25 @@ continuation only to returns/resumed requests. The injective transport
 argument is correspondingly coinductive over executions and checks
 finite-prefix observations separately. This fixes a notation ambiguity in the
 proof candidate; runtime/source simulation remains open.
+
+## 2026-10-02: isolate the finite-closure theorem
+
+The finite `Slot × Origin` candidate now has an explicit conditional
+least-closure lemma in
+`notes/design/2026-10-01-coupled-effect-interface-core-draft.md`. It separates
+the fixed-point argument from the hard source abstraction obligation: if a
+complete-lattice presentation has a monotone collecting transformer and a
+sound abstraction pair that preserves typed-family predicates and incidence,
+then the least fixed point covers all finite concrete executions and is the
+least closed presentation in that abstraction. The proof is induction over
+execution length followed by lattice leastness.
+
+This is not yet a Yulang theorem. The abstract domain may fail complete-lattice
+closure or effective monotonicity; the abstraction has not been constructed
+for calls, force, resumes, mutable stores, or handler transitions; and support
+closure alone does not prove complete typed root/use fibers or typing
+principality. The immediate proof obligation is now concrete: define the
+abstraction/concretization maps and show each source transition's abstract
+image is representable and monotone while retaining symbolic family
+constraints. The subsequent exact derivation/lifecycle correspondence remains
+necessary before implementation.

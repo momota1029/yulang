@@ -2318,6 +2318,65 @@ diagram from source steps through this finite presentation to the existing
 relational operations, including filter, handler image, fixed-outer
 generalization, fresh reindexing, and intrusion.
 
+##### Conditional least-closure lemma
+
+The fixed-point part of that target can be isolated from the source-specific
+abstraction proof. Let `Conf` be the concrete configurations of the chosen
+resumable source machine and let `→` include every permitted transition,
+including store updates, thunk force, call, resume, handler arm selection,
+and forwarding. Let `A` be a complete lattice of finite presentations ordered
+by denotation inclusion; its coordinates must include the symbolic typed
+family predicate and its incidence with every affected view. Let
+`α : P(Conf) → A` and `γ : A → P(Conf)` form a sound abstraction pair
+(`α` and `γ` monotone, and `X ⊆ γ(α(X))`). Write `Post(X)` for all
+one-step successors of `X`, and let
+`F(a) = α(I) ⊔ α(Post(γ(a)))`, where `I` is the set of admitted initial
+configurations. Assume `F` is monotone and that the carrier/order treats
+formula reindexing and typed-fiber preservation extensionally, rather than
+discarding a formula when its current support projection is empty.
+
+If the least fixed point `μF` exists, every finite concrete execution from `I`
+is represented by it:
+
+```text
+Reach*(I) ⊆ γ(μF)
+```
+
+Proof: `α(I) ≤ μF` by the fixed-point equation. If a configuration `c` is
+represented by `μF`, then `c ∈ γ(μF)`, so each successor `c'` contributes to
+`Post(γ(μF))`; by construction `α(c') ≤ F(μF) = μF`, hence
+`c' ∈ γ(μF)` under the abstraction pair's concretization convention.
+Induction on finite path length gives the inclusion. By Tarski leastness,
+`μF` is also below every pre-fixed abstract state containing `α(I)`, so it is
+the least closed sound presentation *within this particular abstraction*.
+
+This lemma does not establish an abstract machine for Yulang. The candidate
+has not supplied `A`, `α`, or `γ` with these properties, and symbolic formulas
+over potentially unbounded type identities may make `A` non-finite or fail
+complete-lattice closure. More critically, `α(Post(γ(a)))` must be
+effectively representable and monotone while retaining typed-family fibers;
+merely collecting request templates or may-support is insufficient. Any
+widening to `Top` is sound only if its concretization covers the concrete
+successor and keeps all symbolic constraints required by other interface
+coordinates. Finally, least closure proves principality only for this abstract
+reachability component. The source typing relation, complete interface
+projection, generalization/use product, and parent quotient must still show
+that this least abstract closure is exactly the least representable
+well-typed interface, with no lost or invented program acceptance.
+
+The commuting-diagram gate can therefore be tested in two independent parts:
+
+1. establish the abstraction simulation and monotonic finite transformer for
+   each source transition class; this discharges reachability soundness and
+   within-abstraction leastness;
+2. establish that the type/effect derivation relation and its full SCC
+   lifecycle are represented exactly by the resulting interface fibers;
+   this discharges inference soundness and principality.
+
+Passing part 1 cannot be cited as evidence for part 2. In particular, it does
+not permit dropping a symbolic family constraint during solving,
+residualization, generalization, freshening, or intrusion.
+
 ## Open gates
 
 This draft does not yet define the supported source semantics or prove the
