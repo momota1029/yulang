@@ -6,9 +6,12 @@ Reference: frozen Yulang2 Oracle `a58eefc31e22141574b6f20c6a5748151c6d79f1`
 Status: fixture inventory; no successor semantics or proof conclusion
 
 This audit follows the conditional joint member/use map criterion. It asks
-whether existing source witnesses establish one exact saved `TypeVar` that is
-local in one member's finalized scheme and preserved free in another member's
-scheme. The current artifacts do not establish that same-SCC case.
+whether source witnesses establish one exact saved `TypeVar` that is local in
+one member's finalized scheme and preserved free in another member's scheme.
+No accepted source fixture establishes this. A synthetic same-SCC
+`AnalysisSession` characterization below demonstrates the split at the Oracle
+machine level, without establishing source construction or final program
+acceptance.
 
 ## Closest observed witnesses
 
@@ -87,6 +90,47 @@ reads the then-current level (`generalize/mod.rs:900-915`). Cross-epoch
 lowering is therefore possible in the mechanism, but still lacks an accepted
 source witness changing a shared identity's Q classification.
 
+## Synthetic same-SCC ownership witness
+
+A disposable test in the detached Oracle worktree manually drove the
+`AnalysisSession` lifecycle, without source lowering. It registered two roots
+with the same depth-1 variable in both predicates, gave one member
+`FetchValue` and the other `FetchComputation`, then queued a pair of
+payload-free `DependencyAdded` edges before finishing either definition. It
+asserted a component merge, exactly one joint `QuantifyComponent`, no analysis
+diagnostics, and retained occurrences of the shared variable in both
+generalized compact roots. The finalization trace independently shows the
+same occurrences in both published predicates.
+
+The focused trace reports:
+
+| Member | Boundary | Constraint epoch at Q selection | Q | Shared variable occurrences |
+| --- | --- | --- | --- | --- |
+| value-fetch root 700 | `TypeLevel(0)` | `(2, 2)` | `[702]` | argument and return |
+| computation-fetch root 701 | `TypeLevel(1)` | `(2, 2)` | `[]` | argument and return |
+
+The shared variable 702 remains at `TypeLevel(1)`. This is a concrete
+same-component Q/free split in the Oracle's session machinery, caused solely
+by per-definition fetch boundaries; it does not depend on cross-epoch level
+lowering, post-selection rewriting, or recursive-bound ownership. Under the
+ordinary use-map rule characterized in
+`2026-10-01-intrusion-oracle-root-use-ownership-audit.md`, a use of root 700
+maps 702 freshly, while root 701 preserves 702. This is evidence that an
+SCC-wide unpartitioned identity set cannot model all member schemes. It does
+not show that source
+lowering can produce this exact dependency-only mixed-fetch component, that
+the resulting module is accepted, or that Oracle final specialization exhibits
+a user-visible difference.
+
+The disposable focused command passed once:
+
+```text
+YULANG_INTRUSION_OWNER_TRACE=1 CARGO_TARGET_DIR=/tmp/yulang-intrusion-scc-owned-target cargo test --offline --jobs=1 -p infer scratch_intrusion_dependency_cycle_mixed_fetch_shared_identity -- --nocapture --test-threads=1
+```
+
+No Oracle source or test change was committed, and the Yulang3 branch was not
+modified by the probe.
+
 There is a useful conditional exclusion for Q-versus-free ownership. For a
 variable `v` that occurs in both roots' compact-plus-role views where their
 quantifiers are selected, if both roots use the same boundary and
@@ -141,11 +185,9 @@ every accepted source SCC preserves uniform Q ownership, or settle whether
 another fixture can expose root-local R/free ownership, boundary variation,
 level lowering, or a post-selection graph rewrite.
 
-The next useful source evidence must come from one accepted same-SCC
-construction or a complete saved graph view. The narrow probe is a
-diagnostic-free dependency-cycle with mixed fetch classes and one shared deep
-variable, recording its level and both Q sets around a constraint-producing
-first-member prepass. It must align, for both member
+The next useful source evidence must come from an accepted source construction
+or a complete saved graph view that connects the synthetic case to actual
+lowering. It must align, for both member
 roots, the same pre-finalization machine identity with:
 
 1. published `scheme.quantifiers` and finalized recursive-bound variables;
@@ -156,10 +198,13 @@ roots, the same pre-finalization machine identity with:
 
 If no source program can express such a witness, the proof must say so and
 derive the member-view ownership classes from the source-defined graph
-construction instead. Focus the next source trace on the guarded SCC's
-per-root compact support, levels at Q selection, ancestor substitutions,
-final Q/R sets, and free occurrences; separate any epoch lowering or
-post-quantifier rewrite from the recursive-bound reachability case. The
+construction instead. The next probe should identify a source path that
+produces payload-free dependency cycles with mixed fetch classes, or establish
+that such scheduler edges are unreachable for ordinary accepted programs. A
+separate source trace should determine whether first-member prepasses lower a
+shared variable before the next Q selection, and another should cover
+root-local R/free ownership. Keep each result distinct from the synthetic
+boundary-only Q/free witness. The
 existing two-view example in the candidate proves only renaming algebra after
 ownership classes are supplied. It does not close source-step adequacy, all
 member-root observations, effects, principality, or final acceptance

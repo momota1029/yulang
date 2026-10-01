@@ -1959,13 +1959,21 @@ generalization roots are processed sequentially. Payload-bearing internal uses
 to a computed-fetch member are diagnosed, but payload-free scheduler edges can
 participate in mixed-fetch SCCs without that diagnostic. Mutable prepasses can
 also lower shared levels before later Q selection; this is mechanism-level
-possibility, not an observed accepted source transition. No accepted mixed-
-fetch/shared-identity fixture is known. Next construct a diagnostic-free
-dependency-cycle case with a shared deep variable and inspect levels/Q around
-the first member's constraint-producing prepass; independently continue the
-root-local R/free ownership search. The existing accepted role-method/helper
+possibility, not an observed accepted source transition. The existing
+accepted role-method/helper
 cycle was run as a negative control: both roots use `TypeLevel(0)`, Q/R are
 empty, and no level transition occurs in the captured epoch. It does not close
-the dependency-only or R/free cases.
+the dependency-only or R/free cases. No accepted mixed-fetch/shared-identity
+source fixture is known. A disposable synthetic AnalysisSession
+fixture now constructs a same-SCC mixed-fetch graph using payload-free
+dependency edges and one shared depth-1 variable. The Oracle jointly quantifies
+both roots without diagnostics, retaining the shared variable in both
+predicates but quantifying it only for the value-fetch root (`Q=[702]` versus
+`Q=[]` at the computation-fetch root). This confirms the machine-level Q/free
+split but not source reachability or final program acceptance; details are in
+`notes/progress/2026-10-01-intrusion-mixed-ownership-fixture-audit.md`. Next
+map the production source path for this dependency-only mixed-fetch shape and
+establish whether an accepted program can reach it. Cross-epoch level lowering
+and R/free ownership remain separate open cases.
 Effect-row principality, route quotient completeness, and Oracle acceptance
 remain open.
