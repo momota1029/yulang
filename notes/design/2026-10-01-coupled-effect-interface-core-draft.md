@@ -195,6 +195,24 @@ one reusable commutation lemma for row filtering through use-site freshening
 and injective intrusion, conditional on filter-predicate naturality. It does
 not cover a non-injective parent quotient.
 
+Solving may use a non-injective type substitution `σ`. If its induced map
+`T_σ` substitutes all type endpoints and typed-request arguments, while
+leaving request occurrences, family-ownership groups, and handler identities
+distinct, and if the filter is substitution-natural
+(`q ∈ φ` iff `T_σ(q) ∈ φ_σ`), then the same set-image proof gives:
+
+```text
+T_σ(Filter_φ(Rel)) = Filter_{φ_σ}(T_σ(Rel))
+```
+
+Injectivity on type variables is unnecessary because both sides are images of
+the same request-wise restriction; several typed arguments may map to one
+argument while their source occurrences stay distinct. The presentation must
+substitute `K` uniformly and preserve its occurrence incidence. This is only
+formula-transport naturality: it does not prove that the solver substitution
+preserves the full solution fiber, nor does it authorize a non-injective
+parent map that merges ownership, request, or boundary identities.
+
 The same row restriction commutes with generalization when it acts only on
 the interface coordinates that generalization retains. Write a fixed-outer
 relation as `Rel ⊆ { (ρ,β,O) }`, where `β` are locally owned identities and

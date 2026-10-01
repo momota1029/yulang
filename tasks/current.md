@@ -3097,3 +3097,9 @@ sides. A filter that depends on hidden local data cannot be moved after
 projection; that dependency has to remain in the generalized symbolic
 relation. This is conditional and does not prove the current finite scheme
 language can express every such projection.
+
+The filtering law now also covers type solving maps that are non-injective on
+type variables, provided occurrence, family-owner, and handler identities stay
+distinct and the predicate is substituted naturally. This is a formula
+transport law only; whole solver fiber preservation and non-injective parent
+quotients remain separate obligations.
