@@ -2221,7 +2221,11 @@ proves a soundness, principality, or final-acceptance conflict. Do not adopt
 dispatch-inert annotations, a stage-scoped grant, or pure-currying invariance
 yet. Next define callback receipt per curried stage and residual-closure
 capture as source transitions, alongside active handler identity and the
-shallow raw/forwarded continuation rule; prove finite-trace coverage and
-route-certified subtraction before selecting a rule or requesting a user
-choice. Details and review boundaries are in the candidate progress record's
-"Orthogonal effect support and handler visibility" section.
+shallow raw/forwarded continuation rule. The direct nested-handler fragment
+now derives nearest-eligible selection from the shallow transformer itself,
+without Oracle weights; callback `Visible` and stage-evidence transport remain
+open. Prove finite-trace coverage and route-certified subtraction before
+selecting a rule or requesting a user choice. Details and review boundaries
+are in the candidate progress record's "Parameterized source-transition
+skeleton for handler visibility" section and the trace calculus's "Ordered
+active-handler stack" lemma.

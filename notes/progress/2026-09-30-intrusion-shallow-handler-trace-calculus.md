@@ -81,6 +81,33 @@ This is a declarative shallow-handler rule. It agrees with the frozen source
 contract's documented shallow behavior, but its truth here does not come from
 `StackWeight`, `SubtractId`, row routing, or their implementation.
 
+### Ordered active-handler stack
+
+For a direct nested-catch fragment, let the active stack be ordered
+innermost-first, `h :: hs`, and define `HStack(h :: hs, C) =
+HStack(hs, H_h(C))`, with `HStack([], C) = C`. Each activation has a fresh
+identity. For one original request occurrence `r`, define `eligible(h,r)` as
+exact-operation coverage plus the still-open provider-visibility predicate.
+Then nested shallow transformation selects the first eligible activation in
+the ordered stack:
+
+```text
+Select([], r) = none
+Select(h :: hs, r) =
+    h             if eligible(h,r)
+    Select(hs, r)  otherwise
+```
+
+This nearest-eligible property follows from the transformer, rather than from
+Oracle runtime markers. If `h` is eligible, `H_h` consumes `r` and supplies its
+raw continuation; outer handlers do not see that original request. If `h` is
+ineligible, `H_h` forwards `r` with `x -> H_h(k(x))`; the next outer handler
+sees the forwarded request, and resuming it preserves `h` around the suffix.
+If the selected arm itself emits a new request, that is a new occurrence and
+selection starts again at the then-active stack. This lemma determines only
+stack order and raw-versus-forwarded control flow. It does not define provider
+visibility, callback-contract transport, or which activations are eligible.
+
 ## 4. Four trace lemmas
 
 ### Lemma 1: one handled request can have an empty residual

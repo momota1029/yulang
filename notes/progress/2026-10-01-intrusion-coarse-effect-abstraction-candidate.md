@@ -2465,6 +2465,70 @@ abstraction over-approximates every finite source trace. Only after that rule
 and its compatibility deltas have independent review is a user choice between
 any remaining semantic alternatives well-posed.
 
+#### Parameterized source-transition skeleton for handler visibility
+
+The smallest operational object needed by the next proof can be stated without
+assigning meaning to Oracle weights. This is a conditional skeleton; it is not
+a selected source semantics because the visibility relation below remains
+undefined.
+
+```text
+RuntimeState = (expression, environment, ordered active HandlerId stack,
+                captured boundary evidence)
+
+RequestObservation = (typed family instance, exact OpId, origin,
+                      ordered boundary-evidence lineage,
+                      current active HandlerId stack)
+
+FunctionStage = (static function/parameter binder, stage index,
+                 parameter contract, residual closure)
+```
+
+Function application is staged. At each argument receipt, the source rule
+resolves that stage's parameter contract and records its boundary-evidence
+transform on the received value or adapter. If arguments remain, the residual
+callable captures the adapted arguments and their evidence; invoking that
+residual callable transports the captured evidence into the eventual body.
+This says where the semantics must account for callback-first/callback-last
+and partial application. It deliberately does not say that a concrete row
+creates a grant, that a wildcard erases evidence, or how long a receipt token
+authorizes a handler.
+
+Entering a catch creates a fresh dynamic `HandlerId` and pushes it on the
+active stack. A request records its typed family, exact operation, origin and
+ordered evidence lineage. For a direct nested-catch stack, selection is the
+first inner-to-outer activation whose exact-operation coverage holds and whose
+`Visible(lineage, handler_id)` predicate holds; the stack-order part follows
+from the shallow transformer as recorded in
+`notes/progress/2026-09-30-intrusion-shallow-handler-trace-calculus.md`,
+"Ordered active-handler stack". `Visible` remains open. If a handler matches,
+its arm receives the raw continuation, without that handler reinstalled. If
+no handler is selected, the request is forwarded; resumption wraps the saved
+continuation so this handler remains active for the later suffix. The
+selection-order lemma does not use the Oracle's runtime guard implementation.
+
+Static binder identities in captured evidence use capture-avoiding transport;
+dynamic handler activations are fresh runtime identities and are never copied
+from compile-time IDs. Type substitution changes typed family payloads but
+does not rewrite operation identity or collapse evidence lineage. Static
+analysis may project requests to finite family support, but it may certify
+`Drop(H,F)` only if every represented typed request and route maps to an exact
+covered operation and a runtime-selected activation equal to `H`; unknown
+lineage blocks the drop. Raw-continuation-only effects remain in the
+continuation/arm latent bound rather than being fabricated as offers to `H`.
+
+The candidate simulation obligation is now explicit: every finite runtime
+request transition must map to a typed request fact with its source lineage;
+every runtime-selected handler must be justified by the candidate `Select`
+and `Visible` relations; and every removed family must be absent from
+all outward finite traces, including forwarded suffixes and arm effects. A
+least-solution/principality proof additionally needs a finite compositional
+domain whose derivable bounds correspond to source judgments. This skeleton
+does not prove any of these obligations, choose `Visible`, resolve the
+concrete-versus-wildcard or callback-order Oracle differences, or authorize
+implementation. It narrows the missing design decision to the source meaning
+and transport of stage evidence plus its handler-activation relation.
+
 #### Empty-row annotation control
 
 The route pair was also checked with `[] int` result annotations on both
