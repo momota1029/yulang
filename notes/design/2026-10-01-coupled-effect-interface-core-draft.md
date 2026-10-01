@@ -1019,6 +1019,40 @@ preserving their versioned simulation relation, remains a scheduler-simulation
 obligation. The version label records machine history; it is not an
 additional source-level selector.
 
+## Relation operations and bookkeeping
+
+The intended conceptual economy can be stated without one semantic operation
+per source site. Starting from the source-defined complete relation, use
+predicate restriction, relational composition/image, projection over owned
+coordinates, and capture-avoiding reindexing:
+
+| Mechanism | Relational operation | Required side condition |
+| --- | --- | --- |
+| Type or typed-family premise | Restrict the fiber by its symbolic predicate | Keep the predicate attached to every dependent interface coordinate |
+| Callback/application | Compose caller, callee, and callback relations on the shared value/effect interface | Join at one valuation and preserve strict versus delayed execution |
+| Typed row filter | Restrict the request coordinate by a predicate on the complete typed request | Route and activation facts are not inferred from the row predicate |
+| Shallow handler | Relational image of continuation-bearing computations | Apply the source transition at each activation; require totality only for a claimed total transfer |
+| Residual effect | Project the output request coordinate of that image | Do not replace the image by row difference without an equivalence proof |
+| Generalization | Project component-owned coordinates while fixing imported `ρ` | Preserve the complete root/interface fiber and independent-use product law |
+| Fresh instantiation | Reindex owned coordinates by one fresh injective map | Map request arguments, formulas, incidence, and boundaries together |
+| Intrusion | Reindex the component relation along the parent map | Injective transport uses equivariance; non-injective maps require quotient/fiber preservation |
+
+Row union is union on the request-support coordinate after forming the joint
+relation. It is not relational disjunction between whole interfaces. Splitting
+a row is a coordinate view of the same relation; existentially dropping a
+shared binder is valid only when it is local to the projection and no retained
+root, request, handler, or future-use observation depends on it.
+
+In this account, `Sel_s` is a derivation witness for membership or inclusion;
+`Demand` is an incidence edge used to compute a projection; typed-family
+evidence is the predicate plus its fiber dependency; route evidence witnesses
+the concrete handler transition; and transport maps reindex the relation.
+These remain useful implementation records but add no mathematical construct.
+If two source situations need different behavior after every complete
+interface coordinate has been fixed, that signals a missing coordinate to
+identify before adding a site-specific rule. This is a design diagnostic, not
+a proof that the current interface carrier is complete.
+
 ## Open gates
 
 This draft does not yet define the supported source semantics or prove the

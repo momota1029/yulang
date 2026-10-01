@@ -3013,3 +3013,13 @@ without continuation-use typing, but only for the finite ground fragment;
 typed payloads, higher-order boundaries, symbolic transport, and principal
 presentation remain open. The derivation is in the single abstraction-pair
 section of the coarse-effect candidate record.
+
+The coupled-effect draft now states one relational-operation vocabulary for
+the mechanisms under review: predicate restriction, relational composition or
+image, owned-coordinate projection, and capture-avoiding reindexing. In that
+account selectors are proof witnesses, demands are incidence, typed-family
+evidence is a fiber predicate, routes witness handler transitions, and
+transport maps reindex the relation. The table records side conditions for
+filtering, residualization, generalization, instantiation, and intrusion. It
+is a design economy claim to test against source semantics, not evidence that
+the current carrier is complete or implementable.
