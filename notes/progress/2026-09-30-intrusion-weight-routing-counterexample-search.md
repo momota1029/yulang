@@ -629,3 +629,88 @@ therefore conflicts with the candidate's runtime may-effect bound for this
 source; whether the candidate bound is the final source typing contract and
 the corresponding principality proof remain open. No tests were run; this was
 a read-only CLI dump plus source/spec inspection.
+
+### Matching catch around the callback adapter (2026-10-02)
+
+Two source variants put a matching `choose::get` catch outside (a) the
+`call(lambda)` expression directly and (b) a caller whose body invokes that
+expression. Both pass `check` in the frozen executable, but both interpreter
+runs report `yulang.unhandled-effect` for `choose::get`. In the first variant,
+the mono tree places the callback-result adapter syntactically inside the
+direct catch; in the second, the catch surrounds `m1()` whose body contains
+that adapter. Both mono trees carry
+`hygiene[arg[add_id[1, choose, own, resume-own]]]` on the callback argument.
+Thus a force during a catch body does not itself prove that the catch selects
+the request.
+
+The outside-catch sources were:
+
+```yu
+pub act choose:
+  pub get: () -> unit
+
+pub call(f: () -> [choose] ()) = f()
+pub invoke(): [] () = catch call(\() -> choose::get()):
+  choose::get, k -> k ()
+  v -> v
+pub result = invoke()
+```
+
+```yu
+pub act choose:
+  pub get: () -> unit
+
+pub call(f: () -> [choose] ()) = f()
+pub invoke(): [] () = call(\() -> choose::get())
+pub result = catch invoke():
+  choose::get, k -> k ()
+  v -> v
+```
+
+A positive control puts the catch in the body of the callback-receiving
+function:
+
+```yu
+pub act choose:
+  pub get: () -> unit
+
+pub handle(f: () -> [choose] ()) = catch f():
+  choose::get, k -> k ()
+  v -> v
+pub result = handle(\() -> choose::get())
+```
+
+This also passes `check` and runs successfully. With
+`YULANG_INTRUSION_GUARD_TRACE=1`, the request carries the active catch boundary
+in `exposed_guard_ids`, and that arm has `skipped=None`. The outside catches
+are skipped in these fixtures, while the catch inside the receiving function
+is eligible. This is consistent with the documented capture contract: a
+concrete callback capture row exposes the family to a handler inside the
+receiving function. Operation identity,
+call/result conversion, and activation visibility must be related together;
+no callback-specific selector is needed.
+
+Commands used:
+
+```text
+/tmp/yulang-intrusion-scc-owned-trace/target/debug/yulang --no-prelude --no-cache check /tmp/yulang-callback-catch-inner-choose.yu
+/tmp/yulang-intrusion-scc-owned-trace/target/debug/yulang --no-prelude --no-cache dump /tmp/yulang-callback-catch-inner-choose.yu --mono
+YULANG_INTRUSION_GUARD_TRACE=1 /tmp/yulang-intrusion-scc-owned-trace/target/debug/yulang --no-prelude --no-cache run --interpreter /tmp/yulang-callback-catch-inner-choose.yu
+/tmp/yulang-intrusion-scc-owned-trace/target/debug/yulang --no-prelude --no-cache check /tmp/yulang-callback-catch-boundary-choose.yu
+/tmp/yulang-intrusion-scc-owned-trace/target/debug/yulang --no-prelude --no-cache dump /tmp/yulang-callback-catch-boundary-choose.yu --mono
+YULANG_INTRUSION_GUARD_TRACE=1 /tmp/yulang-intrusion-scc-owned-trace/target/debug/yulang --no-prelude --no-cache run --interpreter /tmp/yulang-callback-catch-boundary-choose.yu
+/tmp/yulang-intrusion-scc-owned-trace/target/debug/yulang --no-prelude --no-cache check /tmp/yulang-callback-capture-inner-owner.yu
+YULANG_INTRUSION_GUARD_TRACE=1 /tmp/yulang-intrusion-scc-owned-trace/target/debug/yulang --no-prelude --no-cache run --interpreter /tmp/yulang-callback-capture-inner-owner.yu
+/tmp/yulang-intrusion-scc-owned-trace/target/debug/yulang --no-prelude --no-cache dump /tmp/yulang-callback-capture-inner-owner.yu --mono
+```
+
+The executable checkout is at `a58eefc31`, but its worktree and build
+provenance are not cleanly tied to this binary; record this as direct CLI
+characterization, not a source/binary identity proof. The runtime trace shows
+`skipped=Some(Preserve(GuardId(1)))` for both matching outside catches and
+`skipped=None` for the inner positive control. It confirms that distinction in
+this executable, but does not prove the
+successor source typing/transition theorem or symbolic `K,D` transport. These
+observations refine the proof obligation: the common relation must preserve
+the callback owner's activation lineage so a same-path outer handler does not
+become eligible by row matching alone.

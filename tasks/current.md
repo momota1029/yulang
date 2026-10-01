@@ -186,6 +186,19 @@ the successor relational-composition claim as an obligation to prove, not a
 runtime fact. This adds characterization evidence only; source typing,
 specialization adequacy, and symbolic `K,D` transport remain open.
 
+Two additional focused fixtures put a matching catch directly around the
+callback call or around its caller. Both pass the frozen check and both
+interpreter runs report unhandled `choose::get`; the mono trees carry callback
+`add_id` hygiene markers. A positive control with the catch inside the
+callback-receiving function passes and runs successfully. Its runtime trace
+shows the callback-carried guard exposing the active catch boundary, while the
+two outside catches are skipped. This refines the source/handler simulation
+target rather than establishing a compatibility conflict or a new dispatch
+rule. The runtime witness is recorded in the Oracle ledger; source typing and
+symbolic `K,D` preservation remain open. Compiler-referee delta review found
+no remaining mismatch; the ledger records the exact source variants, command
+evidence, traces, and the binary-provenance limit.
+
 A companion transport lemma now states that once a source rule creates one
 indexed `FamAgree_A` batch, a natural type substitution maps the full shared
 witness relation by reindexing, including its N-way and cross-position

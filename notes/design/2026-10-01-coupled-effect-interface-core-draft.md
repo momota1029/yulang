@@ -1667,6 +1667,28 @@ context's actual force with the proposed resumable computation relation, while
 transporting saved value and activation lineage; a row annotation cannot
 decide this boundary.
 
+Textual nesting and exact operation path still do not prove that the request
+is eligible for the active arm. Focused frozen-Oracle witnesses place the same
+`choose::get` callback under a matching catch outside `call(...)`, or outside
+a caller of `call`; both pass `check`, but both interpreter runs report an
+unhandled request. The mono path carries
+`add_id[1, choose, own, resume-own]`, consistent with the capture boundary
+blocking the outer catches. A positive control puts the catch in the body of
+the callback-receiving function,
+`handle(f: () -> [choose] ()) = catch f(): ...`; that source passes `check`
+and runs successfully. Its runtime trace shows the request's carried guard
+listing the active handler boundary among `exposed_guard_ids`, with
+`skipped=None`. This matches the frozen source contract: a concrete callback
+capture row exposes the family to a handler inside the receiving function,
+not to an outer caller merely because the operation path matches. Thus these
+observations support keeping operation identity, call/result conversion, and
+activation/lineage together in `Visible`; they do not establish a source typing
+theorem or justify a callback-specific selector. The exact executable build
+provenance is not reconstructed.
+The source wording is `web/docs/reference/type-theory.md`, “What Effect
+Annotations Mean”; the runtime capture and eligibility details are specified
+in `spec/2026-06-13-runtime-guard-markers.md`.
+
 The evidence is in the frozen checkout `a58eefc31`,
 `crates/evidence-vm/src/runtime.rs` (`MakeThunk`, `ForceThunk`,
 `force_thunk_result`, `eval_catch`, and shallow continuation handling),
