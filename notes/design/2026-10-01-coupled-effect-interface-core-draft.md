@@ -119,6 +119,36 @@ the concrete argument denotation, and the actual source rule that creates a
 shared-instantiation batch. Until those are established, it is a common
 candidate relation, not the selected successor semantics.
 
+#### Closed point-row expansion
+
+The joint relation has an exact finite formula on closed rows when every
+occurrence denotes one point argument tuple. Write `args(o) ≈ args(p)` for
+componentwise equality in the chosen type interpretation, and define
+`GroupEq(R)` to require this equality for every pair of occurrences sharing
+one binder in `R`. Then:
+
+```text
+RowSub(R,S,ν) iff
+  GroupEq(R,ν) ∧ GroupEq(S,ν) ∧
+  ⋀_{o∈occurrences(R)} ⋁_{p∈occurrences(S), head(p)=head(o)}
+      args(o) ≈ args(p)
+```
+
+An empty disjunction is false. `GroupEq` is exactly nonemptiness of each
+point-valued binder fiber in `J`; after it holds, `TypedRow` is the finite set
+of typed requests carried by the occurrences. The final conjunction is then
+ordinary set inclusion, whose witness for each left request is one matching
+right occurrence. This derives the familiar finite pair alternatives from
+one denotation, while retaining the shared-binder equality formulas in the
+same symbolic relation. It also shows why matching pair data cannot replace
+`GroupEq`: the left and right rows can each be internally well-formed yet
+have no common typed request at a required family head.
+
+This lemma is exact for the stated point interpretation and source-owned
+groups. It does not decide how source syntax creates those groups, extend to
+interval/compound arguments, or prove that the compiler's current
+`InvArgs` generation is equivalent to `GroupEq`.
+
 ## Source constructs as relational composition
 
 Each source construct denotes a relation from its input interfaces and

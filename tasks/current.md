@@ -2919,3 +2919,10 @@ row relation `J_R` indexed by source-owned family-instantiation binders;
 `TypedRow` and the common-witness fiber are projections of that relation. It is
 not a separate semantic query alongside row inclusion. Which occurrences share
 a binder remains a source-semantics obligation.
+
+For closed rows with point-valued argument tuples, derived the exact finite
+formula: internal shared-binder equality on each side, followed by per-left
+typed-request matching disjunction. This shows the pair alternatives are a
+solver expansion of `J_R`, while family coherence remains in that same
+relation. Source group formation and equivalence to actual `InvArgs` rules
+remain open.

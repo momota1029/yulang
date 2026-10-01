@@ -7726,3 +7726,12 @@ comparison; it is how this candidate relation enforces a shared binder. The
 source must still establish which occurrences share that binder. See the
 revised joint definition in the coupled-effect draft. This is still a
 candidate, and its duplicate-row/runtime adequacy remains open.
+
+For closed point rows, the coupled draft now expands `J_R` exactly into two
+parts: internal argument equality for occurrences sharing each source binder,
+and a per-left-request disjunction over same-head right occurrences. The proof
+is the set-inclusion definition after point-valued binder fibers are shown
+nonempty. This captures where pairwise solver witnesses are useful without
+making them semantic selectors. It remains conditional on source binder
+ownership and does not generalize to interval/compound arguments or establish
+the current Oracle's `InvArgs` expansion as sound.
