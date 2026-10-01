@@ -3410,3 +3410,12 @@ the Oracle's acceptance of this empty-row program is the recorded final
 acceptance difference to drop for soundness. The exact source typing gate,
 effect principality, and broader counterexample matrix remain open; see
 `notes/progress/2026-09-30-intrusion-weight-routing-counterexample-search.md`.
+
+The coupled-effect draft now derives this witness directly from its candidate
+Function denotation: the annotated callback's `[ask]` contract bounds the
+call's complete behavior, ordinary application composes that request into
+`call` and then `invoke`, and the empty `invoke` row cannot contain it. This
+uses the common application relation rather than a callback-specific rule.
+The conclusion remains conditional on the source typing/evaluation relation
+and the finite principal presentation; it does not select the candidate
+Function clause or complete the effect gate.

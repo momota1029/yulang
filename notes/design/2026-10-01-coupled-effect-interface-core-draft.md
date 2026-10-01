@@ -795,6 +795,45 @@ f ∈ ⟦A ->[E] B⟧_{ρ,ν} iff
     (o = Return(v) ⇒ v ∈ ⟦B⟧_{ρ,ν})
 ```
 
+#### Conditional callback-forwarding consequence
+
+Under this candidate clause, an ordinary application cannot lose a request
+already observed in its complete application behavior. Consider the frozen
+source witness:
+
+```yulang
+pub act ask:
+  pub get: () -> unit
+
+pub call(f: () -> [ask] ()) = f()
+pub invoke(): [] () = call(\() -> ask::get())
+pub result = invoke()
+```
+
+Assume the source operation relation gives `ask::get()` a request observation,
+the lambda's call behavior includes that observation, application composes the
+callee/argument/callback relations, and no handler lies between the callback
+request and the exported `invoke` observation. The Function clause requires
+the behavior of calling the annotated callback to be included in its `[ask]`
+row. Relational application then places that request in `call`'s immediate
+behavior; the same composition places it in `invoke`'s behavior. Since
+`TypedRow([],ν)` contains no `ask` request, `invoke : () -> [] ()` cannot
+satisfy the clause. The proof uses the general application composition and
+the typed-row inclusion premise; it adds no callback-specific selector and
+does not depend on exact request multiplicity or continuation-use counts.
+
+The frozen Oracle accepts this source and serializes `call`'s return effect as
+empty even though both runtimes report the unhandled `ask` request. The
+weighted source trace and exact acceptance delta are recorded in
+`notes/progress/2026-09-30-intrusion-weight-routing-counterexample-search.md`.
+This is a concrete conflict for the current callback routing path, not a proof
+that every isolated `push_pops` operation is unsound. The successor behavior
+in this candidate is to preserve the request through application and remove it
+only through a handler image justified by the source transition relation.
+Whether the candidate Function clause is the source language's chosen
+well-typedness relation, and the completeness/principality of its finite
+presentation, remain open.
+
 Define semantic Function compatibility by inclusion between these denotations.
 Application composes callee evaluation, argument evaluation, and `Beh`; a
 surrounding handler acts on the resulting complete computation relation. A
