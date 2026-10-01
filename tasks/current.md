@@ -3075,3 +3075,10 @@ continuation transfer is type-safe. The same relation retains the invariant
 family-argument formula; effect binders, handler routing, and eligibility are
 not inferred from these value inequalities. This is a local semantic premise,
 not yet the language's complete handler rule or a solver obligation kind.
+
+A closed `F<>` counterexample is recorded in the same section: with no family
+arguments, family matching is vacuous, yet a Boolean request payload cannot
+be consumed by an Int arm in the disjoint primitive fragment. The complete
+handler transition must include payload/result signature safety; row-head
+matching cannot justify consuming the request. This is characterization of
+the general operation relation, not another selector.

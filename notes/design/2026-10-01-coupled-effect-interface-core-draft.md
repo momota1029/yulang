@@ -463,6 +463,15 @@ same complete transition relation. Thus these are premises of `P_H`, not an
 additional per-operation obligation kind. The full source rule and
 principality of its finite presentation remain open.
 
+The family predicate alone is insufficient even in a closed point case. Let
+`F<>` have no family arguments and let the request payload be `Bool`, while
+the arm expects `Int`. `family_relation(F<>,F<>)` is vacuously true, but no
+runtime-safe `Bool <: Int` payload transfer exists in the ordinary disjoint
+base-type fragment. The pair must therefore fail the complete `P_H` relation;
+support-head equality cannot justify consuming it. This
+is a test of the unified operation relation: payload/result behavior is
+already part of the same transition, not a new family-specific selector.
+
 For any capture-avoiding type substitution `θ`, formula transport is
 structural: `K_θ = θ(K)` and the same occurrence/owner map is applied to `D`.
 If formula satisfaction is equivariant under type substitution, then
