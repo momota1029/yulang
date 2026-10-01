@@ -3844,6 +3844,94 @@ its observed failure, and describing the matcher as a path-prefix/arity helper
 rather than exact dispatch identity. The revision closes those wording risks;
 the source semantics itself remains open.
 
+#### Frozen Oracle parameterized-family probes
+
+To separate the documented same-path rule from the unverified typed-instance
+example, I built a clean detached worktree at the frozen commit `a58eefc31`
+and ran small `--no-prelude` source probes against its binary. The minimal
+matching control was accepted and returned `100`:
+
+```yu
+pub act state 'a:
+    pub get: () -> 'a
+
+my run(action: [state int] 'r): 'r = catch action:
+    state::get(), k -> k 100
+    v -> v
+
+run: state::get()
+```
+
+A second probe defined `answer_int` and `answer_bool`, each handling the same
+`ask::get` path with a continuation value of its own type, then composed them
+over one computation that performs `ask::get` at both `int` and `bool`. `check`
+exited 0; execution rejected with `conflicting type candidates: int vs bool`.
+This is consistent with the frozen corpus contract, but the probe alone does
+not establish the dispatch mechanism. In frozen source commit
+`a58eefc31e22141574b6f20c6a5748151c6d79f1`, the effect-subtraction spec
+requires same-path family arguments to constrain invariantly
+(`spec/2026-05-31-effect-variable-subtractable.md`, lines 279–297), while the
+runtime guard spec matches the exact operation path
+(`spec/2026-06-13-runtime-guard-markers.md`, lines 83–92). Together these
+support treating operation identity and family type constraints as separate
+parts of the contract.
+
+A third probe isolates the unsafe boundary. The handler formal says
+`[ask int]` and resumes `ask::get` with an integer, while the supplied action
+declares `[ask bool] bool` and the result is explicitly annotated `bool`:
+
+```yu
+pub act ask 'a:
+    pub get: () -> 'a
+
+my answer_int(action: [ask int] 'r): 'r = catch action:
+    ask::get(), k -> k 1
+    v -> v
+
+my action(): [ask bool] bool = ask::get()
+my result: bool = answer_int: action()
+result
+```
+
+On the same clean frozen binary, `check --no-prelude` exited 0, and both
+`run --no-prelude --no-cache --print-roots` and its `--interpreter` variant
+exited 0 with `run roots [1]`. Frozen reference examples print Boolean roots
+as `true`/`false`, so this result contradicts the declared `bool` contract.
+This is a concrete unsound acceptance, although it does not yet isolate
+whether the cause is row-family subtyping, handler specialization, or another
+callback coercion path. The compatibility behavior to drop is accepting this
+program and supplying an `int` through a continuation whose operation result
+is declared `bool`. A sound successor must retain the type parameter
+constraints from `ask.get` through the row contract and continuation, and
+reject the incompatible callback/handler application before runtime; it must
+not reclassify `ask int` and `ask bool` as distinct operation identities to
+paper over the mismatch. The exact source typing rule remains subject to the
+ordinary effect/handler design review. The frozen principal-monomorphization
+spec also reconnects a generic operation's result type to the same family
+item in the scrutinee row (`spec/2026-06-07-principal-monomorphization.md`,
+lines 648–655), which gives a direct source-level constraint for that
+continuation judgment.
+
+The original larger adversarial-corpus fixture timed out at 30 seconds with no
+output on the clean frozen binary, for both `check` and `run`; that exceeded the
+corpus probe script's 20-second budget. This means its documented expectation
+was not reproduced as a successful run. The three smaller probes above
+completed quickly and supply the stated observations. This characterization
+does not use `StackWeight` or the frozen dispatch helper as semantic authority.
+
+This yields a concrete compatibility delta: the Oracle accepts a program
+whose declared Boolean result becomes integer `1` in both execution engines.
+The successor rejects that behavior on soundness grounds. The general
+type-indexed residual expressibility witness remains conditional and must not
+be conflated with this path-identity/type-consistency failure.
+
+The scoped compiler-referee review confirmed that the third probe conflicts
+with the declared operation type and that rejecting it is a justified
+soundness-driven compatibility change. It also required the narrower wording
+above: the mixed-use runtime conflict does not identify its dispatch cause.
+This review closes the probe interpretation; the complete source typing rule
+and its solver integration remain open.
+
 The source boundary needed by this candidate is therefore an elaboration
 relation from source declarations/annotations and operation uses to canonical
 family and operation identities, typed arguments/signatures, payload/result

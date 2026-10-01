@@ -2185,8 +2185,22 @@ that effect arguments may constrain one operation's types without changing
 its path identity: the adversarial corpus explicitly rejects treating
 same-path `ask.get` at `int` and `str` as distinct operations. Thus the
 exact-instance monotonicity witness is not established as an Oracle
-compatibility case, and `FamInst` is not authority for handler identity. Next
-characterize parameterized-operation behavior and derive the path/type-
-constraint split independently; then revisit solver-route choices against
-Oracle's final accepted programs. Do not implement before the adequacy argument
-is reviewed.
+compatibility case, and `FamInst` is not authority for handler identity.
+Focused probes on a clean frozen `a58eefc31` build confirmed a matching
+`[state int]` handler returns `100`; a same-path int/bool operation collision
+is accepted by `check` and rejected at runtime; and, more seriously, a
+`[ask int]` handler accepts an action declared `[ask bool] bool`, with both VM
+and interpreter returning integer `1` despite an explicit `bool` result
+annotation. The original larger corpus fixture timed out at 30 seconds, so
+only the minimized cases are reproduced. This gives a concrete soundness
+conflict: successor inference must carry the declared operation type through
+the row and continuation and reject the incompatible application, without
+making type arguments separate operation identities. A scoped compiler-
+referee review confirmed this conclusion and required preserving the distinction
+between the observed mixed-use conflict and its unisolated dispatch cause. The
+frozen subtraction and runtime-guard specs support separate path identity and
+invariant family-argument constraints. Next derive the exact source typing
+judgment for parameterized operation signatures and its continuation
+reconnection from those specs, then review the solver integration before any
+implementation gate. Record the accepted Oracle behavior and compatibility
+exception in the successor design when that judgment is settled.
