@@ -140,6 +140,37 @@ renaming and assignment transport. A solver may keep specialized data
 structures as bookkeeping, provided they neither add semantic choices nor
 discard symbolic predicates.
 
+#### Existing names projected from the common relation
+
+The vocabulary used in earlier proof records should not be mistaken for
+independent semantic mechanisms. The intended factorization is:
+
+| Existing name | Meaning in the common theory | Retain as |
+|---|---|---|
+| `Sel_s` | A witness that one typed request in a support projection is covered by a request in another projection | A finite inclusion witness or proof term; its alternatives are not semantic choices |
+| `Demand` | The source evaluation context composes a suspended computation when it needs the resulting value | A derived property of the ordinary value/computation judgment, not a site selector |
+| Typed-family obligation / `FamAgree_A` | The shared owned assignment must satisfy every incident invariant argument predicate | A symbolic predicate in `Rel_C`, transported with its owner and incidence |
+| Route evidence | One source handler-search transition makes a request visible, selected, or forwarded in a specific activation | A derivation witness for dynamic visibility, not an independent grant or row constraint |
+| `P`, `Theta`, `K`, `D`, parent and occurrence maps | Reindexing or presenting one relation while preserving its identity and dependency structure | Transport witnesses and finite-presentation metadata; the denotation changes only by the stated relation image/reindexing |
+
+Only three distinctions presently have independent semantic force: source
+value versus computation behavior; a common source-owned identity versus
+independent identities; and a request's dynamic visibility in the active
+handler configuration. Even these are not separate solver constructs: they
+are coordinates or predicates of the same source-indexed relation. The
+particular names above do not justify adding a grammar form, a new kind of
+typing judgment, or an obligation algebra. If later source semantics proves
+another distinction fundamental, add it to the relation with an explicit
+observation and preservation theorem before introducing representation
+machinery for it.
+
+This sets a proof economy test for every proposed rule: identify the ordinary
+source transition or relation operation it presents; show how its denotation
+follows by projection, restriction, composition, image, or capture-avoiding
+reindexing; and state which common transport laws apply. A rule that cannot be
+derived this way is a candidate for an actual source-level distinction and
+must be justified there, rather than copied from an Oracle stage boundary.
+
 #### One denotational row relation (candidate)
 
 For a fixed complete assignment `ν`, interpret a typed row jointly with its

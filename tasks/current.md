@@ -3856,5 +3856,6 @@ fundamental. Compare candidates by conceptual economy, compositionality,
 principality, and proof reuse; derive row operations and SCC lifecycle steps
 from shared relation/transport laws where possible. Exact trace support remains
 a soundness reference, not a required inference domain. The comparison is
-recorded in the non-authoritative coupled-interface draft; its source rules,
-finite solver presentation, soundness, and principality remain open.
+recorded in the non-authoritative coupled-interface draft, now with a
+factorization table and a proof-economy test for each proposed rule. Its source
+rules, finite solver presentation, soundness, and principality remain open.
