@@ -2574,6 +2574,67 @@ it in the presentation. If no relation/projection can express a distinction
 that changes source behavior or admissible solutions, do not add a semantic
 construct for it.
 
+#### Minimal relational algebra for the compiler-facing theory
+
+The preferred formulation needs only a small operator basis over the one
+complete interface relation. Fix imported identities `ρ` throughout each
+operator. Let `R ⊆ A × I` relate owned assignments `ν ∈ A` to complete
+interfaces `I`, and let `T ⊆ A × I × J` be a source-typed transition
+relation that preserves the owned assignment. Use these ordinary set
+operations:
+
+```text
+fiber product:   R ⋈_I S   (join only equal intermediate interfaces and ν)
+image:           T[R]      = { (ν,j) | (ν,i)∈R ∧ T(ν,i,j) }
+restriction:     R ↾ P     = { (ν,i)∈R | P(ν,i) }
+projection:      π_X(R)    = forget a view while preserving its surviving indices
+reindexing:      f_*R      = direct image under a consistent identity map
+                 f^*R      = pullback along a map of assignments/interfaces
+```
+
+The `ν` component is held fixed by source transitions. A transition may add
+ordinary typing predicates to the same joined relation; it cannot solve a
+typed-family formula by forgetting the assignment and rebuilding a row later.
+`K` and its view incidence are a finite notation for that relation, not a
+second operator or evolving obligation store.
+
+With those operators, the intended derivations are:
+
+| Operation in the inference problem | Relational derivation |
+| --- | --- |
+| Source sequencing and callback invocation | Join on the shared value/environment interface, then image through the source transition relation |
+| Row splitting | Project request views while retaining the common assignment and every formula dependency that still constrains a surviving view |
+| Filtering | Restrict the complete relation by the source predicate, then project the request view |
+| Handler residualization | Image through the declarative shallow-handler transition, then project its residual request support |
+| Generalization | Abstract/close component-owned identities while retaining the relation over rigid imports and every exported root |
+| Fresh instantiation | Rename all locally owned identities with one capture-avoiding injection, fixing the same rigid imports |
+| Intrusion | Pull back the complete relation along the parent assignment map `μ ↦ μ∘P`; a non-injective parent map is valid only when the relation factors through its fibers up to the chosen observation equivalence |
+
+This classification intentionally does not give rows, callbacks, handlers, or
+SCC transport separate semantic rule families. Their source syntax supplies
+different transition relations and interface maps; the proof obligations are
+instances of image, join, restriction, projection, and reindexing preservation.
+Numeric selector IDs, demand edges, route certificates, and parent tables may
+implement those operations, but they do not enlarge the semantic algebra.
+
+Several tempting equations are not laws of this algebra. Projection need not
+commute with relational image; handler image need not distribute over a union
+of marginal rows; and a non-injective reindexing need not preserve the
+solution fiber. Each such commuting or quotient step requires a preservation
+premise for the complete relation. By contrast, relational composition is
+associative, restrictions by `P` and `Q` compose as restriction by `P∧Q`, and
+capture-avoiding injective renamings compose. These generic laws are the
+proof-reuse target: source-specific results should follow from them plus the
+source transition definition, rather than introduce new semantic selectors.
+
+The table is a proposed factorization of the already stated carrier, not a
+claim that all source typing rules have been derived. In particular,
+source-owned invariant argument groups, activation-specific visibility, and
+the exact binder scope of generalization must be supplied by source typing.
+If one of those turns out to be a real distinction, represent it in the
+relation or transition domain and prove its transport; do not encode an
+Oracle storage detail as a new semantic constructor.
+
 ### Finite point-row constrained presentation (conditional lemma)
 
 There is a finite presentation candidate for the point-valued closed-row

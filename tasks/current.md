@@ -3684,3 +3684,14 @@ core remains the complete assignment-indexed interface relation; `Sel_s`,
 `Demand`, typed-family records, route certificates, and transport maps are
 presentations or proof bookkeeping unless a source-level distinction is
 proved. No implementation is authorized.
+
+Follow-up 2026-10-02: the candidate core now states one relational operator
+basis—join/composition, image, restriction, projection, and identity-map
+transport—and derives sequencing, callback calls, row splitting/filtering,
+handler residuals, generalization, instantiation, and intrusion from it. Generic
+algebraic laws are separated from unproved commutation/quotient claims; in
+particular handler image over marginal row unions and non-injective parent
+maps need complete-relation premises. Next work is to derive the source-owned
+argument groups and handler visibility in this relation from source typing,
+then show a finite principal presentation preserves its fibers. The design is
+still draft and implementation remains unauthorized.

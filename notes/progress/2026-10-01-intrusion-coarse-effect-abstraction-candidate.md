@@ -9060,9 +9060,24 @@ map both through each independent use's same freshening map. Internal SCC use
 keeps the live identity. This applies the already proved injective-renaming
 law to the closure preservation lemma; it does not establish the non-injective
 parent quotient required by intrusion.
-The quotient section now spells out the minimal counterexample: two exported
-closure roots carry independent `F<α>` and `F<β>` rows, and the satisfying
-assignment `α=Int, β=Bool` cannot factor through a parent map identifying the
-binders. This refutes unconditional one-parent-per-SCC-variable sharing at
-the interface level. Source adequacy for this exact paired-root witness and
-the positive quotient theorem under entailed point equivalence remain open.
+The quotient section now records both the interface counterexample and the
+source SCC witness characterized against frozen Oracle above. Unconditional
+parent identification is refuted for that source SCC. The abstract
+whole-formula quotient lemma is proved conditionally: parent-fiber endpoints
+must be equivalent in every satisfying assignment, and formulas/observations
+must respect that equivalence. Establishing those premises for useful parent
+maps from source typing remains open.
+
+The coupled-interface draft now makes its conceptual economy explicit through
+one relational operator basis: join/relational composition, image, restriction,
+projection, and identity-map reindexing. Sequencing and callback invocation
+are joins and images; splitting/filtering are projection and restriction;
+handler residuals are a handler image followed by support projection;
+generalization and instantiation abstract or rename owned identities; intrusion
+is a parent-map pullback subject to the quotient lemma. These are derivations
+over the same complete relation, not new source constructs. The generic laws
+include associativity, intersection of restrictions, and composition of
+injective renamings. Projection/image commutation, handler distribution over
+marginal rows, and non-injective quotient preservation are explicitly not
+assumed. This sharpens the preferred theory but does not prove source adequacy,
+finite principal presentation, or authorize implementation.
