@@ -1237,18 +1237,22 @@ continuation correlation to cover the source fiber's outputs. It adds no
 source rule. If no such `A` exists in the chosen finite language, that
 language does not meet the charter's final-acceptance target for that fiber.
 
-**Conditional transfer theorem.** If (1) `C_ρ(I,ν)` covers every concrete
-scrutinee represented by each `(ν,I) ∈ R`, (2) `H_κ` is total on those
-fibers and agrees with the source shallow-handler transition, and (3) `Obs_H`
-is a sound output observation, then `H#_κ(R)` is sound: every concrete handled
-result represented on an input fiber is represented on the corresponding
-output fiber. Moreover, among exact relations over the chosen
-complete-interface carrier, `H#_κ(R)` is the least sound relational image:
-any relation containing the observation of every such `H_κ(c)` must contain
-`H#_κ(R)`. This is leastness for the semantic transfer, not a proof that the
-image has a finite formula, that a solver computes it, or that the whole type
-inference system is principal. Finite-presentation `K,D` transport is a
-separate open correctness lemma, not a semantic premise of the image.
+**Conditional transfer theorem.** Let `SrcComp_H(ν,I)` be the well-typed
+source computations exposed by interface `I`. Suppose (1) each such
+computation is represented in `C_ρ(I,ν)`, and (2) every source shallow-handler
+result on those computations has a corresponding `Step_{H,κ,ρ}` witness whose
+observation is represented by `Obs_H`. Then `H#_κ(R)` is sound: every concrete
+handled result represented on an input fiber is represented on the output
+fiber. No totality premise is needed for spurious members of the finite
+over-approximation. `Total_H` is only required for the separate exact-domain
+lemma above. Among exact output relations over the chosen complete-interface
+carrier, `H#_κ(R)` is the least image containing all `Step_{H,κ,ρ}` observations
+of the represented input fiber: any relation containing those observations
+must contain `H#_κ(R)`. This is leastness for that semantic transfer, not a
+proof that the image has a finite formula, that a solver computes it, or that
+the whole type inference system is principal. Finite-presentation `K,D`
+transport is a separate open correctness lemma, not a semantic premise of the
+image.
 
 ### Symbolic preservation at one shallow-handler step
 

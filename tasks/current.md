@@ -3538,3 +3538,6 @@ preserves symbolic typed-family fibers without a separate handler obligation
 store. The new progress entry explicitly supersedes older wording that
 required totality over every abstract behavior for final acceptance; that
 stronger condition only supports a total-transformer or exact-domain theorem.
+The transfer soundness lemma now requires only coverage of source computations
+and a transition/observation simulation; totality is isolated to exact-domain
+preservation.

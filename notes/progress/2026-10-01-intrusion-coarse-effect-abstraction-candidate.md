@@ -8273,3 +8273,7 @@ source transition outputs with the denotation of the relational image; extra
 abstract behaviors without a typed transition do not by themselves reject a
 source fiber. They matter only if their loss causes an actual source output
 not to be covered or the output relation not to be finitely representable.
+The conditional handler-transfer proof is now split accordingly: output
+soundness needs source-computation coverage and a transition/observation
+simulation; universal totality is used only by the separate exact-domain
+lemma, not by the soundness proof.
