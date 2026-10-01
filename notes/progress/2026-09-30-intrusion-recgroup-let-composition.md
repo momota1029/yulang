@@ -389,8 +389,14 @@ acceptance of this pure terminating program at the final gate. This is a
 concrete candidate source-adequacy target under the user's instruction to
 retain meaningful constraints, but remains provisional until the general
 source typing relation is tied to the language's complete top-level and
-specialization semantics. This candidate derivation is a new source/group
-conjecture backed by the custom pure adequacy theorem; it is not attributed to
+specialization semantics. The frozen mono VM contract characterizes a
+computed root as evaluating its body once and retaining the resulting value;
+it does not require the result to be `unit`, and defines `Any` as Top. Thus a
+unit-valued entrypoint requirement has no support in that runtime contract.
+This helps rule out a root-result explanation for the candidate witness, but
+does not prove that its source typing rule matches the full compiler pipeline.
+This candidate derivation is a new source/group conjecture backed by the custom
+pure adequacy theorem; it is not attributed to
 the original Simple-sub paper. The frozen inference/specialization behavior is
 an Oracle implementation observation, not semantic authority. The trace flag
 only prints inference diagnostics; no runtime trace flags were set.
