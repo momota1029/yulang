@@ -142,17 +142,34 @@ union holds when both input fibers are nonempty:
 
 ```text
 supp(J_{R ∪ S}(ν)) = supp(J_R(ν)) ∪ supp(J_S(ν))
-supp(J_{filter φ(R)}(ν)) = { q ∈ supp(J_R(ν)) | φ(q) }
-filter ψ(filter φ(supp(J_R(ν)))) = filter (φ ∧ ψ)(supp(J_R(ν)))
+supp(Filter_φ(J^K_R(ν))) = { q ∈ supp(J^K_R(ν)) | φ(q) }
+Filter_ψ(Filter_φ(J^K_R(ν))) = Filter_{φ ∧ ψ}(J^K_R(ν))
 ```
+
+Here `K` is the source-derived symbolic predicate of the complete interface,
+including shared-binder intersections established before any request is
+filtered, and
+`J^K_R(ν) = { Q | K(ν) ∧ Q = { (head(o),ν(g(o))) | o∈R } }`.
+The notation keeps that persistent predicate explicit in the filter laws.
 
 The first equality concerns support only. It does not say that the joint
 assignment relation factors across a split: when a binder occurs on both
 sides, the shared assignment and its incidence remain in force. The second
-and third equalities make filtering a restriction of the same request support,
-not a filter-specific semantic rule, provided `φ` is a predicate on the
-complete typed request. A predicate that inspects route or activation history
-is outside this row algebra and belongs to handler applicability.
+and third equalities define `Filter_φ` as restriction of the existing request
+coordinate, not reconstruction of a new `J_{filter φ(R)}` from the surviving
+occurrences. The full interface predicate and ownership incidence stay in
+place even when filtering removes every request that originally witnessed
+them. A predicate that inspects route or activation history is outside this
+row algebra and belongs to handler applicability.
+
+This distinction is required by the symbolic lifecycle invariant. The
+occurrence-derived intersection in `J_R` is a convenient row view, but by
+itself it is not a durable representation for residualization: recomputing
+that intersection from a filtered row can forget a constraint whose request
+was removed. The filtered interface must retain the original fiber predicate
+`K` (or an equivalent proof-carrying restriction of the complete relation).
+The `Filter_φ` equations are valid on that retained relation; an equation
+between freshly reconstructed row-only `J` values is not claimed.
 
 Handler subtraction does not follow from set difference alone. It is the
 residual support projection of the handler's relational image on

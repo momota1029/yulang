@@ -7815,3 +7815,17 @@ joint relation `J_R(ν)`. This supersedes the earlier marginal-coverage
 formulation in this progress record. It is still only a candidate semantic
 relation: the source rule for shared ownership, the argument denotation, and
 sound/principal solver support remain unproved.
+
+### Correction: filtering must retain the source fiber
+
+The row-support filter law is a restriction of an already formed relation,
+not reconstruction of `J` from the surviving occurrences. If a typed-family
+predicate was witnessed through an occurrence that the filter removes,
+rebuilding `J_{filter φ(R)}` can make its nonempty-fiber condition disappear
+and admit assignments that the original relation rejected. The coupled-effect
+draft now writes filtering as `Filter_φ(J^K_R)` while carrying the original
+symbolic predicate and ownership incidence unchanged in the complete
+interface. This is necessary for the user's solve/residualize/generalize/
+instantiate/intrude invariant. The support equations hold for that relational
+restriction; they do not prove that the present row-only `J_R` notation is a
+durable residual representation.
