@@ -3729,3 +3729,30 @@ projection and calls `Λ` the complete declared effect interface without
 preclassifying ownership. Architect delta review closed both findings. Source
 family matching, runtime coercion soundness, effect ownership, and principal
 finite presentation remain open.
+
+A further handler-semantics consequence now separates dynamic dispatch from
+static compatibility: exact operation identity plus active-context visibility
+selects the arm; `OpCompat` is the preservation premise for well-typedness, not
+a dispatch selector. The `ask<bool>`/`ask<int>` case therefore fails typing
+when the arm cannot resume the raw continuation safely, even though the
+runtime path is the same. Unknown visibility remains residual. The implication
+from source typing to `OpCompat` is still a proof obligation, and general
+callback visibility is unresolved.
+
+The handler selection premise was refined after review: checking each
+activation at one fixed configuration was unsound for effectful guard/default
+prefixes and could constrain shadowed arms. The draft now defines selected
+arms as observations from one ordered, stateful handler-search trace, with
+requests emitted in prefixes and resumed pending searches recorded as their own
+events. Architect delta review closed the priority issue. Source formalization
+of that trace relation and type preservation across its prefix/resumption
+steps remain open.
+
+Compiler-referee delta review caught an ambiguity where the typed transition
+could be read as gating runtime dispatch, plus incomplete coverage for unknown
+search routes. The design now makes `OpCompat` a typed-image/preservation
+condition only: runtime selection follows the source search even for ill-typed
+programs, and incompatible selected cases simply lack typed derivations.
+Unknown routes cover both forwarding and every compatible selected-arm
+outcome. Delta review closed these findings. Formal source search semantics,
+type preservation, callback-row linkage, and finite principality remain open.

@@ -1732,10 +1732,68 @@ the resume direction follows from that boundary. The exact family relation,
 runtime-compatible subtype/coercion relation, and ownership of `Λ` still
 require source semantics. In particular, do not guess whether a member of
 `Λθ` is immediate or latent: retain it on the complete operation instance
-until the source transition identifies its owner. `Step_{H,κ,ρ}` may consume a request
-only with a witness of `OpCompat` and the separate dynamic visibility fact;
-forwarding retains the request instance and its constraints. The full source
-rule and principality of its finite presentation remain open.
+until the source transition identifies its owner. In `H#` over the typed
+source relation, the handler-arm branch of `Step_{H,κ,ρ}` requires both an
+`OpCompat` witness and the dynamic selection event. This restriction applies
+to the typed image, not to the runtime search relation. The runtime search
+still selects by path, visibility, and source order if an ill-typed program is
+executed. If such a selected event lacks `OpCompat`, the program has no
+well-typed derivation; the typed image does not reinterpret it as a forwarded
+request. When the source search actually forwards, the request instance and
+its constraints remain. The full source rule and principality of its finite
+presentation remain open.
+
+#### Static compatibility is not dynamic dispatch
+
+Keep `OpCompat` out of the runtime selector. Selection is an observation of
+one ordered source handler-search execution over complete machine
+configurations. That search includes the active stack, exact operation path,
+visibility, source-order pattern/guard evaluation, their state changes and
+effects, and any suspended search continuation. Write
+`Search_H(κ,C,q) ⇓ Select(h,a,C')` only as notation for a search derivation
+that actually reaches arm `a` at activation `h` from configuration `C` in
+result configuration `C'`. It is not computed by testing every activation
+independently against the same initial state. In the pure direct fragment,
+nearest-eligible selection is a consequence of this search; for effectful
+prefixes, state and pending search flow through its transitions. Once the
+search selects `(h,a)`, the shallow arm receives the payload and raw
+continuation. If the search forwards the request, the active handler remains
+around the suffix. Family arguments do not create different runtime operation
+identities.
+
+Static typing has a separate preservation obligation: every arm actually
+selected in a reachable well-typed source execution must satisfy
+`OpCompat_ν(q,a)`. In trace notation:
+
+```text
+WellTyped_ν(C) ∧ SearchTrace_H(κ,C,q) contains Select(h,a,q,C')
+  ⇒ OpCompat_ν(q,a)
+```
+
+`SearchTrace` is a trace of the one ordered search relation, so it includes
+requests emitted by pattern/default/guard prefixes and resumes the pending
+search only through their actual continuations. Each `Select` event names the
+particular request it consumes; requests emitted during search have their own
+request and selection events. The implication ranges over selected events
+only: a shadowed outer arm imposes no condition unless search reaches it. This
+is the ordinary type/handler preservation theorem, not a second dispatch test.
+A failed compatibility premise rejects the program at
+typing; it does not change a dynamic path match into forwarding. In the frozen
+`ask<bool>`/`ask<int>` witness, if the successor source rule connects the
+actual and formal callback rows, the selected arm cannot safely resume the
+raw continuation at `bool` with an `int`. That conditional application of the
+general preservation premise explains the concrete wrong Boolean result; it
+does not prove the still-open callback row rule.
+
+For an unknown visibility or incomplete search path, the finite inference
+presentation cannot establish a unique `Select` observation. A sound image
+must retain the possible forwarded request and cover every possible selected
+arm result whose `OpCompat` premise holds; keeping the request is not a claim
+that this is the whole image. A type-compatible arm by itself does not prove
+selection or coverage, and an incompatible selected case is rejected by the
+typed relation rather than forwarded. The full search relation for callbacks,
+adapters, effectful guards, and escaping values remains open and must be
+derived from source boundary semantics.
 
 The family predicate alone is insufficient even in a closed point case. Let
 `F<>` have no family arguments and let the request payload be `Bool`, while

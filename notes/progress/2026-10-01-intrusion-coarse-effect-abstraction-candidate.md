@@ -9133,3 +9133,37 @@ and treats `Λ` as all declared effect obligations/interfaces without
 classifying immediate/latent ownership. Delta review confirms both findings
 closed. The review does not establish the source family relation, value
 coercion semantics, latent ownership, or finite principality.
+
+The `OpCompat` candidate now distinguishes static handler type preservation
+from dynamic dispatch. In the direct shallow fragment, dispatch uses exact
+operation identity plus source-defined visibility, with nearest eligible
+activation; it does not use type arguments as an alternate operation key. A
+well-typedness preservation premise requires every dynamically selected
+request/arm pair to satisfy `OpCompat`. If it fails, typing rejects the source
+rather than dynamically forwarding the path-matched request. This derives the
+frozen `ask<bool>`/`ask<int>` unsound acceptance conflict from one general
+handler preservation condition. Unknown visibility cannot justify residual
+removal and keeps the request and its full symbolic instance. Callback,
+adapter, and escape visibility remains unproved.
+
+The initial static/dynamic separation was reviewed and corrected twice. First,
+`Eligible` tested activations at one fixed configuration and could impose
+`OpCompat` on a shadowed outer arm; then `ArmAt` treated effectful clause
+search as a pure function. The current draft instead defines `Selected` as an
+event observed in one ordered, stateful source handler-search trace. Search
+prefix effects, pending searches, and resumed continuations stay in that trace;
+each consumed request has its own selection event. Architect delta review
+confirmed shadowed arms do not create obligations and the definition does not
+add a solver selector. Source derivation of this search relation and type
+preservation across effectful prefixes/resumptions remain open.
+
+Compiler-referee delta review then found that the typed `Step` notation could
+be read as changing runtime dispatch, and that an unknown search route did not
+explicitly include compatible selected-arm outcomes. The draft now states
+that `OpCompat` constrains only the typed image; runtime selection remains
+source-defined even for ill-typed programs, whose selected incompatible case
+has no typed derivation. Unknown routes retain the forwarded possibility and
+cover every compatible selected-arm result. The delta review closed both
+findings. Formal source search semantics, preservation, callback-row linkage,
+and principality remain open; this clarification adds no solver-specific
+construct.
