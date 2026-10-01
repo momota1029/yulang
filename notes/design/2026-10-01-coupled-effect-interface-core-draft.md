@@ -394,6 +394,51 @@ action on `Rel_C`; symbolic family endpoints and evidence payloads receive
 `P`, while boundary lineage receives `Θ`. A type substitution never erases
 boundary evidence merely because request support becomes equal.
 
+### Generalization and fresh use as abstraction and reindexing
+
+This gives an exact lifecycle lemma without a special rule for typed-family
+obligations. Let `Ω` be the complete set of identities owned by one frozen
+component: type and row variables, request occurrences, shared-argument batch
+identities, and locally bound handler/owner identities. Let `ρ` be the fixed
+outer identities. Present the component by one predicate
+`K_C(ρ,ω,I)`; `K_C` includes every source-derived family-invariance formula.
+Generalization packages the pair `(Ω,K_C)` as a scheme template, binding the
+owned identities and leaving `ρ` free. It does not evaluate `K_C` after
+materializing rows or extract only the type-variable portion of `Ω`.
+
+For one use, choose a capture-avoiding bijection `ι` from `Ω` onto fresh owned
+identities, fixing `ρ`. Instantiate by reindexing the *whole* presentation:
+
+```text
+K_{C,ι}(ρ,ω',I') = K_C(ρ, ι⁻¹(ω'), ι⁻¹(I'))
+```
+
+where the inverse acts on every identity sort it owns and leaves fixed outer
+identities unchanged. For each source assignment `a` and target assignment
+`a'` related by `a'(ι(x)) = a(x)` for all `x ∈ Ω` and equal on `ρ`,
+structural satisfaction gives:
+
+```text
+a' ⊨ K_{C,ι}(ρ,ω',I')  iff  a ⊨ K_C(ρ,ω,I)
+```
+
+The proof is induction on the formula and interface syntax. Atomic type and
+row relations are unchanged under the corresponding reindexing; a
+`FamAgree_A` atom has the same indexed family of argument denotations; and
+conjunction/disjunction preserve equivalence componentwise. Therefore every
+independent use gets an isomorphic satisfying fiber when it receives a
+disjoint `ι`, while all uses retain the same rigid outer assignment. No
+formula is regenerated from its materialized row. For an SCC's internal use,
+there is no `ι`: its roots and formulas remain in the one live `K_C` relation.
+
+This is exact for injective alpha-renaming and establishes the typed-family
+lifecycle requirement across generalization and fresh instantiation at the
+relational-presentation level. It does not prove that source lowering builds
+the correct `K_C`, that a solver preserves it, that an implementation stores
+all of `Ω`, or that non-injective solving/intrusion preserves fibers. Those
+remain separate correspondence and quotient theorems; identity reindexing
+cannot justify merging independent variables.
+
 ### A sufficient parent-quotient condition (point fragment)
 
 There is a useful sufficient condition for non-injective intrusion that is

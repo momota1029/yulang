@@ -2896,3 +2896,11 @@ unless a source observation distinguishes them. Typed-family invariance stays
 inside the symbolic formula's denotation. This is a proof-target preference,
 not a selected calculus: finite representability, termination, principal
 projection, and the source-to-formula correspondence remain open.
+
+Added a conditional exact reindexing lemma: generalization packages the full
+owned identity set with the symbolic relation, and each fresh use alpha-renames
+all owned identity sorts under one bijection while fixing outer anchors. This
+preserves satisfying fibers, including `FamAgree_A`, without reconstructing
+constraints from materialized rows. It covers relational presentation and
+injective renaming only; it does not establish source formula adequacy,
+solver preservation, or non-injective intrusion.
