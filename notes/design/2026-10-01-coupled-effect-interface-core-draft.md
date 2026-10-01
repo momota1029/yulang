@@ -638,16 +638,20 @@ dependent view; the failed support equation does not authorize projecting a
 typed-family constraint after its last request was filtered away.
 
 The operational composition must therefore act on the complete resumable
-computation, not on two support sets. As a candidate presentation, write its
-observable nodes as `Return(v,c)`, `Request(q,c,k)`, and finite
-`Prefix(τ,c)`, where `c` is the current machine configuration and a saved
-resumption `k` accepts the response and re-entry configuration allowed by
-the source handler semantics. Continuation substitution is:
+computation, not on two support sets. As a candidate presentation, view it as
+the source machine's possibly infinite execution relation. Its observable
+yield/terminal forms are `Request(q,c,k)` and `Return(v,c)`, where `c` is the
+current machine configuration and a saved resumption `k` accepts the response
+and re-entry configuration allowed by the source handler semantics. Internal
+evaluation steps remain part of the execution relation, including infinite
+silent behavior. `Prefix(τ,c)` is an observation of any finite typed-request
+prefix before a return, not a terminal computation constructor; every
+execution contributes all its finite-prefix observations. Continuation
+substitution at the observable forms is:
 
 ```text
 Return(v,c) >>= F       = F(v,c)
 Request(q,c,k) >>= F    = Request(q,c, λr. k(r) >>= F)
-Prefix(τ,c) >>= F       = Prefix(τ,c)
 ```
 
 Here `r` carries the permitted resumed value and live machine state. In
@@ -655,14 +659,17 @@ particular, the store is not rolled back to the state captured when `k` was
 created; dynamic handler/frame re-entry follows the source resumption wrapper
 inside `k`. Thus after a first resume runs `F` and changes a shared cell, a
 second resume feeds the changed state back into the original continuation.
-The counterexample above is represented by this single substitution law.
-Handlers inspect and transform these same nodes, and `MayReq` is projected
-from the resulting complete relation. This avoids adding a stateful-bind
-exception to the effect algebra: the algebra acts on resumable behavior, and
-separability of its support is a theorem only under proven conditions.
-The node presentation and live-state argument remain candidates until their
-simulation against Yulang's runtime contract and typed-family transport are
-proved.
+Internal steps are relayed without invoking `F`; at a return, the first law
+invokes it, while at a request the second law attaches it to the resumed
+continuation. A non-returning branch therefore keeps all of its finite-prefix
+observations and never invokes `F`. The counterexample above is represented by
+this substitution. Handlers inspect and transform the same execution relation,
+and `MayReq` is projected from all resulting finite-prefix and return
+observations. This avoids adding a stateful-bind exception to the effect
+algebra: the algebra acts on resumable behavior, and separability of its
+support is a theorem only under proven conditions. The candidate execution
+relation and live-state argument remain unproved against Yulang's runtime and
+typed-family transport.
 
 The already introduced `Step_{H,κ,ρ}` relation can be presented as one
 activation transformer on these resumable nodes. On `Return(v,c)`, it runs
@@ -1414,20 +1421,24 @@ transported form on the image of `Tr_θ` by
 F_θ(r') = Tr_θ(F(Tr_θ⁻¹(r')))
 ```
 
-Then the candidate resumable-tree bind satisfies
+Then the candidate resumable-execution bind satisfies
 
 ```text
 Tr_θ(T >>= F) = Tr_θ(T) >>= F_θ
 ```
 
-Proof is by the three node cases. For `Return(v,c)`, both sides reduce to
-`Tr_θ(F(v,c))`. For `Request(q,c,k)`, both sides retain the transported
-request and attach the continuation
+Proof is by coinduction on the execution relation. For `Return(v,c)`, both
+sides reduce to `Tr_θ(F(v,c))`. For `Request(q,c,k)`, both sides retain the
+transported request and attach the continuation
 `λr'. Tr_θ(k(Tr_θ⁻¹(r')) >>= F)`; the induction hypothesis rewrites this to
-`λr'. Tr_θ(k(Tr_θ⁻¹(r'))) >>= F_θ`. For a finite `Prefix`, both sides retain
-the transported prefix. Since `Tr_θ` also maps every `K` formula and its
-incidence, the equality transports typed-family constraints through each
-request and every resumed suffix without recreating them from support.
+`λr'. Tr_θ(k(Tr_θ⁻¹(r'))) >>= F_θ`. For each finite `Prefix` observation,
+both sides retain the transported prefix before any return. If execution
+diverges, the equality holds for every finite-prefix observation of that
+branch. An internal machine step is preserved by the assumption that `Tr_θ`
+preserves operational behavior; it invokes no `F` on either side. Since
+`Tr_θ` also maps every `K` formula and its incidence, the equality transports
+typed-family constraints through each request and every resumed suffix
+without recreating them from support.
 
 This is an equivariance lemma for capture-avoiding generalization freshening
 and injective intrusion. Combined with the preceding handler equivariance, it

@@ -3542,4 +3542,8 @@ finite principal projection remain open. An injective reindexing corollary now
 transports that binding by structural induction from atomic-test and
 embedded-expression equivariance, including the default request's symbolic
 family incidence. `RuleExpression` evaluation and non-injective intrusion
-remain open.
+remain open. `Prefix` in the resumable-semantics candidate is observation-only,
+not a terminal node, so finite prefixes of a returning path cannot erase later
+bind effects. The candidate execution relation includes internal steps,
+`Request`, and `Return`; transport must preserve internal steps and finite
+prefix observations coinductively.

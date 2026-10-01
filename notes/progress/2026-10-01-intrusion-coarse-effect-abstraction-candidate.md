@@ -8304,3 +8304,16 @@ handler transition. That condition is not required for final acceptance and
 must not filter or reject the fiber. The current gate is source-input coverage
 plus coverage of all actual source transition outputs by the finite relational
 image; universal totality remains only a sufficient exact-domain result.
+
+An audit found that the resumable-semantics draft used `Prefix` both as an
+observation of evaluation that has not returned yet and as a terminal tree
+node. Treating an arbitrary finite prefix of a returning computation as a
+terminal node would make bind drop the continuation's later effects. The
+candidate now treats the computation as a possibly infinite source execution
+relation with internal steps, observable `Request` yields and `Return` exits;
+`Prefix(τ,c)` is only an observation of every finite prefix before return.
+Bind relays internal steps, preserves prefix observations, and attaches its
+continuation only to returns/resumed requests. The injective transport
+argument is correspondingly coinductive over executions and checks
+finite-prefix observations separately. This fixes a notation ambiguity in the
+proof candidate; runtime/source simulation remains open.
