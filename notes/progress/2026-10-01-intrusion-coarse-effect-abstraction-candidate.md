@@ -4696,10 +4696,14 @@ row. The family head is not a substitute for those constraints, and distinct
 operations at one family remain distinct `OpId`s.
 
 For a shallow catch, let the scrutinee have result `S`, support `E`, and facts
-`Q`; let its value and operation arms return `R`. An operation arm for
-`p : A -> B` receives payload `Aθ` and raw continuation
-`k : Bθ -> S ! E`. The continuation returns the scrutinee's result `S`;
-typing the arm's whole body at `R` is a separate obligation. This whole-`E`
+`Q`; let its value and operation arms return `R`. An exact-path request for
+`p : ∀b̄. A -> [Eop] B` is resolved under request map `θ`; the matching arm
+resolves the same declaration independently under map `φ`. The arm receives
+payload `Aφ` and raw continuation `k : Bφ -> S ! E`. Its constraints include
+the request/arm signature-coherence obligations
+`Aθ <: Aφ` and `Bφ <: Bθ`, plus the separate invariant family relation.
+The continuation returns the scrutinee's result `S`; typing the arm's whole
+body at `R` is a separate obligation. This whole-`E`
 latent bound is conservative: every finite suffix after the request is
 included in the scrutinee's finite-prefix bound. The arm's ordinary
 application judgment charges `E` whenever it calls `k`; its latent request
@@ -5414,6 +5418,80 @@ coherence lemma, not a proof that these are all and only the source language's
 handler constraints, nor a principality theorem for effect routing. The
 source elaborator must derive the keys and dependent `Demand` edges before
 handler matching removes or forwards any row occurrence.
+
+#### One callback application feeding one shallow catch (conditional composition)
+
+This composes the preceding local lemmas without selecting the open source
+semantics. Assume the callback parameter contract has the upper-bound meaning
+from the conditional callback rule. Let the actual callback have typed row
+`R_a`, finite-prefix request facts `Q_a`, and symbolic obligations `K_a`; let
+its formal parameter declare typed row `R_f`. The receiving function invokes
+that callback under a shallow catch `H`. The *complete scrutinee expression*
+has result `S`, support bound `E_s`, request/evidence view `Q_s`, and symbolic
+constraints `K_s`. Its source derivation must include evaluation of the
+callee/arguments, callback invocation, and all other work in the scrutinee.
+It requires `TypedRowLeq(R_a,R_f)` at callback application and includes that
+relation, `K_a`, and all other scrutinee constraints in `K_s`. `Q_s` is not
+just a renamed copy of `Q_a`: it contains the callback facts transported
+through invocation and source-derived boundary events, plus every other
+possible scrutinee request with its own type/route evidence. `E_s` must cover
+every finite request prefix of this complete scrutinee and every request fact
+in `Q_s`; any unknown request adds `TopEff` to `E_s`. Boundary events may
+change visibility/route evidence but may not silently add or remove request
+support.
+
+For each offered `q ∈ Q_s` selected by `H`, require exact operation-path
+coverage and the independent request/arm coherence obligations from the
+preceding lemma. For each offered request not covered or not visible at this
+activation, preserve it as forwarded evidence. A family may be removed from
+the shallow result only with a route certificate covering every offered
+occurrence; raw-continuation-only routes remain charged through `E_s` and the
+arm's latent continuation type. Unknown support contributes `TopEff` and
+cannot be dropped. The resulting candidate judgment carries:
+
+```text
+K_out = K_s ∪ K_value ∪ K_operation ∪ K_route(H,Q_s)
+Q_out = Forwarded_H(Q_s, Drop_H) ∪ Q_value ∪ Q_operation
+E_out = (E_s \ Drop_H) ∪ A_value ∪ A_operation
+```
+
+`K_s` includes the callback/application relation and all scrutinee constraints;
+`K_value` and `K_operation` include the respective arm-body constraints and
+the `K_op(q,h)` coherence set for every handled `(q,h)` pair. `K_route`
+contains symbolic visibility/coverage certificates, not a Boolean
+reconstructed from support. Every part of `K_out` keeps incidence to the
+requests, arm, continuation, and result views whose validity depends on it.
+Solve or transport the constraints together through all named lifecycle
+phases; any discharged formula needed by a later route remains as proof
+evidence.
+
+Conditional finite-prefix theorem: if the callback upper-bound premise covers
+all its finite request prefixes, the complete scrutinee derivation proves that
+`E_s` covers every finite request prefix and every request fact in `Q_s`,
+`TypedRowLeq` is sound for that meaning, every handled request has sound
+signature coherence, `Visible` and route
+certificates are sound for the current activation, raw `k` retains `E_s/Q_s`,
+and arm judgments bound their own requests, then each finite request prefix
+after application and catch is contained in `E_out`, and every consumed
+payload/resumption is type-safe. This is the composition of callback-prefix
+coverage, the two value-transfer inequalities, and the one-step shallow
+handler simulation; it does not rely on any weight routing.
+
+Two controls delimit the theorem. With finite supports `R_a={ask}` and
+`R_f={ask,io}`, the chosen upper-bound relation passes; the reverse row order
+fails support inclusion, although a same-head `InvArgs` remains symmetric.
+With family `F<>` and an operation-only payload/result binder, the family
+constraint is vacuous, but `K_payload`/`K_resume` still reject a Boolean
+request paired with an integer arm. If any premise or required incidence path
+is missing, this theorem gives no acceptance; it cannot be repaired by
+materializing rows after inference.
+
+This composition remains conditional and non-authoritative. In particular,
+source annotation meaning and function variance, callback receipt across
+curried stages, `Eop` ownership, construction of `Visible`/`K_route`, and the
+source-to-runtime correspondence are still open. The theorem establishes
+neither a complete handler rule nor global effect principality. Its premises
+are the bounded proof target for the ordinary effect/handler gate.
 
 #### Closed typed-row subtyping fragment (conditional lemma)
 

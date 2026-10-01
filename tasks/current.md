@@ -2438,3 +2438,17 @@ source-defined ownership/routing and transport obligations. This is a local
 conditional safety lemma, not a complete handler rule or principality result.
 See "Handler operation-signature coherence for independent instantiations"
 in the candidate record.
+
+The next composed proof target covers one callback application feeding one
+shallow catch. An initial formulation omitted requests/effects from other
+scrutinee work and constraints produced by arm bodies; compiler-referee review
+found both. The repaired schema requires complete `E_s`/`Q_s` coverage for
+the entire scrutinee, widens unknowns to `TopEff`, and carries `K_s`, both arm
+constraint sets, per-request operation coherence, and route evidence through
+the symbolic lifecycle. Compiler-referee and spec-auditor delta reviews found
+the omissions closed within the conditional scope. Source derivation of those
+premises, callback variance/stages, effect ownership, visibility and route
+certificates, source-to-runtime correspondence, and global principality remain
+open. This is still non-authoritative and does not open implementation. See
+"One callback application feeding one shallow catch (conditional composition)"
+in the candidate record.
