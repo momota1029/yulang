@@ -389,8 +389,13 @@ knows only the support from the initial configuration, the proof fails and
 must not use `(E minus C) ∪ A(E)` as a sound upper bound; it needs a wider
 relation/envelope, potentially the unknown top support. Choosing a
 conservative wider `E` is compatible with principality relative to that
-coarser abstraction, but the existence and leastness of an effective such
-envelope remain unproved.
+coarser abstraction. A trivial state-closed envelope always exists: `Top`
+from the open-world `EffAbs` lifting below contains every finite request
+support under every state and resume. It is too coarse to justify finite
+handler subtraction or useful annotations. The open problem is an effective,
+least useful envelope for a source/interface fiber, plus its symbolic typed
+request and owner transport; this note does not prove that envelope exists in
+the finite row fragment.
 
 For principality relative to this abstraction, rows range over the finite
 powerset lattice `P(Fam)` ordered by inclusion. Given exact abstract inputs
