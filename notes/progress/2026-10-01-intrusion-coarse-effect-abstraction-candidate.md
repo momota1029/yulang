@@ -8925,3 +8925,18 @@ atom and injectivity on the complete intermediate interface explicit. This
 closes the local alpha-transport claim only. It does not prove source rule
 adequacy, solver implementation of the formula, or non-injective intrusion
 fiber preservation. No tests were run.
+
+## 2026-10-02: disjoint typed value/computation boundary cases
+
+Added a candidate `Adapt` relation to the coupled-interface draft so immediate
+forcing, latent thunk preservation, and thunk-to-thunk adaptation are cases of
+one typed boundary relation rather than source-site `Demand` rules. A focused
+architect review found the initial clauses overlapped and did not make the
+single-assignment scope of the target latent contract explicit. The draft now
+gives identity equivalence priority, partitions the remaining cases by source
+and target outer shape, and requires the complete delayed computation and its
+symbolic typed-family ownership to be covered under one assignment. This
+repairs the local ambiguity only. The source typing/elaboration derivation must
+still establish which boundary applies, and source execution, handler
+visibility, complete fiber transport, and finite principality remain open.
+No compiler code or tests were run; `git diff --check` passed.

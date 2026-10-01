@@ -1084,6 +1084,58 @@ demand are compositions of the same relation, rather than separate
 callback/thunk effect rules. This leaves rows free to conservatively
 over-approximate exact continuation-sensitive observations.
 
+##### Typed value/computation boundary as one relation
+
+The needed distinction can be stated as an ordinary typed boundary relation,
+not a source-site `Demand` selector. Let `⟦A⟧^val_{ν}` be the relation of values
+of type `A`, including first-class thunk values. Let
+`⟦E,A⟧^comp_{ν}` be the continuation-bearing computations that can be forced
+from a thunk with latent row `E` and result value type `A`. Let
+`Adapt_ν(S,T,v)` be the general computation relation for adapting a source
+value `v` from boundary type `S` to expected type `T`, using only conversions
+admitted by the ordinary type relation. Its thunk-sensitive clauses are
+selected by a disjoint outer-shape partition:
+
+```text
+Adapt_ν(S,T,v) = Return(v)                         when S ≈ T
+Adapt_ν(Thunk(E,A), T, v) = Force(v) >>= Adapt_ν(A,T)
+    when S ≉ T and T is not a Thunk
+Adapt_ν(S, Thunk(F,B), v) = Return(Delay(Adapt_ν(S,B,v)))
+    when S ≉ T and S is not a Thunk
+Adapt_ν(Thunk(E,A), Thunk(F,B), v) =
+    Return(Delay(Force(v) >>= Adapt_ν(A,B)))
+    when S ≉ T
+```
+
+Here `≈` is the selected value boundary equivalence and has priority: when it
+holds, the identity branch is chosen and none of the thunk-adaptation branches
+apply. Otherwise the three thunk cases are mutually exclusive by their outer
+source/target shapes. The clauses are available only when the ordinary source
+type relation admits the payload/value conversion. In particular, the target
+latent contract must cover the *whole* delayed computation, including the
+forced source computation and recursively adapted result, under the same `ν`
+and typed-family ownership assignment. It cannot choose independent witnesses
+for those parts. Ordinary non-thunk value conversions belong to the base
+`Adapt` relation and are not specified by this effect-boundary lemma.
+`Delay(C)` is a value whose force executes `C`; it does not run `C` while being
+passed or returned. `Force(v)` exposes the thunk's complete computation
+relation, including its typed-family formulas and resumptions. The clauses
+therefore derive three behaviors from one typed boundary: run a source thunk
+when a value is demanded, keep a value latent when a thunk is expected, or
+adapt a thunk lazily to another thunk contract. They do not select different
+row rules.
+
+Sequencing `Adapt_ν` inside an active `Step_H` exposes its forced requests to
+that activation; sequencing it after the catch exposes them outside. Returning
+`Delay(C)` causes no request at either position until a later source context
+forces it. Thus a latent row alone cannot choose the catch image, while the
+boundary relation composes with the same handler image and `Comp` used
+elsewhere. This is a candidate semantic interface derived from the frozen
+`MakeThunk`/`ForceThunk` contract, not an approved source typing rule. The
+source typing/elaboration relation must still show which `(S,T)` boundary
+arises at each expression, and prove that its symbolic typed-family fiber
+survives this adaptation, handler transfer, and every SCC lifecycle map.
+
 #### Live conflict: computation demand at a case scrutinee
 
 There is now a concrete reachable conflict, not just a suspected evaluator
