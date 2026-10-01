@@ -2619,3 +2619,11 @@ duplicating keys. Compiler-referee review closed the exposed-key handoff
 finding. The rule remains conditional on the candidate open-row denotation
 and actual occurrence-preserving solver transitions; interval-valued
 invariance and source adequacy remain open.
+
+The early-obligation collection also has a uniform substitution law: old
+explicit-pair keys embed injectively through row substitution while their
+symbolic endpoints follow the type substitution; newly exposed tail pairs
+are added before consumption. Compiler-referee review confirmed formula
+pullback even for non-injective type substitutions and closed a minor owner
+embedding premise gap. This remains a local conditional solve law, not proof
+of an actual solver's substitution protocol.

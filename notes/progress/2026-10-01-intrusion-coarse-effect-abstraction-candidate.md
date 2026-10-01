@@ -5278,6 +5278,33 @@ Interval-valued invariant arguments still require the separately selected
 common-witness relation, and the proof must then use that relation's formula
 projection in place of the current `InvArgs` shorthand.
 
+For a uniform type substitution `σ` and row substitution `τ`, require an
+injective occurrence embedding `T` for all old explicit occurrence IDs. `T`
+preserves each occurrence's left/right side and originating relation, and
+every old explicit occurrence remains explicit in the substituted syntax.
+Map each existing key
+`(r, category, o₁, o₂)` to `(r, category, T(o₁), T(o₂))`, applying `σ` to its
+symbolic type endpoints. Existing keys are preserved in the new collection:
+
+```text
+Tr_(σ,τ)(O_known(R₁,R₂)) ⊆ O_known(σ(τ(R₁)), σ(τ(R₂)))
+```
+
+The inclusion follows because every old explicit occurrence remains in the
+substituted row with its transported owner, while a tail substitution may
+expose additional pairs. Those new keys are generated before the relation is
+consumed, as in the closed-tail extraction rule, and are entailed by `RowLeq`
+for the committed tail assignment. For every type assignment `ν`, formula
+satisfaction on the transported old-key collection is equivalent to
+satisfaction on the source collection under the pullback `ν ∘ σ`.
+The identity map on old keys remains one-to-one even when `σ` is
+non-injective: different occurrence pairs may now carry identical formula
+text, but their keyed records and `Demand` edges are not coalesced. This is a
+pullback preservation statement, not a surjectivity claim about the solver's
+solution space. It gives a local solve-transport law for early obligations;
+concrete substitution generation and independent `Demand` commutation remain
+premises.
+
 #### Assignment-wise open typed-row characterization (conditional lemma)
 
 For a fixed joint assignment `(ν,μ)` to type variables and row tails, write
