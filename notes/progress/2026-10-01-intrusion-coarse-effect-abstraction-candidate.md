@@ -5066,6 +5066,44 @@ provenance being sufficient to identify both endpoints and dependent views.
 It does not yet prove that a proposed solver can discover all such pairs,
 terminate, or preserve the complete joint solution set.
 
+#### Open-tail obligation exposure lemma (conditional)
+
+This makes the delayed rule's preservation claim explicit. Let `R₁,R₂` be
+open row expressions with occurrence-bearing tails, and let `μ` assign each
+tail a closed occurrence collection. Define `Occ(R,μ)` by concatenating the
+explicit occurrences with the assigned tail occurrences while preserving
+duplicates and owner identities. For family `F`, define
+`Pairs_F(R₁,R₂,μ)` as a tagged union of (i) every distinct same-head pair
+within `Occ(R₁,μ)`, (ii) every distinct same-head pair within `Occ(R₂,μ)`,
+and (iii) every same-head cross-row pair in
+`Occ(R₁,μ) × Occ(R₂,μ)`. Each pair retains its category, both endpoint
+owners, and the originating `RowLeq` relation identity; it contributes its
+`InvArgs` formula and corresponding `Demand` incidence.
+
+If a symbolic tail substitution `σ` replaces a tail with an occurrence-bearing
+row term and `μ'` assigns any remaining tails in the substituted expressions,
+with `μ` and `μ'` related so the evaluated closed rows agree up to the
+substitution's occurrence transport, and that transport induces a bijection
+`T` on the occurrence identities of each evaluated row, then
+`T(Pairs_F(R₁,R₂,μ)) = Pairs_F(σ(R₁),σ(R₂),μ')`. In particular, a pair
+introduced by expanding a tail is derivable from the still-symbolic relation
+and the symbolic tail assignment before the relation is consumed. No pair
+needs to be inferred by scanning a separately materialized final row. This
+follows by induction on row concatenation: explicit occurrences are preserved,
+each assigned-tail occurrence is inserted once with its owner, and the
+within-row pair, cross-row pair, and family-head filters commute with that
+insertion. The bijection `T` therefore preserves pair tags, endpoint owners,
+and duplicate occurrences throughout.
+
+The lemma depends on occurrence-preserving substitution and on the related
+assignment premise; it does not establish either for a concrete solver. It
+also does not show that every source typing rule should create each of these
+pair obligations, only that the declared typed `RowLeq` denotation exposes
+the full within-row and cross-row pair set.
+The source judgment must establish that this is the right comparison
+relation. Until then the result is a conditional bridge from symbolic tail
+expansion to the delayed obligation rule, not a solver correctness theorem.
+
 #### Source-rule derivation of family obligation keys (candidate)
 
 The source-rule audit gives a concrete candidate derivation point for the

@@ -2378,3 +2378,15 @@ conditionally. The minor provenance wording was clarified. Termination,
 complete obligation discovery, and joint solution preservation remain open;
 no implementation is authorized. See "Delayed open-row family obligations
 (conditional solver rule)" in the candidate progress record.
+
+A conditional exposure lemma now accounts for family-argument obligations
+within each evaluated row as well as across the two rows compared by `RowLeq`.
+For a symbolic tail expansion with related residual assignments and a
+bijection on occurrence identities, its tagged pair set transports exactly;
+new pairs can therefore be derived from the symbolic relation before it is
+consumed, including duplicate occurrences and their owners. A compiler-referee
+delta review closed the missing within-row pairs and then the transport
+direction/bijection precision. This remains conditional on the candidate
+denotation and source rule; solver correctness and source-level appropriateness
+are unproved. See "Open-tail obligation exposure lemma (conditional)" in the
+candidate progress record.
