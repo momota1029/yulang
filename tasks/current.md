@@ -3492,17 +3492,13 @@ own source boundary (or one jointly exposed root tuple). It does not assume a
 component-wide boundary, binder set, or epoch; versioned root views stay
 distinct until scheduler simulation connects them.
 
-The handler fiber-domain proof now has an explicit completeness side: a finite
-over-approximation can make universal handler totality fail on a spurious
-typed request/payload pairing and thereby reject a valid source fiber. This
-is an abstract countermodel, not an observed Yulang mismatch. The solver must
-preserve the relevant correlation or prove a sound output widening; ground
-support soundness alone does not ensure final-acceptance capability.
-The resulting adequacy gate is: every well-typed source fiber needs a finite
-input view that covers its source computations, is handler-safe over that
-whole abstract fiber, and has an output presentation covering every source
-result. Principality requires the least sound expressible output. Existence
-of this view for the full supported envelope remains open.
+Handler totality over a finite over-approximation is not an acceptance premise:
+a spurious typed request/payload pairing can make it fail even when every
+actual source output is represented. For each well-typed source fiber, the
+acceptance gate is a finite input view covering its source computations and a
+finite relational image covering every source transition output. Principality
+requires the least sound expressible output. Whether the finite relation can
+meet this for the supported envelope remains open.
 
 The shallow trace audit gives a minimal witness against family-wide row
 subtraction: a handler consumes the first `q`, resumes its raw continuation

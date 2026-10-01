@@ -8295,3 +8295,10 @@ uses the ordinary resumable-bind equation, so requests and their `K_sym`
 incidence travel into the resumed remainder. This covers injective freshening
 and parent renaming for that fragment only; source typing and non-injective
 parent quotient preservation remain open.
+
+This also supersedes the earlier finite-interface adequacy paragraph that
+required every computation in the over-approximating fiber to have a typed
+handler transition. That condition is not required for final acceptance and
+must not filter or reject the fiber. The current gate is source-input coverage
+plus coverage of all actual source transition outputs by the finite relational
+image; universal totality remains only a sufficient exact-domain result.
