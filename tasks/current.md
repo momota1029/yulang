@@ -83,6 +83,23 @@ represent), and symbolic principal transport remain open; an overlap witness
 alone cannot justify subtraction. No candidate is yet proved sound or
 principal.
 
+A new comparison evaluates a ground best-correct may-support handler
+transformer `H# = α ∘ H ∘ γ`. Its concretization must range over resumable
+computations, not just traces. Fixed-context monotonicity and sound composition
+inequalities follow, but exact composition and distribution over row union can
+fail. An architect delta review found that ground support also erases symbolic
+family constraints and owners; retaining those requires a coupled dependent
+relation over valuations, typed request views, shared-slot constraints, and
+their quantifier ownership. That relational candidate is not yet defined or
+proved principal. Next prove source-step and shallow-handler simulation for
+that single relation, then show its solution fibers survive solving,
+residualization, generalization, freshening, and intrusion. See the new
+`A single abstraction pair for ordinary effect operations` section in
+`notes/progress/2026-10-01-intrusion-coarse-effect-abstraction-candidate.md`.
+Compiler-referee review closed the local transfer-domain gap by indexing
+computations by value and activation context and requiring handler totality on
+that fiber; source typing has not yet been proved to supply those premises.
+
 ## Objective
 
 Prove that the SCC-intrusion redesign can match the frozen Yulang2 Oracle's
