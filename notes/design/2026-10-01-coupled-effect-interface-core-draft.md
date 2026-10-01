@@ -459,6 +459,36 @@ substituted together. It does not permit a non-injective map on the shared
 binders, occurrences, or parent identities; those can change the joint fiber
 and require the separate quotient criterion.
 
+#### Solving as a solution-complete substitution
+
+The pullback law separates formula transport from the completeness obligation
+for a solver step. Let `σ` map old type variables to terms over residual
+variables, and let `σ*ν'` be its induced source assignment. Homomorphic
+substitution and `ArgDen_A` naturality give:
+
+```text
+Sat_{ν'}(K_C[σ], I[σ]) iff Sat_{σ*ν'}(K_C, I)
+```
+
+This is exact on assignments that factor through `σ`; it remains valid when
+`σ` identifies type variables. A solve step preserves the complete solution
+relation only if every source solution relevant to the exported observations
+has an observationally equivalent factorization through `σ`. Under that
+condition, the target relation loses no source observable, while the displayed
+equivalence prevents it from inventing one. For a first-order equality
+unifier, the usual most-general-unifier property supplies this factorization;
+for polarized subtype solving, that property must be proved for the actual
+solver and must not be inferred from equality unification.
+
+Throughout this step, request occurrences, source shared-binder identities,
+formula incidence, and boundary identities travel by their own identity maps
+(identity maps when they are unchanged), not by `σ`. Thus unifying the type
+payloads of two independent family uses does not silently merge their
+ownership groups. The `FamAgree_A` and `J_R` relations remain symbolic
+formulas in `K_C[σ]`; materialized rows do not regenerate them. This is a
+conditional solver-preservation theorem, not a characterization of the
+current solver's solve step.
+
 Use one occurrence/owner map alongside `θ` for the formula's incidence. For
 solving, apply the solution substitution to both endpoints and occurrence
 payloads and keep the resulting formula attached to every dependent view.

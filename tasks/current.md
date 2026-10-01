@@ -2984,3 +2984,11 @@ projection, and row inclusion commute with transport. The type substitution
 itself may be non-injective during solving; source occurrence/binder
 identities remain distinct. Non-injective intrusion on those identities still
 requires the quotient criterion.
+
+Solving now has a separate conditional preservation criterion: formula
+substitution is exact on assignments factoring through `σ`; complete solver
+preservation additionally requires every relevant source solution to have an
+observationally equivalent factorization. Equality MGU theory provides this
+in its own domain, not automatically for polarized subtype solving. Occurrence,
+shared-binder, incidence, and boundary IDs stay on separate identity maps so
+type unification cannot merge them.

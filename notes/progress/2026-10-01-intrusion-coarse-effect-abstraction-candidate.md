@@ -7766,3 +7766,11 @@ transported `J_R`, `TypedRow`, and row inclusion have equal fibers. A solver's
 type substitution may itself be non-injective while those source ownership
 identities stay distinct; merging the ownership/occurrence or parent identities
 is still governed by the quotient theorem.
+
+Solving now has a distinct factorization criterion: homomorphic substitution
+preserves formula satisfaction on assignments that factor through `σ`, while
+whole-relation preservation additionally requires every source solution to
+have an observationally equivalent factorization. This is provided by MGU
+theory for first-order equality unification, but needs its own proof for
+polarized subtype solving. Symbolic family formulas stay in the substituted
+relation; row materialization is not a reconstruction path.
