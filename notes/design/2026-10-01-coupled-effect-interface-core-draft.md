@@ -827,6 +827,21 @@ or mutually defined logical relation. Any step index used to establish that
 definition would be proof machinery, not an extra effect selector or source
 construct; whether it preserves a finite principal presentation is open.
 
+There is a small non-vacuity lemma once the value-hole interface is fixed.
+Assume a member of `⟦A ->[E] B⟧` is a runtime callable value with a well-formed
+captured store, a member of `⟦A⟧` is a runtime value, and the source machine
+has the ordinary call-by-value application transition for two value holes.
+The empty caller context around `□_f □_x`, with the empty active-handler
+stack, reaches the call boundary using the callable's captured store. Hence
+`CallCfg(f,x)` contains at least that configuration, and the arrow clause
+checks the call there. This proves only nonemptiness and the corresponding
+empty-stack request/result bound; it does not prove that all typed contexts
+are represented, that the captured store is well formed by the successor
+typing relation, or that the contextual relation has a finite principal
+presentation. An implementation whose `Apply` rule does not accept already-
+evaluated value holes must supply the matching source context before using
+this lemma.
+
 #### Evaluation contexts and the frozen runtime contract
 
 The syntax references do not define evaluation. Frozen Yulang2's reviewed

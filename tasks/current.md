@@ -3316,3 +3316,9 @@ recursive callbacks, and a finite principal presentation remain open. Simple
 row variance is conditional on the same call configurations and preserved
 visibility lineage; the overall denotational candidate remains unproved and
 unapproved.
+Under the explicit preconditions that function denotations contain runtime
+callable values with well-formed captured stores and the machine applies two
+already-evaluated value holes, the empty-stack immediate application context
+proves each call fiber nonempty. This closes the local vacuity subclaim only;
+typing-store adequacy, all-context coverage, and finite principality remain
+open.
