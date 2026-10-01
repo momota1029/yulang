@@ -1915,6 +1915,15 @@ independently instantiated roots; it assumes rather than proves those
 ownership classes. The reviewed uniform pure-SCC joint transport theorem
 supplies the all-local instance but does not cover member-specific root
 partitions. The corrected assignment argument still needs independent review.
-Next derive `K_ctx` and member ownership from the Oracle root/use lifecycle,
-then prove source-step preservation. Effect-row principality, route quotient
-completeness, and Oracle acceptance remain open.
+A focused Oracle source audit now records the per-root boundary and quantifier
+predicate, the use map over quantifiers plus recursive-bound variables,
+free-variable preservation, and use-constraint insertion at exact source
+locators in
+`notes/progress/2026-10-01-intrusion-oracle-root-use-ownership-audit.md`.
+It characterizes a conditional mixed map when one final scheme freshens an ID
+that another leaves free; no concrete source fixture for that exact split is
+claimed. The audit does not define successor ownership or the full public
+root relation. Next compare actual root epochs and inserted use constraints
+with the candidate member view and `K_ctx`, then prove source-step
+preservation. Effect-row principality, route quotient completeness, and
+Oracle acceptance remain open.
