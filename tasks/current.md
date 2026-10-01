@@ -3664,6 +3664,23 @@ lemma; non-injective parent-fiber preservation remains open.
 The quotient criterion now has a minimal typed-family counterexample: two
 exported closure roots with independent `F<α>`/`F<β>` rows and assignment
 `(Int,Bool)` lose an observable when one parent identifies the binders. Thus
-SCC-wide sharing needs an entailment or root-observation premise. The exact
-source SCC witness and positive non-injective quotient theorem are still
-unproved.
+SCC-wide sharing needs an entailment or root-observation premise. At this
+point the exact source SCC witness and positive non-injective quotient lemma
+were still pending; the dated update below records their later status.
+
+Update 2026-10-02: a source SCC witness is now reproduced with frozen commit
+`a58eefc31e22141574b6f20c6a5748151c6d79f1`: mutually recursive `f`/`g` each
+retain two distinct typed-family quantifiers, and mixed `int`/`bool` incoming
+uses pass `check` and interpreter execution. This disproves unconditional
+parent identification for this source SCC. The abstract positive quotient
+lemma is now proved conditionally over the whole formula: parent fibers must
+be pointwise equivalent in every satisfying assignment, and formulas and
+observations must respect that equivalence. The source premise for useful
+parent fibers remains open. Next prove or refute that premise from source
+typing and root observations, then continue source-step simulation and
+finite-principal-presentation gates;
+do not add parent-merging rules specific to Oracle fixtures. The mathematical
+core remains the complete assignment-indexed interface relation; `Sel_s`,
+`Demand`, typed-family records, route certificates, and transport maps are
+presentations or proof bookkeeping unless a source-level distinction is
+proved. No implementation is authorized.

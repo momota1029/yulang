@@ -2424,6 +2424,44 @@ whether a particular source SCC can generate exactly this pair is a separate
 source-adequacy question, not needed to reject the unconditional quotient
 claim.
 
+There is a source-level witness for this discriminator using a mutually
+recursive definition SCC and parameterized effect types:
+
+```yulang
+act pulse 'a:
+  our fire: 'a -> 'a
+
+my spin() = spin()
+my f(x: () -> [pulse 'a] 'a, y: () -> [pulse 'b] 'b) = case false:
+  true -> case g(\() -> spin(), \() -> spin()):
+    _ -> ()
+  _ -> ()
+my g(u: () -> [pulse 'c] 'c, v: () -> [pulse 'd] 'd) = case false:
+  true -> case f(\() -> spin(), \() -> spin()):
+    _ -> ()
+  _ -> ()
+
+my int_cb() = pulse::fire 1
+my bool_cb() = pulse::fire true
+my use_f = f(int_cb, bool_cb)
+my use_g = g(bool_cb, int_cb)
+```
+
+The `true` branches create mutual source references; the executed `false`
+branches return unit. The bottoming `spin` callbacks allow the recursive calls
+to typecheck without relating the member parameters. From a clean frozen
+`a58eefc3` build, `check` succeeds, `run --interpreter` succeeds, and the raw
+scheme dump shows distinct quantified type identities for `f`'s two callback
+parameters (`'23`, `'28`) and for `g`'s (`'53`, `'66`). Each endpoint remains
+inside its own `pulse` family-argument row. The concrete uses instantiate
+`f`'s pair as `pulse<int>` and `pulse<bool>`, and `g`'s pair in the reverse
+order; both are accepted and execute. Thus one member root in this source SCC
+jointly observes two independent typed-family endpoints at a single incoming
+use. Identifying them with one parent cannot represent `use_f` or `use_g`;
+this is a source-level counterexample to an unconditional non-injective merge,
+not merely an abstract interface witness. The exact commands and captured
+quantifier evidence are recorded in the current progress entry.
+
 The distinction has a concrete interval witness. In the finite chain
 `Never < Int < Any`, let independently observable roots `x` and `y` have
 admissible values `[Never,Int]` and `[Int,Any]`. Their family-argument

@@ -5060,6 +5060,49 @@ compiler-referee closure review found no remaining issue in this delta. The
 required dynamic correspondence and all source/effect solver theorems remain
 unproved.
 
+## 2026-10-02: source-level counterexample to unconditional parent merging
+
+A source witness has now been characterized against a clean build of frozen
+commit `a58eefc31e22141574b6f20c6a5748151c6d79f1`. The fixture
+`/tmp/yulang-intrusion-source-scc-independent-parents.yu` defines mutually
+recursive `f` and `g`; each accepts two callbacks with independently typed
+`pulse` effects, and recursive references occur in a statically unchosen
+branch so the executed branch returns unit. `spin()` supplies bottom-typed
+callbacks in those branches without equating the members' parameters. Frozen
+Oracle `check --no-prelude --no-cache` succeeds, raw scheme output assigns
+`f` distinct quantified identities `'23` and `'28` and `g` distinct
+identities `'53` and `'66`, and `run --interpreter --print-roots` succeeds.
+The two external calls instantiate `f`'s callbacks at `int,bool` and `g`'s
+at `bool,int`. This is source-level evidence that unconditional parent
+identification loses accepted uses. It does not prove that any particular
+successor quotient is principal. The exact quotient criterion remains
+observational, and the positive theorem for identities entailed equal by the
+complete source relation remains open. The binary came from an isolated clean
+archive; no test suite or compiler implementation was run.
+
+The draft's positive direction is a conditional whole-formula quotient lemma:
+if the complete relation entails pointwise equivalence within each proposed
+parent fiber, and formulas/observations respect that equivalence, substitution
+through the whole presentation preserves its solution fiber. This closes the
+abstract algebraic implication, not its source premise. Source typing must
+still prove that candidate parent fibers satisfy the entailment, including
+every root and typed-family observation; the exact necessary-and-sufficient
+observation criterion remains impractical until that observation is fixed.
+
+Reproduction commands from the archive root were:
+
+```sh
+cargo build -p yulang
+target/debug/yulang --no-prelude --no-cache check /tmp/yulang-intrusion-source-scc-independent-parents.yu
+target/debug/yulang --no-prelude --no-cache dump /tmp/yulang-intrusion-source-scc-independent-parents.yu --poly-raw
+target/debug/yulang --no-prelude --no-cache run --interpreter --print-roots /tmp/yulang-intrusion-source-scc-independent-parents.yu
+```
+
+The exact frozen source tree was materialized from the archive of
+`a58eefc31e22141574b6f20c6a5748151c6d79f1`; the raw dump showed the root
+quantifier identities listed above. This is a focused oracle characterization,
+not a Rust test-suite run.
+
 The SCC-use-map architect review found that a raw type ID can be local in one
 member view and free in another, so the per-use renaming cannot be treated as
 one global map. The candidate now factors each member view through a complete
