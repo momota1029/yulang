@@ -2270,3 +2270,22 @@ are open. The exact review scope and conditional status are in the linked
 candidate progress record under "Typed shallow core judgment" and "Required
 symbolic typed-family constraint lifecycle". No implementation is authorized
 by this slice.
+
+A focused frozen-Oracle probe now confirms one generalized effectful function
+can be independently used at `ask int` and `ask bool`: `generic` has one
+symbolic type binder shared by its result and `[ask α]` row, its two mono uses
+specialize to `[ask(int)] int` and `[ask(bool)] bool`, and both interpreter and
+evidence VM return `(10, true)`. This is final behavior characterization, not
+proof of the Oracle's internal symbolic constraint lifecycle or SCC intrusion.
+The artifact provenance caveat and exact fixture are in
+`notes/progress/2026-10-01-intrusion-typed-family-independent-instantiation-probe.md`.
+
+The first parent-map collapse argument was rejected on review: substitution
+truth reindexes by pullback even for a non-injective map. The candidate now
+states that correctly and uses a separate conditional root-observation example
+to show that collapsing independently owned root variables loses generality
+unless a quotient theorem justifies it. The intrusion proof must establish
+injective transport or a solution/observation-preserving quotient for every
+jointly observed `K_sym` and root/use view. This corrected proof obligation is
+in the candidate progress record under "Conditional phase-transport lemma and
+parent-map quotient obligation"; it remains unproved.

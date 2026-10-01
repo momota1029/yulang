@@ -4836,3 +4836,58 @@ argument detail only while this invariant evidence remains coupled to every
 request, handler, residual, and scheme view that depends on it. This rules out
 the earlier weaker reading in which invariance was generated only when two
 already-materialized row heads happened to meet.
+
+#### Conditional phase-transport lemma and parent-map quotient obligation
+
+For a symbolic obligation `I = InvArgs(F<τ̄>, F<ῡ>)`, type substitution is
+homomorphic:
+
+```text
+σ(I) = InvArgs(F<σ(τ̄)>, F<σ(ῡ)>)
+```
+
+For ordinary structural evaluation of type expressions, this gives the
+solution-reindexing identity for any substitution `σ`, including a
+non-injective one:
+`ν ⊨ σ(K_sym) iff (ν ∘ σ) ⊨ K_sym`. This is a pullback identity; by itself it
+does not show that every source assignment or root observation is represented
+by the transformed state. Solving may change the endpoints but cannot delete
+the relation except with retained proof/equivalence evidence. A
+residualization transition is constraint-monotone at this layer:
+`K' = K_sym ∪ NewInvArgs`, where `NewInvArgs` is emitted before matched row
+heads move or disappear. Generalization binds every local identity occurring
+in rows, request facts, and `K_sym` under one ownership map while fixing the
+outer environment. Fresh instantiation is one injective capture-avoiding map
+on all these occurrences; the existing typed alpha-transport lemma then
+preserves and reflects satisfaction. These steps give a conditional
+phase-transport result when each phase uses the same symbolic constraint set
+and binder ownership.
+
+Intrusion still needs more than this pullback identity. A sufficient simple
+case is that the parent map is injective over the symbolic identities in the
+jointly observed view, with the outer environment fixed; then it acts as a
+renaming and the typed alpha-transport lemma applies. For a non-injective map,
+one needs a quotient theorem that states which source assignments and root
+observations are intentionally identified and proves the relevant solution
+relation both ways. Injectivity is a sufficient condition, not a conclusion
+that all parent maps must satisfy.
+
+A simple counterexample rejects unproved collapse of independently owned root
+identities. Let two jointly observed roots contain `F<α>` and `F<β>`, with no
+source constraint relating `α` and `β`. The source state admits the assignment
+`α=int, β=bool`, yielding the distinct root pair
+`(F<int>, F<bool>)`. If intrusion maps both identities to one parent `γ` and
+exports both roots through that shared parent, its image contains only
+`(F<γ>, F<γ>)`; the source assignment and root observation cannot be
+represented. This is loss of solution generality/principality for that
+interface, not unsound reflection of the substituted `InvArgs` formula.
+
+For `K_sym = {InvArgs(F<α>, F<β>)}`, the pullback equation remains true when
+`P(α)=P(β)=γ`; however, whether the resulting quotient preserves the original
+source scheme depends on the full root/use observation relation and on whether
+the original relation already equates those endpoints for every admissible
+assignment. The proof cannot be replaced by comparing concrete family rows
+later. The sketch's generic `parent: InnerVar -> BoundaryVar` does not by itself
+establish injectivity, a valid quotient, or preservation of symbolic
+`InvArgs`. The type/SCC theorem must establish one of these properties for
+each jointly observed family constraint and root/use view.
