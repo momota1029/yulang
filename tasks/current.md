@@ -2513,3 +2513,11 @@ preorders; the repaired note includes a four-element counterexample and leaves
 sufficiency to a separate interval-realization theorem. Both delta reviews
 closed the finding. Compound argument decomposition, the actual type-domain
 realization property, and full assignment/root preservation remain unproved.
+The candidate now gives the exact sufficient carrier condition for endpoint
+interval realization: a least element plus finite joins. A conditional lemma
+chooses the join of all lower endpoints as the common witness. Independent
+compiler-referee and spec-auditor review found no issue; direct inspection of
+the frozen sandwich spec confirmed it requires cross-bound generation but
+does not claim finite joins or witness existence. The successor has not
+selected or proved that carrier property, so the actual Yulang type-domain
+realization remains open.

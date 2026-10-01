@@ -5287,6 +5287,33 @@ separate quotient proof that preserves those observations. The generated
 endpoint constraints are solver consequences, not permission to erase their
 symbolic source.
 
+#### Finite-join condition that makes the interval witness exist
+
+The missing converse does hold under a concrete carrier property. Let `(D,≤)`
+have a least element `⊥` and joins of all finite subsets satisfying the
+least-upper-bound laws. For finite endpoint sets `L,U ⊆ D`, the following are
+equivalent:
+
+```text
+for every l ∈ L and u ∈ U, l ≤ u
+there exists t ∈ D such that every l ∈ L satisfies l ≤ t
+                         and every u ∈ U satisfies t ≤ u
+```
+
+For the forward direction choose `t = ⋁L`, using `⊥` when `L` is empty. Each
+lower endpoint is below `t`; for each `u ∈ U`, every `l ∈ L` is below `u`, so
+the least-upper-bound law gives `t ≤ u`. For the reverse direction, compose
+`l ≤ t` and `t ≤ u`. Thus the arbitrary-preorder counterexample above is
+excluded if the successor's actual value carrier has these finite joins.
+
+This proves common-witness existence for the endpoint fragment only. It does
+not establish that the successor's recursive/structural type domain is closed
+under these joins, that the generated term is representable within its
+supported envelope, or that replacing two symbolic roots by that witness
+preserves their joint observations. The finite-join carrier remains an
+unselected candidate assumption; the actual type-domain realization proof is
+still open.
+
 This does not prove the equivalence for arbitrary compound arguments,
 non-saturated recursive graphs, effect weights, or post-substitution
 residuals. Those require the structural subtype decomposition and fixed-point
