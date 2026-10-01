@@ -2172,6 +2172,43 @@ the resumption as raw can change the residual. The control-simulation premise
 rules this out. These are consequences of the same relation; they do not
 create per-site `Demand` or route obligations.
 
+##### Conditional ordered-forwarding lemma
+
+This ordering consequence follows directly from the candidate shallow
+forwarding clause. Let `H₁,…,Hₙ` be nested activations from inner to outer.
+For one request that is forwarded at each activation, define `K₀(x)=k(x)`
+and `Kᵢ(x)=Hᵢ(Kᵢ₋₁(x))`. Then after all `n` forwards the saved continuation is
+`Kₙ`, so resumption executes
+
+```text
+Hₙ(Hₙ₋₁(…H₁(k(x))…))
+```
+
+Proof is induction on `i`: forwarding through `Hᵢ` replaces the request's
+resume with `λx.Hᵢ(Kᵢ₋₁(x))`, which is exactly `Kᵢ`. The order is
+noncommutative, and each outer handler acts on every observation of the
+preceding inner relation under the live state at that yield. An intermediate
+request can be handled before the inner relation returns; any state update
+remains live for its next resumption. If `Hⱼ` selects the request instead of
+forwarding it,
+its arm receives `Kⱼ₋₁` as the continuation raw relative to `Hⱼ`; the current
+handler is absent from that continuation, while outer handlers remain around
+the arm computation. Thus an inner handler's arm effect can be observed by an
+outer handler without re-entering the inner handler.
+
+This proves the wrapper-order fact for the candidate handler relation, not the
+finite abstract simulation. The latter must preserve the ordered sequence and
+raw/forwarded distinction modulo renaming of activation labels. If abstraction
+merges two sequences with different composed denotations, it must widen the
+offers soundly and cannot claim subtraction from node reachability alone.
+Source typing, operation eligibility, typed-family preservation, and a finite
+principal presentation are not premises proved by this induction.
+Focused compiler-referee review confirmed the induction and selected-arm
+continuation agree with the candidate shallow clauses. Its minor state-threading
+finding is closed by the wording above: outer handlers observe each yield under
+the live state, including intermediate requests and later resumptions. This
+review did not inspect source adequacy or finite abstraction.
+
 This is a proof skeleton, not a completed source theorem. The source machine
 and its evaluation-context grammar have not yet been fixed; its capture edges
 must correspond to the actual source binding and continuation rules, and the
