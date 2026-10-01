@@ -3756,3 +3756,16 @@ programs, and incompatible selected cases simply lack typed derivations.
 Unknown routes cover both forwarding and every compatible selected-arm
 outcome. Delta review closed these findings. Formal source search semantics,
 type preservation, callback-row linkage, and finite principality remain open.
+
+The current relational draft now states the economy criterion directly:
+shared family arguments come from shared binder identities in the source
+typing derivation, while handler visibility comes from ordered search over the
+typed machine configuration. `g(o)`, `GroupEq`, capture incidence, and route
+records are presentations/evidence, not additional semantic mechanisms. The
+source rules that determine binder sharing across callbacks/recursive roots
+and visibility across annotations/helper calls/escape/force remain unresolved.
+The algebra summary was also aligned with the existing filter denotation:
+filter maps the request coordinate and retains the same assignment and
+dependent predicates. Next derive those two source judgments from the source
+semantics and test the resulting single-relation formulation against exact
+trace behavior; no implementation is authorized.

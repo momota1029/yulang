@@ -82,6 +82,36 @@ eligibility are the same predicate. They are observations of different
 coordinates in the same coupled relation: request denotation, symbolic type
 admissibility, and dynamic boundary visibility respectively.
 
+#### Source ownership and visibility are judgments, not extra mechanisms
+
+The economical candidate is one source typing/evaluation judgment indexed by
+the ordinary type-variable environment and the current machine configuration.
+An operation request carries the instantiation of its declaration binders
+that the typing derivation assigned to that occurrence. Two occurrences share
+an invariant argument exactly when the derivation refers to the same owned
+binder identity; equal operation heads, equal concrete types, or membership in
+one inferred row do not create sharing. The common assignment to that binder
+then constrains every incident root, request, and latent interface in `Rel_C`.
+`g(o)`, occurrence incidence, and `GroupEq` are notation or finite witnesses
+for this single binder environment, not a semantic grouping operation. The
+source rule that chooses which declaration binders remain shared across
+applications, callbacks, and recursive roots is still open; until derived,
+this candidate cannot decide those cases.
+
+Likewise, handler visibility is decided by the ordinary ordered machine
+search over its complete configuration and source typing relation. There is
+no second `Capture` store or family-level grant bit: `Visible(q,κ)` abbreviates
+the fact that the source derivation and the active configuration permit this
+request occurrence to reach this activation. Request origin, binder
+assignment, frame entry/unwind, and saved-continuation re-entry are coordinates
+of the common relation when observable. A route record or capture-incidence
+map may witness the derivation, but cannot independently grant visibility.
+The callback annotation, helper, escape, and force rules that derive this
+judgment remain an explicit source-semantics obligation. This formulation
+keeps two genuinely different observations—type sharing and dynamic reachability—
+inside one relation without identifying them or making either a new solver
+mechanism.
+
 #### One denotational row relation (candidate)
 
 For a fixed complete assignment `ν`, interpret a typed row jointly with its
@@ -2698,7 +2728,7 @@ With those operators, the intended derivations are:
 | --- | --- |
 | Source sequencing and callback invocation | Join on the shared value/environment interface, then compose with the source transition relation |
 | Row splitting | Project request views while retaining the common assignment and every formula dependency that still constrains a surviving view |
-| Filtering | Restrict the complete relation by the source predicate, then project the request view |
+| Filtering | Apply the source predicate to the request coordinate and map that coordinate to its filtered view, retaining the same assignment and all dependent predicates |
 | Handler residualization | Compose with the declarative shallow-handler transition, then project its residual request support |
 | Generalization | Abstract/close component-owned identities while retaining the relation over rigid imports and every exported root |
 | Fresh instantiation | Rename all locally owned identities with one capture-avoiding injection, fixing the same rigid imports |

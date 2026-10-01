@@ -9167,3 +9167,17 @@ cover every compatible selected-arm result. The delta review closed both
 findings. Formal source search semantics, preservation, callback-row linkage,
 and principality remain open; this clarification adds no solver-specific
 construct.
+
+An architect review of the next source-semantics boundary found that the
+smallest carrier needs (a) the occurrence's source-assigned declaration-binder
+identity and (b) the ordered machine configuration plus source-derived
+visibility. These are distinct observations within `Rel_C`, not separate
+solver mechanisms. The draft now treats `g(o)`/`GroupEq` as binder-environment
+presentation and route/capture incidence as search evidence; it does not add a
+second capture store or family grant bit. Callback/helper/escape/force rules
+that assign those identities and visibility remain open. The review also
+noticed the algebra table described filtering as predicate restriction while
+the established denotation maps the request coordinate and preserves the
+assignment fiber; the table now states the same operation as that denotation.
+This is a conceptual-consolidation step only, not a source adequacy or
+principality result.
