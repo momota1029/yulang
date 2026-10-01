@@ -131,6 +131,53 @@ YULANG_INTRUSION_OWNER_TRACE=1 CARGO_TARGET_DIR=/tmp/yulang-intrusion-scc-owned-
 No Oracle source or test change was committed, and the Yulang3 branch was not
 modified by the probe.
 
+## Exclusion-theorem counterexample and source probe
+
+An independent compiler-referee audit rejects the proposed structural
+exclusion that every `DependencyAdded` target is a value-fetch member. The
+selection path adds a payload-free dependency to every unready role-impl
+member. A receiverless, zero-parameter member returns its body computation;
+`our make = helper 0` can therefore be `FetchComputation`. The computed-cycle
+check examines only internal use edges with a payload whose target is
+computed. Consequently this graph shape is admitted by the SCC machine:
+
+```text
+computed make --UseResolved--> value helper --DependencyAdded--> make
+```
+
+The graph argument disproves the proposed fetch-uniformity invariant but is
+not itself a source program or compiler bug report. A source candidate was
+probed in the detached Oracle worktree: a scalar role member `make` calls a
+typed top-level helper, while that helper selects a role method on `int`.
+The focused lowering test reported no errors, but its SCC trace contained
+separate quantifications, a `make -> helper` component edge, and no
+`helper -> make` dependency or mixed SCC. This probe therefore does not
+establish source reachability or final runtime-ready acceptance. The synthetic
+same-SCC Q/free witness remains machine-level evidence only.
+
+The next source investigation must explain why a concrete role demand in the
+helper does not add the candidate edge in this ordering, then either produce a
+source trace that reaches the mixed-fetch dependency cycle and passes the
+normal final-acceptance gate, or prove a narrower source-level restriction.
+The general graph exclusion is withdrawn. No changes were made to the frozen
+Oracle checkout or to compiler source on this branch.
+
+A follow-up trace instrumented the four candidate-edge gates for this source
+candidate. The `Pair` impl candidate was visible (`Some(DefId(3))`), but the
+only `Pair` constraints present during dependency scans belonged to the role
+method declarations and failed `role_constraint_could_resolve`; both scans for
+the top-level helper had an empty role list. The events later show an
+`InstantiateUse` from the helper to the role's `read` signature, but no
+`DependencyAdded` from helper to `make`. Thus this candidate fails at the
+earliest gate: it does not create an owner-local role constraint for the
+helper before its dependency scan. The focused scratch test still reports no
+lowering errors and separate quantifications; it did not run the full
+runtime-ready acceptance pipeline. This narrows the next probe to a source
+form that inserts a concrete role predicate on a value-fetch owner before
+`DefFinished`/`MethodDependencyResolved`, while that owner's use edge reaches
+an unready computed member. The trace instrumentation and fixture remain in
+the detached scratch checkout only.
+
 There is a useful conditional exclusion for Q-versus-free ownership. For a
 variable `v` that occurs in both roots' compact-plus-role views where their
 quantifiers are selected, if both roots use the same boundary and
