@@ -6785,6 +6785,19 @@ non-regular fixed anchors, and any constraint form not expressible by the
 finite local endpoint grammar. SCC intrusion and the required symbolic
 family-constraint lifecycle remain separate proof obligations.
 
+The distinction between model existence and fiber preservation has a direct
+counterexample. Let `Σ` contain unary symbols `a,b` and a nullary symbol `z`,
+and let `L = { aⁿ(bⁿ(z)) | n ≥ 0 }`, which is not a regular tree language
+(its unary-tree restriction is the nonregular word language `{aⁿbⁿ}`). With
+one unconstrained observable root variable `x`, the powerset constraint
+relation admits `x=L`; the regular subcarrier does not. Therefore regular
+model existence cannot justify replacing the complete powerset root/use
+fiber by its regular assignments. Such a carrier can be principal only
+relative to a source expressibility theorem showing that source-observable
+type values are regular, or to an observation equivalence that provably
+identifies every lost assignment with a retained one. Neither premise is
+established for Yulang SCC roots.
+
 #### Regular-model extension for joint interval family batches
 
 The regular-witness theorem applies to a finite collection of already

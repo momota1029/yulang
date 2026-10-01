@@ -2744,6 +2744,12 @@ shared variables or additional subtype edges. This is satisfiability only,
 not preservation of the complete root/use solution fiber; source grouping,
 non-subtyping cross-position relations, effects, and the phase-by-phase
 symbolic lifecycle remain open.
+An explicit root-fiber counterexample now blocks promoting `RegΣ(N)` to the
+carrier without another theorem: an unconstrained root `x` may denote a
+nonregular language such as `{aⁿbⁿ}` in the powerset model, which has no
+regular representative if exact root observations matter. The candidate
+needs proof that source-observable types are regular, or a proved observation
+quotient that identifies every lost assignment. Neither is established.
 A shared tagged encoding lemma now covers any finite-arity exact-head
 constructor with a fixed variance vector: one head atom distinguishes the
 constructor, and per-slot positive/negative channel tags make covariance,
