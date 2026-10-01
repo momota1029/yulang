@@ -452,6 +452,87 @@ define `supp_now`, delayed operations/thunks, callback invocation, and
 nonreturning prefixes in one evaluation relation; neither Oracle routing nor
 the pure F5 Function rule settles them.
 
+#### Operational anchor from the frozen runtime contract
+
+The syntax references do not define evaluation. Frozen Yulang2's reviewed
+mono-VM and runtime-guard specifications define the intended runtime contract
+that a successor must model when claiming compatibility (`a58eefc3`,
+`spec/2026-06-13-mono-vm-contract.md`, §§ MakeThunk, ForceThunk, EffectOp,
+Catch; `spec/2026-06-13-runtime-guard-markers.md`, §§ request visibility and
+dynamic unwind). This is operational characterization, not a static typing
+rule. The frozen evaluator has known deviations from this contract, recorded
+below; they are not silently adopted as successor semantics.
+
+Use one machine relation over configurations with an ordered activation stack
+and request visibility evidence. At the semantic level, a request and an
+activation are related by one `Visible(q,κ)` judgment; it determines whether
+that activation handles or forwards the request. This coordinate is needed
+because it changes observable behavior. The runtime-guard contract represents
+it with request-carried guard identities and the active stack, and defines
+`add_id` coloring from an entry snapshot. The frozen evaluator also carries a
+`handler_boundary` field. These concrete forms are implementation witnesses
+for `Visible`, not separate inference rules or mathematical constructs. A
+current-stack-only predicate is therefore incomplete. The specifications
+give these cases:
+
+- `Apply` evaluates callee and argument expressions before applying the
+  resulting values. A `MakeThunk` expression captures a suspended computation
+  and returns a thunk value; it does not evaluate that body.
+- `ForceThunk` evaluates that suspended computation at the force site. An
+  effect operation application constructs a thunk; forcing it emits the exact
+  operation-path request. A thunk passed, stored, or returned without force
+  therefore contributes a latent interface, not an immediate request.
+- A catch value arm runs only after normal return. A matching, visible request
+  enters its operation arm with the raw continuation, outside the matched
+  shallow frame. An unmatched or invisible request is forwarded, with that
+  frame re-applied when its continuation resumes. Eligibility uses exact
+  operation identity, request-carried visibility evidence, and the
+  activation's guard visibility; frame unwind and re-entry preserve the
+  dynamic stack. The evaluator's additional `handler_boundary` field is
+  implementation evidence, not part of this listed contract rule.
+- A computed top-level root is evaluated once. A thunk-valued root is forced
+  only at the explicit root boundary.
+
+Consequently, `supp_now(τ)` in the Function candidate means typed requests
+actually emitted before the current expression returns or yields its next
+request under this machine. It includes requests from a thunk forced during
+that computation, but not requests from a thunk that is merely returned or
+passed onward. The value coordinate carries that thunk's latent behavior for a
+later force. This supplies an operational boundary without imposing exact
+continuation-sensitive rows: an inferred effect may still conservatively
+over-approximate these observations. It also makes callback application,
+handler transfer, and forcing compositions of the same machine relation,
+instead of separate callback or thunk effect rules.
+
+#### Frozen evaluator discrepancy ledger
+
+The runtime contract is not yet shown to describe every behavior of the
+frozen evaluator. In commit `a58eefc3`, `runtime/flow.rs::apply_value` forces
+a thunk used as a callee; `runtime/eval.rs` also forces thunk values in case
+scrutinee/ref positions and in handler-body completion. The contract instead
+requires first-class thunks to execute only at explicit `ForceThunk` nodes.
+The evaluator's catch path also consults request-carried guards and
+`handler_boundary`, while the declarative account above needs the semantic
+`Visible(q,κ)` relation. These are concrete implementation/spec differences,
+not additional source-site rules for the successor.
+
+The successor's operational reference is the reviewed VM-ready contract, not
+the evaluator's fallback behavior. Before claiming runtime compatibility,
+prove that the evaluator-only force sites are unreachable for valid
+VM-validated mono programs, or record a compatibility decision if a reachable
+case changes final well-typed-program acceptance. The guard/handler
+visibility relation remains part of the common computation observation;
+concrete guard and handler fields are implementation witnesses.
+No soundness or final-acceptance claim follows from this contract comparison
+alone.
+
+This anchor does not decide which source expressions specialization must
+lower to `MakeThunk` or `ForceThunk`, nor does it prove that Function effect
+annotations denote upper bounds of the immediate observations. Those remain
+static source-adequacy obligations. In particular, the inference relation
+must predict every runtime thunk boundary without consulting the frozen
+Oracle's weight routing.
+
 #### Closed callback/catch calculation
 
 Fix an assignment `ν`, imports `ρ`, and activation `κ`. Let `γ^row_{ν,κ,ρ}(E)`
@@ -1307,16 +1388,21 @@ fragment that avoids choosing an eager row match. For finite rows `R` and
 
 ```text
 RowIncl_A(R,S,ν) =
+  GroupEq(R,ν) ∧ GroupEq(S,ν) ∧
   ⋀_{x ∈ R} ⋁_{y ∈ S, head(y)=head(x)} FamCompat_A(x,y,ν)
 ```
 
-An empty disjunction is false. For point-valued family arguments,
-`FamCompat_A` is the symmetric subtype-equivalence formula, under the
-conditional premise that this equivalence is the source argument relation.
-Every occurrence in the formula shares the same valuation `ν`; no disjunct
-is selected while another branch remains possible. A finite row produces a
-finite formula DAG, and repeated subformulas may be shared without changing
-its denotation.
+An empty disjunction is false. `GroupEq` requires each source-owned occurrence
+group to denote one common argument tuple at `ν`; it is the nonempty-row
+condition from the point-valued `RowSub` expansion above. For point-valued
+family arguments, `FamCompat_A` is the symmetric subtype-equivalence formula,
+under the conditional premise that this equivalence is the source argument
+relation. Every occurrence in the formula shares the same valuation `ν`; no
+disjunct is selected while another branch remains possible. A finite row
+produces a finite formula DAG, and repeated subformulas may be shared without
+changing its denotation. If group well-formedness is already conjoined in an
+ambient `K_C`, the displayed `GroupEq` conjuncts are supplied by that shared
+formula; they are never inferred after row materialization.
 
 For a source component whose typing constraints and complete interface graph
 are exactly represented by a finite formula `K_C` in these row relations,

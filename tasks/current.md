@@ -3193,3 +3193,22 @@ closed this correction with no findings. The remaining proof target is source
 adequacy for that typed contract through application and shallow-handler
 composition, followed by a finite principal presentation and acceptance
 comparison.
+
+Frozen Yulang2's reviewed mono-VM/runtime-guard contract now supplies an
+operational reference for application, thunk creation/force, effect operation
+requests, shallow catch, and request visibility. This narrows `supp_now`:
+requests from a thunk forced in the current computation are immediate;
+requests in a returned or forwarded thunk stay latent until force. A single
+`Visible(request, activation)` relation captures handler eligibility; concrete
+guard IDs and `add_id` entry snapshots are runtime witnesses, not extra
+successor rules; `handler_boundary` is an additional field in the frozen
+evaluator. A compiler-referee audit found the
+frozen evaluator has implicit force sites absent from that contract (thunk
+callee, case/ref operands, handler-body completion). It also uses request
+guard/boundary data after frames unwind. The draft records this discrepancy
+instead of treating either source-site fallback as a new rule. Runtime
+compatibility still requires proving the force sites unreachable in valid
+VM-ready programs or recording the final-acceptance impact if reachable. A
+finite point-row lemma also now carries both `GroupEq` premises, preserving
+symbolic source-owned family groups rather than assuming them after row
+materialization. No implementation follows from these conditional lemmas.
