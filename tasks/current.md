@@ -4067,6 +4067,15 @@ ownership generation, or finite principality. The phase-by-phase residual
 proof requirements are in
 `notes/progress/2026-10-02-symbolic-family-transport-audit.md`.
 
+A read-only map of the eventual compiler cutover now records the current
+HIR-to-solver path, reusable F0-F4 SCC machinery, F5 session/scheme coupling,
+and the full lifecycle seam that would have to change together. It confirms
+that replacing only the F5c generalizer would leave incoming instantiation,
+root observation, and `yu-types::ClosedValueScheme` as F5 dependencies. This
+is implementation planning evidence only; reviewed successor semantics and
+user approval still precede every compiler edit. See
+`notes/progress/2026-10-02-y3-f5-cutover-map.md`.
+
 Source-contract clue for that gate: the frozen reference says handlers inside
 a concrete callback receiver can consume matching callback-origin effects.
 The witness's `catch` is inside `handle`, while nested `invoke` has no handler;
