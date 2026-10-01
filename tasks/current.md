@@ -3564,11 +3564,11 @@ simulation and exact representation of complete root/use fibers remain
 separate. Next derive the concrete abstraction pair and monotonic transformer
 for the actual call/force/resume/store/handler transitions. A newly found gap
 in the prior `γ` sketch is that it omitted the live store `σ`, despite the
-source `Run` and continuation equations threading that state. Define finite
-abstract cell and non-heap state slots with unknown-state widening. A focused
-compiler-referee audit caught and the repair closed missing store taint and
-successor-state preservation in the top-edge condition; that is candidate
-proof bookkeeping only. Next prove read/write, alias-test, closure-capture,
-and multi-shot resume transfers preserve the `γ` relation, then establish
-source typing and SCC lifecycle correspondence. No compiler implementation
-is authorized by this candidate lemma.
+source `Run` and continuation equations threading that state. The candidate
+`Σ#` now has finite abstract cell and non-heap state slots with unknown-state
+widening. A focused compiler-referee audit caught and the repair closed
+missing store taint and successor-state preservation in the top-edge
+condition; that is candidate proof bookkeeping only. Next prove read/write,
+alias-test, closure-capture, and multi-shot resume transfers preserve the `γ`
+relation, then establish source typing and SCC lifecycle correspondence. No
+compiler implementation is authorized by this candidate lemma.
