@@ -3217,3 +3217,11 @@ classification. A finite point-row lemma also now carries both `GroupEq`
 premises, preserving symbolic source-owned family groups rather than assuming
 them after row materialization. No implementation follows from these
 conditional lemmas.
+
+The draft now gives a conditional source-level sequencing lemma for `case`:
+the scrutinee relation is composed with the first matching arm relation, and
+typed may-support is bounded by the scrutinee support joined with all arm
+supports. This matches `case_type`'s effect join and preserves branch and
+result/request correlations in the complete relation. It is only a local
+soundness consequence of the candidate operational relation; source typing,
+handler interaction, and principal finite representation remain open.

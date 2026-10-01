@@ -382,6 +382,53 @@ continuations. Soundness requires an over-approximation of the relational
 image; principality asks for the most-general representable result in the
 chosen interface language.
 
+#### Case sequencing as relational composition
+
+Write `Run_κ(e)` for the complete finite-observation relation of evaluating
+source expression `e` in activation context `κ`. Define relational
+continuation composition `R >>= F` by appending the behavior of `F(v)` only
+after an observation of `R` returns `v`; request observations retain their
+continuation and are composed with the same `F` when resumed. Prefixes of
+nonreturning behavior remain observations and do not invent a result. Then a
+case expression has the single sequencing equation
+
+```text
+Run_κ(case e of arms) = Run_κ(e) >>= (λv. Run_κ(select_first_matching_arm(v, arms)))
+```
+
+For a relation of such observations, define its collected typed-request
+support by
+
+```text
+MayReq(R,ν) = ⋃ { typed_requests(τ) | (τ,o) ∈ R at assignment ν }
+```
+
+`select_first_matching_arm` includes source pattern order and guard
+evaluation; a guard's own computation is part of the selected-arm relation.
+Thus requests emitted while evaluating the scrutinee precede matching, and
+requests from a selected arm follow its return. This is the source-level
+account of the frozen fixture that cases on `file::load`: the call's request
+belongs to the case computation even though current mono emission omits an
+explicit `ForceThunk` node. The frozen solver's effect calculation
+(`case_type`) already joins the scrutinee and arm effects, which agrees with
+the may-support projection of this sequencing equation.
+
+For fixed `ν`, the equation yields the sound support bound
+
+```text
+MayReq(Run_κ(case e of arms),ν)
+  ⊆ MayReq(Run_κ(e),ν) ∪ ⋃ᵢ MayReq(Run_κ(armᵢ),ν)
+```
+
+because every finite output request lies either in the scrutinee behavior or
+in the behavior of the arm selected after a scrutinee return. The union over
+all syntactic arms is conservative; the complete relation preserves which
+arm was selected and the result/request correlation. This proves a local
+soundness consequence of composition, not a principal row rule or a static
+source-typing theorem. `case_type`'s union of all arm effects may be less
+precise than the exact image; principality must be assessed in the chosen
+expressible row abstraction.
+
 #### Candidate Function contract over the same relation
 
 The source-rule map found no authoritative effectful Function contract in Y3:
