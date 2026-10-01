@@ -3302,38 +3302,17 @@ continuations together while keeping the live store behavior fixed. This
 supports freshening and injective intrusion only; quotient/fiber preservation
 for non-injective parent maps remains open.
 
-Further audit of the Function contract found that its earlier
-`Beh_{ρ,ν}(f,x)` omitted the dynamic activation and starting state. A callable's
-resumed request visibility depends on that context and its captured boundary
-lineage. The candidate now indexes behavior by complete call configurations
-admissible in all source-well-typed contexts, carrying the live store, ordered
-handler stack, and captured lineage with the callee interface. This avoids
-making the set of admitted contexts an independent type-level selector or
-restricting it to call sites reached by the current program. The source rule
-that relates those configurations to a finite principal interface remains
-open; simple row variance is conditional on comparing both sides over the
-same call configurations and preserving visibility lineage. The denotational
-candidate therefore derives call contexts, support, delayed computation,
-callbacks, and prefixes from one evaluation relation, but remains unproved
-and unapproved.
-
-An adversarial check found that defining call configurations only from call
-sites reached by the surrounding program makes an unused function's contract
-vacuous. The candidate now quantifies over all well-typed source contexts
-admissible for the callable, argument, store, active handler stack, and
-captured lineage; program reachability is only a projection of those contexts.
-This restores a compositional target in the mathematical statement, but the
-admissibility judgment itself still needs a source definition and a finite
-principal presentation. It must not become a type-level call-site selector.
-The design memo now compares three domains: current-program call sites
-(rejected because unused functions become vacuous), all runtime-well-formed
-states (compositional but potentially over-restrictive), and all closing
-well-typed source contexts (which can still miss denotable values unavailable
-from a closed program). The preferred refinement quantifies over open typed
-evaluation contexts under all semantic environments for their free variables,
-so a callable/argument pair in the arrow denotations can be installed directly
-in the immediate-application context. This keeps contextuality without
-restricting values to those constructible by a closed program. The environment
-relation, context closure, and finite-principal abstraction remain open; the
-configuration domain must be solver-independent and nonempty for each pair it
-claims to constrain.
+Further audit of the Function contract found that `Beh_{ρ,ν}(f,x)` omitted
+the dynamic activation and starting state, which affect resumed-request
+visibility and captured boundary lineage. The candidate now indexes behavior
+by call configurations projected from all well-typed evaluation contexts,
+under semantic environments for ambient free variables. The callable and
+argument occupy separate typed value holes, so denotational values can be
+plugged into the immediate application context without making that context's
+environment interpretation depend on the arrow contract being defined. This
+avoids current-program reachability vacuity and a direct semantic circularity.
+The source context/environment relation, its guarded account of ambient
+recursive callbacks, and a finite principal presentation remain open. Simple
+row variance is conditional on the same call configurations and preserved
+visibility lineage; the overall denotational candidate remains unproved and
+unapproved.

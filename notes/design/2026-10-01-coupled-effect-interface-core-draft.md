@@ -724,10 +724,15 @@ are reachable in a particular program, but reachability does not define the
 function contract. Equivalently, `CallCfg` is the projection of the ordinary
 source evaluation relation over all well-typed evaluation contexts that place
 `f x` at a call boundary, under every semantic environment for the context's
-free variables. The environment maps the callable and argument variables to
-the chosen `f` and `x`; it need not arise from a closed program that happens
-to construct those exact values. This is a logical-relations closure of the
-ordinary typing and evaluation judgments, not a new source typing rule. Let
+free variables. The context has two typed value holes for the callable and
+argument; `f` and `x` are plugged directly into those holes, not introduced as
+variables in the semantic environment. The environment ranges over the
+context's other free variables, and it need not arise from a closed program
+that happens to construct `f` and `x`. This is a logical-relations closure of
+the ordinary typing and evaluation judgments, not a new source typing rule.
+Keeping the tested values out of the context environment avoids the direct
+circularity where defining `f ∈ ⟦A ->[E] B⟧` first requires that same fact to
+admit the environment containing `f`. Let
 `Beh_{ρ,ν,c}(f,x)` be the source-defined relation of finite evaluation
 observations from applying `f` to `x` at configuration `c`. These inputs matter:
 the same closure or thunk can be called under different active handler stacks,
@@ -812,12 +817,15 @@ The preferred domain is therefore contextual rather than whole-program
 reachable or all-machine-state. A proof must show that the context and
 environment relations are defined independently of the candidate solver and
 closed under evaluation-context composition. For every `f` and `x` in the
-arrow's denotations, assigning their variables those values in a semantic
-environment and using the immediate application context must yield at least
-one call configuration; otherwise vacuity can reappear through an empty
-context fiber. The exact environment relation, context grammar, and typing
-closure remain open source-semantics work; this is a formulation comparison,
-not a new selector or source construct.
+arrow's denotations, plugging them into the two typed holes of the immediate
+application context must yield at least one call configuration; otherwise
+vacuity can reappear through an empty context fiber. The exact environment
+relation, context grammar, and typing closure remain open source-semantics
+work. Ambient environments and stores can themselves contain aliases and
+recursive callbacks, so the value/context relation may still need a guarded
+or mutually defined logical relation. Any step index used to establish that
+definition would be proof machinery, not an extra effect selector or source
+construct; whether it preserves a finite principal presentation is open.
 
 #### Evaluation contexts and the frozen runtime contract
 
