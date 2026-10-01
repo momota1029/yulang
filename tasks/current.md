@@ -2426,3 +2426,15 @@ conditional candidate, not a selected source meaning: annotation semantics,
 outer variance, grant lifetime, family projection adequacy, and full source
 simulation remain open. See "Conditional callback effect-contract rule" in
 the candidate progress record.
+
+A handler-signature coherence lemma now keeps a request's operation-scheme
+instantiation `θ` distinct from the matching arm's `φ`. For an exact-path pair,
+it emits payload flow `Aθ <: Aφ`, resume flow `Bφ <: Bθ`, and the symbolic
+invariant family relation; thus operation-only binders cannot disappear
+behind the family projection. Compiler-referee review confirmed the transfer
+directions and found no major issue. A scope clarification makes `K_op` only
+the value-transfer coherence set; declared latent effects retain separate
+source-defined ownership/routing and transport obligations. This is a local
+conditional safety lemma, not a complete handler rule or principality result.
+See "Handler operation-signature coherence for independent instantiations"
+in the candidate record.

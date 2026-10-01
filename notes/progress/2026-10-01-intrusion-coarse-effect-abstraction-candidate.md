@@ -5350,6 +5350,71 @@ handler grants, callback receipt across curried stages, the adequacy of the
 family-argument projection, or principality of the combined effect system.
 Those premises require source semantics and approval before implementation.
 
+#### Handler operation-signature coherence for independent instantiations (conditional lemma)
+
+The callback contract's family arguments do not necessarily contain every
+operation binder used by payload and result types. This lemma makes the
+required request/arm bridge explicit without identifying their instantiations.
+Let one operation declaration have scheme
+`op : ∀b̄. A -> [E] B`, exact path `p`, and family projection
+`F<ρ̄>`, where `ρ̄` may mention only part of `b̄`. Resolving a request uses a
+fresh map `θ`; resolving the matching arm uses a separate fresh map `φ`.
+Neither map is substituted for the other merely because the operation paths
+match.
+
+For an exact-path request `q` and arm `h`, emit before consuming the request:
+
+```text
+K_family = InvArgs(F<θ(ρ̄)>, F<φ(ρ̄)>)
+K_payload = Aθ <: Aφ
+K_resume  = Bφ <: Bθ
+K_op      = K_family ∪ K_payload ∪ K_resume
+```
+
+The subtype judgments on `A` and `B` are structural and include any nested
+latent function/effect constraints. If the selected source subtype relation
+does not imply runtime-safe value transport, replace those judgments with its
+representation-compatible coercion/equality evidence. In particular,
+`K_payload` and `K_resume` include every operation-only binder that affects
+`A` or `B`, even when it is absent from `ρ̄`. `K_family` still remains a
+separate symbolic obligation; it cannot be replaced by payload/result
+constraints or reconstructed from concrete rows.
+
+Conditional type-safety argument: a request supplies a payload inhabiting
+`Aθ`; `Aθ <: Aφ` makes it safe for the handler arm's payload pattern. The arm's
+continuation accepts values of type `Bφ`; `Bφ <: Bθ` makes each value safe for
+the request's original continuation, which expects `Bθ`. This uses the
+standard shallow-handler boundary: the matching arm receives the raw
+continuation and supplies its resumed value to that continuation. The proof
+is conditional on the chosen subtype/coercion relation being sound for the
+runtime representation and on both sides resolving the same exact operation
+declaration. It does not derive handler eligibility or effect routing.
+
+`K_op` names only this operation-value coherence set, not the complete
+operation contract: declared latent effect obligations `Eθ`/`Eφ`, including
+binders that occur only there, retain their separately source-defined owner
+and routing obligations. This lemma does not assign that ownership; those
+typed effect obligations must still be transported symbolically by the
+general lifecycle rule.
+
+Each obligation has an incidence key containing the exact `OpId`, request
+occurrence, arm occurrence, binder ownership, and constraint role
+(`family`/`payload`/`resume`). Apply solving substitutions uniformly to all
+three value-coherence groups. Generalization, fresh instantiation, residualization, and
+intrusion transport the full keyed set with `θ` and `φ` still distinct, as
+well as every `InvArgs` endpoint. This directly blocks the case where
+`F<>` (or `F<T>` with an unrelated operation-only `U`) matches by family but
+the request uses `U=bool` and the arm uses `U=int`: the family formula alone
+is vacuous, while payload/result constraints reject the unsafe pairing.
+
+For this fixed operation/arm pair, the displayed payload and resume
+obligations are the direct premises of the two runtime value transfers, and
+`K_family` is the selected typed-family matching relation. This is a local
+coherence lemma, not a proof that these are all and only the source language's
+handler constraints, nor a principality theorem for effect routing. The
+source elaborator must derive the keys and dependent `Demand` edges before
+handler matching removes or forwards any row occurrence.
+
 #### Closed typed-row subtyping fragment (conditional lemma)
 
 The callback comparison above needs a precise local meaning independent of
