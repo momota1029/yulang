@@ -3281,5 +3281,7 @@ after resumption. Application and case are instances of this same equation;
 the draft gives both inclusions, with the reverse direction using the same
 resumption path after the continuation is attached. This is a set-of-traces
 support equality, not a claim that both sets of requests occur on one path.
-The result remains conditional on the candidate finite-observation bind
-semantics.
+The complete-interface bind still shares `ν`, owner identities, and symbolic
+formulas; support projection cannot discard a formula when its last request
+disappears. The result remains conditional on the candidate finite-observation
+bind semantics.

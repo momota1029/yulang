@@ -505,6 +505,12 @@ each such return composes exactly its `F` behavior into the continuation.
 This is the support projection of relational composition, not a separate
 rule for application or case. The equation is conditional on the complete
 finite-observation bind semantics and the definition of `Ret*` below.
+At the complete-interface level this is only a support projection: `ν`,
+source-owned identities, and dependent symbolic formulas are shared through
+the bind. A formula remains in the composed relation unless a retained proof
+establishes equivalence for every dependent view. The equation does not
+authorize existentially projecting a typed-family constraint after its last
+request was filtered from the support view.
 
 For the left-to-right inclusion, any request in a composed observation is
 either in its `R` prefix or in an `F(r)` suffix after some finite sequence of
