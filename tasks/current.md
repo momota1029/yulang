@@ -2707,9 +2707,14 @@ compact root projection now has a source-to-projection derivation: the
 annotation reuses one `SubtractId` for the callback's `push(Set{ask})` and
 enclosing output `pop(Set{ask})`; positive scheme projection composes the
 weights and cancels that push, while the residual filter adds no support for
-the unknown inner tail. The public negative callback projection separately
-materializes `[ask]`. The exact selected lower record/provenance for this
-fixture is still not dumped. The
+the unknown inner tail. A focused variable-level trace now identifies the
+selected projectable lower as `PosId(6) -> Var(TypeVar(5))` under the matching
+push; the composed result is `Var(TypeVar(5))` under the residual `Set{ask}`
+filter. The public negative callback projection separately materializes
+`[ask]`. Compact output still has several symbolic variables under the pop
+and the filter-only variable; a later raw scheme serializes the enclosing
+result as `Bot`. The post-compaction removal of those variables, and its
+soundness/principality in general, remain open. The
 typed-family symbolic-lifecycle invariant remains independent and mandatory
 across solving, residualization, generalization, fresh instantiation, and
 intrusion; it must not be reconstructed from materialized rows. The coarse

@@ -6634,10 +6634,27 @@ turns its filtered stack into an explicit `[ask]` row prefix, explaining why
 the callback argument remains effectful while the enclosing function result
 becomes pure.
 
-This is a source-to-projection derivation of the responsible cancellation rule,
-not a variable-ID dump of the exact query-selected lower-bound record for this
-fixture. The frozen source's observed raw scheme matches the derivation, while
-the exact selected lower/proof provenance remains uninspected. The causal rule
-is now identified: applying an annotation's stack pop to the enclosing
-function effect cancels the callback latent effect without a handler. This
-characterization does not make Oracle's weighted routing successor authority.
+An isolated call-only witness now has a concrete variable-level trace. It was
+run against the frozen checkout with temporary debug-only tracing added to
+`constraints/trace.rs` and `compact/collect/mod.rs`; those artifacts are
+`/tmp/yulang-effect-forward-call-only-trace.log`,
+`/tmp/yulang-effect-forward-call-only-compact.log`, and
+`/tmp/yulang-effect-forward-call-only-poly.raw`. The annotated callback type
+in `TypeVar(3)` contains the positive `push(SubtractId(0), Set{ask})` on its
+return effect. The call result reaches `TypeVar(11)` under the enclosing
+`pop(SubtractId(0))` filtered to `Set{ask}`. The projection trace selects
+`lower[3]`, `PosId(6) -> Var(TypeVar(5))`, whose left bound has the matching
+push. Composing it with the outer weight produces `filter Set{ask}` with no
+stack entries, and the resulting compact variable is only `TypeVar(5)` under
+that filter. The enclosing compact effect still contains several symbolic
+variables under the pop plus this filter-only variable, but no concrete `ask`
+row. The subsequent raw scheme serializes `call` with return effect `Bot`,
+while its callback argument retains `[ask]`.
+
+This directly traces the source-generated cancellation through the selected
+projectable lower and its compact result. The post-compaction step that removes
+the remaining weighted/open variables before raw scheme serialization is not
+yet proved sound or principal, nor generalized to other lower sets and
+contexts. The concrete final acceptance counterexample remains established.
+This characterization does not make Oracle's weighted routing successor
+authority.
