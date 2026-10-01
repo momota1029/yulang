@@ -24,6 +24,11 @@ obligations are in the `Required symbolic typed-family constraint lifecycle`
 section of
 `notes/progress/2026-10-01-intrusion-coarse-effect-abstraction-candidate.md`;
 their concrete solver transition rules and preservation proof remain open.
+The obligation-key notation now separates stable source/use identity from
+substitutable symbolic endpoint payload, so solving cannot mint a new key just
+because endpoint expressions change; use freshening and intrusion transport
+that identity through their occurrence/view maps. This is a candidate
+bookkeeping invariant, not an approved representation.
 
 ## Objective
 

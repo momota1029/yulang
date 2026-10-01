@@ -5079,8 +5079,15 @@ family rows. A formula may be `Proved` only with evidence that remains
 transportable with its symbolic endpoints. It may not transition to an
 unlinked `Discharged` state.
 
-Define an obligation key `o` independently from the ledger record:
-`o = (family head, symbolic endpoint terms, source provenance, use occurrence)`.
+Define an obligation key `o` independently from the ledger record. Candidate
+identity fields are `(source_site, relation_kind, family_head,
+argument_position, source_pair_or_batch_id, view_occurrence_id)`; symbolic
+endpoint terms are formula payload, not key identity. A type substitution
+changes those endpoints without minting a new obligation or breaking its
+incidence. Fresh instantiation maps `view_occurrence_id` with the
+occurrence-owner map, while intrusion transports it with graph map `M`; source
+provenance and relation kind remain fixed. This stable-identity choice is a
+candidate bookkeeping invariant, not a selected representation.
 Each source rule that relates same-head family instances derives this key
 before row movement. Define `Demand(v, o)` independently from the ledger: it
 holds when the source typing derivation for live view `v` uses that
