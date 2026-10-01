@@ -2201,6 +2201,11 @@ between the observed mixed-use conflict and its unisolated dispatch cause. The
 frozen subtraction and runtime-guard specs support separate path identity and
 invariant family-argument constraints. Next derive the exact source typing
 judgment for parameterized operation signatures and its continuation
-reconnection from those specs, then review the solver integration before any
+reconnection from those specs. A compiler-referee candidate interface now
+requires preserving exact operation path, payload/result types, typed family
+arguments and all latent effect constraints; this is not yet a settled source
+rule. Next derive the source typing rules for operation declaration/use and
+handler continuation, including ownership/routing of operation latent effects,
+then prove the subtraction/coverage coupling and leastness before any
 implementation gate. Record the accepted Oracle behavior and compatibility
 exception in the successor design when that judgment is settled.

@@ -3932,6 +3932,61 @@ above: the mixed-use runtime conflict does not identify its dispatch cause.
 This review closes the probe interpretation; the complete source typing rule
 and its solver integration remain open.
 
+#### Parameterized operation/continuation constraint extracted from the probe
+
+A scoped compiler-referee derivation separates the constraints already
+characterized by frozen specs from the successor rule still to be proved. Let
+`p` be an exact operation path in family `F`, and let resolving its operation
+scheme once produce a capture-avoiding substitution `θ`, payload type `Aθ`,
+result type `Bθ`, and any declared latent effect constraints `Eθ`. The
+candidate source-to-constraint interface must preserve all of the following:
+
+```text
+request at p:
+  check payload against Aθ
+  retain exact operation path p
+  contribute typed family instance F<τ> to request/row evidence
+  constrain the operation result to Bθ
+  retain Eθ and its route/ownership obligations
+
+handler arm at p:
+  resolve the same operation path p and operation scheme
+  specialize against the same typed family item F<τ> in the scrutinee row
+  bind the payload pattern at Aθ
+  bind continuation input at Bθ
+  preserve the continuation's handler-result effect/value boundary
+```
+
+Whenever same-path family items meet in row splitting, duplicate collection,
+subtraction, or handler eligibility, their type arguments must generate the
+chosen invariant type constraints. A support-only projection may erase `τ`
+only if those type constraints remain represented elsewhere. `F<Int>` and
+`F<Bool>` do not become different operation identities: runtime identity stays
+`p`, while the typed constraints determine whether the request and arm can be
+related. This is the minimum candidate rule that rejects the minimized
+counterexample: its request contributes `ask<bool>`, its arm requires
+`ask<int>`, and the invariant relation cannot identify `bool` with `int`.
+
+The clauses above are not yet an authoritative typing judgment. Frozen
+characterization supports exact-path runtime matching, invariant constraints
+for same-path family items in row operations, and reconnecting a generic
+operation result to the same family item in the scrutinee row. It does not
+settle source declaration lowering, binder ownership, handler grant/coverage,
+callback subtyping, or the coupled least-solution proof. In particular, do not
+drop `Eθ` merely because path `p` is handled: first determine which source
+construct owns that effect and prove its handler routing. The old
+monomorphization clause describes the continuation as
+`Bθ -> shape(scrutinee_effect, scrutinee_value)`; the successor must decide
+whether this shape is semantically required, then derive it from the chosen
+handler judgment rather than importing it as authority.
+
+The reviewer also recommends independently deriving the source-level
+rejection of the probe under that successor judgment. The observed VM and
+interpreter behavior establishes a compatibility conflict if reproduced; it
+does not locate the missing constraint in the Oracle implementation. This
+closes the narrow candidate-interface step, not the ordinary effect/handler
+proof gate.
+
 The source boundary needed by this candidate is therefore an elaboration
 relation from source declarations/annotations and operation uses to canonical
 family and operation identities, typed arguments/signatures, payload/result
