@@ -585,7 +585,7 @@ The intended workflow is:
 
 Claude is responsible for selecting the Codex model and reasoning effort before each new Codex MCP session.
 
-Codex in this environment exposes three GPT-5.6 tiers — `gpt-5.6-sol`, `gpt-5.6-terra`, `gpt-5.6-luna` — from most to least capable and expensive. Reasoning effort supports `minimal`, `low`, `medium`, `high`, `xhigh`, and (Sol only) `max`. Routing is a three-way decision (Sol / Terra / Luna), not a two-way one; each tier has its own effort range below.
+Codex in this environment exposes three configured tiers — `gpt-6.1-sol`, `gpt-5.6-terra`, `gpt-5.6-luna` — from most to least capable and expensive. Sol supports `low`, `medium`, `high`, `xhigh`, and `max`; Terra and Luna keep the effort ranges described below. Routing is a three-way decision (Sol / Terra / Luna), not a two-way one; each tier has its own effort range below.
 
 ### Default model — Terra
 
@@ -728,7 +728,7 @@ Add the following fields to every new Codex MCP request:
 
 ```text
 Model:
-<gpt-5.6-sol | gpt-5.6-terra | gpt-5.6-luna>
+<gpt-6.1-sol | gpt-5.6-terra | gpt-5.6-luna>
 
 Reasoning effort:
 <minimal | low | medium | high | xhigh | max>
