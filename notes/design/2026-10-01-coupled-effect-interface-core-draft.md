@@ -1138,6 +1138,34 @@ and typed-family ownership assignment. It cannot choose independent witnesses
 for those parts. Ordinary non-thunk value conversions are other instances of
 the same `B_{S,T}` relation and are not specified by this thunk-boundary
 characterization.
+
+The same boundary relation also gives the shape of a function adapter. For an
+underlying function boundary `A_s → B_s` viewed through `A_t → B_t`, its
+argument and result conversions compose around the ordinary call relation:
+
+```text
+CallView_ν(f,x) =
+  Adapt_ν(A_t,A_s,x) >>= (λx_s.
+    Call_ν(f,x_s) >>= (λy_s.
+      Adapt_ν(B_s,B_t,y_s)))
+```
+
+Here `Call` is the source application computation relation on already adapted
+values, and `>>=` is the existing state-threading relational composition; each
+`Adapt` denotes the complete computation relation above, not a pure value
+cast. Any dynamic visibility scope required by the source function-boundary
+semantics surrounds the entire expression, including both conversions and the
+call. This equation
+derives callback argument/result transport from ordinary relational
+composition and the same typed boundary used for thunks; it adds no
+callback-specific row rule. It also identifies a key simulation obligation:
+effects from argument adaptation, the call, and result adaptation must be
+observed at the activation where that complete boundary executes. The frozen
+Yulang2 `FunctionAdapter` contract at `a58eefc3`,
+`spec/2026-06-13-mono-vm-contract.md`, § FunctionAdapter, has this shape, but
+is characterization only; the successor source typing relation must establish
+which source boundaries require it and which visibility scopes they carry.
+
 `Delay(C)` is a value whose force executes `C`; it does not run `C` while being
 passed or returned. `Force(v)` exposes the thunk's complete computation
 relation, including its typed-family formulas and resumptions. The clauses

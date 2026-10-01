@@ -3622,10 +3622,15 @@ as the relational image of one typed boundary transition over complete
 interfaces; immediate force, latent-value preservation, and thunk conversion
 are candidate consequences for disjoint outer type shapes. The image keeps one
 typed-family assignment and its formulas/incidence rather than deriving them
-from a row projection. A focused architect review caught overlap in the first
-formulation; the local ambiguity was repaired and recorded in
+from a row projection. The same relation now wraps ordinary function
+invocation with argument and result boundary conversions under any required
+visibility scope, giving callback application a compositional target. A
+focused architect review caught overlap in the initial thunk cases; the local
+ambiguity was repaired and recorded in
 `notes/progress/2026-10-01-intrusion-coarse-effect-abstraction-candidate.md`.
 This is still only a boundary-relation candidate. Source typing must derive
 each boundary, and source-step/handler simulation plus full symbolic-fiber and
 finite-principality proofs remain the next gates. No compiler implementation
-is authorized.
+is authorized. The immediate proof target is source typing/evaluation
+simulation for the function-boundary composition, including complete symbolic
+family-fiber and visibility transport.

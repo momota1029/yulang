@@ -8948,3 +8948,13 @@ evaluation for different outer type shapes, not independent row/effect
 transformers. The relation must carry typed-family formulas and incidence
 through its image under one valuation. No proof yet establishes the source
 boundary transitions, their finite presentation, or the global fiber laws.
+
+The draft now composes that same boundary relation around ordinary function
+invocation: target argument to source argument, then call, then source result
+to target result. A visibility scope required by the function-boundary
+semantics encloses all three parts. Frozen Yulang2 `FunctionAdapter` behavior
+characterizes this order, while the successor still must derive the adapter
+and visibility scope from source typing and prove that the three computations
+compose with one symbolic typed-family assignment. This gives a concrete
+source-adequacy target for callback application without a callback-specific
+effect rule.
