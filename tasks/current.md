@@ -2976,3 +2976,11 @@ observation has a `P`-constant representative. This is necessary/sufficient
 semantically but not an executable test until the source relation and
 future-client observation are fixed; the point entailment condition is only a
 sufficient subcase.
+
+Extended naturality from `FamAgree_A` to the whole joint row relation: if
+type denotation is substitution-natural and occurrence/shared-binder ownership
+maps preserve their partitions bijectively, then `J_R`, its `TypedRow`
+projection, and row inclusion commute with transport. The type substitution
+itself may be non-injective during solving; source occurrence/binder
+identities remain distinct. Non-injective intrusion on those identities still
+requires the quotient criterion.

@@ -7758,3 +7758,11 @@ solution sets holds iff every source solution has an observationally
 equivalent representative that is constant on each parent-map fiber. This
 subsumes the point-fragment sufficient condition but is not an implementable
 check until the source relation and future-client observation are fixed.
+
+The symbolic transport lemma now covers the full joint typed-row relation,
+not only its N-way witness predicate. Under natural argument denotation and
+bijections preserving request occurrence and shared-binder ownership, the
+transported `J_R`, `TypedRow`, and row inclusion have equal fibers. A solver's
+type substitution may itself be non-injective while those source ownership
+identities stay distinct; merging the ownership/occurrence or parent identities
+is still governed by the quotient theorem.

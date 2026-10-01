@@ -434,6 +434,31 @@ to pairwise compatibility. A point-valued `InvArgs` encoding is a valid
 replacement only when a separate theorem proves that it denotes this same
 relation for the chosen arguments.
 
+The whole joint request relation has the corresponding transport law. Let
+`m` map request occurrences bijectively and `h` map source-owned shared-binder
+identities bijectively, preserving the grouping relation
+`g'(m(o)) = h(g(o))`. `h` is an ownership map, distinct from the type
+substitution `θ`: two source instantiation groups remain distinct even if
+solving makes their type arguments equal. Assume `θ` is natural for
+`ArgDen_A` as above, with assignments related by pullback. Mapping each
+`b_g` to `b'_{h(g)} = b_g` then gives a bijection:
+
+```text
+Tr_{m,h}(J_R(θ*ν')) = J_{R[m,θ]}(ν')
+```
+
+The forward direction preserves every binder's common-intersection
+condition by the denotation identity; the inverse uses `m⁻¹` and `h⁻¹`.
+Request heads are fixed and every request argument is read from the
+corresponding mapped binder, so both directions preserve `Q`. Therefore the
+`TypedRow` projection and its support inclusion relation commute with this
+transport when both row operands use the same maps on shared identities. This
+permits non-injective *type substitutions* during solving
+when source ownership identities remain distinct and all formulas are
+substituted together. It does not permit a non-injective map on the shared
+binders, occurrences, or parent identities; those can change the joint fiber
+and require the separate quotient criterion.
+
 Use one occurrence/owner map alongside `θ` for the formula's incidence. For
 solving, apply the solution substitution to both endpoints and occurrence
 payloads and keep the resulting formula attached to every dependent view.
