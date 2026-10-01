@@ -16,6 +16,19 @@ compiler-referee and spec-auditor delta review closed with no remaining
 findings. The sketch remains exploratory and grants no implementation
 authority.
 
+The coupled-interface candidate now has a general abstraction-congruence
+criterion: an exact transformer factors through a finite presentation iff
+equal abstract inputs have equal abstract output sets. A support-only row
+fails for shallow handling when two `{F}` computations differ only in whether
+their raw continuation emits a second `F`; the handled residuals are `∅` and
+`{F}`. This does not require exact trace inference: collecting union remains
+a sound row candidate, subject to a least representable result and symbolic
+`K,D` retention. Generalization/intrusion must satisfy the criterion over
+whole assignment-indexed relations, not only one valuation. Architect,
+compiler-referee, and spec-auditor review closed; details are in
+`notes/progress/2026-10-02-relational-abstraction-congruence.md`. The source
+typing relation, least finite presentation, and lifecycle proofs remain open.
+
 The user's current priority is soundness, then principality, then Oracle
 compatibility. A concrete graph-level q-erasure conflict, proposed Oracle
 behavior to drop, successor rule, and compatibility impact are now recorded;

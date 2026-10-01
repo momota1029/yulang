@@ -2580,6 +2580,79 @@ continuation usage. A practical finite row language may over-approximate this
 set; its principality claim must then be relative to its own expressible
 ordering and denotation.
 
+#### One abstraction-congruence test for relational operations
+
+There is a general criterion for deciding whether a finite interface can
+carry a relation exactly without re-expanding its concrete fibers. Let
+`T ⊆ X × Y` be a source relation and define
+`T(x) = { y | (x,y) ∈ T }`. Let `α_in : X → A` and `α_out : Y → B` be the
+chosen input and output presentations. An exact abstract transformer `t`
+satisfying
+
+```text
+t(α_in(x)) = { α_out(y) | y ∈ T(x) }
+```
+
+exists on the image of `α_in` exactly when
+
+```text
+α_in(x) = α_in(x')  ⇒
+  { α_out(y) | y ∈ T(x) } = { α_out(y') | y' ∈ T(x') }
+```
+
+for every `x,x' ∈ X`. Equality includes the empty set, so the presentation
+preserves whether a complete abstract output is represented; it does not by
+itself distinguish divergence from stuckness. Such outcomes must be included
+in `Y` if the chosen observation distinguishes them. Necessity follows by
+applying `t` to the equal abstract inputs. For sufficiency, define `t(a)` by
+the output set of any representative `x` with `α_in(x)=a`; the premise makes
+that definition independent of the representative. For deterministic total
+operations this reduces to equality of the two abstract outputs.
+
+For a local bind, typed boundary, or handler step, `X` and `Y` may be fixed
+`(ρ,ν,κ)` fibers. Generalization and intrusion instead act on complete
+assignment-indexed relations: their `X` and `Y` must include every admissible
+assignment, rigid import, owned identity, root observation, and the relevant
+projection or parent transport. Checking congruence at one `ν` does not prove
+preservation of those whole-relation fibers. This is a criterion on a
+presentation, not a new source rule. It applies uniformly to existing source
+relations and lifecycle maps, exposing where a proposed abstraction forgets
+information that a later composition observes.
+
+A support-only input fails this exactness test for shallow handler transfer.
+At one fixed assignment, take two computations with the same operation,
+payload, family instance, and typed may-row `{F}`:
+
+```text
+c₀ = Request(F, (), λ_. Return(v))
+c₁ = Request(F, (), λ_. Request(F, (), λ_. Return(v)))
+```
+
+Let the visible `F` arm resume the raw continuation once and return its result.
+The first `F` is consumed in both computations. Shallow handling runs the raw
+continuation outside that activation, so the outputs have request supports
+`∅` for `c₀` and `{F}` for `c₁`. The input support abstraction identifies
+`c₀` and `c₁`, but their exact output support observations differ. Therefore
+no pointwise exact handler transformer can factor through that input row
+alone, even when typed-family and payload facts are identical. This is a
+continuation correlation, not a reason to add another row selector.
+
+For this counterexample, instantiate `T` with the typed shallow-handler
+relation at one fixed `(ρ,ν,κ)`, and let `α_in` observe only the typed may-row.
+The failure does **not** make the collecting `May_H` undefined and does not
+require exact continuation-sensitive inference. For the two exhibited
+computations together, the collecting output support is their union `{F}`, a
+sound row result. A finite solver may use the collecting support for a whole
+abstract fiber if it is least in its declared output ordering and if later
+operations remain sound and principal under the same abstraction.
+More generally, a candidate output abstraction needs a least representable
+upper bound of `{ α_out(y) | x∈γ(a), y∈T(x) }`; a finite syntax does not by
+itself guarantee that such a bound exists. When the output carries symbolic
+typed-family predicates, the bound must retain their same-assignment
+incidence `K,D` rather than unioning only materialized supports. The same
+test can be applied to callback composition, filtering, generalization, and
+intrusion, using their appropriate whole-relation input/output maps.
+
 Two unions must not be conflated. Relational disjunction `R ∪ S` chooses one
 of two complete interface relations. Pointwise row join `A ⊔row B` combines
 support coordinates inside an interface and admits computations that mix
