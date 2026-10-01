@@ -1,7 +1,7 @@
 # Symbolic typed-family lifecycle transport audit
 
-Date: 2026-10-02  
-Branch: `research/simple-sub-intrusion`  
+Date: 2026-10-02
+Branch: `research/simple-sub-intrusion`
 Status: conditional relational lemmas; solver/source correspondence remains open
 
 ## Requirement and scope
