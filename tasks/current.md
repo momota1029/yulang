@@ -2,6 +2,20 @@
 
 Updated: 2026-10-02. Branch: `research/simple-sub-intrusion`.
 
+This turn corrected the non-authoritative intrusion sketch's misleading
+one-parent-per-variable picture. Ordinary Simple-sub extrusion has separate
+polarity representatives scoped to an extrusion call; the candidate now uses
+`(ExtrusionCall, VarId, Polarity, BoundaryLevel)` ports, and each incoming use
+freshens them independently. The `L(v)=[Int], U(v)=[]` discriminator shows
+why identifying positive and negative ports loses a valid boundary solution
+pair for reference equivalence. This does not rule out a different sound and
+principal successor quotient; that would need its own theorem. The old
+`O(V+E)` estimate is withdrawn in favor of an unproved `O(P+E_P)` hypothesis.
+See `notes/progress/2026-10-02-intrusion-polarity-parent-ports.md`. A
+compiler-referee and spec-auditor delta review closed with no remaining
+findings. The sketch remains exploratory and grants no implementation
+authority.
+
 The user's current priority is soundness, then principality, then Oracle
 compatibility. A concrete graph-level q-erasure conflict, proposed Oracle
 behavior to drop, successor rule, and compatibility impact are now recorded;

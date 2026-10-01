@@ -31,53 +31,65 @@ Working name: **intrusion**.
 Suppose a solved/frozen SCC contains inference variables at an inner level, and
 we need to expose the SCC across an outer generalization boundary.
 
-For each boundary-relevant variable `v`, allocate an outer-level **parent
-variable** `p(v)` and register the relationship on `v`.
+For each boundary-relevant variable-and-polarity port `(v, p)` at the target
+boundary `B`, allocate an outer-level representative `parent(v, p, B)` and
+register that relationship. One SCC vertex may therefore have more than one
+boundary representative. The diagram below shows the polarity-port shape;
+neither it nor the key specifies which variables are boundary-relevant.
 
 Conceptually:
 
 ```text
 inner SCC                    outer boundary
 
-a -------------------------> a'
-b -------------------------> b'
-c -------------------------> c'
+a⁺ ------------------------> a⁺'
+a⁻ ------------------------> a⁻'
+b⁺ ------------------------> b⁺'
+b⁻ ------------------------> b⁻'
 
-a.parent = a'
-b.parent = b'
-c.parent = c'
+parent(a,+,B) = a⁺'
+parent(a,-,B) = a⁻'
+...
 ```
 
-After parent allocation, boundary-facing uses of an inner variable are replaced
-by its registered parent. The SCC topology itself remains a graph; it is not
-expanded into a tree merely to construct a closed scheme.
+After parent allocation, each boundary-facing occurrence is related to the
+parent port selected by its extrusion call and polarity. The SCC topology
+itself remains a graph; it is not expanded into a tree merely to construct a
+closed scheme.
 
 This can be viewed as a batched version of Simple-sub extrusion: ordinary
 extrusion discovers a cyclic reachable bound graph recursively and memoizes
 fresh low-level representatives. If the SCC is already known, intrusion
 pre-allocates the relevant representatives and then rewrites/relates the graph
 against that fixed map. This is only a structural analogy so far. Simple-sub
-indexes representatives by `(variable, polarity)` and mutates source-side
-bounds as it discovers them. A valid batching simulation must preserve those
-polarity-specific representatives, link writes, bound snapshots, and first-
-visit order; an endpoint rename through one SCC vertex map is not enough.
+indexes representatives by `(variable, polarity)` within an extrusion call and
+mutates source-side bounds as it discovers them. The separate-polarity
+discriminator in the audit has `L(v)=[Int]` and `U(v)=[]`: the positive and
+negative representatives admit distinct boundary choices `Top` and `Bottom`,
+while identifying them loses that pair of choices. So a shared parent across
+polarities is already refuted for ordinary Simple-sub equivalence by this
+case; it would require a different semantic theorem and an explicit account
+of the lost solution. A valid batching simulation must preserve polarity-
+specific representatives, link writes, bound snapshots, and first-visit
+order; an endpoint rename through one SCC vertex map is not enough.
 Details are recorded in
 [`2026-09-30-simple-sub-extrusion-preallocation-lemma.md`](../progress/2026-09-30-simple-sub-extrusion-preallocation-lemma.md).
 
 ## 3. Cost hypothesis
 
 Let the frozen SCC graph have `V` relevant variables and `E` relevant bound
-edges.
+edges, and let `P` be the number of required variable/polarity/boundary ports
+in the chosen extrusion call.
 
-Parent allocation is `O(V)`; applying the parent map to the SCC edges is
-`O(E)`. Thus the expected asymptotic cost is
+The earlier `O(V + E)` estimate assumed one parent per variable and is not
+justified by the polarity-sensitive reference. A port-based pass would cost
+`O(P + E_P)`, where `E_P` counts bound-edge incidences visited through those
+ports. Relating that quantity to `V + E` depends on the graph and port
+allocation rule; it remains a complexity hypothesis.
 
 ```text
-O(V + E)
+O(P + E_P)
 ```
-
-which is the same order as traversing the same reachable cyclic bound graph
-during ordinary extrusion.
 
 This is only a complexity hypothesis until the exact representation and
 polarity rules are fixed.
@@ -130,14 +142,17 @@ v == parent(v)
 may collapse to merely lowering the level of `v`, which is not automatically
 equivalent to Simple-sub extrusion.
 
-The reference design must therefore decide whether the parent map is
+The reference-compatible candidate parent map is
 
 ```text
-(VarId, Polarity, BoundaryLevel) -> ParentVar
+(ExtrusionCall, VarId, Polarity, BoundaryLevel) -> ParentVar
 ```
 
-as in ordinary polarity-sensitive extrusion, or whether SCC structure permits a
-stronger parent-sharing theorem.
+This key shape matches ordinary polarity-sensitive extrusion. Whether a more
+compact successor relation can quotient any of these ports is an independent
+soundness and principality question; it is not a way to claim ordinary
+extrusion equivalence by default. Boundary ownership and the criterion for
+allocating a port remain open.
 
 Do **not** identify positive and negative representatives merely for
 convenience without a proof.
@@ -168,10 +183,14 @@ independent closed tree/DAG scheme, consider an internal authority of the form:
 ```text
 GeneralizedComponent {
     roots: DefId -> Root,
-    parents: InnerVar -> BoundaryVar,
+    parents: (ExtrusionCall, InnerVar, Polarity, BoundaryLevel) -> BoundaryVar,
     graph: frozen generalized SCC graph,
 }
 ```
+
+This is a candidate port map, not an endorsed representation. The displayed
+key includes the call identity because the reference cache is local to one
+extrusion call; a component-wide identity needs its own scope argument.
 
 An individual definition scheme is a projection of this component rather than
 the primary authority.
@@ -188,21 +207,23 @@ current public F5 scheme shape.
 A major motivation for making the parent relation explicit is that the same map
 can become the specialization interface.
 
-At a use site, instantiation chooses values for the parent variables:
+For a fixed generation call `k`, the component contains its boundary ports.
+Each independent incoming use `u` applies its own freshening substitution to
+those ports; it does not reuse another use's instantiated identities:
 
 ```text
-sigma(parent_a) = A
-sigma(parent_b) = B
-sigma(parent_c) = C
+sigma_u(parent(k,a,+,B)) = A_u
+sigma_u(parent(k,a,-,B)) = B_u
+sigma_u(parent(k,c,+,B)) = C_u
 ```
 
 Because the child-to-parent relationship is retained explicitly, the same
 substitution can be pulled back into the frozen SCC graph:
 
 ```text
-a <- A
-b <- B
-c <- C
+a⁺ <- A_u
+a⁻ <- B_u
+c⁺ <- C_u
 ```
 
 Thus generalization, instantiation, and monomorphization can share one boundary
@@ -212,7 +233,7 @@ provenance graph, recursive-bound table, or post-hoc variable matching.
 A plausible specialization cache key is therefore based on
 
 ```text
-(ComponentId, substitution restricted to boundary parents)
+(ComponentId, substitution restricted to boundary ports for use `u`)
 ```
 
 rather than the entire internal constraint graph.
@@ -225,11 +246,15 @@ treatment of inner variables with no parent remains to be specified.
 The minimal interface should distinguish variables whose freedom crosses the
 generalization boundary from variables that remain entirely internal.
 
-A possible shape is:
+A possible shape records a parent independently for each relevant port:
 
 ```text
-parent: Option<BoundaryVar>
+parent: (ExtrusionCall, InnerVar, Polarity, BoundaryLevel) -> Option<BoundaryVar>
 ```
+
+Whether ports persist at component scope or are recreated per boundary
+operation remains open. Every incoming use still gets an independent
+capture-avoiding freshening map.
 
 Only boundary-relevant variables receive parents. Purely internal variables can
 remain component-local and be solved, eliminated, or retained according to the
