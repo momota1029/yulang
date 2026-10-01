@@ -514,40 +514,43 @@ generation, not yet the successor scheme theorem.
 ### Independent external uses versus internal SCC references
 
 The constrained presentation gives a direct product lemma for independent
-external uses. Assume one generalized component has relation
+external uses. Let each use `u` refer to the published scheme relation
+selected for its member root `d_u` at scheduler version `v_u`:
 
 ```text
-Inst_C(ρ) = { (ν,I) | K_C(ρ,ν,I) }
+S_u(ρ) = Inst_{C,d_u,v_u}(ρ)
+      = { (ν,I) | K_{C,d_u,v_u}(ρ,ν,I) }
 ```
 
-and its source scheme rule instantiates every component-owned identity at
-each external use. For every use `u`, let `ι_u` be one injective,
+Assume the source scheme rule gives each external use an independent instance
+of its selected relation. For every use `u`, let `ι_u` be one injective,
 capture-avoiding renaming of all locally owned identities in the complete
 interface and formula, fixing the same rigid `ρ`. Require the ranges of the
 `ι_u` to be pairwise disjoint. The unconstrained joint relation is:
 
 ```text
-Joint_U(ρ) = { ((ν_u,I_u))_u | (ν_u,I_u) ∈ ι_u(Inst_C(ρ)) for every u }
+Joint_U(ρ) = { ((ν_u,I_u))_u | (ν_u,I_u) ∈ ι_u(S_u(ρ)) for every u }
 ```
 
 It has the equivalent finite presentation
 
 ```text
-K_U = ⋀_u ι_u(K_C)
+K_U = ⋀_u ι_u(K_{C,d_u,v_u})
 ```
 
 over the disjoint union of the local identity ranges and the one shared
 outer assignment `ρ`. Proof in each direction is restriction/union of
 assignments: a joint assignment satisfies the conjunction exactly when its
 restriction to every disjoint use namespace satisfies that use's renamed
-`K_C`. Since each `K_C` includes typed-family formulas and incidence, the
-product duplicates those together with the roots; it does not share their
-local identities across uses. A caller constraint `K_ctx` may relate copies,
-but it intersects with `K_U` only after the independent instances exist.
+`K_{C,d_u,v_u}`. Since each selected formula includes typed-family relations
+and incidence, the product duplicates those together with each selected root
+view; it does not share their local identities across uses. A caller
+constraint `K_ctx` may relate copies, but it intersects with `K_U` only after
+the independent instances exist.
 
-Internal SCC references are different because the component interface
+Internal SCC references are different because the live component relation
 already contains all mutually recursive roots and their shared graph. They
-remain references inside one `Inst_C(ρ)` and receive no `ι_u` per recursive
+remain references inside that live relation and receive no `ι_u` per recursive
 edge. The product factors over external use sites of the generalized
 component, not over SCC members or internal calls. This is the relational
 form of open live-root sharing inside a component and independent freshening
@@ -555,10 +558,23 @@ at its boundary.
 
 This proves the product equation only if the source generalization rule gives
 each external use an independent instance and correctly classifies all free
-outer anchors. It does not prove that the source builds `K_C` exactly, that
-the constrained formula solver terminates, or that root-scheduler mutations
-are captured by the component relation. Those are still required for the
-intrusion redesign's Oracle-capability theorem.
+outer anchors. It does not prove that the source builds any selected
+`K_{C,d,v}` exactly, that the constrained formula solver terminates, or that
+root-scheduler mutations are captured by the component relation. Those are
+still required for the intrusion redesign's Oracle-capability theorem.
+
+The product equation applies to the selected published relations; it does not
+establish that all SCC member schemes come from one identical component
+snapshot. The source audit recorded in
+`notes/design/2026-09-29-intrusion-abstract-semantics-draft.md` found
+root-preparation mutations and saved root results that later bounded passes
+may not restart. If root `d` observes a particular generalized state version
+`v`, use `Inst_{C,d,v}(ρ)` for that scheme relation. The product lemma applies
+to a family of fixed `(d,v)` relations after their meanings are established.
+Proving that these root/version views are projections of one `Rel_C`, or else
+preserving their versioned simulation relation, remains a scheduler-simulation
+obligation. The version label records machine history; it is not an
+additional source-level selector.
 
 ## Open gates
 
