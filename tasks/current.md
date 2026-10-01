@@ -3535,4 +3535,6 @@ coverage of every source transition output by the finite image.
 This remains an unreviewed draft correction. Next, prove the source step and
 typed-transition correspondence, then test whether finite image projection
 preserves symbolic typed-family fibers without a separate handler obligation
-store.
+store. The new progress entry explicitly supersedes older wording that
+required totality over every abstract behavior for final acceptance; that
+stronger condition only supports a total-transformer or exact-domain theorem.

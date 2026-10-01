@@ -8262,3 +8262,14 @@ constraints carried by that same relation. Do not conjoin a totality formula
 to the scheme or filter its source fiber. This is a draft correction, not an
 approved handler calculus; source typing preservation and finite image
 principality remain open.
+
+This correction supersedes the earlier wording in `A single abstraction pair`
+that required the handler transformer to be defined on every member of the
+abstract fiber as a condition for final-acceptance adequacy. That requirement
+is appropriate only when proving an everywhere-defined abstract transformer
+or preserving an exact valuation domain. It is stronger than the acceptance
+criterion for a finite over-approximation. For acceptance, compare the actual
+source transition outputs with the denotation of the relational image; extra
+abstract behaviors without a typed transition do not by themselves reject a
+source fiber. They matter only if their loss causes an actual source output
+not to be covered or the output relation not to be finitely representable.
