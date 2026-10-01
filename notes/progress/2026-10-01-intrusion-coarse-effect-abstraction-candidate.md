@@ -5249,6 +5249,38 @@ materialization. The candidate source derivation still depends on a selected
 language rule for effect-row annotations and handlers, and the route/owner of
 `Eθ` remains unresolved; those gaps prevent treating this rule as authoritative.
 
+#### Callback-row polarity is not determined by the typed-family witness
+
+The `[ask bool]` / `[ask int]` witness establishes that a sound source system
+must not let a callback produce an operation result inconsistent with the
+handler arm's continuation input. It does not establish the direction or full
+shape of callback effect subtyping. In its ordinary argument-effect branch,
+the frozen Oracle characterizes function argument effects as contravariant,
+but its weight routing is not semantic authority under the user's instruction.
+The successor must derive the callback rule from its declarative
+computation/effect semantics and function variance rule.
+
+The same-head family invariant is direction-independent once two typed rows
+are known to meet: either orientation emits both `τ <: υ` and `υ <: τ`.
+However, row support and tail constraints are directional. For example,
+`{ask} ⊆ {ask,io}` holds while the reverse inclusion does not. Therefore the
+closed/open `RowLeq` characterization cannot by itself select whether an
+actual callback row is the left or right endpoint of the function-argument
+comparison, nor can same-head invariance justify an orientation for unmatched
+effects. The minimized witness has equal support on both sides and cannot
+distinguish those choices.
+
+Until the independent function/effect variance rule is derived, retain only
+the soundness obligation: any callback path that can produce an offered
+same-head request must preserve its symbolic family-argument constraint to
+the matching handler/continuation view and check that constraint before final
+acceptance. Merely retaining a detached or unchecked formula is insufficient.
+Do not claim the candidate actual/formal callback comparison is the selected
+source rule or that it is principal for the language. The witness justifies
+rejecting that concrete unsound acceptance; it does not identify the Oracle's
+internal missing edge or settle compatibility for programs with differing
+effect supports.
+
 #### Closed typed-row subtyping fragment (conditional lemma)
 
 The callback comparison above needs a precise local meaning independent of

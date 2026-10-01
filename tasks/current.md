@@ -2402,3 +2402,14 @@ incidence. This is pointwise exactness only; source-rule appropriateness,
 normalization, and global effect principality remain unproved. See
 "Assignment-wise open typed-row characterization (conditional lemma)" in the
 candidate progress record.
+
+An adversarial review of the proposed callback rule separated the
+direction-independent same-head `InvArgs` obligation from directional row
+support/tail constraints. The minimized equal-support witness cannot determine
+function-argument effect polarity. The note now treats frozen Oracle
+contravariance only as ordinary-branch characterization, not successor
+authority, and requires the symbolic constraint to remain connected to and be
+checked against the handler/continuation before final acceptance. Review found
+no blocking/major issue after these precision repairs. The independently
+derived successor variance rule remains open; see "Callback-row polarity is
+not determined by the typed-family witness" in the candidate record.
