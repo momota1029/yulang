@@ -7774,3 +7774,22 @@ have an observationally equivalent factorization. This is provided by MGU
 theory for first-order equality unification, but needs its own proof for
 polarized subtype solving. Symbolic family formulas stay in the substituted
 relation; row materialization is not a reconstruction path.
+
+### Correction: do not compare support marginals across assignments
+
+An earlier finite-domain coverage sketch allowed support projections to be
+unioned across argument assignments before comparing rows. That loses
+correlation and is not a valid row-inclusion semantics. Take two independent
+left `F` requests with arguments `a,b ∈ {int,bool}` and the complete assignment
+`a=int,b=bool`; the left support is `{F<int>,F<bool>}`. Two right requests that
+share one binder `c ∈ {int,bool}` have only `{F<c>}` at every complete
+assignment, so neither right assignment covers that left assignment. However,
+the union of right supports across assignments is `{F<int>,F<bool>}`, which
+would falsely suggest coverage if compared with the union of left supports.
+
+The coupled-effect draft now defines row inclusion pointwise at the same
+complete assignment, with the assigned shared binder value retained in the
+joint relation `J_R(ν)`. This supersedes the earlier marginal-coverage
+formulation in this progress record. It is still only a candidate semantic
+relation: the source rule for shared ownership, the argument denotation, and
+sound/principal solver support remain unproved.

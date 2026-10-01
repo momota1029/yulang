@@ -2934,13 +2934,14 @@ independent uses map that identity separately before handlers constrain it to
 identity projection, not a row-only fresh semantic variable. This is
 behavioral characterization, not Oracle internal transport evidence.
 
-For fixed assignments over finite argument domains, row inclusion reduces to
-all-left-request coverage by the union of right typed requests. A `{int,bool}`
-left occurrence is covered by separate `{int}` and `{bool}` right occurrences,
-so choosing one right partner for an entire left occurrence is not complete;
-mere pairwise overlap also misses uncovered values. Symbolic finite
-representability depends on exact coverage procedures for the selected type
-algebra and remains open.
+Correction to the earlier marginal coverage claim: row inclusion is evaluated
+at one complete assignment, before projecting over possible family binder
+values. Example: two independently assigned left occurrences may be
+`F<int>, F<bool>`, while two right occurrences share one binder and therefore
+produce only `F<int>` or only `F<bool>` at a time. The support union across all
+assignments is `{F<int>,F<bool>}` on both sides, but pointwise the right row
+never covers the left row containing both. The draft now keeps this relation
+pointwise and records the false acceptance caused by marginalizing first.
 
 Recorded a projection-loss witness: the relation
 `{(a, result=a, request=F<a>) | a ∈ {int,bool}}` has exact marginals but their

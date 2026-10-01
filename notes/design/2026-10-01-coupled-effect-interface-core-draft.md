@@ -67,48 +67,47 @@ admissibility, and dynamic boundary visibility respectively.
 
 #### One denotational row relation (candidate)
 
-For a fixed type/row assignment, interpret a typed row jointly with its
-source-owned family-instantiation binders. Let `g(o)` identify the already
-owned type binder or binder tuple whose invariant argument is shared by
-occurrence `o`; it is not a fresh semantic variable added solely for row
-matching. Occurrences with no shared binder receive distinct local identities.
-This identity comes from lexical/source ownership and is transported with the
-complete relation, not selected by a row-comparison call site. If
-`ArgDen_A(o,ν)` interprets the complete argument tuple of occurrence `o`,
-define the joint typed-request relation:
+For a fixed complete assignment `ν`, interpret a typed row jointly with its
+source-owned family-instantiation identities. Let `g(o)` identify the owned
+type identity or tuple whose assigned value supplies the invariant argument
+of occurrence `o`; it is not a fresh value chosen independently during row
+comparison. Occurrences with no shared binder receive distinct local
+identities. This ownership comes from the source typing relation and is
+transported with the complete relation, not selected at a row-comparison call
+site. If `ArgDen_A(o,ν)` interprets the allowed complete argument tuple of
+occurrence `o`, define:
 
 ```text
-J_R(ν) = { (b, Q) |
-  b_g ∈ ⋂_{o:g(o)=g} ArgDen_A(o,ν) for every binder g,
-  Q = { (head(o), b_{g(o)}) | o ∈ occurrences(R,ν) }
+J_R(ν) = { Q |
+  ν(g) ∈ ⋂_{o:g(o)=g} ArgDen_A(o,ν) for every binder g,
+  Q = { (head(o), ν(g(o))) | o ∈ occurrences(R,ν) }
 }
-TypedRow(R,ν) = { q | ∃b,Q. (b,Q) ∈ J_R(ν) ∧ q ∈ Q }
+TypedRow(R,ν) = ⋃ J_R(ν)
 RowSub(R,S,ν) iff J_R(ν) ≠ ∅ ∧ J_S(ν) ≠ ∅
                    ∧ TypedRow(R,ν) ⊆ TypedRow(S,ν)
 ```
 
 Open tails are evaluated in the same assignment before taking this relation;
 they are not replaced by a second source-site rule. `RowSub` is the candidate
-meaning behind row splitting, filtering, and row comparison. A solver may
-expand subset into finite witness formulas, but a `Sel_s`/`Demand` pair list
-then records a derivation of membership, not an additional semantic choice.
-For singleton point arguments with independent binders, the expansion is the
-familiar per-left-occurrence disjunction over compatible right occurrences.
-For interval or compound arguments, the set denotation controls the expansion
-and preserves shared tuple dependencies; pairwise overlap is not assumed
-equivalent. The nonempty-`J` premise also prevents an inconsistent shared
-binder from making inclusion vacuously true by projecting to an empty row.
+meaning behind row splitting, filtering, and row comparison. Its supports are
+compared at the same complete type assignment; binder values are not
+existentially projected across assignments first. At fixed `ν`, `J_R` is
+empty or contains the one request set selected by the owned binder values. A
+solver may expand subset into finite witness formulas, but a `Sel_s`/`Demand`
+pair list then records a derivation of membership, not an additional semantic
+choice. The nonempty-`J` premise prevents an inconsistent shared binder from
+making inclusion vacuously true by projecting to an empty row.
 
-The common-witness condition is now a projection of `J_R`: a row assignment
-admits a typed request view exactly when every shared binder has a witness in
-the intersection of its occurrences' argument denotations. Typed-family
-invariance is therefore not a second obligation kind; it is the nonempty-fiber
-condition for this joint relation. If the source does not establish shared
-ownership, there is no shared binder and no intersection is imposed. Both
-row inclusion and family coherence are observations of `J_R`, not facts
-reconstructed from materialized family-head support. Handler eligibility
-remains a property of the source handler transition on typed requests and
-active boundaries, not a variant of `RowSub`.
+The common-witness condition is represented by the owned assignment
+`ν(g) ∈ ⋂ ArgDen_A` for each shared binder. Existentially projecting away `g`
+would retain only the yes/no fact that an intersection is nonempty and lose
+which value remains coupled to roots and requests. Typed-family invariance is
+therefore a predicate in the same solution relation, not a second obligation
+kind and not a post-materialization reconstruction. If the source does not
+establish shared ownership, there is no shared identity and no intersection
+constraint is imposed. Handler eligibility remains a property of the source
+handler transition on typed requests and active boundaries, not a variant of
+`RowSub`.
 
 Under this candidate, splitting is a projection of the joint relation while
 preserving its binder environment; union combines the occurrence views and
@@ -123,20 +122,16 @@ common candidate relation, not the selected successor semantics.
 
 Splitting does not in general justify discarding the shared binder context.
 For occurrence-disjoint rows `R` and `S`, if no binder is shared across the
-split, their joint assignment factors and:
+split, their joint assignment factors and their support projections union.
+If the split separates occurrences that share a binder, the assignment
+condition for that binder must be intersected before projection. For example,
+with argument domains `{int,bool}` and `{bool,str}`, only the shared value
+`ν(g)=bool` satisfies both pieces; independently solving fresh group values
+admits `int` and `str` as well. The relational split therefore carries the
+original binder and its full incidence; a solver may factor it only after
+proving the factorization condition. This is a direct criterion for when row
+splitting is a harmless view and when it would lose a typed-family constraint.
 
-```text
-TypedRow(R ∪ S,ν) = TypedRow(R,ν) ∪ TypedRow(S,ν)
-```
-
-If the split separates occurrences that share a binder, the equality may be
-strict. Let their argument denotations be `{int,bool}` and `{bool,str}`. The
-whole relation permits only the common witness `bool`; projecting the two
-pieces independently admits `int` and `str` as well. The relational split
-therefore carries the original binder and its full incidence; a solver may
-factor it only after proving the factorization condition. This is a direct
-criterion for when row splitting is a harmless view and when it would lose a
-typed-family constraint.
 
 The frozen typed-family use probe is a useful consistency check on binder
 ownership. Its generalized `generic` has result type `α` and effect request
@@ -155,8 +150,8 @@ fixture and its artifact limitation are recorded in
 The joint relation has an exact finite formula on closed rows when every
 occurrence denotes one point argument tuple. Write `args(o) ≈ args(p)` for
 componentwise equality in the chosen type interpretation, and define
-`GroupEq(R)` to require this equality for every pair of occurrences sharing
-one binder in `R`. Then:
+`GroupEq(R,ν)` to require the assigned binder value `ν(g)` to equal each
+occurrence argument tuple in its group. Then:
 
 ```text
 RowSub(R,S,ν) iff
@@ -165,9 +160,10 @@ RowSub(R,S,ν) iff
       args(o) ≈ args(p)
 ```
 
-An empty disjunction is false. `GroupEq` is exactly nonemptiness of each
-point-valued binder fiber in `J`; after it holds, `TypedRow` is the finite set
-of typed requests carried by the occurrences. The final conjunction is then
+An empty disjunction is false. `GroupEq` is exactly the nonempty-`J` condition
+for point-valued arguments at this fixed assignment; after it holds,
+`TypedRow` is the finite set of typed requests carried by the occurrences.
+The final conjunction is then
 ordinary set inclusion, whose witness for each left request is one matching
 right occurrence. This derives the familiar finite pair alternatives from
 one denotation, while retaining the shared-binder equality formulas in the
@@ -199,35 +195,32 @@ equivalent symbolic constraint relation; rebuilding it from the two
 materialized marginals is unsoundly permissive. This is why `TypedRow` is a
 view used for support inclusion, not the authority for the complete scheme.
 
-#### Finite-domain coverage and why one selected match is insufficient
+#### Why row inclusion must retain complete assignments
 
-For a fixed assignment, suppose each argument denotation is a finite subset of
-a finite carrier `U`. Then the same set-inclusion relation has the exact
-expansion:
+At one fixed complete assignment, inclusion has the finite expansion
 
 ```text
 RowSub(R,S,ν) iff J_R(ν) ≠ ∅ ∧ J_S(ν) ≠ ∅ ∧
   ⋀_{q∈TypedRow(R,ν)} ⋁_{p∈TypedRow(S,ν)} q = p
 ```
 
-This is a finite formula over typed requests; it needs no distinguished
-left/right occurrence pairing. A useful boundary case has one left occurrence
-whose argument denotation is `{int,bool}` and two right occurrences whose
-denotations are `{int}` and `{bool}`. Inclusion holds because their union
-covers the left denotation, although neither right occurrence covers the
-whole left occurrence by itself. A solver that commits to one right partner
-per left occurrence loses this valid solution. Conversely, pairwise overlap
-alone is insufficient: for left `{int,bool,str}` and right `{int}` plus
-`{bool}`, each right occurrence overlaps the left, but `str` is uncovered.
-The inclusion formula rejects that case.
+This is an equality of the complete assigned request sets. Do not union the
+`TypedRow` projections across assignments before comparing. For a concrete
+counterexample, let `R` contain two independently owned `F` occurrences with
+arguments `a,b ∈ {int,bool}`; at assignment `a=int,b=bool`, its complete
+request set is `{F<int>,F<bool>}`. Let `S` contain two `F` occurrences sharing
+one binder `c ∈ {int,bool}`; every complete assignment to `S` yields only
+`{F<c>}` because the duplicate requests have one shared argument. At that
+same complete assignment, no `S` row covers `R`. Yet after independently
+unioning supports over all assignments, both sides project to
+`{F<int>,F<bool>}`, and inclusion falsely appears to hold. The full joint
+relation rejects the case without inventing a source-site selector.
 
-The exact all-values formula for symbolic endpoints is
-`∀q∈TypedRow(R,ν). ∃p∈TypedRow(S,ν). q=p`. A finite solver can eliminate
-these quantifiers only when the selected type/argument algebra admits a
-terminating exact coverage procedure. The relation itself remains unified
-without such elimination, but its finite representation and principality do
-not follow. This makes coverage, rather than choosing a source-site selector,
-the concrete next proof obligation for interval-valued rows.
+For interval-valued arguments, `ν(g) ∈ ⋂ ArgDen_A` is part of the same
+assignment predicate. Any finite formula or solver normalization must retain
+that selected value and all root/request correlations while expanding the
+pointwise support inclusion. The support marginal alone cannot certify
+coverage or principality.
 
 ## Source constructs as relational composition
 
@@ -406,12 +399,18 @@ cases require their own observational quotient theorem.
 
 The interval-valued family constraint has a direct transport law in the
 candidate denotation already recorded in the effect proof notes. For a
-source-derived indexed batch `B`, define
+source-derived indexed batch `B`, let `g_B` be its owned shared-family
+identity and define
 
 ```text
-FamAgree_A(B,ν) iff
-  ⋂ { ArgDen_A(args(o),ν) | o ∈ B } ≠ ∅
+FamAgree_A(B,g_B,ν) iff
+  ν(g_B) ∈ ⋂ { ArgDen_A(args(o),ν) | o ∈ B }
 ```
+
+The existential projection `∃b. b ∈ ⋂ ArgDen_A(...)` says only that some
+common inhabitant exists. It is adequate for testing nonemptiness, but it is
+not a replacement for `FamAgree_A(B,g_B,ν)` in a scheme relation when `g_B`
+also occurs in roots or other requests.
 
 Assume the chosen argument denotation is natural under a type substitution
 `θ`, including its complete tuple dependencies:
@@ -420,10 +419,11 @@ Assume the chosen argument denotation is natural under a type substitution
 ArgDen_A(θ(args(o)),ν') = ArgDen_A(args(o),θ*ν')
 ```
 
-Then substitution preserves the whole shared-witness formula:
+For an ownership renaming `h` with `ν'(h(g_B)) = (θ*ν')(g_B)`, substitution
+preserves the whole assigned shared-witness formula:
 
 ```text
-FamAgree_A(B[θ],ν') iff FamAgree_A(B,θ*ν')
+FamAgree_A(B[θ],h(g_B),ν') iff FamAgree_A(B,g_B,θ*ν')
 ```
 
 Proof: apply the denotation identity to each indexed occurrence; the two
@@ -440,8 +440,9 @@ identities bijectively, preserving the grouping relation
 `g'(m(o)) = h(g(o))`. `h` is an ownership map, distinct from the type
 substitution `θ`: two source instantiation groups remain distinct even if
 solving makes their type arguments equal. Assume `θ` is natural for
-`ArgDen_A` as above, with assignments related by pullback. Mapping each
-`b_g` to `b'_{h(g)} = b_g` then gives a bijection:
+`ArgDen_A` as above, with assignments related by pullback and
+`ν'(h(g)) = (θ*ν')(g)` on shared-binder values. Then the ownership/occurrence
+transport gives a bijection:
 
 ```text
 Tr_{m,h}(J_R(θ*ν')) = J_{R[m,θ]}(ν')
@@ -450,10 +451,10 @@ Tr_{m,h}(J_R(θ*ν')) = J_{R[m,θ]}(ν')
 The forward direction preserves every binder's common-intersection
 condition by the denotation identity; the inverse uses `m⁻¹` and `h⁻¹`.
 Request heads are fixed and every request argument is read from the
-corresponding mapped binder, so both directions preserve `Q`. Therefore the
-`TypedRow` projection and its support inclusion relation commute with this
-transport when both row operands use the same maps on shared identities. This
-permits non-injective *type substitutions* during solving
+corresponding mapped assigned binder, so both directions preserve `Q`.
+Therefore the `TypedRow` projection and its pointwise support inclusion
+commute with this transport when both row operands use the same maps on shared
+identities. This permits non-injective *type substitutions* during solving
 when source ownership identities remain distinct and all formulas are
 substituted together. It does not permit a non-injective map on the shared
 binders, occurrences, or parent identities; those can change the joint fiber
