@@ -53,6 +53,30 @@ the mixed case a real question, but they do not demonstrate it. Root-epoch
 metrics also do not reconstruct every intermediate compact view, as recorded
 in `2026-10-01-intrusion-oracle-root-epochs-and-use-context.md`.
 
+A source review narrows these possibilities but does not remove them. Boundary
+lookup is per definition (`typing.rs:96-103`,
+`analysis/session/generalize.rs:767-776`); the path contains no
+component-wide boundary normalization. Ordinary mixed-fetch internal uses
+that target a computed member are diagnosed as `ComputedFetchCycle`
+(`scc/graph.rs:658-676`), so this familiar source shape is not an accepted
+witness. However, payload-free `DependencyAdded` edges can participate in an
+SCC and are produced for role requirements and pending role candidates
+(`scc/graph.rs:147-156`, `analysis/session/lifecycle.rs:359-369`,
+`analysis/session/selection.rs:43-71`). Thus a mixed-fetch SCC without the
+computed-use diagnostic is source-permitted at the scheduler level; no
+accepted source fixture with a shared identity across such member views has
+been found. This does not start the later method/role semantics gate.
+
+Likewise, levels are mutable shared machine state and only move downward
+(`constraints/mod.rs:458-467`). Bound insertion can extrude endpoints
+(`constraints/machine/bounds.rs:630-645, 815-830, 4701-4727`), while the first
+member's generalization prepasses may add constraints before the next member
+is selected (`analysis/session/generalize.rs:103-125, 168-200, 327-336,
+478-511, 536-543`; `analysis/session/instantiate.rs:14-39`). Each Q selection
+reads the then-current level (`generalize/mod.rs:900-915`). Cross-epoch
+lowering is therefore possible in the mechanism, but still lacks an accepted
+source witness changing a shared identity's Q classification.
+
 There is a useful conditional exclusion for Q-versus-free ownership. For a
 variable `v` that occurs in both roots' compact-plus-role views where their
 quantifiers are selected, if both roots use the same boundary and
@@ -108,7 +132,10 @@ another fixture can expose root-local R/free ownership, boundary variation,
 level lowering, or a post-selection graph rewrite.
 
 The next useful source evidence must come from one accepted same-SCC
-construction or a complete saved graph view. It must align, for both member
+construction or a complete saved graph view. The narrow probe is a
+diagnostic-free dependency-cycle with mixed fetch classes and one shared deep
+variable, recording its level and both Q sets around a constraint-producing
+first-member prepass. It must align, for both member
 roots, the same pre-finalization machine identity with:
 
 1. published `scheme.quantifiers` and finalized recursive-bound variables;

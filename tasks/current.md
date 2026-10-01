@@ -1954,8 +1954,15 @@ Q `[11,97,98]` for both roots, and distinct root-local R binders 97 and 98.
 Cross-recursive occurrences are Q/Q in this fixture, and incoming uses have
 disjoint Q clone targets. The trace closes only this fixture's inventory; it
 does not exclude Q split mechanisms elsewhere or establish general R ownership.
-Next search for accepted source shapes with cross-epoch level lowering,
-post-selection ancestor rewriting, or a root-local R/free occurrence, then
-derive source-owned member views if no such program is expressible.
+A further source review confirms boundary selection is per definition and
+generalization roots are processed sequentially. Payload-bearing internal uses
+to a computed-fetch member are diagnosed, but payload-free scheduler edges can
+participate in mixed-fetch SCCs without that diagnostic. Mutable prepasses can
+also lower shared levels before later Q selection; this is mechanism-level
+possibility, not an observed accepted source transition. No accepted mixed-
+fetch/shared-identity fixture is known. Next construct a diagnostic-free
+dependency-cycle case with a shared deep variable and inspect levels/Q around
+the first member's constraint-producing prepass; independently continue the
+root-local R/free ownership search.
 Effect-row principality, route quotient completeness, and Oracle acceptance
 remain open.
