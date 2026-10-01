@@ -52,6 +52,11 @@ checklist now distinguishes candidate endpoint groups for split, residual,
 collection, filter, stack, and callback rules from their still-unproved
 `Demand` outputs; Oracle's representative choice and weight route cannot fill
 those premises.
+A closed point-valued filter check now has a conditional source rule: unique
+same-head occurrences give a deterministic keyed selector, and support
+inclusion plus its symbolic argument formulas characterize acceptance.
+Duplicate heads, open rows, interval arguments, and concrete solver
+transitions remain outside that lemma.
 
 ## Objective
 

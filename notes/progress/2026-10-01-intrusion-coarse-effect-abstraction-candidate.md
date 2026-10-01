@@ -5456,6 +5456,51 @@ The source audit supports the following narrow applicability map:
 | Generic callback/Function row comparison | Principal monomorphization matches effect-row items by family and emits subtype constraints in its specialization graph, but this is not a source typing rule requiring invariant comparison for every actual/formal same-head pair. | Candidate successor rule only; prove it from callback typing and the selected effect abstraction. |
 | Arbitrary open `RowLeq` and all same-head occurrence pairs | The frozen list does not define this general relation. | Candidate denotation only; prove source adequacy and solver principality before selecting it. |
 
+#### Closed point-row filter rule (conditional source lemma)
+
+One source site admits a small declarative characterization without using
+weighted routing. Assume closed actual and annotation rows contain at most one
+typed occurrence per family head, their argument terms denote point values,
+and `≈` is the source type equivalence used for invariant family arguments.
+Define a concrete filter check by
+
+```text
+FilterOK(E,A) iff
+  support(E) ⊆ support(A)
+  and for each F<τ̄> in E, the unique F<ῡ> in A satisfies τ̄ ≈ ῡ
+```
+
+The source selector is deterministic: it selects the pair of unique
+same-head occurrences for each `F` in `support(E)`. For each argument
+position `i`, emit a symbolic formula encoding `τᵢ ≈ υᵢ`, keyed by the
+filter source site, both occurrence owners, `F`, `i`, and the checked-view
+occurrence. `FilterOK` then holds under assignment `ν` exactly when support
+inclusion passes and `ν` satisfies all selected formulas. If a family is
+absent from `A`, the support check fails; there is no same-head formula to
+reconstruct later.
+
+For this fragment, the lifecycle action is direct: solving substitutes each
+formula endpoint while retaining its stable key and owner incidence; a proof
+may discharge it only while preserving proof evidence for every still-
+demanding checked view. Residualization transfers the record to each output
+whose derivation used the check. Generalization maps local endpoint binders
+and their row owners together while fixing outer anchors. Fresh instantiation
+clones the demanded incidence subgraph and applies one capture-avoiding map to
+both endpoints and occurrence owners. Injective intrusion transport applies
+the type-parent map to endpoints and the graph map to keys/owner edges; a
+non-injective map still needs its separate quotient proof. These are the
+conditional transport lemmas already stated above instantiated at a
+deterministic source selector, not proof that an actual successor machine
+implements the transitions.
+
+The premises matter. Duplicate family heads make annotation matching
+non-unique and may require one batch common-witness formula; open rows require
+the source selector to operate on symbolic occurrences and preserve delayed
+matches; interval-valued arguments need the common-witness relation, not
+point equivalence. This lemma therefore settles only a closed point-row
+filter subcase. It neither derives handler visibility nor validates any
+Oracle weight route.
+
 The source-site boundary can be recorded without importing Oracle's selector
 algorithm. For any eventual successor rule, an obligation key identifies the
 rule site, selected owner occurrences, family, and argument position; the
