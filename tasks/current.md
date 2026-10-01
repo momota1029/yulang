@@ -2752,6 +2752,12 @@ covariant tuples fit this shape conditionally, and the finite regular-witness
 argument extends when their ranks are added to the fixed signature. This is a
 carrier lemma, not proof that all source tuple/nominal rules fit it or that
 root/use fibers and Oracle final acceptance are preserved.
+For closed ground tuples, equal-arity inclusion matches Oracle's observed
+covariant element obligations; unequal arity is rejected by distinct heads.
+Oracle defers the latter check to specialization, which also rejects it, so
+the candidate's earlier rejection is only a permitted phase difference in
+this case. Open tuple variables and nested effects/recursive bounds remain
+uncovered.
 
 A focused compiler-referee audit confirms that the existing typed-family
 transport theorem assumes, rather than proves, the concrete phase transitions.

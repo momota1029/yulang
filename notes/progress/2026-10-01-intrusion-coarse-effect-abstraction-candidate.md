@@ -6719,6 +6719,20 @@ dependent/shared slots, or Function effect rows, and it does not prove that
 the regular restriction preserves complete root/use fibers. The channel tags
 are a denotational encoding choice, not source-level selectors.
 
+The frozen behavior premise is recorded in
+[`2026-09-29-intrusion-abstract-semantics-draft.md`](2026-09-29-intrusion-abstract-semantics-draft.md),
+§ “Full-envelope stage boundary.” For closed ground tuples, this constructor
+lemma gives a concrete final-acceptance comparison point. At equal arity,
+inclusion reduces to the componentwise covariant obligations that the frozen
+Oracle emits. At unequal
+arity, distinct head atoms make inclusion fail. The Oracle can defer that
+shape failure until concrete specialization, but its final specialization
+rejects the mismatch. Thus this candidate may reject earlier while preserving
+the observed final result for this closed-ground case; the phase difference
+is within the user's explicit compatibility allowance. This does not establish
+parity for open tuple variables, optional/width record fields, or tuples
+nested inside effects or recursive bounds.
+
 #### Regular-witness property for finite pure constraints (candidate theorem)
 
 The carrier refinement has a stronger conditional property for the finite
