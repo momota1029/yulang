@@ -3637,3 +3637,9 @@ family-fiber and visibility transport. The callback result interface must
 include shape-directed escaping activation lineage and dynamic re-entry, with
 runtime identities distinct from static binders, as characterized by the
 frozen guard-marker contract.
+`Visible` cannot depend only on family plus active stack: the nested-provider
+source pair changes handler result when the receiver's capture contract
+changes, and its explicit grant survives a wildcard helper. Next formalize
+source-owner incidence and capture scope from ordinary annotation typing,
+including closure escape and scheme lifecycle; do not encode it as an Oracle
+route ledger.

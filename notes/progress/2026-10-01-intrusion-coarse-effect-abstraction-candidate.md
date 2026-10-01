@@ -8967,3 +8967,17 @@ identity. The complete interface must transport that lineage alongside `K,D`
 and keep runtime-fresh IDs separate from static binders. A plain row or a
 compile-time binder rename cannot establish this; the source machine
 simulation remains open.
+
+The source-reference capture examples now constrain the common `Visible`
+relation directly. A nested-provider pair keeps family and active-handler
+shape fixed but changes the result when the receiving callback's concrete
+capture row changes to wildcard; the receiver's explicit grant also survives
+an intervening wildcard helper. Therefore path-plus-stack visibility and one
+unscoped per-family grant are inadequate carriers. The draft compares those
+with the complete typed request/interface relation plus source-owner incidence
+and activation context, which remains a preferred but unproved formulation.
+The immediate source-semantics task is to define ownership/grant scope from
+the source annotation relation, including helper, escape, thunk-force, and
+scheme lifecycle cases. See
+`notes/progress/2026-09-30-intrusion-weight-routing-counterexample-search.md`
+for the frozen fixture evidence.

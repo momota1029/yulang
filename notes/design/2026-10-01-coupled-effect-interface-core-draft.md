@@ -1053,6 +1053,37 @@ for `Visible`, not separate inference rules or mathematical constructs. A
 current-stack-only predicate is therefore incomplete. The specifications
 give these cases:
 
+The capture-contract behavior narrows what `Visible` may depend on. The frozen
+source reference at `a58eefc3`, `web/docs/reference/effects.md`, says that a
+concrete callback effect row grants matching-family visibility inside the
+receiving function, while callback-origin effects without that contract remain
+protected from an inner same-family handler. A focused nested-provider pair
+also shows that an explicit grant on
+the receiving function survives an intervening helper with a wildcard callback
+row; changing only the receiver's row to wildcard moves handling to the outer
+handler. The fixture and outputs are recorded in
+`notes/progress/2026-09-30-intrusion-weight-routing-counterexample-search.md`.
+With the concrete receiver row the inner handler returns `[2]`; changing only
+that row to wildcard lets the outer handler return `[1]`. Thus
+operation-family equality and the nearest active handler do not determine
+visibility by themselves.
+
+Three possible visibility carriers have different status:
+
+| Candidate | Assessment |
+| --- | --- |
+| `Visible` from operation family and active stack alone | Rejected by the paired nested-provider observation: equal family and stack shape, different source capture contract, different handler result. |
+| One transferable Boolean per family | Too coarse without scope and origin: it cannot state which request occurrence received the grant or whether a returned value may carry it beyond the receiver activation. It also risks collapsing absent, concrete, and wildcard annotation forms. |
+| The complete typed request/interface relation with source-owner incidence and the active activation context | Preferred proof carrier: the source contract can constrain the same symbolic request relation, and `Visible` is a projection of that relation plus context. It is not yet defined by successor source typing, and finite principal presentation remains open. |
+
+This is not a choice to copy Oracle weights. It is a consequence of the
+observable capture-contract distinction in the source reference. Request
+provenance and active handler identities must remain separate from type-family
+identity, while route ledgers remain derivation evidence. The next semantic
+obligation is to define how ordinary source typing assigns and scopes those
+owner/incidence links for each supported annotation form, including helper
+calls, closure escape, thunk force, generalization, and instantiation.
+
 - `Apply` evaluates callee and argument expressions before applying the
   resulting values. A `MakeThunk` expression captures a suspended computation
   and returns a thunk value; it does not evaluate that body.
