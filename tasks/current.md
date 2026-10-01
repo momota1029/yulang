@@ -3301,3 +3301,11 @@ with bind on `Return`, `Request`, and finite-prefix nodes, mapping `K,D` and
 continuations together while keeping the live store behavior fixed. This
 supports freshening and injective intrusion only; quotient/fiber preservation
 for non-injective parent maps remains open.
+
+Further audit of the Function contract found that its earlier
+`Beh_{ρ,ν}(f,x)` omitted the dynamic activation and starting state. A callable's
+resumed request visibility depends on that context and its captured boundary
+lineage. The contract is now indexed by `(κ,s)` and quantifies over contexts
+admitted by the complete value interface; simple row variance is conditional
+on preserving that context interface. The source rule defining these allowed
+contexts remains open, and row-only comparison cannot supply it.

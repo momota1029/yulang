@@ -710,22 +710,29 @@ meaning must therefore remain a successor conjecture until the source
 computation relation is selected and reviewed.
 
 A compact candidate gives ordinary Function types a relational reading. Let
-`Beh_{ρ,ν}(f,x)` be the source-defined relation of finite evaluation
-observations from applying callable value `f` to argument value `x`. Each
-observation is a pair `(τ,o)`, where `τ` is a finite typed-request prefix and
-`o` is either `Return(v)` for a completed call or `Prefix` when evaluation has
-not yet returned. Include every finite prefix, including prefixes of runs that
-eventually diverge, so an emitted request is still checked when there is no
-return value. A returned value records its latent interfaces. Whether delayed
-requests belong to `τ` or only to a returned latent interface must follow the
-source thunk/force rules; `Beh` does not assume that boundary. Write
-`supp_now(τ)` for the **typed-request** support observed at the source-defined
-call boundary, retaining each family argument. Then a candidate denotation is:
+`Beh_{ρ,ν,κ,s}(f,x)` be the source-defined relation of finite evaluation
+observations from applying callable value `f` to argument value `x` under
+dynamic activation context `κ` and machine state `s`. These inputs matter:
+the same closure or thunk can be called under different active handler stacks,
+and its captured boundary lineage affects which later requests are visible
+after resumption. The complete value interface must determine which call
+contexts and states are admitted; it cannot be reconstructed from an effect
+row. Each observation is a pair `(τ,o)`, where `τ` is a finite typed-request
+prefix and `o` is either `Return(v)` for a completed call or `Prefix` when
+evaluation has not yet returned. Include every finite prefix, including
+prefixes of runs that eventually diverge, so an emitted request is still
+checked when there is no return value. A returned value records its latent
+interfaces. Whether delayed requests belong to `τ` or only to a returned
+latent interface must follow the source thunk/force rules; `Beh` does not
+assume that boundary. Write `supp_now(τ)` for the **typed-request** support
+observed at the source-defined call boundary, retaining each family argument.
+Then a candidate denotation is:
 
 ```text
 f ∈ ⟦A ->[E] B⟧_{ρ,ν} iff
   ∀x ∈ ⟦A⟧_{ρ,ν}.
-  ∀(τ,o) ∈ Beh_{ρ,ν}(f,x).
+  ∀(κ,s) admitted by the complete call interface of f.
+  ∀(τ,o) ∈ Beh_{ρ,ν,κ,s}(f,x).
     supp_now(τ) ⊆ TypedRow(E,ν) ∧
     (o = Return(v) ⇒ v ∈ ⟦B⟧_{ρ,ν})
 ```
@@ -733,13 +740,12 @@ f ∈ ⟦A ->[E] B⟧_{ρ,ν} iff
 Define semantic Function compatibility by inclusion between these denotations.
 Application composes callee evaluation, argument evaluation, and `Beh`; a
 surrounding handler acts on the resulting complete computation relation. A
-finite structural rule is a sufficient compatibility condition: formal
-arguments are admitted by the actual domain, actual results fit the formal
-result, and `RowSub(E_actual,E_formal,ν)` holds, if the source semantics
-establishes that `E` bounds these call-boundary requests. This yields the usual
-argument contravariance, result covariance, and effect inclusion in the safe
-direction. For fixed `Beh`, the direct proof is: every value admitted by
-`A_formal` is admitted by `A_actual`; each observed result in `B_actual` is
+finite structural rule can use the usual argument contravariance, result
+covariance, and `RowSub(E_actual,E_formal,ν)` only when the source rule proves
+that the actual callable's call-context interface covers every context the
+formal type admits, with visibility and captured boundary lineage preserved.
+For a fixed compatible context map, the direct proof is: every value admitted
+by `A_formal` is admitted by `A_actual`; each observed result in `B_actual` is
 also in `B_formal`; and each actual request support admitted by
 `E_actual` is admitted by `E_formal` through `RowSub`. Thus every behavior
 satisfying the actual contract satisfies the formal one. It need not
@@ -767,9 +773,9 @@ presentation may be unavailable. Choosing the structural rule trades that
 precision for a simpler solver and requires a final-acceptance comparison on
 any resulting rejection. The relational denotation remains the candidate
 mathematical core, not an established successor rule. Its source meaning must
-define `supp_now`, delayed operations/thunks, callback invocation, and
-nonreturning prefixes in one evaluation relation; neither Oracle routing nor
-the pure F5 Function rule settles them.
+define `supp_now`, the allowed call-context interface, delayed operations and
+thunks, callback invocation, and nonreturning prefixes in one evaluation
+relation; neither Oracle routing nor the pure F5 Function rule settles them.
 
 #### Evaluation contexts and the frozen runtime contract
 
