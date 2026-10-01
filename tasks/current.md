@@ -3044,6 +3044,14 @@ legitimately constrain symbolic assignments and rules out a later accidental
 loss caused by support materialization. Derivation of `P_H` from actual source
 typing remains open.
 
+The value/effect composition countermodel is now stated in the complete
+relational form too: retaining the alternatives `(0,{A})` and `(1,∅)` lets
+ordinary relational composition produce only pure outputs; support projection
+adds the impossible pair `(1,{A})`, enabling a spurious `B` effect downstream.
+This confirms why relational disjunction over complete interfaces must stay
+distinct from pointwise row join. It remains a finite semantic witness; the
+source-derived carrier and its finite principal solver are open.
+
 A finite value/effect countermodel now exhibits strict handler-composition
 loss for support-only rows: `H` can produce either `A; return 0` or `return 1`,
 while `γ({A})` invents the correlated case `A; return 1`; a later shallow

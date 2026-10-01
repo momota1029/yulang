@@ -709,6 +709,22 @@ relational interface can avoid this particular widening only if it retains
 the value/effect correlation; a may-row cannot assume exact handler
 composition.
 
+In the corresponding complete interface relation, keep the alternatives
+separate:
+
+```text
+Rel_H(X) = { (value=0, row={A}), (value=1, row=∅) }
+Rel_G∘Rel_H(X) = { (value=0, row=∅), (value=1, row=∅) }
+```
+
+The first `G` result comes from resuming `A` and observing `0`; the second is
+the pure value arm. No branch emits `B`. The widened support concretization
+adds `(value=1,row={A})`, and only that invented pair reaches `G`'s `B` arm.
+Thus ordinary relational composition preserves this example exactly, while
+projecting to a may-row and concretizing again does not. This is an
+extensional proof-reuse advantage for the coupled-relation candidate, not yet
+a finite-solver or source-adequacy result.
+
 For the direct shallow fragment, the trace rules give the corresponding
 operational cases: `Return` executes the value arm; a covered, eligible
 request executes its operation arm with the raw continuation; an uncovered or
