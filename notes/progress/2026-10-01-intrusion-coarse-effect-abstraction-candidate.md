@@ -4807,21 +4807,22 @@ bookkeeping only. Prefer one typed-row algebra from which the familiar cases
 follow:
 
 ```text
-TypedRow       finite family-indexed row value
-FamilyCompat   one source type relation for same-family argument slots
-RowIncl        typed support inclusion using FamilyCompat
-RowUnion       compositional combination of may-effect rows
-RowRemove      support removal justified by a handler coverage proof
+TypedRow       finite family-instance representation with a denotation
+RowDen         possible typed requests represented by a TypedRow
+RowIncl        subset of RowDen, the may-effect upper-bound relation
+RowUnion       denotational union of may-effect rows
+FamAgree       one common-witness relation for source-derived shared slots
+RowRemove      support removal justified by complete handler coverage
 ```
 
-Under this candidate, filtering and callback contracts invoke `RowIncl`;
-row splitting is a normalization of `RowIncl` against `RowUnion`/`RowRemove`;
-handler subtraction uses `RowRemove` after a separate route/coverage proof.
-They do not each define their own typed-family selector. A source site still
-chooses which general relation its typing rule invokes, but that is a typing
-rule boundary, not a new family-argument semantics. If the same family
-argument relation differs by site, that difference needs source-level evidence
-and a proof; a frozen weight helper is insufficient.
+Under this candidate, filters and callback effect bounds invoke `RowIncl`;
+row splitting follows from inclusion over `RowUnion`; handler subtraction is
+`RowRemove` justified by complete typed coverage and route evidence. Typed
+argument agreement is separate: `FamAgree` applies only to occurrence groups
+that source semantics says share one family argument. These are general
+relations, not source-site selectors. A source rule determines the operands
+and any shared-slot grouping; it does not invent a new argument comparison at
+each site. Frozen weight routing cannot decide those premises.
 
 `Sel_s` can remain as proof notation for the pairs exposed by evaluating
 these general relations, not as a core semantic object. Likewise, `Demand` is
@@ -4839,11 +4840,12 @@ activation.
 
 This is a conceptual comparison, not a selected design. A source-indexed
 selector system is precise about each trigger but creates one semantic proof
-obligation per site and risks mirroring Oracle internals. A family-indexed row
-algebra offers more proof reuse and simpler composition, but its `RowUnion`
-and `FamilyCompat` denotations may overconstrain programs if two same-head
-effects with different type arguments are allowed to coexist. An exact trace
-set gives a clean reference semantics but is too precise as an inference
+obligation per site and risks mirroring Oracle internals. A typed-row
+semilattice offers more proof reuse and simpler composition. The competing
+single-slot map may overconstrain programs if distinct same-head instances
+must coexist; the finite-instance row avoids that forced reconciliation but
+still needs principality proofs for symbolic inclusion and source-derived
+agreement groups. An exact trace set gives a clean reference semantics but is too precise as an inference
 requirement when continuation-use tracking would be needed. No alternative is
 currently proved sound or principal. The next proof should define the finite
 may-effect row denotation and its argument-slot algebra independently, then
@@ -4871,8 +4873,9 @@ domains, not representation details.
 2. **Finite set of typed family instances.** A row denotes a finite set of
    symbolic `(FamHead, argument tuple)` instances; request facts carrying
    `OpId`, payload/result signature, latent bounds, and route lineage remain
-   attached for handler coverage. `RowUnion` is set union; `RowIncl` uses one
-   source-defined family-instance relation; `RowRemove` filters request facts
+   attached for handler coverage. `RowUnion` is set union; `RowIncl_A` is
+   denotational subset; `FamAgree_A` relates only source-derived shared slots.
+   `RowRemove` filters request facts
    only when a complete coverage and route certificate proves removal, then
    projects the survivors back to family instances. Splitting and
    residualization follow from the same set operations. This avoids equating
@@ -4888,7 +4891,7 @@ domains, not representation details.
    proves that the support and symbolic records together retain all family
    instances, typed premises, and route dependencies needed by union,
    inclusion, and removal. Projection to support alone is lossy and cannot
-   justify `FamCompat` or `Drop`.
+   justify `FamAgree_A` or `Drop`.
 
 The finite set of family instances is the cleanest starting denotation because
 union, inclusion, and removal are ordinary set operations; the coarse support
@@ -4908,12 +4911,12 @@ shape and failure modes rather than selecting a semantics:
 | Candidate | Conceptual economy | Composition | Principality risk | Proof reuse |
 | --- | --- | --- | --- | --- |
 | Single-slot family map | Smallest row domain, but requires a source theorem that each head has one invariant instance per row. | Simple when joins reconcile same-head entries; otherwise union is partial. | A forced reconciliation can reject distinct safe paths; a type join needs independent variance evidence. | Strong reuse if the one-slot invariant is real; otherwise every merge recreates the disputed rule. |
-| Finite set of family instances | One support algebra plus one `FamCompat`; handler coverage is a separate semantic fact. | Union and fixed removal compose as set operations; duplicate/open inclusion introduces existential matching. | Eager matching may be non-principal. A relational constrained scheme could retain the whole inclusion formula, if its denotation and generalization are proved. | Row laws and transport can be proved once, then reused by filters, callbacks, and handlers. |
+| Finite set of family instances | One support algebra plus one `FamAgree_A` relation over source-derived occurrence groups; handler coverage is a separate semantic fact. | Union and fixed removal compose as set operations; duplicate/open inclusion introduces existential matching. | Eager matching may be non-principal. A relational constrained scheme could retain the whole inclusion formula, if its denotation and generalization are proved. | Row laws and transport can be proved once, then reused by filters, callbacks, and handlers. |
 | Support with symbolic contract projection | Compact solver state, but its denotation is candidate 2 plus attached symbolic evidence. | Compositional only if the projection commutes with union, inclusion, removal, and transport. | Same as candidate 2 unless it conservatively forgets distinctions; forgetting needs a least sound abstraction theorem. | Reuses candidate 2's proofs only after representation adequacy is proved. |
 | Exact trace sets | Closest to operational meaning and useful as a soundness reference. | Handler sequencing is direct over traces. | Exactness may require continuation usage/linearity and may not have a principal solution in the intended type language. | Good reference for soundness proofs, but weak reuse for an inference solver that intentionally abstracts traces. |
 
 The emerging economy is to keep only two mathematical layers: a chosen
-may-effect denotation with `RowIncl`/`RowUnion`, and a handler transformer
+may-effect denotation with `FamAgree_A`, `RowIncl_A`/`RowUnion`, and a handler transformer
 whose removal authority is a proof that a request is covered at that activation.
 `Sel_s`, `Demand`, solver obligation keys, route lineage, and endpoint/owner
 maps then describe how derivations are produced and transported; they are not
@@ -5020,28 +5023,74 @@ folded into row identity. Thus the two `ask` calls can project to one support
 head while retaining distinct `ask<int>` and `ask<str>` instances and their
 separate `OpId`/signature evidence.
 
-Use one family-instance relation for every row comparison:
+Use one typed-row denotation for every effect inclusion, with one shared-slot
+agreement relation for the type constraints that source rules derive:
 
 ```text
 FamInst(q) = (family_head(q), q.args)
 
-FamCompat(x, y, ν) iff
-  x.head = y.head
-  and ν(x.args[i]) <: ν(y.args[i])
-  and ν(y.args[i]) <: ν(x.args[i]) for every i
+ArgDen_A(x, ν) = the set of argument tuples admitted by x.args under ν
 
-RowIncl(R, S, ν) iff
-  every x ∈ R has some y ∈ S with FamCompat(x, y, ν)
+RowDen_A(R, ν) = ⋃ { {x.head} × ArgDen_A(x, ν) | x ∈ R }
+
+RowIncl_A(R, S, ν) iff
+  RowDen_A(R, ν) ⊆ RowDen_A(S, ν)
+
+ArgAgree_A(B, ν) iff
+  ⋂ { ArgDen_A(x, ν) | x ∈ B } ≠ ∅
+
+FamAgree_A(B, ν) iff
+  all x ∈ B have the same family head and arity
+  and ArgAgree_A(B, ν)
+
+FamCompat_A(x, y, ν) = FamAgree_A({x, y}, ν)
 ```
 
-The existential match is part of the declarative relation, not permission for
-the solver to choose one target and discard alternatives. For example,
-inclusion of `{F<int>}` in `{F<α>, F<β>}` denotes
-`(α ≈ int) ∨ (β ≈ int)`. The two branches are incomparable in a scheme
-conjunctive solver language cannot choose either branch without loss. This
-relation alone therefore does not provide
-a principal *eager* symbolic solver. A successor can instead keep the whole
-`RowIncl` formula as one residual relation in its constrained scheme language;
+`B` is a finite indexed family of occurrence views, not a quotient by formula
+equality. Equal argument syntax from distinct owners remains distinct in the
+transport ledger even though it does not change the mathematical intersection.
+
+`ArgDen_A` is part of the selected abstract type-domain semantics and remains
+open for interval and compound arguments. For point-valued arguments it is a
+singleton modulo type equivalence, so `FamCompat_A` reduces to mutual subtype
+when that relation characterizes the selected equivalence. For interval-valued
+arguments it expresses a shared inhabitant, not mutual inclusion of interval
+endpoints. Its symbolic formula must encode that denotation; the interval
+endpoint and finite-join lemmas later in this note are conditional candidate
+implementations. Compound `Con`, tuple, record, and Function arguments need a
+structural denotation and adequacy proof before this relation can be solved.
+The tuple denotation must preserve dependencies among positions that share
+type identities; replacing it with independent per-position sets requires a
+separate product proof.
+
+`RowIncl_A` is denotational inclusion of possible typed requests, not pairwise
+overlap of row entries. For point-valued finite rows it reduces to ordinary set
+inclusion modulo type equivalence. For interval-valued rows it requires every
+request admitted by the left row to be admitted by the right; a nonempty
+intersection is not enough. The inclusion of `{F<int>}` in
+`{F<α>, F<β>}` still denotes a disjunction because the left request must
+belong to at least one target denotation.
+
+`FamAgree_A(B,ν)` serves a different, also general purpose: when a source
+typing relation requires a finite group `B` of argument occurrences to share
+one argument tuple, it says their denotations have a common inhabitant. The
+recorded `A/B/C` interval witness has both representative-star pairs
+overlapping while all three lack one common inhabitant, so pairwise
+compatibility cannot replace a batch relation. The finite-instance row
+candidate does not impose a batch merely because family heads agree; source
+semantics must establish which occurrences denote one shared family slot.
+That grouping feeds the same `FamAgree_A` relation, not a selector per source
+site.
+
+The row-match existential is part of the declarative relation, not permission
+for the solver to choose one target and discard alternatives. For example,
+inclusion of `{F<int>}` in `{F<α>, F<β>}` denotes the disjunction
+`FamCompat_A(F<int>,F<α>) ∨ FamCompat_A(F<int>,F<β>)`; for point-valued
+arguments this reduces to `(α ≈ int) ∨ (β ≈ int)`. The two branches are
+incomparable, so a conjunctive solver cannot choose either one without loss.
+This relation alone therefore does not provide a principal *eager* symbolic
+solver. A successor can instead keep the whole
+`RowIncl_A` formula as one residual relation in its constrained scheme language;
 the solver must not select a witness or unify both targets. This is the most
 unified current route because it adds no per-site matching construct, but it
 shifts the proof obligation: define scheme denotation as all binder
@@ -5086,7 +5135,7 @@ must be covered too. If the source typing relation has no adopted subsumption
 rule, the theorem must state that narrower syntax-directed scope rather than
 silently closing it under an invented rule.
 
-Keeping `RowIncl` as one relation is useful only if its full solution relation
+Keeping `RowIncl_A` as one relation is useful only if its full solution relation
 survives every lifecycle phase. For each fixed outer valuation `ρ`, the scheme
 must preserve the fiber of local type/row assignments and all dependent views;
 projecting constraints cannot choose one existential family match, merge
@@ -5113,11 +5162,11 @@ copies. Constraints from the surrounding program intersect this product only
 after instantiation. Internal SCC uses remain attached to one shared live
 component and therefore are not factors in this external-use product. The
 product law must include dependent row, request, handler, and symbolic
-`FamCompat` views, not only root types.
+`FamAgree_A` views, not only root types.
 
 A bounded independent architect review found two major gaps in the initial
 criterion: equality modulo subtype equivalence omitted strict subsumption and
-row weakening, and retaining `RowIncl` did not by itself prove exact
+row weakening, and retaining `RowIncl_A` did not by itself prove exact
 generalization across rigid environment anchors. The definition above now uses
 the declared judgment preorder and requires per-environment solution-fiber
 preservation. Whether source typing adopts those subsumption rules, and
@@ -5129,6 +5178,16 @@ does not imply the independent-use product law. It also required the soundness
 statement to quantify compatible runtime environments for open terms. Both
 conditions are now explicit above; their proofs remain open.
 
+A separate compiler-referee audit found that literal mutual-subtype `FamCompat`
+conflicted with the interval-overlap candidate below, and that independent
+pairwise overlaps do not establish an N-way shared argument. The candidate
+now separates denotational row inclusion (`RowIncl_A`) from same-slot argument
+agreement (`FamAgree_A`), which uses one common witness for a source-derived
+batch. Handler removal uses total row inclusion into the arm's accepted typed
+domain; a nonempty overlap alone is insufficient. This closes the notation
+mismatch only; argument denotations, source batch grouping, total arm coverage,
+and their principal symbolic transport remain open.
+
 Oracle compatibility is a separate comparison between final accepted
 programs after validation, runtime construction, and specialization. A
 constrained scheme can be principal relative to `A` while intentionally
@@ -5136,25 +5195,35 @@ accepting a program the frozen pipeline rejects, or rejecting one it accepts.
 Each such difference needs its own concrete witness, the Oracle behavior being
 dropped, the successor behavior, and the final-acceptance impact recorded.
 
-`FamCompat` is the sole typed-family comparison; the `InvArgs` formulas are
-its symbolic presentation. Callback contracts and concrete filters are
-instances of `RowIncl`; support inclusion follows from matching equal heads.
+`FamAgree_A` is the sole typed-family agreement relation for finite batches;
+`FamCompat_A` is its binary instance. The `InvArgs` formulas are symbolic
+presentations only where proved equivalent to this denotation. Callback
+contracts and concrete filters are instances of `RowIncl_A`; support inclusion
+follows from matching equal heads.
 `RowUnion` is set union of family instances, so it does not identify two
-instances merely because their heads agree. A row split is `RowIncl` evaluated
-against the union's two parts. Handler removal filters request facts with one
+instances merely because their heads agree. A row split is `RowIncl_A`
+evaluated against the union's two parts. Handler removal filters request facts with one
 independent coverage predicate, then projects the remaining facts back to
 family instances:
 
 ```text
 Covered_H(q, ν, route) iff
   an exact-operation arm completely covers q
-  and FamCompat(FamInst(q), arm_family_instance, ν)
+  and RowIncl_A({FamInst(q)}, ArmDomain_H, ν)
   and its payload/resume signature constraints hold
   and q is visible and offered at this handler activation
 
 Q_H = { q ∈ Q | not Covered_H(q, ν, route) }
 RowRemove_H(Q, ν, route) = FamInsts(Q_H)
 ```
+
+For unresolved or interval-valued family arguments, `Covered_H` is a totality
+claim over every concrete request represented by `q`, with a valid arm
+instantiation for each such request; `ArmDomain_H` is the typed request domain
+admitted by the arm's source typing judgment. A nonempty `ArgAgree_A`
+intersection is only compatibility; it does not prove complete handler
+coverage and cannot justify removal by itself. Until the source arm rule and
+this quantification are derived, unresolved request arguments block `Drop`.
 
 Removal is defined on a coupled row/request state, not a possibly partial list
 of known requests. Let `E` be the row denotation and `Q` its request evidence.
@@ -5178,17 +5247,17 @@ this rule is the source contract.
 
 This common contract relation removes `Sel_s` from the mathematical core:
 operation identity and type arguments come from request elaboration,
-`RowIncl` supplies the family comparison, and `Covered_H` supplies the
+`RowIncl_A` supplies effect-bound inclusion, and `Covered_H` supplies the
 different runtime/handler fact. A solver may maintain keyed obligations and
 `Demand` edges, but they are projections of these relational premises and
 their dependent views. Solve substitutions, residuals, generalization,
 freshening, and intrusion all transport the same symbolic contracts and
-`FamCompat` formulas; a family support projection alone never discharges
+`FamAgree_A` formulas; a family support projection alone never discharges
 them.
 
 This is not a selected or approved effect semantics. The remaining principality
 gate is symbolic inclusion: for duplicate or open annotation candidates,
-`RowIncl` contains a finite existential match and must either have a principal
+`RowIncl_A` contains a finite denotational coverage relation and must either have a principal
 residual representation in the scheme language or be conservatively
 approximated with its final-acceptance cost recorded. Handler coverage must
 also be proved monotone or kept assignment-indexed, and recursive request sets need a finite
@@ -5264,15 +5333,25 @@ typed-family argument invariance must remain symbolic throughout solving,
 residualization, generalization, fresh instantiation, and intrusion. It must
 never be reconstructed only after concrete materialization.
 
-For same-head family instances `F<τ̄>` and `F<ῡ>`, the candidate symbolic
-obligation is:
+For a source-derived finite batch `B` of same-head family argument
+occurrences, the candidate symbolic obligation denotes `FamAgree_A(B,ν)`.
+For point-valued argument tuples, the known abbreviation for a binary batch is:
 
 ```text
 InvArgs(F<τ̄>, F<ῡ>) = ⋀ᵢ (τᵢ <: υᵢ  and  υᵢ <: τᵢ)
 ```
 
-The chosen typed-row denotation and its `FamilyCompat` relation carry symbolic
-argument endpoints. Solving substitutes those endpoints while preserving the
+This `InvArgs` formula is not the general interval or compound formula. The
+general symbolic relation must preserve the shared-witness denotation of
+`FamAgree_A`, including any cross-position dependence in `B`. The formula
+above is valid only where point-valued terms make mutual subtype equivalent to
+the selected argument equality. Existing `InvArgs` transport lemmas therefore
+cover that point fragment unless their premises are extended to the chosen
+`ArgDen_A` semantics.
+
+The chosen typed-row denotation and its `FamAgree_A` relation carry symbolic
+argument endpoints and occurrence incidence. Solving substitutes those
+endpoints while preserving the
 same relational premise; it may discharge that premise only with a recorded
 proof (including a symbolic solver proof). It may not drop the relation and
 later recreate it by comparing materialized family rows. Row union, inclusion,
@@ -5911,11 +5990,11 @@ The source audit supports the following narrow applicability map:
 | Generic callback/Function row comparison | Principal monomorphization matches effect-row items by family and emits subtype constraints in its specialization graph, but this is not a source typing rule requiring invariant comparison for every actual/formal same-head pair. | Candidate successor rule only; prove it from callback typing and the selected effect abstraction. |
 | Arbitrary open `RowLeq` and all same-head occurrence pairs | The frozen list does not define this general relation. | Candidate denotation only; prove source adequacy and solver principality before selecting it. |
 
-#### Closed point-row filter as a `RowIncl` instance (conditional lemma)
+#### Closed point-row filter as a `RowIncl_A` instance (conditional lemma)
 
 This is a check of whether the unified row relation can derive a frozen,
 closed filter case; it adds no filter-specific family semantics. Assume
-`RowIncl(E,A)` denotes typed support inclusion, closed actual and annotation
+`RowIncl_A(E,A,ν)` denotes typed request inclusion, closed actual and annotation
 rows contain at most one typed occurrence per family head, their argument
 terms denote point values, and `≈` is the source type equivalence used for
 invariant family arguments. Write the filter's acceptance condition as the
@@ -5957,11 +6036,11 @@ point equivalence. This lemma therefore settles only a closed point-row
 filter subcase. It neither derives handler visibility nor validates any
 Oracle weight route.
 
-#### Interval-valued family compatibility (conditional lemma)
+#### Interval-valued family agreement (conditional lemma)
 
 For one argument position `i`, assume the selected type-domain semantics
 soundly decomposes two symbolic argument descriptions into finite endpoint
-sets `[L_x,U_x]` and `[L_y,U_y]`. If the general `FamilyCompat` relation means
+sets `[L_x,U_x]` and `[L_y,U_y]`. If the general `FamAgree_A` relation means
 that these descriptions have one shared witness, the candidate proof formula
 is:
 
@@ -5974,8 +6053,8 @@ Assuming both input intervals are feasible and the selected carrier has the
 finite interval-realization property, `MeetFormula(i)` is satisfiable exactly
 when the two descriptions have a common argument witness. This is the
 two-occurrence instance of the N-way endpoint lemma below. It is a possible
-symbolic characterization of `FamilyCompat`, not a filter-specific semantic
-construct. Whether source-level family compatibility should mean common witness
+symbolic characterization of binary `FamAgree_A`, not a filter-specific semantic
+construct. Whether source-level shared-slot agreement should mean common witness
 or another relation is still open.
 
 Keep the proof key and symbolic endpoints through solving, residualization,
@@ -5986,7 +6065,7 @@ batch record/proof and every dependent-view path. It may not replace the
 symbolic obligation with a materialized join witness. This lemma applies only
 under a carrier premise. Accurate decomposition of compound argument types,
 the actual successor carrier, and the source proof that this is the right
-`FamilyCompat` relation remain open, so this is not an implementation rule.
+`FamAgree_A` relation remain open, so this is not an implementation rule.
 
 The table below is a frozen-Oracle characterization crosswalk, not a set of
 successor rules or implementation tasks. It records which operands its

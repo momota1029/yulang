@@ -46,10 +46,14 @@ supports that; splitting and subtraction should follow from row algebra and
 coverage evidence. Runtime route/visibility remains separate because it
 describes a different semantic fact. The source-site checklist is retained as
 Oracle characterization and as a proof audit, not as the successor core. A
-closed point-valued filter subcase has a conditional `RowIncl` characterization,
-and interval-valued common-witness compatibility has a conditional endpoint
-lemma. The one-arm discriminator favors finite family-instance rows as a proof
-candidate: frozen `check` accepts a shallow handler that ignores its
+closed point-valued filter subcase has a conditional `RowIncl_A` characterization,
+and interval-valued `FamAgree_A` has a conditional endpoint lemma. Candidate
+row inclusion is denotational subset; shared-slot agreement requires one
+common witness and is supplied only for source-derived occurrence groups.
+Handler subtraction requires total coverage of the requests represented by a
+row, with route evidence. The one-arm discriminator favors finite
+family-instance rows as a proof candidate: frozen `check` accepts a shallow
+handler that ignores its
 continuation and returns a fixed pair, while frozen `run` rejects on `int`/`str`
 family candidates; the exact shallow trace never executes the second request.
 This is a frozen phase mismatch and only a conditional candidate
@@ -69,7 +73,15 @@ individual source sites, and keep solver keys/evidence as projections of it.
 An independent architect review closed the initial principality-definition
 gaps around subsumption and environment anchors; whether source adopts those
 rules and whether transport preserves fibers or factors independent uses remain
-open. No candidate is yet proved sound or principal.
+open. A second semantic correction separates row inclusion (subset of the
+chosen typed-row denotations) from same-slot family agreement (a
+carrier-parametric common-witness relation). Point arguments reduce to type
+equivalence; interval arguments need a shared inhabitant, and N-way batches
+cannot be inferred from independent pairwise overlaps. Source-derived batch
+grouping, total typed handler coverage (over all requests an interval may
+represent), and symbolic principal transport remain open; an overlap witness
+alone cannot justify subtraction. No candidate is yet proved sound or
+principal.
 
 ## Objective
 
