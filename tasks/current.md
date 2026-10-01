@@ -3866,10 +3866,12 @@ state-threaded composition preserves a first outward request before any
 resumption; an earlier general MayReq-monotonicity claim was rejected after a
 multi-shot mutable-state counterexample. The K,D symbolic-family premise is
 recorded separately from operational prefix preservation. This supports the
-annotated-callback soundness discriminator only if the source boundary forces
-the operation before the callback returns; the frozen run does not settle
-that force point. The lemma still does not prove the source Function contract
-or finite principal presentation. A compiler-referee delta review closed the
-lemma's multi-shot overclaim, symbolic-incidence scope, and force-boundary
-qualification; the source relation and runtime adequacy remain unreviewed by
-that narrow review.
+annotated-callback soundness discriminator. A frozen mono dump now shows the
+generated `call` adapter forcing its `[ask]` thunk result before the unit-return
+boundary; the Oracle's final runtime/scheme conflict is established for that
+witness. The exact executable build provenance was not reconstructed; the mono
+artifact is paired with the frozen source/spec path and treated only as
+characterization. A compiler-referee delta review checked this adapter-to-force
+path and closed the lemma's multi-shot overclaim and symbolic-incidence scope.
+The successor's declarative Function contract, source boundary adequacy, and
+finite principal presentation remain open.

@@ -580,3 +580,52 @@ difference, not merely an inference-stage formatting difference. Source
 typing adequacy, a reviewed effect abstraction, and the full handler/weight
 calculus remain open; do not generalize this witness into a verdict on every
 push/pop route.
+
+#### Force point in emitted mono code (2026-10-02)
+
+The exact callback witness above was dumped through the already-built frozen
+Oracle executable with:
+
+```text
+/tmp/yulang-intrusion-scc-owned-trace/target/debug/yulang \
+  --no-prelude --no-cache dump /tmp/yulang-effect-forward-pure-use.yu --mono
+```
+
+The detached checkout's `HEAD` is `a58eefc31`. Its working tree has trace-only
+runtime logging and scratch-test edits, but no specialization or type
+conversion edits; no trace environment flag was set for this command. The
+binary's exact build provenance relative to that dirty tree was not
+reconstructed, so this is recorded as direct CLI characterization paired with
+source inspection, not a source/binary identity proof. The mono output
+contains:
+
+```text
+m2 = d2 : (unit -> thunk[[ask], unit]) -> unit
+  adapter[(unit -> thunk[[ask], unit]) -> thunk[[ask], unit]
+    => (unit -> thunk[[ask], unit]) -> unit](\d5 -> (d5 ()))
+```
+
+So the body `d5()` returns the callback's `thunk[[ask], unit]`, while the
+surrounding `FunctionAdapter` exposes the callback wrapper as returning
+`unit`. The frozen `FunctionAdapter` contract calls the underlying function,
+then adapts its source result to the target result. Runtime
+`flow.rs::apply_adapter` performs that result adaptation; `thunk.rs::adapt_value`
+forces a thunk when the target is not a thunk; `thunk.rs::force_thunk` turns a
+`Thunk::Effect` into a request; and `continue_with_rc` preserves a request
+through the pending adapter continuation. See frozen
+`spec/2026-06-13-mono-vm-contract.md` §FunctionAdapter and
+`crates/mono-runtime/src/runtime/{flow,thunk}.rs`. Therefore this generated
+adapter emits `ask` before the adapted `call` returns. The full mono output
+shows `invoke` applying that adapted `call`, so the same request is before its
+unit-return boundary too. This closes the emitted-runtime force timing for
+this exact witness, rather than inferring it only from the eventual top-level
+error.
+
+The evidence is still an Oracle specialization/runtime characterization, not
+a source typing theorem for the successor. A declarative successor must make
+its call/result boundary account for this observed adaptation and prove that
+generated adapters simulate that boundary. The frozen empty-row scheme
+therefore conflicts with the candidate's runtime may-effect bound for this
+source; whether the candidate bound is the final source typing contract and
+the corresponding principality proof remain open. No tests were run; this was
+a read-only CLI dump plus source/spec inspection.

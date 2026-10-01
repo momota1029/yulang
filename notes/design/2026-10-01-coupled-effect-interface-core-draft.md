@@ -1059,16 +1059,20 @@ MayReq(R,ν) ⊆ MayReq(R >>= F,ν)
 The first-request lemma uses one fixed assignment and one concrete execution
 prefix; it neither decomposes support into independent row unions nor says
 anything about later requests reached through resumed continuations. For the
-annotated `ask` witness above, the conclusion additionally assumes that the
-source typing/elaboration boundary forces `ask::get()` before the annotated
-callback call returns, so it is an outward first request rather than a latent
-request in a returned thunk. Under this premise, the pure callee and argument
-stages add no earlier request, and no handler transition consumes it. The
-Function row that bounds this behavior must contain `ask`; the empty row
-cannot satisfy the candidate bound. The frozen run shows that the request is
-eventually issued, but does not establish this precise force boundary. The
-candidate contradiction and any final-acceptance delta therefore remain
-conditional on source boundary adequacy; the proof is still specific to its
+annotated `ask` witness above, the frozen mono dump resolves the emitted
+runtime boundary: the generated `call` has an adapter from a source return of
+`thunk[[ask],unit]` to target return `unit`; its result adaptation forces the
+thunk before `call` returns. Thus `ask` is an outward first request rather
+than only a latent request after that boundary. The pure callee and argument
+stages add no earlier request, and no handler transition consumes it. A
+Function row that bounds this observed behavior must contain `ask`; the frozen
+empty row does not. The exact artifact and runtime contract evidence are in
+`notes/progress/2026-09-30-intrusion-weight-routing-counterexample-search.md`,
+“Force point in emitted mono code.” The remaining condition is the successor
+source judgment: it must derive this call/result boundary compositionally and
+prove generated adapters simulate it. The counterexample therefore establishes
+an Oracle runtime/scheme conflict, while the candidate typing contradiction
+remains conditional on source boundary adequacy. This is still specific to the
 first-request premise, not a general callback-effect rule.
 
 Symbolic typed-family preservation is a separate relation-composition
