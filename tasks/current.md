@@ -1907,11 +1907,14 @@ constraints from receiver/continuation constraints that couple uses; equal
 raw IDs across independent scheme uses do not imply shared assignment. A
 primary audit caught and corrected the first draft's conflation of internal
 SCC edges with cross-use identity links. The corrected criterion is still
-unreviewed. A two-view graph example now checks the mixed local/free map
-algebra, including a continuation constraint that relates the independently
-instantiated roots; it assumes rather than proves those ownership classes. The
-reviewed uniform pure-SCC joint transport theorem supplies the all-local
-instance but does not cover member-specific root partitions. Next review the
-corrected assignment argument, then derive `K_ctx` and member ownership from
-the Oracle root/use lifecycle and prove source-step preservation. Effect-row
-principality, route quotient completeness, and Oracle acceptance remain open.
+unreviewed. A primary audit further narrowed it to type-identity transport;
+non-type evidence requires its own map and validity proof, and no weighted or
+row-solver result follows. A two-view graph example now checks the mixed
+local/free map algebra, including a continuation constraint that relates the
+independently instantiated roots; it assumes rather than proves those
+ownership classes. The reviewed uniform pure-SCC joint transport theorem
+supplies the all-local instance but does not cover member-specific root
+partitions. The corrected assignment argument still needs independent review.
+Next derive `K_ctx` and member ownership from the Oracle root/use lifecycle,
+then prove source-step preservation. Effect-row principality, route quotient
+completeness, and Oracle acceptance remain open.

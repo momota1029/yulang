@@ -3671,22 +3671,30 @@ Each `rho_j` must consistently transport every occurrence in `C_j`,
 `L_j`; its image is disjoint from `A_shared` and every other `rho_k(L_k)`.
 The batch relation also contains receiver/continuation constraints `K_ctx`
 that connect one or more renamed roots to caller variables or to each other.
-Those constraints and their evidence must be transported under the same
-product map; identities in the receiving context remain fixed. No additional
+Those constraints and their type-bearing evidence must be transported under
+the same product map; non-type proof IDs use their evidence-specific map and
+their validity must be preserved or rechecked. Identities in the receiving
+context remain fixed. No additional
 cross-use equality is implied solely by coincident raw IDs in two saved
 member views. If the declarative source-use rule does require such a link, it
 must be present in `K_ctx` or represented by one shared identity before the
 fresh ranges are allocated.
 
-Then the assignment map from the original batch domain to `I_batch` is a
-bijection on each local namespace and the identity on `A_shared`. By structural
-evaluation of endpoint expressions, every obligation in each `C_j`, every
-`K_ctx` obligation, and every root observation has the same truth/value under
+Assume the selected type-constraint predicates and family matches commute
+with this capture-avoiding renaming, as required by the preceding typed
+alpha-transport lemma. Then the assignment map from the original batch domain
+to `I_batch` is a bijection on each local namespace and the identity on
+`A_shared`. By structural evaluation of endpoint expressions and the assumed
+predicate equivariance, every obligation in each `C_j`, every `K_ctx`
+obligation, and every root observation has the same truth/value under
 corresponding assignments. The inverse map gives reflection. Hence the
 complete batch solution relation, including an empty fiber, is preserved.
 This argument allows `K_ctx` to couple distinct uses; it does not factor the
 solution relation into independent use fibers unless `K_ctx` only references
 fixed shared anchors.
+This is a type-identity transport claim only. Effect-row/evidence maps,
+hygiene binders, and dynamic handler observations need their own transport
+relations; no weighted-constraint or row-solver solution theorem follows.
 
 This corrects an ambiguity in the first wording of the criterion: internal
 live-root and recursive edges are transported within each `C_j`, not treated
@@ -3795,3 +3803,11 @@ IDs across independent uses do not imply shared assignments; a source-required
 link must be explicit. This correction is primary-reviewed only. The exact
 mixed `Local_d`/`Free_d` source ownership relation and completeness of
 `K_ctx` remain open.
+
+The primary proof audit tightened the stated map theorem further: selected
+type-constraint and family-match predicates must satisfy the equivariance
+premise of the preceding alpha lemma, and non-type proof IDs need their
+evidence-specific transport/validity condition. Weighted rows, effect
+solutions, hygiene transport, and dynamic handler observations are explicitly
+outside this batch result. No independent review has yet been run on the
+corrected criterion or its two-view example.
