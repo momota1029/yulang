@@ -722,9 +722,12 @@ it is not selected by an effect-row rule or restricted to observed call sites.
 The surrounding evaluation relation determines which such configurations
 are reachable in a particular program, but reachability does not define the
 function contract. Equivalently, `CallCfg` is the projection of the ordinary
-source evaluation relation over all closing, well-typed contexts that place
-`f x` at a call boundary, with the callable and argument interfaces fixed;
-it does not add a new source typing rule. Let
+source evaluation relation over all well-typed evaluation contexts that place
+`f x` at a call boundary, under every semantic environment for the context's
+free variables. The environment maps the callable and argument variables to
+the chosen `f` and `x`; it need not arise from a closed program that happens
+to construct those exact values. This is a logical-relations closure of the
+ordinary typing and evaluation judgments, not a new source typing rule. Let
 `Beh_{ρ,ν,c}(f,x)` be the source-defined relation of finite evaluation
 observations from applying `f` to `x` at configuration `c`. These inputs matter:
 the same closure or thunk can be called under different active handler stacks,
@@ -803,17 +806,18 @@ The call-configuration domain itself has three candidate definitions:
 | --- | --- | --- |
 | Call sites reached by the current program | Cheap projection, but an unused function has an empty domain and its arrow contract holds vacuously. It is not compositional under moving a definition to another client. | Easy to compute but fails to constrain exported function behavior; reject. |
 | Every runtime-well-formed machine configuration | Program-independent and compositional, but may include stores and handler stacks no well-typed source context can construct. | Simple denotational domain in principle, yet can reject source-valid functions and destroy Oracle final-acceptance capability; no reason to prefer it without a source theorem. |
-| Every closing well-typed source context that calls the value | Contextual and compositional across clients, and excludes dynamically impossible states by source typing. | Best semantic fit, but requires a precise context-typing/evaluation closure and an effective finite principal abstraction of its behaviors. This is the current candidate, not a proved decision procedure. |
+| Every well-typed evaluation context under every semantic environment for its free variables | Contextual and compositional across clients, excludes dynamically impossible states by source typing, and ranges over denotable values even when no closed source program constructs them. | Best semantic fit, but requires a precise environment relation and context-typing/evaluation closure plus an effective finite principal abstraction of behaviors. This is the current candidate, not a proved decision procedure. |
 
 The preferred domain is therefore contextual rather than whole-program
-reachable or all-machine-state. A proof must show that the context class is
-defined independently of the candidate solver, is closed under evaluation
-context composition, and contains a witnessing context for every admitted
-argument/value pair whenever the arrow contract is intended to constrain
-that pair. Otherwise vacuity can reappear through an empty contextual fiber.
-The exact context grammar and typing closure remain open source-semantics
-work; the table is a formulation comparison, not a new selector or semantic
-construct.
+reachable or all-machine-state. A proof must show that the context and
+environment relations are defined independently of the candidate solver and
+closed under evaluation-context composition. For every `f` and `x` in the
+arrow's denotations, assigning their variables those values in a semantic
+environment and using the immediate application context must yield at least
+one call configuration; otherwise vacuity can reappear through an empty
+context fiber. The exact environment relation, context grammar, and typing
+closure remain open source-semantics work; this is a formulation comparison,
+not a new selector or source construct.
 
 #### Evaluation contexts and the frozen runtime contract
 

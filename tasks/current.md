@@ -3328,7 +3328,12 @@ principal presentation. It must not become a type-level call-site selector.
 The design memo now compares three domains: current-program call sites
 (rejected because unused functions become vacuous), all runtime-well-formed
 states (compositional but potentially over-restrictive), and all closing
-well-typed source contexts (preferred, with a finite-principal abstraction
-still open). The context class must be solver-independent, compositionally
-closed, and nonempty for every pair the arrow contract claims to constrain;
-otherwise vacuity can return through an empty context fiber.
+well-typed source contexts (which can still miss denotable values unavailable
+from a closed program). The preferred refinement quantifies over open typed
+evaluation contexts under all semantic environments for their free variables,
+so a callable/argument pair in the arrow denotations can be installed directly
+in the immediate-application context. This keeps contextuality without
+restricting values to those constructible by a closed program. The environment
+relation, context closure, and finite-principal abstraction remain open; the
+configuration domain must be solver-independent and nonempty for each pair it
+claims to constrain.
