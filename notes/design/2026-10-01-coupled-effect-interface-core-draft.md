@@ -517,6 +517,28 @@ state without the `F` mutation, the displayed right side contains `q` but
 misses `g`, while the composed relation contains `g`. This is a semantic
 counterexample to the decomposition under that `Ret*` interpretation, not a
 claim about a particular Oracle fixture.
+
+The state-indexed witness can be written directly. Let `c∈{0,1}` and define
+
+```text
+k((),c=0) = Return(0,c=0)
+k((),c=1) = Request(g, c=1, k_g)
+R         = Request(q, c=0, k)
+F(v,c)    = Return((), c:=1)
+H_q(k')   = k'((),c=0); k'((),current_c)
+```
+
+Here the handler arm resumes the same continuation twice, and `k_g` may return
+immediately. Without bind, both resumes of `k` see `c=0`, so
+the standalone request tree has support `{q}` under this no-mutation handler
+context; `F` by itself has empty support. With bind, the first `k'` call runs
+`k` at `c=0` and then `F`, so the handler's second call runs `k` at `c=1` and
+emits `g`. The composed pre-handler tree therefore has support `{q,g}` while
+the independently computed support union is only `{q}`; after `H_q` consumes
+the initial request, the residual support is `{g}`. This witness isolates the
+failure to state feedback through a reused continuation; it does not depend on
+typed-row matching or handler weight routing.
+
 The frozen runtime has the relevant interaction shape: `continue_with_rc`
 resumes the saved request through the same mutable `Runtime` before running
 the appended continuation, and `ExprKind::RefSet` invokes the reference's
