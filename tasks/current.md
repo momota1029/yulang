@@ -2703,7 +2703,13 @@ instead installs the annotation's pop on the enclosing lambda predicate, and
 lambda output applies that filtered pop despite there being no handler in the
 source. This identifies the source-generated discharge edge that conflicts
 with callback may-effect soundness. The exact lower-bound/weight replay and
-compact root projection that yield the final empty scheme remain untraced. The
+compact root projection now has a source-to-projection derivation: the
+annotation reuses one `SubtractId` for the callback's `push(Set{ask})` and
+enclosing output `pop(Set{ask})`; positive scheme projection composes the
+weights and cancels that push, while the residual filter adds no support for
+the unknown inner tail. The public negative callback projection separately
+materializes `[ask]`. The exact selected lower record/provenance for this
+fixture is still not dumped. The
 typed-family symbolic-lifecycle invariant remains independent and mandatory
 across solving, residualization, generalization, fresh instantiation, and
 intrusion; it must not be reconstructed from materialized rows. The coarse

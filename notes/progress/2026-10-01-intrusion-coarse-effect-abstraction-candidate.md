@@ -6619,8 +6619,25 @@ then wraps the body effect in `NonSubtract` with that filtered pop, despite no
 handler in the source. This is the identified source-generated discharge edge
 and violates the successor rule that callback invocation contributes its
 latent effect to the enclosing computation. The exact solver/compact-projection
-transition that turns this concrete graph into the observed empty result scheme
-is still untraced: it needs the selected body-effect lowers and weights before
-and after root compaction. Thus the erroneous pop route is now localized, but
-the final scheme derivation remains open. This characterization does not make
-the Oracle's weighted routing successor authority.
+mechanism explains the empty result scheme. The same `SubtractId s` is created
+for the annotation's `push(s, Set{ask})` on the positive callback return
+effect and for its `pop(s)` call predicate, filtered to `Set{ask}`. Function
+return-effect subtyping carries the push to the fresh call-effect variable,
+and application relates that variable to the enclosing body-effect variable.
+The lambda output wrapper contributes the matching filtered pop. During
+positive scheme projection, `compact_lower_bounds_from` composes the selected
+lower's left weight with the outer output weight; `StackWeight::push_pops`
+removes the same-id pushed stack entry when it consumes the pop. The residual
+`Set{ask}` filter constrains the open inner effect tail but supplies no `ask`
+support of its own. In contrast, the public negative annotation projection
+turns its filtered stack into an explicit `[ask]` row prefix, explaining why
+the callback argument remains effectful while the enclosing function result
+becomes pure.
+
+This is a source-to-projection derivation of the responsible cancellation rule,
+not a variable-ID dump of the exact query-selected lower-bound record for this
+fixture. The frozen source's observed raw scheme matches the derivation, while
+the exact selected lower/proof provenance remains uninspected. The causal rule
+is now identified: applying an annotation's stack pop to the enclosing
+function effect cancels the callback latent effect without a handler. This
+characterization does not make Oracle's weighted routing successor authority.
