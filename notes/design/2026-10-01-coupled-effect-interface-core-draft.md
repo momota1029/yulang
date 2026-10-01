@@ -347,6 +347,42 @@ fiber-preservation theorem for generalization or non-injective intrusion.
 Those lifecycle theorems must still prove that the transformed relation has
 the same observable solutions and independent-use behavior.
 
+#### Conditional handler equivariance under injective transport
+
+There is a useful local theorem for generalization freshening and injective
+intrusion. Let `θ=(P_t,P_r,M,Θ_h)` be injective, capture-avoiding maps on
+owned type identities, row binders, request/owner occurrences, and handler
+identities. It fixes outer anchors, family and operation identities, and
+preserves the order of every active handler frame. Let `Tr_θ` apply these maps
+to the complete request relation, its symbolic formulas, payload/result
+interfaces, and boundary lineage. Assume the source shallow transition
+inspects only the fixed family/operation labels, type denotations, and
+visibility induced by the ordered frame identities, and that all three
+interpretations are equivariant under `θ`. Then:
+
+```text
+Tr_θ(H_κ(I)) = H_{Θ_h(κ)}(Tr_θ(I))
+```
+
+The equality is up to the same bijection `M` on produced request and proof
+occurrences. For a forwarded request, both sides retain its label and map its
+lineage through the corresponding frame. For a matched request, label and
+operation tests are fixed, invariant argument and operation-signature
+relations are preserved by `P_t`, and the arm/continuation transfer is
+renamed by the same map. These cases establish one-step equivariance of the
+small-step handler relation. Induction on finite transition prefixes gives
+the equation for every finite observation, including arm-emitted requests
+and resumed raw continuations. Taking may-support projections preserves this
+equality.
+
+This theorem transports the full activation stack; it never commutes, erases,
+splits, or transfers a push/pop weight. It consequently supports freshening
+and injective parent renaming when those maps preserve all relevant identities.
+It does not cover solver substitutions that merge type identities, intrusion
+quotients that merge boundary/occurrence identities, or handlers whose
+eligibility semantics distinguishes untransported dynamic identities. Those
+cases require their own observational quotient theorem.
+
 ### Shared-witness formula under symbolic transport
 
 The interval-valued family constraint has a direct transport law in the

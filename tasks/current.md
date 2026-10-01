@@ -2948,3 +2948,10 @@ when one shared binder crosses the split. In the latter case both projections
 must retain its common-witness relation. The `{int,bool}` / `{bool,str}`
 example leaves only `bool` in the joint view, while detached projections
 incorrectly admit `int` and `str`.
+
+Added a conditional one-step handler equivariance lemma for injective,
+capture-avoiding transport of types, rows, request occurrences, and ordered
+handler identities. It transports family matching, operation signatures,
+forwarding, arm output, and raw continuation behavior together; it does not
+rewrite or route weights. Non-injective solver/intrusion quotients remain
+outside the lemma.

@@ -7727,6 +7727,14 @@ source must still establish which occurrences share that binder. See the
 revised joint definition in the coupled-effect draft. This is still a
 candidate, and its duplicate-row/runtime adequacy remains open.
 
+The coupled-effect draft also now records conditional handler equivariance for
+injective, capture-avoiding renaming of type/row/request identities and ordered
+handler identities. The one-step proof cases are forward, match, and arm/raw
+continuation transfer; finite trace observations and may support then commute
+with the renaming. This gives a transport lemma without assuming any Oracle
+weight routing. It excludes non-injective quotients and depends on proving the
+successor's source handler relation is equivariant.
+
 For closed point rows, the coupled draft now expands `J_R` exactly into two
 parts: internal argument equality for occurrences sharing each source binder,
 and a per-left-request disjunction over same-head right occurrences. The proof
