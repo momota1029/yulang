@@ -5273,6 +5273,56 @@ matching, or any source construct should be governed by this relation; it
 does not establish termination, principal solving over unknown tails, or
 global effect principality. Those need independent source and solver proofs.
 
+#### Exact obligation extraction at a committed closed-tail solve (conditional lemma)
+
+This isolates a sound symbolic replacement step once a solver has committed
+row-tail assignments that close both sides. Let a live constraint record
+`r = RowLeq(R₁,R₂)` carry the occurrence provenance and dependent typed-view
+identities required by the preceding incidence invariant. Let `μ` be the
+committed, occurrence-preserving tail substitution such that both
+`Occ(R₁,μ)` and `Occ(R₂,μ)` are closed finite occurrence collections. The
+substitution is applied uniformly to the complete live typed view, all
+existing symbolic obligations, and their owner edges. The transition then
+evaluates the support inclusion and constructs the full keyed collection
+`O_open(R₁,R₂,μ)`:
+
+```text
+if support(r₁) ⊄ support(r₂): retain a failing support certificate for r
+otherwise: replace r by O_open and its support certificate
+```
+
+The replacement is symbolic: each record in `O_open` contains the original
+family head, symbolic argument endpoints after `μ`, source origins, pair
+category, endpoint occurrence owners, and the original relation identity.
+Transfer the `r` owner paths to every output view that remains independently
+`Demand`-dependent on these facts; do not replace the keyed collection with
+its deduplicated formula projection. If the row-tail assignment is not
+committed and closed, this step is unavailable: keep `RowLeq` symbolic (or a
+two-way solution-equivalent residual), since the unknown tail may expose new
+heads and pairs.
+
+For any fixed remaining type assignment `ν`, the input constraint holds
+exactly when support inclusion passes and `ν` satisfies the formula
+projection of `O_open`, by the assignment-wise characterization above. Thus
+the replacement preserves and reflects the solution set over remaining type
+assignments. Each output formula remains symbolic in its endpoints; no later
+comparison of concrete materialized family rows participates. The keyed
+collection plus transferred owner paths also preserves the declared
+incidence invariant for every dependent output view. If support inclusion
+fails, the retained failure certificate denotes the empty solution set for
+that committed tail assignment, inherits `r`'s dependent-view owner links,
+and prevents publication of a successful dependent output view before the
+rejection.
+
+This is a local solution-preserving transition under the candidate
+assignment-wise `TypedRowLeq` and its `InvArgs` formula semantics. It does not
+prove that a real solver commits tails with this occurrence transport, that
+source typing selects this open relation, or that mutual subtype is the
+correct invariant relation for interval-valued arguments. It also does not
+solve principality while tails remain open. Those remain separate obligations;
+the specific transition here proves how to consume a `RowLeq` without losing
+symbolic argument invariance after its tails have been committed.
+
 #### Source-rule derivation of family obligation keys (candidate)
 
 The source-rule audit gives a concrete candidate derivation point for the

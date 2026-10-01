@@ -2598,3 +2598,13 @@ premise gaps; the final notation explicitly separates use-ID transport from
 symbolic endpoint transport. This closes only the abstract graph-copy step,
 not the actual instantiator premises or solve/residualize/generalize/intrusion
 transitions.
+
+The open-tail step now has a conditional closed-tail extraction lemma: after
+an occurrence-preserving tail substitution is committed and applied uniformly,
+replace `RowLeq` with its support certificate and the full keyed symbolic
+obligation collection, preserving dependent owner paths. Compiler-referee
+review found solution-set equivalence for the stated candidate relation; the
+support-failure path is scoped to that fixed tail assignment and publishes no
+successful dependent view. The only review clarification was recorded. This
+does not prove how an actual solver commits tails, source adequacy, interval
+invariant semantics, or principal solving for still-open tails.
