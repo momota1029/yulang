@@ -138,9 +138,13 @@ characterization now exhibits why an operation path or latent row cannot
 choose the catch image alone: a returned operation thunk is seen as a value
 until the source context forces it. The complete interface should be
 shared-assignment composition followed by one handler image; the finite
-constrained presentation must preserve its symbolic fibers. The collected
-may-support projection is least in the
-full powerset for each fixed valuation, while pointwise row join is distinct
+constrained presentation must preserve its symbolic fibers. A second trace
+calculation shows that shallow handler image cannot in general commute with
+continuation composition: forwarding then re-entering can handle a request
+that becomes visible only after sequencing. A compiler referee reviewed the
+calculation with its visibility and resumption premises explicit. The
+collected may-support projection is least in the full powerset for each fixed
+valuation, while pointwise row join is distinct
 from relational disjunction and only gives a monotonicity inclusion without
 an additional theorem. A further audit found that this ground support result
 alone does not establish the required symbolic family transport. The handler

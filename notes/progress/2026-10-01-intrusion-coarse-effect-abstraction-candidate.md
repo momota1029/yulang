@@ -8870,3 +8870,23 @@ operational characterization, not a successor typing rule or soundness proof.
 The source-level demand judgment, guard-lineage correspondence, finite
 principal presentation, and the resulting final-acceptance comparison remain
 open. No tests or implementation were run.
+
+## 2026-10-02: handler image does not distribute through bind
+
+Derived a generic shallow-handler witness against moving a handler image
+through continuation composition. A `p` request is unmatched and forwarded;
+its continuation returns `v`; then a sequencing continuation emits `q`. The
+`q` request is visible after `p` re-entry, a catch value arm preserves `v`, a
+`q` arm consumes without resuming, and an outer context resumes `p`. Applying
+the handler to the complete `R >>= F` computation consumes the resumed `q`.
+Applying it to `R` first, then appending `F`, exposes `q` outside the handler.
+So outward support differs.
+
+An independent compiler-referee review confirmed the calculation against the
+shallow-handler equations and frozen runtime contract; it required and the
+draft now states the visibility, value-arm, and outer-resumption premises.
+The result is a general composition law boundary: sequence the complete source
+computation before taking one handler image, rather than assuming handler image
+commutes with callback/bind effects or row joins. The witness is abstract and
+does not establish source typing reachability, `K,D` finite transport, or
+principal presentation. No tests were run.

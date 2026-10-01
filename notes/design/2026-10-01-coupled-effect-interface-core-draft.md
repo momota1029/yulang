@@ -1115,6 +1115,28 @@ state, ordered frames, request visibility, raw versus wrapped continuations,
 and the symbolic family predicate/incidence `K,D`. Rows and route records can
 present this relation, but cannot replace that correspondence proof.
 
+The handler image also cannot generally be pushed through source sequencing.
+Let `H_q` consume a visible `q` request without resuming its continuation and
+return a pure value; its value arm returns values unchanged. Let a distinct
+`p` request be unmatched and forwarded by `H_q`. Set
+`R = Request(p,(), λ_. Return(v))` and let
+`F(v)=Request(q,(), λ_. Return(w))`, with `q` still visible to `H_q` after
+re-entry. Compare observations under an outer context that resumes `p`. Then
+source sequencing gives
+`R >>= F = Request(p,(), λ_. Request(q,(), λ_. Return(w)))`. Applying the
+whole handler image forwards `p` with re-entry; when resumed, `F` emits `q`
+inside that re-entered activation, so `H_q(R >>= F)` consumes `q`. But
+`H_q(R) >>= F` appends `F` after the forwarded `H_q(R)` result; after `p` is
+resumed and the inner handler returns, `F` emits `q` outside `H_q`. Thus the
+two computations have different outward `q` support. This follows directly
+from the shallow raw/forwarded continuation clauses, not from weights or row
+matching. It proves that handler image and continuation composition are not
+freely distributive; the uniform rule is to compose the complete source
+computation first, then take one handler image. A finite support projection
+must be proved against that whole image. The example is an abstract-machine
+calculation; source typing reachability and symbolic `K,D` presentation remain
+separate obligations.
+
 The frozen runtime contracts and `eval_catch` implementation establish these
 operational distinctions only. They do not establish the source typing rule
 that chooses each demand boundary, a source-level guard-lineage theorem, or a
