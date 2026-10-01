@@ -9181,3 +9181,15 @@ the established denotation maps the request coordinate and preserves the
 assignment fiber; the table now states the same operation as that denotation.
 This is a conceptual-consolidation step only, not a source adequacy or
 principality result.
+
+A compiler-referee review of the unified judgment found a handler-image gap:
+covering only selected outputs whose `OpCompat` premise succeeds would silently
+drop a reachable incompatible selection whenever another route alternative
+keeps the formula satisfiable. The draft now states the source admissibility
+condition universally over actual reachable ordered-search events. A finite
+presentation must preserve all actual selected outputs and that universal
+condition, while distinguishing source-reachable events from spurious routes
+introduced by approximation. It cannot constrain on a spurious route or omit a
+reachable incompatible one. This closes the soundness ambiguity in the
+mathematical statement; the finite termination/principality result and search
+simulation needed to meet it remain unproved.

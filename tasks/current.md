@@ -3769,3 +3769,14 @@ filter maps the request coordinate and retains the same assignment and
 dependent predicates. Next derive those two source judgments from the source
 semantics and test the resulting single-relation formulation against exact
 trace behavior; no implementation is authorized.
+
+Compiler-referee review exposed a soundness hole in the unknown-search image:
+keeping only compatible selected-arm outputs could discard a reachable
+incompatible selection while forwarding/compatible alternatives remain. The
+draft now requires `OpCompat` universally for every actually reachable
+selected event, not existentially for a successful branch. A finite
+approximation must preserve that condition without rejecting valuations due
+only to spurious abstract routes. The unresolved finite principal-presentation
+gate must prove it can distinguish those cases; otherwise the candidate has
+not met final-acceptance capability. Next prove or refute that route property
+for the source handler semantics.

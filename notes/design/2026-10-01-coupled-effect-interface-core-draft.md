@@ -1815,15 +1815,37 @@ raw continuation at `bool` with an `int`. That conditional application of the
 general preservation premise explains the concrete wrong Boolean result; it
 does not prove the still-open callback row rule.
 
+The quantifier is universal over reachable search events, not existential over
+the successful branches of an inference formula. Define
+`ReachSel_H(ν,I,q,a)` by existence of a source computation represented by the
+fiber `(ν,I)` and an actual ordered search trace selecting arm `a` for request
+`q`. Admissibility requires:
+
+```text
+∀ν,I,q,a. (ν,I) ∈ Rel_C ∧ ReachSel_H(ν,I,q,a)
+          ⇒ OpCompat_ν(q,a)
+```
+
+Thus a request that can be forwarded on one execution and selected on another
+must satisfy compatibility on every execution that selects it. An incompatible
+selected event cannot be removed from the handler image while a compatible or
+forwarding alternative keeps the disjunction satisfiable. Doing so would turn
+an ill-typed branch into an apparently well-typed residual.
+
 For an unknown visibility or incomplete search path, the finite inference
 presentation cannot establish a unique `Select` observation. A sound image
 must retain the possible forwarded request and cover every possible selected
-arm result whose `OpCompat` premise holds; keeping the request is not a claim
-that this is the whole image. A type-compatible arm by itself does not prove
-selection or coverage, and an incompatible selected case is rejected by the
-typed relation rather than forwarded. The full search relation for callbacks,
-adapters, effectful guards, and escaping values remains open and must be
-derived from source boundary semantics.
+arm result. It must also preserve the universal admissibility condition above;
+keeping the request is not a claim that it is the whole image, and retaining
+only compatible arm outputs is not sound. A type-compatible arm by itself does
+not prove selection or coverage. The finite presentation must distinguish
+actual reachable selected events from merely possible events introduced by a
+coarse abstraction: it may not constrain a valuation because of a spurious
+route, nor accept by dropping a reachable incompatible route. If the chosen
+finite abstraction cannot make that distinction while remaining terminating
+and principal, it has not met the source acceptance gate. The full search
+relation for callbacks, adapters, effectful guards, and escaping values
+remains open and must be derived from source boundary semantics.
 
 The family predicate alone is insufficient even in a closed point case. Let
 `F<>` have no family arguments and let the request payload be `Bool`, while
