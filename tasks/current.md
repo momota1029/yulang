@@ -2110,19 +2110,19 @@ adapter on the residual function only in the first variant; runtime tracing
 confirms the frozen route but does not justify it semantically. Direct
 application under the same caller catch gives the same pair of roots (`[2]`,
 `[7]`), so a named partial value is not itself necessary; parameter position
-and adapter placement still covary. A concrete semantics decision remains:
-are callback effect contracts static latent-row bounds, or do they grant a
-scoped handler authority over requests? The syntax authority does not decide
-this. Under ordinary call-by-value semantics, permuting receipt of pure
-independent arguments leaves the same body configuration, so the immediate
-pair's `[2]` versus `[9]` is a conditional runtime compatibility difference
-if contracts are static-only. Both programs are accepted, so this is not an
-acceptance-capability mismatch. A scoped-grant rule must explain parameter
-position and partial-application stages from source meaning and prove every
-`Drop` is actually handled. A follow-up exact-empty-row control confirms both
-nested orders pass `: [] int`, while a direct unhandled operation fails that
-filter and `: [choose] int` passes; row residual and handler-arm dispatch are
-separate observable dimensions. Alternatives and obligations are recorded in
+and adapter placement still covary. The former binary choice between static
+row bounds and handler grants was too coarse: the existing effect-hygiene
+design keeps type/support identity separate from path-sensitive visibility
+evidence. Row membership, boundary evidence, and operational handler selection
+need distinct definitions; `Drop` requires both typed coverage and a proved
+visibility relation. The syntax authority does not define how callback
+annotations contribute to that evidence. Under a pure-currying trace law, the
+immediate `[2]`/`[9]` pair contradicts invariance only if both source
+elaborations yield equivalent boundary evidence. A follow-up exact-empty-row
+control confirms both nested orders pass `: [] int`, while a direct unhandled
+operation fails that filter and `: [choose] int` passes; row residual and
+handler-arm dispatch are separate observable dimensions. The revised
+obligations are recorded in
 `notes/progress/2026-10-01-intrusion-coarse-effect-abstraction-candidate.md`,
 sections "Partial-application order stress on the receiver-grant candidate"
-and "Successor contract alternatives (unselected)".
+and "Orthogonal effect support and handler visibility (unselected)".
