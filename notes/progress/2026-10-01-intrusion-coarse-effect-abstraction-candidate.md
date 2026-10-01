@@ -5216,3 +5216,96 @@ generalization, or full effect principality. Duplicate and open cases need
 separate rules that preserve the same symbolic obligations. The lemma is a
 local proof component for the candidate actual/formal row comparison, not an
 implementation gate or a complete successor effect semantics.
+
+#### Open typed-row relation without shape invention (candidate)
+
+Extend only the row-value language, not the handler dynamics. A closed row
+value is a finite family-indexed collection of typed row occurrences. Each
+occurrence carries its fixed-arity argument tuple and source/evidence owner; a
+family can have multiple occurrences after a row tail is substituted:
+
+```text
+R ::= { F₁<τ̄₁>@o₁, ..., Fₙ<τ̄ₙ>@oₙ | ρ }
+μ(ρ) = a closed finite typed row
+```
+
+The row value retains every occurrence; merging explicit items with `μ(ρ)`
+concatenates occurrence collections and never selects one tuple as the
+representative for a shared family head. Its support is the set of heads with
+at least one occurrence. A row is well formed when all pairs of occurrences
+at the same head satisfy `InvArgs`; those obligations keep their own
+endpoints and owner identities. This all-pairs condition is independent of
+merge order because concatenation is associative and it does not quotient
+distinct symbolic endpoints.
+
+For two evaluated rows, `R₁ ⊑ᵗ R₂` means support inclusion and invariant
+argument agreement between every left/right occurrence pair at each common
+family head, as in the preceding closed-row relation generalized to
+occurrence lists. Row subtraction may remove occurrences from a support view,
+but their typed obligations and owners remain in the incidence ledger for any
+dependent residual, handler, or root view.
+
+Keep an open relation `RowLeq(R₁,R₂)` symbolic. Under a particular joint
+assignment of its row tails and type variables, the assigned occurrence rows
+must satisfy well-formedness and the resulting typed rows must satisfy
+`⊑ᵗ`. The constraint denotes the set of assignments satisfying that
+relation; it is not a universal claim that every possible tail assignment is
+valid. This makes `RowLeq` an exact relational constraint for the chosen
+typed-row abstraction, rather than a default effect row or an unexamined
+approximation. It adds no assumption about which family a tail contains. The
+result is principal only relative to this constraint language and its
+denotation; it is not a claim that a particular finite row is the least
+concrete solution.
+
+When a row-tail substitution exposes same-head occurrences, the solver may
+retain `RowLeq` unchanged and add derived support/invariant constraints over
+the exposed symbolic argument terms. It may replace `RowLeq` with a residual
+relation only after proving both directions of solution-set equivalence for
+all assignments to the remaining tails, types, and evidence owners. For
+example, a residual relation must still prevent an unexposed tail from adding
+a head excluded by the other row. Every rewrite keeps the original relation
+key, duplicate-occurrence obligations, and owner incidence (or carries a
+proof that maps them equivalently). Thus normalization is not permitted to
+drop the only typed row relation before all residuals are accounted for. No
+stage may infer the relation anew from concrete materialized rows.
+
+Example:
+
+```text
+R₁ = { ask<α> | ρ }
+R₂ = { ask<int> }
+RowLeq(R₁, R₂)
+```
+
+This relation does not decide in advance whether `ρ` is empty or which other
+heads a satisfying assignment gives it. It restricts satisfying assignments:
+`ρ` cannot add a head outside `R₂`; if `ρ` contains `ask<β>`, the row value
+retains both `ask` occurrences and requires `InvArgs(ask<α>, ask<β>)`; and the
+row comparison relates every resulting ask occurrence to `ask<int>`. If the
+source/formal relation requires an actual ask request to fit the formal ask
+item, its type arguments therefore remain symbolically connected to `int`.
+No family detail is generated for an unknown tail shape before an assignment
+exposes one.
+
+Substitution is relationally stable: substituting type and row terms into
+`RowLeq` commutes with its denotation, provided assignments are reindexed by
+pullback and row merge preserves the recorded duplicate constraints. A common
+external-use map must freshen owned row-tail and type binders together;
+outer anchors remain shared and independent uses receive disjoint local row
+and type identities. Intrusion transports the row-relation graph vertices
+through `M`, type arguments through `P`, row-tail binders through a separate
+row-binder map, and handler identities through `Theta`. Every transported
+`RowLeq`/`InvArgs` incidence edge must be preserved, or a quotient theorem
+must establish equivalent joint solutions and root observations.
+
+This is still only a candidate denotation. A structural proof is required
+that this row assignment relation coincides with source effect annotations:
+at an inference site, well-typedness asks for a satisfying joint assignment;
+generalization must preserve the complete set of assignments and uses. A
+separate proof must show the chosen solver normalization is terminating and
+solution preserving, and closed/open switching preserves the same relation. It does not yet
+specify row-tail subtraction, lacks constraints, repeated pushes and shared
+pops, nested boundary frames, handler completeness, residual routing, or
+runtime request ownership. In particular, the extensional `RowLeq` definition
+does not validate any Oracle weight push/pop rule. Those need independent
+operational semantics and preservation proofs.

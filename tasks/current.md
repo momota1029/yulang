@@ -1080,6 +1080,7 @@ remains. This proves no open-tail, duplicate, handler-routing, or full source
 principality result. See "Closed typed-row subtyping fragment (conditional
 lemma)" in
 `notes/progress/2026-10-01-intrusion-coarse-effect-abstraction-candidate.md`.
+
 Next: define provider/capture eligibility independently of family rows and
 prove the candidate's complete-coverage side condition and least-derivable
 bound property. The contract principle is source-backed, but provider identity,
@@ -2340,4 +2341,17 @@ callback comparison and declaration projection remain candidate semantics
 requiring proof and approval, while operation `Eθ` ownership/routing remains
 unresolved. See "Source-rule derivation of family obligation keys
 (candidate)" in
+`notes/progress/2026-10-01-intrusion-coarse-effect-abstraction-candidate.md`.
+
+An open typed-row denotation now models each family as an occurrence
+collection, preserving every duplicate endpoint and its owner instead of
+choosing one representative. `RowLeq` remains a symbolic relation over row
+and type assignments; normalization may expose `InvArgs`, but can replace the
+relation only with a two-way solution-set-preserving residual that retains
+unknown-tail restrictions and incidence. A compiler-referee review closed the
+duplicate representative, residual-tail, and assignment-quantifier findings.
+This remains a candidate row denotation: source annotation correspondence,
+solver normalization, subtraction, handler routing, and the requested
+independent push/pop calculus remain unproved. See "Open typed-row relation
+without shape invention (candidate)" in
 `notes/progress/2026-10-01-intrusion-coarse-effect-abstraction-candidate.md`.
