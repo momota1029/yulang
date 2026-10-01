@@ -1997,10 +1997,12 @@ back-edge reachability, then independently pruned from each root; Q remains a
 separate boundary/non-generic predicate. A guarded candidate now gives an
 inference-stage R/free split (`Q=[47,57,58]`, `R=[57]` versus `Q=[]`,
 `R=[57]`) in one mixed-fetch SCC, but mono specialization rejects it with a
-Function-versus-unit subtype failure. A productive control is accepted but
-keeps Q/R uniform. A direct `make` use from owner triggers
-`ComputedFetchCycle`. Next, locate and diagnose the final rejection, then
-search for an accepted guarded R/free witness. Details are in the same
-progress note.
+Function-versus-unit subtype failure. The first rejection came from an unused
+outer function parameter defaulting to `Any` and being specialized as `unit`.
+Using that parameter changes the final rejection to `unit <: recursive
+Function`, still unresolved. A productive control is accepted but keeps Q/R
+uniform. A direct `make` use from owner triggers `ComputedFetchCycle`. Next,
+trace the remaining constraint and find an accepted guarded R/free witness.
+Details are in the same progress note.
 Effect-row principality, route quotient completeness, and Oracle acceptance
 remain open.

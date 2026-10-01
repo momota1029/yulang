@@ -372,12 +372,11 @@ A productive control that removes the outer `f` layer and defines
 `our make = owner` is accepted by both source lowering and final mono
 specialization, but both roots then publish `Q=[33,56,58,59]`, `R=[56]`.
 That control confirms nominal guarding alone can pass final specialization;
-it does not produce root-local ownership. The difference suggests the next
-candidate must preserve the mixed boundary while avoiding the
-function-versus-unit obligation observed when extracting the guarded
-recursive result through the computed member; this causal explanation is not
-proved. The probes ran in the detached Oracle worktree; no branch compiler or
-test files changed.
+it does not produce root-local ownership. The initial rejection was traced to
+the unused outer `f` parameter defaulting to `Any` and being specialized as
+`unit`. Constraining `f` with `f 0` changes the rejection to a separate
+`unit <: Fun{wrap(...)->...}` constraint. The probes ran in the detached
+Oracle worktree; no branch compiler or test files changed.
 
 Focused scratch commands:
 
@@ -385,6 +384,28 @@ Focused scratch commands:
 YULANG_INTRUSION_OWNER_TRACE=1 YULANG_INTRUSION_ROLE_DEP_TRACE=1 CARGO_TARGET_DIR=/tmp/yulang-intrusion-scc-owned-target cargo test --offline --jobs=1 -p infer scratch_intrusion_source_mixed_fetch_productive_recursive_result -- --nocapture --test-threads=1
 YULANG_INTRUSION_ROLE_DEP_TRACE=1 CARGO_TARGET_DIR=/tmp/yulang-intrusion-scc-owned-target cargo test --offline --jobs=1 -p yulang scratch_intrusion_mixed_fetch_productive_recursive_q_free_acceptance -- --nocapture --test-threads=1
 ```
+
+### Mono failure localization
+
+The Function-versus-unit failure was traced to the computed `make` body while
+`specialize2::TaskSolver::solve_computed_def_signature` prepared that member.
+In the first candidate, the outer `owner` parameter `f` was unused, so the
+published owner type had an `Any` argument. The monomorphizer's
+`TaskSolver::apply_type` then consumed the recursive lambda argument as
+`unit`, producing the rejected `Fun <: unit` constraint. This explains that
+specific failure and makes the source defect concrete: an unconstrained
+function parameter was being passed a function value.
+
+Using `f 0` in the owner body and passing `\z -> 0` removes that mismatch at
+the owner call. Inference still has a mixed root-local R/free split
+(`owner Q=[52,53,63,64], R=[63]`; `make Q=[], R=[63]`) without diagnostics,
+but final mono specialization then rejects `unit <: Fun{wrap(...)->...}`.
+Thus fixing the unused-parameter cause does not produce an accepted witness;
+the remaining unit/function constraint has not yet been localized to its
+source operation. This focused failure runs through the computed-member
+specialization path. It does not by itself authorize beginning the broader
+method-selection/roles/impl-resolution gate; that later gate remains required
+after ordinary effect/handler semantics settle.
 
 There is a useful conditional exclusion for Q-versus-free ownership. For a
 variable `v` that occurs in both roots' compact-plus-role views where their
