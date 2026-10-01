@@ -55,8 +55,10 @@ conditionally; symbolic lifting, duplicate matching, coupled handler coverage,
 open rows, and the least representable schemes remain open. The next semantic
 discriminator is whether one computation may carry multiple invariant type
 instances of the same family head; that determines whether a single-slot row
-is justified or a contract-set relation needs disjunctive matching. No
-candidate is yet proved sound or principal.
+is justified or a contract-set relation needs disjunctive matching. The frozen
+`03_parameterized_effect_capture.yu` corpus case has `ask.get` at both `int`
+and `str`, but tests separately specialized handlers and does not settle one
+polymorphic arm. No candidate is yet proved sound or principal.
 
 ## Objective
 

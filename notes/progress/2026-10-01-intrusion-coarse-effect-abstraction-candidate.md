@@ -4923,6 +4923,20 @@ analysis; if they are forbidden by the family-indexed row contract, the map
 quotient follows from that source invariant and avoids artificial disjunctive
 matching. This is a characterization witness, not a new special-case rule.
 
+There is an existing frozen corpus witness close to this shape:
+`tests/yulang/yulang-adversarial-corpus/03_parameterized_effect_capture.yu`
+defines one `ask.get` family operation, and `pair()` requests it at `int` and
+`str`. Its contract expects the combined, separately specialized handlers to
+reject the shared exact operation path at runtime. This is evidence that
+multiple typed request occurrences can arise before handler composition, and
+that their type arguments do not create different runtime operation
+identities. It does not test one handler arm that is itself safe for both
+instances, nor does it establish whether a sound successor may reject `pair`
+at inference time. Therefore runtime path identity alone does not prove the
+single-slot premise; a source typing/acceptance argument for a polymorphic
+family row is still required. The frozen fixture is a counterexample search
+target, not authority for the successor rule.
+
 A suitable proof sequence is therefore: settle the family-uniformity lemma
 from operation typing and handler application semantics; prove the ground
 algebra for its resulting row domain; lift the relation symbolically and test
