@@ -3111,3 +3111,12 @@ visibility predicates are substitution-natural, then substitution commutes
 with the shallow transition and every finite observation. This extends the
 transport lemma to solve-phase type maps while explicitly leaving solver
 solution completeness and owner/boundary quotients unproved.
+
+The coupled-effect core draft now lifts that pointwise handler law to the
+complete relational handler image. Under naturality of concretization,
+transition-domain validity, and output observation, reindexing by a type solve
+map commutes with relational handler residualization. The law transports
+symbolic family constraints through solving without rebuilding them from a
+materialized output row. Its scope remains factor assignments and it does not
+establish solver completeness, finite principal presentation, or parent/boundary
+quotient correctness.
