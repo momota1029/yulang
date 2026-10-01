@@ -413,6 +413,57 @@ constraint operator; and compose this transfer with the graph/type SCC
 semantics. The construction is a candidate semantic component, not
 implementation authority.
 
+#### Conservative lifting for an unknown family tail
+
+The finite-powerset statement above assumes a closed family universe and exact
+`E`. It cannot silently stand in for an open source row or a callback whose
+possible families are not statically known. A conservative extension of this
+component uses the abstract domain
+
+```text
+EffAbs = Fin(Fam) ∪ { Top }
+γ(S)   = { X ⊆ Fam | X is finite and X ⊆ S }   for S ∈ Fin(Fam)
+γ(Top) = { X ⊆ Fam | X is finite }
+```
+
+Order is inclusion of concretizations. `Top` means an unknown finite request
+support, not an empty row and not a fresh family. With a finite, known handler
+coverage set `C`, the exact-support transformer lifts as follows:
+
+```text
+F_C(E, A) = (E \ C) ∪ A             when E,A are finite
+F_C(Top, Top) = Top
+F_C(Top, A) = Top                  for finite A
+F_C(E, Top) = Top                  for finite E
+```
+
+The `Top` cases are the least representable upper bounds under the explicit
+open-world premise that `Fam \ C` is infinite: request families outside
+finite `C` remain unbounded, so no finite row can soundly bound the residual.
+If a later source model instead fixes a finite closed `Fam`, this table must
+be refined: `Top` minus `C` can then be represented by the finite row
+`Fam \ C`. An unknown or partial handler contract must not be interpreted as
+a larger `C`; absent proof of complete coverage and eligibility, use `C=∅`
+for the affected family support. This rule retains unknown effects rather
+than manufacturing a row shape or erasing a possible request.
+
+This lifting is monotone in `E` and `A` for a fixed proven `C`: finite inputs
+use union and set difference by fixed `C`; crossing from finite to `Top`
+widens the concretization and maps the result to `Top`. Under the open-world
+premise above, it is best-correct within this deliberately coarse domain, but
+not necessarily in a richer row language with an expressible open tail plus
+exclusions. Thus the principality
+claim remains relative to this chosen abstraction; choosing an exclusion-tail
+domain would require a separate leastness and composition proof. Typed payloads,
+unknown handler coverage, recursive least fixed points, and integration with
+SCC parent/evidence transport remain open. This component gives the effect
+transfer a sound unknown case without treating Oracle weight routing as an
+authority. A scoped compiler-referee review caught the finite-closed-universe
+counterexample to the first wording; the open-world premise and required
+finite-closed refinement above close it. The reviewer found no remaining
+finding in this delta. This review does not certify the surrounding source
+semantics or effect/handler gate.
+
 ## Focused probes
 
 All commands used `/tmp/yulang-intrusion-oracle/target/debug/yulang`; sources

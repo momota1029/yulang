@@ -2133,3 +2133,24 @@ obligations are recorded in
 `notes/progress/2026-10-01-intrusion-coarse-effect-abstraction-candidate.md`,
 sections "Partial-application order stress on the receiver-grant candidate"
 and "Orthogonal effect support and handler visibility (unselected)".
+
+The effect-transfer component now also has an explicit unknown-tail lifting:
+finite family supports plus `Top` (unknown finite support). For a finite,
+proven handled-family set, a `Top` input remains `Top`; unknown or partial
+coverage cannot justify `Drop`. This is best-correct only relative to this
+coarse abstraction and an open-world premise (`Fam \ C` infinite); a finite
+closed family universe needs `Top \ C` refined to that universe's finite
+complement. A scoped compiler-referee review caught and closed this exact
+premise gap. It remains not best-correct in a richer exclusion-tail row
+language. It closes the missing unknown-support case for the local
+shallow-handler equation, while
+typed payload matching, source derivation of coverage/visibility, recursive
+fixed points, and composition with SCC parent/evidence transport remain open.
+The handler-independent returned-closure lemma separately requires a callback
+latent row to survive on a returned arrow. Next derive the source judgment that
+produces both typed coverage and path-sensitive eligibility, then prove its
+transport through helpers, currying, closure escape, and SCC instantiation;
+do not select or implement a weight-routing rule before that derivation.
+Details are in `notes/progress/2026-09-30-intrusion-weight-routing-counterexample-search.md`
+under "Conservative lifting for an unknown family tail" and the
+`2026-10-01` coarse-effect candidate record.
