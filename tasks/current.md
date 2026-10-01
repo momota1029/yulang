@@ -3799,3 +3799,19 @@ the returned closure's latent typed interface is retained, but neither caller
 handler eligibility nor routing follows from that alone; immediate support
 subtraction requires the handler-image proof. No grant-lifetime policy was
 selected.
+
+Independent pure-SCC audit: the reviewed `RecGroup`/`LetRec` proof establishes
+adequacy only for its custom declarative rules, and no recorded concrete
+final-acceptance mismatch exists in its pure one-SCC envelope. Oracle
+source-to-rule correspondence remains missing, especially per-member
+fetch/root projection and latent effect endpoints even for pure-looking
+Functions. A read-only frozen-source trace found that self recursion is a
+local monomorphic endpoint, while external uses pass through per-member SCC
+quantification and independent scheme freshening. The recorded `f 1`
+`dump-mono` rejection occurs in a later specialization body check; ordinary
+`check` does not run that same gate. Neither terminal `check`/`run` behavior
+nor the `f (\\z -> z)` outcome is recorded, so the next discriminator must use
+the actual final well-typed-program gate, paired with the existing two-member
+independent-use fixture. The unified declarative relation remains the target;
+these Oracle phases are characterization evidence, not semantic constructs.
+No tests or Oracle executions were run.

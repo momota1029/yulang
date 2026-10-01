@@ -251,3 +251,55 @@ primary added the least-`Bottom` premise, explicit root assignments in both
 witnesses, and the exact hypothetical erasure rewrite. The delta review found
 no remaining issue in that corollary; it did not assess effects, the complete
 Oracle pipeline, or implementation.
+
+## Follow-up Oracle final-acceptance audit (2026-10-02)
+
+A read-only compiler-referee audit compared the theorem's scope with the frozen
+Oracle ledger. It found no concrete final well-typed acceptance mismatch within
+the stated pure `Var`/`Int`/`Lambda`/`Apply`/`Let`/one-SCC envelope. This is
+absence of a recorded counterexample, not evidence of envelope-wide
+equivalence: the theorem proves generation adequacy for its custom
+`RecGroup`/`LetRec` rules, while the Oracle ledger contains only finite source
+observations.
+
+The missing bridge is a two-way relation between those declarative rules and
+the Oracle's final acceptance path, including source lowering, per-member
+fetch/root projection, and latent effect coordinates that exist even on
+syntactically pure functions. Existing probes support isolated facts: an
+unproductive mutual SCC with independent uses is accepted, and the
+`pub f x = x f; f 1` path is rejected. They do not characterize the complete
+member relation or its use fibers.
+
+The next discriminating fixture pair is the singleton `pub f x = x f` with
+separate external uses `f (\\z -> z)` and `f 1`, compared at final check and
+the selected use-root relation, then paired with the existing two-member
+independent-use witness. The candidate graph admits the identity-function
+use under the documented Top/Function carrier assumptions; its Oracle outcome
+is unrecorded. No tests or Oracle commands were run in this audit.
+
+### Frozen Oracle source-path follow-up
+
+A read-only source trace of the frozen `a58eefc3` path found that the recursive
+self reference in `pub f x = x f` is a local monomorphic self endpoint, not an
+SCC `UseResolved` edge. External references to `f` do pass through component
+quantification and receive independent per-use scheme freshening. The frozen
+`dump-mono` rejection of `f 1` occurs later: specialization solves the
+concrete use signature and then rejects the definition body when `int` is
+used as a function. Thus the recorded finalized scheme and the final
+specialization outcome are different observations; neither alone establishes
+the candidate `RecGroup` relation's complete acceptance fibers.
+
+The source trace also found that ordinary `check` summarizes inference
+diagnostics without the same mono specialization gate. The recorded material
+does not establish terminal `check`/`run` behavior for the rejection example,
+and it does not establish the outcome of `f (\\z -> z)`. The discriminating
+pair must therefore be compared at the actual final well-typed-program gate,
+not inferred from `dump-poly`. This keeps the pure SCC source-adequacy bridge
+open. No compiler, test, or Oracle execution was performed.
+
+This follow-up reinforces the selected research direction: model source
+typing/evaluation and per-use interfaces in one declarative relation, then
+derive SCC transport and finite solver bookkeeping from it. Local self
+endpoints, quantifier events, root projections, and specialization checks are
+Oracle pipeline facts to compare against that relation, not semantic
+constructs to copy into it.
