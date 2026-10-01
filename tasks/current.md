@@ -2062,3 +2062,19 @@ and independent instantiation, then derive a source judgment independently of
 weight routing. The correction and transition evidence are in
 `notes/progress/2026-09-30-intrusion-oracle-latent-effects.md`, section
 "Partial inner handler and repeated requests".
+
+A separate conditional semantic component now gives the shallow-handler family
+support transfer independently of Oracle weights: `E_out = (E minus C) ∪ A(E)`,
+where the raw continuation has a latent row bounded by the input support `E`,
+and `C` contains only families both authorized and completely covered by the
+handler. Ordinary typing of a resumed
+continuation adds its effect to the arm support, so repeated resumed requests
+remain represented without exact request-count or linear-usage inference. The
+transfer is sound by finite-trace cases and least for the stated finite-family
+abstract concretization when the arm summary is least. This is only a
+conditional component: deriving `C`, preserving typed payload/evidence,
+unknown rows, monotonicity of full recursive constraints, and composition with
+SCC inference remain open. It directly accounts for why a resumptive
+`choose` arm cannot justify the Oracle-accepted pure `via_helper` scheme.
+Details are in `notes/progress/2026-09-30-intrusion-weight-routing-counterexample-search.md`,
+section "Conditional finite-family transfer lemma for shallow handlers".
