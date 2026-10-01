@@ -2002,7 +2002,11 @@ outer function parameter defaulting to `Any` and being specialized as `unit`.
 Using that parameter changes the final rejection to `unit <: recursive
 Function`, still unresolved. A productive control is accepted but keeps Q/R
 uniform. A direct `make` use from owner triggers `ComputedFetchCycle`. Next,
-trace the remaining constraint and find an accepted guarded R/free witness.
+trace the scheme-to-specializer conversion of the recursive lower bound and
+find an accepted guarded R/free witness. The failing `unit <: Function`
+constraint is already present immediately after recursive-bound materialization
+and is inserted before computed-body inference, but its exact scheme/defaulting
+source is not yet identified.
 Details are in the same progress note.
 Effect-row principality, route quotient completeness, and Oracle acceptance
 remain open.

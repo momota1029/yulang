@@ -407,6 +407,17 @@ specialization path. It does not by itself authorize beginning the broader
 method-selection/roles/impl-resolution gate; that later gate remains required
 after ordinary effect/handler semantics settle.
 
+A follow-up inspected the computed member's instantiated signature immediately
+after scheme materialization. Its recursive-bound side table already contains
+`lower: unit` for the recursive value and a Function-containing upper bound;
+the failing subtype is therefore added by `constrain_recursive_bounds` before
+the member body is inferred or consumed. The trace rules out the body operation
+as the source of this particular lower bound. It does not yet determine which
+scheme occurrence or defaulting path turns the inference-stage recursive data
+into `unit`, so this is still not an accepted R/free witness or a complete
+source-to-specializer explanation. The temporary specializer instrumentation
+was removed from the detached scratch worktree after this probe.
+
 There is a useful conditional exclusion for Q-versus-free ownership. For a
 variable `v` that occurs in both roots' compact-plus-role views where their
 quantifiers are selected, if both roots use the same boundary and
