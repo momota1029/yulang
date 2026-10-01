@@ -8229,3 +8229,13 @@ skipped; they characterize the frozen runtime only and do not define the
 successor's `Visible` relation. Source-level visibility and typed transition
 adequacy remain open. Evidence: `crates/mono-runtime/src/runtime/eval.rs`
 at `eval_catch` and `handle_catch_request_arm` in frozen `a58eefc3`.
+
+The finite source-ordered arm-search equation also has a direct trace
+preservation proof by induction on the remaining arm count. Each pattern or
+guard request stays in the composed relation, and its resumed state feeds the
+next arm/body. Therefore the image support covers every selected-prefix and
+suffix request, without claiming that it equals an independent union of arm
+rows. For a handler, the terminal no-arm outcome is mapped by `Step_H` to
+forwarding the original request with re-entry. This is conditional on the
+candidate state-threaded `BindPat`/`Guard` relations being source-adequate; it
+does not yet prove their source typing premises or finite solver projection.

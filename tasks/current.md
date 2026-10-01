@@ -3516,3 +3516,8 @@ request and re-enters `handle_catch_result` after resumption. Source-order
 pattern/guard fallthrough also matches the candidate. Guard-ID and handler-
 boundary tests remain runtime characterization only; they do not define the
 successor's dynamic `Visible` semantics.
+The ordered arm-search relation preserves effects from pattern/default and
+guard prefixes by state-threaded composition; a finite-arm induction shows
+those requests remain in the handler image. Its support is not an independent
+union of arm rows. Source adequacy of `BindPat`/`Guard` and a finite principal
+projection remain open.

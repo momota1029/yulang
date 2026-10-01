@@ -524,6 +524,20 @@ notation does not choose whether that outcome is an exception, failure, or
 divergence. The equation is a sequencing decomposition, not an independent
 effect rule for patterns or cases.
 
+**Finite-arm trace preservation.** For a fixed finite arm list, induction on
+`n-i` shows that every finite trace of `Match_i` is obtained through one of
+the displayed relational branches: pattern-binding prefixes are followed by
+the matched arm's guard/body, or by the next arm after mismatch/false guard.
+The induction step uses the state-threaded `>>=` relation, so a request in a
+pattern default or guard keeps its continuation and passes its resumed state
+to the later match/body. Consequently, the request support of the ordered
+match image includes all requests on these prefixes and selected suffixes.
+This does not justify computing that support as an independent union of arm
+rows; a later resumption can observe state changed by an earlier prefix. For
+handler arms the terminal `NoArm` observation is then consumed by the enclosing
+`Step_H` case, which forwards the original request with its handler-reentry
+continuation.
+
 For any observation relation `R`, define collected typed-request support at
 fixed assignment `ν` by
 
