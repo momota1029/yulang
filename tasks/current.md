@@ -1948,10 +1948,14 @@ other source shapes. A compiler-referee source audit established a conditional
 Q/free exclusion: with the same boundary and unchanged `level_of(v)` at both
 root quantifier-selection epochs, a retained variable receives the same Q
 classification; dead-quantifier pruning cannot leave it free while preserving
-the occurrence. The remaining Q split mechanisms are cross-epoch level
-lowering or a post-selection ancestor rewrite; R ownership remains a separate
-root-reachability question. Next extract per-root compact support, levels,
-ancestor substitutions, and finalized Q/R/free occurrences for the recorded
-guarded SCC, without assuming its current binder counts settle ownership.
+the occurrence. A focused trace of the recorded guarded SCC now captures both
+root selections: same boundary, no ancestors, variables 97/98 at level 1,
+Q `[11,97,98]` for both roots, and distinct root-local R binders 97 and 98.
+Cross-recursive occurrences are Q/Q in this fixture, and incoming uses have
+disjoint Q clone targets. The trace closes only this fixture's inventory; it
+does not exclude Q split mechanisms elsewhere or establish general R ownership.
+Next search for accepted source shapes with cross-epoch level lowering,
+post-selection ancestor rewriting, or a root-local R/free occurrence, then
+derive source-owned member views if no such program is expressible.
 Effect-row principality, route quotient completeness, and Oracle acceptance
 remain open.

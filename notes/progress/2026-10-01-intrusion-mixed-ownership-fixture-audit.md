@@ -24,11 +24,10 @@ not provide the missing case.
 The guarded two-member source witness in
 `notes/progress/2026-09-30-intrusion-bounded-negative-counterexample.md:595-638`
 places `helper` and `g` in one `QuantifyComponent`, with distinct incoming
-uses. The record states that both finalized schemes have the same three-Q
-vector and distinct recursive-bound binders. It does not record complete
-finalized Q/R sets or all type-variable occurrences in both predicates and
-recursive-bound sides, so it cannot establish either the presence or absence
-of mixed Q/R-versus-free ownership.
+uses. A focused trace against the frozen Oracle now records its Q selection,
+ancestor state, and finalized binder sets (below). In this fixture the two
+cross-recursive variables are both Q binders in both member schemes; it does
+not exhibit a Q/free or R/free split.
 
 `analysis/tests/case_03.rs::computed_fetch_def_does_not_quantify_binding_level_root`
 compares `FetchValue` and `FetchComputation` in separate sessions. It proves
@@ -69,13 +68,44 @@ quantifier set was chosen. This is a conditional consequence of
 `quantified_vars_in_root_and_roles` and the finalizer, not proof that any of
 those mechanisms occurs in an accepted SCC.
 
-The Q argument says nothing about R ownership. Recursive-bound variables are
+The Q argument says nothing general about R ownership. Recursive-bound variables are
 collected by root-local polarized DFS and pruned by root reachability
 (`compact/collect/mod.rs:190-207, 761-784`,
 `generalize/core/prune.rs:90-123`); one member can in principle retain an R
 binder while another view contains that identity through a different path.
-The current guarded source record names distinct R binders but omits the
-cross-root occurrence inventory needed to decide this case.
+The focused guarded-source trace below shows the two cross-recursive IDs are
+Q binders in both views, but does not establish a general exclusion for R/free
+ownership in other SCCs.
+
+## Focused trace of the guarded two-member SCC
+
+The frozen Oracle was built in a detached scratch worktree at the reference
+revision. Temporary instrumentation in `instantiate.rs` and one focused test
+captured the existing accepted source fixture; neither was added to this
+branch. The trace is `/tmp/yulang-intrusion-owner-trace.log` and the focused
+command passed once:
+
+```text
+YULANG_INTRUSION_OWNER_TRACE=1 CARGO_TARGET_DIR=/tmp/yulang-intrusion-scc-owned-target cargo test --offline --jobs=1 -p infer scratch_intrusion_same_scc_member_ownership_trace -- --nocapture --test-threads=1
+```
+
+| Member root | Boundary | Constraint epochs | Q selected and published | R published | Ancestors |
+| --- | --- | --- | --- | --- | --- |
+| `helper`, `TypeVar(9)` | `TypeLevel(0)` | 298 → 299 | `[11, 97, 98]` | `[97]` | none |
+| `g`, `TypeVar(39)` | `TypeLevel(0)` | 299 → 300 | `[11, 97, 98]` | `[98]` | none |
+
+At both Q-selection points, variables 97 and 98 had level 1. Thus the root
+epoch advanced, but this trace shows neither a level change nor a Q ownership
+change. The helper scheme's recursive binder is 97 and its lower recursive
+payload reaches 98; the g scheme owns 98 and its lower payload reaches 97.
+Both IDs are Q binders in both schemes, so these cross-recursive occurrences
+are Q/Q. The captured incoming clone maps use pairwise-disjoint target triples
+for the Q vector, consistent with independent freshening per use.
+
+This closes the inventory gap for this fixture only. It does not prove that
+every accepted source SCC preserves uniform Q ownership, or settle whether
+another fixture can expose root-local R/free ownership, boundary variation,
+level lowering, or a post-selection graph rewrite.
 
 The next useful source evidence must come from one accepted same-SCC
 construction or a complete saved graph view. It must align, for both member
@@ -96,5 +126,6 @@ post-quantifier rewrite from the recursive-bound reachability case. The
 existing two-view example in the candidate proves only renaming algebra after
 ownership classes are supplied. It does not close source-step adequacy, all
 member-root observations, effects, principality, or final acceptance
-equivalence. No compiler code or test file was changed and no test was run for
-this audit.
+equivalence. The scratch Oracle worktree and instrumentation are temporary
+characterization only; no compiler code or test file was changed on this
+branch.
