@@ -2078,3 +2078,16 @@ SCC inference remain open. It directly accounts for why a resumptive
 `choose` arm cannot justify the Oracle-accepted pure `via_helper` scheme.
 Details are in `notes/progress/2026-09-30-intrusion-weight-routing-counterexample-search.md`,
 section "Conditional finite-family transfer lemma for shallow handlers".
+
+A new paired frozen-Oracle source probe narrows the eligibility input: when
+`inner` receives `f: () -> [choose] int`, its complete nested catch handles a
+request passed through an ordinary helper with wildcard callback row (`[2]`);
+changing only `inner`'s row to wildcard lets the outer catch handle it (`[1]`).
+This supports a grant scoped to the receiving function activation and preserved
+through helper calls, but not a transferable family Boolean. Closure escape
+and independent instantiation remain open; the returned-closure probe is a
+conflicting boundary case. Next compare grant lifetime across returned
+closures and separately instantiated callbacks, retaining unknown eligibility
+conservatively until those transports are proved. Evidence is under
+"Receiver-grant transport through an ordinary helper: focused probe" in
+`notes/progress/2026-10-01-intrusion-coarse-effect-abstraction-candidate.md`.

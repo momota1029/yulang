@@ -2202,6 +2202,53 @@ The frozen reference directly states these principles:
 - wildcard surface rows do not erase unrelated hygiene evidence; and
 - a shallow operation arm receives the raw continuation.
 
+#### Receiver-grant transport through an ordinary helper: focused probe
+
+A fresh paired source probe inserts an unannotated-effect helper call inside
+the function that receives a callback:
+
+```yu
+act choose:
+  our reject: () -> int
+my invoke(f: () -> [_] int): int = f()
+my inner(f: () -> [choose] int): int = catch invoke(f):
+  choose::reject(), _ -> 2
+  _ -> 20
+my outer(f: () -> [choose] int): int = catch inner(f):
+  choose::reject(), _ -> 1
+  v -> v
+outer(\() -> choose::reject())
+```
+
+The frozen checker accepts it and the interpreter returns `[2]`, so the inner
+catch handles the callback request even though the invocation passes through
+`invoke` whose own callback row is wildcard. In the paired source, changing
+only `inner`'s callback row to wildcard `[_]` makes the outer catch handle it
+instead, returning `[1]`. The outer and inner operation handlers are both
+complete for `choose::reject`. This is evidence that an explicit concrete
+contract on the receiving function remains effective through an ordinary
+helper call inside that function; the helper's wildcard contract does not
+erase the receiver's already-established visibility. Without that concrete
+receiver contract, the nested inner handler does not gain visibility from
+family equality or dynamic nesting alone.
+
+This narrows a possible source grant rule to an activation-scoped capability
+introduced by the receiving function's concrete callback parameter contract,
+which nested handlers may use during that function activation. It does not
+prove that the capability can be transported through returned closures,
+independent scheme instantiations, or callbacks passed onward to another
+receiver. The closure-escape probe immediately below is a conflicting boundary
+case: the same concrete contract accompanies an escaping returned closure and
+the frozen implementation leaves the caller request unhandled. Keep the source
+claim and the runtime observation distinct until escape and marker semantics
+are resolved independently.
+
+The temp programs were `/tmp/yulang-intrusion-boundary-grant-helper.yu` and
+`/tmp/yulang-intrusion-boundary-no-grant-helper.yu`. Focused interpreter roots
+were `[2]` and `[1]`; the env-gated scratch guard trace for the concrete case
+shows the inner operation arm matched without a skip. No repository compiler
+code or frozen checkout source was changed by this probe.
+
 The nested-provider probes in
 `2026-09-30-intrusion-weight-routing-counterexample-search.md` characterize the
 first two behaviors as outer result `[1]` without the concrete contract and
