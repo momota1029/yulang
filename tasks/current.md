@@ -3246,3 +3246,14 @@ simulation and a finite principal solver presentation from the common relation;
 if a missing distinction appears, establish its source-level necessity before
 adding it to the theory. No new semantic construct or implementation is
 approved by this preference.
+
+The unified lifecycle section now ties the paper's polarity discriminator to
+the general parent-quotient criterion: one parent per variable is not
+ordinary Simple-sub extrusion equivalence when positive and negative
+representatives have independent admissible assignments. This does not
+mandate polarity-indexed semantic rules. The successor must preserve the
+directional constraints in its complete relation or prove that its source
+fiber entails their identification. The discriminator is at
+`notes/progress/2026-09-30-simple-sub-paper-mlsub-audit.md`; the relation-level
+quotient condition is in the coupled-effect draft. The finite principal
+presentation and source-to-interface simulation remain the next proof work.

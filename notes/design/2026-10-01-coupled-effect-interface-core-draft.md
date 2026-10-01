@@ -1313,6 +1313,22 @@ action on `Rel_C`; symbolic family endpoints and evidence payloads receive
 `P`, while boundary lineage receives `Θ`. A type substitution never erases
 boundary evidence merely because request support becomes equal.
 
+The pure Simple-sub audit supplies a stress case for `P`: ordinary extrusion
+memoizes representatives by `(variable, polarity)`, and its two representatives
+can admit independent boundary choices. For a variable with lower bound
+`Int` and no informative upper bound, the positive representative may be
+`Top` while the negative representative is `Bottom`; identifying both loses
+that assignment pair. This is recorded as evidence against claiming that
+one parent per variable is ordinary Simple-sub extrusion equivalence, not as
+a requirement to add polarity-indexed semantic selectors. The unified
+relation must either retain both directional constraints in its complete
+formula and prove the exported root observations are preserved, or show by
+the quotient criterion below that the source relation itself entails the
+identification. Separate polarity ports, if used in a finite presentation,
+are then solver coordinates whose meaning follows from those constraints.
+See `notes/progress/2026-09-30-simple-sub-paper-mlsub-audit.md` for the
+reference discriminator and its scope.
+
 ### Generalization and fresh use as abstraction and reindexing
 
 This gives an exact lifecycle lemma without a special rule for typed-family
