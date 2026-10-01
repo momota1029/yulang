@@ -8593,3 +8593,16 @@ predicate includes `UnknownCell`, `UnknownStore`, and `UnknownState`; the
 transfer table covers reads, writes, identity tests, and branches on unknown
 state, and requires the successor `Σ#` to cover concrete state without
 resetting it. Focused delta review of these repairs found no remaining issue.
+
+## 2026-10-02: keep handler semantics separate from route certificates
+
+The coupled-interface draft had one inconsistent sentence calling route
+evidence a semantic coordinate, while its common carrier and comparison
+section correctly treated route ledgers as bookkeeping. The sentence now
+states the intended boundary consistently: activation-specific visibility and
+the handler transition are semantic; a route certificate is derivation
+evidence that the transition respects that visibility. This removes a
+bookkeeping construct from the mathematical carrier without erasing the
+underlying source-level boundary behavior. It is a consistency correction to
+the non-authoritative draft, not a new handler rule or proof of source
+adequacy.

@@ -3583,4 +3583,6 @@ preservation, update-path matching, or live-state continuation threading. It
 remains characterization, not source authority.
 Next close the source-level live-operand, callback, capture, and resume
 correspondence, then establish source typing and SCC lifecycle. No compiler
-implementation is authorized by these candidate lemmas.
+implementation is authorized by these candidate lemmas. The coupled-interface
+draft was also reconciled with the unified-theory direction: handler visibility
+is semantic, while route certificates are derivation evidence only.

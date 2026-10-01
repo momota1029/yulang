@@ -385,8 +385,10 @@ The following familiar operations then have one derivation pattern:
   computation interface through the source handler semantics. The residual is
   the output support projection. A request can be removed only when the
   semantics proves that every request represented by that portion is covered
-  and eligible at the relevant activation. The route evidence is a genuine
-  coordinate of the relation, not a row selector.
+  and eligible at the relevant activation. Activation-specific visibility is
+  part of the semantic relation; a route certificate is only derivation
+  evidence that the handler transition respected that visibility, not a
+  separate semantic coordinate or row selector.
 
 These descriptions are a common denotational interface, not a claim that each
 operation is a homomorphism. In particular, a handler may fail to preserve
