@@ -249,3 +249,34 @@ are recorded in
 `notes/progress/2026-10-01-intrusion-coarse-effect-abstraction-candidate.md`.
 Source-rule derivation, actual solver/residual transitions, their solution
 preservation proof, and parent-map construction remain open.
+
+## 11. User-directed theory-economy amendment (2026-10-02)
+
+Among sound candidates, prefer the smallest conceptually unified theory.
+Soundness and principality remain mandatory; Oracle compatibility and inference
+precision may be conservatively reduced when needed to retain them. The
+successor should explain row splitting, filtering, handler subtraction,
+callback boundaries, generalization, instantiation, and intrusion as
+consequences or instances of a few source relations and common transport laws.
+
+- Do not add a semantic construct, selector, obligation kind, or special case
+  solely to fit an Oracle fixture. Require evidence that a distinction is
+  fundamental to the source language before giving it a separate semantic
+  role.
+- Treat `Sel_s`, `Demand`, typed-family obligation objects, route evidence,
+  and transport maps as candidate proof notation or implementation bookkeeping
+  unless the source semantics proves that their distinctions are observable.
+- Prefer deriving cases as lemmas from declarative relations; compare viable
+  formulations by conceptual economy, compositionality, principality, and proof
+  reuse. Keep implementation bookkeeping separate from the mathematical core
+  wherever possible.
+- Retain the already selected invariants: typed-family argument constraints
+  remain symbolic through the full SCC lifecycle, dynamic handler visibility
+  is defined by source machine behavior, and exact trace support is a
+  soundness reference rather than a required inference language.
+
+This amendment records a design preference and constrains the active research
+gate; it does not select a complete effect calculus, prove the relational
+candidate sound or principal, or authorize compiler implementation. The
+candidate comparison and current factorization of proof vocabulary are in
+`notes/design/2026-10-01-coupled-effect-interface-core-draft.md`.

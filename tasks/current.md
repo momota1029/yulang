@@ -3859,3 +3859,6 @@ a soundness reference, not a required inference domain. The comparison is
 recorded in the non-authoritative coupled-interface draft, now with a
 factorization table and a proof-economy test for each proposed rule. Its source
 rules, finite solver presentation, soundness, and principality remain open.
+This explicit preference is also recorded as a user-directed amendment to the
+Reviewed redesign charter and indexed there; it does not authorize compiler
+implementation.
