@@ -35,6 +35,9 @@ they emit pairwise subtype constraints and consume or collapse typed row data;
 this is characterization only. Source rules must still determine which of
 those encounters require successor obligations, and the successor's
 view-demand incidence proof remains open.
+The later source-rule notation now agrees with the stable-key rule: each
+relation site and argument position has a key, while endpoint type terms stay
+as substitutable formula payload.
 
 ## Objective
 

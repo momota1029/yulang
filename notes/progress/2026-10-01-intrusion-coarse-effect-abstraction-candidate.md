@@ -6018,13 +6018,19 @@ exact `OpId(p)` remains the operation identity used by handler selection.
 For any candidate source rule that relates two typed row items with the same
 family head, write them as
 `FamInst(F<χ̄>)@o₁` and `FamInst(F<ῡ>)@o₂`; `o₁` and `o₂` retain the distinct
-source/use owners of the two row occurrences. The rule derives the obligation
-key before changing either structure:
+source/use owners of the two row occurrences. For each argument position `i`,
+the rule derives a stable obligation key before changing either structure:
 
 ```text
-o = (relation_site, left_origin/use, right_origin/use, F, χ̄, ῡ)
-Formula(o) = ⋀ᵢ (χᵢ <: υᵢ  and  υᵢ <: χᵢ)
+oᵢ = (relation_site, left_origin/use, right_origin/use, F, i,
+     view_occurrence_id)
+Formula(oᵢ) = (χᵢ <: υᵢ  and  υᵢ <: χᵢ)
 ```
+
+The argument terms `χᵢ` and `υᵢ` are symbolic formula payload, not key
+identity. Type substitution updates the payload in place; the use/view
+occurrence map transports `view_occurrence_id` during freshening or intrusion.
+This keeps source-pair incidence stable while endpoint terms change.
 
 In the source that generates the relation, `χ̄` and `ῡ` are obtained by
 projecting the family arguments from the two row items, not from all operation
@@ -6035,8 +6041,8 @@ rules and require their own typing proof.
 
 For a callback/function argument comparison, the candidate source rule
 compares the actual and formal latent rows as typed row views. If both contain
-the same family head, it emits `Formula(o)` for their two independently owned
-family argument vectors before row projection or residualization. This is a
+the same family head, it emits each `Formula(oᵢ)` for their two independently
+owned family arguments before row projection or residualization. This is a
 new source rule; neither the frozen row-set spec nor runtime path matching
 proves it. For an operation arm matching `p`, the candidate resolves the same
 operation declaration under its own capture-avoiding map `φ`; the
