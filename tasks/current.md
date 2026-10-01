@@ -4029,3 +4029,12 @@ handler image, generalization, fresh instantiation, and intrusion. The frozen
 as a rule. Method/roles/impl resolution remain gated until ordinary
 effect/handler semantics closes unless a proved dependency requires them
 sooner. No compiler implementation is authorized.
+
+Source-contract clue for that gate: the frozen reference says handlers inside
+a concrete callback receiver can consume matching callback-origin effects.
+The witness's `catch` is inside `handle`, while nested `invoke` has no handler;
+this favors preserving the outer incidence through that call. The reference
+does not define how concrete receiver contracts compose or prove where every
+`CallView` adaptation runs. Treat preserve as the simpler hypothesis, not a
+settled source rule. Details and compatibility evidence are in
+`notes/progress/2026-10-02-callback-scope-transition.md`.

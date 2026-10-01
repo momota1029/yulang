@@ -58,6 +58,17 @@ Candidate 1 is conceptually cheaper if source simulation proves it; candidate 2
 cannot be chosen merely to fit the frozen route. The author has not selected
 either clause.
 
+The frozen source reference gives candidate 1 some positive, but incomplete,
+support: it says a concrete callback argument contract lets handlers inside
+the receiving function consume matching callback-origin effects. In the
+witness, `handle` is such a receiver and its `catch` is in the function body;
+`invoke` itself has no handler, so its `[choose]` annotation alone does not
+explain consumption. This favors preserving the enclosing incidence through
+the nested call as the simpler reading. It does not specify how two concrete
+receiver contracts compose, or formally establish that all generated
+`CallView` adaptations execute inside the enclosing catch. Treat it as a
+source-backed hypothesis, not a selected rule or proof of soundness.
+
 ## Reviews
 
 - **architect**: the witness cannot select either candidate; keep the
