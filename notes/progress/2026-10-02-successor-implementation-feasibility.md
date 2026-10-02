@@ -285,3 +285,46 @@ therefore has no event/callback/activation carrier to extend. Both A and B
 remain unimplementable as a bounded compiler slice until the successor source
 relation and complete effect interface are established. No code or tests were
 changed or run.
+
+## Follow-up proof / feasibility check: finite event quotient
+
+The first bounded-event sketch was challenged with recursive same-site
+handlers, retained old continuations, and repeated Force. A fixed number of
+tracked event references is not sound if overflow means only “these tracked
+references may be equal or distinct”: it must represent arbitrarily many
+omitted live activations/events, and liveness must include captured values,
+latent thunks, stores, and saved continuations. Stack summaries must also
+retain repeated frame multiplicity and every resume restoration possibility.
+If those correlations are lost, their concretization must include both
+eligible and ineligible cases so it cannot certify subtraction.
+
+The proposed finite provenance carrier now has a stricter mathematical target.
+For a fixed finite source/interface and representation budget, define a total
+deterministic canonicalization `π : ConcreteConfigurations → S_W`, with finite
+`S_W`, and let each abstract record denote exactly one fiber of `π`. The fibers
+partition the concrete configurations, including unbounded overflow fibers.
+Then `α(X) = {π(c) | c ∈ X}` and `γ(B) = π⁻¹(B)` form an adjunction. Summary
+coordinates live inside a fiber; they are not overlapping partial records that
+each independently denote all compatible configurations. This corrects the
+earlier overlapping-record adjunction claim. It remains to define `π` and
+prove the required Force/store/unwind/resume/handler coverage.
+
+The exact best collecting transfer over this partition has a least fixed point
+in the finite powerset domain, but its computability is not established. A
+computable conservative transfer with top fallback can be least for its own
+transformer only; that does not establish the least concretely closed
+presentation, whole typing/SCC principality, or Oracle final-acceptance parity.
+The provenance quotient also does not bound assignment-indexed symbolic
+`K,D`; those constraints must remain coupled through the separate type
+relation and all scheme lifecycle operations. An architect proposed the
+partition quotient. Independent compiler-referee review confirmed the
+corrected adjunction but found that `π` is not yet defined on all concrete
+states: unbounded live references, recursive frames, dormant stores, and saved
+continuations need a deterministic overflow fiber that covers every successor
+and re-entry relationship. Stack exit alone cannot release an identity.
+This is not a proved finite solver.
+
+The implementation recheck found the same architecture boundary: resolved
+expressions still have only `Lambda`, `Integer`, `Name`, and `Error`, and no
+runtime Force/handler/continuation state exists to exercise `π` or its transfer.
+Thus the new step is theoretical; no Rust prototype, tests, or builds were run.

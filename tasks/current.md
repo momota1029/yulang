@@ -26,6 +26,26 @@ source premise open. The current HIR/effect/runtime representation still has no
 carrier for this scope, so no bounded code prototype is appropriate. See the
 new follow-up in the feasibility record.
 
+A finite-provenance feasibility proposal now has a corrected semantic target.
+The existing candidate `ReqFact` without callback/contract/handler event
+identity is insufficient for recursive same-site calls. A bounded event domain
+must classify the whole joint configuration deterministically, include dormant
+value/store/continuation references and unbounded overflow, and make unknown
+scope fail universal subtraction. An initial overlapping-record `α/γ`
+adjunction claim was withdrawn; a total canonical partition `π` repairs the
+abstract-domain law, independently reviewed, but does not make the exact best
+transfer computable or bound symbolic `K,D`. It proves neither full
+principality nor Oracle acceptance. Next prove event-join coverage across
+Force, shallow handling, store, and resume, then audit the corresponding
+implementation surface. A/B remains pending and is not needed for that
+parameterized proof. Compiler-referee review confirms the repaired partition
+adjunction, but `π` still lacks a total finite classification of arbitrarily
+many dormant identities, recursive stack frames, and saved continuations; a
+sound overflow fiber must preserve all re-entry possibilities. The exact best
+transfer may be uncomputable, while a top-fallback transfer may lose most
+subtraction precision. See the latest finite-event section of the feasibility
+record.
+
 The callback `Capture` source-projection candidate was revised after review:
 the handler must be connected by the ordinary source relation to the exact
 receiver activation and argument-contract boundary. Dynamic containment in an
