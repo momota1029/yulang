@@ -495,3 +495,13 @@ review confirmed this only rejects that evidence-collapsing quotient; a
 type-only parent map may keep owner/boundary identities and request edges
 distinct, subject to the full solution-fiber test. This does not prove the
 actual successor source owns the hypothesized events.
+
+The candidate source derivation for `Capture_ν(o,h)` now binds `h` to the
+ordinary source relation's exact receiver activation and argument-contract
+boundary. Compiler-referee review found that dynamic containment alone could
+incorrectly let an outer concrete callback contract capture through a nested
+receiver's handler. The text now excludes that inference; a nested handler
+needs its own source-derived contract connection. Review otherwise accepted
+the per-request caller-owned-thunk distinction and found no new selector or
+obligation. This remains a projection candidate: source ownership rules and
+their soundness/principality proof are open.

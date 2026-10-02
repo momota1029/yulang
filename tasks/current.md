@@ -2,6 +2,20 @@
 
 Updated: 2026-10-02. Branch: `research/simple-sub-intrusion`.
 
+The callback `Capture` source-projection candidate was revised after review:
+the handler must be connected by the ordinary source relation to the exact
+receiver activation and argument-contract boundary. Dynamic containment in an
+outer receiver is insufficient to grant its callback contract to a nested
+receiver's handler. This closes the local ambiguity only; source ownership,
+soundness, principality, and finite presentation remain open. The alternating
+implementation audit confirms there is no resolved call/Force/effect runtime
+surface or origin transport in the current compiler, so this slice cannot be
+prototyped incrementally and remains theory-only. Next prove the source
+contract-incidence rule and its callback/handler simulation, then repeat the
+implementation-feasibility audit at the next settled semantic gate. See
+`notes/progress/2026-10-02-callback-scope-transition.md` and
+`notes/progress/2026-10-02-successor-implementation-feasibility.md`.
+
 This turn corrected the non-authoritative intrusion sketch's misleading
 one-parent-per-variable picture. Ordinary Simple-sub extrusion has separate
 polarity representatives scoped to an extrusion call; the candidate now uses

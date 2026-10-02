@@ -151,3 +151,13 @@ label substrate only; source-owner and handler-boundary maps still need new
 typed carriers in a successor.
 
 No source code was changed. No tests or builds were run.
+
+The source-capture projection was checked against the resolved HIR and runtime
+surface again while reviewing the theory slice. No source call/Force/effect
+execution forms or runtime activation identity exist there, and current scheme
+substitution still drops effect endpoints and has no origin map. The exact
+receiver-contract incidence is therefore not incrementally hostable in the
+current representation; implementing it now would require the unproved source
+relation plus major front-end, solver, scheme-transport, and runtime work. Keep
+this gate theory-only and repeat feasibility review after ordinary handler and
+callback composition rules settle.

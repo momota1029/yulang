@@ -1450,6 +1450,28 @@ the composition:
    identities.
 4. Returning from `b` removes only `b`; it does not remove still-active `h`.
 
+The source derivation that feeds this projection can be stated without a
+callback-site selector. In one ordinary call derivation, take a receiver
+argument occurrence `a` with concrete callback contract `E`, and a handler
+activation `h` whose capture relation is attached by the ordinary source
+context relation to that exact receiver activation and argument-contract
+boundary. If the source evaluation/value relation attributes request `q[o]`
+in the callback's latent call/force behavior to the computation supplied at
+`a`, and the complete
+typed operation relation makes `q` compatible with `E` at `ν`, the relation
+projects `Capture_ν(o,h)`. The attribution is per request: merely forcing a
+caller-owned thunk while executing the callback does not change its origin to
+one owned by `a`, and `E` cannot grant capture to it by family match. This is
+the ordinary callback contract plus source provenance projected into
+`Capture`, not a new inference obligation or runtime grant store. The source
+relation must not connect a nested receiver's handler to the outer receiver's
+contract merely because that handler lies in the outer receiver's dynamic
+extent; the nested handler needs its own source-derived contract connection.
+The source evaluation/value relation still has to establish this ownership
+premise for direct callback requests, forwarded thunks, wrappers, and mixed
+computations. The frozen reference describes the callback contract but does
+not prove this successor derivation.
+
 By composition of these stage relations, the complete `CallView` preserves
 the handler-specific entitlement. This is conditional: the source
 typing/evaluation rules must prove each stage premise, particularly the
