@@ -157,6 +157,19 @@ confirmed that source typing, guard propagation, principal solving and
 conversion placement remain unapproved proof obligations. The equations are
 not implementation authority.
 
+The finite fixed-graph closure lemma is now recorded in
+`notes/design/2026-10-03-finite-bound-replay-closure.md`. Independent semantic
+and conformance review found two minor formal gaps: context domains and replay
+key counting, and the fixed background facts needed by conditional model
+conservation. The primary repaired both and clarified that unresolved
+endpoints stay suspended because this lemma defines no solving rule. Review
+confirmed the approved distinction: no successful concrete `Compat` judgment
+is composed. The lemma proves only finite least closure and conditional
+conservation for the abstract rules; source meaning, guard soundness,
+boundary-replay completeness, conversion placement and source-wide finiteness
+remain open. No implementation, tests, builds or measurements were run.
+Measurement budget consumed: 0.
+
 ## Next gate
 
 Prove bound-replay conservation for a fixed finite source elaboration and

@@ -111,6 +111,16 @@ gate is bound-replay conservation: define the source meaning of those bound
 judgments, preserve original guarded boundaries, and prove exactly which
 replay queries arise with their parent evidence and guards.
 
+A separate M3 draft now proves finite least closure for a fixed finite graph,
+payload set and context carrier. Independent semantic and conformance reviews
+found only minor formal gaps; the primary closed them by making the finite
+context domains explicit, aligning canonical replay keys with their count,
+conditioning model conservation on the fixed background facts, and stating
+that unresolved replay endpoints remain suspended. This mathematical lemma
+does not close source-level bound-replay conservation or authorize
+implementation. See
+`notes/design/2026-10-03-finite-bound-replay-closure.md`.
+
 Frozen specialization rechecks materialized concrete boundaries, while the
 Evidence VM has a recursive Record adapter distinct from generic `Coerce`
 aliasing and registered nominal cast resolution. No one shared runtime
