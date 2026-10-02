@@ -616,6 +616,51 @@ compatibility record and the precise conditional rule are in the
 coupled-effect draft, “Candidate and open boundary lifetime for callback
 capture contracts.”
 
+#### Fresh caller/source-origin join audit
+
+An architect and compiler-referee independently audited whether the existing
+`Run`, `ApplyValue`, relational composition, `Visible`, `Search_H`, and
+`OpCompat` equations already derive the fresh caller join. They do not:
+`ApplyValue` transports the closure body and captured values; composition
+preserves existing predicates; `Visible` requires the source connection;
+search consumes that connection; and `OpCompat` constrains a selected arm.
+None creates a new origin-to-handler connection. The current equations admit
+a model that connects direct-effect origins to a fresh caller but not escaped
+callback origins. This is logical underdetermination, not a source
+counterexample and not authority for a permanent mask.
+
+The smallest candidate closure is a conditional **ordinary-flow lemma** in the
+same relation. After normal return removes maker activation `r`, a later
+`ApplyValue` executes the escaped closure under the current caller context,
+not under a restored maker handler stack. For each exposed event `q[o]`,
+state-threaded bind carries that request, saved continuation, and its same
+assignment's symbolic `K,D` to the current ordered `Search_H`. If active
+handler `h` covers the exact operation, the ordinary source visibility
+relation has no intervening active boundary blocking that event, and search
+selects `h`, the request may be handled subject to `OpCompat`. This is the same
+application/search path used by a direct effectful closure; mixed-origin
+requests take separate event derivations and cannot share capture by family
+equality. The raw suffix after a shallow match needs a new search derivation.
+
+The key “ordinary outward-flow/no intervening blocker” premise remains absent
+from source typing and evaluation rules. It must be derived from generic
+evaluation-context and handler-boundary composition, while preserving
+existing hygiene for handlers inside active callback receivers. The frozen
+public effect wording supports this inside-receiver contract and protection
+against inner handlers stealing caller effects, but supplies no independent
+post-return mask principle. Required runtime lineage may be reinstalled as
+part of closure execution, but does not itself grant or deny static
+eligibility. This candidate adds no callback-specific selector; it refines
+the open source premise of `Visible`. It is not yet unconditional, soundness-
+complete, or principal.
+
+Next source theorem: derive that premise for normal closure return/application
+and prove it agrees for direct and escaped closures when their current source
+contexts have the same handler boundary path; separately retain the
+imported-Force A/B branch. Then re-check mixed-origin transport, ordered
+search, shallow continuation image, and principality. Implementation remains
+gated until this boundary theorem and the broader source/effect proof settle.
+
 The alternating implementation-feasibility check remains negative: current
 resolved HIR has no call, Force, request, or handler execution rules, and
 current effect substitution has no origin/`K,D` transport. Core and backend

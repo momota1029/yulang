@@ -1379,6 +1379,46 @@ These cases reveal no source-level reason for a persistent maker-boundary
 mask. They do not yet prove source adequacy, soundness of the full handler
 image, or principality of its finite abstraction.
 
+**Conditional ordinary-flow lemma for an escaped closure.** Let a closure `d`
+be returned normally from receiver activation `r`, with body retaining a
+callback value `f` and its latent request relation. Let a later ordinary
+application of `d` occur while caller handler activation `h` is active in the
+current machine context. Suppose that application exposes request event
+`q[o]`, the request's origin-specific symbolic `K,D` remain in the same
+assignment, `h` is still active and covers the exact operation, and the
+ordinary source visibility relation has no intervening boundary that blocks
+this event from reaching `h`. Then the ordinary `Run`/bind/application relation
+propagates `q[o]` to the current ordered `Search_H`; if that search reaches and
+selects `h`, `q[o]` is handled there subject to `OpCompat`.
+
+The proof uses no maker grant. Normal return removes `r` and its handler
+activations from the active context while retaining `d`'s latent request,
+origin, `K,D`, and required value-carried runtime lineage. Later `ApplyValue`
+evaluates the closure body in the then-current machine configuration; the
+captured value environment does not restore the exited maker handler stack.
+State-threaded bind transports the exposed request and its saved continuation
+to the surrounding search. The source search then applies its usual
+handler-relative visibility and ordered selection. A direct effectful
+closure uses the same application and search steps. Mixed-origin bodies use
+them per event, retaining distinct origins and `K,D`; sharing a family does
+not transfer callback capture between events. Raw continuation suffixes still
+need their own search derivations after a shallow arm exits.
+
+This lemma is conditional at the exact point the existing draft leaves open:
+the successor source relation must derive the ordinary outward-flow premise
+for closure/application and determine whether any *currently active*
+callback boundary blocks a particular event. That premise is a proof
+coordinate of `Run`, its evaluation context, and `Visible`, not a new
+callback-only selector or an inference obligation. Frozen public wording
+supports capture for handlers inside a receiving function and hygiene against
+inner handlers stealing a caller's effects; it states no persistent
+post-return mask on a new outer caller. Accordingly, it gives no authority to
+deny the ordinary-flow premise merely because `d` once crossed `r`. Runtime
+lineage remains transported, but cannot substitute for either side of the
+source visibility derivation. Current equations still admit the logical
+independence model where this ordinary-flow premise is absent, so this is not
+yet an unconditional derivation or a final soundness theorem.
+
 The previous alternative table is retained as a compatibility record, with
 the user's preference now fixed:
 

@@ -26,6 +26,20 @@ finite handler-image/principality and implementation feasibility. The latest
 read-only implementation audit found no resolved call/Force/handler execution
 path or effect-lineage carrier, so this remains theory-only.
 
+The fresh-handler audit confirms that current `ApplyValue` and relational
+composition preserve origin/`K,D` but do not create an origin-to-caller
+`Visible` connection; ordered search and `OpCompat` consume/constrain that
+connection rather than deriving it. The next theorem is the generic
+ordinary-flow lemma for normal closure return and later application: execute
+under the current dynamic context, propagate each request through stateful
+bind, and let current handler-boundary visibility plus ordered search decide
+selection. Prove direct and escaped closures coincide under the same current
+boundary path, while active receiver contracts still constrain inner handlers.
+This is a missing source premise, not authority for a persistent mask. Keep
+mixed-origin `K,D`, shallow raw-suffix behavior, and the imported-Force A/B
+gate separate. The exact audit and conditional lemma are recorded in the
+latest callback-scope progress section and the coupled-effect draft.
+
 The common Force/dispatch composition was reviewed without choosing A/B. A
 `Capture(origin, handler)` pair cannot act as a globally reusable grant because
 one lineage may expose multiple dynamic events. Incidence must be scoped to the
