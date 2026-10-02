@@ -4319,6 +4319,16 @@ Keep escaped caller-handler eligibility separate. After this proof slice is
 settled, target the implementation audit at its derived carrier and transitions.
 See `notes/progress/2026-10-02-callback-scope-transition.md`.
 
+The relational CallView composition lemma is now closed conditionally after
+compiler-referee/spec-auditor review: same-assignment predicates, per-request
+origin transport, and source-witnessed disappearance compose. Targeted code
+inspection found no carrier for these facts; current `TermLineage` is arena
+allocation metadata, effects close to `Bottom` / `Empty`, and resolved
+calls/Force/handlers are absent. This confirms no bounded prototype is sound
+before source ownership/Force premises are derived. Continue that source proof,
+then audit a Rust characterization against its actual rules. See both callback
+and implementation-feasibility progress records.
+
 The next proof slice distinguishes static source-site templates, dynamic
 request events, callback/thunk computation lineage, and activation identities.
 Type transport maps symbolic payloads and `K,D`; it does not rename runtime

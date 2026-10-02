@@ -210,3 +210,25 @@ approval. Defer compiler changes. Continue the source proof; after its next
 settled semantic gate, repeat the feasibility audit against the concrete
 carrier and transition rules then available. This record update adds no test or
 build evidence.
+
+## Targeted alternating check: per-request composition carrier
+
+After closing the conditional `CallView` composition lemma, I checked for a
+current implementation carrier matching its exact joint state: source call
+origin per request, symbolic `K,D` and shared-binder predicates, and
+source-witnessed residual/disappearance. The search found only unrelated
+solver `TermLineage` (the immutable term-arena allocation lineage), ordinary
+effect-row undo records, and F5 endpoint machinery. Resolved HIR still has no
+call/request/Force cases; `PositiveEffectView` / `NegativeEffectView` remain
+`Bottom` / `Empty`; `yu-core` and both backend library roots are documentation
+boundaries. No type or runtime structure can host the conditional carrier
+today.
+
+This agrees with the prior large-architecture classification, but the proof
+did not settle which source rules generate callback versus captured-thunk
+origins. Thus it does not justify a Rust prototype: such a model would have to
+invent the still-unproved source transition. Keep compiler code unchanged.
+Next derive the local ownership/Force premises from the ordinary source
+relation; once those premises and their independent review close, audit whether
+a bounded isolated Rust characterization maps to the actual successor carrier.
+No tests, builds, or measurements were run.
