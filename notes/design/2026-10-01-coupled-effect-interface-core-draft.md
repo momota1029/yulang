@@ -1220,14 +1220,38 @@ obligation is to define how ordinary source typing assigns and scopes those
 owner/incidence links for each supported annotation form, including helper
 calls, closure escape, thunk force, generalization, and instantiation.
 
-A candidate context shape, leaving the contract interpretation symbolic, is:
+A candidate context shape, leaving the source typing rules that generate
+eligibility symbolic, is:
 
 ```text
-κ = ordered active frames, each paired with its source-typed capture relation
-Origin(q) = source-owned request occurrence plus its typed boundary incidence
-Visible(q, h, κ) iff h is an active frame in κ, h covers q.operation, and
-  the complete source relation connects Origin(q) to h's capture relation
+κ = ordered active frames plus the complete state, request lineage, and
+  suspended search context at the current candidate test
+Origin(q) = source-owned request occurrence plus its symbolic typed incidence
+C_h = the actual configuration reached when ordered search tests candidate h
+SourceEligible(q, h, C_h) = whether the common source execution relation
+  permits this event to reach h along the actual current boundary path
+Visible(q, h, C_h) iff h is active in C_h, h covers q.operation, and
+  SourceEligible(q, h, C_h)
 ```
+
+`Capture_ν(o,h)` is a contract-specific projection of the same relation: it
+records the exact receiver activation and callback argument boundary that
+admits origin `o` to a handler inside that receiver. It is not a universal
+premise of `Visible`. An ordinary effectful closure can expose a request to an
+enclosing handler without a callback contract, and an escaped callback can be
+handled by a fresh caller handler when ordinary application and current
+boundary flow derive eligibility there. The maker's old incidence does not
+transfer by family equality. All three cases use the same relation; this is
+not a callback-versus-ordinary selector.
+
+`SourceEligible` is shorthand for a projection of the common relation, not a
+new obligation kind or independent semantic mechanism. The ordered search
+tests it separately at each actual candidate configuration; `OpCompat` then
+constrains every selected arm. Eligibility alone neither selects a handler
+nor proves that the handler image is pure. For a mixed-origin computation,
+the projection is event-specific: each request carries its own origin and
+joint symbolic `K,D`, so a callback request cannot lend its contract
+incidence to an unrelated caller request with the same family.
 
 The handler-relative form is required even before the boundary-composition
 rule is selected. For `κ = [h_inner,h_outer]`, a request connected only to
@@ -1601,7 +1625,18 @@ the composition:
    identities.
 4. Returning from `b` removes only `b`; it does not remove still-active `h`.
 
-The source derivation that feeds this projection can be stated without a
+For an ordinary effectful closure, the common relation uses the ordinary
+closure/application and current handler-boundary path; no callback contract
+is present. For an escaped callback, normal return removes maker-local
+handler activations but preserves the closure's latent requests, origins,
+symbolic `K,D`, and required runtime lineage. A later application tests a
+fresh caller activation by this same ordinary path relation. The selected
+default permits handling when that derivation succeeds, but does not allow
+maker `Capture` to create it by family equality. Deriving these paths from the
+source value and evaluation rules remains an open theorem.
+
+The callback-contract derivation that feeds its narrower projection can be
+stated without a
 callback-site selector. In one ordinary call derivation, take a receiver
 argument occurrence `a` with concrete callback contract `E`, and a handler
 activation `h` whose capture relation is attached by the ordinary source
@@ -1690,10 +1725,11 @@ transitions, not separate solver predicates. A nested call into receiver
 remains active, but does not copy that incidence to a newly installed `h₂`;
 `h₂` needs the corresponding join for `r₂` from its own source derivation.
 For a closure that carries the callback computation beyond `r`, value flow
-may transport its origin and symbolic incidence, but whether a later handler
-activation can join them depends on the source-defined re-entry/value relation.
-That escaped-closure case is still open and must not be inferred from lexical
-nesting or family equality alone.
+transports its latent request, origin, symbolic `K,D`, and required lineage.
+When later applied, a fresh handler's eligibility is derived by the same
+ordinary source relation used for any closure; it does not inherit the maker's
+`Capture` by family equality. This is the selected direction, while source
+adequacy and finite presentation remain open.
 
 One part of the escape case follows from the existing activation-indexed
 `Visible` judgment. `Capture_ν(o,h)` is an incidence fact; it does not keep
@@ -1702,8 +1738,8 @@ transition removes `h` from `κ`, so `Visible_ν(q,h,κ)` no longer holds even i
 a returned closure carries `o`, `K,D`, and boundary lineage. A saved
 continuation that resumes across that exit may restore the same activation
 `h` only through the source resumption transition. A later, independently
-installed handler `h'` is a distinct activation and needs its own
-source-derived capture connection; value-carried guard lineage alone does not
+installed handler `h'` is a distinct activation and needs its own source
+visibility derivation; value-carried guard lineage alone does not
 identify `h'` with `h`. Thus normal return/unwind ends the old handler's
 eligibility through the active-context premise, without erasing the latent
 request or its symbolic incidence. This does not settle whether that request
@@ -2458,8 +2494,10 @@ corresponding relation image.
 own origin to the observations of `C`, rather than one origin flag to `d`. In
 (a), no request is observed yet, but the latent relation retains its individual
 origins. In (b), if the first request is `q[o]`, force exposes that same request
-origin before dispatch; visibility still requires the independent
-`Capture(o,H)` and ordered `Visible(q[o],H,κ)` premises. Under the selected
+origin before dispatch; a callback-contract case may use its independently
+derived `Capture(o,H)` projection together with ordered `Visible`. `Capture`
+is not required for a direct ordinary effect or a fresh caller-handler case.
+Under the selected
 nested-receiver rule, those premises persist through `b` only while `H` stays
 active and the source transition preserves that origin and its `K,D` incidence.
 In (c), a later event `q'[o']` keeps the origin assigned by the later source

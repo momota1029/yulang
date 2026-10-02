@@ -159,18 +159,19 @@ Reinspection confirms there is no current call/handler activation stack to
 implement this rule. Next close source closure/re-entry and fresh-handler
 visibility, keeping active activation identity separate from value lineage.
 
-Escaped caller-handler eligibility is now isolated as a separate unresolved
-source decision. Reviews confirmed that the `maker` witness has no maker
-handler to expire, and the selected nested-preservation rule does not decide
-whether a fresh caller handler can consume the escaped callback request. The
-callback contract cannot transfer to that handler by family equality, but this
-alone does not prove ineligibility. The design records two options: ordinary
-caller handling when the full source relation permits it, or a source-justified
-carried-boundary mask. Both retain the closure's latent effect and mandatory
-runtime lineage. No option follows from the frozen runtime route; exact final
-acceptance also depends on the finite handler-image abstraction. User decision
-is needed before closing this proof gate. See the escape audit in
-`notes/progress/2026-10-02-callback-scope-transition.md`.
+The user selected ordinary caller handling as the default for escaped callback
+requests. A fresh handler may handle only when ordinary source eligibility,
+ordered search, and `OpCompat` derive it; maker capture does not transfer by
+family equality. The common `Visible` candidate was corrected: callback
+`Capture` is a contract-specific projection, not a universal prerequisite, so
+ordinary effectful closures and escaped callbacks use the same current-boundary
+relation. Independent architect and compiler-referee audits confirmed that the
+three discriminators fit this unified formulation and found no source-level
+reason for a persistent mask. The source value/application rule that derives
+ordinary eligibility after escape is still unproved, as are mixed-origin
+transport in one assignment, full handler-image soundness/principality, and
+finite presentation. Do not implement this candidate yet. See the latest
+callback-scope progress section and draft `Visible` definition.
 
 This turn corrected the non-authoritative intrusion sketch's misleading
 one-parent-per-variable picture. Ordinary Simple-sub extrusion has separate

@@ -705,7 +705,11 @@ ordinary fresh-caller handling without a persistent mask or node-local
 visibility bit. Retain per-event origin/`K,D` and keep shallow raw suffixes
 outside the selected handler. Derive this route in the source relation and
 prove the runtime mapping before extending the result to full
-handler-image/principality.
+handler-image/principality. Compiler-referee delta review identified the
+reachability premise and the collision between the inner-handler name and raw
+continuation notation; the revised statement separates eligibility from
+selection, requires a prefix with no earlier selection, and uses distinct
+names. Delta review closed with no remaining wording finding.
 
 #### Adjudication of the concrete escaped-callback conflict
 
@@ -824,3 +828,29 @@ and preservation of every predicate that still constrains a residual or value
 view. Delta review closed both findings. The result remains conditional and
 proves only compositional closure; it does not derive the local premises from
 source semantics or establish handler soundness/principality.
+
+### `Visible` common-relation repair (2026-10-02)
+
+The escaped-callback, mixed-origin, and ordinary effectful closure
+discriminators exposed a formulation gap: the earlier candidate defined
+`Visible` through a handler's capture relation, which reads as requiring
+callback `Capture` even for a direct ordinary effectful closure. The draft now
+defines `Visible` as a projection of the common source execution relation at
+the actual candidate configuration: the candidate is active, covers the exact
+operation, and the event reaches it along the current ordered boundary path.
+`Capture` is only the narrower projection for a callback contract joined to
+its exact receiver activation and argument boundary. It is not an alternate
+visibility rule or a universal premise.
+
+Architect and compiler-referee independently checked the three cases. All fit
+this single relation if ordinary application derives the current path after
+return; none supplies a source reason for a persistent maker mask. Eligibility
+remains separate from ordered selection, and `OpCompat` applies to every
+actually selected arm. Mixed-origin requests still require per-event origins
+and joint symbolic `K,D`; family equality cannot transfer callback incidence.
+This repairs the candidate notation and removes the apparent conflict, but the
+local source rule that generates ordinary eligibility remains missing. This
+is a consistent semantic direction, not yet a proved consequence of the
+complete source semantics. No tests or implementation were run; implementation
+remains blocked on source adequacy, handler-image/principality, and finite
+presentation gates.
