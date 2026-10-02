@@ -280,3 +280,49 @@ gate; it does not select a complete effect calculus, prove the relational
 candidate sound or principal, or authorize compiler implementation. The
 candidate comparison and current factorization of proof vocabulary are in
 `notes/design/2026-10-01-coupled-effect-interface-core-draft.md`.
+
+## 12. User-directed finite-presentation classification (2026-10-02)
+
+The user clarified that the successor need not guarantee a uniformly small
+finite presentation for every well-typed program. Separate three cases before
+calling an unresolved construction a principality or expressibility failure:
+
+1. **Finite but unbounded.** Each finite source program has a finite principal
+   presentation, while size or saturation work can grow across larger source
+   inputs and has no fixed ceiling independent of their structural dimensions.
+   This is an inference-resource issue, not an ill-typed result. A deterministic
+   limit may report a distinct inference-complexity failure.
+2. **Infinite unfolding, finite graph.** Recursive unfolding is infinite but
+   its meaning admits a finite SCC, recursive-binder, or cyclic symbolic graph.
+   Prefer proving and using that graph form over expanding it.
+3. **Genuinely non-finite for the chosen abstraction.** Classify this only
+   after a concrete counterexample shows that soundness or principality cannot
+   be retained in any finite presentation of the chosen abstraction. A missing
+   construction or an infinite concrete state space alone is not such a proof.
+
+Any future inference-complexity limit must name its structural metric and
+deterministic check point. Exceeding it must not be reported as a typing
+failure, silently truncate constraints, or publish partial SCC results. The
+particular metric and threshold belong to representation/resource design;
+this amendment sets no numerical cap. SCCs and other finite cyclic graphs are
+the preferred treatment for class-2 behavior where their preservation laws
+can be proved.
+
+Current evidence establishes a finite-saturation **resource component** for
+pure endpoint constraints on each fixed finite input graph; it does not
+establish a principal presentation even for the full pure source fragment.
+The finite back-edge representation used for recursive bounds is a data
+structure, not by itself a class-2 semantic result: whether its meaning is the
+required regular unfolding and whether transport preserves it remain open. A
+regular active-stack representation is another candidate class-2 component,
+but stack words alone lose captured-environment and live-store aliasing
+relevant to handler selection. That is a counterexample to the stack-only
+quotient. The complete live capture/resumption graph remains unclassified:
+classes 1 and 2 are candidate explanations, while class 3 is neither
+established nor ruled out. The progress record
+`notes/progress/2026-10-02-finite-interface-obstruction.md` tracks this
+classification and its open quotient construction.
+
+This amendment does not select a complete finite/regular quotient, set a
+resource threshold, establish Oracle acceptance equivalence, or authorize
+implementation. Those remain proof and representation gates.

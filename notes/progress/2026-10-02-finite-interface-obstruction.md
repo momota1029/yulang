@@ -80,6 +80,45 @@ target is to construct `Q`, `P`, their exact source-image guards, and the
 principal projection bridge for the conditional saturation theorem;
 support leastness alone cannot discharge inference principality.
 
+## User-directed classification of finiteness
+
+The user selected three distinct outcomes for the finite-presentation inquiry:
+
+| Class | Meaning | Current evidence |
+|---|---|---|
+| Finite but unbounded | Each finite source has a finite principal presentation; size/work grows across inputs with no fixed source-independent ceiling | Pure finite endpoint-graph saturation is finite for each finite input graph, establishing a resource component only. Principality is not proved even for the full pure fragment. |
+| Infinite unfolding, finite graph | Recursive behavior expands indefinitely but its meaning admits a finite cyclic/SCC/regular representation with a preservation proof | Recursive bounds use finite back-edge data structures, but their regular unfolding and preservation are not established. Regular active stacks are another candidate component, not a complete handler/interface quotient. |
+| Genuinely non-finite for the chosen abstraction | A concrete witness proves no finite sound/principal representation exists for that chosen abstraction | No such witness is established or ruled out. A missing quotient construction is not evidence for this class. |
+
+A regular-stack-only quotient has a concrete limitation. Two candidate
+configurations can have the same active/captured stack words and source sites,
+but differ in whether a captured reference `x` aliases a caller reference `y`.
+Both cells initially contain `0`. The saved raw continuation captures `x`; its
+suffix writes `1` through `x` and then emits the same operation `E`. Both
+handlers are otherwise visible and cover `E`. The inner handler's guard accepts
+exactly when `y == 1`; the outer handler accepts unconditionally. After resume,
+the inner handler is selected when `x` aliases `y`, while the outer handler is
+selected when the cells are distinct. A stack automaton that omits the live
+capture graph merges states with different actual selected handlers. This
+selects or rejects the wrong assignment if the merged route set is used as a
+typing obligation. The witness is over the candidate source machine, not an
+executed Yulang program or Oracle acceptance observation. It refutes the
+stack-only quotient, not richer finite relational graphs.
+
+The earlier nonregular-tree assignment witness refutes replacing an arbitrary
+`P(N)` observation fiber by regular languages without further justification.
+It does not classify Yulang source assignments as genuinely non-finite:
+whether that powerset is the source's expressible type domain remains
+unproved, and finite cyclic type graphs may be the correct class-2 model once
+their semantic preservation is established.
+
+The user explicitly permits class-1 resource limits. A later representation
+may cap an explicit structural dimension such as presentation nodes, symbolic
+states, or saturation work. Exceeding the cap must produce a deterministic
+inference-complexity failure, never an ill-typed result, truncation, or partial
+publication. The metric, check point, and threshold are deferred until the
+presentation is constructed; no cap is selected here.
+
 ## Boundary-rule delta
 
 The coarse may-block candidate treated `UnknownOrigin` as an independent
