@@ -31,6 +31,12 @@ Repository evidence:
   pairs, and F5 generalization/instantiation. This is useful characterization
   and possible migration substrate; it does not implement the successor
   `Rel_C`, callback origins, handler search, or `K,D` symbolic lifecycle.
+- The current closed-scheme substitution in
+  `crates/yu-solver/src/f5c_binder_substitution.rs` traverses Function value
+  argument/result edges, but reconstructs effect fields as `Empty` / `Bottom`.
+  The current representation therefore cannot serve as a direct implementation
+  of uniform typed-family/effect transport; it would need a new carrier or a
+  reviewed replacement of the F5 path, not a thin reuse of its binder walker.
 
 ## Feasibility classification
 
@@ -42,8 +48,11 @@ Repository evidence:
 | Full successor replacement | Large cross-layer change | Requires source syntax/HIR/evaluation interfaces, effect denotation and principal finite presentation, solver/lifecycle transport, then runtime/compiler integration and method/role/impl gate. |
 
 The safe implementation conclusion is therefore **defer compiler changes for
-the current preservation proof gate**. Continue alternating theory work with
-read-only code feasibility checks. Once a narrow mathematical slice is
+the current preservation proof gate**. The existing graph substrate offers
+some useful ownership/arena patterns, but its current scheme substitution
+erases precisely the effect payloads that the successor must transport.
+Continue alternating theory work with read-only code feasibility checks. Once
+a narrow mathematical slice is
 reviewed and implementation authority exists, prefer an isolated Rust
 executable characterization over a Python side model, then assess whether it
 maps to the existing solver substrate before changing production paths. This

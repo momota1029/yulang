@@ -4103,6 +4103,25 @@ is reusable evidence, not successor implementation. Keep compiler changes
 deferred while the source relation and finite principal presentation remain
 open. See `notes/progress/2026-10-02-successor-implementation-feasibility.md`.
 
+Theory checkpoint: under a uniform equivariant transport of request endpoints
+and `K,D`, with imported binders fixed and the outer activation retained, the
+frame-extension lemma derives outer `Visible` across the complete nested
+`CallView`; stateful `Search_H` still exclusively determines dispatch, and
+shallow raw resumption does not reinstall the selected handler. The source
+rules that establish each transport premise, plus global soundness and
+principality, remain open. The alternating implementation audit also found
+that the current F5 binder walker rebuilds Function effect fields as
+`Empty`/`Bottom`, so it cannot directly implement the required effect
+transport. See `notes/progress/2026-10-02-callback-scope-transition.md` and
+`notes/progress/2026-10-02-successor-implementation-feasibility.md`.
+
+The frame-extension lemma now explicitly requires an exhaustive factorization
+of `Visible`, preservation of all positive/negative context premises, and no
+independent source invalidator. A compiler-referee delta review closed this
+local lemma with no remaining findings. It remains conditional: source
+adaptation/origin/force premises, full symbolic `K,D` transport, soundness, and
+principality are not closed.
+
 Theory-economy audit: an independent architect and compiler-referee review
 found the coupled complete-interface relation remains the smallest candidate
 so far, with fiber product, relational composition, restriction, and

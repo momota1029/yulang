@@ -1479,6 +1479,65 @@ rule and its specified frame re-entry. This separation prevents the
 nested-call preservation clause from accidentally changing shallow-handler
 semantics.
 
+**Conditional frame-extension derivation.** Factor the relevant visibility
+premises at assignment `ν` as the candidate handler's active identity, exact
+operation compatibility, and the source incidence `Capture_ν(o,h)` from the
+request's origin `o` to `h`'s concrete callback contract. This is a factorization
+of the complete source judgment, not an alternative grant mechanism. The proof
+below assumes this is exhaustive together with any other positive or negative
+ordered-context premises of `Visible`, and that each such premise is preserved
+by the corresponding stage. In particular, no independent source event in
+this nested transition exits `h`, changes the request origin, or otherwise
+invalidates this entitlement; the presence of `b` alone is not such an event.
+For a nested transition from `κ` to `b::κ`, assume each stage either leaves `ν`, `q`,
+`o`, `h`, and that incidence fixed, or applies one capture-avoiding transport
+`θ` uniformly to the request endpoints, `K`, and `D`, while fixing imported
+outer binders and preserving `h`'s activation. Assume the source incidence is
+equivariant under that transport:
+
+```text
+Capture_ν(o,h)  iff  Capture_{θν}(θ·o,h)
+```
+
+Here `θ·o` keeps the source occurrence identity and transports only its
+symbolic typed payload and incidence.
+
+Then `Visible_ν(q,h,κ)` implies `Visible_{θν}(θ(q),h,b::κ)`. The proof is by
+induction over the finite `CallView` stage sequence: active `h` remains in the
+tail context, exact operation compatibility is preserved by the uniform map,
+and the incidence premise follows from equivariance at each transported stage.
+The identity-map case covers direct forwarding through callee/argument
+evaluation; adapter, callback, and force stages require their actual source
+rules to establish the equivariance premise. This proves context-extension
+preservation conditional on those stage rules; it does not derive them from
+runtime markers. If the full `Visible` judgment has further ordered-context
+or negative premises, each must also be preserved by the corresponding stage;
+the factorization above does not discharge any omitted premise.
+
+The result is deliberately only an eligibility theorem. Existing stateful
+`Search_H` still evaluates nearer arms in order against the evolving
+configuration. If a nearer pattern or guard rejects, search continues with the
+resulting state; a guard request is itself routed under the active outer
+context. Preservation neither bypasses that transition nor makes `h` the
+selected handler. If `Search_H` selects `h`, its ordinary selection premise
+must include this transported `Visible` derivation. Once selected, the shallow
+handler runs its arm outside `h` and passes the raw continuation; therefore
+the frame-extension lemma no longer applies to that continuation unless a
+separate source transition re-enters `h`. This establishes compatibility of
+the preservation clause with ordered selection and shallow resumption, under
+the stated source transition premises.
+
+For a distinct caller-owned origin `o'`, frame extension cannot synthesize
+`Capture_ν(o',h)`: the no-grant result follows from the origin-indexed premise,
+not from family inequality. If one origin is reindexed, the same `θ` must map
+its `K,D` incidence; independently freshening only the request endpoint would
+invalidate the lemma's premise. This keeps the soundness argument local to
+source eligibility. It is not yet a whole-language type-soundness theorem.
+Nor does it prove principality: the least finite interface representing all
+outputs of the stateful `Search_H` and raw continuation image is still open.
+In particular, equal may-support can hide different resumed suffixes, so a
+support-only transformer cannot justify residual subtraction.
+
 The same derivation does not grant `h` eligibility for another caller-owned
 `choose::get`. Such a request has a distinct origin `o'`; absent an independent
 source incidence `Capture(o',h)`, the visibility premise fails even though its

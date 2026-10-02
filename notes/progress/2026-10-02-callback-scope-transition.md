@@ -344,3 +344,40 @@ may handle a later request only through its own visibility derivation and
 ordered search. The compiler-referee delta review closed both findings with no
 remaining issue in this decomposition. This does not close the source-stage
 transport premises or the global soundness/principality gate.
+
+### Conditional frame-extension derivation (2026-10-02)
+
+The coupled-interface draft now factors handler-relative visibility into the
+active candidate identity, exact operation compatibility, and
+origin-indexed `Capture_ν(o,h)` incidence. Under a nested `CallView`, each
+stage must either preserve those coordinates at the same assignment or apply
+one equivariant capture-avoiding transport uniformly to request endpoints,
+`K`, and `D`, while fixing imported outer binders and preserving `h`'s
+activation. Under those premises, induction over the finite call/adaptation/
+force sequence proves
+`Visible_ν(q,h,κ) ⇒ Visible_{θν}(θ(q),h,b::κ)`.
+
+The derivation separates entitlement from dispatch: stateful ordered `Search_H`
+still evaluates nearer patterns and guards against evolving state, and only
+that relation selects an arm. After `h` handles a request, its shallow arm is
+outside `h` and gets the raw continuation, so the frame-extension lemma does
+not apply to a resumed suffix unless a separate source step re-enters `h`.
+For a different caller origin `o'`, context extension cannot produce the
+missing `Capture_ν(o',h)` premise. The symbolic family formula survives only
+when the same transport maps its dependent `K,D` incidence.
+
+This closes a conditional derivability argument for the selected clause, not
+the actual source premises: annotation adaptation, callback-origin mapping,
+force placement, and source incidence equivariance still need derivation from
+the successor source rules. It is not whole-language type soundness or
+principality; in particular the least finite interface for the stateful
+handler and raw-continuation image is open.
+
+A compiler-referee delta review found and closed one precision issue: the first
+lemma wording did not explicitly require exhaustive factorization of
+`Visible`'s positive and negative ordered-context premises. The current text
+now premises that exhaustiveness, preservation of every remaining premise,
+and absence of an independent source invalidator. The reviewer found no other
+issue in this conditional lemma; closure does not extend to the source-stage
+premises, concrete `K,D` transport, soundness, finite inference, or
+principality.
