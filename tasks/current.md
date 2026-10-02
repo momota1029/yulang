@@ -823,13 +823,20 @@ birth levels alone. This is an implementation invariant to prove, not a
 refutation of eager checking or permission to adopt frozen extrusion as
 successor authority. No exit-time scan is proposed.
 
-Operation-instance §8 now gives a candidate concrete level representation for
-the finite acyclic free-constructor equality kernel. Known heads precede the
-openings; variable dependency permissions are supplied ordered prefixes.
-`Allowed(X)={kappa | intro(kappa)<cap(X)}` represents each such prefix, and
-intersection is exactly minimum cap. Head comparison and child-dependency
-traversal remain separate, so fresh children do not license a hidden payload's
-Function shape and known heads do not hide escaping child dependencies.
+Charter §23 records the user's variable-only level direction. Constructors
+carry no head-level metadata; ordinary structural comparison decomposes them.
+The earlier fresh-Function-child argument did not account for original
+extrusion and is withdrawn as evidence against that algorithm.
+
+Operation-instance §8 gives a candidate variable-level representation for the
+finite acyclic free-constructor equality kernel.
+`Allowed(X)={kappa | intro(kappa)<cap(X)}` represents a prefix of the live
+opening stack, and intersection is minimum cap. A lexical construction now
+derives these prefixes under explicit ownership/restriction premises:
+preallocate shared roots in their owning context, preserve captured endpoints,
+and recursively restrict unsealed outward dependencies before linking them.
+Sibling opening blocks retain distinct identities; deferred comparisons retain
+their lexical context. A numeric depth detached from that context is insufficient.
 
 The cap procedure reproduces the existing allowed-set algorithm, including
 binding traversal, occurs checks and restriction propagation. Its finite
@@ -839,13 +846,22 @@ Consistent name transport and increasing level relabelling preserve these
 checks. Neither result is a generalization/freshening/intrusion theorem.
 Uniform equality failure is not a negative semantic `Eq_nu` guard result.
 
-Two independent M3 reviewers found no findings in this representation package.
-Static diff/reference checks only; no tests, builds or measurements. Next
-derive the source frontiers and extend the structural comparison account to
-actual subtype/effect obligations. Sibling/nonprefix scopes, generative heads,
-recursive equality and lifecycle remain outside this supplied-frontier theorem;
-no source capability is rejected to fit the fragment. Compiler implementation
-remains a later gate, and full source principality is still open.
+The pinned original-source reread distinguishes ordered one-sided variable
+bound insertion from the frozen Yulang two-sided rule used by the finite
+guarded closure. Their equivalence is not assumed. Original extrusion creates
+fresh low-level representatives rather than lowering original immutable
+levels. The opening extension must also cover bound insertion that skips
+extrusion, retaining free-witness dependencies.
+
+Independent M3 semantic and conformance reviews closed the variable-only and
+lexical-frontier delta with no blocking/major findings; one source-line locator
+was corrected. Verification: static diff/reference checks and `git diff --check`;
+no tests, builds or measurements. Next prove variable-versus-structure ingress
+and extrusion preserve opening identity and scope for actual subtype/effect
+obligations. Sealed packets, nonprefix contexts, generative heads, recursive
+equality and lifecycle remain outside this equality theorem. No source
+capability is rejected to fit the fragment; full source principality and
+compiler implementation remain later gates.
 
 ## Main records
 

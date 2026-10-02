@@ -10,6 +10,7 @@ Scoped-template-review: §§7–9 independently reviewed by compiler_referee and
 Existential-opening-review: charter §20 and §§2–4,7–8 delta independently reviewed by compiler_referee and spec_auditor; no findings; full checking/lifecycle remain open
 Level-discipline-review: charter §22 and §8 eager comparison/conditional scheduling delta independently reviewed by compiler_referee and spec_auditor, 2026-10-03; no findings; composite levels and full semantic preservation remain open
 Level-representation-review: §8 prefix-cap equality realization independently reviewed by compiler_referee and spec_auditor, 2026-10-03; no findings; exact scope is fixed-head acyclic uniform equality with supplied ordered-prefix permissions
+Variable-only-review: charter §23 and §8 variable-only/lexical-frontier delta independently reviewed by compiler_referee and spec_auditor, 2026-10-03; no blocking/major findings; audit source-line locator corrected; unsealed acyclic equality scope only
 Supersedes: no source decision; refines the existing complete OpCompat obligation
 
 ## 1. Existing authority and the missing distinction
@@ -412,9 +413,10 @@ below is a limited illustrative construction, not the adopted mandatory
 successor representation. Its conditional theorem and input fragment remain
 unchanged.
 
-Defining levels of composite types, covering all generation/propagation paths
-and proving preservation remain representation/proof tasks. This package
-does not invent their definitions or exceptions, or claim a complete level
+Charter §23 assigns levels to variables, not constructor/head metadata.
+Derived structural summaries may support variable extrusion, whose actual
+original behavior must be accounted for. Complete generation/propagation
+coverage and preservation remain proof tasks; this package claims no complete level
 algorithm, principal source inference or implementation approval.
 
 ### Common comparison entry and conditional guarded closure
@@ -456,16 +458,13 @@ whole solver, principality or complete source acceptance. Comparison
 generation is still the checking site; no exit-time scope checker or separate
 rigid-node representation is required by this statement.
 
-Composite levels remain unresolved. In particular, taking only the maximum
-free-variable level is not justified for an open constructor. Schematically,
-for `put : forall a. a -> ()`, an arm applying its payload as `x()` demands
-a Function shape with fresh children. Those children's fresh levels alone
-cannot establish that the hidden declaration witness admits callable shape.
-This is a hypothetical discriminator for a max-only representation, not a
-counterexample to the user's discipline or a tested Oracle fixture. It
-introduces no source-case rule or composite-level definition. The original
-existential packet, uniform arm proof and all their semantic premises remain
-in force; their preservation by a chosen level representation is still open.
+The fresh Function-child argument establishes no counterexample to actual
+Simple-sub extrusion and is withdrawn as such. Derived structural summaries
+do not assign stored levels to constructors; comparison decomposes structure
+and variable extrusion must be analyzed with its actual bound replay and
+memoization. The original existential packet, uniform arm proof and their
+semantic premises remain in force. Their preservation by a full variable-only
+subtype representation remains open; no additional subtype rule follows.
 
 ### Input and solution language
 
@@ -560,18 +559,18 @@ source rule. Its ordinary assignment obligation need not literally be an
 equality node; any admitted checking rule must establish it uniformly under
 the rigid input, and actual Int callers cannot supply that proof.
 
-### Candidate representation: head scope and endpoint dependency frontier
+### Candidate representation: variable-only dependency frontiers
 
 This is a bounded research representation for the equality kernel above,
-not an implementation approval or additional source restriction. Separate
-availability of a known constructor head from the dependency frontier of
-its unknown children. This distinction addresses the open-constructor
-question without defining all source type levels.
+not an implementation approval or additional source restriction. Charter
+§23 supersedes the earlier head-level candidate: constructors carry no level
+metadata. Ordinary structural comparison decomposes constructors; scope
+checks belong to type variables and their dependency frontiers.
 
 **Input fragment.** Retain the finite acyclic free-constructor equality
 language and uniform syntactic solution order of §8. Fix a constructor
-signature whose heads are available before every opening; assign those heads
-level zero and opening levels `l >= 0`. There are no lattice equality laws,
+signature and ordered opening levels. Constructor heads carry no levels.
+There are no lattice equality laws,
 declared subtype bounds or generative local heads in this fragment.
 
 Let the live binder frontier be ordered. Each flexible variable `X` has
@@ -586,6 +585,57 @@ does not admit only selected members of that block. Keep each opening's
 identity and the original existential packet correspondence even when
 aliases or bindings are canonicalized. These are representation invariants,
 not a requirement for a separate rigid IR node.
+
+### Deriving lexical prefixes for the admitted unsealed equality core
+
+The supplied-prefix premise can be derived for a proposed finite acyclic
+typed-core construction with **unsealed** endpoints. This is conditional on
+the following allocation and flow discipline; it claims neither actual
+compiler coverage nor full subtype/source/lifecycle preservation.
+
+Lexical contexts contain ordered live opening blocks with distinct identities.
+Preallocate shared SCC interface, result, join and cell roots in their owning
+context before visiting children. Names and captures reuse their owned
+endpoints; fresh local endpoints receive the current context's frontier.
+Handler outputs are allocated before each arm opens its separate child
+block. All dependent occurrences of that arm opening share its block identity.
+
+Before an outward unsealed binding, write or return, recursively restrict
+reachable flexible permissions to the destination frontier and immediately
+check opened dependencies. Follow existing substitution bindings, preserving
+opening identities. Deferred comparisons retain their generating lexical
+context and enter common `Compare`; outward restriction invalidates and
+requeues affected checks under the existing coverage premise.
+
+**Lexical-frontier invariant.** Every unsealed endpoint available in a
+context has a dependency frontier on that context's ancestor chain. Its
+permitted openings are a prefix of the current **live** opening stack.
+
+**Proof.** Owning-context preallocation establishes ancestor frontiers for
+shared roots. Fresh local allocation uses the current frontier. Lookup and
+capture reuse preserve existing ownership rather than introducing a later
+frontier for an older root. Within one context, ancestor frontiers are
+ordered, so alias permission intersection is their earlier frontier.
+Outward restriction takes the destination prefix and checks every reachable
+opened dependency immediately; following bindings applies the restriction
+to previously connected endpoints as well. These operations preserve the
+invariant inductively over the finite admitted derivation.
+
+Separate sibling arms extend the same ancestor with different opening
+identities. Crossing outward first restricts to that ancestor, so a sibling's
+private block cannot remain an unsealed available dependency. Equal numeric
+depth does not identify sibling blocks. A global chronological cap that
+merges or orders those private siblings is not this lexical representation.
+Caps are interpreted along the generating live stack, whose identity remains
+attached to deferred comparisons.
+
+Consequently the prefix input of the equality theorem below is derived for
+this admitted construction, and its cap/intersection correspondence applies
+at each retained lexical context. This removes only that supplied-prefix
+premise, subject to exhaustive outward restriction and comparison coverage.
+A sealed packet's binder is bound, not an unsealed free dependency; its
+packing, escape and lifecycle correctness remain outside this equality
+theorem. No source escape restriction or actual implementation claim follows.
 
 ### Prefix/cap equivalence
 
@@ -605,13 +655,11 @@ of a block. Thus set restriction in the existing algorithm is exactly cap
 lowering in this prefix fragment, including the empty prefix. General
 nonprefix permissions cannot be represented by a single such cap.
 
-Head availability is a separate test. Comparing an opened `kappa` with
-itself is an identity tautology. Distinct opened identities fail uniform
-syntactic equality, without implying semantic disequality at actual
-instances. A known constructor head versus an opened `kappa` fails: its
-head level is zero, hence `headlevel <= intro(kappa)`, independently of any
-fresh child levels. This is the rigid/head clash of the existing equality
-kernel expressed through the known-head premise, not a new subtype rule.
+Comparing an opened `kappa` with itself is an identity tautology. Distinct
+opened identities, or an opening versus a constructor, fail the existing
+uniform syntactic equality variable case. This uses preserved variable
+identity, not a constructor-level test or a special quantified solver. It
+does not imply semantic disequality at actual instances.
 
 ### Procedure within the common comparison entry
 
@@ -622,15 +670,14 @@ its current dependency checks before a forbidden binding is committed.
 1. Dereference existing bindings while retaining opening identities and
    packet correspondence. Delete identical endpoints. Decompose equal known
    constructor heads into their child equations. Distinct fixed heads and
-   the opening/head cases above fail the uniform equality obligation.
+   the opened-variable cases above fail the uniform equality obligation.
 2. Orient `X=t` with a flexible variable on the left and perform the standard
    finite-term occurs check. Traverse `t` and reachable existing bindings
    using graph identities; detect a prospective binding cycle rather than
    unfolding it. The admitted input/binding graph remains acyclic.
 3. Require every free opened name in the traversed term to satisfy
-   `intro(kappa) < cap(X)`. This checks endpoint dependence, separately from
-   constructor-head availability. It does not compute a syntactic maximum
-   child level and call that the type's level.
+   `intro(kappa) < cap(X)`. These are free TypeVar dependency checks;
+   constructor nodes themselves have no stored or compared level.
 4. For each residual flexible `Y` in the term, lower its cap to
    `min(cap(Y),cap(X))`. Propagate this restriction through its existing
    bindings, revisiting affected occurrences and equations through common
@@ -661,7 +708,7 @@ termination of this procedure, not a practical runtime bound.
 
 Map every cap state to its represented `Allowed` sets. Prefix membership
 maps step 3 to the existing algorithm's rigid-occurrence test; the minimum
-law maps step 4 to its set intersection and restriction propagation. Head
+law maps step 4 to its set intersection and restriction propagation. Variable
 cases, identity deletion, constructor decomposition and occurs checking are
 the same equality cases. Induction over transitions therefore gives exact
 correspondence of the two procedures' residual equations and permissions,
@@ -686,44 +733,31 @@ with false. `kappa=Int` fails uniformly but can be true at the actual instance
 `kappa:=Int`. Semantic guard realization remains a separate obligation;
 the existing warning about failed uniform equality remains in force.
 
-A consistent name bijection and strictly increasing level relabelling that
-fixes head level zero preserve `<`, minimum caps and represented permissions.
+A consistent name bijection and strictly increasing variable-level
+relabelling preserve `<`, minimum caps and represented permissions.
 The procedure therefore commutes with that transport, up to renamed graph
 references. This is a representation transport lemma, not generalization,
 fresh instantiation or SCC intrusion.
 
-### Why neither whole-tree maximum nor minimum substitutes for this split
+### Superseded head-level argument
 
-A head's availability cannot be licensed solely by fresh inner endpoints.
-For an opened generic payload, a demand for `Fun(X_fresh,Y_fresh)` still
-compares its hidden witness with a known Function head. Taking only maximum
-child levels could conceal that forbidden uniform head equation. This
-illustrates a representation failure, not a new source-case rule.
+The prior construction's head-level metadata and associated maximum/minimum
+comparison table are superseded by §23's variable-only direction. Its fresh
+Function-child example did not prove a defect in actual Simple-sub extrusion;
+that characterization is withdrawn. Structured dependency checking still
+walks free variables: an inner `X=Box(kappa)` is permitted when its frontier
+admits `kappa`, without assigning a level to `Box`.
 
-Conversely, whole-tree minimum alone loses dependency information:
-`Box(Int)` and `Box(kappa)` both fold to the known head's level zero, yet
-binding to an outer `X` with `cap(X) <= intro(kappa)` admits the first and
-forbids the second. Full dependency traversal distinguishes them. For an
-inner `X` whose prefix admits `kappa`, `X=Box(kappa)` remains a valid scoped
-equality. This makes no blanket claim about algorithms also using minimum
-with additional dependency evidence. Endpoint dependence and head
-availability answer different questions and must not be collapsed.
-
-| Representation candidate | Exact scope of this result |
-|---|---|
-| Explicit `Allowed` sets | Existing finite equality algorithm; can express nonprefix permissions |
-| Prefix caps plus opening/head identity | Equivalent representation for this ordered prefix fragment |
-| Whole-tree maximum child level | Does not justify known-head comparison with an opening |
-| Whole-tree minimum level alone | Cannot distinguish permitted `Box(Int)` from forbidden hidden dependencies in `Box(kappa)` |
-
-The cap construction offers a smaller permission representation where the
-prefix premise holds. This comparison is an economy argument within the
-kernel, not selection of a public type construct or general compiler policy.
+The prefix cap is a compact encoding of `Allowed` for this equality fragment,
+not a stored constructor level or a selected full source algorithm. Explicit
+sets remain available for permissions outside the prefix premise.
 
 ### Remaining representation and source gates
 
-Sibling/nonprefix scopes, lifecycle-generated frontiers and arbitrary
-generalization contexts are not covered. Keep their existing constraints
+Lexical unsealed equality prefixes are derived above under the stated
+allocation/flow premises. Broader sibling/nonprefix subtype scopes, sealed
+packet lifecycle and arbitrary generalization contexts are not covered.
+Keep their existing constraints
 until an adequate representation is proved; this fragment does not authorize
 rejecting those source capabilities. Type heads outside the fixed signature,
 local generativity, declared bounds, recursive equality and semantic row

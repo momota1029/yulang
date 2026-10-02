@@ -778,8 +778,12 @@ positive obligations cannot change selection into forwarding.
 
 ### Contribution and next source gate
 
-The pure bound-propagation rules are a Simple-sub-original ingredient in
-the stated fragment. Their Boolean guard lift is a new successor
+Original Simple-sub contributes structural variance, ordered one-bound
+insertion and opposite-bound replay. Its first matching variable branch
+inserts one bound according to levels, not both variable bounds. The two-sided
+finite closure used here is documented from the Yulang Oracle and remains
+a conditional candidate; equivalence to the original algorithm is not proved.
+Its Boolean guard lift is a new successor
 construction; the source handler/routing rules are user-selected Yulang
 extensions. Neither provenance transfers authority to a broader effectful
 Function rule or a changed source acceptance policy.

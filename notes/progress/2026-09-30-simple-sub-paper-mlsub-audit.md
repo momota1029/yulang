@@ -95,3 +95,50 @@ Consequently the successor's signed guard and scoped-arm queries cannot be
 certified merely by citing this positive enforcement procedure. The current
 M3 gate must preserve joint feasibility and quantifier scope; the follow-up
 is provenance evidence, not a new language restriction or non-finiteness proof.
+
+## 2026-10-03 bounded original-source reread
+
+An explorer reread the pinned
+[`Typer.scala`](https://raw.githubusercontent.com/LPTK/simple-sub/9bae772624c23b52a93c1b226157e16898b4d9db/shared/src/main/scala/simplesub/Typer.scala).
+This is bounded source evidence, not another complete-paper reading, test
+result or successor approval.
+
+- Lines 93–126: `constrain` uses ordered variable branches. For `v <: w`,
+  when `level(w) <= level(v)` the first branch inserts an upper bound of `v`;
+  otherwise the lower-bound branch of `w` applies. It does not insert both.
+- Lines 143–155: positive extrusion adds the fresh variable to the original
+  upper bounds and gives the fresh variable extruded original lower bounds;
+  negative extrusion adds it to original lower bounds and gives it extruded
+  original upper bounds. Memoization by `(variable,polarity)` precedes child
+  traversal.
+- Lines 204–226: structural derived levels are the maximum of Function
+  children or Record fields; empty structures and Primitive use zero.
+  Only Variable stores an immutable level. There is no head-level metadata.
+
+The original grammar has no operation-arm rigid opening. The existential
+guard discipline is a Yulang extension with a new preservation obligation.
+The successor's two-sided Horn closure must not be attributed to the
+original ordered insertion algorithm without a separate equivalence proof.
+No tests or builds ran for this reread.
+
+### Bounded algorithm traces
+
+For characterization only, treat `kappa` as an ordinary original variable
+at level `l` and `X` as one at `l+1`. `kappa <: X` inserts `kappa` into
+`X.lower`; `X <: Int` replays `kappa <: Int`. The proposed Yulang guard
+would reject that derived comparison; the original has no such guard or
+existential opening semantics.
+
+For `kappa <: Function(a,b)` with fresh children at `l+1`, the original
+negative extrusion creates fresh representatives at `l`, flips argument
+polarity and retries the comparison. Original immutable variable levels do
+not decrease. This trace invalidates a claim based only on the fresh
+children's initial levels without accounting for extrusion.
+
+An outer `X` at `l` compared with a Function containing `kappa` at `l` passes
+the ordinary `<=` derived-level insertion path without extrusion. Therefore
+the selected opening extension must also check free-witness dependencies
+on that fast path. The scoped equality kernel performs that traversal;
+subtype preservation for the extension has not been proved. These traces
+are pinned-source characterization, not original existential semantics,
+executed fixtures or a complete extension proof.

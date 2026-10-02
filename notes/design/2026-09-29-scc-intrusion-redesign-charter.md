@@ -629,3 +629,17 @@ and preservation of this discipline remain proof/representation tasks.
 No definition, exception or completed full algorithm is selected here.
 User approval covers the stated level discipline only; source principal
 inference, lifecycle and compiler implementation remain unapproved gates.
+
+## 23. User direction: levels belong to type variables, not constructors (2026-10-03)
+
+The user directs the successor toward variable-only levels. Constructors
+and heads need no level metadata. Structural comparisons decompose through
+the ordinary rules; variable comparisons and extrusion then enforce the
+selected level discipline. The preceding research head-level candidate is
+not adopted and is superseded by this direction.
+
+The scope of approval is this representation direction, not a complete
+algorithm. Existing existential packet correspondence, uniform arm checking
+and the generation-time guard on every derived comparison remain obligations.
+Exact variable/extrusion coverage, preservation, principal inference and
+lifecycle still require proof before implementation approval.

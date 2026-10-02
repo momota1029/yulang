@@ -2110,6 +2110,9 @@ rewrite is not justified by this audit.
 
 ### Concrete level representation for the scoped equality kernel (2026-10-03)
 
+Historical checkpoint: the head-level argument in this subsection is
+superseded by the variable-only correction below and charter §23.
+
 Previous goal turn was progress: eager comparison discipline `620583f3f` was
 reviewed and pushed. The branch was revalidated clean. The next package
 constructs a level representation in operation-instance §8 rather than
@@ -2155,3 +2158,51 @@ focused reference/diff inspection plus `git diff --check`; tests, builds and
 measurements budget/consumption zero. Primary synchronized task/index/progress
 and review metadata, and inspects explicit paths and the entire outbound
 range before normal research-branch integration.
+
+### Variable-only levels and lexical equality frontiers (2026-10-03)
+
+Previous goal turn was progress: `3ff0e55bc` was reviewed and pushed.
+The user's latest direction rejects constructor/head level metadata and
+asks to examine ordinary structural decomposition followed by variable
+level/extrusion rules. Charter §23 records that direction, without selecting
+a complete successor algorithm or authorizing compiler implementation.
+
+The earlier fresh-Function-child objection omitted actual original extrusion
+and is withdrawn. The bounded pinned-source audit records ordered one-sided
+bound insertion, opposite-bound replay, and polarity-indexed fresh extrusion
+representatives. Original variable levels are immutable. A structured term's
+derived level summarizes its children; its head has no independent stored
+level. The finite two-sided guarded closure remains a Yulang-derived candidate,
+not an already proved equivalent implementation of the original algorithm.
+
+Operation-instance §8 retains the existing finite acyclic equality proof with
+levels only on variables. Matching constructors decompose; opened-variable
+identity and free-variable dependency checks require no constructor level.
+The new lexical construction derives live-stack prefix permissions under
+explicit preallocation, ownership and recursive outward-restriction premises.
+Captured endpoints retain ownership, sibling arms retain distinct opening
+identities, and deferred comparisons retain their generating context. The
+invariant composes with the existing cap/allowed-set correspondence and its
+termination and principal uniform syntactic substitution theorem.
+
+This removes the supplied-prefix premise only for the admitted unsealed
+equality construction. It does not derive full raw-source constraints, prove
+sealed-packet escape or complete subtype/extrusion preservation, or close
+semantic endpoint equality, effect checking, lifecycle or source principality.
+No source acceptance capability is discarded to fit this fragment.
+
+The next proof must cover variable-versus-structure ingress, extrusion-created
+representatives and retained opening identity, including original insertion
+fast paths that skip extrusion. The audit's three algorithm traces locate
+those obligations; they are not executed fixtures or a new subtype calculus.
+
+M3 scope: one bounded architect, one documentary producer, two independent
+semantic/conformance reviewers; closure requires no accepted blocking/major
+finding. Both reviews closed without blocking/major findings. The semantic
+review's one minor source-line locator correction (Function at 204–205,
+widened audit range 204–226) was accepted and repaired by the primary.
+No semantic repair round was needed. Verification budget/consumption:
+tests, builds and measurements zero; focused diff/reference inspection and
+`git diff --check`. Primary synchronized task/index/progress and review metadata
+before inspecting explicit staged paths and the complete outbound range for
+normal push. The full proof-and-implementation goal remains active.
