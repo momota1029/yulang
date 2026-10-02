@@ -544,3 +544,18 @@ ordinary activation exit consequence, not suspension at a nested receiver.
 Compiler-referee review confirmed it is consistent with selected preservation
 and runtime guard-lineage transport, without treating a guard marker as a
 handler activation.
+
+An escape-scope audit found the remaining caller-handler question cannot be
+inferred from the selected nested-preservation clause. The actual `maker`
+witness has no handler to remove; its returned closure retains a callback
+request and mandatory activation lineage, while the fresh caller handler's
+eligibility is unspecified by the frozen source docs and current architecture.
+Receiver-local `Capture` proves that `maker`'s grant is not transferred by
+family equality, but does not prove the caller handler is ineligible by every
+ordinary source rule. Architect, compiler-referee, and spec-auditor reviews
+converge on this boundary. The design now records two unselected rules:
+ordinary caller handling when the complete source relation permits it, or a
+source-justified carried-boundary mask. Both retain latent effects and runtime
+lineage; neither may be selected from frozen runtime routing. Exact pure-caller
+acceptance still depends on the finite handler-image abstraction. This is a
+genuine source decision to resolve before the escaped-closure proof gate.

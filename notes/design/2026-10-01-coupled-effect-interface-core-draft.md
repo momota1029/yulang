@@ -1267,18 +1267,20 @@ returned closure's latent `choose` request. This rejects that Oracle
 under-approximation; it does not decide whether a more precise successor can
 still accept the outer handler through its scoped visibility relation.
 
-The common representation candidate for either lifetime rule is an ordered
-dynamic context plus optional *dormant re-entry lineage* on values that escape.
-This representation does not choose whether source semantics retains such
-lineage:
+The common representation is an ordered dynamic context plus the
+activation-specific value-carried lineage required by the Yulang3 runtime
+architecture. Transporting that lineage is mandatory; its source-level
+eligibility meaning remains separate. In particular, carrying lineage does
+not snapshot the live handler stack or decide which later handler may consume
+an escaped request:
 
 ```text
 enter boundary: extend the ordered context with its source-typed capture relation
 run helper:     extend the context; retain enclosing capture relations
 request search: unwind exited frames before testing an outer handler
 resume:         restore the unwound frames around the saved continuation
-return value:   remove active grants; retain re-entry lineage only if its
-                complete value interface carries that source dependency
+return value:   remove exited handlers; preserve the value-carried lineage
+                required by its complete source interface
 ```
 
 This separates three facts that a family flag would conflate: the symbolic
@@ -1304,14 +1306,14 @@ erase an enclosing capture entitlement. The returned closure retains its
 complete latent request interface, including symbolic family constraints;
 subtracting emitted immediate support still requires the handler-image proof.
 
-The remaining escape question is which capture entitlement, if any, the
-source relation makes eligible when a returned closure later runs. Candidate
-expiry or dormant re-entry policies concern that eligibility meaning; neither
-may discard the required lineage IDs or confuse them with static family
-binders. The handler visibility of a later request must be derived from the
-complete ordered search and its origin. Neither preserving the latent effect
-nor transporting lineage alone proves that an outer caller handler may consume
-it.
+The remaining escape question is whether an active caller handler may consume
+a request when a returned closure later runs. The callback contract on the
+maker cannot simply be transferred to a new handler by family equality, but
+that fact does not establish that every ordinary caller handler is ineligible.
+The source relation must combine the request origin, required carried
+lineage, current handler activation, exact operation coverage, and any
+source-defined boundary conditions. Neither preserving the latent effect nor
+transporting lineage alone proves the result.
 
 This implements the selected reading of the source phrase “handlers inside the
 receiving function may consume” the contracted family for nested calls while
@@ -1324,15 +1326,27 @@ characterization evidence, not authority for that escape rule.
 
 The separate closure-effect soundness invariant is firmer: constructing
 `\_ -> f()` emits no request, but the returned arrow retains the callback's
-symbolic latent effect. In the recorded `maker` fixture the Oracle accepts a
-pure caller while both runtimes leave `choose::reject` unhandled. The
-successor must not repeat the lost-effect under-approximation. This records a
-concrete final-acceptance divergence for the coarse abstraction that rejects
-the pure result annotation; it does not prove that every sound finite
-abstraction must reject it, nor that the outer catch handles the request.
-Accordingly, the runtime outcome and caller acceptance remain conditional on
-the still-open visibility and handler-image rules. No grant-lifetime policy
-or implementation authority is selected here.
+symbolic latent effect. The frozen Oracle accepts a pure caller while both
+runtimes leave `choose::reject` unhandled. The lost latent effect is a
+soundness conflict in the inferred Function interface; final caller
+acceptance is a separate question because a precise caller handler image may
+consume the request. The current coarse whole-scrutinee abstraction rejects
+the pure result annotation in either eligibility branch, but that is an
+abstraction limitation, not proof that all sound finite presentations must
+reject it. Record the checker/runtime conflict without treating either
+outcome as the successor rule.
+
+The post-return source choice is explicit:
+
+| Source rule for the caller's fresh handler | Result for the escaped request | Compatibility consequence |
+|---|---|---|
+| Ordinary caller handling is permitted when the current source relation makes that handler eligible | The caller handler may consume the request after ordered matching; the maker's grant is not transferred | May retain the Oracle's final acceptance if the finite handler image proves a pure result; requires repairing the frozen runtime route |
+| A carried callback boundary masks this later handler | The request remains in the outward effect and an unhandled request is possible | The pure caller annotation is rejected when the request remains reachable; requires a source proof for the mask, not imitation of runtime guard routing |
+
+Both rules preserve the closure's latent request and mandatory runtime
+lineage. Fresh activation IDs, request origin, callback-contract identity,
+symbolic `K,D`, and ordered handler stack remain distinct. No choice is
+selected here; the frozen checker and runtime disagreement does not decide it.
 
 #### Nested concrete receiver: selected preserve clause and proof gate
 
