@@ -137,15 +137,21 @@ conversion boundary. This refines but does not prove the port hypothesis for
 the successor, especially for Record adapters. A bounded frozen-source ledger
 now traces literal bounds, application demands, local slots, inference replay,
 specialization replay and nominal cast emission in §8 of the closure note.
-It found that inference and specialization use different provenance IDs, and
-that emitted cast selection is endpoint/rule based rather than keyed by the
-binary replay identity. Independent semantic review found one minor
-overstatement: materialized arguments may still have open endpoints, so their
-comparison is an obligation rather than an already-resolved concrete check.
-That distinction is corrected in the reviewed note. The next gate is to prove
-a cross-stage correspondence connecting replay obligations to the exact
-consumer-facing checks and conversions that discharge them; do not use an
-annotated local as a proxy for an inserted adapter.
+It found that inference and specialization use different provenance IDs. Each
+specialization consumption submits its endpoint comparison, but equal endpoints
+may be elided and equal semantic keys may share merged graph/provenance records.
+Repeated consumers of one expression are aggregated by intersection for
+solved emission, so the emitter receives one solved endpoint pair, not a
+selected member check or replay identity. Emitted cast selection is endpoint/
+rule based rather than keyed by the binary replay identity. Independent
+semantic review found one minor overstatement: materialized arguments may
+still have open endpoints, so their comparison is an obligation rather than
+an already-resolved concrete check. That distinction is corrected in the
+reviewed note. The next gate is to prove
+a cross-stage correspondence from each replay obligation to the particular
+consumer checks and conversions that discharge it, including repeated
+consumers and aggregate solved views; do not use an annotated local as a proxy
+for an inserted adapter.
 
 One semantic review caught an overclaim that a producer-view boundary must
 emit a runtime conversion. The repaired draft separates a source check that may

@@ -212,6 +212,21 @@ occurrence keys look up existing sidecar evidence. No blocking or major finding
 remained. No tests, builds or measurements were run. Measurement budget
 consumed: 0.
 
+The next bounded source read found that each materialized consumption submits
+its endpoint comparison, while equal endpoints may be elided and equal
+semantic keys may share merged graph/provenance records. `add_expr_consumer`
+combines repeated consumers at one `ExprId` by intersection. `finish` resolves
+one aggregate solved consumer, and boundary emission reads that solved actual
+and consumer pair. Thus endpoint-based emission is at the same expression
+site, but it does not identify which member consumption—or which replay
+pair—the emitted boundary discharges. A single-consumer path remains a
+possible conditional correspondence case; it cannot establish the general
+rule.
+The closure note and task gate now include this multiplicity gap. This is
+frozen-source evidence only; no successor semantics or implementation
+authority follows from it. No tests, builds or measurements were run.
+Measurement budget consumed: 0.
+
 ## Next gate
 
 Prove bound-replay conservation for a fixed finite source elaboration and
