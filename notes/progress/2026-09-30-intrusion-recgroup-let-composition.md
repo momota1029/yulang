@@ -401,6 +401,89 @@ the original Simple-sub paper. The frozen inference/specialization behavior is
 an Oracle implementation observation, not semantic authority. The trace flag
 only prints inference diagnostics; no runtime trace flags were set.
 
+#### Set-valued safety interpretation for the final-gate conflict
+
+The previous derivation used only assumed preorder laws. The same witness can
+be checked against a concrete value-safety interpretation without choosing a
+recursive-type equation semantics. Keep source subtyping as the syntactic
+preorder of
+[`2026-09-30-intrusion-pure-source-typing-rules.md`](2026-09-30-intrusion-pure-source-typing-rules.md),
+including its exact Function rule. Do **not** define that preorder as set
+inclusion: the value interpretation below is a value-safety interpretation
+that respects source subtyping, not a complete embedding of the subtype
+algebra or a full type-safety theorem.
+
+Let `V` be the closed values of the pure call-by-value fragment, including
+integers and recursive function closures. Interpret source types as sets:
+
+```text
+⟦Top⟧ = V
+⟦Bottom⟧ = ∅
+⟦Fun(A,B)⟧ = {
+  c ∈ Closures | for every v ∈ ⟦A⟧, applying c to v is not stuck,
+    and if it terminates with w, then w ∈ ⟦B⟧
+}
+```
+
+The arrow clause permits divergence but excludes getting stuck. The source
+subtyping preorder has the exact contravariant/covariant Function rule. This
+set interpretation respects that rule: if `A'≤A` and `B≤B'`, monotonicity
+gives `⟦A'⟧⊆⟦A⟧` and `⟦B⟧⊆⟦B'⟧`, so every closure safe on `A` with results in
+`B` is safe on `A'` with results in `B'`. No converse from set inclusion to
+source subtyping is claimed. `Top` and `Bottom` interpret as greatest and
+least sets; because integers are values but not closures, `⟦Top⟧` is not
+included in any `⟦Fun(A,B)⟧`.
+
+Choose the singleton group's source-type assignments
+
+```text
+s = Top
+v = Top
+q = Fun(Top,Top)
+r = Fun(Fun(Top,Top),Top)
+```
+
+For the recursive definition `f x = x f`, the application premise holds:
+every `x∈⟦q⟧` may be applied to `f∈⟦s⟧=V` without getting stuck, and every
+terminating result belongs to `⟦v⟧=V`, under the set interpretation of the
+source type terms above. Syntactically, `q=Fun(s,v)`, so the `App` rule gives
+`x f : v` and `Lam` gives `λx.x f : Fun(q,v)`. The body-to-self constraint
+`Fun(q,v)≤s` follows because `s=Top` and `Top` is greatest in the source
+preorder; the body-to-root constraint `Fun(q,v)≤r` is equality by the chosen
+`r`. Hence the recursive group has a nonempty fiber.
+
+The identity closure `id=λz.z` belongs to `⟦q⟧`: every input in `V` is returned
+unchanged in `V`. The recursive closure `f` belongs to `⟦r⟧`: every input
+`x∈⟦q⟧` can be applied to `f∈V` without getting stuck, and if it terminates
+then its result belongs to `V`. The external call `f id` therefore has result
+type `Top`; operationally `f id` steps to `id f` and then returns the `f`
+closure. It terminates with no effect request. The computed top-level root is
+consequently a pure value in `Top`, with no additional `unit` premise.
+
+This validates the candidate source derivation and safe runtime behavior for
+this one final-gate witness alongside a set-valued safety interpretation of
+the stated pure rules. It does not make set inclusion the solver's subtype
+preorder, prove the full source type-safety theorem, establish that every
+Yulang construct uses this interpretation, or prove that the candidate
+principal relation is the intended source contract. The frozen Oracle's
+default build/run rejection remains a concrete final-acceptance difference if
+these rules are adopted; the rejected behavior, replacement rule, and effect
+are recorded above. The independent compiler-referee review below covers only
+this bounded value-safety witness; it does not certify the broader
+source-adequacy gate.
+
+Independent compiler-referee review found and closed two substantive issues
+in the first formulation: set inclusion was not equivalent to the source
+Function subtyping preorder, and a partial-correctness arrow admitted stuck
+applications. The revised note separates the exact syntactic source preorder
+from its set-valued safety interpretation, excludes stuck applications, and
+uses only the forward safety implication. A delta review also closed the
+resulting source-type/denotation wording and confirmed the local App/Lam
+derivation and `f id → id f → f` trace. This review establishes only this
+bounded witness and value-safety interpretation; it does not establish a
+complete carrier, source type-safety theorem, principality, or Oracle
+equivalence. No compiler code or tests changed.
+
 ### Top-level lift for the pure witness
 
 The gap between the custom `LetRec` witness and a one-module source program

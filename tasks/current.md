@@ -4124,3 +4124,16 @@ which was corrected and delta-reviewed clean. The theorem does not establish
 source graph adequacy, solver completeness, principality, effects, or final
 Oracle acceptance. See
 `notes/progress/2026-10-02-intrusion-heterogeneous-freeze-transport.md`.
+
+For the recorded pure final-gate conflict `f x = x f; main = f (λz.z)`, the
+candidate relation previously relied on abstract Top/Function preorder
+assumptions. A set-valued safety interpretation with exact syntactic source
+subtyping now checks the recursive assignment, identity use, and terminating
+pure result;
+it does not invoke recursive-type equations or add a source-site rule. This
+strengthens the witness but is only a local model, not a full type-safety or
+Oracle-equivalence theorem. Independent compiler-referee review found a
+subtyping-law mismatch and stuck-application gap in the first formulation;
+both were corrected and delta-reviewed clean. This is not a complete
+soundness or principality proof. See the subsection in
+`notes/progress/2026-09-30-intrusion-recgroup-let-composition.md`.
