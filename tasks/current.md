@@ -4115,6 +4115,20 @@ that the current F5 binder walker rebuilds Function effect fields as
 transport. See `notes/progress/2026-10-02-callback-scope-transition.md` and
 `notes/progress/2026-10-02-successor-implementation-feasibility.md`.
 
+The current call/adaptation proof adds a result-thunk discriminator: a thunk
+carrying the callback's own computation lineage may keep that lineage's
+existing capture derivation through nested force/adaptation, while a
+caller-owned thunk returned by the callback cannot borrow it by matching
+family and payload. Origin is per exposed request, so a callback-created
+wrapper forcing a caller-owned thunk must preserve the inner origin, and a
+mixed thunk must keep separate origins and `K,D` incidences. A
+compiler-referee delta review found no issue in the conditional distinction
+and named these remaining source proof cases. The feasibility check found no
+request-origin or per-request typed-incidence carrier, and no resolved call
+node beneath syntax `HirExpr::Apply`; this is not yet a bounded production
+implementation. See the callback-origin subsection and the appended
+proof/feasibility entries.
+
 The frame-extension lemma now explicitly requires an exhaustive factorization
 of `Visible`, preservation of all positive/negative context premises, and no
 independent source invalidator. A compiler-referee delta review closed this

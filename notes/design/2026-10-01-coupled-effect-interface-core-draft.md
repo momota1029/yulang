@@ -1567,6 +1567,24 @@ displayed `Adapt` equations, conditional on the source `Force` and value-boundar
 preserving their inherited interface coordinates. It does not transfer an
 outer capture entitlement to effects newly produced by an unrelated conversion.
 
+**Returned-thunk caller-hygiene discriminator.** The origin premise must be
+tested on the value-flow edge, not inferred from family equality. Fix one
+assignment and two same-family requests `q_cb` and `q_caller`. If a returned
+thunk exposes a request with callback computation lineage `o_cb`, and the
+source argument contract already derives `Capture(o_cb,h)`, then forcing that
+thunk during nested result adaptation may preserve `Visible(q_cb,h,κ)` while
+`h` stays active and the same transport maps its typed payload and `K,D`. If
+the callback instead returns or forwards a caller-owned thunk with lineage
+`o_caller`, `Capture(o_cb,h)` does not derive `Capture(o_caller,h)`; forcing
+`q_caller` cannot borrow the callback's entitlement merely because its family
+and payload match. An independent caller-side derivation may still make
+`q_caller` visible. Lineage therefore belongs to each exposed request, not to
+one whole thunk: a callback-created wrapper that forces a caller-owned thunk
+must preserve the inner request's `o_caller`, and a thunk combining both
+computations must retain both origins and their separate `K,D` incidences.
+Which origins a source value/force relation exposes remains to be proved; this
+discriminator does not define them or add a source-site rule.
+
 For a function adapter, the displayed `CallView` equation composes argument
 adaptation, the underlying call, and result adaptation. For a callback-origin
 request `q` already related to `h`'s contract (including one exposed by a force

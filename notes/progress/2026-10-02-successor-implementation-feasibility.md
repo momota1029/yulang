@@ -94,4 +94,22 @@ reinforces the current decision to alternate proof slices with read-only
 feasibility checks and defer production changes until the semantic carrier is
 settled and implementation authority is granted.
 
+## Alternating proof / feasibility check: request lineage
+
+The returned-thunk discriminator was independently reviewed. The proof now
+requires origin per exposed request, so a callback-created wrapper that forces
+a caller-owned thunk cannot relabel its inner requests, and a mixed thunk must
+retain separate origins and `K,D` incidences. The source value/force relation
+must establish those facts; a single callback-owned bit on the thunk would be
+unsound for caller hygiene.
+
+The corresponding implementation check found no request-origin or
+per-request typed-incidence carrier in resolved HIR, solver values, or closed
+types. Syntax `HirExpr::Apply` carries its operator, operands, and source range,
+but is not lowered into a resolved call node; source ranges also cannot serve
+as dynamic request-event or activation identities. This is a broader gap than
+adding one callback flag: the future carrier must survive value flow, wrappers,
+force, mixed computations, and continuation resumption. No production code was
+changed; this is not ready for a bounded compiler implementation.
+
 No source code was changed. No tests or builds were run.

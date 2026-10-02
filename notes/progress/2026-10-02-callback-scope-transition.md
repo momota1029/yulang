@@ -411,3 +411,21 @@ successor source rules still must prove origin and `K,D` preservation for each
 adaptation/force, typed compatibility before dispatch, and complete handler
 image behavior across repeated requests. Global soundness, finite
 representation, and principality remain open.
+
+### Returned thunk: callback lineage versus caller lineage
+
+The proof now has a same-family caller-hygiene discriminator at result
+adaptation. A thunk carrying the callback computation lineage may preserve its
+existing `Capture(o_cb,h)` through force and nested adaptation, with `K,D`
+transported uniformly while `h` remains active. A thunk merely returned or
+forwarded by the callback but carrying caller lineage `o_caller` cannot borrow
+that entitlement from family/payload equality; it needs its own independent
+visibility derivation. Compiler-referee review found no issue with this
+conditional distinction, and identified the remaining source proof cases:
+callback-created wrappers that force caller-owned thunks, thunks containing
+requests from both origins, and forwarding/resumption with activation restore.
+Origin must attach to each exposed request, not one whole thunk. Each origin's
+own `K,D` incidence must use the same symbolic transport; immediate empty
+support does not discharge it. The source value/force relation must establish
+these cases, so this remains a conditional distinction, not a source rule or
+global proof.
