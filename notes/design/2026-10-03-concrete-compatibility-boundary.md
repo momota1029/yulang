@@ -82,6 +82,27 @@ pivot, and inherited guards; variable reachability alone cannot invent one.
 The replay rule's source preservation and conversion placement remain to be
 proved for the successor.
 
+One candidate separation for a successor constraint judgment is:
+
+```text
+Bound(X, Y) ∧ Lower_j(A, X)       ⇒ Lower_j(A, Y)
+Bound(X, Y) ∧ Upper_k(Y, B)       ⇒ Upper_k(X, B)
+Lower_j(A, X) ∧ Upper_k(X, B)    ⇒ Compat_ρ(j,k,X)(A, B)
+```
+
+Here `Lower` and `Upper` are variable-bound payloads, not assertions that the
+two endpoints already passed a source-local `Compat`. The replay context `ρ`
+retains both parent-bound identities, the pivot and both applicable scope
+guards. The generated `Compat` result is local to that replay; its success
+does not become a concrete reachability edge. Any further child bounds must
+come from the selected compatibility derivation and retain this replay as
+their parent. This separates bound transitivity from compatibility-result
+composition, but is only a candidate factoring of the judgments: source
+typing, guard combination, principality and runtime conversion placement are
+unproved. In particular, the conditional `X={}` counterexample applies only
+when the original obligations are interpreted as independent local `Compat`
+checks, rather than these stronger bound payloads plus the replay rule.
+
 For example, if two suspended obligations are interpreted as nothing more
 than `Compat_j({foo?: string}, X)` and `Compat_k(X, {foo?: int})`, then both
 pass for `X = {}` while direct `Compat_l({foo?: string}, {foo?: int})` fails.

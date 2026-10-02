@@ -148,6 +148,15 @@ reviews found no blocking or major semantic/conformance issue. Both reviewers
 identified one factual overstatement that replay plans always enqueue; the text
 now records route eligibility and prefiltering. No tests or builds were run.
 
+The design now sketches the judgment split as candidate rules: variable edges
+transport lower/upper bound payloads, while a same-pivot lower/upper pair
+generates a fresh locally resolved `Compat` query. The compiler referee found
+no semantic finding and confirmed that no successful `Compat` judgment is a
+premise of those rules. The spec auditor found no conformance finding and
+confirmed that source typing, guard propagation, principal solving and
+conversion placement remain unapproved proof obligations. The equations are
+not implementation authority.
+
 ## Next gate
 
 Prove bound-replay conservation for a fixed finite source elaboration and

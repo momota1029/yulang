@@ -104,9 +104,12 @@ independent local compatibilities. A follow-up source trace found that frozen
 Oracle has an explicit same-variable lower/upper replay rule, retaining the
 pivot and both bound-record identities. This can justify a bound-derived
 concrete query as its own local check; it does not compose prior `Compat`
-successes. The next gate is bound-replay conservation: define the source
-meaning of concrete-to-variable bounds, preserve original guarded boundaries,
-and prove exactly which replay queries arise with their parent evidence.
+successes. A candidate rule shape now propagates `Lower`/`Upper` bound payloads
+along admitted variable edges and derives a fresh local `Compat` from a
+same-pivot lower/upper pair. It is not approved source semantics. The next
+gate is bound-replay conservation: define the source meaning of those bound
+judgments, preserve original guarded boundaries, and prove exactly which
+replay queries arise with their parent evidence and guards.
 
 Frozen specialization rechecks materialized concrete boundaries, while the
 Evidence VM has a recursive Record adapter distinct from generic `Coerce`
