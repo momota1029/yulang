@@ -134,9 +134,18 @@ producer-to-local-to-consumer flow through open value slots and locates
 registered argument casts at expression-consumption boundaries. A local type
 annotation only constrains its existing value slot; it does not establish a
 conversion boundary. This refines but does not prove the port hypothesis for
-the successor, especially for Record adapters. The next gate is source-ledger
-conservation across those actual conversion sites; do not use an annotated
-local as a proxy for an inserted adapter.
+the successor, especially for Record adapters. A bounded frozen-source ledger
+now traces literal bounds, application demands, local slots, inference replay,
+specialization replay and nominal cast emission in §8 of the closure note.
+It found that inference and specialization use different provenance IDs, and
+that emitted cast selection is endpoint/rule based rather than keyed by the
+binary replay identity. Independent semantic review found one minor
+overstatement: materialized arguments may still have open endpoints, so their
+comparison is an obligation rather than an already-resolved concrete check.
+That distinction is corrected in the reviewed note. The next gate is to prove
+a cross-stage correspondence connecting replay obligations to the exact
+consumer-facing checks and conversions that discharge them; do not use an
+annotated local as a proxy for an inserted adapter.
 
 One semantic review caught an overclaim that a producer-view boundary must
 emit a runtime conversion. The repaired draft separates a source check that may

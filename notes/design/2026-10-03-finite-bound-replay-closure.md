@@ -4,7 +4,7 @@ Status: Reviewed
 Date: 2026-10-03
 Scope: least closure of a fixed finite variable-bound graph with finite replay contexts
 Approved-by: none; the user's approved relation distinction is recorded in §1 of `2026-10-03-concrete-compatibility-boundary.md`
-Reviewed-by: architect pre-write audit; compiler_referee and spec_auditor review §§1–6 clean after primary closure of minor findings; fresh compiler_referee and spec_auditor review of §7 hypothesis; compiler_referee source-bridge and revised check-only contract-boundary deltas clean after major-finding repair
+Reviewed-by: architect pre-write audit; compiler_referee and spec_auditor review §§1–6 clean after primary closure of minor findings; fresh compiler_referee and spec_auditor review of §7 hypothesis; compiler_referee source-bridge and revised check-only contract-boundary deltas clean after major-finding repair; compiler_referee review of §8 clean after primary closure of one minor materialization-phase finding
 Implementation authority: none
 Supersedes: none
 
@@ -321,3 +321,43 @@ multiple consumers and incompatible guards; then prove replay conservation in
 both directions for the resulting source-bound and replay ledgers. A local
 type annotation must not serve as the distinguishing example unless its
 conversion behavior is separately established.
+
+## 8. Partial frozen source-origin ledger
+
+The ledger below is a bounded trace through the frozen implementation at the
+commit named in §6. Its identities describe that implementation only; it does
+not assert a successor representation.
+
+| Stage | Evidence and identity | Established relation | Missing bridge |
+|---|---|---|---|
+| Literal producer | `lowering/expr/block_local.rs::lower_number` creates an expression and fresh `TypeVar`; `expr/constraints.rs::constrain_lower_with_origin` and `constrain_upper_with_origin` emit concrete-to-variable and variable-to-concrete constraints. | A source value can contribute concrete lower and upper payloads. | The origin is not a complete source-location identity for every payload. |
+| Local binding and use | `lower_local_binding_stmt` keeps the initializer's value slot as the local public value. `lower_local_name` records a `RefId` targeting the local `DefId`; local references reuse that value unless scheme instantiation creates a fresh variable with witness routes. | Local transport and alias targets retain source binding identity. | Preservation of a semantic producer view across aliases, generalized uses and intrusion is unproved. |
+| Local annotation | `connect_local_binding_annotation` reaches `annotation/constraints.rs::connect_value_detailed`, which constrains both directions between the annotation and the existing slot under annotation provenance. | Annotation contributes lower/upper constraints on the local value. | This alone does not show a new value slot, a runtime conversion, or a separately sealed consumer-facing contract. |
+| Application demand | `make_source_app` allocates an `ApplicationArgument` `SourceBoundaryId` and source spans. `make_app_with_origins` relates the callee to a Function demand carrying the argument variable; Function decomposition derives the argument comparison. | The expected argument type has a source-owned application boundary and a derivation from the callee constraint. | The inferred constraint is not itself an executable cast placement. |
+| Specialization local slot | `specialize2/task_solver/control.rs::local_let_binding_type` gives non-lambda locals a fresh `Type::OpenVar`; `block_type` consumes the initializer into it. `var_type` retrieves the stored slot for local uses. | A producer can flow through one specialization slot to multiple consumer expressions. | This reconstruction is separate from the inference `TypeVar` and does not itself prove which pairs are admissible for replay. |
+| Materialized consumer | `consume_expr_value` constructs actual/expected materialized endpoints by looking up `TypeOccurrenceKey`s owned by the argument `ExprId`; `constrain_materialized_subtype` stores endpoint types with `SpecializeSubtypeProvenanceRecordId`s and available source anchors. Endpoints may still contain `Type::OpenVar`. Repeated semantic keys may merge positions and provenance. | Each argument comparison becomes a local root constraint; concrete compatibility resolution happens only if solving exposes concrete endpoints. Repeated uses can retain separate consumers. | Materialized record IDs do not map one-to-one to inference constraint or source-boundary IDs. Provenance may be incomplete. |
+| Inference replay | `step_subtype` stores variable-edge and bound records. `cpk_lower_bound_replay_actions` / `cpk_upper_bound_replay_actions` pair same-pivot records; `BinaryReplayDerivation` retains the pivot plus both `BoundRecordId`s. | Frozen inference explicitly retains the logical replay parents. | Those parents do not identify where a selected runtime conversion executes. |
+| Specialization replay | `TypeGraph::constrain_open_var_bound_pair` adds `OpenVarBound { parents }` with lower-side and upper-side positions from separate specialization records. | Specialization has a second replay route with whatever parent provenance is available. | Its record IDs are not the inference replay IDs; this carrier has no explicit pivot field, and some routes have incomplete provenance. |
+| Cast emission | `emit_expr_with_boundary` wraps an application argument; `boundary_expr_with_argument_contract` selects through `cast_boundary_instance` using solved actual/expected types and emits an instance application around the argument expression. | A registered nominal cast can execute at the consuming argument. | Selection is endpoint/rule based, not keyed by the inference binary-replay identity. The exact discharged-constraint-to-emitted-cast link is absent from this trace. |
+
+The frozen emitter also has an identity-style Record path: when
+`same_record_boundary_shape` finds equal field counts and names,
+`ensure_emitted_value_with_argument_contract` keeps the expression and changes
+its computation metadata to the expected type. Separately, supported generic
+`RecordFields` coercion can lower to a runtime alias. These paths show why a
+consumer-facing typed view and a data adapter cannot share one evidence bit.
+They do not establish that a check-only Record boundary seals transport or
+that it discharges a later bound replay. The frozen specialization Record
+branch checks required-field presence and matching child types, but does not
+settle optional-Record runtime realization.
+
+Accordingly, frozen source evidence currently connects source origins to
+inference bounds, connects replay to its two logical parents, reconstructs
+materialized consumer checks with separate provenance, and places nominal
+casts at argument expressions. It does **not** provide a single identity chain
+from an original source boundary through bound replay to the emitted
+conversion, or a proof that the conversion discharges exactly that replay.
+That cross-stage conservation relation is the next proof obligation. A
+successor may choose a different topology, but it must establish the same
+logical and execution correspondence before using replay to justify a local
+resolver result.

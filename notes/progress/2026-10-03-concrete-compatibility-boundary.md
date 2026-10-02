@@ -197,6 +197,21 @@ placement remain unverified.
 No tests, builds or measurements were run.
 Measurement budget consumed: 0.
 
+A bounded frozen-source ledger was then added to §8 of the closure note. It
+separates application `SourceBoundaryId`s, inference `BoundRecordId` replay
+parents, specialization `SpecializeSubtypeProvenanceRecordId`s and emitted
+cast instances. The frozen routes do not provide one identity chain from an
+original source boundary through replay to the emitted conversion; cast
+selection uses solved endpoint types and rules. Check-only Record shape paths
+can retain the original expression while presenting expected-type metadata,
+but whether they seal the source contract or discharge replay remains unknown.
+Independent semantic review found one minor phase-boundary overclaim: materialized
+argument comparisons may still contain open variables and are not already
+concrete compatibility checks. The primary corrected this and clarified that
+occurrence keys look up existing sidecar evidence. No blocking or major finding
+remained. No tests, builds or measurements were run. Measurement budget
+consumed: 0.
+
 ## Next gate
 
 Prove bound-replay conservation for a fixed finite source elaboration and
