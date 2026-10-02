@@ -1985,3 +1985,71 @@ compiler tests, builds and measurements budget/consumption zero. Primary
 synchronized task/index/progress and review metadata. Integration stages only
 the two theorem documents and three records, inspects the complete outbound
 range and uses a normal push on `research/simple-sub-intrusion`.
+
+### Actual capture admission and joint row realization (2026-10-03)
+
+Previous goal turn classified as progress: `2d426f8bf` was reviewed and
+pushed. The research branch was revalidated clean. This package removes
+an actual supplied-query premise rather than assuming all complete predicates
+effective: source-realization §9 compiles original explicit concrete capture
+lists to family-head and invariant tuple equalities under one assignment.
+Wildcard, omitted and result-only forms grant no capture; protection remains.
+Exact operation coverage still belongs to the actual handler. A bounded
+source map confirms that open-tail syntax exists but its capture semantics
+cannot be inferred from parser shape; no broader form is rejected here.
+Set union/intersection/difference are mathematical row presentation operators,
+not newly claimed source syntax.
+
+The package connects guarded positive checks to existing membership/capacity
+projection by exact whole-block case expansion. It joins guard dependencies
+before hiding rows. Complete observations and external `K,D` must remain
+retained or be included in an eligible joined relation; projected certificates
+are not replacement machine guards. Pointwise admission equivalence, by
+contrast, preserves the generated query transitions and consequently `R/S/U`.
+
+For the no-counting named-query fragment, all eligible local rows have a
+finite witness supported on the named request points. Enumerating membership
+bits with equations enforcing agreement at coincident points eliminates the
+rows exactly, for finite or arbitrary-subset interpretations. The empty-name
+case uses empty rows. This removes the row-realizability premise for that
+fragment without domain-capacity queries. The residual still requires semantic
+endpoint equality/disequality and actual active checking obligations. For
+example, `exists X. q1 in X and q2 not in X` retains `q1 != q2`; positive
+polarity or syntactic rigid-name distinction cannot decide it.
+
+Projection remains at its original existential binder position. It neither
+moves a shared row under a later rigid binder nor constructs a different arm
+per truth cell. Symbolic family constraints, operation-local packet witness
+correspondence and occurrence identities are retained. No full source
+principality, source rejection policy, lifecycle closure or implementation
+approval follows.
+
+M3 budget: one architect, one bounded source-map explorer, one documentary
+producer and two independent reviewers. Both semantic and conformance reviews
+found no findings in §9. Convergence criterion is no accepted blocking/major
+finding; no repair or additional review round was required. Verification:
+`git diff --check` and focused reference/diff inspection; tests, builds and
+measurements budget/consumption zero. Primary synchronized task/index/progress
+and review metadata, then inspects explicit staged paths and the full outbound
+range before normal branch integration.
+
+During this package the user requested generation/comparison-time level
+discipline for existential scope instead of exit-time checking or a special
+logical implementation mechanism. The primary asked one necessary
+interpretation question: does the opened witness remain rigid while deeper
+inference variables receive its bounds, or may the witness itself specialize?
+The latter would conflict with the earlier generic-arm rejection decision.
+No answer has yet been adopted, and this representation question was excluded
+from the independent admission/row review. Existing existential source meaning
+does not require a runtime box or a general quantified-logic solver.
+
+A bounded frozen audit at `a58eefc3` found current/birth variable levels in
+`crates/infer/src/constraints/mod.rs:397–466`, bound-ingress extrusion in
+`constraints/machine/bounds.rs:630–645,815–830`, and transitive lowering through
+both bound sides at `4701–4727`. Nullary constructors have no variable-level
+field and bypass that extrusion. The schematic alias sequence
+`X_outer = Y_inner; Y_inner = kappa` demonstrates why an eager check must
+consult effective dependency levels after aliasing, not only birth levels.
+It does not refute a complete eager level discipline. Full structural type
+level definition, witness rigidity and preservation through all propagation
+paths remain to be specified/proved; no compiler experiment was run.

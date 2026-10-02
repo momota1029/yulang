@@ -9,6 +9,7 @@ Reviewed-by: compiler_referee and spec_auditor, independent package reviews, 202
 Projection-basis-review: structural observation package and position-indexed admission repair reviewed; independent compiler_referee closure clean, 2026-10-02
 Execution-image-review: §7 constructive query/shallow-control package independently reviewed by compiler_referee and spec_auditor; no findings within the resolved-input envelope
 Guarded-closure-review: §8 independently reviewed by compiler_referee and spec_auditor, 2026-10-03; no blocking/major findings; minor pure-rule side-condition omission corrected by primary reference/diff inspection
+Admission-row-review: §9 independently reviewed by compiler_referee and spec_auditor, 2026-10-03; no findings within the explicit-list and eligible-row fragments; pending existential-level representation interpretation excluded
 Supersedes: none
 
 ## 1. What this package establishes
@@ -798,3 +799,265 @@ first-order subtyping is not silently substituted for that bounded task.
 Full source principal presentation and its acceptance bridge remain open.
 No source capability is narrowed, no generalization/lifecycle theorem is
 closed, and no implementation gate is opened by this conditional package.
+
+## 9. Original capture admission and mixed guarded row blocks
+
+### Concrete original-slot admission
+
+Use ordinary-computation §4's annotation distinction and typed-boundary §6's
+original-slot profile/path relation. Fix a source boundary `b` and its
+capture component at position `p`. For the explicit concrete list
+`{F_i(rho_i)}`, compile its admission test as
+
+```text
+Admit_nu(b,p,q) = OR_i
+  (head(point(q)) = F_i and Eq_nu(args(point(q)),rho_i)).
+```
+
+Tuple equality is coordinatewise **semantic equality under the same `nu`**;
+it is not fresh instantiation or comparison of independently chosen type
+arguments. The empty list gives false. This formula comes from the original
+capture component, not an inferred residual or public row. The family's
+declared arguments determine `point(q)`; operation-local `beta` stays in the
+existential request packet and its `K,D`, not in that family tuple.
+
+Wildcard, omitted and result-only annotations supply no capture grant.
+Their admission component is false for this purpose; transported protection
+and the separate result filter remain intact. No false admission test erases
+a protected profile or means that the request cannot occur. Candidate
+activity, typed incidence and ownership are still checked by the common
+relation at the actual ordered-search configuration.
+
+This compilation covers explicit finite concrete capture lists with the
+existing typed correspondence premises. It does not interpret an arbitrary
+open tail as permission, infer a capture list from a public row, or decide
+broader annotation forms. Those forms remain outside this construction.
+An explicit `[E]` admits that family's requests through the original slot;
+it creates no operation arms, complete handler coverage or whole-family
+subtraction. Open-tail syntax such as `[E 'a,F; 'e] A` is not normalized here:
+its existence does not settle tail capture semantics or justify rejecting
+that source form. The row algebra's union, intersection, difference and
+conditional constructors are mathematical expressions, not source operators.
+Unknown semantic endpoint equality remains an interpreted predicate unless
+an applicable equality theorem supplies its realization.
+
+**Admission equivalence.** At fixed `nu`, a request is admitted by the
+original list exactly when its family head and invariant argument tuple
+match one listed component. Finite disjunction enumerates precisely those
+components; coordinate equality expresses their existing invariant test.
+Thus replacing the original concrete-list test by the displayed formula
+preserves its truth at each candidate, without changing event identity,
+operation-local correspondence, source profile identity or capture authority.
+
+### Mixed obligations remain whole blocks
+
+The operational inventory may combine row memberships, named-point queries,
+correlated capacity predicates and global endpoint predicates. Consider a
+finite block of the form
+
+```text
+Xi = K(nu) and (forall u. Phi(nu,u))
+           and B(named memberships,counts,global nu)
+           and AND_j (g_j implies C_j).
+```
+
+`Phi` uses the admitted pointwise row grammar. `B` uses the counting-aware
+row package's admitted Boolean combinations and correlated counts. Each
+`g_j` is a finite operational guard with its original interpretation;
+each `C_j` is a checking obligation at its existing binder scope. Retain all
+row arguments and shared endpoint dependencies in these expressions rather
+than suppressing them in the notation. Full effectful checks need not belong
+to the pure positive closure of §8.
+
+Split only the finite truth vector of guards, obtaining the equivalent
+**whole-block** disjunction
+
+```text
+Xi = OR_t [ K(nu) and AND_(j:t_j=true) C_j
+                  and (forall u. Phi(nu,u)) and B
+                  and AND_j (g_j iff t_j) ].
+```
+
+Every branch uses one shared assignment `nu`, all original constraints,
+and one complete guard valuation. This is Boolean case expansion of a
+logical relation, not a source selector or a choice of a good execution
+branch. False guards remove their implication consequent only in the
+branch retaining their false equation. Inconsistent guard vectors denote
+no solutions; they do not introduce new feasible type assignments.
+
+**Proof.** A solution determines its finite guard vector and satisfies its
+corresponding branch. Conversely a satisfying branch fixes each guard's
+truth and retains exactly every consequent required by the original
+implications. `K`, universal membership constraints and `B` are unchanged.
+Both implications hold under the same endpoints and row assignments.
+The expansion is not `forall u. OR_t ...`: its branch belongs to the entire
+constraint derivation, including named queries, counts and checks.
+
+### Positive closure inside the retained relation
+
+Where a checking consequent has a proved decomposition into §8's pure
+guarded obligations, saturate it with that closure and retain its initial
+clauses. Its conditional solution-preservation theorem keeps each branch's
+joint relation equal. Complete effectful Function inclusion, unnormalized
+`Admit` and other unsupported checks remain separate original obligations.
+Neither case expansion nor a finite fact graph proves their decomposition.
+
+In particular, retain the generic-arm universal checking relation in `K`
+or its original checking block. Do not select a different arm elaboration
+for each guard vector or actual caller instance. Source roles, declared
+bounds, consumer code and captured endpoints remain fixed. Operation-instance
+§§2–3 and 7–8 distinguish hidden request witnesses, rigid arm openings and
+solvable inference variables; the Boolean expansion does not exchange them.
+
+A block such as `exists shared. forall kappa. exists body` keeps that scope
+on both sides of the equivalence. Expansion takes place in the admitted
+finite block at its existing scope; it is not permission to distribute or
+exchange the source quantifiers. A witness already shared outside the arm
+cannot be freshly chosen per guard cell, and `kappa` cannot be solved from
+an actual Int-only caller domain.
+
+### Eligible row projection must include guard dependencies
+
+Before hiding a row variable, join every occurrence affected by that
+variable: pointwise constraints, named memberships, count predicates,
+operational guard equations and any admitted checking dependencies. The
+counting-aware projection theorem applies only if the resulting whole block
+satisfies its input and dependency conditions. Its symbolic residual retains
+correlated witness counts rather than projecting each query independently.
+
+In particular, a row to be hidden must not occur in a family-argument type,
+named-point endpoint, global `K`, nonpointwise checking predicate or live
+external `K,D` incidence that falls outside the projection grammar. A row
+dependency cannot be split into independent membership and endpoint names
+to evade this condition. If a checking consequence still depends on that
+row outside the admitted grammar, stop that projection; retain its coordinate.
+Whole returned-interface observations count among those external live
+dependencies: retain their coordinates, or join their complete relation
+before a projection whose premises cover it.
+
+Guard memberships and counts do not disappear merely because their reached
+checking obligation is positive. Join them before projection. Within an
+eligible branch, apply the existing exact row image theorem, then retain
+the finite union of projected whole branches. Existential projection
+distributes over this finite union without moving its alternatives under
+the pointwise request quantifier.
+
+This gives exact logical projection in the declared fragment, not a choice
+of whether source rows are finite or arbitrary subsets. Use the corresponding
+projection theorem's domain/capacity premises for that interpretation.
+Counts have no new source spelling or runtime type reflection.
+
+Projection applies to a literal local block `exists Y. Xi(nu,retained)`
+at its original binder position; `nu` supplies only parameters available
+there. Never commute it across a later universal. For example,
+`exists Y. forall kappa. Y={kappa}` cannot be eliminated as
+`forall kappa. exists Y. Y={kappa}`. Named terms containing that inner
+rigid binder make the proposed elimination outside this fragment unless
+a quantifier-safe full dependency argument is supplied. Formula equality
+does not replace the source requirement for one uniform arm template.
+
+A mathematical discriminator is
+`exists X. q1 in X and q2 not in X iff q1 != q2`.
+Thus exact row elimination can require semantic endpoint disequality within
+the invariant family tuple. This is neither polarity reversal nor a rigid
+syntactic clash, and provides no assumption `kappa != Int`. It is an
+emitted-grammar example, not an executed source or Oracle fixture.
+
+### Fixed named-query all-row elimination
+
+There is a stronger subcase requiring no counting or domain-capacity premise.
+Fix `nu` at the correct local `exists X` binder after mixed guard splitting.
+Let `N` list all named point **terms** `q_1,...,q_m` in `Phi`, `B` and guards;
+their interpretations may coincide. Suppose all `r` row variables `X` are
+hidden, and `Phi` is zero-preserving inclusion/equality or otherwise proved
+true outside named points when every row input is zero. Let `B` contain only
+named memberships and row-independent global predicates, including the
+retained equations `g_j iff t_j` of this branch. Exclude counts,
+nonemptiness, unnamed-point queries and absolute complement. No `X` occurs
+in `K`, active checking consequences, endpoints or live dependencies outside
+the joined block.
+
+Enumerate the `2^(m*r)` bit arrays `b_iX`. Define
+
+```text
+Consistent_nu(b) = AND_i,j,X
+  (Eq_nu(q_i,q_j) implies (b_iX iff b_jX)).
+
+Residual = OR_b [ K and activeC and Consistent_nu(b)
+                     and AND_i Phi(nu,q_i,b)
+                     and B(nu,b) ].
+```
+
+At `u=q_i`, singleton tests use the same semantic point equalities and
+row-membership inputs use `b_iX`; named membership occurrences in `B` and
+the retained guard equations use their corresponding bits. Thus coincident
+names cannot be assigned inconsistent row memberships.
+
+**Proof.** Restrict any satisfying row assignment to `N_nu`, the interpreted
+named points. Named memberships remain unchanged. Outside `N_nu`, all
+row/singleton inputs are false, so the exterior premise makes `Phi` true.
+The restricted assignment yields a consistent bit array satisfying the
+residual. Conversely, from a residual array construct
+`X={q_i(nu) | b_iX=true}` for each row. Consistency gives exactly the specified
+memberships even when names coincide; the displayed instances establish
+`Phi` on named points and the exterior premise establishes it elsewhere.
+`B`, `K` and active checks are unchanged, proving both directions.
+
+This works for finite rows and arbitrary subsets alike. With no named terms,
+all rows are empty and the exterior premise covers the whole universe.
+Apply the corollary to each whole guard branch without changing its binder
+position. It closes row realizability at fixed `nu` for this named-query
+fragment without invoking counting algebra. Semantic endpoint equality and
+active checking predicates remain unsolved. Exact semantic elimination is
+not uniform syntactic template inference, and supplies no permission to
+cross a later rigid checking scope or choose captured witnesses per cell.
+
+### Guard replacement preserves the generated query machine
+
+Let an original query guard and its normalized formula be equivalent at
+every assignment admitted by the retained joint block. Keep the same
+instruction successors, packet fields, native delimiters and current-state
+threading. At any such fixed assignment, replacing that guard preserves
+the enabled transitions. Apply this to each concrete-list admission query.
+Mixed-block expansion and row projection normalize the joint certificate
+relation; they are not machine-guard replacement or selection of one branch
+program.
+
+Stage induction then preserves the generated reachability relation `R`:
+initialization and successors have identical truth at every retained
+assignment. With unchanged `Base`, designated faults and complete output
+alternatives, the certificate formulas `S` and joint observations `U` are
+pointwise identical as well. After joint reachability and complete
+observations are joined, eligible certificate projection compares extendible retained
+assignments; it does not supply a guard value at an arbitrary discarded
+row witness without its original joint extension.
+
+The inventory stays finite: original concrete lists, guard vectors, named
+queries and counting thresholds are finite input data, and the existing
+projection/closure constructions produce finite formulas. Their products
+may grow. This section asserts no practical resource bound or effective
+semantic endpoint satisfiability algorithm. Boolean cells and branch vectors
+are not independently realizable endpoints.
+
+### Exact advance and remaining realization
+
+This construction normalizes original finite concrete capture admission and
+shows how guarded positive checks coexist with pointwise and counting-aware
+row constraints in one preserved block. It prevents both public-row capture
+grants and independently solved guard/check marginals. The operational
+machine continues to select before checking compatibility, with all actual
+successors covered by the existing source simulation.
+
+Its ingredients are ordinary-computation §4, typed-boundary §6, the open-row
+and counting-aware projection packages, and operation-instance §§2–3, 7–8.
+Admission follows the selected Yulang source rules. The mixed-block
+normalization and composition with guarded closure are new successor proof
+constructions, not Simple-sub-original routing or extrusion theorems.
+
+Still required: realization of semantic tuple equality at the actual emitted
+endpoints, normalization of every admitted guard/query form, complete
+checking decompositions and the source acceptance/principal-denotation
+bridge. Broader capture syntax, external live dependencies and general
+Function contracts remain governed by their existing unresolved gates.
+No source capability is narrowed and no lifecycle or implementation approval
+follows from this conditional package.

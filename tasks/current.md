@@ -751,9 +751,9 @@ the joint solution relation under the existing pure carrier laws. Growing
 labels reschedule dependents; once-only pair memoization is insufficient.
 Occurrence/profile/`K,D` identities and rigid binder blocks remain retained.
 
-Next: normalize actual emitted complete predicates into the proved fragment
-and establish joint equality/row guard realization, or identify the first
-required predicate outside it. Independent satisfiability of marginal graphs
+The follow-up §9 below normalizes explicit concrete capture admission and
+closes the named-query row-realization subcase. Complete checking predicates
+and semantic endpoint equality remain. Independent satisfiability of marginal graphs
 is still insufficient. This package proves neither full SAT completeness nor
 source principality; pure Function decomposition does not handle complete
 effectful contracts. No class-3 obstruction or source restriction follows.
@@ -763,6 +763,57 @@ M3 semantic review found no findings. Conformance review found one minor
 omission of the referenced variable-rule side conditions; primary restored
 distinct-variable/nonvariable cases and the no-new-bound self case. No new
 rule or review round was required; no blocking/major finding remains.
+
+## Concrete admission and joint row realization
+
+Source-realization §9 expands an original explicit concrete capture list into
+family-head and invariant tuple equalities. Original slots and protection
+remain; wildcard/omitted/result-only annotations do not grant capture.
+Handler operation coverage is separate. Broader source annotation forms,
+including open-tail capture meaning, are not resolved or rejected here.
+
+Guarded checks, row memberships and capacity constraints are joined into
+whole constraint blocks under one assignment before any eligible projection.
+In the no-counting named-query fragment, all local rows can be realized on
+the finite named support. A finite membership-bit matrix, constrained to
+agree on coincident request points, eliminates those rows exactly. This
+works for finite and arbitrary-subset interpretations, including no named
+points, without domain-capacity premises. Semantic type equalities and active
+checks remain residual; no independent marginal type solutions are chosen.
+
+Admission guard replacement preserves the query machine and `R/S/U`.
+Certificate case expansion/projection is separate and retains all live
+dependencies and complete observations. Projection never crosses a later
+rigid scope or changes a uniform source arm into per-instance elaborations.
+The package does not close full source principality or permit implementation.
+M3 independent semantic and conformance reviewers both found no findings in
+this package. Static diff/reference checks only; no compiler changes, tests,
+builds or measurements. The separate new level proposal was outside review.
+
+Next: effective semantic equality/disequality jointly with actual checking
+obligations, and a proved decomposition of complete payload/response/Function
+checks. The named-row subcase is no longer an opaque realizability premise;
+general annotation generation and unknown client interfaces remain open.
+
+### User steering: existential scope via levels
+
+The user requests generation/comparison-time level discipline rather than
+exit-time escape checks or a special logical inference mechanism: a witness
+introduced at level `l` must not escape to level `<= l`, while deeper local
+constraints may propagate. Implementation is not begun. The primary has
+asked whether "ordinary generic variable" retains the opened witness rigid
+(consistent with charter §20) or permits flexible specialization. This exact
+interpretation is pending; the independent admission/row proof does not
+depend on its representation. No temporary answer or elapsed time supplies
+approval to solve an opened witness from caller-private instances.
+
+The bounded frozen audit confirms levels belong to variables, not nullary
+constructors such as `Int`. Existing extrusion lowers effective variable
+levels and recursively visits both bound sides. An eager escape check must
+therefore follow aliases and transitive structural/bound dependencies, not
+birth levels alone. This is an implementation invariant to prove, not a
+refutation of eager checking or permission to adopt frozen extrusion as
+successor authority. No exit-time scan is proposed.
 
 ## Main records
 
