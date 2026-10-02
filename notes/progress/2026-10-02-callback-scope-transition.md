@@ -467,3 +467,13 @@ independent re-entry transition. A shallow-selected handler remains absent
 from its raw suffix, with independently specified re-entry allowed. Adversarial
 review required that qualification and then closed the wording. The `Visible`
 capture derivation, `K,D` transport, and source Force/value rules remain open.
+
+The transport notation is now aligned with the general injective `Tr_θ`
+action: type maps act on typed endpoints/`K`; owned-occurrence maps act on
+source/request-owner labels and `D`; boundary maps reindex compile-time
+handler-binder metadata. The callback-origin case fixes already concrete
+dynamic request and activation IDs, while a later execution can allocate fresh
+dynamic instances. Compiler-referee review found this identity split consistent
+with the general equivariance theorem after explicitly identifying it as the
+runtime-ID-fixing specialization. This is identity bookkeeping only; it does
+not prove source lineage generation or non-injective intrusion preservation.

@@ -4285,5 +4285,15 @@ origin-indexed capture derivation and an active/re-entered handler; origin
 alone cannot restore a handler removed by shallow resumption. Reviewer noted
 and prompted a qualification for independent source re-entry; the corrected
 wording has delta closure. The latest resolved-HIR/backend check found
-no Force or handler execution surface. See the new origin-indexed cut in the
-coupled-interface draft and feasibility record.
+no Force or handler execution surface. Some resolved expression nodes do have
+artifact-branded `HirOccurrenceId` values, but those are static IDs; associated
+application has only a range, and no runtime event/activation IDs exist. See
+the new origin-indexed cut and transport split in the coupled-interface draft
+and feasibility record.
+
+The callback transport also identifies its `Tr_θ` specialization: type maps
+carry endpoints/`K`, occurrence-owner maps carry source labels/`D`, and
+boundary maps carry compile-time handler-binder metadata, while concrete
+runtime event/activation IDs stay fixed. Independent review closed this
+terminology gap. Generation of such lineage by source rules and non-injective
+intrusion remain open.

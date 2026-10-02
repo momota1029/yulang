@@ -124,4 +124,14 @@ origin-indexed force/catch distinction has a mathematical home in `Run`,
 surface to host a prototype. This remains a theory-only step pending a settled
 source relation and implementation authority.
 
+The identity-map check found one limited reusable coordinate: resolved
+`Lambda`/`Integer`/`Name`/`Error` expressions carry artifact-branded
+`HirOccurrenceId`s. That is a compile-time occurrence identity, not a dynamic
+request or activation ID. `HirExpr::Apply` currently has only operator,
+operands, and source range, so even its call-site occurrence is not yet in the
+resolved form. No event/activation allocator or transport path exists in the
+runtime stubs. The candidate transport split therefore has a plausible
+static-occurrence anchor for some existing nodes, but no end-to-end mapping
+for call/force behavior.
+
 No source code was changed. No tests or builds were run.

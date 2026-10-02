@@ -1545,9 +1545,19 @@ lineage carrying that computation. Repeated executions may produce distinct
 dynamic events from one source-site template; a finite presentation may index
 the template, but a site label is not an event or activation identity. The
 origin-preservation premise for `B_{S,T}` is: a request exposed from an input
-computation/thunk keeps that source lineage in the output observation, while
-one uniform type transport maps its typed endpoints and `K,D` incidence. The
-type map does not rename the dynamic event or activation identities.
+computation/thunk keeps that source lineage in the output observation. The
+complete transport is split by identity kind: its type component maps the
+typed endpoints and `K` formulas; its owned-occurrence component maps the
+`D` incidences and any source/request-owner coordinates used to represent
+that lineage; and its compile-time boundary component maps handler binders.
+None of these maps renames a concrete dynamic request-event ID or dynamic
+activation ID. A later
+execution may create a fresh event and activation while retaining the
+transported source lineage; the source re-entry relation determines how that
+lineage is installed in the live context. This callback transport is the
+runtime-ID-fixing specialization of `Tr_θ`: `Θ_h` may reindex compile-time
+handler-binder metadata and its references in the presentation of `κ`, while
+acting identically on concrete activation IDs in a machine configuration.
 Effects independently emitted by a conversion have their own source origins
 whose eligibility must be derived from the full source relation; family match
 alone does not grant them `Capture`.
