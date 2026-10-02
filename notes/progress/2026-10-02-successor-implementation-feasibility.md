@@ -257,3 +257,31 @@ Next derive the local ownership/Force premises from the ordinary source
 relation; once those premises and their independent review close, audit whether
 a bounded isolated Rust characterization maps to the actual successor carrier.
 No tests, builds, or measurements were run.
+
+## Follow-up proof / feasibility check: event-scoped Force incidence
+
+An adversarial lemma review found that `Capture(origin,h)` is too easy to read
+as a reusable grant: one source lineage may expose several dynamic request
+events, and a connection justified by one callback execution cannot authorize
+another event outside that execution. The reviewed conditional composition
+statement now scopes incidence to the current request occurrence, exact
+callback invocation/argument contract, and handler activation. `Force`
+transports inherited lineage and joint typed predicates; it may create a fresh
+event identity, whose capture connection needs its own source witness. Dispatch
+is conditional on event-specific `Visible`, matching, and ordered search
+actually selecting that handler. A/B differ only in whether the exact
+contracted-Force rule may add such a connection; no `iff` or absence claim is
+licensed without an exhaustive rule set. Compiler-referee review also required
+retaining only requests actually exposed on a represented Force derivation and
+preserving `K,D` for dependent surviving views rather than freezing event
+incidence literally.
+
+The code check inspected current `ResolvedExpr`, effect views, solver forms,
+and crate layout. `ResolvedExpr` still consists of `Lambda`, `Integer`, `Name`,
+and `Error`; effect views remain closed `Bottom`/`Empty`, and matching
+`Force`/handler/request forms occur only in syntax tests or F5 resource-probe
+names, not in the source/runtime path. The newly identified incidence scope
+therefore has no event/callback/activation carrier to extend. Both A and B
+remain unimplementable as a bounded compiler slice until the successor source
+relation and complete effect interface are established. No code or tests were
+changed or run.

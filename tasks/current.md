@@ -14,6 +14,18 @@ semantics until answered. Evidence and exact alternatives are in
 `notes/design/2026-10-01-coupled-effect-interface-core-draft.md` and the
 latest section of `notes/progress/2026-10-02-successor-implementation-feasibility.md`.
 
+The common Force/dispatch composition was reviewed without choosing A/B. A
+`Capture(origin, handler)` pair cannot act as a globally reusable grant because
+one lineage may expose multiple dynamic events. Incidence must be scoped to the
+request occurrence, exact callback invocation/contract boundary, and handler
+activation; Force transports lineage and `K,D`, while each actually exposed
+event needs a source visibility derivation. The shallow transition premise is
+ordered selection of that exact handler, with raw continuation outside it.
+Compiler-referee review closed the conditional statement but leaves every local
+source premise open. The current HIR/effect/runtime representation still has no
+carrier for this scope, so no bounded code prototype is appropriate. See the
+new follow-up in the feasibility record.
+
 The callback `Capture` source-projection candidate was revised after review:
 the handler must be connected by the ordinary source relation to the exact
 receiver activation and argument-contract boundary. Dynamic containment in an

@@ -1445,8 +1445,10 @@ request there, outside this shallow activation.
 `Visible_ν(q,h,κ)` where typed request endpoints need to be explicit; the
 shorter `Visible(q,h,κ)` notation fixes the same assignment as the enclosing
 complete-interface relation. Let `Capture_ν(o,h)` denote the projection of
-that source relation connecting origin `o` to the concrete contract at `h`;
-it is not a separate grant store. Under the selected rule, a nested
+that source relation connecting origin `o` to the concrete contract at `h` for
+the current request occurrence and callback invocation; it is not a separate
+grant store or a global pair reusable by another request event. Under the
+selected rule, a nested
 `CallView` transition preserves `Capture_ν(o,h)` and `Visible_ν(q,h,κ)` when
 it carries the same origin, keeps `h` active, and has no independent source
 event that invalidates this entitlement. Its proof obligation factors over
@@ -1508,6 +1510,39 @@ receiver and forbidding grants based only on family equality also do not
 select between them: origin transport and capture-incidence creation are
 separate relations. Until this scope is specified, the imported-thunk case is
 a discriminator, not a proved counterexample or an established source rule.
+
+The incidence must also be scoped more narrowly than a reusable pair
+`Capture(origin,h)`: one source lineage can expose several dynamic request
+events, and a connection justified by one callback execution must not
+authorize another event outside that execution. In complete-interface
+derivations, the shorthand `Capture_ν(o,h)` therefore means incidence for the
+current request occurrence and its exact callback invocation/argument boundary
+and handler activation. It is not a global capability indexed only by lineage
+and handler. `Force` can preserve the lineage while creating a fresh dynamic
+event; each such event needs its own source-flow and visibility derivation.
+The finite inference presentation may quotient these execution witnesses only
+after proving that the quotient preserves handler selection.
+
+**Conditional Force/dispatch composition lemma (policy-parametric).** Fix one
+assignment `ν` and one complete represented `Force` derivation. Each request
+actually exposed on that derivation inherits the source computation lineage of
+the delayed computation, while its typed endpoints and every dependent `K,D`
+predicate are transported together at `ν`. A newly allocated dynamic event is
+not identified with the inherited lineage or a previous event. Any capture
+incidence for that event is a separate source-relation premise, scoped to the
+exact invocation, argument contract, and handler activation. Candidate A may
+add the imported-`Force` incidence rule; candidate B omits that rule. Neither
+branch follows from origin transport, and under B no absence claim follows
+unless all other incidence rules have been excluded.
+
+If the resulting dispatch configuration derives `Visible_ν(q,h,κ)`, the arm
+matches, and the ordinary ordered search selects `h` with no earlier selected
+handler, the shallow transition dispatches that event to `h` and supplies its
+raw continuation outside `h`. Any later request in the continuation requires
+its own visibility derivation. This composes stipulated Force transport,
+incidence, visibility, and dispatch relations; it does not derive their local
+source rules, choose A/B, claim a request-free whole image, or prove handler
+adequacy, principality, or finite inference acceptance.
 
 The projection can be audited as one join in the common source relation: (i)
 the request-origin/value-flow derivation connects `o` to the computation
