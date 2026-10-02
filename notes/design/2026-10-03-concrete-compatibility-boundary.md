@@ -4,7 +4,7 @@ Status: Reviewed; records the user's 2026-10-03 semantic decision; operational r
 Date: 2026-10-03
 Scope: separate transitive variable-bound propagation from local concrete compatibility and adaptation resolution
 Approved-by: user for the relation distinction and Oracle observations recorded in §1 only
-Reviewed-by: compiler_referee and spec_auditor, 2026-10-03; additional compiler_referee audit of the frozen Oracle-route evidence in §4 found no findings
+Reviewed-by: compiler_referee and spec_auditor §§1–5, 2026-10-03; architect pre-write audit plus fresh compiler_referee/spec_auditor review of §5 found no findings within bounded scopes
 Implementation authority: none
 Supersedes: none; narrows source applicability of structural relation candidates without invalidating their fragment theorems
 
@@ -162,13 +162,62 @@ optional-Record observations are a semantic constraint on the successor
 design, not evidence that this branch already parses or implements those
 types.
 
-## 5. Next theorem gate
+## 5. Candidate Record-local checking derivation
+
+The frozen concrete Record checker suggests a local presence-and-child
+derivation for closed shapes. This is a candidate compatibility rule, not an
+adopted source rule or a runtime adapter specification:
+
+| Lower/actual field | Upper/expected field | Inference propagation | Concrete validation |
+|---|---|---|---|
+| absent | optional | no child comparison | absence is permitted |
+| absent | required | no child comparison | reject missing required field |
+| present, required | absent | no comparison | ignore extra lower field |
+| present, optional | absent | no comparison | ignore extra lower field |
+| present, required | present, optional | compare field types | validate child comparison |
+| present, required | present, required | compare field types | validate child comparison |
+| present, optional | present, optional | compare field types | validate child comparison |
+| present, optional | present, required | defer the child comparison | validate child comparison; source-level acceptance and runtime presence guarantee remain unverified |
+
+The last row matters: propagation skips the optional-to-required child pair,
+but concrete specialization still checks matching field types. That skip is
+not a permanent success. For the user-supplied discriminator, empty-to-optional
+uses permitted absence, optional-to-empty has no upper fields to inspect, and
+optional-string-to-optional-int reaches the incompatible child comparison.
+This matches the stated pairwise outcomes without adding optional Records to
+the transitive structural relation.
+
+A candidate local derivation is:
+
+```text
+RecordCheck_j(L, R)
+  = required-upper-name checks
+    + one child Compat_(j, label)(L.label, R.label) for each shared label
+```
+
+Its evidence retains the original boundary, label correspondence, permitted
+absence, ignored extra fields, deferred child obligations and every child
+compatibility/conversion result. A compatibility dispatcher could return
+distinct tagged derivations for Record checks, ordinary structural checks and
+exact-path nominal cast resolution while preserving one boundary context.
+At a shared Record field it can ask the same local child resolver, allowing a
+registered conversion only when that child pair independently resolves. This
+is a candidate API shape; it does not identify checking evidence with an
+executable whole-Record adapter, nor show that Oracle routes optional Record
+comparisons through its nominal cast table.
+
+Executable Record realization remains a separate gate. In particular, evidence
+is still missing for how omitted fields, extra fields and optional-to-required
+fields behave at runtime, and whether a selected field adapter can be embedded
+in an aggregate adapter. No composition law may be inferred from successful
+boundary checks.
+
+## 6. Next theorem gate
 
 Before extending structural residual normalization, specify a local concrete
-compatibility judgment whose outcomes retain conversion evidence. Use the
-optional Record observations as a required discriminator, while leaving their
-missing operational rules explicit until supported by source/oracle evidence.
-Then prove, in order:
+compatibility judgment and its Record-local evidence tree, while leaving the
+candidate rows and missing runtime rules open until supported by
+source/Oracle evidence. Then prove, in order:
 
 1. the variable-only transitive propagation rule generates every required
    concrete boundary query and rechecks its scope guard;

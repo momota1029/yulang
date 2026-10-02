@@ -50,18 +50,33 @@ need distinct derivations/evidence unless a preservation proof justifies a
 stronger unification. It neither rejects the user's direction nor establishes
 that the two Oracle paths already share a runtime adapter mechanism.
 
+The reviewed §5 candidate now makes the Record check phase-explicit: a missing
+optional target field is permitted, a missing required target field is rejected
+at concrete validation, extra lower fields are ignored, and shared fields
+generate child compatibility obligations. Frozen inference skips a child
+comparison for optional-lower/required-upper, while concrete validation still
+checks a present matching child's type; the skip alone is not accepted as a
+final result. This reproduces the supplied optional-Record discriminator
+without transitive closure. It does not yet prove how a successor preserves
+such obligations across phases or realizes the result at runtime.
+
 The new draft passed bounded independent semantic and conformance reviews with
 no findings. A further compiler-referee delta audit verified the frozen
-Record and nominal-cast routes described above. The compiler referee did not
-audit the whole successor call graph, full predecessor proofs or backend
-adapter realization; the spec auditor did not run Oracle or tests. No code or
-test expectations changed. `git diff --check` passed. No tests, builds or
+Record and nominal-cast routes described above. The §5 proposal had an
+architect pre-write audit and fresh compiler-referee and spec-auditor reviews;
+all reported no findings within scope. The compiler referee did not audit the
+whole successor call graph, full predecessor proofs or backend adapter
+realization; the spec auditor did not run Oracle or tests. No code or test
+expectations changed. `git diff --check` passed. No tests, builds or
 measurements were run. Measurement budget consumed: 0.
 
 ## Next gate
 
-Define concrete compatibility outcomes with retained conversion evidence for
-the optional-Record discriminator, then prove guarded query generation from
-variable-bound propagation and evidence-preserving residual factorization.
-Keep source-wide context finiteness, unknown Record shapes, effectful
-interfaces, lifecycle and implementation open until their own gates close.
+Prove that a source comparison judgment can preserve the Record-local checking
+evidence tree across unresolved variable bounds and concrete specialization;
+then specify its operational adapter realization, especially absence, extras
+and optional-to-required fields. Keep registered nominal casts as a distinct
+resolution derivation behind any proposed shared boundary API. Only then prove
+guarded query generation from variable-bound propagation and evidence-
+preserving residual factorization. Source-wide context finiteness, unknown
+Record shapes, effectful interfaces, lifecycle and implementation remain open.

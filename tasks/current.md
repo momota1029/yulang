@@ -95,17 +95,18 @@ its bounded source map are recorded in
 `notes/design/2026-10-03-concrete-compatibility-boundary.md`.
 
 This narrows the source applicability of the mandatory-Record structural
-theorems without refuting their fragment proofs. The next gate is to define
-local compatibility outcomes with retained conversion evidence, then prove
-that variable-bound propagation emits guarded boundary queries and that
-residual factorization preserves those outcomes. Frozen Oracle evidence
-separates optional-Record field comparison from exact-path nominal cast
-resolution; a common successor resolver remains a candidate dispatch layer,
-not an established shared Oracle mechanism. Current successor terms lack
-Record and adapter constructors; cast declarations are outside successor HIR.
-Optional Record Oracle observations are not implemented syntax/contracts in
-this branch. No compiler change is authorized; the complete replacement goal
-remains active.
+theorems without refuting their fragment proofs. A reviewed candidate
+Record-local table now separates field presence from child comparisons and
+distinguishes inference propagation from concrete validation. Its next gate
+is to prove how the source comparison judgment preserves that evidence across
+variable bounds and specialization, then define runtime realization. Frozen
+Oracle evidence separates optional-Record field comparison from exact-path
+nominal cast resolution; a common successor resolver remains a candidate
+dispatch layer, not an established shared Oracle mechanism. Current successor
+terms lack Record and adapter constructors; cast declarations are outside
+successor HIR. Optional Record Oracle observations are not implemented
+syntax/contracts in this branch. No compiler change is authorized; the
+complete replacement goal remains active.
 
 The M3 clarification received clean bounded compiler-referee and spec-auditor
 reviews after architect pre-write review. Its evidence, exact limitations and
