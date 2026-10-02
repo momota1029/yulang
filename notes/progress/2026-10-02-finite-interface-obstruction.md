@@ -1822,3 +1822,57 @@ Effective full checking, dependent escape/lifecycle and source principality
 were not certified. Tasks, design index and package review metadata are
 synchronized. Integration uses explicit staged paths, whitespace checks and
 the complete inspected outbound range before normal research-branch push.
+
+### Executable linking and changed supplied interactions (2026-10-03)
+
+Previous goal turn: progress, essential existential source-opening decision
+reviewed and pushed as `743707ff6`. The current worktree was clean and on the
+same research branch. The unanswered omitted-parameter question affects only
+source default selection; this construction uses supplied resolved roles.
+
+The bounded architecture inquiry selected executable linking before safety
+saturation. A new alternating-simulation comparison would establish a
+different certificate judgment rather than principal source Function types.
+It also needs universal coverage of actual outcomes of an admitted input;
+choosing one matching actual outcome is insufficient. The selected research
+construction instead reuses the existing source relation and `R/S/U` theorem.
+
+Parametric-linking §7 assembles finite generated open code/descriptor
+templates using the explicit finite instance/link graph. It preserves
+whole-argument inertness, actual receiver receipt/entry, native return and
+result consumers, shared cells/context, actual latent code links, and complete
+existential packets. Query lowering and the common finite heap abstraction
+occur only after assembly. Conditional translation/linking commutation and
+the existing source/query simulations cover every actual finite interaction
+prefix, including future handle uses and repeated raw resumptions.
+
+Joint recertification permits a changed supplied finite caller domain without
+reusing an old domain-specific certificate. Assembly is finite and linear in
+the stated explicit template/link representation before query products and
+abstract-state saturation. Recursive references remain graph edges. Original
+contracts and rigid generic-arm checking stay in `Base_link`; reached Int
+requests cannot license generic narrowing. Finite predicate inventory does
+not decide its unresolved complete type predicates.
+
+This closes the supplied merged-kernel premise within the resolved input
+envelope, not source generation, unknown clients or general Function subtyping.
+Full source principality, compatibility and lifecycle/implementation gates
+remain open. No new source restriction or class-3 impossibility is selected.
+
+M3 budget: one architect, one documentary producer, two independent reviewers
+for semantic wiring/simulation and exact source/gate conformance. Convergence
+requires no accepted blocking/major finding in the package. Verification and
+measurements: static diff/reference checks only; no compiler changes, builds,
+tests or measurements, budget/consumption zero. Primary owns task/index/progress
+synchronization and integration.
+Both reviewers found no blocking/major issue. The semantic reviewer identified
+one minor notation defect: an already generated template was translated again
+in the displayed commutation equation. The primary separated source `D_i`
+from `T_i = Translate(D_i)` and repaired it to
+`Link_L(T_i) = Translate(Link_L(D_i))`. Runtime descriptor dispatch is also
+explicit; no unique static higher-order target is assumed. These textual
+clarifications change no source rule or proof premise and close by primary
+diff inspection under the minor-only exception. No repair round or additional
+reviewer was required. Task/index/progress and package review metadata are
+synchronized; integration inspects explicit staged paths and the full outbound
+range before normal branch push.

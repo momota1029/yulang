@@ -6,6 +6,7 @@ Scope: finite graph substitution and joint relational linking; source summary co
 Approved-by: none for a new source or acceptance rule
 Drafted-by: primary with bounded architect audit
 Reviewed-by: compiler_referee and spec_auditor; M3 package review and independent generic-arm scope delta review, no findings
+Executable-linking-review: §7 independently reviewed by compiler_referee and spec_auditor, 2026-10-03; no blocking/major findings; minor translation-layer notation repaired by primary
 Supersedes: uniform grounded client coverage as a mandatory proof prerequisite, not any source rule
 
 ## 1. Correct the quantifiers before enlarging the analysis
@@ -269,3 +270,201 @@ It does not close Milestone 3 or 4, approve a source acceptance loss, or
 open the later method/role or implementation gates. The next concrete task
 is source constraint-template generation and its instance-completeness
 proof, using complete producer execution rather than body-result rows.
+
+## 7. Executable linking before safety saturation
+
+This is a new successor construction using the user-selected Yulang call
+and handler rules, not a Simple-sub-original extrusion theorem.
+
+### Inputs and claim
+
+Take finite generated **open** code/descriptor templates from computation-core
+§§6 and 9, and a finite link/instance graph. Each instance supplies its
+source-respecting shape, role, profile, typed-path and binder maps. Template
+generation and those maps are premises: the construction does not infer
+them from arbitrary source or prove their lifecycle admissibility.
+
+Every reachable callable body, latent code provider and primitive routine
+must occur in the linked graph, or be covered by a previously justified
+driver with its stated interaction envelope. Merely naming an external
+provider does not supply its code or justify arbitrary future interactions.
+Retain the existing primitive, typed-flow, owner/view and store premises.
+Unknown-shape adapters are not introduced as opaque executable nodes.
+
+For these inputs, construct one finite linked code/descriptor graph, then
+the concrete query/control kernel of source-realization §7 and its existing
+finite heap abstraction. This closes a supplied merged-kernel premise for
+contextual recertification with different finite supplied interactions.
+It does not establish general Function subtyping, unknown-client coverage,
+full source generation or principal source inference.
+
+### Construct the linked executable graph
+
+1. Allocate a namespace for each instance's owned code labels, descriptor
+   nodes, local binders and source boundary/profile identities. Alpha-rename
+   bound proof names while retaining rigid scopes and imports. Type-port
+   maps may be noninjective where the supplied source map permits sharing;
+   owned identities remain injectively renamed. Runtime heap addresses do
+   not become static endpoint or binder identities.
+2. Copy template adjacency and incidence entries once per supplied instance,
+   grafting external endpoints and profile/path references through its map.
+   Preserve back edges, shared imported roots and all joint `K,D` references.
+   Do not unfold recursive code or regular descriptor graphs.
+3. Wire each application to its actual callable descriptor and whole argument
+   code. Higher-order calls still obtain their runtime callable and follow
+   its retained descriptor; linking does not choose a unique static target.
+   Argument construction remains an inert delay. Execution establishes
+   the actual receiver and typed receipt before its actual entry program.
+   Keep body execution, designated result consumers, separately admitted
+   result adaptation and every native return delimiter in their original
+   phase order. In particular, an operation's declaration-derived consumer
+   follows native request-thunk return; it is not moved into entry or body.
+4. Returned or stored latent handles retain their actual code/descriptor
+   links, lexical references and typed paths. Later demand follows those
+   links under the current context rather than replacing the handle by its
+   outward row or historical maker activation.
+5. Connect operation emission and handling through the full existential
+   request packet of charter §20. The known family instance stays fixed;
+   payload, raw continuation, dependent suffix, profiles/evidence and `K,D`
+   share the retained local witness. Raw resume enters the saved suffix with
+   that witness and current store, without reinstalling the selected shallow
+   handler. Fresh proof names are correspondence names, not new instances.
+6. Use one store, active context and evidence relation across the whole graph.
+   Shared cells, aliases, owner links and continuation roots remain shared.
+   There is no independently summarized heap per component and no join of
+   previously computed component rows or safety certificates.
+
+These steps are graph assembly, not a new source translation or execution
+rule. They instantiate the original source contracts and retain all declared
+checking bounds. Changing the supplied finite caller domain changes the
+linked graph, not the callable's source annotation or generic arm discipline.
+
+### Finite construction and query closure
+
+Let `s_i` count instantiated template adjacency and incidence entries,
+including labels, descriptor edges, binder/path maps and code successors;
+let `ell` count link entries. With indexed namespace/map lookup, assembly
+takes `O(sum_i s_i + ell)` graph work. Substituted endpoints are references
+to graph roots, not recursively copied type trees. This bound is before
+global query products and abstract saturation, not a linear bound on them.
+
+Run source-realization §7 query lowering on this assembled graph. It expands
+the existing typed-path/visibility/search routines into shared finite control,
+with loops and recursive calls represented by back edges. Its finite
+descriptor and query inventory is built from the linked graph's finite
+static labels and admitted query signatures. The basis includes the grounded
+products required by that construction; a later finite caller graph may
+produce a different finite basis. No fixed inventory for all clients follows.
+
+Type/family and scoped predicates retain their mathematical interpretations
+under the same assignment. Queries outside the proved equality/row kernels
+remain interpreted, unsolved predicates. Their finite occurrence inventory
+does not supply an effective decision procedure or make unresolved checks
+valid. Keep their original dependencies and checking scopes in `Base`.
+
+Only after linking and query lowering apply the existing finite heap
+abstraction and its joint state construction. Its existing finite bound
+includes store/context/evidence products; the assembly bound does not bound
+that product linearly. Retain dynamic event identities and the source owner
+protocol as required by its simulation premises, separately from static
+request-family endpoints.
+
+### Translation/linking commutation and simulation
+
+Let `D_i` be the resolved open derivations, `T_i = Translate(D_i)` their
+generated templates, and `L` the supplied finite linking graph. Let
+`D_L = Link_L(D_i)` use precisely those instances and source maps. Then,
+up to consistent alpha-renaming,
+
+```text
+Link_L(T_i) = Translate(D_L).
+```
+
+Both sides use the same translation phases, templates, port maps and native
+delimiters. This equation is conditional on the supplied resolved derivation;
+it is not an instance-completeness theorem for arbitrary source elaboration.
+
+**Proof.** Induct over translation nodes and their link incidences, treating
+recursive back edges as shared references. Literal/name/descriptor creation
+commutes with grafting because lookup reaches the same shared roots. Inert
+delay and closure construction retain the same lexical and typed references
+without running their code. Bind appends the same suffix using the ordinary
+state-threaded relation, including each requesting prefix.
+
+At a call, both constructions delay the complete argument, establish receipt
+at the actual receiver, and run that producer's entry. A value entry forces
+one designated computation view and rebinds its result; retained entry binds
+the carrier. Neither construction forces latent descendants. Body/result
+consumers run in the same order, and returns cross the same native delimiters.
+This includes the operation's post-native-return declared consumer.
+
+At explicit `Force`, both follow the same delayed code and typed path under
+current state. At a request, pack/unpack proof substitution transports the
+entire packet, not separately chosen payload/response witnesses. An alias
+or store access reaches the same cell and corresponding dependent roots.
+At raw resume, both use the current response/store and saved suffix with
+the same witness and owner protocol; neither revives the selected handler.
+
+Graph queries lower the same source profile/path relation. Ordered shallow
+search therefore tests the same actual candidates; forwarding, selection,
+outside guard/arm execution and raw resumption retain their source phases.
+Symbolic predicates are interpreted at one shared assignment on both sides.
+The existing primitive/query correctness premises cover their instruction
+steps; unresolved source predicate solving is not proved by this induction.
+
+It follows that every finite linked execution prefix is simulated by the
+constructed concrete kernel, with latent future demand and repeated raw
+resumption included under the supplied interaction envelope. Applying the
+existing heap/control simulation maps every such prefix to the generated
+abstract kernel. Every actual nondeterministic successor is covered: the
+construction cannot select only a compatible response, store realization or
+successful search case. Abstract extra successors remain subject to the
+existing conservative judgment; reverse exactness for that abstraction is
+not claimed here.
+
+### Recompute the joint certificate after linking
+
+For the resulting finite abstract state set `Q_link`, use its generated
+initialization, guards, designated faults and complete output alternatives:
+
+```text
+R_link,i = I_link,i or OR_j (R_link,j and G_link,ji)   [least fixed point]
+S_link   = Base_link and not OR_i (R_link,i and Bad_link,i)
+U_link(w)= S_link and OR_i (R_link,i and Out_link,i(w)).
+```
+
+Generic-arm uniform checking remains in `Base_link`, distinct from reached
+request-instance obligations in the kernel. All-Int actual calls cannot
+validate an arm that narrows its rigid local binder. Pack/unpack cut uses
+an already checked uniform proof; reachability does not manufacture one.
+Retain original contracts when altering the supplied finite caller domain.
+
+With the fixed finite Boolean inventory, reachability stabilizes within
+`|Q_link|` synchronous rounds: every reachable state valuation has a simple
+path of length less than `|Q_link|`. The existing certificate theorem then
+gives the principal result **only for its abstract certificate judgment**.
+It does not prove exact concrete acceptance or principal source schemes.
+The designated-fault reflection and primitive/store premises remain required.
+
+Recomputing `R_link,S_link,U_link` uses one joint linked relation. Joining
+component `S` values or outward rows instead would omit shared interactions
+and does not satisfy this theorem. An outward row remains a projection of
+the joint `U_link`, with `S_link` and dependent packet incidence retained.
+
+### Economy and remaining gates
+
+This route reuses the source relational execution and existing `R/S/U`
+certificate construction after concrete linking. An alternating simulation
+comparison would introduce a different comparison judgment and proof
+obligation; it is not selected by this construction. No supported source
+acceptance is narrowed to obtain finiteness.
+
+Milestone 3 still requires generation of the admitted open templates/maps,
+effective complete checking predicates and the source soundness/principal
+denotation bridge. This section removes the supplied merged executable
+kernel premise within its finite resolved input envelope, not those gates.
+Milestone 4 must then derive legal generalization/freshening/SCC instance
+graphs and preserve binder ownership and dependent lifecycle. Milestone 5
+addresses implementation feasibility; Milestone 6 requires approval before
+compiler implementation. Unknown clients and general Function comparison
+remain outside this finite supplied-interaction theorem.

@@ -417,7 +417,12 @@ typing constraints from arbitrary source.
 
 Use the finite linked descriptor graph from §2, the core's generated source
 consumers, the reviewed owner/view context grammar, and the common typed-flow
-descriptors. All callable bodies and primitive execution routines reachable
+descriptors. That graph and its reachable code can be assembled from finite
+open templates and supplied source-respecting instance maps by
+parametric-component-linking §7. That
+construction precedes this query lowering and the finite heap abstraction;
+it removes a supplied merged-kernel premise within that resolved envelope.
+All callable bodies and primitive execution routines reachable
 in the linked context are supplied finite code. An external response that
 introduces callable code needs its linked provider or a separately proved
 interaction summary; it is not implicitly represented by an existing body.

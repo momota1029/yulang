@@ -1,6 +1,6 @@
 # Current task: prove and implement SCC-intrusion Function inference
 
-Updated: 2026-10-02. Branch: `research/simple-sub-intrusion`.
+Updated: 2026-10-03. Branch: `research/simple-sub-intrusion`.
 
 Execution state: source work resumed after the user's explicit A decision in
 `2026-10-02-source-result-synthesis-choice.md`. The former result-synthesis
@@ -699,6 +699,33 @@ sent to the user is unanswered; §20 does not answer it. Frozen omitted-paramete
 initialization and caller-side `ForceThunk` placement are characterization
 only. Continue work independent of that default; do not infer it from unused
 body occurrences or solved endpoint shapes.
+
+## Executable linking before joint recertification
+
+Parametric-component-linking §7 constructs the merged code/descriptor kernel
+from finite generated open templates and supplied instance/link maps.
+Whole carriers, actual receiver entry, native return/result-consumer phases,
+latent handle code and shared store/context/evidence survive linking. Complete
+existential request packets retain one witness through aliases and raw resume.
+
+Query lowering and heap abstraction follow linking; the existing joint
+`R_link,S_link,U_link` calculation then covers a changed supplied finite
+interaction domain. An earlier closed component certificate or outward row
+is not reused as a certificate for newly admitted inputs. The proof covers
+every actual successor and finite future-use/resumption prefix under the
+supplied interaction envelope. Its principal result remains relative to the
+existing abstract certificate judgment.
+
+This removes the supplied merged executable-kernel premise for resolved
+finite instances. It does not establish general Function subtyping, arbitrary
+client coverage, source-template generation or complete predicate solving.
+Next in Milestone 3: derive effective complete checking and source summary
+generation/instance completeness; the separate omitted-parameter default
+remains unanswered. Milestone 4 and the implementation gates remain later.
+M3 semantic/conformance reviews found no blocking/major issue; the primary
+closed one minor translation-layer notation issue and clarified retained
+runtime descriptor dispatch. Static diff/reference checks only; no tests,
+builds or measurements.
 
 ## Main records
 

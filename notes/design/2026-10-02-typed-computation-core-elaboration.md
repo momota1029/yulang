@@ -1052,7 +1052,11 @@ these joint inclusions; they do not establish those inclusions by themselves.
 Constructing a finite symbolic presentation of the complete `ExecuteCallable`
 image and these higher-order/store challenge relations remains the precise source
 gate. This section derives ports/directions and the semantic containment
-law, not an effective general subtype algorithm. Existing row and capacity
+law. Parametric-component-linking §7 constructs executable linking and joint
+recertification for finite supplied resolved interactions using these ports;
+it does not generate arbitrary source templates or unknown caller domains.
+The containment law remains semantic, not an effective general subtype
+algorithm. Existing row and capacity
 procedures can solve their stated fragments once generated; they cannot
 stand in for the unconstructed interaction relation. No source acceptance
 restriction, new generalization policy, lifecycle closure or implementation
