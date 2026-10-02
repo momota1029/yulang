@@ -612,3 +612,76 @@ proof gates are the source port derivation, its closure in the finite
 symbolic basis, selector extent, complete suspension/re-entry simulation,
 and finite abstract identity correlation. No compiler changes, tests, builds
 or measurements were made.
+
+### Dispatch context, owner re-entry and outside selector closure
+
+The previous status-only continuation made no new proof progress; it checked
+the Git write restriction. The environment has now removed that restriction.
+Reviewed record checkpoint `c0c635c01` and its two coherent predecessor commits
+were inspected and pushed to `origin/research/simple-sub-intrusion`. The
+working objective remains the complete successor proof and implementation.
+
+This slice uses M3 for the common control/observation invariant: one bounded
+architect construction audit, one independent semantic attack, then a fresh
+compiler-referee repair review and one conformance reviewer. Convergence is
+closure of the concrete first-dispatch finding and the whole corrected
+context theorem, with no accepted blocking/major finding. Deterministic
+verification is documentation diff/reference inspection and whitespace
+checking; tests, builds and performance measurements have budget zero.
+
+The semantic attack found a real failure of the outward-observation premise
+in the decorated source machine. Receiver `r` can capture a raw continuation
+whose suffix installs `HE`, then execute that suffix inside its received
+callback's view. Because `r` is still live, owner resolution borrows it and
+`HE` is owned by `r` while dynamically inside the callback. The callback
+receipt therefore does not put its outward boundary before `HE`. That
+boundary cannot supply the protection witness before `HE` consumes the
+request. The architect independently confirmed the owner/control crossing;
+its earlier simple helper example was rejected because the callback's child
+boundary already precedes an ordinary surrounding helper handler.
+
+The correction in typed-boundary §4 uses the emission context's executing
+typed view positions before handler filtering. Outward support remains a
+separate projection. The proposed theorem packages ordinary bind, complete
+call/adaptation, force, delayed values, handler cuts and repeated raw resume
+under one context/frame invariant. Crossed view scopes are captured; ambient
+scopes are retained by the current context; owner resolution cannot erase
+them or rebind boundary evidence. For supplied finite executable view
+decorations, a frame walk derives routing without a new symbolic predicate.
+Raw-source view elaboration and the full abstract/source acceptance bridge
+remain open. This is a replacement of an invalid realization premise, not a
+new fixture-specific rule or a class-3 obstruction.
+
+During this work the user selected outside evaluation of the shallow
+handler's selector. Charter §14 records pattern/default/guard and arm
+evaluation outside the candidate. The reviewed outside-image equation now
+has its source premise; the earlier request for this decision is resolved.
+Eligibility is tested before the candidate exits, while pending matching
+runs by ordinary bind without a live expired-handler reference. This does
+not approve implementation or settle the remaining source typing theorem.
+
+Package review is now closed within its declared decorated input. Conformance
+review found no unapproved source decision or depth/expiry violation. The
+semantic review found one major basis omission: admission had been indexed
+only by boundary and operation, while call and returned-latent profile
+positions can have distinct symbolic family arguments. The accepted repair
+supplies finite static `Slots(b)` in `Ω`, uses `Admit_b,p,o`, retains the
+original profile-slot identity through `Flow`, and changes the basis bound
+to `|J₀| + Σ_s |T|^a_s + |O||H| + |O| Σ_b |Slots(b)|`. The supplied slots
+are not unbounded dynamic path/occurrence identities, and their raw-source
+elaboration is not assumed proved. One minor exhaustiveness finding was
+also repaired by explicitly adding `View` to the owner-fragment induction
+and finite encoding. A single implementer made this batched repair.
+
+Independent semantic closure found no remaining finding in either repair or
+the original borrowed-owner counterexample. The emission-context witness is
+present before the inner candidate query, and the call/latent symbolic
+positions remain distinct under the same assignment. The full control
+package, outside selector premise and finite decorated admission basis are
+therefore reviewed; full source soundness/principality is not claimed.
+The exact-interface embedding record now points to the corrected context
+projection. Primary synchronized `tasks/current.md`, design headers and the
+index; `git diff --check` passed. No compiler code, tests, builds or performance
+measurements were added or run. The next package constructs executable view
+decorations and original profile slots from source typing, then closes the
+abstract/client/acceptance bridge before lifecycle and implementation.

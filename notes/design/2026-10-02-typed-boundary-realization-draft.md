@@ -1,11 +1,12 @@
 # Typed-boundary realization: scope choices and finite adapters
 
 Date: 2026-10-02
-Status: Draft; typed-value transport selected by user; conditional transport and adapter packages reviewed; full realization open; no implementation authority
+Status: Draft; transport/adapter and decorated-context projection packages reviewed; outward-observation candidate superseded; full source realization open; no implementation authority
 Scope: completion of boundary relevance and structural Function/Thunk adapters
 Approved-by: user for typed-value transport principle only (2026-10-02); exact realization and implementation unapproved
 Drafted-by: primary with scoped-boundary and adapter-construction architect inputs
 Reviewed-by: compiler_referee and spec_auditor for adapter and transport packages, 2026-10-02; fresh compiler_referee/spec_auditor packet, observation-projection and activation-scope deltas clean after premise clarifications
+Projection-review: compiler_referee and spec_auditor package review; position-indexed admission repair and owner-scope clarification closed by independent compiler_referee delta, 2026-10-02
 Supersedes: none
 
 ## 1. Remaining definitions, not another effect mechanism
@@ -273,9 +274,9 @@ and it does not remove any still-live `K,D` dependency. Any guarded
 observation alternatives remain symbolic until the common solver decides
 them.
 
-### Source meaning of observation: projection of a typed view derivation
+### Superseded outward projection and its control counterexample
 
-`Observe` should be defined by the common typed execution derivation, not as
+The previous conditional candidate defined `Observe` by the common typed execution derivation, not as
 an independent routing primitive. For a finite prefix derivation `δ`, let
 `Out_δ(v)` contain exactly the request events that the complete computation
 occurrence for typed view `v` yields at that view's request boundary. The
@@ -335,6 +336,179 @@ defined from the unified relational semantics, defining `Observe` as this
 projection clarifies its meaning but merely relocates the open `Route`
 construction; it does not claim a finite source algorithm.
 
+That conditional definition cannot be instantiated for all of the candidate
+owner/control machine. The following counterexample supersedes its use as
+the source routing definition. It does not invalidate relational-image
+composition, lifetime filtering or the fixed-shape adapter theorem.
+
+Use `P,E : Unit -> Unit`, Unit answer types and identity value arms. Receiver
+`r` receives callback `f` with a protected invocation position and no concrete
+capture contract at that position. Its body has this semantic control shape:
+
+```text
+HP [ perform P(); HE [ perform E() ] ]
+HP's P arm: invoke f with the raw continuation k
+f's body: invoke k with Unit
+HE's E arm: return Unit without resuming
+```
+
+The complete views demand the displayed computations. This is a decorated
+source-machine witness, not a claim that a raw Yulang spelling has already
+been accepted. `HP` is inside the still-live invocation `r`. Selecting `P`
+exits `HP` but leaves `r` live. The saved suffix has `Owner(r,ur,...)` and
+installs `HE` when resumed. While `f`'s view `V` executes `k`, owner entry
+borrows `ur`, as specified by the owner-span relation. Thus the new `HE` is
+owned by `r` but lies dynamically inside `V`. Receiver `r` has the receipt
+for `V`. No typed correspondence copies `V`'s outer profile onto the private
+operation view or unrelated argument/continuation positions.
+
+At `E` emission, the intended whole-CallView protection needs `V`'s witness
+when `HE` is tested. The outward definition supplies only the child
+operation/continuation observations: `V`'s outward boundary is beyond `HE`.
+It therefore makes `Protected` false, permits ordinary selection by `HE`,
+and prevents the very outward event needed for `V`'s witness. An owner receipt
+does not establish control dominance across raw resumption. Independent
+architect and compiler-referee searches identified this same failure; the
+referee's equivalent construction stores `k` in a shared cell, returns from
+`HP`, and then calls `f`, which loads and resumes `k` while `r` remains live.
+
+An ordinary helper receiving and calling `f` is not this counterexample:
+there `f`'s child boundary is reached before the helper's surrounding handler.
+The distinguishing feature is permitted owner/control re-entry, not another
+callback-specific source rule. This is a source-realization contradiction,
+not a class-3 finite-presentation obstruction or an Oracle compatibility claim.
+
+### Structural observation before dispatch: theorem candidate
+
+Use the source evaluation context itself to define observation. A decorated
+executable view marks its **current computation position** `p` and carries
+typed packet `v`. Write `View(v,p,c)` for executing computation `c` under
+that view. This is a derivation delimiter, not a new source expression,
+handler, boundary contract or effect selector. The descriptor must identify
+the position being executed; it does not supply an event-to-port relation.
+The constructor-only graph `Fun(a,b)` in §3 does not by itself supply a
+complete adapted-call position. Elaboration of executable typed views from
+raw source, including demanded forces, remains an explicit input obligation.
+
+For this decorated kernel the delimiters are generated uniformly:
+
+```text
+complete call view = View(v,p, argument adaptation >>= body >>= result adaptation)
+force view        = View(v,p_force, delayed body)
+latent construction = Return(latent code and its typed packet)
+```
+
+`p` is the marked computation position of this complete consumer view;
+`p_force` is the forced thunk's current effect position. Constructing a
+latent value enters no delimiter for its future computation. A later
+execution enters its own view at its own current position. A signature's
+other nested latent positions are not activated by this entry. Identity
+adaptation retains the enclosing delimiter. The descriptor equations of §4
+introduce no additional authority; their calls and forces use these same
+source operations.
+
+Let `EC(C)` be the executing evaluation context before ordered search, and
+let `views(EC(C))` be its enclosing `View` occurrences, including occurrences
+outside an intervening handler. At emission of fresh event `q`, define:
+
+```text
+Observe(q,o.view,o.port,o) iff o ∈ views(EC(C_emit(q)))
+```
+
+The earlier three-place notation existentially hides occurrence `o`.
+This is projection of a request transition from a typed execution context,
+before a handler image filters the computation's outward result. An event
+can therefore have an observation at a view whose *outward support* never
+contains that event. These are different projections of the same execution.
+Observation does not assert that an event satisfies an effect annotation;
+typing of the actual handler image and `OpCompat` remains necessary.
+
+The lookup formerly called `Route` is now context membership in this
+decorated kernel, with the port read from the executing delimiter. It has
+no operation-family, origin, type-equality or `ν` guard. Admission by the
+explicit contract and selected-arm compatibility still use their symbolic
+predicates under the same `ν`. No new predicate name is required for routing.
+All applicable enclosing *executing positions* are visited; this does not
+copy all effect positions of a value or inspect arbitrary heap reachability.
+
+Capture and re-entry use the same evaluation-context decomposition as bind
+and shallow handlers. Extend the saved-context grammar with
+`View(v,p,K)` for a delimiter crossed inside the selected capture boundary.
+The selected shallow handler contributes no handler wrapper. A view outside
+that boundary stays in the current context and is not copied into the raw
+continuation. Saved inner views are suspended; they contribute no witnesses
+to new arm/selector events while suspended. Every resumed occurrence of a
+saved `View` receives a fresh execution occurrence, retains the original
+typed packet and port, and is nested inside the resumer's current context.
+It never replaces that ambient context. Completion removes exactly this
+occurrence. Unlike executable owner resolution, view re-entry does not
+borrow or rebind an owner or boundary identity.
+
+In particular `Bind(View(v,p,c),F)` runs `F` outside that view on normal
+completion; `View(v,p,Bind(c,F))` runs `F` inside it. Saved pending frames
+retain this distinction. A view outside the capture delimiter is not
+restored merely because the resumed code originally ran beneath it. Typed
+evidence on an actual continuation value is transported only by its own
+signature correspondences. Each multi-shot resume reconstructs its own
+crossed view scopes under the current context and store. Borrowing a live
+`Owner` changes executable ownership without removing ambient view scopes;
+it therefore preserves `V` in the counterexample above.
+
+Forwarding keeps the original event and its recorded observations; it adds
+only the source-prescribed handler re-entry to the saved control. Unwinding
+may expire receivers/handlers, so every subsequent candidate uses the current
+`Inc_C` filter. A selected arm's new event is observed using that arm's
+currently executing context, excluding suspended children. Charter §14 now
+selects outside selector/finish evaluation. Its reviewed equation removes
+the candidate before matching and preserves the ambient context; selector
+requests therefore use that outer context's view projection. No pending
+match stores a live reference to the expired handler.
+
+**Decorated-kernel projection theorem (reviewed within its stated input).** For each finite execution
+prefix of this context-decorated ordinary machine, a linked-frame realization
+records exactly the view/position occurrences in the emission context of
+every event. Its visibility queries equal the declarative
+`Flow`/`Observe`/`Receive` join under the same assignment and current exact
+activations. The property is preserved by every finite admissible future
+call, force and raw resumption, including repeated resumption and borrowed
+owners. This statement assumes the supplied executable view decorations and
+the selected outside selector equation; it does not assume `Route`.
+
+Proof uses one invariant: executing frame order equals `EC`'s view projection;
+each saved context contains exactly its crossed view frames and unfinished
+binds; each recorded event list equals the projection at that event's emission;
+all packets refer to their original symbolic endpoints and boundary owners.
+Initially the frame projection is empty or is supplied by the initial source
+context. View entry/return pushes/pops exactly the corresponding occurrence.
+Ordinary bind preserves delimiter nesting as shown by the two equations.
+Call/force/adapter evaluation performs these same entries around the specified
+compositions; delay stores code and contributes no executing frame. Emission
+walks precisely the invariant's frame list before search, hence records both
+directions of the `Observe` iff. Search changes no recorded event; a handler
+cut partitions the current context and saved suffix at the same delimiter on
+both sides. Selection omits its handler wrapper, and forwarding retains only
+the prescribed wrapper. Resumption plugs that saved context into the current
+one, with fresh view occurrences and the independently resolved executable
+owners. The parent-completion invariant returns through each remaining bind
+and view delimiter before the root returns to the resumer. Thus the invariant
+is restored at every transition, including events from arms and resumed
+suffixes. Projection equality gives identical `Path` witnesses; common live
+filters and contract predicates give identical visibility. Induction over
+any finite future interaction sequence gives the future-use clause without
+linear continuation assumptions. None of these operations solves or deletes
+`K,D`, changes origin, or revives an expired boundary receiver.
+
+This is a reviewed constructive routing and control theorem for the decorated
+kernel. The package review required position-indexed admission predicates
+`Admit_b,p,o` and an explicit finite original profile-slot inventory, now in
+source-realization §3. Independent closure review found no remaining finding.
+It is not yet a source typing theorem: finite
+decorations for arbitrary inferred shapes, all source faults, uniform imported
+clients and the source acceptance bridge remain to be constructed. The
+existing exact-interface embedding applies to the corrected candidate
+machine by copying this same projection; the previous outward-projection
+candidate is not an alternative implementation of it.
+
 ### Finite observer-frame realization candidate
 
 For a finite decorated descriptor graph, represent each dynamic complete
@@ -349,9 +523,8 @@ EventObservation(event, observerOccurrence, port, next)
 continuation; it is control state, not handler authority. On `CallView` entry,
 push the exact frame; nested entries preserve enclosing frames. At request
 creation, derive `EventObservation` links to every executing enclosing frame
-for which the source routing judgment `Route(stage, actualPath, port, ν)`
-holds. This relation cannot be approximated by family membership, pointer
-equality, heap reachability, or copying all effect ports from the frame. A
+at that frame's marked current port, by the context projection above. This
+uses no separate event-to-port oracle and no family-membership test. A
 normal `CallView` completion removes exactly its executing occurrence.
 
 Suspension separates execution from saved reachability: frames crossed by
@@ -373,12 +546,10 @@ for event `j`, the concrete extra edge count is at most
 or repeated-resumption executions. Static templates and port descriptors
 remain finite for finite monomorphic input; abstracting dynamic addresses
 still needs the joint identity/correlation proof from the finite-carrier
-gate. The transition sequence is an implementable shape, not yet a proven
-source realization: `Route` completeness and observer suspension/re-entry
-must be derived from the source computation and handler-control relations.
-The unresolved selector extent also prevents completing `Route` for
-pattern/default/guard evaluation. This is a realization dependency, not a
-new selector or source construct.
+gate. The projection theorem supplies routing and view suspension/re-entry
+for this decorated kernel under its reviewed stated inputs. Raw-source
+elaboration and abstract identity correlation remain
+source-realization dependencies; outside selector extent is selected.
 
 The separation is necessary even for a fixed-shape adapter. For
 `(Thunk(E,Unit), Unit)`, the descriptor is `ForceThen(Id)`; its force may emit
@@ -396,8 +567,10 @@ port descriptors are finite; each execution creates its own dynamic
 identities and observer occurrences. The adapter-pair bound alone does not
 bound or construct these templates. Their finiteness and completeness follow
 only once source typing/elaboration supplies finitely many decorated
-CallView sites and their typed observation ports. This is a precise missing
-source-realization premise, not a class-3 non-finiteness result.
+CallView sites and their marked executing positions. Given those, a frame
+walk derives the event relation; no further per-event typing oracle is an
+input. This is a precise missing source-realization premise, not a class-3
+non-finiteness result.
 
 ## 5. Consequences and remaining source bridge
 

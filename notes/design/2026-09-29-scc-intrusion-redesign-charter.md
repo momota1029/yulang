@@ -354,3 +354,27 @@ The current realization candidate and conditional theorem package are in
 `notes/design/2026-10-02-typed-boundary-realization-draft.md`, §6. Existing
 concrete-contract Force visibility, active-incidence preservation, ordinary
 handling after expiry, and the soundness/principality priority remain binding.
+
+## 14. User-selected outside selector extent (2026-10-02)
+
+The user resolved the remaining selector-extent question in favor of outside
+evaluation for the shallow handler. Pattern, default and guard computations
+run outside the candidate handler, as do its selected operation/value arms.
+The selected handler is not automatically reinstalled on raw resumption.
+The source equation and reviewed control proof are in
+`2026-10-02-typed-source-owner-realization.md`, §6.
+
+Eligibility of the original body request is tested once at the actual
+candidate boundary before exiting it. Ordered matching then composes with
+its finish continuation by ordinary state-threaded bind in the outer context.
+New requests from matching or an arm use that current outer context and their
+own visibility/compatibility checks. Exhausted matching forwards the original
+request, preserving its raw suffix with only the source-prescribed forwarding
+wrapper. Completing that original match does not create a live capture grant
+after the handler has exited.
+
+Shallowness specifies raw-resumption reinstallation; selector evaluation
+extent is recorded explicitly here so it is not left implicit in that word.
+This selects the already-reviewed outside source equation. It does not
+approve an inference representation, establish full source soundness or
+principality, or authorize compiler implementation.

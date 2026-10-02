@@ -1,11 +1,12 @@
 # Typed source transport and resumption ownership
 
 Date: 2026-10-02
-Status: Draft; initial and repair delta reviews clean; selector-extent source choice pending; conditional outside-image proof reviewed
+Status: Draft; owner/control and typed-view context extension reviewed; outside selector extent selected by user; full source realization open
 Scope: ordinary decorated source control, typed value transport and live owner realization
-Approved-by: user for charter §13 transport/lifetime principles; concrete realization unapproved
+Approved-by: user for charter §§13–14 transport/lifetime and outside selector extent; concrete realization unapproved
 Drafted-by: primary with bounded resumption-owner architect input
 Reviewed-by: compiler_referee and spec_auditor initial package reviews; fresh compiler_referee delta review found no major issue, two minor findings addressed by primary
+View-extension-review: compiler_referee and spec_auditor projection package; extended constructor-scope clarification closed by independent compiler_referee delta, 2026-10-02
 Supersedes: none
 
 ## 1. Claim and exact input
@@ -58,6 +59,15 @@ owner was outside the selected handler and was not unwound by search.
 Recording only crossed call frames would lose that owner's deferred code.
 These records contain code, views and cell references, not a mutable-store
 snapshot or a historical caller stack.
+
+Typed-boundary §4's corrected observation candidate extends this grammar
+with `View(v,p,K)` for crossed executing typed-view delimiters. Its separate
+context-projection theorem treats these as computation scopes, distinct from
+executable `Owner` attribution. A borrowed owner can execute inside a new
+caller's view; owner resolution must preserve that ambient context. Crossed
+views re-enter with fresh execution occurrences and original typed packets;
+they do not rebind boundary receivers. The extension and its constructor-scope
+clarification have clean independent review within the decorated kernel.
 
 Plugging a response into `Hole` supplies that response and the current live
 configuration. `Bind(K,F)` executes its child and then `F` by the ordinary
@@ -173,7 +183,9 @@ decoding, with fresh identities related bijectively. Keep these clauses:
 
 1. Every executing source span has its current active owner and matching
    local completion frame; handlers name the corresponding current owner.
-   Saved control is composed from the four context constructors in §2;
+   Saved control in the original owner fragment is composed from the four
+   context constructors in §2; the typed-view extension additionally has
+   `View(v,p,K)` and preserves typed-boundary §4's executing-context projection;
    internal completion continues its parent, and only the capture root
    returns to the current resumer.
 2. Every typed binding, environment entry and stored value retains its view.
@@ -191,7 +203,10 @@ decoding, with fresh identities related bijectively. Keep these clauses:
 **Preservation theorem candidate.** Starting with a related initial state, every finite
 ordinary decorated source execution has a matching owner/view graph execution
 preserving these clauses. Each finite sequence of later calls, forces and
-well-formed raw resumptions also preserves them. This is an operational
+well-formed raw resumptions also preserves them. In the typed-view extension,
+the theorem includes `View` entry, completion, capture and re-entry, using the
+typed-boundary §4 projection invariant together with these owner clauses.
+This is an operational
 realization theorem, not a proof of full source type safety or principal
 inference.
 
@@ -228,7 +243,13 @@ made by a saved suffix rather than assuming a suffix is an opaque host action.
   its source suffix after child completion; `Owner` enters before its child
   and closes only its own entered occurrence before continuing its parent;
   `ForwardHandler` installs/exits its exact fresh handler under the resolved
-  owner. Only the separate capture root installs `ResumeReturn`. Context
+  owner. In the typed-view extension, `View(v,p,K)` enters its executing
+  observer delimiter before its child and completes through its parent;
+  capture saves crossed views and re-entry restores their scopes with fresh
+  occurrences and original typed packets. Typed-boundary §4's projection
+  invariant preserves the ambient view even for a borrowed owner, without
+  rebinding receiver authority. Only the separate capture root installs
+  `ResumeReturn`. Context
   substitution preserves these nesting/completion clauses, including requests
   from a bind suffix. Capture stops at selection and omits that handler's
   wrapper. Suspension rebuilds unfinished frames with current resolved slots;
@@ -238,9 +259,12 @@ made by a saved suffix rather than assuming a suffix is an opaque host action.
 
 Ordinary sequencing and adapter/force sequencing contribute `Bind`, calls
 contribute `Owner`, and shallow forwarding contributes `ForwardHandler`;
-selection supplies the capture bound. These constructors exhaust the saved
-control contributed by the declared ordinary descriptor operations, while
-the primitive cases above cover their value/store/request steps. Induction
+selection supplies the capture bound. These four constructors exhaust the
+original owner fragment. The typed-view extension additionally contributes
+`View`; its entry, completion, capture and re-entry cases are covered by the
+projection invariant above. Together these cases exhaust the saved control
+of the declared decorated descriptor operations, while the primitive cases
+above cover their value/store/request steps. Induction
 also covers arbitrary finite multi-shot interaction histories: each resumed
 execution is another sequence of the same cases in the current state. No
 affine restriction, persistent maker mask, or origin-sensitive exception is
@@ -261,20 +285,26 @@ return. Fresh semantic delta review found no blocking or major issue in that
 repair or the conditional selector account. Two minor issues were addressed
 by clarifying the typed discriminator and recording the existing coupled-core
 outside-context candidate language. The conformance review found no authority
-violation. This certifies only the reviewed conditional candidate, not which
-selector extent governs the successor.
+violation. The user subsequently selected its outside extent in charter §14;
+this closes that source choice without certifying the remaining full-source
+realization premises.
 
-The selector-extent question is now explicit in §6. Under its outside-image
-interpretation, the guard/match continuation runs as `Bind` outside H, so it
+The selected selector extent is explicit in §6. Under its outside-image
+equation, the guard/match continuation runs as `Bind` outside H, so it
 contains no live candidate-handler reference. The fresh semantic delta review
 found no major defect in this conditional account or the parent-completion
-repair. It did not decide which selector extent governs the successor.
-Therefore the decorated-kernel theorem remains conditional on the user's
-source choice; the inside interpretation needs its own handler-control proof.
+repair. Charter §14 now supplies its outside premise. The typed-view
+projection/control theorem is also reviewed within its stated decorated
+inputs; arbitrary-source elaboration remains a separate proof obligation.
+The discarded inside alternative needs no further proof.
 
-The four saved-context constructors, source suffix labels with typed
-environments, owned/borrowed pending frames, control environment links and
-the separate root `ResumeReturn` have bounded record fields. Entry traverses
+The four saved-context constructors of the original owner fragment and the
+additional `View` constructor of the typed-view extension, source suffix
+labels with typed environments, owned/borrowed pending frames, observer
+frames, control environment links and the separate root `ResumeReturn` have
+bounded record fields. View records retain finite static descriptor references
+and dynamic links; the typed-boundary §4 projection governs their executing
+and saved states. Entry traverses
 context nesting one record at a time; completion follows its local pending
 parent frame. Suspension rebuilds the finite remaining context from those
 frames. `enter` walks the current active roots to test the exact saved
@@ -345,12 +375,12 @@ handler would be ill-typed because that expression supplies `Bool`. Thus this
 is a source execution choice, not interchangeable owner bookkeeping or a new
 callback exception.
 
-The user has been asked which extent to adopt. The outside interpretation
-below is a conditional candidate, not an approved default. “Inside” and
+The user selected the outside interpretation on 2026-10-02 (charter §14).
+The comparison records the observable choice rather than an open question. “Inside” and
 “outside” describe two uniform policies for the entire selector/finish
 computation; they are not an exhaustive list of every possible mixed policy.
-No mixed policy has source evidence here. No compiler or source-acceptance
-conclusion follows before that choice and review.
+No mixed policy has been selected. This choice closes the extent premise of
+the reviewed proof; it does not approve implementation or the acceptance bridge.
 
 ### Characterization evidence
 
@@ -366,9 +396,9 @@ test observations or successor semantic authority. The evidence-vm
 `eval_catch` also removes its active catch entry before dispatching its body
 result; this is corroboration, not a proof of full backend equivalence.
 
-### One conditional outside-image equation
+### Selected outside-image equation
 
-Assume selector computations run outside the candidate. Let `H[c]` mean
+Selector computations run outside the candidate by charter §14. Let `H[c]` mean
 apply the shallow handler image to body computation `c`, with its current
 fresh activation while the body executes. At a body's request boundary, test
 the current candidate visibility once at its actual configuration. Leaving
@@ -417,7 +447,7 @@ Once H exits, its live incidence remains false. This distinction is a
 consequence of composing a handler image with ordinary matching; it is not a
 new source ticket, obligation kind or stored grant.
 
-### Conditional control preservation
+### Control preservation for the selected extent
 
 For the outside interpretation, a pending match continuation is ordinary
 source code plus its environment and cursor, so it is an `F` in §2's
@@ -446,8 +476,8 @@ and specifies the answer delimiter needed by the inside policy. The existing
 coupled-core outside wording is acknowledged as candidate evidence, not
 treated as authority. No evidence settles mixed policies.
 
-Adopting the outside interpretation requires explicitly refining the older
-informal `Select(h,arm)` wording: eligibility is checked at H's body boundary,
+The selected outside interpretation refines the older informal
+`Select(h,arm)` wording: eligibility is checked at H's body boundary,
 while completion of that event's ordered match may occur later outside H.
 Full source safety,
 the finite principal presentation and acceptance equivalence are still not

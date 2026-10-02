@@ -6,6 +6,7 @@ Scope: monomorphic ownership basis, operational kernel, selected-fault reflectio
 Approved-by: none
 Drafted-by: primary with bounded control/heap and symbolic-basis architect inputs
 Reviewed-by: compiler_referee and spec_auditor, independent package reviews, 2026-10-02; no findings within the declared conditional envelope
+Projection-basis-review: structural observation package and position-indexed admission repair reviewed; independent compiler_referee closure clean, 2026-10-02
 Supersedes: none
 
 ## 1. What this package establishes
@@ -45,7 +46,8 @@ Its finite inventories are:
 | `T` | symbolic endpoint and finite type-term graph nodes, including free/imported endpoints |
 | `O` | typed operation instances at value-lookup sites: declaration, family arguments, payload and response endpoints |
 | `H` | handler arm instances, environments and typed argument/result endpoints |
-| `B` | explicit callback-boundary contract descriptors and their receiver/callback slot sites |
+| `B` | whole explicit callback-boundary contract templates and their receiver/callback slot sites |
+| `Slots(b)` | finite static annotated contract-position inventory of the original signature profile of each `b∈B` |
 | `V` | value, latent, residual, continuation and store-view templates |
 | `J₀` | lexical source constraints, including original symbolic `K` formulas |
 | `Σ` | finite primitive/adaptation type-query schemas, each with fixed endpoint arity `a_s` |
@@ -57,6 +59,14 @@ lookup has one fixed substitution map into `T`; application, thunk creation,
 and `Force` retain that instance. Distinct lexical lookups have their own
 local endpoints unless source sharing relates them. Free/imported endpoints
 are not freshened.
+
+`Slots(b)` is supplied within the finite monomorphic graph `Ω`. Its entries
+identify original annotated profile positions, including distinct call-effect
+and latent-result-effect positions. These static slots are distinct from the
+potentially unbounded dynamic typed paths and execution occurrences that
+witness transport and observation. Recursive references are not infinitely
+unfolded to generate slots. This premise neither generates annotations nor
+proves their finite elaboration from arbitrary source.
 
 The monomorphic restriction is precise: executing a descriptor again may
 allocate fresh runtime objects, but does not generate a new type endpoint,
@@ -74,7 +84,7 @@ Define finite symbolic predicate names, with their intended meanings under
 PΩ = { Source_j                    | j ∈ J₀ }
    ∪ { Query_s(t₁,...,t_a_s)       | s ∈ Σ, (t₁,...,t_a_s) ∈ T^(a_s) }
    ∪ { Compat_o,h                  | o ∈ O, h ∈ H }
-   ∪ { Admit_b,o                   | b ∈ B, o ∈ O }
+   ∪ { Admit_b,p,o                 | b ∈ B, p ∈ Slots(b), o ∈ O }
 ```
 
 `Source_j` contains the original static constraints; the query product
@@ -82,10 +92,16 @@ enumerates all endpoint combinations of each supplied primitive/adaptation
 schema, including combinations reached through abstract collisions.
 `Compat_o,h` means the complete `OpCompat` relation of those
 instances, including invariant family arguments and payload/response checks.
-`Admit_b,o` means admission by the explicit concrete typed contract. For a
-wildcard/absent capture contract it is false; family equality alone does not
-make it true. The Cartesian inventory lists possible queries, not obligations
-to enforce all of them. A compatibility predicate becomes an obligation only
+`Admit_b,p,o` means admission of instance `o` by the explicit concrete typed
+contract at original profile slot `p`, under the same `ν` and including its
+invariant family arguments. For a wildcard/absent capture contract it is
+false; family equality alone does not make it true. Typed `Flow` preserves
+this original profile-slot identity while transporting its observation path;
+admission does not read an arbitrary matching family or the current
+destination port. For example, call slot `E[α]` and latent-result slot `E[β]`
+of one boundary yield distinct admission queries for `E[Int]`, with constraints
+on `α` and `β` respectively. The Cartesian inventory lists possible queries,
+not obligations to enforce all of them. A compatibility predicate becomes an obligation only
 at an actually selected arm in the concrete machine, or at a selected state
 of the declared conservative abstract machine.
 
@@ -99,15 +115,21 @@ Boolean cells lacking a realizing `ν` have empty concrete interpretation.
 The name-level bound is
 
 ```text
-|PΩ| ≤ |J₀| + Σ_{s∈Σ}|T|^(a_s) + |O||H| + |B||O|.
+|PΩ| ≤ |J₀| + Σ_{s∈Σ}|T|^(a_s) + |O||H| + |O| Σ_{b∈B}|Slots(b)|.
 ```
 
-The observer-frame candidate in §4 adds no fresh dynamic type endpoint, but
-its `Route(stage, actualPath, port, ν)` test may depend on the source effect
-typing relation. To apply this basis theorem, all symbolic conditions used by
-`Route` must be included in `J₀` or supplied by a finite-arity schema in `Σ`.
-The present basis construction does not yet prove that closure; leaving
-`Route` as a heap oracle would invalidate the source-instantiation claim.
+The structural observation candidate in typed-boundary §4 replaces a supplied
+per-event `Route` test by projection of executing typed view delimiters before
+dispatch. Given finite executable view decorations, routing reads their marked
+current ports and needs no new type predicate. Contract admission and selected
+compatibility still use `Admit_b,p,o` at the original profile slot preserved
+by typed `Flow`, and `Compat_o,h`, under the same `ν`. Reading a marked current
+observation port does not replace that original admission slot.
+Its control theorem and corrected admission basis are reviewed; arbitrary-source elaboration
+of the finite decorations remains open. If such elaboration adds symbolic
+shape/position choices, their guards must lie in `J₀` or the finite query
+schemas before the basis theorem can be instantiated. A hidden typing oracle
+is not part of this construction.
 
 Let `D` be a heap relation whose records link predicate names to dynamic
 instances of templates in `V`, requests, values, store roots, or continuations.
@@ -121,13 +143,17 @@ queries and retained family predicates belong to `PΩ` or its Boolean algebra;
 every live dependency references the same endpoint assignment `ν`.
 
 Proof is induction on the execution prefix. Initialization copies formulas
-from `J₀`. Lookup reads its one static operation/value descriptor. Closure,
+from `J₀` and retains the supplied boundary templates and their original
+`Slots(b)` references without unfolding recursive signatures. Lookup reads
+its one static operation/value descriptor. Closure,
 thunk, cell and continuation construction allocate runtime identities and
 copy symbolic references. Call, adaptation code and `Force` reuse their
 descriptors; the latter never opens a fresh operation instance. Request
 construction uses some `o∈O`; selected-arm checking uses `(o,h)∈O×H`;
-concrete-contract admission uses `(b,o)∈B×O`. Every remaining supplied query
-uses a schema in `Σ` with arguments from `T`, hence occurs in its Cartesian
+concrete-contract admission uses `(b,p,o)` with `b∈B`, `p∈Slots(b)` and
+`o∈O`. Its `p` is the original profile identity retained through typed `Flow`,
+not a newly allocated dynamic path or the transported destination port. Every
+remaining supplied query uses a schema in `Σ` with arguments from `T`, hence occurs in its Cartesian
 inventory. No other type query exists in the descriptor instruction vocabulary.
 Bind, guard evaluation, forwarding
 and raw resumption either execute another such instruction or transport
@@ -184,7 +210,7 @@ are not allowed as unexamined fields.
 | return / bind | return to the saved site and environment using the current state; a request carries the appended suffix |
 | closure application | enter body using the closure environment and caller's live store/active heads; push the fresh invocation and its return suffix |
 | typed CallView entry / exit | enter or leave exactly its executing observer occurrence; nested entries preserve all enclosing active observers |
-| request observation | use source-derived `Route(stage, actualPath, port, ν)` over every applicable active enclosing observer; retain one event-observation edge per witness |
+| request observation | before dispatch, walk executing enclosing view delimiters and record each occurrence's marked current port; retain the same event and symbolic dependencies |
 | invocation suspension / resume | save the source invocation and crossed observer scopes with the suffix; execute re-entry using the supplied live state and reinstate only scopes entered by that source suffix |
 | thunk construction / force | store or enter the body/environment; copy origin and predicate/dependency references |
 | operation construction / request | store the fixed typed operation instance; on demanded force allocate a new event with that instance |
@@ -200,11 +226,13 @@ wrapper; this table does not invent a fresh capture grant by remapping an ID.
 Observer frames are likewise execution bookkeeping, not authority. A saved
 frame does not count as a running `Observe` witness while the captured suffix
 is outside it; a resumed suffix re-enters its source-prescribed observer
-scope without making an expired receiver or handler active. The `Route`
-relation must be a finite source-derived effect-port mapping, not an adapter
-tag, family-membership test, or heap-reachability query. This paragraph is a
-candidate lowering contract: source selector extent and full observer
-suspension/re-entry simulation remain open.
+scope without making an expired receiver or handler active. The typed-boundary
+§4 context projection supplies the routing candidate for finite decorated
+views; it uses neither adapter tags nor family membership. Its saved-context
+extension preserves view nesting without rebinding authority. The user has
+selected outside selector evaluation; the projection/control theorem and
+position-indexed admission basis have clean package/repair review within
+their declared decorated-kernel inputs. Raw-source elaboration remains open.
 
 `2026-10-02-typed-source-owner-realization.md` supplies an explicit candidate
 for that ownership protocol: saved executable owner spans resolve to exact

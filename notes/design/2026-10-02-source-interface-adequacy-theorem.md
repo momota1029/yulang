@@ -194,6 +194,15 @@ continues the captured parent suffix, and only the capture delimiter returns
 to the current resumer. The exact-embedding argument copies this protocol
 on both sides; it does not itself establish raw-source owner elaboration.
 
+Typed-boundary §4's reviewed context-projection correction refines request
+observation in the same way: both sides retain the executing typed view
+delimiters at emission, before handler filtering, and their crossed scopes
+on raw capture/resumption. Outward support is a separate projection. The
+embedding uses this corrected candidate, not the superseded outward-only
+observation definition. Its equality-of-projections argument does not require
+a new finite-representation premise, and still does not prove raw-source
+elaboration of the executable typed view positions.
+
 ### Proof
 
 Relate `C` to `Eν,σ(C)` by equality of the source-observable projections and

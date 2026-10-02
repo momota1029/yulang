@@ -23,7 +23,7 @@ The redesign charter governs. F5 Function generalization is comparison/rollback 
 |---|---|---|
 | 1. Coherent ordinary computation semantics for calls, closures, `Force`, requests, callback visibility, and shallow handlers | Candidate source semantics uses the user's rule: concrete typed callback boundaries govern direct and Force-exposed request visibility; origin/identity/`K,D` remain distinct and `Force` creates no authority | Preserve this boundary rule in Milestone 2; no callback micro-cases without a counterexample |
 | 2. Source-to-complete-interface adequacy/simulation | Closed for the candidate ordinary machine: exact embedding covers initial `R`, primitive source-rule images, latent future use, and typed resumptions; bind lifting separately reviewed | This proves the candidate machine embeds in its exact complete interface, not that current Yulang typing derives the candidate binder ownership or has a finite presentation |
-| 3. Finite symbolic presentation | Finite heap carrier and principal safety-certificate theorem reviewed for a declared conservative abstract judgment; selected typed-value transport now has a reviewed conditional path-indexed packet theorem; source instantiation remains open | Prove source refinement/error reflection, finite endpoint basis, and future-interaction coverage; bridge to intended typing and audit final acceptance before selecting the abstraction |
+| 3. Finite symbolic presentation | Generic finite carrier/certificate theorem and decorated-kernel typed transport, emission-context routing, and position-indexed symbolic basis reviewed; raw-source instantiation remains open | Construct source executable view decorations, close abstract refinement and uniform future interaction, and prove the intended typing/acceptance bridge before selecting the abstraction |
 | 4. Generalization, fresh instantiation, SCC intrusion | Waiting on a Milestone-3 presentation | Prove lifecycle transport for that presentation, including external uses, internal SCC sharing, parent ports, and symbolic effects |
 | 5. Implementation feasibility | Deferred until milestone 4 determines required surfaces | Targeted architecture/resource audit of the reviewed semantics and representation |
 | 6. Implementation | Not authorized | Explicit user-approved design, completed required gates, implementation and verification |
@@ -131,33 +131,51 @@ and a profile transported only along the signature's corresponding result
 path; the original CallView is not kept executing. The same result follows by
 relational-image composition as environment/store transport. Semantic and
 conformance delta reviews found no remaining finding in this conditional
-theorem. Source `Route`, observer suspension/re-entry, exact owner mapping,
-finite identity correlation and source typing/acceptance remain open.
+theorem. The subsequent decorated-context construction below addresses
+routing and view suspension/re-entry; raw-source ownership, finite identity
+correlation and source typing/acceptance remain open.
 
-The fixed-shape adapter graph does not itself identify the complete-`CallView`
-effect port for a request emitted while an adapter subcomputation runs. Keep
-typed value `Flow` separate from source-derived request `Observe`: the
-`Thunk(E,Unit) -> Unit` / `ForceThen(Id)` case emits an effect without an
-effect-bearing output value. This is a missing source typing/elaboration
-input, not a finite-presentation obstruction. A finite observer-frame
-realization is now a conditional candidate: per-prefix dynamic link count is
-finite and unbounded, while finite source templates reuse linked records.
-An independent source-authority audit found no existing typing/elaboration
-judgment that derives which source event is exposed at which typed port. The
-typed-boundary draft now defines `Observe` as a projection of the common
-typed, view-delimited execution derivation and explicitly separates
-pre-dispatch witnesses from handler-transformed outward support. Independent
-semantic and conformance reviews found no circularity or conformance finding
-in that conditional definition. Its exact missing input is still the
-source-derived typed port correspondence and request typing; the definition
-does not itself provide the missing rule or finite `Route` algorithm. The
-next Milestone-3 action is to derive that port relation from the unified
-source semantics and prove its lifting through bind, call, force/adaptation,
-handler selection and resumption; then show all symbolic guards lie in the
-finite basis. Observer suspension/re-entry, selector extent and abstract
-identity correlation remain separate open premises. Equal-route comparisons
-must fix the same event-observation witnesses. Do not infer this link from
-an adapter tag, family equality or output shape.
+The fixed-shape adapter graph does not itself identify complete-`CallView`
+execution positions. `Flow` transports value paths; `Observe` relates an
+event to a currently executing view, including a force whose output is Unit.
+A milestone-level control attack refuted the attempted definition by outward
+request exposure. A live receiver's saved continuation can be resumed inside
+its callback and install a receiver-owned handler there. The owner-span rule
+borrows the still-live receiver, so receipt ownership does not imply that the
+callback's outward boundary precedes that handler. Waiting for outward
+exposure loses the callback protection needed for the first dispatch. The
+counterexample is in the decorated candidate machine; raw-source acceptance
+is not claimed. Architect and independent semantic searches agree on this
+failure. It is not a non-finiteness result.
+
+Typed-boundary §4 now proposes one correction: project every request emission
+onto the marked current positions of its executing typed view context before
+handler filtering. Outward support remains the handler image's separate
+projection. Saved contexts retain exactly the view delimiters crossed at the
+shallow capture boundary; raw resume plugs those into the resumer's current
+context, with fresh execution occurrences and unchanged boundary evidence.
+Executable owner borrowing does not erase the ambient callback view. A
+package theorem derives this observation relation by a finite linked-frame
+walk and proves control/visibility preservation for the decorated kernel.
+Independent semantic/conformance package review and semantic repair closure
+are clean. Review found that admission must retain the original annotation
+position: `Admit_b,p,o` uses finite `Slots(b)`, preserving independently
+symbolic call and returned-latent contracts under one `ν`. The original
+owner-fragment proof was also scoped to include the new `View` constructor.
+Routing needs no additional symbolic predicate once those positions and
+profile slots are supplied. Arbitrary
+source elaboration of these positions, abstract identity correlation,
+uniform clients and the source typing/acceptance bridge remain open. Do not
+equate the constructor-only adapter graph with those executable decorations.
+
+The next Milestone-3 package is raw-source construction of those finite
+executable typed views and original profile slots, including unknown type
+shapes and demanded adaptation/force positions. Its output must connect to
+the existing symbolic basis and source typing; supplying another unexplained
+event-routing oracle would not advance that gate. After that, close the
+abstract identity/client-coverage and acceptance bridge as a package before
+lifecycle or implementation. The current control counterexample is closed;
+do not expand callback micro-cases without another concrete blocker.
 
 `notes/design/2026-10-02-typed-source-owner-realization.md` now has a fresh
 semantic delta review. It repaired owner-span completion so a child return
@@ -170,16 +188,13 @@ outer context is recorded as candidate evidence, not authority. Earlier
 reviewer thread-limit errors are closed for this slice; the current gate has
 M3 semantic review coverage.
 
-The one remaining source choice is selector extent: outside the candidate H
-or inside its handler image. The ordinary semantics package and syntax
-reference do not decide it, while the non-authoritative coupled-core draft
-supports the outside interpretation. A typed E/P discriminator documents
-that the choice affects observable results. The outside candidate follows one
-shallow-image/ordinary-bind relation and preserves expiry; independent review
-of that conditional proof is clean. User selection is still pending. Do not
-adopt either source rule or begin implementation until that decision is
-recorded. If the user chooses inside, derive its nested handler-image proof
-before continuing lifecycle.
+The user selected **outside** selector extent on 2026-10-02; charter §14
+records the decision. Pattern/default/guard evaluation, matching completion
+and selected arms run outside the candidate, after the original request's
+eligibility test. This discharges the reviewed outside-image control proof's
+extent premise. New matching/arm events have their own current-context
+dispatch; completing the original match neither reactivates its expired
+candidate nor transfers authority. No selector source choice remains open.
 
 The further interaction gap is uniformity: a finite presentation for every
 separately linked finite client does not establish one component presentation for all
@@ -198,7 +213,7 @@ Implementation feasibility evidence is recorded in `notes/progress/2026-10-02-su
 
 ## Main records
 
-- `notes/design/2026-10-02-typed-source-owner-realization.md` — owner-span/control-context construction with clean semantic delta review; selector extent awaits user choice; outside-image control proof is conditional.
+- `notes/design/2026-10-02-typed-source-owner-realization.md` — reviewed owner-span/control and typed-view context construction; user-selected outside-image equation.
 - `notes/design/2026-10-02-typed-boundary-realization-draft.md` — selected common typed-value transport and reviewed conditional transport/lifetime theorem package; reviewed fixed-shape cyclic adapter construction and symbolic equality; full realization open.
 - `notes/design/2026-10-02-source-realization-and-symbolic-basis.md` — finite ownership inventory, conditional operational realization, selected-fault reflection, and exact remaining source definitions.
 - `notes/design/2026-10-02-finite-abstract-safety-presentation.md` — reviewed generic finite carrier and principal certificate theorem; source application open.

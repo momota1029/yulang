@@ -230,11 +230,13 @@ value along the signature's corresponding result path. In the latter case,
 the original `CallView` observation has ended; the transported boundary
 profile and the later view's own `Observe` witness establish the incidence
 while receiver `r` remains active. An event may have observation witnesses
-for several enclosing complete `CallView`s when the source typed computation
-exposes it at each port. Nested `CallView` entry therefore does not erase an
+for several enclosing complete `CallView`s. The corrected context projection
+in typed-boundary §4 records each executing view's marked computation port
+before handler filtering; observation is not outward residual support.
+Nested `CallView` entry therefore does not erase an
 applicable enclosing receiver's incidence. This is the selected preservation
-rule; the exact finite `Route` derivation and observer suspension/re-entry
-remain realization obligations recorded in the typed-boundary package.
+rule. The decorated context/routing theorem has clean package/repair review; source
+elaboration and abstract identity correlation remain realization obligations.
 
 The incidence is per request event and includes source-defined adaptation,
 force, typed binding, storage, and result positions when the signature
@@ -337,6 +339,17 @@ typed-family formula remains if any continuation, residual, root, or latent
 value still depends on it. Soundness requires the inferred handler result to
 overapproximate this complete image. Principality is relative to the selected
 finite interface language, not to exact continuation-use counts.
+
+Charter §14 records the user's selection of **outside** selector extent.
+Eligibility of the original request is tested at the current body boundary;
+the candidate then exits before pattern/default/guard evaluation. Matching,
+its finish continuation and the selected arm run in the outer context by
+ordinary bind. A new selector/arm request has its own current-context
+dispatch. Exhaustion forwards the original request with only the ordinary
+forwarding wrapper; the raw suffix passed to a selected arm does not regain
+the selected handler. Typed-source-owner §6 supplies the reviewed equations
+and pending-match preservation proof. Thus later completion of the original
+match requires no live reference to the expired candidate.
 
 ## 6. Ordinary-flow / escaped-callback theorem
 
