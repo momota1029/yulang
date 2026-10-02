@@ -155,6 +155,59 @@ distinct derivations and evidence. Whether that unification is sound and
 operationally faithful is open; it must not silently turn Record checking into
 registered nominal casts or compose boundary successes.
 
+The frozen specialization and runtime paths add a useful boundary distinction.
+`specialize2/task_solver.rs` reconstructs materialized actual/expected pairs
+for expression consumption, function-body checking and computed definition
+signatures, then sends those pairs to `TypeGraph::constrain_materialized_subtype`.
+That entrypoint interns an individual source-derived comparison with provenance;
+`TypeGraph::process_subtype` propagates variable-to-variable comparisons as
+edges and stores variable-to-concrete comparisons as bounds, while concrete
+Record pairs take the local field/presence branch described above. This is
+evidence for rechecking concrete boundaries during specialization rather than
+assuming that a propagation skip permanently discharged them. It does not
+prove how every original inference obligation is transported, nor authorize
+the successor to reproduce this implementation topology.
+
+Runtime realization is also split across paths. In the frozen
+`crates/mono/src/boundary.rs`, Record boundary support checks required-field
+presence and recursively asks whether shared field boundaries are supported;
+it does not select nominal cast rules. The emitted generic `Coerce` for
+`RecordFields` is lowered by `crates/evidence-vm/src/runtime.rs` to an alias,
+so that node alone does not materialize a Record adapter. Separately, the
+Evidence VM's `adapt_value_result` has a Record branch which calls
+`adapt_record_value_result`: when that adapter branch is reached after the
+runtime-equivalence shortcut, it visits target fields, omits a target-optional
+field absent from the source shape, recursively adapts matching field values,
+and reconstructs the target Record (extra source fields are not copied on this
+path), except that source-Thunk to non-Thunk field boundaries retain the value
+without recursive adaptation. Missing runtime values for declared matching
+fields fail. This recursive adapter does not dispatch registered nominal
+casts for child `Con` pairs.
+An earlier directional runtime-equivalence shortcut can return the original
+Record unchanged, preserving extra fields; rebuilding is therefore not an
+invariant of every successful Record boundary. The older mono runtime also
+returns Record values unchanged for supported Record boundaries, unlike the
+Evidence VM adapter path.
+Explicit Record literals can instead consume a field under its expected type
+and materialize a direct nominal cast there; spreads and width changes remain
+on the whole-Record boundary path. The frozen system therefore has reusable
+local structural adapters and registered nominal casts, but not one shared
+runtime resolution mechanism. A common successor compatibility dispatcher is
+plausible as a local query interface; its result must distinguish a supported
+shape check from selected conversion evidence and from an adapter actually
+emitted. In particular, source acceptance, identity preservation versus
+projection, missing-field behavior and nested registered-cast realization
+remain path- and stage-dependent questions.
+
+The frozen nominal-cast route is not yet a uniform resolver either:
+`TypeGraph::constrain_direct_cast` adds constraints for every exact-path Value
+cast candidate, while specialization emission's `direct_cast_rule` selects the
+first exact-path match. The separate `CastTable::resolve_value` API classifies
+missing, unique and ambiguous cases. Any successor unification must decide
+which stage resolves candidates and retain that decision with the originating
+boundary; the historical paths are evidence for the problem shape, not an
+approved policy to copy.
+
 Successor named-Record type syntax currently requires `name: Type` fields;
 the optional Record pattern syntax concerns pattern defaults and named
 arguments, not optional fields in type declarations. Thus the user's

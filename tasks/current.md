@@ -99,14 +99,18 @@ theorems without refuting their fragment proofs. A reviewed candidate
 Record-local table now separates field presence from child comparisons and
 distinguishes inference propagation from concrete validation. Its next gate
 is to prove how the source comparison judgment preserves that evidence across
-variable bounds and specialization, then define runtime realization. Frozen
-Oracle evidence separates optional-Record field comparison from exact-path
-nominal cast resolution; a common successor resolver remains a candidate
-dispatch layer, not an established shared Oracle mechanism. Current successor
-terms lack Record and adapter constructors; cast declarations are outside
-successor HIR. Optional Record Oracle observations are not implemented
-syntax/contracts in this branch. No compiler change is authorized; the
-complete replacement goal remains active.
+variable bounds and specialization. Frozen specialization rechecks
+materialized concrete boundaries, while the Evidence VM has a recursive
+Record adapter distinct from generic `Coerce` aliasing and registered nominal
+cast resolution. No one shared runtime resolver exists in that evidence, so a
+successor common local dispatcher remains a candidate with separate check,
+cast-resolution and adapter-plan evidence. The next operational proof must
+resolve identity-preserving versus projecting Record behavior, absence, extras
+and optional-to-required fields. Current successor terms lack Record and
+adapter constructors; cast declarations are outside successor HIR. Optional
+Record Oracle observations are not implemented syntax/contracts in this
+branch. No compiler change is authorized; the complete replacement goal
+remains active.
 
 The M3 clarification received clean bounded compiler-referee and spec-auditor
 reviews after architect pre-write review. Its evidence, exact limitations and
