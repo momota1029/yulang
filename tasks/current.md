@@ -905,9 +905,34 @@ package. Static diff/reference checks passed; tests, builds and measurements
 were not run. Compiler implementation, effectful checking and lifecycle
 remain open.
 
+### Relative uniform-parent construction
+
+The staged-extrusion package now constructs a witness-independent signed
+parent tuple for a fixed original strategy over a nonempty joint hidden
+domain, assuming a semantic complete lattice. A raw copied-bound operator is
+not necessarily monotone: opposite-sign discovery can copy `N <= Q`.
+Retained source links already entail those same-variable dynamic cross-links,
+so omitting only those redundant terms from the operator gives a monotone
+operator while leaving the full graph intact. Uniform extensions are exactly
+its pre-fixed tuples. Their least tuple passes an original-root retry whenever
+any extending tuple does, for the fixed original strategy and graph.
+
+This is a relative semantic construction, not source/inference principality
+or a finite-expression theorem. No finite syntax has been constructed for
+the required joins/fixed point; no non-finiteness result follows. An unchanged
+hidden anchor can still invalidate exported-root scope, and arbitrary new-port
+invariant/evidence relations are outside the downward-closed retry result.
+Next relate this criterion to source-generated interfaces, admissible roots
+and the generation-time guard. No source exception or compiler approval is
+selected. M3 uses one architect, one documentary producer and two independent
+semantic/conformance reviewers; both reviews found no findings. Static
+diff/reference checks and `git diff --check` passed; tests, builds and
+measurements budget/consumption zero. Implementation and the full objective
+remain open.
+
 ## Main records
 
-- `notes/design/2026-10-03-staged-extrusion-solution-relation.md` — exact unscoped graph projection, signed retry and finite consequence replay; scoped extension criterion remains open.
+- `notes/design/2026-10-03-staged-extrusion-solution-relation.md` — exact unscoped graph projection, signed retry, finite consequence replay and relative uniform-parent construction; source-scoped extension criterion remains open.
 
 - `notes/design/2026-10-02-parametric-component-linking.md` — finite grafting and exact joint linking; revised per-program proof target, source summary construction still open.
 

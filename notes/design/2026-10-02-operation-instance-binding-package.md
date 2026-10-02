@@ -515,7 +515,10 @@ preserves the unguarded extrusion's solution fiber or is principal.
 
 The separate [staged-extrusion solution-relation package](2026-10-03-staged-extrusion-solution-relation.md)
 now gives a Draft unscoped diagonal-extension and signed-retry theorem for
-one exact ordered trace, with a separate finite consequence replay. Its
+one exact ordered trace, with a separate finite consequence replay. Its new
+relative uniform-parent theorem normalizes redundant dynamic copied links
+and constructs a least signed tuple for a fixed original strategy in a
+complete lattice; source/inference principality does not follow. Its
 scoped extension criterion remains open: a boundary representative may not
 admit the diagonal witness dependency, and guard rejection alone does not
 prove scoped unsatisfiability. This grants no implementation authority.
