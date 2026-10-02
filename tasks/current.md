@@ -43,13 +43,25 @@ latest callback-scope progress section and the coupled-effect draft.
 The frozen guard specification now supplies a narrow runtime consistency
 lemma: if a carried marker frame `F_m` is reinstated inside a fresh caller
 handler and search exits `F_m` before testing that handler, `m` is no longer
-in the active guard list there. The handler can pass the runtime guard test
-when exact path matches and request guard IDs are disjoint from the post-unwind
-active list. This shows required lineage need not itself mask the caller; it
-does not prove source `Visible` or implementation/spec parity. See the new
-dynamic-unwind check in the callback-scope progress record. Next prove the
-source-to-runtime frame correspondence, then resume the full callback source
-adequacy and effect/principality gates.
+present from that frame occurrence in the active guard list there (another
+active frame may contain the same ID). The handler can pass the runtime guard
+test when exact path matches and request guard IDs are disjoint from the
+post-unwind active list. This shows required lineage need not itself mask the
+caller; it does not prove source `Visible` or implementation/spec parity. See
+the new dynamic-unwind check in the callback-scope progress record. Next prove
+the source-to-runtime frame correspondence, then resume the full callback
+source adequacy and effect/principality gates.
+
+The escaped `maker` witness is now adjudicated by evidence layer: the frozen
+checker’s `Bot` latent row is unsound and must be dropped; the evaluator’s
+unhandled route is characterization only; the runtime guard spec permits an
+outer caller handler after frame unwind when the exact path matches and the
+post-unwind guard-ID intersection is empty. The code path that colors its own
+effect family conflicts with that spec and is not successor authority. The
+successor retains the callback request and computes the full handler image;
+the present coarse continuation abstraction can still reject a pure caller.
+See the new adjudication table in callback-scope progress and the source
+fixture trace in the coarse-effect progress record.
 
 The common Force/dispatch composition was reviewed without choosing A/B. A
 `Capture(origin, handler)` pair cannot act as a globally reusable grant because

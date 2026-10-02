@@ -674,13 +674,13 @@ Compiler-referee delta review checked the exact frozen runtime guard contract
 in `a58eefc3:spec/2026-06-13-runtime-guard-markers.md` §§ request visibility,
 `marker[id]`, and dynamic unwind. If a closure's required marker frame
 `F_m` is reinstalled inside caller handler `h`, ordered search pops `F_m`
-before testing `h`. At that test, eligibility requires exact operation path
-and `q.guard_ids ∩ G_h = ∅`, for the then-active list `G_h`. So maker marker
-`m` alone is not a persistent mask after the frame exits: if `q` carries only
-`m`, no duplicate active `m` remains, and no other request ID intersects
-`G_h`, it passes the guard check. Another active frame with the same ID or a
-different intersecting request ID can still block it. `marker[m]` re-enters
-the frame but does not itself add `m` to a request; only `add_id` does that.
+before testing `h`. Let `G_h` be the active list after crossing all frames
+between `F_m` and `h`. At that test, eligibility requires exact operation
+path and `q.guard_ids ∩ G_h = ∅`. Thus if `q.guard_ids ⊆ {m}` and no active
+occurrence of `m` remains in `G_h`, the maker marker does not mask `h`.
+Another request ID intersecting `G_h`, or a duplicate active `m` outside the
+unwound frames, can still block it. An `add_id` boundary can add request IDs;
+`marker[m]` itself only re-enters a frame and does not write the request.
 
 This supports compatibility of value-lineage re-entry with the user's
 ordinary caller choice; it is not source typing authority or proof that the
@@ -692,6 +692,29 @@ and resuming raw `k` does not reinstall it. The static `Visible` source rule
 must be shown to simulate these frame paths while retaining origin and `K,D`.
 This proof step narrows the required source/runtime correspondence but does
 not close it.
+
+#### Adjudication of the concrete escaped-callback conflict
+
+The three relevant observations now have separate roles:
+
+| Evidence | Established fact | Successor consequence |
+|---|---|---|
+| Frozen checker on the `[choose]` `maker` fixture | It erases `choose` from the returned closure's latent row and accepts a pure `caller` | Reject the lost-effect inference as unsound; retain the request on the returned arrow |
+| Frozen evaluator on the same fixture | It reports `choose::reject` unhandled under the caller catch | Characterization only; this route does not authorize a persistent maker mask |
+| Frozen runtime guard specification | An outer handler can test after inner frames unwind; a marker ID is not active there unless another active frame/ID keeps it in the post-unwind intersection | Required lineage can coexist with caller handling when exact path matches and the complete post-unwind guard intersection is empty |
+
+The implementation's own-path coloring path conflicts with the guard
+specification and explains the unhandled runtime observation; it is recorded
+in `notes/progress/2026-10-01-intrusion-coarse-effect-abstraction-candidate.md`,
+“Callback effect in a returned closure: independent row-preservation lemma.”
+The successor must not copy that coloring as an eligibility rule. It must
+keep the latent `choose` request, apply the complete caller handler image to
+the request and all reachable continuation suffixes, and subtract it only if
+every represented path is handled. The current coarse continuation summary
+still predicts that an explicit pure result annotation can be rejected even
+when the first request is caller-visible; that is a precision/acceptance gap,
+not permission to erase the latent effect. The principality and final
+acceptance comparison remains open.
 
 ### Next bounded source theorem after preservation selection
 
