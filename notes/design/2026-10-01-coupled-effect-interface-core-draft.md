@@ -1585,6 +1585,23 @@ computations must retain both origins and their separate `K,D` incidences.
 Which origins a source value/force relation exposes remains to be proved; this
 discriminator does not define them or add a source-site rule.
 
+This per-request stability is a consequence of the existing resumable bind
+equation, once `q` is observed with its origin and typed incidence:
+
+```text
+Request(q[o], c, k) >>= F
+  = Request(q[o], c, λr. k(r) >>= F)
+```
+
+Bind changes the saved continuation and leaves the already observed request
+`q[o]` intact. Any request produced later by `k` or `F` keeps the origin
+assigned by its own source computation. Thus a wrapper around `Force(u)` may
+append callback work without relabeling an inner caller-owned request; mixed
+request origins also remain separate. This proves only label stability in the
+candidate computation relation. Source typing/evaluation must still establish
+the request labels on thunk force, and handler dispatch must still apply the
+raw-continuation cutoff before making any later visibility claim.
+
 For a function adapter, the displayed `CallView` equation composes argument
 adaptation, the underlying call, and result adaptation. For a callback-origin
 request `q` already related to `h`'s contract (including one exposed by a force

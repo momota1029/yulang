@@ -4254,3 +4254,17 @@ Thus the current compiler cannot host this proof slice end to end; continue the
 theory first and repeat read-only feasibility checks at subsequent semantic
 gates. See the appended entry in
 `notes/progress/2026-10-02-successor-implementation-feasibility.md`.
+
+The returned-thunk proof now derives request-label stability from the shared
+stateful bind equation: binding onto `Request(q[o],c,k)` rewrites only the
+saved continuation, so already observed caller requests cannot be relabeled by
+a callback wrapper. Later requests retain their own source labels. This is a
+candidate-relation lemma; the source rules assigning labels to thunk contents
+and force results remain open. The corresponding code check found no request,
+continuation, thunk, force, or handler-frame runtime forms in `yu-core` or the
+current VM/native backend crates. Continue source-rule proof and feasibility
+audits; do not start implementation before that source contract is settled.
+Independent compiler-referee review closed the local bind label-stability
+lemma; it does not close request reachability under multi-shot state changes,
+handler visibility, or full symbolic `K,D` preservation. See the latest
+callback-scope-transition progress entry.

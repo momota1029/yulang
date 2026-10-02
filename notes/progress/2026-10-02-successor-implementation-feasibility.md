@@ -107,9 +107,11 @@ The corresponding implementation check found no request-origin or
 per-request typed-incidence carrier in resolved HIR, solver values, or closed
 types. Syntax `HirExpr::Apply` carries its operator, operands, and source range,
 but is not lowered into a resolved call node; source ranges also cannot serve
-as dynamic request-event or activation identities. This is a broader gap than
-adding one callback flag: the future carrier must survive value flow, wrappers,
-force, mixed computations, and continuation resumption. No production code was
-changed; this is not ready for a bounded compiler implementation.
+as dynamic request-event or activation identities. The core and both backend
+crates likewise have no request/continuation, force, handler-frame, or thunk
+runtime forms to reuse. This is a broader gap than adding one callback flag:
+the future carrier must survive value flow, wrappers, force, mixed
+computations, and continuation resumption. No production code was changed;
+this is not ready for a bounded compiler implementation.
 
 No source code was changed. No tests or builds were run.

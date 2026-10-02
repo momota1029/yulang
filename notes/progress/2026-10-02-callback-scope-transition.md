@@ -429,3 +429,18 @@ own `K,D` incidence must use the same symbolic transport; immediate empty
 support does not discharge it. The source value/force relation must establish
 these cases, so this remains a conditional distinction, not a source rule or
 global proof.
+
+The next derivation reuses the draft's stateful bind equation. Once an observed
+request is labeled `q[o]`, `Request(q[o],c,k) >>= F` changes only its saved
+continuation to `λr. k(r) >>= F`; it cannot relabel that already observed
+caller request as callback-origin. Requests later emitted by `k` or `F` retain
+their own source labels. This closes a local label-stability lemma inside the
+candidate resumable relation, but not the source rule that assigns labels when
+a thunk is created, forwarded, or forced.
+
+Compiler-referee delta review closed this local lemma. Its scope is request
+label stability only: bind preserves an already observed `q[o]` and rewrites
+its saved continuation, but does not prove reachability of every later request
+under stateful multi-shot resumption, handler visibility, or full `K,D`
+incidence preservation. Those remain separate source and interface-composition
+obligations.
