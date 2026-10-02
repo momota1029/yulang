@@ -161,3 +161,12 @@ current representation; implementing it now would require the unproved source
 relation plus major front-end, solver, scheme-transport, and runtime work. Keep
 this gate theory-only and repeat feasibility review after ordinary handler and
 callback composition rules settle.
+
+The follow-up Capture-join review inspected resolved HIR, solver, core, VM,
+and native entrypoints again. `ResolvedExpr` remains limited to lambda,
+integer, name, and error; `yu-core` and both backends still have no execution
+forms for calls, Force, requests, or handler activations. The current solver
+still exposes no origin/handler transport path. No small implementation slice
+can realize this relation end to end; a prototype would prematurely require
+the unresolved source judgment and substantial cross-layer architecture. No
+code or tests were changed or run.

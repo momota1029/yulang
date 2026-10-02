@@ -16,6 +16,17 @@ implementation-feasibility audit at the next settled semantic gate. See
 `notes/progress/2026-10-02-callback-scope-transition.md` and
 `notes/progress/2026-10-02-successor-implementation-feasibility.md`.
 
+The projection is now a join in the common source relation between per-request
+origin/value flow, handler installation under the same exact receiver and
+argument contract, and typed operation compatibility at one assignment.
+Compiler-referee and spec-auditor reviews closed this delta with no findings.
+They leave wrapper/forwarding ownership and escaped-closure re-entry open. A
+fresh implementation-surface check confirms this still requires major
+front-end, solver/scheme, and runtime work: no resolved call/Force/request/
+handler forms or origin transport exist to prototype. Next derive those source
+incidences compositionally, then repeat the feasibility check; implementation
+remains unauthorized.
+
 This turn corrected the non-authoritative intrusion sketch's misleading
 one-parent-per-variable picture. Ordinary Simple-sub extrusion has separate
 polarity representatives scoped to an extrusion call; the candidate now uses

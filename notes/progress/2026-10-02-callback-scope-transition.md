@@ -184,7 +184,7 @@ The frozen source contract distinguishes annotation position and form:
 |---|---|---|
 | Unannotated callback argument | Grants no new capture contract; callback-origin effects remain hygienic at that boundary | No new visibility derivation follows from this boundary |
 | Wildcard callback argument | Exposes inferred surface effects but does not erase other hygiene evidence | Preserve other lineage/visibility facts in the same relation |
-| Concrete callback computation argument | Lets handlers inside the receiving function consume only the named family from that argument computation | A source capture relation is required for that receiver scope; its transport through a nested concrete receiver remains open |
+| Concrete callback computation argument | Lets handlers inside the receiving function consume only the named family from that argument computation | Preserve is selected for an already-derived receiver/handler incidence across nested `CallView`; source derivation and proof remain open |
 | Covariant result | A concrete row statically filters escaping effects; omission/wildcard remains open | A result filter is checked at the result view and is not a runtime capture marker |
 
 These are source-level distinctions in annotation syntax and polarity. They
@@ -505,3 +505,22 @@ needs its own source-derived contract connection. Review otherwise accepted
 the per-request caller-owned-thunk distinction and found no new selector or
 obligation. This remains a projection candidate: source ownership rules and
 their soundness/principality proof are open.
+
+The `Capture` projection is now expressed as one join in the common source
+relation: request/value-flow ownership, handler installation under the exact
+receiver activation and argument contract, and typed operation compatibility
+at the same assignment. These are proof coordinates, not separate solver
+predicates. Nested `CallView` preserves an already-derived outer incidence but
+does not copy it to a newly installed nested handler. Compiler-referee and
+spec-auditor delta reviews found no remaining findings and confirmed that
+preservation stays selected, dynamic containment alone grants nothing, and
+escaped-handler eligibility remains open.
+
+Alternating implementation review rechecked the current HIR, solver, core, VM,
+and native surfaces. Resolved expressions still lack calls, Force, requests, or
+handlers; core and backend entrypoints remain documentation-only, and current
+effect substitution has no origin transport. This rule cannot be prototyped
+without major front-end, solver/scheme, and runtime work, before the source
+relation is settled. The next theory gate is to derive the call/value/handler
+incidences compositionally, including wrapper/forwarding and escaped
+closure/re-entry cases; repeat feasibility review after that gate.

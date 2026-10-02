@@ -1457,8 +1457,8 @@ activation `h` whose capture relation is attached by the ordinary source
 context relation to that exact receiver activation and argument-contract
 boundary. If the source evaluation/value relation attributes request `q[o]`
 in the callback's latent call/force behavior to the computation supplied at
-`a`, and the complete
-typed operation relation makes `q` compatible with `E` at `ν`, the relation
+`a`, and the complete typed operation relation makes `q` compatible with `E`
+at `ν`, the relation
 projects `Capture_ν(o,h)`. The attribution is per request: merely forcing a
 caller-owned thunk while executing the callback does not change its origin to
 one owned by `a`, and `E` cannot grant capture to it by family match. This is
@@ -1471,6 +1471,22 @@ The source evaluation/value relation still has to establish this ownership
 premise for direct callback requests, forwarded thunks, wrappers, and mixed
 computations. The frozen reference describes the callback contract but does
 not prove this successor derivation.
+
+The projection can be audited as one join in the common source relation: (i)
+the request-origin/value-flow derivation connects `o` to the computation
+supplied at `(r,a)`; (ii) the handler-installation/context derivation connects
+`h` to that same receiver activation `r` and argument contract at `a`; and
+(iii) the typed operation relation validates the request against `E` at `ν`.
+These are proof coordinates of the ordinary call, value, and handler
+transitions, not separate solver predicates. A nested call into receiver
+`r₂` transports an already derived `Capture_ν(o,h)` for an outer handler that
+remains active, but does not copy that incidence to a newly installed `h₂`;
+`h₂` needs the corresponding join for `r₂` from its own source derivation.
+For a closure that carries the callback computation beyond `r`, value flow
+may transport its origin and symbolic incidence, but whether a later handler
+activation can join them depends on the source-defined re-entry/value relation.
+That escaped-closure case is still open and must not be inferred from lexical
+nesting or family equality alone.
 
 By composition of these stage relations, the complete `CallView` preserves
 the handler-specific entitlement. This is conditional: the source
