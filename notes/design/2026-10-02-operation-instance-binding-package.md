@@ -5,16 +5,17 @@ Status: Draft; source-proof package; no implementation authority
 Scope: operation-local binder protocol, selected-instance compatibility, lifecycle dependency
 Approved-by: none for a new inference/generalization rule
 Drafted-by: primary with bounded architect and frozen-source audits
-Reviewed-by: compiler_referee and spec_auditor; scoped M3 package review complete
+Reviewed-by: compiler_referee and spec_auditor; scoped M3 package review; independent compiler_referee generic-arm correction delta, no findings
 Supersedes: no source decision; refines the existing complete OpCompat obligation
 
 ## 1. Existing authority and the missing distinction
 
 The coupled-interface core already requires compatibility for **every
 reachable selected request**, not for an existentially chosen compatible
-subset. It does not require every specialized arm to accept every possible
-instance of its operation declaration. The stronger uniformly generic proof
-is sufficient but is not the selected source acceptance criterion.
+subset. This selected-request condition is necessary, not sufficient for
+source declaration acceptance. Charter §19 records the user's correction:
+operation-local declaration binders require uniform arm checking; observed
+caller instances cannot specialize those binders to make an arm acceptable.
 
 The frozen parameterless `assertion::assert_eq` declaration demonstrates
 operation-local value and callback-effect variables not determined by the
@@ -91,10 +92,12 @@ the payload, raw continuation, latent values and live dependency incidence.
 ## 3. Arm compatibility over the same instance
 
 The arm's executable body, captured environment and source annotations are
-fixed. Its own input demands and response-producing expressions may be more
-specific than a uniformly polymorphic declaration. Instantiate its view of
-the operation declaration with the request's `theta`; do not derive a
-second unrelated operation-local witness from family equality.
+fixed. To check the declaration, fix the admitted family instance and open
+`beta_local` as fresh rigid names `kappa`. Check the arm uniformly under
+those names and the declaration's bounds, keeping captured/shared endpoints
+shared. Caller sites cannot solve `kappa = Int`. Only after this checking
+proof is established may it be instantiated at the actual retained `theta`;
+do not derive a second unrelated operation-local witness from family equality.
 
 The independent arm-body typing demands remain. For each selected request:
 
@@ -129,14 +132,16 @@ request from this implication. Runtime search still selects by the common
 ordered visibility/pattern/guard relation before the compatibility obligation.
 An incompatible selection is not forwarding.
 
-A uniformly generic proof establishes the condition for every admissible
-local substitution, which entails the implication. A closed specialized
-proof can instead establish it for all actual selected instances. For
-example, in the schematic source core with `op : forall a. a -> Unit`, an
-arm that increments its payload and resumes with Unit fits a selected Int
-request. It need not fit a Bool request. If both can be selected, the Bool
-case cannot be erased. This illustrates the already chosen quantifier;
-it is not a claim that a frozen compiler fixture certifies that program.
+A uniformly checked arm proof can be instantiated at every admissible
+retained local substitution, establishing the selected-request implication.
+The converse does not establish source declaration acceptance. The prior
+Int-only example is rejected by the user: for generic `sink::put : 'a -> ()`,
+an arm containing `my checked: int = x` is unacceptable even if all actual
+selected calls supply Int. Its rigid local input cannot be solved from those
+calls. Specializing a family parameter, using a concrete operation signature,
+or using the declaration's explicit bounds is distinct from specializing
+an unconstrained operation-local binder. Complete inference and completeness
+for uniformly checked generic arms remain unproved here.
 
 ## 4. Local preservation and declaration transport
 
@@ -253,14 +258,16 @@ The audit did not locate a fixture for two local type instantiations of one
 parameterless operation under one handler, an independent operation-local
 result variable, or a polymorphically stored resumption. Those capabilities
 are not certified or prohibited by the absence of fixtures. Frozen fresh
-variables are not proof of either universal arm parametricity or safe
-specialization; the reachable-selection criterion remains the authority.
+variables do not prove uniform generic-arm checking or safe specialization.
+Charter §19's source correction governs operation-local arm checking; the
+reachable-selection condition remains a necessary preservation obligation.
 
 This package closes declaration-local ownership/transport and the local
 payload-to-resume correspondence within its stated premises. It does not
 compute full `Psi_h` or settle generic operation inference. The next source
-checking construction must generate body demands using these shared
-declaration views and retain constraints for every selected instance,
+checking construction must check body demands uniformly under rigid local
+declaration binders, instantiate the checked proof at retained request views,
+and retain constraints for every selected instance,
 including operation-local callback effect parameters. Its interface must
 expose live dependencies needed by the later generalization proof; a finite
 register quotient cannot hide them or solve their scope by family equality.
@@ -268,4 +275,7 @@ register quotient cannot hide them or solve their scope by family equality.
 Full finite/principal source presentation, safe generalization, fresh
 instantiation, SCC intrusion, the later method/role gate and implementation
 remain open. The source protocol and interference attack need no new user
-semantic decision at this point.
+semantic decision at this point. The prior review's local conditional safety
+and request-instance transport scope remains; its source-acceptance claims
+are corrected above. Independent delta review closes this correction, not
+the remaining generic-arm inference/completeness proof.

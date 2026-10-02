@@ -447,8 +447,10 @@ has one declaration map, retained across payload, response, callback
 interfaces, raw suffix and symbolic `K,D`. Family equality forgets local
 coordinates. Opening an arm or resuming does not reinstantiate them;
 captured endpoints remain shared across all selected events. Actual arm
-demands are checked for every reachable selection; a uniformly generic arm
-is sufficient but is not mandatory by this package.
+demands are checked for every reachable selection. Charter §19 corrects the
+earlier source-acceptance claim: an operation-local generic binder cannot be
+narrowed from caller instances; rigid generic-arm checking must precede
+request-specific instantiation. Selected compatibility alone is insufficient.
 
 The reviewed result is local preservation under explicit body/store/typing
 premises and finite signature transport with preserved sharing. A shallow
@@ -558,7 +560,7 @@ signature, not an exact alias/visibility quotient. Universal error reflection
 and finite command refinement remain necessary for the principal safety
 certificate theorem; existentially finding a compatible packet is insufficient.
 
-The immediate next source gate is **interface encapsulation / template
+The next source gate at this checkpoint was **interface encapsulation / template
 closure**: derive a finite parametric or regular representation of arbitrary
 admissible client operation-local maps, original boundary profiles and their
 shared dependencies. A finite set of public family rows does not provide it.
@@ -568,7 +570,44 @@ implementation approval follows from this command-level construction.
 M3 semantic and conformance package review found no findings. Only static
 document/diff checks apply; no compiler tests, builds or measurements ran.
 
+## Parametric linking and corrected finite-program target
+
+`2026-10-02-parametric-component-linking.md` separates the charter's
+per-finite-program target from the stronger optional goal of one fixed
+grounded inventory for every future caller. The next source gate now follows
+finite parameterized component summaries, linked before constructing the
+program-specific descriptor/query inventory. This preserves a reusable
+scheme obligation; keeping source code and re-elaborating it at each use is
+insufficient.
+
+Finite graph grafting preserves shared external ports, local binder scope,
+operation substitutions, profiles and `K,D`, with graph-size construction
+for a supplied finite instance graph. The joint projection/linking law is
+exact when hidden witnesses are truly local and every shared dependency is
+exposed or bound once jointly. Neither law proves source generalization,
+finite instance generation, effective query solving or principal summaries.
+Abstract runtime addresses must not identify symbolic binder identities.
+
+Immediate next task: generate complete finite source constraint templates
+and prove their instance completeness/query closure for finite linked
+instances. Core §9 supplies complete invocation ports; the template must
+include their input-dependent obligations and joint context, not just body
+result rows or an opaque compatibility predicate. Milestone 4 subsequently
+must prove that actual generalization/freshening/SCC use generates the
+permitted instance graphs. The full objective and implementation gate remain
+unchanged; uniform grounded client coverage is no longer a mandatory detour.
+
+The user's `ints_only` correction also removes a false source requirement:
+there is no need to infer a caller-restricted scheme that legitimizes an arm
+narrowing a generic operation's local `'a` to Int. That declaration is an
+error. Preserve the generic arm's rigid quantifier scope in source templates;
+shared/captured existentials must not become independent witnesses under each
+local universal binder. The complete scoped checking/solving theorem remains
+open. This correction does not remove request maps or symbolic `K,D`.
+
 ## Main records
+
+- `notes/design/2026-10-02-parametric-component-linking.md` — finite grafting and exact joint linking; revised per-program proof target, source summary construction still open.
 
 - `notes/design/2026-10-02-heap-backed-client-interactions.md` — heap-backed command-driver coverage for a template-closed signature; arbitrary-client source encapsulation remains open.
 

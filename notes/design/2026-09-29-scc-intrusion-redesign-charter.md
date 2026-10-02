@@ -496,3 +496,39 @@ polymorphism is unaffected by that exclusion.
 This decision closes the result-synthesis blocker. Checking, symbolic solving,
 principal effect abstraction and lifecycle proofs must derive from it; their
 completion and compiler implementation are not implied by this source approval.
+
+## 19. User correction: a generic operation arm cannot narrow its local type binder (2026-10-02)
+
+The user explicitly rejected this source handler:
+
+```yulang
+act sink:
+    our put: 'a -> ()
+
+our ints_only(action: [sink] 'r): 'r = catch action:
+    sink::put x, k ->
+        my checked: int = x
+        ints_only(k ())
+    v -> v
+```
+
+The primary's preceding claim that this handler could be accepted when all
+selected requests supplied Int was incorrect. Operation-local polymorphism
+is not permission for the handler to constrain that binder to Int using its
+call sites. Record this rejection as source authority; frozen acceptance or
+rejection of the synthetic example has not been tested.
+
+`ReachSel => OpCompat` remains necessary for preservation, but is not a
+sufficient source arm-declaration rule. The derived checking formulation
+fixes the handler's family instance, opens operation-local binders as rigid
+names, checks the arm uniformly, and only then instantiates that checked
+proof at the actual request's retained map. The arm cannot solve the rigid
+name to Int. Captured/shared constraints remain shared; arm-local witnesses
+retain their proper inner scope.
+
+This correction does not forbid specialization of effect-family parameters,
+concrete operation signatures, or using constraints explicitly provided by a
+declaration. It does not alter ordered selection, shallow handling, callback
+visibility, symbolic instance transport or raw-resumption rules. The complete
+generic-arm inference rule, effective scoped solving and principal source
+template theorem remain to be proved; implementation is not authorized.

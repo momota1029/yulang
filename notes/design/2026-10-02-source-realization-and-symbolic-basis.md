@@ -384,6 +384,14 @@ The constructive results have the following boundary:
    still derive that signature or a finite parametric/regular replacement;
    the linked-client basis theorem above does not discharge it.
 
+   `2026-10-02-parametric-component-linking.md` now separates an alternative
+   per-program route: first link reusable finite constraint templates, then
+   construct that linked program's query inventory. It proves graph grafting
+   and the joint projection law under binder separation; source template
+   completeness and finite instance/query closure remain open. The stronger
+   uniformly grounded arbitrary-client inventory is not required by charter
+   §12 merely to establish a finite presentation per finite program.
+
 These gaps localize the remaining source theorem. None proves class 3 or
 authorizes narrowing the supported source envelope. The fixed-input result
 is class 1 for this abstract judgment; cyclic execution is covered without

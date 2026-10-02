@@ -2937,7 +2937,11 @@ request or independently solve captured endpoints. Keeping one request
 instance does not discharge either transfer direction. The package proves
 local preservation under those premises and identifies the still-open
 effectful-generalization dependency; it does not replace complete
-compatibility with family equality or impose universally generic arms.
+compatibility with family equality. Charter §19 requires uniform checking
+under rigid operation-local declaration binders before instantiating the
+checked arm proof at an actual retained request instance. Compatibility of
+all reached selections alone is insufficient for source declaration acceptance;
+family-parameter specialization remains distinct from local-binder checking.
 
 The first two value-transfer directions have a conditional safety
 justification: a request supplies a value of `Aθ`, so the arm must accept it;

@@ -1591,3 +1591,66 @@ Failure to have constructed it is not a nonexistence proof. No class-3
 witness or source-envelope restriction is introduced. Integration uses
 explicit staged paths, static diff checks and full outbound-range inspection
 before normal push of the research branch. The full objective remains active.
+
+### Parametric linking and the user correction to generic operation arms
+
+Previous goal turn: progress. The heap-backed command-driver package is
+reviewed and pushed as `2d9001809`. This turn revalidated that state and
+examined the remaining uniform-signature requirement. A bounded architect
+audit found that a fixed grounded inventory for every future caller is
+stronger than charter §12's finite-principal-presentation-per-program target.
+
+The new `2026-10-02-parametric-component-linking.md` constructs finite graph
+grafting for finite instance graphs and proves exact joint projection/linking
+under separation of genuinely local witnesses. Arbitrary finite caller type
+graphs can be grafted without unfolding; operation maps, original profiles
+and symbolic `K,D` retain shared references. Runtime abstract addresses must
+not become symbolic-variable identities. A reusable constraint summary still
+needs source instance completeness; re-elaborating the source body at each
+use or reusing a closed certificate outside its checked domain is insufficient.
+
+Initial independent semantic and conformance package reviews found no
+findings in these algebraic theorems and the corrected per-program target.
+Neither certified source template generation, query closure, generalization
+or implementation. The uniform grounded driver remains an optional route;
+the immediate research target is complete source constraint templates linked
+before constructing the program-specific predicate inventory.
+
+The user then asked for concrete Yulang examples of the blocker. A bounded
+read-only frozen syntax lookup supplied operation declaration, callback and
+handler syntax; no synthetic source was executed. The primary incorrectly
+presented a handler for `sink::put : 'a -> ()` containing `checked:int=x` as
+acceptable when selected requests supplied Int. The user explicitly rejected
+that handler. This corrects a source premise, not merely the explanatory
+example. Earlier package claims that reachable-instance compatibility could
+legitimize such declaration-local specialization are withdrawn by charter §19.
+
+The bounded architecture delta separates necessary selected-request safety
+from source arm admissibility. At a fixed family instance, operation-local
+binders are checked rigidly; only the resulting generic proof is instantiated
+at an actual retained request map. Captured/shared endpoints remain outside
+the arm's local universal scope; genuinely arm-local witnesses may remain
+inside. Family-parameter specialization and concrete operation signatures
+are distinct. No new callback case, source mechanism or method/role gate
+was introduced. Full scoped inference/completeness is still unproved.
+
+One implementer repaired the operation-instance package, its coupled-core
+summary and the new linking document's binder-scope clarification. The
+primary recorded the exact rejected Yulang example in charter §19 and
+synchronized task/index references. The source correction removes the false
+requirement to infer a caller-restricted scheme for that invalid handler;
+it does not erase operation-instance maps, typed-family invariance or `K,D`.
+
+M3 budget: bounded architect construction and correction audit, bounded
+syntax explorer, two initial package reviewers, one repair bundle and one
+fresh delta reviewer. Convergence requires closure of the corrected source
+premise and quantifier-scope dependency, without reopening unchanged graph
+algebra. Verification budget is static document/diff inspection only; no
+compiler changes, tests, builds or measurements (budget/consumption zero).
+The fresh independent compiler referee found no issue in the source
+correction, retained request-map transport or quantifier-scope clarification.
+The prior clean graph/linking algebra is carried forward. Source inference,
+safe generalization, executable acceptance and whole-source principality
+remain unverified. Tasks, charter, design index and affected dependency
+summaries are synchronized. Final static checks cover explicit staged paths;
+the full outbound range is inspected before normal research-branch push.

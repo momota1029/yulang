@@ -256,3 +256,11 @@ size fit one generated command driver for `S`. Whole-source inference still
 needs the finite/parametric signature, source checking and acceptance bridge.
 Generalization, fresh instantiation, SCC intrusion, the later method/role
 gate and compiler implementation remain open.
+
+The follow-up `2026-10-02-parametric-component-linking.md` corrects the
+research dependency: deriving one uniform grounded signature is stronger
+than the charter's finite-per-program target. Finite parameterized summaries
+can instead be linked before the program-specific inventory is constructed,
+provided source instance completeness and finite query closure are proved.
+This theorem's conditional driver remains valid; its uniform applicability
+gate is not a mandatory prerequisite for that alternative route.
