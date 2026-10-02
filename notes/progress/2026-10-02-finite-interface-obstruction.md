@@ -1413,3 +1413,63 @@ staging; no tests or builds run, measurement consumption zero. The coherent
 slice is committed and pushed only after full outbound-range inspection.
 Complete invocation checking remains the next source gate; the remaining
 milestones and full goal are unfinished.
+
+### Fixed-domain comparison and the input-variance boundary
+
+The preceding goal turn made progress: counting-aware projection was
+reviewed and pushed as `dbf6566fa`. The current branch was clean when this
+turn returned to the owning complete-invocation comparison question.
+
+The architect identified a constructive support-comparison subcase; a
+focused primary challenge separated it from Function-type inclusion. In
+particular, weakening the allowed support of a supplied callback enlarges
+the receiver's input domain. Keeping the receiver's formerly pure result
+does not remain sound merely because executable instructions are unchanged.
+The accepted construction therefore fixes admissible future interactions
+and weakens only guarantees. It does not assume double contravariance,
+declare cross-role assignments unsupported, or select an acceptance policy.
+
+Typed-computation-core §8 contains the integrated construction and proof.
+Finite paired regular descriptors retain non-support structure, actual
+entry/consumer code, original source slots, operation instances and shared
+dependencies. Two-bit propagation retains entire assumption subgraphs,
+shared writable/routing fields and mixed-role positions. Guarantee-only
+support fields emit membership implications; invariant fields emit equality.
+Recursive paths reuse graph nodes. Both the initial classification and an
+original source certificate remain explicit premises.
+
+The proof covers identical source execution under the same admitted
+arguments/responses, preserved `Path/Inc/Protected/Grant/Visible`, actual
+ordered shallow handling, and future latent use/raw resumption with current
+stores. It removes opaque inclusion leaves only for this fixed-domain
+certificate comparison. Complete Function inclusion still must justify
+newly admitted interactions. The old raw-resumption counterexample also
+shows why outward support cannot stand in for a pre-dispatch emission bound;
+routing equality remains universal in this construction.
+
+The bounded source audit distinguishes annotation-owned boundaries from
+receiving-use ownership. Current typed-boundary §6 says `Receive` creates
+no boundary or contract. Frozen `a58eefc3` `lowering/expr/lambda.rs:1357–1394`
+derives contract metadata from annotations and `896–908` attaches it to the
+parameter; `lowering/tests/case_05.rs:307–330` records different protection
+for annotated versus unannotated callback parameters. These have the
+`crates/infer/src/` prefix. The pure body under an effectful callable type
+in `crates/yulang/src/source/tests/case_01.rs:704–718,760–767` evidences
+inert construction, not preservation of an existing capture contract under
+Function assignment. No inspected fixture settles that broader comparison.
+No frozen routing rule was adopted as semantic authority and no test ran.
+
+M3 budget: bounded architect with scoped polarity clarification, evidence
+explorer, then independent semantic and conformance review of the complete
+§8 package and direct dependency cone. Both reviews found no findings.
+No repair round or additional reviewer was needed. They did not certify
+classification elaboration, original-certificate construction, general
+invocation containment, endpoint solving, source principality or lifecycle.
+
+Tasks/index and this progress record are synchronized. Verification is
+scoped diff/whitespace inspection; no compiler edits, builds, tests or
+measurements (budget and consumption zero). The coherent checkpoint uses
+explicit staged paths and inspected outbound commits before push. Next
+construct source-derived challenge/guarantee classification and complete
+invocation containment across different domains, including finite symbolic
+closure. The full proof-and-implementation objective remains active.

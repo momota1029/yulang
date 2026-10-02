@@ -8,6 +8,7 @@ Drafted-by: primary with bounded architect construction and independent semantic
 Reviewed-by: independent compiler_referee and spec_auditor, 2026-10-02; no blocking/major findings; minor handler-subcode construction clarification closed by primary
 Source-synthesis review: independent compiler_referee and spec_auditor, 2026-10-02; no findings in §6 result/consumer construction, source-role coherence and scoped substitution theorem
 Checking review: independent compiler_referee and spec_auditor, 2026-10-02; no findings in §7 proof-label erasure, actual receiver contract obligations and conditional adapter-obstruction scope
+Certificate-comparison review: independent compiler_referee and spec_auditor, 2026-10-02; no findings in §8 fixed-domain construction, routing preservation and scoped future-use theorem
 Supersedes: no source authority; refines the executable-code premise of source-computation-role §12
 
 Provenance: inert computation introduction, typed consumption and shallow
@@ -647,3 +648,186 @@ The old unknown-shape family remains available if that bridge actually
 derives it. Finite unbounded, regular, and genuinely non-finite presentations
 remain distinct; this audit supplies no class-3 counterexample and closes
 no generalization/intrusion or implementation gate.
+
+## 8. Constructive certificate comparison with fixed admissible interactions
+
+The first effective checking subcase must distinguish weakening a guarantee
+from enlarging the inputs that a callable promises to accept. A finite
+support comparison can discharge the former without an opaque `CIncl` leaf.
+It does not by itself discharge the latter. This section constructs that
+subcase and gives the exact remaining invocation obligation.
+
+### Why uniform support widening is not Function inclusion
+
+Take a receiver whose body invokes a supplied callback `g`. Its original
+interface admits `g : () -> [] Unit` and guarantees a pure result. Changing
+only the callback's admitted support to `[E]` while retaining the receiver's
+pure result is not sound: the newly admitted callback can perform `E` when
+invoked. The caller passes its argument inertly; the request occurs when
+the body actually invokes `g`, so no scheduling or extra-force convention
+is involved. This is a semantic counterexample to a proposed uniformly
+covariant comparison, not an Oracle acceptance claim or a new source rule.
+
+Even if all actual executable instructions are unchanged, the set of
+admissible future executions has changed. Thus equality of executions for
+one fixed argument cannot prove Function inclusion. Entry-role agreement
+and equal payload shapes do not remove this quantifier difference.
+
+### Input and finite constraint construction
+
+Fix a source component, its actual entry/consumer code and a finite regular
+complete-interface descriptor graph. The graph distinguishes:
+
+- admissible external challenges, including supplied arguments and raw
+  continuation responses;
+- guaranteed observations/results and their future latent interfaces;
+- original source boundary profiles, receipts and typed correspondences;
+- captured/shared writable views and their symbolic dependency references.
+
+These classifications must come from the complete interface semantics.
+The source result-synthesis theorem alone does not classify all latent,
+stored and shared paths. This is an explicit remaining elaboration premise,
+not an annotation that may be guessed by the checking algorithm.
+
+Compare two descriptions of that same component by traversing paired graph
+nodes, allocating pairs before following recursive edges. Require the same
+value constructors, entry/result roles, source operations, ordinary type
+endpoints and labeled typed correspondences, modulo one consistent renaming.
+Keep original profile/receipt identities and binder aliasing; a bisimulation
+of erased shapes cannot merge distinct source slots or captured variables.
+This is checking metadata: it does not replace any source annotation,
+introduce an adapter, or change the component's executable graph.
+
+On the finite paired graph propagate two bits, `A` and `G`, recording
+assumptions and guarantees:
+
+1. Mark the roots of all external challenges `A`, and propagate `A` through
+   their entire reachable descriptor, including nested callable interfaces.
+2. Mark guaranteed observation roots `G`. Traverse output/result/latent
+   edges with `G`; a guaranteed returned callable's argument edge seeds `A`.
+   Its completed result continues with `G`.
+3. Treat routing-profile and shared writable/dependent fields as invariant.
+   Any field with both bits is invariant. Unclassified fields are retained
+   unchanged; they do not become guarantees by default.
+
+In particular, crossing another Function input beneath an assumption does
+not turn it into a weakenable guarantee. This construction fixes the entire
+challenge domain; it is deliberately not double-contravariant subtyping.
+Capture into an environment is not inherently a mutable operation, but its
+already-shared imported interface is part of the fixed challenge/environment
+premises, not a newly solved local witness.
+
+Each node gains at most two bits, so the propagation terminates on recursive
+graphs. For each corresponding **genuine support upper-bound field**, emit
+
+```text
+G only:                 forall u. M_actual(u) implies M_checked(u)
+A, both, or invariant:  forall u. M_actual(u) iff M_checked(u).
+```
+
+All non-support fields remain unchanged. In particular, complete request
+instances, response types, latent value structure, original `K,D`, and live
+origin/lineage references are not weakened by the support rule. A shared
+field used as both assumption and guarantee acquires both bits. Equal row
+denotations at different typed positions do not identify those positions.
+
+Routing-profile presence, receiver/slot ownership and original typed paths
+are retained. A differently written presentation of an admission row must
+have equal membership for **all** request points, as well as the same exact
+operation coverage and profile presence. Empty admission does not imply
+absent protection. When an admission predicate is outside the membership
+grammar, this subcase requires that predicate to be retained identically;
+it does not invent an effective equality solver for it. If one compared
+field is also a capture contract, it must meet both its support and invariant
+routing requirements. A widened outward support bound never authorizes a
+change of capture contract.
+
+The open-row membership construction compiles the displayed constraints
+into finite Boolean circuits under one `nu`. The paired-graph inventory is
+at most the product of the two descriptor sizes; graph representation size
+includes edges and profile entries. No recursive signature is unfolded.
+Eligible residual row variables can subsequently use the pointwise or
+counting-aware projection theorem, with all of their dependency premises.
+Underlying endpoint/global predicate solving remains a separate obligation.
+
+### Source preservation theorem
+
+Let `Challenges` be the unchanged set of admissible finite interactions,
+including future calls/forces, supplied responses, stored values and repeated
+raw resumptions in compatible current stores. Suppose the component has an
+original certificate covering all such executions. If the structural and
+generated row constraints above hold, the checked description certifies the
+same executions, with its possibly weaker guarantee bounds.
+
+**Domain preservation.** Every assumption descriptor and imported/shared
+premise is retained. Latent exported callables keep their admitted argument
+interfaces; responses supplied to resumptions keep their complete types and
+dependencies. Therefore the new certificate requires no execution on an
+input outside `Challenges`. This is where the uniform-widening proposal
+failed. No new source restriction on permissible challenges is adopted;
+the theorem compares two certificates for this fixed domain.
+
+**Routing preservation.** Relate executable states by identity modulo the
+metadata renaming. Whole-argument construction, receipt-before-entry,
+explicit consumers and native return delimiters are unchanged. Typed
+transport composes the same source witness paths and retains the same
+profile presence and exact owner/handler identities. Hence `Path` and
+`Inc_C` agree at each actual search configuration. Admission equality gives
+the same `Grant`; equal profile presence gives the same `Protected`, even
+when no grant exists. Thus `Visible` and the ordered selection derivation
+agree. Matching, guards and arms execute in the same outside context.
+Selected-operation compatibility, including local witnesses and `K,D`, is
+the original obligation; support weakening neither filters it nor solves it.
+
+**Guarantee preservation.** At every designated observation, original
+certificate membership plus the generated implication gives membership in
+the checked bound. Structural endpoints and complete evidence stay the same.
+Induct on the finite interaction history and the intervening source steps.
+Returned latent values retain their paired descriptors; store transport and
+raw resumption use the same current state and inherited dependencies. The
+induction therefore covers later executions, not only the initial return.
+Shallow re-entry never reinstalls an expired handler. Divergence is covered
+through its finite prefixes; termination equivalence is not newly inferred
+from a row bound.
+
+The result is an effective **certificate-weakening judgment** for this
+fragment. Its generated constraints describe all assignments satisfying
+that judgment, and their eligible projection is exact. This is not a
+principal Function-type theorem, a derivation of the original certificate,
+or a proof that every sound source conversion lies in the fragment.
+
+### Why outward support cannot weaken routing obligations
+
+The raw-resumption counterexample in typed-boundary §4 already shows that
+an event may be relevant to an enclosing executing `CallView` before an
+inner handler consumes it. The event need not appear in that view's outward
+residual support. Therefore a condition such as
+
+```text
+outward_support(u) implies equal_capture_admission(u)
+```
+
+does not justify profile replacement. The current checker retains routing
+universally. A future support-restricted optimization needs a separately
+proved bound on pre-dispatch observations, not an outward row substituted
+for that bound. This reuses the existing common-source counterexample; it
+does not add a callback-specific semantic rule.
+
+### Next complete invocation gate
+
+What remains is comparing **different admissible interaction domains** and
+different value/entry descriptions while preserving actual source contracts.
+Such a theorem must quantify over all newly admitted caller arguments and
+future responses and show that the actual component meets their complete
+invocation obligations. Ordinary variance is a proposed consequence of that
+theorem, not a premise supplied by support-row syntax. Finite source sites,
+fixed operation/arm maps, or the present certificate checker do not prove
+its finite symbolic closure.
+
+No source acceptance is removed by this sufficient fragment. Cross-role
+assignments, admitted casts, unknown shape solving, full source principality
+and the generalization/instantiation/intrusion gates remain required. The
+method/role gate stays downstream unless their concrete dependency appears
+earlier. The useful finite construction here removes opaque comparison for
+fixed-domain certificate weakening while keeping the actual broader source
+obligation explicit.

@@ -494,6 +494,31 @@ domain-capacity conditions, so both row interpretations need those facts
 to decide satisfiability. Tests/builds/measurements were not run for this
 documentary construction.
 
+## Fixed-domain certificate comparison checkpoint
+
+Typed-computation-core §8 constructs the first comparison subcase without
+an opaque inclusion leaf: fixed admissible interactions, unchanged actual
+entry/contracts/complete evidence, and weaker guarantee support bounds.
+Finite paired descriptors propagate assumption/guarantee bits; assumptions,
+shared writable dependencies and routing remain invariant. Global row
+constraints express only the permitted guarantee implications. Original
+symbolic `K,D` and complete request instances stay in place.
+
+The input-callback counterexample rules out treating this as uniformly
+covariant Function subtyping: admitting an effectful callback while keeping
+the receiver's formerly pure result can fail. No source acceptance rule is
+changed. The reviewed raw-resumption counterexample also prohibits using
+outward effect support to bound every pre-dispatch routing observation.
+
+The source gate is now precise: derive challenge/guarantee classification
+from complete source interfaces and construct invocation containment for
+different admissible arguments/responses, with finite symbolic closure.
+The §8 theorem assumes that classification and an original certificate;
+it does not generate either from arbitrary source. Its actual-entry and
+profile-preservation proof covers future use and raw resumption within the
+unchanged domain. This closes one finite comparison kernel, not Milestone 3,
+general Function inclusion, lifecycle or implementation readiness.
+
 ## Main records
 
 - `notes/design/2026-10-02-counting-aware-row-projection.md` — exact counting-aware row elimination with bounded residual thresholds; complete invocation checking remains the source dependency.
@@ -505,7 +530,7 @@ documentary construction.
 - `notes/design/2026-10-02-parametric-open-row-presentation.md` — finite open point-row schema, exact eligible projection and positive recursion; full source interaction remains open.
 
 - `notes/design/2026-10-02-source-result-synthesis-choice.md` — authoritative A: source result synthesis preserves known computation interfaces; explicit introduction alone adds a pure layer; result interpretation is not polymorphic.
-- `notes/design/2026-10-02-typed-computation-core-elaboration.md` — reviewed constructive derivation-core translation/simulation; source consumer coherence and finite principal inference remain open.
+- `notes/design/2026-10-02-typed-computation-core-elaboration.md` — constructive source translation, result coherence and fixed-domain certificate comparison; changing interaction domains and finite principal inference remain open.
 - `notes/design/2026-10-02-source-call-scheduling-choice.md` — authoritative A: first-class computation introduction is inert, whole-argument reification precedes receiver elimination; conditional discriminator and exact acceptance-evidence limits retained.
 - `notes/design/2026-10-02-source-computation-role-elaboration.md` — corrected active source map, producer-placement obstruction and common invocation entry expansion; raw-source scheduling/typing and finite solved/parametric presentation remain open.
 - `notes/design/2026-10-02-typed-source-owner-realization.md` — reviewed owner-span/control and typed-view context construction; user-selected outside-image equation.
