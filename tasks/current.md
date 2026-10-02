@@ -2,17 +2,29 @@
 
 Updated: 2026-10-02. Branch: `research/simple-sub-intrusion`.
 
-The callback `Force` scope is now isolated as an unresolved source decision:
+The callback `Force` scope remains a separate unresolved source decision:
 whether an explicit `[F]` callback contract creates capture incidence for an
 inherited caller request forced during that callback, while preserving its
-caller origin. Existing preservation and family-equality constraints do not
-settle it, and frozen docs do not choose. A and B produce different handler
-images; both need the same missing origin/incidence/`K,D` carrier, and neither
-can be prototyped through current resolved HIR or scheme interfaces. The
-question has been presented to the user; do not proceed with dependent source
-semantics until answered. Evidence and exact alternatives are in
+caller origin. A and B produce different handler images; both need the same
+missing origin/incidence/`K,D` carrier. The user's escaped-closure preference
+does not decide this imported-Force case. Keep it isolated and continue source
+proofs that do not depend on it. Evidence and alternatives are in
 `notes/design/2026-10-01-coupled-effect-interface-core-draft.md` and the
 latest section of `notes/progress/2026-10-02-successor-implementation-feasibility.md`.
+
+For escaped callbacks, the user selected ordinary caller handling as the
+default: a fresh handler may consume a retained latent request only when the
+ordinary current source relation, ordered visibility search, and `OpCompat`
+derive eligibility. Maker capture is activation-scoped and does not transfer
+by family equality; closure return preserves origin, symbolic `K,D`, latent
+effects, and required runtime lineage. No persistent boundary mask is adopted
+without an independent source principle. The five discriminators and the
+remaining source-adequacy gap are recorded in the coupled-effect draft and
+the latest callback-scope progress entry. Continue by deriving the fresh
+handler/origin join from ordinary closure/application rules, then revisit
+finite handler-image/principality and implementation feasibility. The latest
+read-only implementation audit found no resolved call/Force/handler execution
+path or effect-lineage carrier, so this remains theory-only.
 
 The common Force/dispatch composition was reviewed without choosing A/B. A
 `Capture(origin, handler)` pair cannot act as a globally reusable grant because

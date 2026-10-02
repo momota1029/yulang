@@ -1336,17 +1336,62 @@ abstraction limitation, not proof that all sound finite presentations must
 reject it. Record the checker/runtime conflict without treating either
 outcome as the successor rule.
 
-The post-return source choice is explicit:
+The user's selected default is ordinary caller handling, conditional on the
+ordinary current source relation deriving visibility for that particular
+request and caller activation. The maker's callback contract does not transfer
+to a fresh handler by family equality, and its continued runtime lineage is
+not itself a grant or a mask. No independent source-language principle has
+been identified that would make the maker boundary persistently mask later
+handlers. A mask therefore has no place in the successor absent a new
+source-level reason.
+
+This is a choice of semantic direction, not a completed source theorem. The
+common relation must still derive how the escaped request's origin and
+lineage join a fresh caller handler under ordinary closure/application rules.
+If it cannot, do not silently treat lineage as that join and do not infer a
+mask from its failure. Return a concrete source-level counterexample for
+reconsideration. Until that derivation exists, the ordinary-handling clause is
+conditional and no pure caller result follows merely from the callback's
+latent row.
+
+The discriminators constrain that derivation. For an escaped callback, return
+removes maker-local handler activations while preserving the closure's latent
+request, origin, symbolic `K,D`, and required runtime lineage; invoking the
+closure under a fresh handler uses only that handler's ordinary `Visible`
+derivation and ordered search. A direct ordinary effectful closure must use
+the same ordinary handler relation. A mixed-origin wrapper keeps separate
+request origins and `K,D` even when requests share one typed family, so neither
+origin lends the other a maker grant. A two-request shallow-resumption case
+must route the raw suffix through the actual handler image rather than
+subtracting the whole latent row after the first request. Every actually
+selected arm remains subject to universal `OpCompat`; compatibility does not
+alter runtime selection.
+
+| Discriminator | Consequence of the selected default | Remaining proof obligation |
+|---|---|---|
+| Escaped callback under a fresh caller handler | Preserve latent request and lineage; allow handling only if ordinary current `Visible` and ordered search derive it | Derive the fresh-handler/source-origin join; maker grant alone proves neither eligibility nor ineligibility |
+| Mixed-origin callback and caller thunk | Keep event origins and each symbolic `K,D` incidence distinct; family equality transfers nothing | Prove closure/Force/application transport in one valuation; the separate imported-Force A/B gate remains open |
+| Ordinary effectful closure | Retain its latent effect and use the same ordinary handler relation | Prove the escaped case is a consequence of the same relation, not a callback-only rule |
+| Repeated request with raw shallow resumption | A fresh handler may consume one request without erasing an unhandled suffix | Compute the complete handler image over reachable continuations |
+| Ordered selection with typed incompatibility | Search selects by ordinary runtime/source order and visibility; an actually selected incompatible arm makes the typing derivation fail | Prove universal `OpCompat` over reachable selected events |
+
+These cases reveal no source-level reason for a persistent maker-boundary
+mask. They do not yet prove source adequacy, soundness of the full handler
+image, or principality of its finite abstraction.
+
+The previous alternative table is retained as a compatibility record, with
+the user's preference now fixed:
 
 | Source rule for the caller's fresh handler | Result for the escaped request | Compatibility consequence |
 |---|---|---|
-| Ordinary caller handling is permitted when the current source relation makes that handler eligible | The caller handler may consume the request after ordered matching; the maker's grant is not transferred | May retain the Oracle's final acceptance if the finite handler image proves a pure result; requires repairing the frozen runtime route |
-| A carried callback boundary masks this later handler | The request remains in the outward effect and an unhandled request is possible | The pure caller annotation is rejected when the request remains reachable; requires a source proof for the mask, not imitation of runtime guard routing |
+| Ordinary caller handling when the current source relation makes that handler eligible | **Selected default.** The caller handler may consume the request after ordered matching; the maker's grant is not transferred | May retain Oracle final acceptance if the finite handler image proves a pure result; runtime route must agree with source semantics |
+| A carried callback boundary masks this later handler | Rejected absent an independent source-language principle; the request would remain in the outward effect | Do not adopt to imitate frozen runtime routing |
 
 Both rules preserve the closure's latent request and mandatory runtime
 lineage. Fresh activation IDs, request origin, callback-contract identity,
-symbolic `K,D`, and ordered handler stack remain distinct. No choice is
-selected here; the frozen checker and runtime disagreement does not decide it.
+symbolic `K,D`, and ordered handler stack remain distinct. The frozen checker
+and runtime disagreement does not decide the source rule; the user's selected
+default and the remaining proof boundary above do.
 
 #### Nested concrete receiver: selected preserve clause and proof gate
 

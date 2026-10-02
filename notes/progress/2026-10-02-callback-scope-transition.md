@@ -557,8 +557,71 @@ converge on this boundary. The design now records two unselected rules:
 ordinary caller handling when the complete source relation permits it, or a
 source-justified carried-boundary mask. Both retain latent effects and runtime
 lineage; neither may be selected from frozen runtime routing. Exact pure-caller
-acceptance still depends on the finite handler-image abstraction. This is a
-genuine source decision to resolve before the escaped-closure proof gate.
+acceptance still depends on the finite handler-image abstraction. The user's
+subsequent ordinary-caller preference resolves the semantic direction below;
+it does not supply the missing source-adequacy derivation.
+
+### Escaped callback eligibility: ordinary caller default (2026-10-02)
+
+The user selected ordinary caller handling as the default for an escaped
+callback. A later caller handler may handle its request only when the ordinary
+current source relation, handler-relative `Visible`, ordered search, and
+`OpCompat` derive that result. The maker's callback-capture authority belongs
+to its receiver activation and cannot transfer to a fresh handler by family
+equality. Normal return ends that activation, but does not erase the returned
+closure's latent effects, request origins, symbolic typed-family constraints,
+`K,D` incidence, or required runtime lineage. Lineage transport alone is
+neither a fresh grant nor a persistent mask. No independent source-language
+reason for a carried mask has been established; do not add one to reproduce
+frozen runtime routing.
+
+The requested discriminators were checked against the common relational
+presentation:
+
+1. **Escaped callback:** the `maker(f) = \_ -> f()` witness installs no
+   handler in `maker`, so expiring a maker handler cannot settle the fresh
+   caller's eligibility. The request must remain on the returned function;
+   caller handling is a new `Visible` derivation, not a transfer of maker's
+   grant. This is consistent with the relational model but the ordinary
+   closure/application rule that joins the escaped origin to the fresh handler
+   remains to be derived.
+2. **Mixed origin:** a closure that forces a caller-owned thunk and then issues
+   a callback-origin request must retain two request events and their distinct
+   origins and `K,D`, even if both share one family instance. Neither an
+   origin-level owner bit nor family equality may lend maker capture to the
+   caller request. The separate imported-Force A/B policy remains unresolved.
+3. **Ordinary effectful closure:** the direct `\_ -> choose::reject()` control
+   retains `[choose]` and its ordinary caller handler returns `3`; its pure
+   caller annotation is rejected by the frozen checker. The direct and
+   escaped closures should use the same current-handler relation whenever
+   their complete source visibility derivations coincide. This equivalence is
+   still a source-adequacy obligation, not a proved identity of origins.
+4. **Repeated request and shallow resume:** consuming the first request does
+   not subtract a whole latent family when a later request in the raw suffix
+   runs outside the shallow handler. The complete stateful handler image must
+   account for the suffix.
+5. **Ordered selection and compatibility:** ordered search selects by source
+   visibility and order. Every actually selected arm must satisfy universal
+   `OpCompat`; an incompatible selected arm rejects typing rather than being
+   reclassified as forwarding to an outer compatible arm.
+
+These cases show that ordinary caller handling is the preferred semantic
+direction without a new callback-only selector or sticky boundary construct.
+They do not yet prove the fresh-handler/source-origin join, full source
+adequacy for closure and Force transport, soundness of the complete handler
+image, or principality of its finite abstraction. If deriving ordinary
+visibility produces a genuine source-level counterexample, return that
+counterexample for reconsideration; do not patch it with an ad hoc mask. The
+compatibility record and the precise conditional rule are in the
+coupled-effect draft, “Candidate and open boundary lifetime for callback
+capture contracts.”
+
+The alternating implementation-feasibility check remains negative: current
+resolved HIR has no call, Force, request, or handler execution rules, and
+current effect substitution has no origin/`K,D` transport. Core and backend
+entrypoints are still stubs. This semantic slice has no bounded production
+prototype until those interfaces exist, so continue the source relation before
+another implementation audit. No implementation, tests, or builds were run.
 
 ### Next bounded source theorem after preservation selection
 
