@@ -377,7 +377,36 @@ later gate unless a concrete ordinary-effect dependency requires it sooner.
 No class-3 witness, complete finite principal presentation, lifecycle gate
 or compiler implementation approval follows from this checkpoint.
 
+## Parametric open-row presentation checkpoint
+
+`2026-10-02-parametric-open-row-presentation.md` extends the previous closed
+point-row theorem to open support variables. It constructs membership
+circuits for union, intersection, relative difference, head filtering and
+guarded alternatives, then generates exact inclusion/equality constraints.
+Global alternative derivations remain whole blocks, never independently
+chosen per request. Shared family endpoints and global `K` stay fixed.
+
+Eligible local row variables have exact finite Boolean projection; a support
+witness proves it works for finite rows as well as arbitrary sets. Variables
+with surviving incidence or family-argument/guard dependencies cannot be
+hidden by that theorem. Monotone recursive equations from the same
+zero-preserving grammar admit at most one bit increase per recursive variable
+per request, hence at most `n` simultaneous symbolic rounds. Least recursive
+closure and the all-solutions relation of recursive constraints are distinct.
+
+This is a concrete finite row-schema construction, not merely a name for
+semantic inclusion. Boolean projection may grow exponentially but remains
+finite. It supplies no complete source acceptance, contextual Function
+checking or exact shallow-handler transformer. The current grounded `PΩ`
+basis does not yet cover arbitrary new client endpoints merely because a
+parametric membership schema can be applied to them. The next package must
+connect those symbolic requests to the joint invocation/handler interface
+with typed paths, current state, original contract slots, and future/resumed
+use. Full Milestones 3–6 remain open.
+
 ## Main records
+
+- `notes/design/2026-10-02-parametric-open-row-presentation.md` — finite open point-row schema, exact eligible projection and positive recursion; full source interaction remains open.
 
 - `notes/design/2026-10-02-source-result-synthesis-choice.md` — authoritative A: source result synthesis preserves known computation interfaces; explicit introduction alone adds a pure layer; result interpretation is not polymorphic.
 - `notes/design/2026-10-02-typed-computation-core-elaboration.md` — reviewed constructive derivation-core translation/simulation; source consumer coherence and finite principal inference remain open.

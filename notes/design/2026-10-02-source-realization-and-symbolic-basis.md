@@ -123,6 +123,14 @@ that underlying type equality/subtyping is decidable, or that a solver may
 treat related predicate valuations as independent concrete type assignments.
 Boolean cells lacking a realizing `ν` have empty concrete interpretation.
 
+The separate `2026-10-02-parametric-open-row-presentation.md` constructs a
+finite schema for open typed-row membership constraints. Substituting an
+operation request into that schema computes its membership formula without
+enumerating all future requests. This extends the available symbolic row
+algebra, but does not prove that novel client endpoints/grounded queries
+belong to the fixed finite `T/PΩ` inventory here. Connecting these parametric
+queries to complete invocation and handler interactions remains required.
+
 The name-level bound is
 
 ```text

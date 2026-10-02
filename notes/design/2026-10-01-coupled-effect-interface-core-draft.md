@@ -4161,6 +4161,14 @@ assignment-dependent route/coverage, or recursive SCC closure. It is a local
 representability/principality result conditional on exact source-rule
 generation, not yet the successor scheme theorem.
 
+The follow-up `2026-10-02-parametric-open-row-presentation.md` extends the
+point-support coordinate to open rows: structural membership circuits,
+whole-block alternatives, exact hiding of eligible row variables, and
+monotone recursive row closure have finite parametric presentations. It
+retains global family assignments and excludes hidden coefficient/incidence
+dependencies. This does not turn request support into the complete handler
+or Function interface, nor supply uniform future-client execution contexts.
+
 ### Independent external uses versus internal SCC references
 
 The constrained presentation gives a direct product lemma for independent

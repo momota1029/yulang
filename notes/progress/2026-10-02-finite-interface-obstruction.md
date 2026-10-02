@@ -1174,3 +1174,64 @@ package. Measurements: zero samples, zero measurement processes. The coherent
 checkpoint uses explicit staging and complete outbound-range inspection
 before push. This slice narrows the source-obligation gap; the full goal
 remains active and incomplete.
+
+### Finite parametric open-row construction
+
+The preceding source-checking turn is classified as progress: it produced
+the reviewed `cca2c2b54` checkpoint and changed the next source obligation.
+The next bounded architecture/locator audit found no existing constructive
+open-client driver or effective complete Function-inclusion game. Instead
+of naming that missing relation again, this package constructs the open-row
+part that had previously been limited to closed point rows.
+
+`2026-10-02-parametric-open-row-presentation.md` gives structural membership
+circuits for empty/singleton/open rows, union, intersection, relative
+difference, fixed-assignment guards and head filters. Inclusion/equality
+become pointwise Boolean constraints under the same invariant family
+assignment and global `K`. Finite relational alternatives remain unions of
+whole constraint blocks, preserving correlations that would be lost by
+choosing a branch independently for each request.
+
+The package proves exact projection of local membership-only row variables
+by finite Boolean enumeration. A zero witness outside the named points and
+retained supports proves the construction equally for finite rows and
+arbitrary subsets, without a new source-row universe decision. Family
+endpoints and hidden rows referenced by family-argument types, guards or
+surviving `K,D` cannot be eliminated by this theorem. The resulting formula
+is the exact joint image; no witness branch or exported row is solved
+independently from the others.
+
+For monotone recursive row equations compiled from the zero-preserving
+grammar, the package constructs the least solution in at most `n` symbolic
+rounds for `n` recursive variables. This follows pointwise from the Boolean
+height bound and preserves finite support by induction. All-solutions
+recursive constraints remain distinct: `Y=Y` is not replaced by `Y=empty`
+unless the source-derived operation actually specifies least closure.
+The representation/cost result is finite parametric syntax, with potentially
+exponential Boolean projection. It is not a fixed finite set of grounded
+queries for every future client and not a full-source class-3 result.
+
+M3 review: one bounded architect, one locator explorer, independent
+compiler_referee/spec_auditor package reviewers. They identified the same
+recursive-support premise issue (semantic major/spec minor): monotonicity
+alone admits an absolute-complement counterexample. The primary accepted
+the issue and sent one documentary repair bundle to one implementer.
+The repair explicitly requires the §2 zero-preserving grammar, adds support
+induction and clarifies hidden coefficient dependencies. A fresh semantic
+review closed the accepted finding with no remaining issue in the repair
+and its direct theorem premises; settled package parts were carried forward.
+
+Next connect the parametric request queries to a finite complete
+invocation/handler interaction presentation. Unknown future request points
+can now be supplied to one row schema, but future caller contexts, closure
+bodies, original contract slots, live state and resumptions still need their
+joint theorem. Required executable conversions and final Oracle acceptance
+remain open; no source rejection, lifecycle completion or implementation
+permission was inferred from this mathematical result.
+
+The primary synchronized tasks, the design index, the closed-point theorem
+locator and the finite-basis boundary. Documentary verification uses scoped
+diffs and whitespace checks, including the new artifact after explicit
+staging. Tests/builds not run; measurement budget and consumption both zero.
+The coherent checkpoint is subject to full outbound-range inspection before
+push. This is progress toward Milestone 3; the full goal remains active.
