@@ -1,11 +1,11 @@
 # Typed source transport and resumption ownership
 
 Date: 2026-10-02
-Status: Draft; initial package reviewed; repair closure unavailable; selector-extent source choice pending, with conditional outside-image proof
+Status: Draft; initial and repair delta reviews clean; selector-extent source choice pending; conditional outside-image proof reviewed
 Scope: ordinary decorated source control, typed value transport and live owner realization
 Approved-by: user for charter §13 transport/lifetime principles; concrete realization unapproved
 Drafted-by: primary with bounded resumption-owner architect input
-Reviewed-by: compiler_referee and spec_auditor initial package reviews; major completion-routing finding repaired but not independently closed
+Reviewed-by: compiler_referee and spec_auditor initial package reviews; fresh compiler_referee delta review found no major issue, two minor findings addressed by primary
 Supersedes: none
 
 ## 1. Claim and exact input
@@ -257,26 +257,20 @@ so their applicable grants remain available under the reviewed relation.
 The initial semantic review found that an intermediate owner completion was
 incorrectly described as returning directly to the resumer. Section 2 now
 gives inductive control contexts, parent completion and a separate root
-return. Independent closure review of this repair has not run: launching a
-fresh reviewer and restarting existing reviewers both failed with the tool's
-`agent thread limit reached` error. Initial conformance review found no
-authority violation. These facts do not certify the repaired theorem.
+return. Fresh semantic delta review found no blocking or major issue in that
+repair or the conditional selector account. Two minor issues were addressed
+by clarifying the typed discriminator and recording the existing coupled-core
+outside-context candidate language. The conformance review found no authority
+violation. This certifies only the reviewed conditional candidate, not which
+selector extent governs the successor.
 
-A related control obligation remains explicit. A pending handler search may
-run an effectful guard. If that guard suspends, an outer handler may unwind
-the candidate handler, and a forwarded source wrapper may later instantiate
-a fresh handler occurrence. The pending search's candidate reference must
-then either be a still-live exact occurrence or resolve to the current
-source-prescribed occurrence; a stale expired handler ID cannot be selected.
-The present owner-slot map alone does not specify that handler-control
-reference transition. Resolve it from the common handler/search control
-relation, including whether the candidate is active during the guard phase,
-and prove it with the context reconstruction invariant. This is a primary
-proof obligation, not an independently established source counterexample or
-a new callback rule. Consequently the guard/search case above and the full
-decorated-kernel preservation theorem remain unclosed. Section 6 localizes
-the selector-extent source choice and proves a conditional resolution for
-outside matching; that choice and independent review are still pending.
+The selector-extent question is now explicit in §6. Under its outside-image
+interpretation, the guard/match continuation runs as `Bind` outside H, so it
+contains no live candidate-handler reference. The fresh semantic delta review
+found no major defect in this conditional account or the parent-completion
+repair. It did not decide which selector extent governs the successor.
+Therefore the decorated-kernel theorem remains conditional on the user's
+source choice; the inside interpretation needs its own handler-control proof.
 
 The four saved-context constructors, source suffix labels with typed
 environments, owned/borrowed pending frames, control environment links and
@@ -310,24 +304,32 @@ chosen abstract judgment already accepts every intended well-typed source.
 
 The remaining guard obligation cannot be settled by renaming a handler ID.
 The extent in which the handler's own pattern/default/guard computation runs
-must first be specified. Ordinary-computation §5 retains those computations
-but does not say whether the candidate handles their new requests.
-Syntax-v0 `expressions/case-catch.md` explicitly excludes guard/handler
-semantics from its authority. The coupled core's `Match_i` equations already
-give ordinary state-threaded sequencing, but a recursive handler application
-around that result is a separate semantic choice.
+must be specified. Syntax-v0 `expressions/case-catch.md` explicitly excludes
+guard/handler semantics from its authority. The coupled core already records
+in prose that guard effects run in the outer active context
+(§`Step_H`, lines 849–859), but that core remains a Draft and not an
+authoritative successor decision. This package makes its outside interpretation
+explicit and derives its continuation consequence.
 
 ### Source-level discriminator
 
-Use operations `E : Unit -> Unit` and `P : Unit -> Bool`, and result type
-`Int`. This is semantic pseudocode, not an executed or accepted Yulang fixture:
+Use operations `E : Unit -> Int` and `P : Unit -> Bool`, and common handler
+result type `Int`. Every operation arm and value arm below returns `Int`;
+the E and P guard arms deliberately do not resume their continuations. This
+gives compatible answer types under the ordinary effect-operation typing
+direction. It is still semantic pseudocode, not an executed or accepted
+Yulang fixture:
 
 ```text
-outer H0: P(_,k) -> k(true)
+outer H0:
+    P(_,k) -> k(true)
+    E(_,k) -> k(7)
+    v      -> v
 inner H1:
     E(_,k) if perform P() -> 0
     E(_,k)               -> 2
     P(_,k)               -> 1       // does not resume k
+    v                     -> v
 body of H1: perform E()
 ```
 
@@ -336,12 +338,19 @@ If H1 surrounds its own guard computation, the guard's `P` can select H1's
 outside H1, `P` goes to H0; resuming it with `true` completes the pending
 guard and chooses the original E arm, yielding `0`. There are no callback
 contracts or type-family tricks in this distinction. Both computations use
-the displayed ordinary payload/result types. Thus this is a source execution
-choice, not interchangeable owner bookkeeping or a new callback exception.
+the displayed ordinary payload/result types and identity value arms. The
+inside policy wraps the whole selector plus its `Finish_H` in H1's handler
+answer delimiter; handling only the guard expression with an `Int`-answer
+handler would be ill-typed because that expression supplies `Bool`. Thus this
+is a source execution choice, not interchangeable owner bookkeeping or a new
+callback exception.
 
 The user has been asked which extent to adopt. The outside interpretation
-below is a conditional candidate, not an approved default. No compiler or
-source-acceptance conclusion follows before that choice and review.
+below is a conditional candidate, not an approved default. “Inside” and
+“outside” describe two uniform policies for the entire selector/finish
+computation; they are not an exhaustive list of every possible mixed policy.
+No mixed policy has source evidence here. No compiler or source-acceptance
+conclusion follows before that choice and review.
 
 ### Characterization evidence
 
@@ -430,10 +439,17 @@ is unnecessary in this interpretation. The initially suspected stale-ID
 case assumed that matching still ran under H; it is not a counterexample to
 the outside-image equation.
 
-This conditional lemma is primary reasoning awaiting independent review.
-Adopting it requires explicitly refining the older informal `Select(h,arm)`
-wording: eligibility is checked at H's body boundary, while completion of
-that event's ordered match may occur later outside H. Full source safety,
+The conditional lemma has a clean scoped semantic delta review: no blocking
+or major finding; two minor findings were addressed here. The typed
+discriminator now gives E an Int resumption and explicit identity value arms,
+and specifies the answer delimiter needed by the inside policy. The existing
+coupled-core outside wording is acknowledged as candidate evidence, not
+treated as authority. No evidence settles mixed policies.
+
+Adopting the outside interpretation requires explicitly refining the older
+informal `Select(h,arm)` wording: eligibility is checked at H's body boundary,
+while completion of that event's ordered match may occur later outside H.
+Full source safety,
 the finite principal presentation and acceptance equivalence are still not
 proved by this control lemma. The inside interpretation would instead need
 its own nested dispatch and handler-control preservation theorem; the two

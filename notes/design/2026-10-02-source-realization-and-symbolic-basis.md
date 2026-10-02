@@ -102,6 +102,13 @@ The name-level bound is
 |PΩ| ≤ |J₀| + Σ_{s∈Σ}|T|^(a_s) + |O||H| + |B||O|.
 ```
 
+The observer-frame candidate in §4 adds no fresh dynamic type endpoint, but
+its `Route(stage, actualPath, port, ν)` test may depend on the source effect
+typing relation. To apply this basis theorem, all symbolic conditions used by
+`Route` must be included in `J₀` or supplied by a finite-arity schema in `Σ`.
+The present basis construction does not yet prove that closure; leaving
+`Route` as a heap oracle would invalidate the source-instantiation claim.
+
 Let `D` be a heap relation whose records link predicate names to dynamic
 instances of templates in `V`, requests, values, store roots, or continuations.
 There can be arbitrarily many records in an execution; their field tags and
@@ -146,11 +153,13 @@ are static labels in `Ω`.
 Closure/Thunk(body, env, lineage)      Cell(value)
 Binding(slot, value, next)            Link(value, next)
 Call(invocation, owner, boundary, parent)
+ObserverFrame(site, viewRoot, portDescriptor, receiverRefs, parent, mode)
 Handler(activation, owner, site, env, parent)
 Suffix(site, env, next)
 ReenterCall(template, env, suffix, next)
 ReenterHandler(template, env, suffix, next)
-Request(opTemplate, payload, origin, event, dependencies, suffix)
+Request(opTemplate, payload, origin, event, dependencies, observations, suffix)
+EventObservation(event, observerOccurrence, port, actualPath, next)
 Dependency(predicateTemplate, view, next)
 Search(request, candidate, crossed, phase)
 Adapter(boundaryTemplate, value, phase, next)
@@ -159,7 +168,7 @@ Adapter(boundaryTemplate, value, phase, next)
 Field count is fixed per tag; a larger source tuple has a statically fixed
 tag or linked spine. Identities point to their fresh allocation records.
 The roots hold the current control/environment, live mutable store, active
-activation head, continuation, and pending search. Saved suffixes retain
+activation and observer heads, continuation, and pending search. Saved suffixes retain
 code, environments and references to cells, never the old contents of the
 mutable store. A raw continuation may be stored and resumed multiple times.
 
@@ -173,8 +182,10 @@ are not allowed as unexamined fields.
 | Source clause | Heap control |
 |---|---|
 | return / bind | return to the saved site and environment using the current state; a request carries the appended suffix |
-| closure application | enter body using the closure environment and caller's live store/active head; push the fresh invocation and its return suffix |
-| invocation suspension / resume | save the source invocation wrapper; execute its re-entry around the suffix using the supplied live state |
+| closure application | enter body using the closure environment and caller's live store/active heads; push the fresh invocation and its return suffix |
+| typed CallView entry / exit | enter or leave exactly its executing observer occurrence; nested entries preserve all enclosing active observers |
+| request observation | use source-derived `Route(stage, actualPath, port, ν)` over every applicable active enclosing observer; retain one event-observation edge per witness |
+| invocation suspension / resume | save the source invocation and crossed observer scopes with the suffix; execute re-entry using the supplied live state and reinstate only scopes entered by that source suffix |
 | thunk construction / force | store or enter the body/environment; copy origin and predicate/dependency references |
 | operation construction / request | store the fixed typed operation instance; on demanded force allocate a new event with that instance |
 | search | walk current active frames in order, updating the active head on unwind; retain pending search across pattern/guard evaluation |
@@ -186,6 +197,14 @@ consumed handler. Expiration changes active roots, not heap reachability.
 Stored handler records alone are not active. Frame ownership/reference
 remapping on resumed invocation occurrences must agree with the source
 wrapper; this table does not invent a fresh capture grant by remapping an ID.
+Observer frames are likewise execution bookkeeping, not authority. A saved
+frame does not count as a running `Observe` witness while the captured suffix
+is outside it; a resumed suffix re-enters its source-prescribed observer
+scope without making an expired receiver or handler active. The `Route`
+relation must be a finite source-derived effect-port mapping, not an adapter
+tag, family-membership test, or heap-reachability query. This paragraph is a
+candidate lowering contract: source selector extent and full observer
+suspension/re-entry simulation remain open.
 
 `2026-10-02-typed-source-owner-realization.md` supplies an explicit candidate
 for that ownership protocol: saved executable owner spans resolve to exact
@@ -256,21 +275,34 @@ shrink `S`; that is disclosed abstraction loss, not a concrete source error.
 The follow-up `2026-10-02-typed-boundary-realization-draft.md` constructs finite
 recursive adapters for fixed resolved Function/Thunk graphs. The user selected
 typed-value transport for both scope choices; its §6 now gives the common
-transport/query candidate. It does not select general `≈`, derive shapes and
-profiles from raw source, or prove re-entry ownership and arbitrary-client
+transport/query candidate. A typed-flow map transports value/profile paths,
+but it does not alone identify the effect port at which a request emitted by
+an executing adapter subcomputation is observed. §4 of that package now makes
+this distinction explicit: the ordinary source `CallView` relation must
+derive the event-to-observation edge, while typed flow carries the boundary
+profile to the corresponding view port. The finite adapter pair graph does
+not supply that edge on its own. This is one incidence graph with distinct
+value-flow and request-observation edge domains, not a new adapter-specific
+visibility rule.
+
+The package does not select general `≈`, derive decorated `CallView` ports
+and profiles from raw source, or prove re-entry ownership and arbitrary-client
 closure.
 
 The constructive results have the following boundary:
 
 1. **Visibility realization.** Typed-boundary §6 now supplies common typed
-   transport, receiving ownership and exact-handler incidence, with an
-   effective graph query for supplied finite signature profiles/maps. Its
-   composition and lifetime package is reviewed. Derive those profiles/maps
-   from source typing and establish exact re-entry ownership to instantiate
-   it for all source rules. Active-frame walking alone does not prove callback
-   relevance. Preserve concrete-contract visibility uniformly through
-   direct/Force exposure, nesting, escape and shallow re-entry. Do not add
-   boundary exclusions merely to make the traversal executable.
+   value flow, receiving ownership and exact-handler incidence. The incidence
+   path has two source-derived parts: typed correspondence carries a boundary
+   profile between matching value paths, while ordinary `CallView` execution
+   relates each exposed request event to its complete-view effect port. The
+   fixed-shape adapter pair graph supplies operational control but not that
+   event-observation link. Derive profiles, typed maps, observation links and
+   exact re-entry ownership from source typing to instantiate the common
+   relation for all source rules. Active-frame walking alone does not prove
+   callback relevance. Preserve concrete-contract visibility uniformly
+   through direct/Force exposure, nesting, escape and shallow re-entry. Do not
+   add boundary exclusions merely to make the traversal executable.
 2. **Adaptation realization.** The coupled core's thunk/function equations
    leave boundary equivalence `≈`, admissible payload conversions and other
    non-thunk conversions unspecified. Supply finite recursive descriptors

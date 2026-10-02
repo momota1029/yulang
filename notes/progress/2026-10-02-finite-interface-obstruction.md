@@ -6,13 +6,32 @@ Status: generic conservative construction proved; source instantiation open; no 
 
 ## Latest constructive result and review
 
+### Independent closure resumed
+
+This continuation follows local checkpoint `4582b546c`; the previous turn
+was progress. A fresh compiler-referee review was available and closed the
+owner-context repair and conditional outside-image selector proof with no
+blocking/major findings. It found two minor clarity issues; primary repaired
+the witness with operation `E : Unit -> Int`, explicit identity return arms,
+and a complete answer delimiter for the inside comparison, and acknowledged
+the existing coupled-core outside-context statement as non-authoritative
+candidate evidence. The two earlier thread-limit failures are resolved for
+this slice. Current diff is record and minor wording synchronization only.
+
+The review does not choose selector extent or certify source typing,
+principality, full source realization, or implementation readiness. The
+asynchronous user source-choice question remains unanswered. No semantic
+interpretation is adopted as authoritative. No tests, builds or measurements
+ran; the focused repair and record delta passed Git whitespace checks. Goal
+remains active.
+
 ### Selector-extent audit and conditional completion
 
 This continuation follows local checkpoint `6b0a8a85d`; the previous turn was
-progress. The existing reviewer follow-up was retried and again failed with
-`agent thread limit reached`. This is the second consecutive turn with that
-review-execution blocker, but meaningful source analysis remained possible.
-The source-owner candidate is still not certified or pushed.
+progress. At that point, the existing reviewer follow-up had been retried and
+again failed with `agent thread limit reached`; the next continuation resumed
+review execution and produced the closure recorded above. The source-owner
+candidate was not certified or pushed at that earlier checkpoint.
 
 The pending-guard issue is not only ID remapping. The ordinary source package
 and syntax-v0 do not specify whether a handler's own pattern/default/guard
@@ -38,15 +57,14 @@ matching needs source code, a cursor and environment, not a revived live
 handler ID. Eligibility of the original event was tested at the body's
 boundary; its delayed match completion supplies no grant to a new event.
 The finite-interaction preservation argument is recorded as primary,
-conditional reasoning awaiting source selection and independent review.
+conditional reasoning awaiting source selection; the conditional proof now
+has independent scoped semantic review.
 The forwarding wrapper wording also now explicitly retains the source
 value-arm computation before returning to its parent context.
 
-This continues the same M3 control package and convergence criterion; no
-new reviewer panel, tests, builds, Python, or measurements were run. Git
-whitespace/scope checks cover the local research checkpoint only. Source
-choice, repair review, full typing, principality and implementation remain
-open; no completion or accepted compatibility loss is claimed.
+This was the M3 control package. Source choice, full typing, principality and
+implementation remain open; no completion or accepted compatibility loss is
+claimed. The latest M3 review and minor clarification are recorded above.
 
 ### Typed source owner realization (current slice)
 
@@ -136,6 +154,52 @@ incidence on raw resumption; a different handler requires a current derivation.
 Symbolic `K,D` and the shared assignment remain with the transported graph.
 Ordinary source §4 links this refinement and disambiguates its previous
 generic boundary wording.
+
+A focused packet-theorem delta review found that the original profile map was
+defined only on effect ports while `D` also names value, residual and
+continuation dependencies. §6 now defines the correspondence over tagged
+typed paths, restricts `χ` to effect paths, transports only mapped `D`
+endpoints, and retains original source incidences. The reviewer found that
+repair closed the major domain mismatch. It also requested explicit same-input
+and same-query premises for route invariance; the theorem now fixes tagged
+input packets, `ν`, receipt, candidate and current configuration. No source
+rule changed and no test/build/measurement ran. Profile/correspondence
+derivation from source and the other realization gaps remain open.
+
+The next bounded construction audit found a precise interface gap between
+adapter control and typed effect observation. For `(Thunk(E,Unit),Unit)`,
+`ForceThen(Id)` can emit `E` although its output value has no effect port.
+Therefore the adapter pair cannot map that event through value correspondence
+alone. The common incidence graph now keeps typed `Flow` edges separate from
+`Observe(q,v,p)`, which is induced by the ordinary complete-`CallView`
+execution relation. Boundary profiles flow only on matching value paths;
+requests link to the current computation's typed effect port. Future latent
+execution uses a new observation at its result path. This is one common
+relation with distinct path sorts, not an adapter-specific rule. The finite
+pair bound does not construct or prove completeness of these decorated
+observation links; deriving them from source typing remains an exact
+Milestone-3 premise. This is missing construction evidence, not a class-3
+non-finiteness result.
+
+The bounded semantic review found no blocking/major issue and confirmed that
+`Observe` must relate an event to every applicable enclosing complete
+CallView, not only the innermost one. The conformance review found one minor
+premise gap: equal route applicability also fixes the same event-observation
+witnesses. §6 now states this. The source relation must eventually prove
+observation completeness, including nested preservation; the conditional
+finite adapter graph does not establish it. No source rule was changed.
+
+The reviewed realization candidate uses bounded `ObserverFrame` and
+`EventObservation` records. Per execution prefix, with `I` observer entries,
+`Q` events and `A_j` applicable observer ports for event `j`, it allocates at
+most `I + Σ A_j` extra links. Dynamic storage remains unbounded across
+execution; static templates are finite for a finite descriptor graph. This
+is a workable class-1 resource shape, not a finite abstract-machine or exact
+principality proof. The unsettled premises are the finite source `Route`
+mapping, suspension/re-entry of observation scopes, abstract identity
+correlation, and selector extent. New handler-arm events cannot use saved
+observer frames, but observation links of the triggering event remain for
+dispatch after suspension.
 
 M3 budget: bounded read-only architect construction input; independent
 compiler-referee and spec-auditor package review; one implementer repair
@@ -482,3 +546,69 @@ No new fixture rules, compiler changes, tests, or performance measurements
 were added. Milestone 4 remains dependent on a defined Milestone-3
 presentation. Method/roles/implementation resolution stays a later mandatory
 gate.
+
+### Typed-path scope closure delta
+
+The user's latest instruction reaffirmed the two typed-value transport
+choices. Reviewing the ordinary source package against the returned-latent
+case exposed a wording mismatch: its `Capture` iff still required the request
+to cross the original callback's complete CallView. That was too narrow once
+the boundary profile had been transported to a returned latent result path.
+The source formula now derives incidence from `Inc_C`, whose `Path` witness
+requires the same-view receiving receipt, matching typed `Flow`, and the
+event's own `Observe`. Thus a later latent request uses its later view's
+observation while the receiver is live; the completed callback CallView is
+not kept active. The typed-boundary theorem makes the corresponding
+composition argument explicit and states that absence of a signature path or
+same-view receipt yields no incidence. Expiry removes current incidence but
+leaves transported evidence, origin/event, latent behavior, and symbolic
+`K,D` intact. Profiles still cannot be copied from an outer effect port to
+unrelated nested positions.
+
+Focused semantic and exact-conformance delta reviews report no remaining
+finding in this conditional theorem. They did not review source elaboration,
+`Route` completeness, suspension/re-entry ownership, abstract identity
+correlation, open/unknown shapes, or source typing/acceptance. No tests,
+builds, code edits, or measurements were performed. These premises remain
+open Milestone-3 proof work, so this closure does not authorize
+implementation.
+
+A primary consistency pass then found two summary sentences in ordinary
+semantics §1/§4 that still described capture as requiring the event itself to
+cross the original callback argument/CallView. They now state the same
+`Flow`/`Receive`/`Observe` condition as the detailed formula, including a later
+matching latent result path. Focused semantic and conformance delta reviews
+found no overgrant or residual restriction in those statements. The exact
+source-derived `Route` and its suspension/re-entry behavior remain open.
+
+### Source observation projection and exact remaining premise
+
+A bounded architect audit inspected the governing source documents and
+syntax references. No existing typing/elaboration judgment derives which
+request occurrence is exposed at which decorated effect port. Naming an
+`Exposure` premise would only rename `Route`; no source algorithm follows
+from `Run` plus value `Flow` alone. The missing content is typed
+computation-port ownership and the handler boundary at which a request has
+been observed versus filtered from a later outward computation.
+
+The typed-boundary draft now defines `Observe` as the projection of a common
+typed, view-delimited execution derivation. A request witness is fixed at a
+reached typed request boundary before ordered candidate search; handler
+selection cannot retroactively change eligibility for that event. A shallow
+image can consume it for later outward support or forward the same event with
+its historical witness. A newly emitted arm event derives witnesses from the
+currently executing scopes; suspended child scopes do not observe it. A later
+latent event uses its result-path view and its own observation. This is a
+conditional semantic definition, not a finite route algorithm: the source
+typing derivation must still supply each request-to-port relation and all
+symbolic guards.
+
+The semantic delta review adversarially checked `ForceThen(Id)`, selected and
+forwarded shallow requests, fresh arm events inside an enclosing view, and
+post-CallView latent use. It closed one wording issue that had excluded
+enclosing views for arm events; a second delta review closed that repair. No
+finding remains within this conditional observation definition. Unresolved
+proof gates are the source port derivation, its closure in the finite
+symbolic basis, selector extent, complete suspension/re-entry simulation,
+and finite abstract identity correlation. No compiler changes, tests, builds
+or measurements were made.

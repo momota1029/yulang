@@ -23,7 +23,7 @@ The redesign charter governs. F5 Function generalization is comparison/rollback 
 |---|---|---|
 | 1. Coherent ordinary computation semantics for calls, closures, `Force`, requests, callback visibility, and shallow handlers | Candidate source semantics uses the user's rule: concrete typed callback boundaries govern direct and Force-exposed request visibility; origin/identity/`K,D` remain distinct and `Force` creates no authority | Preserve this boundary rule in Milestone 2; no callback micro-cases without a counterexample |
 | 2. Source-to-complete-interface adequacy/simulation | Closed for the candidate ordinary machine: exact embedding covers initial `R`, primitive source-rule images, latent future use, and typed resumptions; bind lifting separately reviewed | This proves the candidate machine embeds in its exact complete interface, not that current Yulang typing derives the candidate binder ownership or has a finite presentation |
-| 3. Finite symbolic presentation | Finite heap carrier and principal safety-certificate theorem reviewed for a declared conservative abstract judgment; source instantiation remains open | Prove source refinement/error reflection, finite endpoint basis, and future-interaction coverage; bridge to intended typing and audit final acceptance before selecting the abstraction |
+| 3. Finite symbolic presentation | Finite heap carrier and principal safety-certificate theorem reviewed for a declared conservative abstract judgment; selected typed-value transport now has a reviewed conditional path-indexed packet theorem; source instantiation remains open | Prove source refinement/error reflection, finite endpoint basis, and future-interaction coverage; bridge to intended typing and audit final acceptance before selecting the abstraction |
 | 4. Generalization, fresh instantiation, SCC intrusion | Waiting on a Milestone-3 presentation | Prove lifecycle transport for that presentation, including external uses, internal SCC sharing, parent ports, and symbolic effects |
 | 5. Implementation feasibility | Deferred until milestone 4 determines required surfaces | Targeted architecture/resource audit of the reviewed semantics and representation |
 | 6. Implementation | Not authorized | Explicit user-approved design, completed required gates, implementation and verification |
@@ -112,35 +112,74 @@ positions. Charter §13 records this decision. Typed-boundary draft §6 gives
 the common relational image, receiving-owner incidence, local grant/protection
 query, composition/expiry laws and conditional concrete realization. Package
 review repaired exact-handler expiry and retention of both actual result-view
-evidence and matching callee-result evidence; fresh semantic delta review is
-clean. Persistent source profiles are not cached handler grants. Raw-source
-profiles, path correspondences and exact resumption owner mapping remain
-source-realization obligations; no additional
-source choice or implementation approval has been inferred.
+evidence and matching callee-result evidence. A further delta review required
+the typed correspondence domain to include all typed dependency paths while
+restricting boundary profiles to effect paths; it also made route invariance
+hold for the same tagged inputs, assignment, receipt, candidate and current
+configuration. The resulting conditional theorem is clean. Persistent source
+profiles are not cached handler grants. Raw-source profiles, path
+correspondences and exact resumption owner mapping remain source-realization
+obligations; no implementation approval has been inferred.
 
-The next source-realization package is
-`notes/design/2026-10-02-typed-source-owner-realization.md`. It constructs
-saved executable owner spans: borrow an exact still-live owner, otherwise
-allocate a fresh execution occurrence, leaving original boundary references
-unchanged. Initial M3 review found a major captured-parent completion omission.
-The repair makes saved contexts inductive and routes inner completion through
-the remaining captured suffix before the root returns to the resumer.
-Independent repair closure is pending: both fresh reviewer launch and existing
-reviewer restart failed with `agent thread limit reached`. Do not call this
-theorem closed or push its unreviewed repair. A primary follow-up obligation
-is the current handler reference of a pending effectful guard/search after
-forwarding re-entry; owner-slot resolution alone does not yet define it.
-The follow-up §6 audit shows the guard's execution extent is a genuine source
-choice: whether the candidate handles effects from its own pattern/default/
-guard. A simple E/P discriminator yields different Int results. The user was
-asked to select outside matching (recommended) or inside matching; no answer
-has been assumed. The outside-image candidate derives pending search from
-ordinary bind and eliminates stale-handler rebinding without creating live
-authority for new requests. It remains conditional and unreviewed. Frozen
-Oracle source supports outside propagation as characterization only. The
-reviewer follow-up retry again failed with the same thread-limit error.
-Next apply the user's extent decision, complete the common source relation
-and obtain independent semantic closure when reviewer execution is available.
+The user's latest instruction reaffirmed this shared transport rule. The
+source theorem now states capture incidence through `Inc_C`, so its `Path`
+witness includes receipt of the same typed view by the candidate owner as well
+as matching `Flow` and event-specific `Observe`. This closes a wording gap
+that had tied an event too narrowly to the original complete CallView. A
+later latent request instead uses its own observation of the returned view
+and a profile transported only along the signature's corresponding result
+path; the original CallView is not kept executing. The same result follows by
+relational-image composition as environment/store transport. Semantic and
+conformance delta reviews found no remaining finding in this conditional
+theorem. Source `Route`, observer suspension/re-entry, exact owner mapping,
+finite identity correlation and source typing/acceptance remain open.
+
+The fixed-shape adapter graph does not itself identify the complete-`CallView`
+effect port for a request emitted while an adapter subcomputation runs. Keep
+typed value `Flow` separate from source-derived request `Observe`: the
+`Thunk(E,Unit) -> Unit` / `ForceThen(Id)` case emits an effect without an
+effect-bearing output value. This is a missing source typing/elaboration
+input, not a finite-presentation obstruction. A finite observer-frame
+realization is now a conditional candidate: per-prefix dynamic link count is
+finite and unbounded, while finite source templates reuse linked records.
+An independent source-authority audit found no existing typing/elaboration
+judgment that derives which source event is exposed at which typed port. The
+typed-boundary draft now defines `Observe` as a projection of the common
+typed, view-delimited execution derivation and explicitly separates
+pre-dispatch witnesses from handler-transformed outward support. Independent
+semantic and conformance reviews found no circularity or conformance finding
+in that conditional definition. Its exact missing input is still the
+source-derived typed port correspondence and request typing; the definition
+does not itself provide the missing rule or finite `Route` algorithm. The
+next Milestone-3 action is to derive that port relation from the unified
+source semantics and prove its lifting through bind, call, force/adaptation,
+handler selection and resumption; then show all symbolic guards lie in the
+finite basis. Observer suspension/re-entry, selector extent and abstract
+identity correlation remain separate open premises. Equal-route comparisons
+must fix the same event-observation witnesses. Do not infer this link from
+an adapter tag, family equality or output shape.
+
+`notes/design/2026-10-02-typed-source-owner-realization.md` now has a fresh
+semantic delta review. It repaired owner-span completion so a child return
+continues its captured parent suffix and only the root returns to the current
+resumer. The review found no blocking/major finding in this repair or the
+conditional outside-image selector relation. Two minor findings were fixed:
+the E/P discriminator now supplies compatible Int answer types and identity
+value arms; and the prior coupled-core text saying guard effects run in the
+outer context is recorded as candidate evidence, not authority. Earlier
+reviewer thread-limit errors are closed for this slice; the current gate has
+M3 semantic review coverage.
+
+The one remaining source choice is selector extent: outside the candidate H
+or inside its handler image. The ordinary semantics package and syntax
+reference do not decide it, while the non-authoritative coupled-core draft
+supports the outside interpretation. A typed E/P discriminator documents
+that the choice affects observable results. The outside candidate follows one
+shallow-image/ordinary-bind relation and preserves expiry; independent review
+of that conditional proof is clean. User selection is still pending. Do not
+adopt either source rule or begin implementation until that decision is
+recorded. If the user chooses inside, derive its nested handler-image proof
+before continuing lifecycle.
 
 The further interaction gap is uniformity: a finite presentation for every
 separately linked finite client does not establish one component presentation for all
@@ -159,7 +198,7 @@ Implementation feasibility evidence is recorded in `notes/progress/2026-10-02-su
 
 ## Main records
 
-- `notes/design/2026-10-02-typed-source-owner-realization.md` — owner-span/control-context construction; repair closure pending; §6 records selector-extent choice and conditional outside-image control proof.
+- `notes/design/2026-10-02-typed-source-owner-realization.md` — owner-span/control-context construction with clean semantic delta review; selector extent awaits user choice; outside-image control proof is conditional.
 - `notes/design/2026-10-02-typed-boundary-realization-draft.md` — selected common typed-value transport and reviewed conditional transport/lifetime theorem package; reviewed fixed-shape cyclic adapter construction and symbolic equality; full realization open.
 - `notes/design/2026-10-02-source-realization-and-symbolic-basis.md` — finite ownership inventory, conditional operational realization, selected-fault reflection, and exact remaining source definitions.
 - `notes/design/2026-10-02-finite-abstract-safety-presentation.md` — reviewed generic finite carrier and principal certificate theorem; source application open.
