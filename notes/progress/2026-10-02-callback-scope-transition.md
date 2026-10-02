@@ -534,3 +534,13 @@ store. The lemma neither snapshots the live handler stack nor proves that an
 escaped request is visible to a later handler. Compiler-referee review closed
 this statement with no findings; source closure/re-entry adequacy,
 non-injective intrusion, and full solution-fiber preservation remain open.
+
+The escape analysis now separates retained `Capture_ν(o,h)` incidence from
+the active-frame premise of `Visible`. If ordinary return removes `h` from
+`κ`, that old activation is no longer eligible even though the closure retains
+its latent request and symbolic `K,D`; continuation resume may restore the
+same `h`, while a newly installed `h'` needs its own source join. This is the
+ordinary activation exit consequence, not suspension at a nested receiver.
+Compiler-referee review confirmed it is consistent with selected preservation
+and runtime guard-lineage transport, without treating a guard marker as a
+handler activation.

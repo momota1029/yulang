@@ -180,3 +180,11 @@ creation can be represented for narrow collection cases, but the reviewed
 `Tr_θ`/captured-environment/re-entry equation cannot be exercised end to end.
 The next plausible implementation checkpoint is after the ordinary resolved
 call and value/environment relation exists; no code change is authorized now.
+
+The active-frame/escape corollary also has no executable host yet: current
+resolved HIR has no handler construct or call transition, and the VM/native
+crates expose no activation-stack push/pop/resume path. Existing static
+`HirOccurrenceId` cannot represent a runtime handler activation or prove that
+normal return removes exactly that activation while continuation resume
+restores it. The reviewed result remains a semantic consequence of the common
+machine candidate; implementing it awaits the broader runtime path.

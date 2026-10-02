@@ -39,6 +39,16 @@ path. Next derive source closure/re-entry behavior and its visible-handler
 condition, then repeat implementation feasibility; see the updated callback
 and feasibility records.
 
+One escape consequence is now proved conditionally from `Visible`'s active
+frame premise: normal return removes an exited handler `h` from `κ`, so its old
+capture incidence cannot make it active for a later closure call. The closure
+still carries latent requests and `K,D`; continuation resume may restore the
+same `h`, while a fresh handler `h'` needs its own source join. Compiler-referee
+review found no conflict with preserve or runtime guard-lineage transport.
+Reinspection confirms there is no current call/handler activation stack to
+implement this rule. Next close source closure/re-entry and fresh-handler
+visibility, keeping active activation identity separate from value lineage.
+
 This turn corrected the non-authoritative intrusion sketch's misleading
 one-parent-per-variable picture. Ordinary Simple-sub extrusion has separate
 polarity representatives scoped to an extrusion call; the candidate now uses

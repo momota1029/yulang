@@ -1488,6 +1488,21 @@ activation can join them depends on the source-defined re-entry/value relation.
 That escaped-closure case is still open and must not be inferred from lexical
 nesting or family equality alone.
 
+One part of the escape case follows from the existing activation-indexed
+`Visible` judgment. `Capture_ν(o,h)` is an incidence fact; it does not keep
+`h` active. If normal return exits the activation containing `h`, the return
+transition removes `h` from `κ`, so `Visible_ν(q,h,κ)` no longer holds even if
+a returned closure carries `o`, `K,D`, and boundary lineage. A saved
+continuation that resumes across that exit may restore the same activation
+`h` only through the source resumption transition. A later, independently
+installed handler `h'` is a distinct activation and needs its own
+source-derived capture connection; value-carried guard lineage alone does not
+identify `h'` with `h`. Thus normal return/unwind ends the old handler's
+eligibility through the active-context premise, without erasing the latent
+request or its symbolic incidence. This does not settle whether that request
+is visible to another active handler or whether a source value relation
+transports additional re-entry lineage.
+
 By composition of these stage relations, the complete `CallView` preserves
 the handler-specific entitlement. This is conditional: the source
 typing/evaluation rules must prove each stage premise, particularly the
