@@ -112,6 +112,46 @@ whether that powerset is the source's expressible type domain remains
 unproved, and finite cyclic type graphs may be the correct class-2 model once
 their semantic preservation is established.
 
+## Finite/regular quotient construction inquiry
+
+The regular-stack-only quotient is rejected: active and captured stack words
+do not retain the alias relation between a saved continuation's reference
+and a caller handler guard's reference. The same witness also rejects any
+independent marginal-store abstraction that forgets this incidence and has no
+separate exact selection witness. It does not reject a relational graph that
+retains the incidence, nor a marginal store paired with an independently
+proved exact selection relation.
+
+The next representation candidate is a joint rooted relational graph whose
+candidate roots/edges connect finite source sites, ordered active frames,
+suspended invocation/re-entry wrappers, captured environments, live cells,
+closure/thunk environments, continuation roots, and receiver/handler
+incidence. It must retain runtime identity equality and aliasing under
+consistent renaming, while keeping request origin and dynamic event identity
+distinct from handler authority. The same graph must transport source-owned
+symbolic binders and joint `K,D` incidence. These are candidate coordinates
+to investigate, not a selected sufficient representation.
+
+Finite source labels and alpha-renaming do not bound graph size or prove a
+regular graph grammar. The full construction still needs effective closure of
+the symbolic predicate language, treatment of existentially local identities,
+and universal latent-value/resumption future use. A source-image theorem must
+preserve actual ordered-selection admissibility and the complete shared-`ν`
+fibers through calls, `Force`, store updates, effectful guards, dispatch,
+forwarding, raw resumption, and suspended invocation re-entry. Forward
+simulation or may-support coverage alone cannot prevent invented incompatible
+routes from rejecting an otherwise admissible assignment. A separate
+projection theorem must then establish the least representable interface for
+the chosen derivation preorder.
+
+Classification remains open for the joint effect interface: class 1 is not
+established; class 2 is plausible for control components but unproved for the
+joint capture/store/resumption/type-family graph; class 3 has no established
+witness and is neither concluded nor excluded. The fixed-`Q/P` saturation
+theorem only proves termination after the quotient, predicate closure, source
+image, and projection premises are supplied. A resource ceiling cannot stand
+in for those proofs.
+
 The user explicitly permits class-1 resource limits. A later representation
 may cap an explicit structural dimension such as presentation nodes, symbolic
 states, or saturation work. Exceeding the cap must produce a deterministic

@@ -48,6 +48,15 @@ complexity failure, never an `ill-typed` result. Its metric, threshold, check
 point, no-truncation behavior, and atomic publication belong to the later
 resource design gate; no numerical limit is selected now.
 
+The next quotient inquiry rejects stack-only and independent marginal-store
+abstractions that forget captured/caller alias incidence without an exact
+selection witness. Investigate a joint rooted capture/store/continuation graph
+with shared symbolic `K,D`; this is a candidate, not an established finite or
+regular representation. Prove source-image closure preserving actual ordered
+selection, latent/resumption future use, existential identities, and shared-`ν`
+fibers, then prove least representable projection. Class 1/2/3 remain
+unclassified for the complete interface, with no class-3 witness.
+
 ## Current work
 
 The milestone-1 candidate is `notes/design/2026-10-02-ordinary-computation-semantics-package.md`. It defines one state-threaded `Run` relation, concrete closure-frame re-entry under the current caller store/activations, latent `Force`, per-event origins and symbolic `K,D`, event-relevant ordered visibility, and shallow handler images. The user selected preservation of existing callback incidence while its receiver is active, ordinary current-handler search after escape, and concrete typed-boundary visibility for both direct and Force-exposed requests. `Force` exposes latent computation but creates no authority; origin and `K,D` remain event-specific.
