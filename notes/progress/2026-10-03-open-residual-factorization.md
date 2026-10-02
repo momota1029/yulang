@@ -42,11 +42,18 @@ procedure.
 
 ## Remaining gate
 
-First formalize and prove normalization equivalence and the conditional
-factorization, including recursive pair feedback, variance, invariant mutual
-comparisons, alias identities and permitted-name propagation. Then construct
-an effective joint representation for residual satisfiability plus projection
-when unknown Record labels and recursive feedback vary. Source generation,
-uniform scoped typing, effect/family compatibility, lifecycle, full
-acceptance, termination/resource bounds and implementation remain open. The
-full goal is active.
+The conditional two-direction normalization-equivalence proof is in §4.1 of
+the candidate and received a clean compiler-referee review. Its finite state
+bound still assumes stable finite guard/evidence contexts. Operation-instance
+§8 grounds inherited lexical context, identity-distinct sibling openings, and
+invalidation/requeue behavior for a finite unsealed equality construction;
+this does not establish coverage for every source-generated subtype check or
+sealed lifecycle path.
+
+Next establish the source-wide context transition system while separating
+immutable lexical identity from mutable dependency certification. Then
+construct an effective joint representation for residual satisfiability plus
+projection when unknown Record labels and recursive feedback vary. Uniform
+scoped typing, effect/family compatibility, lifecycle, full acceptance,
+termination/resource bounds and implementation remain open. The full goal is
+active.

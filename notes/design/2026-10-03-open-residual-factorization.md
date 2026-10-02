@@ -3,7 +3,7 @@
 Status: Reviewed
 Date: 2026-10-03
 Scope: candidate factorization theorem for open structural bounds after scoped rational equality quotienting
-Reviewed-by: compiler_referee and spec_auditor (M3, 2026-10-03); after one major and one minor repair, compiler_referee delta review found no findings
+Reviewed-by: compiler_referee and spec_auditor (M3, 2026-10-03); initial structural-outcome repairs, conditional factorization-lemma review, and operation-instance context delta found no remaining findings in reviewed scopes
 Implementation authority: none
 Supersedes: none
 
@@ -47,9 +47,13 @@ head mismatch or a semantic disequality.
 ## 3. Finite normalization and residual graph
 
 Normalize each structural bound on the fixed quotient with a canonical
-worklist of ordered node pairs. The key includes quotient endpoint identities
-and the original clause/evidence identity, so alias merging cannot split one
-obligation into independently chosen copies.
+worklist of ordered node pairs. A state is `(b, j, u, v)`: original bound
+identity `b`, its immutable guard/evidence context `j`, and quotient endpoint
+identities `u,v`. Alias merging cannot split one obligation into independently
+chosen copies. Each derived child keeps `b` and inherits `j`; do not mint a
+new provenance identity for each recursive path. If the governing source
+relation gives a child a different guard context, that context becomes its
+`j` and remains part of the state key.
 
 For each pair, first apply the package's generation-time scope guard. Then:
 
@@ -89,10 +93,12 @@ structural solution. `Success(R)` contains the finite conjunction of open
 residual edges and the descriptor-determined comparisons discharged by
 normalization. The factorization below applies only to `Success(R)`.
 
-An edge with a flexible endpoint stays an ordinary structural comparison over
-the full regular assignment. In particular, `X <= {}` remains one residual
-edge and ranges over every finite-label Record assignment to `X`; the
-normalizer does not choose a Record skeleton or invent row variables.
+An edge with a flexible endpoint stays a structural comparison under its
+recorded guard/evidence context over the full regular assignment. That
+residual judgment rechecks the same scope guard on every comparison it derives.
+In particular, `X <= {}` remains one residual edge and ranges over every
+finite-label Record assignment to `X`; the normalizer does not choose a Record
+skeleton or invent row variables.
 
 ## 4. Candidate principal factorization
 
@@ -125,6 +131,70 @@ The claim is principality of a **constrained residual presentation**. It does
 not claim that the residual bounds are satisfiable, that a contradiction
 between open bounds is decidable, or that any client language already exposes
 this presentation as a public scheme.
+
+### 4.1 Normalization equivalence lemma (candidate proof)
+
+Fix a successful equality quotient `Q`, an assignment `eta` respecting its
+permissions, and one original bound `b`. Let `P_b` be the finite set of
+reachable states `(b,j,u,v)` discovered by normalization, `R_b` its flexible-
+head terminal states, and `D_b` its descriptor-known states. Let `S_eta` be
+the greatest structural subtype relation on the instantiated regular graph;
+scope guards are checked at every pair under the state context `j`. For a
+residual state, `S_eta` means the full guarded judgment retained on that
+boundary, including its recursive comparisons. Then, conditional on all
+guards being admitted,
+
+```text
+eta satisfies the original bound b
+iff
+eta satisfies every residual state in R_b.
+```
+
+For the forward direction, suppose the root interpretation is in `S_eta`.
+Because `S_eta` is a fixed point of the structural simulation operator,
+membership of a descriptor-known pair forces membership of every required
+successor. Induction on finite discovery-path length therefore puts every
+reachable residual terminal in its retained guarded judgment. This is
+reachability induction, not induction on recursive type depth; repeated
+back-edges are already states in `P_b`.
+
+For the reverse direction, assume every residual terminal passes its guarded
+judgment. Form the relation consisting of `S_eta` together with the interpreted
+pairs of every state in `D_b`. Each added Function pair has its reversed
+argument and ordinary result successors; each Record pair has every required
+upper-label successor; each declared-variance pair has exactly its same,
+reversed, or invariant-both-direction successors. Identical admitted atoms
+are nullary successes. Every successor is either another pair in `D_b` or a
+residual terminal already in `S_eta`. Thus the augmented relation is
+post-fixed, so greatestness places every added pair, including the original
+root, in `S_eta`. This also covers recursive descriptor feedback without
+unfolding.
+
+If normalization finds a local descriptor mismatch or missing Record label,
+the forward argument shows `StructuralFailure(b,pair)`: any valid root would
+force the offending reachable pair into `S_eta`, contradicting its local
+condition. A `GuardFailure` is outside this equivalence and makes no
+structural-unsatisfiability claim. Applying the lemma to every `b` and
+combining it with the reviewed equality-quotient factorization gives the
+solution-set equation above, while `Phi` and its original endpoints stay
+unchanged.
+
+Finiteness is conditional on stable finite evidence contexts. With `N`
+quotient nodes and `J` possible immutable contexts per original clause, there
+are at most `|B| |J| N^2` states; finite constructor arities and finite Record
+label sets give finite successor work. The intended simplest case is one
+inherited `j` per original clause. The design packages do not yet prove that
+every source-generated comparison has this stable-context property; it
+remains an explicit premise and source-generation obligation.
+
+The [operation-instance package §8](2026-10-02-operation-instance-binding-package.md)
+partially supports inherited contexts for its finite acyclic unsealed equality
+construction: deferred comparisons retain their generating lexical context,
+and the common comparison entry invalidates and requeues checks when aliases,
+levels or dependencies change. Separate sibling openings retain distinct
+identities. This does not establish a finite `J` for every source-generated
+subtype comparison, sealed packet lifecycle, or the complete source solver;
+those remain outside this conditional lemma.
 
 ## 5. Composition with projection summaries
 
@@ -174,9 +244,9 @@ profiles unless the relevant predicate is constant on projection fibers.
 
 Before this candidate can be treated as a closed theorem package:
 
-1. Prove the normalization equivalence for every supported constructor and
-   recursive pair, explicitly including generation-time scope guards,
-   variance, invariant mutual comparisons, and quotient alias identities.
+1. Establish from the source judgment that guard/evidence contexts are stable
+   and finite along derived comparisons; the bound above is conditional on
+   this fact.
 2. Prove that failure reporting distinguishes a disproved structural clause
    from a scope-guard failure and does not turn either into an unauthorized
    source-level rejection.

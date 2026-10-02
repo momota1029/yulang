@@ -32,7 +32,7 @@ The redesign charter governs. F5 Function generalization is comparison/rollback 
 |---|---|---|
 | 1. Coherent ordinary computation semantics for calls, closures, `Force`, requests, callback visibility, and shallow handlers | Candidate source semantics uses the user's rule: concrete typed callback boundaries govern direct and Force-exposed request visibility; origin/identity/`K,D` remain distinct and `Force` creates no authority | Preserve this boundary rule in Milestone 2; no callback micro-cases without a counterexample |
 | 2. Source-to-complete-interface adequacy/simulation | Closed for the candidate ordinary machine: exact embedding covers initial `R`, primitive source-rule images, latent future use, and typed resumptions; bind lifting separately reviewed | This proves the candidate machine embeds in its exact complete interface, not that current Yulang typing derives the candidate binder ownership or has a finite presentation |
-| 3. Finite symbolic presentation | Generic finite carrier/certificate theorem, typed transport and symbolic basis reviewed; a principal constrained residual presentation for open structural bounds is now a reviewed candidate; full raw-source realization remains open | Formalize and prove the residual factorization; construct an effective joint residual/projection representation for unknown Records and feedback; close source refinement, uniform future interaction, and typing/acceptance bridge before selecting the abstraction |
+| 3. Finite symbolic presentation | Generic finite carrier/certificate theorem, typed transport, symbolic basis, and a conditional two-direction residual factorization lemma reviewed; source-wide guard-context closure and full raw-source realization remain open | Establish the finite source-generated guard/evidence-context system beyond the admitted unsealed equality fragment; construct an effective joint residual/projection representation for unknown Records and feedback; close source refinement, uniform future interaction, and typing/acceptance bridge before selecting the abstraction |
 | 4. Generalization, fresh instantiation, SCC intrusion | Waiting on a Milestone-3 presentation | Prove lifecycle transport for that presentation, including external uses, internal SCC sharing, parent ports, and symbolic effects |
 | 5. Implementation feasibility | Deferred until milestone 4 determines required surfaces | Targeted architecture/resource audit of the reviewed semantics and representation |
 | 6. Implementation | Not authorized | Explicit user-approved design, completed required gates, implementation and verification |
@@ -1041,9 +1041,22 @@ Effective satisfiability, finite joint projection over unknown Record labels
 and feedback, source realization/uniform scoped typing, later effect/family
 and lifecycle work, and implementation remain open. No source policy or
 compiler implementation was approved. Static review only; tests, builds and
-measurements remain zero. The immediate gate is to prove the candidate
-normalization/factorization theorem, then construct the effective joint
+measurements remain zero. The immediate gate is to establish source-wide
+guard/evidence-context construction and then construct the effective joint
 residual/projection representation; full goal remains active.
+
+The candidate now includes a two-direction normalization-equivalence proof:
+the forward direction follows finite discovery paths through the greatest
+structural relation; the reverse direction adds discovered descriptor pairs
+to the residual-valid relation and proves it post-fixed. A separate M3
+compiler-referee review found no issue within that conditional regular
+fragment. The lexical comparison package partially grounds inherited context
+for its unsealed equality slice and requires alias/level/dependency changes to
+invalidate and requeue checks. It does not establish context finiteness for
+all source-generated subtype comparisons or sealed lifecycle paths. The next
+gate is that source-wide context derivation, alongside effective residual
+satisfiability and joint projection; the theorem remains conditional and the
+full goal stays active.
 
 ## Main records
 
