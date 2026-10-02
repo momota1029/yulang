@@ -253,7 +253,10 @@ their declared mathematical claims. Successor closure needs:
    cannot be concealed in finite fields.
 3. Finite sound import/future-interaction summaries. Exported closures,
    latent thunks, and live-store resumptions must cover admissible clients,
-   not just the closed call graph. No modular driver is supplied here.
+   not just the closed call graph. The companion
+   `2026-10-02-heap-backed-client-interactions.md` constructs a command-level
+   driver for a supplied finite template-closed signature; deriving that
+   signature for arbitrary source clients remains open.
 4. A bridge to the intended source derivation preorder and Oracle final
    acceptance. Distinguish abstraction losses from actual source conflicts.
    No acceptance loss is approved by this research package.

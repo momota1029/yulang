@@ -377,6 +377,13 @@ The constructive results have the following boundary:
    `O`; collecting their descriptors requires a modular interaction theorem,
    not a claim that runtime allocation is the only source of growth.
 
+   The companion `2026-10-02-heap-backed-client-interactions.md` removes
+   a bounded retained-handle premise by storing typed view packets in a
+   linked client pool. Its command-driver theorem is uniform for one supplied
+   finite template-closed signature. Source interface encapsulation must
+   still derive that signature or a finite parametric/regular replacement;
+   the linked-client basis theorem above does not discharge it.
+
 These gaps localize the remaining source theorem. None proves class 3 or
 authorizes narrowing the supported source envelope. The fixed-input result
 is class 1 for this abstract judgment; cyclic execution is covered without

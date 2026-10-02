@@ -542,7 +542,35 @@ The direction-classification premise is discharged for resolved ordinary
 graphs; arbitrary inferred graph shapes, alias worlds, general Function
 inclusion, principality, lifecycle and implementation remain open.
 
+## Heap-backed future-interaction checkpoint
+
+`2026-10-02-heap-backed-client-interactions.md` constructs a command driver
+for a supplied finite template-closed signature. Complete typed packets,
+saved control and client knowledge use linked heap records. Repetition,
+retaining arbitrarily many handles and later reuse need no bounded-register
+premise or supplied finite client code. Source authority, operation-instance
+maps, current handler context and joint `K,D` remain in those packets and
+contexts; the pool itself creates no authority or access to private values.
+
+Command-prefix coverage composes with the existing finite weak-store
+simulation. This yields a finite conservative carrier for the declared
+signature, not an exact alias/visibility quotient. Universal error reflection
+and finite command refinement remain necessary for the principal safety
+certificate theorem; existentially finding a compatible packet is insufficient.
+
+The immediate next source gate is **interface encapsulation / template
+closure**: derive a finite parametric or regular representation of arbitrary
+admissible client operation-local maps, original boundary profiles and their
+shared dependencies. A finite set of public family rows does not provide it.
+This is an applicability gap, not a class-3 nonexistence witness. No source
+acceptance loss, complete Milestone-3 closure, lifecycle theorem or compiler
+implementation approval follows from this command-level construction.
+M3 semantic and conformance package review found no findings. Only static
+document/diff checks apply; no compiler tests, builds or measurements ran.
+
 ## Main records
+
+- `notes/design/2026-10-02-heap-backed-client-interactions.md` — heap-backed command-driver coverage for a template-closed signature; arbitrary-client source encapsulation remains open.
 
 - `notes/design/2026-10-02-counting-aware-row-projection.md` — exact counting-aware row elimination with bounded residual thresholds; complete invocation checking remains the source dependency.
 

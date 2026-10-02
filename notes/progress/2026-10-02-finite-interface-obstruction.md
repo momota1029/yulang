@@ -1533,3 +1533,61 @@ task, design index and review header are synchronized. Explicit staged paths
 and the entire outbound range are inspected before normal branch push.
 This is progress on source construction, not closure of the complete finite
 presentation, lifecycle, implementation or full persistent objective.
+
+### Heap-backed client interactions and the interface-closure boundary
+
+Previous goal turn: progress. The complete invocation-port package and its
+operation-consumer repair were reviewed and pushed as `92ed93f08`. This
+turn attacks the uniform future-interaction premise of finite presentation.
+
+The new `2026-10-02-heap-backed-client-interactions.md` generates a driver
+from one finite template-closed command signature. It moves retained typed
+packets, client environments and suspended control into bounded-field linked
+records. Arbitrarily many retained handles, repeated invocation and client
+control locations no longer require a bounded register count or supplying
+each client's finite program to the carrier construction.
+
+The bounded architect construction identified the exact remaining source
+gap: arbitrary client operation-local substitutions and original boundary
+profiles need not belong to the component's public descriptor inventory.
+The driver does not erase them or reconstruct them from family equality.
+Whole packets retain their shared assignment and `K,D`; private component
+bindings are not exposed by making their heap records representable. Ordered
+contexts, activation expiry and raw-continuation suffixes remain operational.
+
+The proof is command-prefix coverage followed by the existing local weak-store
+simulation, under finite effective command routines and signature closure.
+The resulting finite carrier is conservative, not an exact alias quotient.
+Universal designated-error reflection is still required for the principal
+certificate theorem. This is a positive construction for a declared abstract
+fragment, not a source acceptance policy or full Milestone-3 closure.
+
+Consulted primary prior art is Nguyen et al., *Soft Contract Verification for
+Higher-Order Stateful Programs*, §§3.2, 3.4–3.5, for escaped-value retention
+and operational approximation. Only those sections were consulted this turn;
+no full-paper audit or Yulang handler theorem is claimed. The new artifact
+distinguishes that prior art from its successor construction.
+
+M3 budget: one bounded architect, two independent package reviewers, at most
+one fresh repair-delta reviewer if an accepted major finding requires it.
+Convergence requires no accepted blocking/major finding within the declared
+command-level theorem and explicit source applicability boundary. Compiler
+implementation, tests, builds and measurements are outside this documentary
+slice; measurement budget and consumption are zero. Primary owns static
+diff/whitespace checks and record synchronization.
+
+Independent semantic and conformance reviewers both returned no findings.
+Their closure covers command-level prefix simulation, heap finiteness,
+packet/context preservation and honest applicability/acceptance boundaries.
+They do not certify arbitrary-source template closure, effective source
+checking, source fault reflection, lifecycle or compiler implementation.
+No repair round or third reviewer was needed.
+
+Tasks, design index and companion source-gate locators are synchronized.
+The immediate next gate is source interface encapsulation: construct a
+finite parametric/regular signature closed under admissible future client
+interactions, preserving operation-local maps, profiles, aliases and `K,D`.
+Failure to have constructed it is not a nonexistence proof. No class-3
+witness or source-envelope restriction is introduced. Integration uses
+explicit staged paths, static diff checks and full outbound-range inspection
+before normal push of the research branch. The full objective remains active.
