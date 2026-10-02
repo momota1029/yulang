@@ -2,7 +2,38 @@
 
 Date: 2026-10-02
 Branch: `research/simple-sub-intrusion`
-Status: precise unresolved construction gap; no implementation authority
+Status: generic conservative construction proved; source instantiation open; no implementation authority
+
+## Latest constructive result and review
+
+`notes/design/2026-10-02-finite-abstract-safety-presentation.md` now constructs
+a finite allocation-site heap carrier for a specified local instruction
+machine and proves a principal interface for a declared abstract
+inductive-certificate judgment. For finite symbolic guarded reachability `R`,
+the domain `S = Base ∧ ¬⋁q(R_q ∧ Bad_q)` is greatest among derivable domains;
+`π(S ∧ R)` is the least joint observation on each admitted domain. Local
+simulation and universal reflection of designated errors imply concrete
+safety. Thus this is more than conditional reachability leastness.
+
+The result is class 1 for the declared generic abstract judgment. It does not
+establish the full successor presentation: source-to-heap refinement, finite
+type endpoints/predicates, admissible future interactions, and the source
+typing/acceptance bridge remain open. The abstraction may reject concretely
+safe programs. No such loss or implementation is approved. Exact-selection
+requirements below govern the earlier exact source-acceptance route; they
+are not a requirement to infer exact traces for every conservative judgment.
+
+M3 package: architect construction input; independent compiler-referee and
+spec-auditor review; one implementer repair bundle; fresh compiler-referee
+delta review. The major finding was that existential error representation
+does not suffice: reflection must apply to the representative on the actual
+simulated path. Same-assignment initial coverage/simulation and universal
+error reflection now state that requirement. Finite observations and the
+interface preorder were also made explicit. Delta review found no remaining
+findings in that scope. No compiler changes, tests, builds, or measurements;
+verification is mathematical independent review plus staged whitespace/scope
+checks. Next gate is the source/basis/interaction theorem package, not a
+re-review of the settled finite-graph algebra without changed premises.
 
 ## Closed source simulation package
 
@@ -22,9 +53,10 @@ receiver-local visibility for direct and `Force`-exposed requests alike.
 `Force` reveals latent behavior but creates no authority. Caller origin,
 dynamic event identity, and symbolic `K,D` remain attached to each event.
 
-## Milestone-3 result
+## Earlier exact-acceptance route and remaining source gap
 
-The existing candidates do not yet construct a finite joint typed interface
+Before the conservative certificate package above, the existing candidates did
+not construct a finite joint typed interface
 under ordered handler image and interface projection. A stronger conditional
 algorithmic target is now isolated in the coupled-interface draft as the
 finite guarded-saturation theorem:
@@ -72,7 +104,7 @@ The older candidates still do not close the joint typed interface:
   complete lattice and monotone transformer, neither of which is constructed
   for the typed interface language.
 
-Thus no terminating finite formula language is currently shown to preserve
+For the full source judgment, no terminating finite formula language is yet shown to preserve
 these joint fibers through handler images and yield the least representable
 well-typed interface. This is the precise obstruction to closing Milestone 3,
 not an impossibility theorem or proven expressibility limit. The next proof
@@ -86,7 +118,7 @@ The user selected three distinct outcomes for the finite-presentation inquiry:
 
 | Class | Meaning | Current evidence |
 |---|---|---|
-| Finite but unbounded | Each finite source has a finite principal presentation; size/work grows across inputs with no fixed source-independent ceiling | Pure finite endpoint-graph saturation is finite for each finite input graph, establishing a resource component only. Principality is not proved even for the full pure fragment. |
+| Finite but unbounded | Each finite source has a finite principal presentation; size/work grows across inputs with no fixed source-independent ceiling | Finite heap construction and principal certificates proved for a declared generic abstract judgment with fixed finite inputs. Full source instantiation remains open; this does not establish the full pure/effect successor. |
 | Infinite unfolding, finite graph | Recursive behavior expands indefinitely but its meaning admits a finite cyclic/SCC/regular representation with a preservation proof | Recursive bounds use finite back-edge data structures, but their regular unfolding and preservation are not established. Regular active stacks are another candidate component, not a complete handler/interface quotient. |
 | Genuinely non-finite for the chosen abstraction | A concrete witness proves no finite sound/principal representation exists for that chosen abstraction | No such witness is established or ruled out. A missing quotient construction is not evidence for this class. |
 

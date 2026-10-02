@@ -23,7 +23,7 @@ The redesign charter governs. F5 Function generalization is comparison/rollback 
 |---|---|---|
 | 1. Coherent ordinary computation semantics for calls, closures, `Force`, requests, callback visibility, and shallow handlers | Candidate source semantics uses the user's rule: concrete typed callback boundaries govern direct and Force-exposed request visibility; origin/identity/`K,D` remain distinct and `Force` creates no authority | Preserve this boundary rule in Milestone 2; no callback micro-cases without a counterexample |
 | 2. Source-to-complete-interface adequacy/simulation | Closed for the candidate ordinary machine: exact embedding covers initial `R`, primitive source-rule images, latent future use, and typed resumptions; bind lifting separately reviewed | This proves the candidate machine embeds in its exact complete interface, not that current Yulang typing derives the candidate binder ownership or has a finite presentation |
-| 3. Finite symbolic presentation | Conditional finite guarded-saturation theorem established for fixed finite complete-state quotient `Q` and predicate basis `P`; source construction and principal projection remain open | Construct `Q`, prove generated predicates/handler guards stay in `P`, preserve actual ordered-selection admissibility and joint `K,D` fibers, then prove least representable interface |
+| 3. Finite symbolic presentation | Finite heap carrier and principal safety-certificate theorem reviewed for a declared conservative abstract judgment; source instantiation remains open | Prove source refinement/error reflection, finite endpoint basis, and future-interaction coverage; bridge to intended typing and audit final acceptance before selecting the abstraction |
 | 4. Generalization, fresh instantiation, SCC intrusion | Waiting on a Milestone-3 presentation | Prove lifecycle transport for that presentation, including external uses, internal SCC sharing, parent ports, and symbolic effects |
 | 5. Implementation feasibility | Deferred until milestone 4 determines required surfaces | Targeted architecture/resource audit of the reviewed semantics and representation |
 | 6. Implementation | Not authorized | Explicit user-approved design, completed required gates, implementation and verification |
@@ -33,9 +33,10 @@ The redesign charter governs. F5 Function generalization is comparison/rollback 
 The user directed separate classification of (1) finite but unbounded principal
 presentations, (2) infinite unfolding with a finite SCC/regular graph, and (3)
 genuinely non-finite presentations proven by a concrete counterexample. Current
-evidence only establishes finite saturation as a resource component for a
-fixed finite pure endpoint graph; it does not yet prove principal effect
-presentation. Recursive back-edge graphs and regular stacks are candidate
+evidence now includes a finite heap carrier and principal symbolic interface
+for a declared abstract safety-certificate judgment, with fixed finite
+program, symbolic basis, and observations. It does not yet establish that
+judgment for the complete Yulang source interface. Recursive back-edge graphs and regular stacks are candidate
 representations, not yet preservation theorems. A stack-only quotient has a
 candidate-machine counterexample from captured-reference aliasing and handler
 selection; this does not refute richer finite relational graphs. The full
@@ -48,7 +49,7 @@ complexity failure, never an `ill-typed` result. Its metric, threshold, check
 point, no-truncation behavior, and atomic publication belong to the later
 resource design gate; no numerical limit is selected now.
 
-The next quotient inquiry rejects stack-only and independent marginal-store
+The exact-acceptance quotient inquiry rejects stack-only and independent marginal-store
 abstractions that forget captured/caller alias incidence without an exact
 selection witness. Investigate a joint rooted capture/store/continuation graph
 with shared symbolic `K,D`; this is a candidate, not an established finite or
@@ -65,18 +66,44 @@ candidate machine lacks recursive/list/enum typing rules, and a resource-
 bounded envelope may exclude it. This does not obstruct conservative
 principality and is not a class-3 result. Next derive an effective
 conservative effect abstraction that retains soundness and principal
-projection without requiring exact trace/event reachability.
+projection without requiring exact trace/event reachability. The new
+`2026-10-02-finite-abstract-safety-presentation.md` constructs that generic
+alternative: finite address/store graphs and a maximal safe assignment domain
+with minimal joint observations. Its source refinement, finite symbolic basis,
+modular future-use coverage, and acceptance bridge remain open. Possible
+spurious rejections are disclosed, not approved.
 
 ## Current work
 
 The milestone-1 candidate is `notes/design/2026-10-02-ordinary-computation-semantics-package.md`. It defines one state-threaded `Run` relation, concrete closure-frame re-entry under the current caller store/activations, latent `Force`, per-event origins and symbolic `K,D`, event-relevant ordered visibility, and shallow handler images. The user selected preservation of existing callback incidence while its receiver is active, ordinary current-handler search after escape, and concrete typed-boundary visibility for both direct and Force-exposed requests. `Force` exposes latent computation but creates no authority; origin and `K,D` remain event-specific.
 
-The ordinary-computation package received a bundled architect/compiler-referee/spec-auditor review and a focused closure delta review. It repaired event-specific callback relevance, ordinary receiver-body handling, actual post-application `C_h` and current-boundary checks, closure re-entry, and the suspended invocation wrapper across handler unwind. The user selected concrete typed-boundary visibility for direct and Force-exposed requests; its delta review found no major issue. The exact semantic embedding has been package-reviewed: initial `R`, primitive source-rule images, latent future-use, and typed resumptions are covered; finite-resumption bind lifting was separately reviewed. Milestone 2 is closed for the candidate machine, not for the current Yulang typing relation. For Milestone 3, a compiler-referee-reviewed conditional theorem now gives finite guarded saturation for any fixed finite complete-state quotient `Q` and predicate basis `P`, with at most `|Q|` reachability rounds. The quotient must preserve actual ordered-selection admissibility: merging a reachable and unreachable state can invent an incompatible selected arm and falsely reject a source program, while suppressing that arm can hide a real violation. May-support over-approximation cannot itself impose typing obligations on invented routes. The remaining construction is to derive `Q/P` and exact transition guards from the source machine while preserving actual selection, latent/resumption behavior, and joint `K,D` fibers, then prove principal projection. The user has now clarified that finite presentation need not be uniformly small and resource overflow may be a distinct deterministic inference-complexity failure; classify finite/unbounded, regular/cyclic, and genuinely non-finite separately. Current evidence proves none of the full finite/regular quotient classes for the effect interface, and establishes no class-3 counterexample. The prior support and point-row candidates do not do this. The old candidate rule making `UnknownOrigin` independently block a drop is superseded: origin uncertainty alone cannot veto a concrete capture contract when complete `CallView`, exact operation coverage, and active receiver-local handling are established. Do not begin lifecycle proof against a representation that is not defined.
+The ordinary-computation package received a bundled architect/compiler-referee/spec-auditor review and a focused closure delta review. It repaired event-specific callback relevance, ordinary receiver-body handling, actual post-application `C_h` and current-boundary checks, closure re-entry, and the suspended invocation wrapper across handler unwind. The user selected concrete typed-boundary visibility for direct and Force-exposed requests; its delta review found no major issue. The exact semantic embedding has been package-reviewed: initial `R`, primitive source-rule images, latent future-use, and typed resumptions are covered; finite-resumption bind lifting was separately reviewed. Milestone 2 is closed for the candidate machine, not for the current Yulang typing relation.
+
+For Milestone 3, the earlier conditional finite guarded-saturation theorem
+and exact-acceptance route remain valid. On that route, invented selected
+arms cannot be counted as actual source obligations. The new conservative
+certificate package instead declares its abstract derivation judgment and
+proves its principal interface. It supplies a generic finite heap construction,
+not yet the complete source refinement or a selected successor acceptance
+policy. Package review repaired the safety theorem's error-reflection
+quantifiers; independent delta review is clean. The immediate remaining
+package is source refinement, fixed symbolic endpoint closure, and modular
+future-use coverage, followed by the source typing/acceptance bridge.
+
+Finite presentation need not be uniformly small; resource overflow may be a
+distinct deterministic inference-complexity failure. Full-source class 1/2
+remain unproved, and no class-3 counterexample is established. The old rule
+making `UnknownOrigin` independently block a drop is superseded: origin
+uncertainty alone cannot veto a concrete capture contract when complete
+`CallView`, exact operation coverage, and active receiver-local handling are
+established. Do not begin lifecycle proof against an undefined representation.
 
 Implementation feasibility evidence is recorded in `notes/progress/2026-10-02-successor-implementation-feasibility.md`: resolved HIR lacks calls/handlers/`Force`, effect views cannot carry nonempty symbolic payloads, and runtime execution surfaces are absent. Do not prototype before the semantic carrier and required compiler surfaces are established. Use Rust for any later executable characterization; do not use Python.
 
 ## Main records
 
+- `notes/design/2026-10-02-finite-abstract-safety-presentation.md` — reviewed generic finite carrier and principal certificate theorem; source application open.
+- `notes/progress/2026-10-02-finite-interface-obstruction.md` — classification, lower bound, construction progress, and review record.
 - `notes/design/2026-10-02-ordinary-computation-semantics-package.md` — current milestone-1 theorem package.
 - `notes/design/2026-10-01-coupled-effect-interface-core-draft.md` — relational carrier and prior derivations.
 - `notes/progress/2026-10-02-callback-scope-transition.md` — callback/escape evidence and decisions.
