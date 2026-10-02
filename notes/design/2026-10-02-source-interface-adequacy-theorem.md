@@ -213,7 +213,7 @@ the step clause by induction on the source transition derivation:
 | Source transition | Complete-interface image |
 |---|---|
 | expression evaluation and return | project the same current value and live configuration |
-| closure application | use the same lexical closure body, caller store and activations; push its invocation frame in both configurations. A suspended call carries the same re-entry wrapper through unwind and reinstalls only that invocation occurrence on resume |
+| source function invocation | use the same entry and body (closure or operation native body), current caller store and activations; establish the same invocation frame and typed receipt before entry force/rebind. A suspended call carries the same re-entry wrapper and pending entry/body suffix through unwind and reinstalls only its source-prescribed execution occurrence on resume |
 | typed value adaptation | compose argument, call, and result relations with the same binder map `σ` and assignment `ν`; one map renames all type/effect/`K,D` views, so no endpoint is independently re-instantiated |
 | thunk construction / `Force` | construction stores the latent relation; `Force` exposes its next request without changing origin or `K,D`. During an active concrete callback `CallView`, visibility comes from its declared capture contract for both direct and force-exposed requests |
 | operation request | instantiate declaration binders using the request site's fixed lookup map; copy operation, payload, event identity, origin, and joint `K,D`; embed the same continuation |
@@ -225,6 +225,14 @@ full live configuration. In its request case, both append the continuation;
 after every admissible resumption the resumed pair lies in the finite
 resumption closure used by the lemma. The same `ν` is used throughout, so
 typed-family formulas remain joined with all dependent `D` views.
+
+The user-clarified entry expansion (ordinary-computation §3 and
+source-computation-role §10) uses these same images: receipt precedes force,
+the force result is rebound by the same typed-path relation, and operation
+native bodies construct requests from the already acquired declared payload.
+There is no additional wrapper invocation or interface rule. This synchronizes
+the exact embedding with the current candidate; it proves no force-before-call
+optimization or raw-source elaboration theorem.
 
 For closure/thunk future use, the complete interface stores the source
 latent relation rather than only its emitted prefix. Any admissible

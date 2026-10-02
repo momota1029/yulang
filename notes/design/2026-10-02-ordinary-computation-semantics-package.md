@@ -9,6 +9,7 @@ Inputs: user-selected soundness/principality priority, unified-relation
 requirement, nested-capture preservation, ordinary escaped-callback handling,
 and symbolic typed-family transport
 Primitive/derived review: compiler_referee and spec_auditor, 2026-10-02; no findings in charter §15's outside shallow selection and explicit deep expansion
+Invocation review: compiler_referee and spec_auditor, 2026-10-02; common entry expansion reviewed; operation-payload gap repaired and closed by independent compiler_referee delta
 
 ## 1. Milestone claim
 
@@ -89,27 +90,31 @@ and delayed computations.
 
 ## 3. Calls, closures, delayed values, and requests
 
-Call-by-value application evaluates the callee, then the argument, then
-applies the resulting values, threading one configuration through all three
-stages:
+Application evaluates the callee and constructs the argument carrier in
+ordinary operand order, then enters the invocation, threading one
+configuration through those stages. The user's source-reference clarification
+(charter §16) makes every function a computation receiver: value-parameter
+forcing belongs to invocation entry, not to caller-side argument construction.
+The exact raw-source carrier-construction schedule remains an elaboration
+obligation. The following `Run(e₂)` denotes that carrier-producing evaluation:
 
 ```text
 Runν(e₁ e₂,C) =
   Runν(e₁,C) >>= λ(f,C₁).
-  Runν(e₂,C₁) >>= λ(x,C₂).
-  ApplyValueν(f,x,C₂)
+  Runν(e₂,C₁) >>= λ(t,C₂).
+  ApplyValueν(f,t,C₂)
 ```
 
 Applying a closure evaluates its body in the closure's lexical environment
 with the current caller's live store and ordered active source activations:
 
 ```text
-ApplyValueν(Closure(body,ηcl,L),x,Cnow)
-  = Runν(body,ηcl[x],Cbody) >>= ReturnFromInvocation
+ApplyValueν(Closure(entry;body,ηcl,L),t,Cnow)
+  = Runν(entry;body,ηcl[t],Cbody) >>= ReturnFromInvocation
 ```
 
 `Cbody` retains `Cnow`'s live store and active activation sequence, replaces
-the expression and lexical environment by `body` and `ηcl[x]`, and pushes
+the expression and lexical environment by `entry;body` and `ηcl[t]`, and pushes
 only the current invocation's fresh call frame. On normal return,
 `ReturnFromInvocation` pops that invocation frame and retains the resulting
 live store. A request suspension retains an invocation re-entry wrapper in
@@ -126,6 +131,31 @@ alone neither implements invocation re-entry nor grants handler eligibility
 or creates a blocking mask. An
 already-derived capture incidence is transported through this transition
 only while its same receiver and handler remain active.
+
+The source boundary instances and typed receipt of `t` are established in
+that invocation before its entry code runs. A computation parameter binds
+the received carrier for the body. A value parameter has the entry expansion
+
+```text
+Force(t) >>= lambda (v,C1).
+  RebindResultPath(t,v,C1);
+  Run(body, eta_cl[x := v], C1)
+```
+
+`RebindResultPath` abbreviates the existing typed-path transport and receipt
+relation; it creates no new capture contract or boundary identity. The entry
+force executes in its corresponding typed computation view within the
+complete call view. Its result `v` is kept as a value, including a latent
+function/thunk result. This is one source activation with an entry program,
+not a call to a synthetic wrapper function. No implicit operation arm is
+created by treating every function as a handler/computation receiver.
+
+If entry force yields a request, its continuation contains rebinding, body
+and `ReturnFromInvocation`. The ordinary bind and owner re-entry rules below
+retain that suffix on raw resumption without restarting entry or reviving
+old grants. Entry effects therefore contribute to the complete invocation
+even when the body is pure. Source-computation-role §10 gives the expansion
+law; moving this force before invocation is a separate optimization theorem.
 
 The explicit occurrence protocol is developed in
 `2026-10-02-typed-source-owner-realization.md`, §2. Saved source owner spans
@@ -148,10 +178,33 @@ source consumer relation demands the value. The complete `CallView` includes
 argument adaptation, body execution, result adaptation, and every force
 before the enclosing handler dispatch.
 
-An operation value applied to its arguments constructs a thunk for one typed
-request; it does not expose that request yet. A source-demanded `Force` of
-that thunk yields `Request(q,C,k)`. This preserves the frozen call/force
-boundary and keeps thunk construction distinct from request emission. The
+An operation value uses the same invocation entry, with its declaration
+determining the payload parameter role:
+
+```text
+ApplyValueν(Operation(op,decl),t,C) =
+  Invokeν(entry_from_decl; native_body,t,C)
+native_body(a) = Return(MakeRequestThunk(op,a))
+```
+
+Here `Invoke` is the common receipt/entry/body relation above, with one
+invocation and its normal return delimiter. For a declared value payload
+`a:A`, entry forces `t` and rebinds the result as `a:A` before the native body
+constructs the latent request. For example, an operation `Unit → Unit`
+receiving `Delay(Return Unit)` stores the resulting `Unit` as its payload,
+not the argument carrier. A declared computation payload instead retains
+its carrier according to its declaration; entry does not force all payloads
+indiscriminately. `MakeRequestThunk` is an internal constructor, not a public
+callable or another invocation, and emits no request. Declaration-role and
+typed-correspondence elaboration remain premises.
+
+Requests during entry retain the rebinding/native-body/return suffix under
+the same bind and owner/raw-resumption rules. Construction preserves the
+source origin, operation-instance endpoints, symbolic `K,D` and corresponding
+payload/result incidences; it creates no operation arm or capture grant.
+A source-demanded `Force` of the returned thunk yields `Request(q,C,k)`.
+This keeps thunk construction distinct from request emission; equivalence
+to the frozen placement of entry force remains unproved. The
 source typing/evaluation rules must establish the exact force position in a
 `CallView`. Generated requests get the generating transition's origin;
 inherited requests preserve their origin through closure, thunk, adapter,

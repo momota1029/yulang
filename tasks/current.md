@@ -17,6 +17,7 @@ The redesign charter governs. F5 Function generalization is comparison/rollback 
 - Callback capture is receiver-activation scoped and preserved through nested transitions. Escaped closures retain latent effects, origins, symbolic `K,D`, and required runtime lineage. Fresh caller handling follows the current source relation; no persistent maker mask without an independent source principle.
 - Method selection, roles, and implementation resolution are a mandatory later gate after ordinary effects/handlers settle, unless a dependency appears sooner.
 - Shallow handling is primitive; selection, patterns/guards and arms execute outside the candidate. Deep behavior is explicit shallow reapplication to resumed computation; optimizations must preserve that source expansion.
+- The user clarified the source reference: every function is a handler/computation receiver. An ordinary value parameter forces and rebinds its input at the start of that same activation; force-before-invocation is a separate optimization obligation.
 
 ## Milestone state
 
@@ -180,39 +181,45 @@ result. The common `Execute(Comp(E,A)) = Force` theorem preserves an arbitrary
 result `A` without adding descendant demand; admitted result conversion is
 a separate composition. It does not yet derive the role from raw syntax.
 
-The same package now maps frozen source computation/value positions and gives
-a sorted role-annotated candidate. Ordinary local binding completes its RHS
-and stores a value; computation parameters can retain a caller computation
-until the receiver demands it. A generic combination of pure lifting and
-implicit exposure is incoherent at the regular candidate type
-`A=Thunk(E,A)`: the same expected computation admits both no request and one
-current request. This is a candidate-kernel counterexample, not proved raw
-source acceptance or non-finiteness. Fixed role descriptors avoid that overlap
-and determine a finite control skeleton, conditionally on supplied roles and
-admitted adapters. They do not yet derive all inferred source roles.
+The user's source-reference clarification now supplies one invocation:
+receive a computation, execute entry code, then the body. A value parameter
+expands to force/rebind inside that same activation after boundary/receipt
+entry. A computation parameter remains retained. Ordinary-computation §3 and
+source-computation-role §10 give the expansion law, including the pending
+rebind/body/return suffix on shallow resumption, typed result transport and
+expiry. Operation function values use the same entry to obtain their declared
+payload, then an internal constructor returns the latent request. The common
+boundary invents no arms or capture grants. The prior §8 pre-call value-force
+candidate is historical, not current source authority.
+Semantic/conformance package review covered this user-premise delta; a missing
+operation payload-acquisition clause was repaired in one documentary pass and
+closed by an independent semantic reviewer. The exact-interface image table
+now includes the same entry/body suffix. Full raw-source inference remains
+outside that expansion theorem.
 
-The immediate construction is a complete producer/consumer and annotation-role
-judgment with a scheduling-preserving representation, followed by a
-solution-complete regular normalization or finite parametric adapter/query
-presentation. A naive retained argument delays its entire computation, while
-the frozen boundary first evaluates its carrier; effect purity does not
-justify delaying divergence or stateful construction. Keep that simulation,
-nested effectful annotation coverage and inferred role determination open.
-Runtime `Thunk` is not automatically a source value constructor, so neither
-the prior thunk-tower family nor a sorted syntax alone settles the finite
-presentation. Independent semantic/conformance delta review found no
-blocking/major issue; primary closed one minor qualifier distinguishing role
-selection from constructor-sensitive admitted value adaptation. Frozen source
-locators were mapped by the explorer, not independently re-audited by those
-reviewers. Strict data elimination must not
-be generalized to require every computation result to be non-thunk. The
-source judgment, admitted conversions and representation choice remain draft
-work for one complete reviewed gate, not per-site user choices. Its output
-must connect to the existing symbolic basis and source typing; an unexplained
-event-routing oracle would not advance it. Then close abstract identity,
-uniform-client coverage and the acceptance bridge before lifecycle and
-implementation. The current control counterexample is closed; do not expand
-callback micro-cases without another concrete blocker.
+The frozen scheduling map is corrected to the public `specialize2` path;
+older `solve/expr_solver` and `lib_support` locators describe alternate
+machinery. Strict local `Let` executes when its containing block executes;
+production can delay that whole block, including the prelude. Pure-expression
+lifting can delay its code, whereas an already equivalent operation carrier
+retains its operand evaluation before construction. A pure divergent producer
+refutes universally moving construction inside a delay. This is a kernel
+counterexample and exact emitted-code characterization, not certified source
+acceptance or non-finiteness. The inference `evaluation` field records value
+restriction, not an extra effect phase. Independent reviews checked the key
+corrected production paths. No runtime `Ready/Susp` mechanism is adopted.
+
+The immediate gate is source producer/annotation elaboration and its
+scheduling-preserving representation **under this common invocation**.
+Frozen force-before-call placement requires a receiver/receipt/view
+preservation proof; it is not automatically authority or an established bug.
+Nested effectful annotation coverage, admitted adapters and inferred roles
+remain open. Then establish a solution-complete regular normalization or
+finite parametric adapter/query presentation, abstract identity correlation,
+uniform clients and the acceptance bridge before lifecycle/implementation.
+Finite syntax templates and the earlier fixed-role skeleton prove none of
+those gates. Keep latent results and symbolic family incidence intact; do not
+restart callback micro-cases without a concrete blocker.
 
 `notes/design/2026-10-02-typed-source-owner-realization.md` now has a fresh
 semantic delta review. It repaired owner-span completion so a child return
@@ -260,7 +267,7 @@ Implementation feasibility evidence is recorded in `notes/progress/2026-10-02-su
 
 ## Main records
 
-- `notes/design/2026-10-02-source-computation-role-elaboration.md` — reviewed role-preservation, source-map and role-annotated candidate package; raw-source scheduling/typing and finite solved/parametric presentation remain open.
+- `notes/design/2026-10-02-source-computation-role-elaboration.md` — corrected active source map, producer-placement obstruction and common invocation entry expansion; raw-source scheduling/typing and finite solved/parametric presentation remain open.
 - `notes/design/2026-10-02-typed-source-owner-realization.md` — reviewed owner-span/control and typed-view context construction; user-selected outside-image equation.
 - `notes/design/2026-10-02-typed-boundary-realization-draft.md` — selected common typed-value transport and reviewed conditional transport/lifetime theorem package; reviewed fixed-shape cyclic adapter construction and symbolic equality; full realization open.
 - `notes/design/2026-10-02-source-realization-and-symbolic-basis.md` — finite ownership inventory, conditional operational realization, selected-fault reflection, and exact remaining source definitions.

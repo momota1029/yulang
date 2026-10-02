@@ -1,12 +1,13 @@
 # Source elaboration: computation roles and unknown constructors
 
 Date: 2026-10-02
-Status: Draft; scoped role theorems, source map and obstruction package reviewed; full source elaboration remains open; not implementation authority
+Status: Draft; scoped role theorems, corrected active source map, obstruction and invocation-entry package reviewed; full source elaboration remains open; not implementation authority
 Scope: computation/value role separation, source-template generation, and the remaining finite symbolic bridge
-Approved-by: none for the elaboration candidate; charter §§11–15 govern selected source behavior
+Approved-by: none for the elaboration candidate; charter §§11–16 govern the source reference and selected behavior
 Drafted-by: primary with bounded architect construction and counterexample audit
 Reviewed-by: compiler_referee and spec_auditor, 2026-10-02; no blocking/major findings; two minor scope/priority clarifications closed by primary
-Role-candidate-review: compiler_referee and spec_auditor, 2026-10-02; §§6–9 clean after one minor role-versus-adaptation clarification; immutable source locators mapped by explorer, not independently audited by these reviewers
+Historical role-candidate review (de7bfd0a7): compiler_referee and spec_auditor, 2026-10-02; former §§6–9 clean after one minor role-versus-adaptation clarification; immutable source locators mapped by explorer, not independently audited in that round
+Production/entry-review: compiler_referee and spec_auditor, 2026-10-02; corrected active code paths and placement obstruction checked; new-user-premise entry delta reviewed; operation-payload gap repaired and closed by independent compiler_referee; prior §8 skeleton is historical
 Supersedes: none; the fixed-shape value-adapter theorem keeps its original scope
 
 ## 1. Milestone target and existing inputs
@@ -226,25 +227,27 @@ effect/value pair (`crates/specialize/src/types/mod.rs:419–433`). It must not
 be identified with either the explicit unit Function or an arbitrary source
 value-type constructor without a representation proof.
 
-Ordinary local binding completes the RHS and stores its result. Lowering
+Ordinary local binding completes the RHS and stores its result **when its
+containing computation executes**. Lowering
 contributes `body.effect` to the statement and generalizes `body.value`
 (`crates/infer/src/lowering/expr/block_local.rs:545–590`); the bound local
 gets `effect: None` (`1225–1263`) and lookup has pure effect
-(`crates/infer/src/lowering/name_ref.rs:146–186`). Specialization demands
-the RHS result value (`crates/specialize/src/solve/expr_solver/control.rs:
-232–268`), and runtime `Let` evaluates then binds it
+(`crates/infer/src/lowering/name_ref.rs:146–186`). Runtime `Let` evaluates
+then binds its RHS
 (`crates/mono-runtime/src/runtime/eval.rs:620–639`); local lookup reads the
 stored value (`12–18`). `BindingFetch` controls generalization/value
 restriction (`crates/infer/src/lowering/expr/tail.rs:944–989`), not replay or
-memoization of a deferred computation. A returned value may still have its
-own latent behavior.
+memoization of a deferred computation. An enclosing effectful block can be
+delayed as a whole, including that local binding. A returned value may still
+have its own latent behavior.
 
 Computation-bearing parameters are different. The existing source
 `examples/10_effect_handler.yu:13–17` passes `add_and_say()` to
 `listen(x: [_] _, log: str)`, whose body is `catch x`. No unit closure wraps
-the argument. The effectful parameter boundary retains its computation
-carrier (`crates/specialize/src/solve/expr_solver.rs:363–372`); `catch`
-demands its result inside the handler (`control.rs:37–39`). Runtime applies
+the argument. Production argument preparation distinguishes value consumption
+from computation passage (`crates/specialize/src/specialize2/task_solver.rs:
+492–513`), and emission attaches the argument boundary before application
+(`specialize2/emit.rs:248–266`). Runtime applies
 an operation by constructing `Thunk::Effect`
 (`crates/mono-runtime/src/runtime/flow.rs:29–32`) and emits the request when
 forcing it (`runtime/thunk.rs:124–125`). Consequently a judgment that eagerly
@@ -255,6 +258,16 @@ These facts support deriving roles at typed source positions. They neither
 approve reproducing every frozen conversion nor establish a source rule for
 arbitrary nested effectful results. That rule cannot be justified by the AST
 builder alone when its later constraint lowering discards the inner row.
+
+**Active-path correction.** The public specialization entry delegates to
+`specialize2` (`crates/specialize/src/lib.rs:77–81`). Earlier versions of this
+section cited `solve/expr_solver` and `lib_support` for production scheduling;
+those paths are retained alternate machinery. The infer and runtime facts
+above remain applicable, but they do not determine where production emission
+inserts the enclosing thunk. Section 9 gives the corrected active path. The
+inference field `Computation.evaluation` is expansiveness/value-restriction
+information, not a third effect phase (`crates/infer/src/typing.rs:12–23,
+58–66`). No new semantic stage follows from that field's name.
 
 ## 7. Why a disjunction of lifting and exposure is not enough
 
@@ -291,7 +304,14 @@ The result says that a role derivation must precede this representation
 collapse, and that principal constraint solutions alone do not prove
 elaboration coherence.
 
-## 8. A sorted elaboration candidate
+## 8. Prior sorted elaboration candidate (invocation replaced by §10)
+
+This section retains the fixed-role construction as an audit of the earlier
+candidate. The user's subsequent source-reference clarification in charter
+§16 places value-parameter force/rebinding at invocation entry. Its pre-call
+`Prepare_Value` rule is therefore not the source baseline. Section 10 replaces
+that part with one computation-receiving invocation; §9 also withdraws its
+uniform-retention scheduling as a general preservation law.
 
 Separate source value endpoints from computation interfaces before choosing
 their runtime representation:
@@ -329,7 +349,9 @@ solved constructor. Separately admitted `ValueAdapt` remains constructor
 sensitive and may force a latent result, with its own resulting requests.
 All sequencing uses the common state-threaded bind.
 
-Two candidate preparation equations make the role distinction explicit:
+The initial candidate used these preparation equations to expose the role
+distinction. Their uniform-retention scheduling is not adopted; §9 supplies
+a concrete kernel counterexample to using it as a general lowering law:
 
 ```text
 Prepare_Value(A)(e) = c_e >>= ValueAdapt(A_e,A)
@@ -341,14 +363,13 @@ The second requires inclusion of the complete delayed interface in the
 parameter contract, not just inclusion of immediate row support. Both
 equations retain the original typed packets and adapter correspondences.
 Inclusion and admission of `ValueAdapt` remain proof premises. In particular,
-the second equation is a **candidate scheduling choice**, not a demonstrated
-simulation of the frozen argument boundary: it delays all of `c_e`.
-Frozen execution evaluates an argument carrier before receiver entry, and
-that construction may diverge or execute earlier computation. A representation
-proof must either factor the same construction before retention or justify
-the scheduling difference from independent source semantics. Effect purity
-alone cannot justify moving divergence or stateful computation. No scheduling
-change is approved by this document.
+the second equation delays all of `c_e`. This loses the construction position
+of an already carrier-producing expression. Conversely, evaluating every
+producer before retention fails to reproduce the active pure-to-thunk lifting
+branch. A representation proof must derive the placement of producer code
+and adapters, or justify a difference from independent source semantics.
+Effect purity alone cannot justify moving divergence or stateful computation.
+No scheduling change is approved by this document.
 
 Explicit computation parameter annotations supply a `Computation` role;
 ordinary value annotations supply a `Value` role. A function's immediate
@@ -362,13 +383,17 @@ support or selected arbitrarily to fit a runtime fixture. Nested effectful
 value annotations and the characterized deferred polymorphic local need
 coverage/normalization rules before claiming full source acceptance.
 
-**Conditional role-coherence and template theorem.** For a finite ordinary
+**Historical conditional skeleton theorem.** For a finite ordinary
 syntax graph with fixed parameter/binding roles and fixed admitted adapter
 descriptors, these rules generate a finite computation skeleton with unique
 choices of value lookup, computation execution and argument retention.
 These choices are invariant under assignments to the value endpoints that
 preserve the roles. This is uniqueness of the role-directed control skeleton,
 not uniqueness of arbitrary adapters, effect solutions or source execution.
+It concerns the illustrative skeleton with its preparation equations fixed;
+it does not certify those equations as intended source scheduling. In
+particular it supplies no current argument-retention or force-placement
+theorem after the source-reference correction in §10.
 
 Proof is structural induction. A literal or lookup adds one command, with
 lookup selected by its environment descriptor. A lambda records its finite
@@ -403,7 +428,253 @@ the runtime thunk-tower family in §5 does not automatically refute a sorted
 source representation; eliminating it requires the missing normalization and
 acceptance bridge, not merely restricting the spelling of `alpha_value`.
 
-## 9. Next construction and decision boundary
+## 9. Producer construction and retention are not interchangeable
+
+### Active production evidence
+
+All locators in this subsection refer to frozen `a58eefc3`. They characterize
+evaluation placement, not Oracle weight routing or source semantic authority.
+
+An effectful block becomes an executable raw computation in
+`crates/specialize/src/specialize2/task_solver/control.rs:191–264`.
+`specialize2/emit.rs:363–367,765–782` attaches its computation shape without
+yet allocating a thunk. At a function result boundary,
+`emit.rs:723–749` checks it against the runtime return shape, constructed
+from the function's effect/value pair (`runtime_shape.rs:64–74`). When that
+shape is `Thunk(E,A)`, `emit.rs:865–880` and
+`runtime_shape.rs:823–842` put the **whole emitted block** in `MakeThunk`.
+
+For example, `lib/std/io/net.yu:38–40` has the body shape
+
+```text
+serve(port) =
+  my listener = listen port
+  server::accept listener
+```
+
+Its emitted body returns the block carrier on closure application. Runtime
+`MakeThunk` retains code/environment without evaluating the block
+(`crates/mono-runtime/src/runtime/eval.rs:36–40`); forcing it enters the body
+(`runtime/thunk.rs:122`), where the local binding then completes before the
+tail. This is a structural trace of the mapped production path, not a newly
+executed fixture. Strict runtime `Let` does not imply an eager source block
+prelude at closure application.
+These runtime carrier-building stages must not be identified with source
+invocation entry without the representation mapping; §10 states the user's
+source reference independently of that emitted placement.
+
+Ordinary runtime application evaluates its callee, then its argument, then
+applies the value (`runtime/eval.rs:84–94`). Source application whose
+preparation has effects may itself become a raw computation
+(`specialize2/task_solver.rs:562–567`), so an enclosing boundary can delay
+that whole application. Direct operation application is a different producer:
+the operation branch consumes its payload as a value and does not mark the
+application raw (`task_solver.rs:572–588`); its emitted value already has the
+carrier shape (`runtime_shape.rs:558–559`). With an equivalent target carrier,
+the boundary leaves the expression in place (`emit.rs:865–867`). Its payload
+is evaluated before runtime constructs `Thunk::Effect`.
+
+Pure-expression lifting supplies the converse discriminator. For an emitted
+`g():Unit` checked against the specified target `Thunk(E,Unit)`, the same
+boundary checks the expression against the result `Unit`, leaves that code
+unchanged, and places it directly in `MakeThunk.body`
+(`emit.rs:865–880,911–924`; `runtime_shape.rs:837–840`). It does not first
+evaluate `g()` and wrap its returned value. `EmittedExpr::pure` still has a
+`ComputationShape(pure,value)`; the optional shape is not a raw-versus-carrier
+tag (`specialize2/mod.rs:139–165`). These are expression-level code placements,
+not the value-adapter equations of typed-boundary §4 applied after evaluation.
+
+This last statement is conditional on that boundary's supplied target. It
+does not establish a well-typed raw-source instance fixing a nonpure target
+for pure `g()`: the consumer effect is constrained from the actual expression
+(`specialize2/task_solver.rs:335–341`) and may normalize to pure. Nor has this
+audit established two accepted same-annotation expressions that emit outward
+requests at different construction phases. Those stronger claims are not
+needed for the following kernel non-equivalence.
+
+### A code-placement obstruction, independent of routing
+
+Let `p` be a computation that **produces a carrier**, and let `d` be its
+admitted result adapter. The following expression-level compositions differ:
+
+```text
+retain after construction:
+  p >>= lambda t. Return(Delay(Force(t) >>= d))
+
+delay construction too:
+  Return(Delay(p >>= lambda t. Force(t) >>= d))
+```
+
+Choose `p = Run(g()) >>= lambda a. ApplyValue(op,a)` in the ordinary
+call-by-value kernel, with a pure diverging `g` of the payload type and `op`
+an operation value. Choose an operation whose result type
+is `Unit` and identity `d`. The first expression diverges during construction;
+the second returns a delayed carrier immediately. A continuation that discards
+the produced carrier and returns `Unit` distinguishes them. The operation
+need not emit any request for this distinction. Source effect bounds do not
+imply termination, so a pure construction row cannot justify the rewrite.
+
+This is a concrete kernel counterexample, supported by the direct-operation
+production recipe. It is not claimed to be an executed/accepted Yulang
+program, a counterexample to every sorted elaboration, or a class-3
+non-finiteness result. The same counterexample distinguishes an existing
+carrier producer `p` from §8's uniform `Delay(Execute(e))` retention. The
+pure-to-thunk branch above separately rules out treating evaluate-then-wrap
+as the characterized behavior for every source producer.
+
+The exact conceptual boundary is **code adaptation versus value adaptation**.
+The fixed-shape adapter theorem takes an already produced value. Inserting
+that theorem around an arbitrary expression additionally requires proving
+where its producer executes. Equality of type endpoints, finite role tags,
+or the existence of an adapter descriptor does not discharge that requirement.
+In particular, a thunk-to-thunk nonidentity adapter cannot automatically be
+assumed to evaluate its producer first; the surrounding expression boundary
+also has to be derived.
+
+### Consequence for the successor construction
+
+Keep producer code, bind positions and delay positions in the same ordinary
+computation graph. Derive their placement from one source elaboration relation;
+do not recover it from a runtime carrier tag after solving. Retained code
+keeps its lexical references and typed value-path packets, not a snapshot of
+the live store or active handlers. When executed, its existing view/owner
+delimiters and raw-resumption rule determine current visibility. Delaying or
+advancing that code across a receiver/handler boundary needs a preservation
+theorem for the complete relation, including divergence and future uses.
+
+A runtime `Ready/Susp` split was considered during construction, but adds no
+missing source-placement proof: evaluating every `Build(e)` before retention
+already chooses a schedule and disagrees with the characterized pure lift.
+It is not adopted as a new successor construct. A static producer distinction
+may be useful bookkeeping, but no whole-source lowering or principality
+theorem follows merely from assigning that distinction a name. The corrected
+active production map replaces the earlier scheduling premise; source
+normalization and representation simulation remain the genuine open gate.
+
+## 10. One invocation relation: receive, entry, body
+
+The user clarified the intended Oracle semantics: **every function is a
+handler; an ordinary pure function forces and rebinds its input at the very
+start of activation**. Charter §16 records this source reference. It removes
+the need for separate source call mechanisms for value and computation
+parameters. The pre-call value-force rule in §8 is superseded as a source
+candidate by the following entry expansion.
+
+After source argument construction has produced carrier `t`, invoke the
+function under the current caller configuration:
+
+```text
+Invoke(f,t,C) =
+  enter invocation u in current C;
+  establish its source boundary instances;
+  Receive(u,parameter,t,typed correspondence);
+  Run(entry_f; body_f) >>= ReturnFromInvocation
+```
+
+An input retained as a computation remains bound to `t`. An ordinary value
+parameter `x:A` abbreviates the entry program
+
+```text
+View(t,parameter-computation-port,Force(t))
+  >>= lambda (v,C1).
+      RebindResultPath(u,t,x,v,C1);
+      Run(body_f,environment[x := v],C1)
+```
+
+This is the **same invocation**, not an extra wrapper call. `RebindResultPath`
+is notation for the existing typed relational image and receipt rule. It
+transports only matching result/value paths, with the same assignment and
+symbolic `K,D`. It neither copies an outer effect annotation to unrelated
+latent positions nor creates a contract. The complete call view encloses
+entry, body and the admitted result adaptation. All states are current live
+states; receiving or rebinding an input takes no handler/store snapshot.
+
+The common function-as-handler boundary does not fabricate operation arms.
+Actual shallow operation coverage and capture authority still require the
+source handlers, contracts and typed paths already specified. In particular,
+entry `Force` cannot invent permission from origin, family equality, `[_]`,
+or handler ownership. A later body handler is not already installed during
+the entry force. Keeping a computation parameter permits its body to execute
+it under a handler explicitly introduced there.
+
+Operation values are instances of this same invocation relation:
+
+```text
+ApplyValue(Operation(op,decl),t,C) =
+  Invoke(entry_from_decl; native_body,t,C)
+native_body(a) = Return(MakeRequestThunk(op,a))
+```
+
+The declaration supplies the payload role and typed correspondence. For a
+value payload `a:A`, entry executes `Force(t)` and the matching typed rebind
+before constructing the latent request from `a`. Thus `Unit → Unit` supplied
+with `Delay(Return Unit)` records a `Unit` payload, not a thunk as `Unit`.
+A computation-valued declared payload retains its carrier according to that
+declaration. `MakeRequestThunk` is an internal constructor, not a public
+callable: it introduces no wrapper activation or recursive invocation entry,
+and emits no request. The invocation returns the thunk normally; only a later
+demanded `Force` exposes its request. This instantiation preserves source
+origins, operation-instance endpoints, symbolic `K,D` and corresponding
+payload/result incidences without inventing arms or capture grants.
+
+**Entry expansion theorem.** A value-parameter invocation and its expansion
+into receipt, entry force, result rebinding and original body have the same
+complete source relation, for every admissible input carrier/configuration
+and every finite future-use and raw-resumption history. This is an expansion
+law of the candidate source machine under the user's reference, not a proof
+of frozen lowering or arbitrary-source type soundness.
+
+Relate the two configurations after entering the same invocation `u`, with
+identical boundary instances, receipt edges, live store and executing views.
+If force returns `(v,C1)`, both sides use the same result-path image, bind the
+same value and enter the same body. No part of this step inspects `A` to
+force latent descendants of `v`. If force yields a request, the ordinary bind
+equation retains its exact event, origin and symbolic `K,D`, appending the
+same rebinding/body/return suffix to its continuation. Emission-context
+projection and ordered search therefore see the same current typed paths,
+handlers and candidate eligibility.
+
+On a shallow capture, both sides save the same crossed view/owner delimiters.
+Raw resumption uses the current response and store. The existing owner
+protocol borrows a still-live owner or installs a fresh execution occurrence
+after expiry; it does not rename the original boundary receiver, replay entry
+receipt, or restore a consumed shallow handler. The suffix proceeds from the
+saved point through rebind/body. Induction on each finite interaction history
+preserves these configurations after every resumed prefix, including repeated
+resumption. Thus expiry and future latent uses remain governed by the same
+typed-value transport relation. This proof reuses the common bind/control
+theorem rather than adding a special callback rule.
+
+For an operation invocation, the same proof takes the original body to be
+`Return(MakeRequestThunk(op,a))`. A returning entry force supplies the typed
+payload to that constructor; a requesting entry force retains the exact
+rebinding/native-body/return suffix on raw resumption. Normal return and later
+latent request exposure therefore use the same owner and typed-transport
+rules as other invocations. This is conditional on declaration-role and
+typed-correspondence elaboration; it proves neither Oracle lowering nor the
+remaining whole-source typing/acceptance bridge.
+
+The typing consequence is relational composition: the complete invocation
+includes the input computation's execution and then its value-consuming body.
+A pure body alone cannot establish a pure invocation or discharge the input's
+symbolic constraints. An incoming effect is propagated by the force/bind
+image, subject to actual surrounding handlers; it must not be rejected or
+erased solely because `x` is used as a value after rebinding. Determining the
+source annotation bounds and the principal expressible approximation of that
+image remains a typing theorem, not an assumed row-subtraction rule.
+
+Frozen production can instead place `ForceThunk` in the argument expression
+before invocation (`specialize2/task_solver.rs:498–505`,
+`emit.rs:248–266,935–952`, `runtime_shape.rs:794–813`, followed by runtime
+`eval.rs:84–94`). This is a **placement difference requiring proof**, not by
+itself evidence of unsoundness. Any optimization moving force out of entry
+must preserve activation/receipt/view behavior as well as ordinary effects
+and divergence. Such a theorem has not been established here. Likewise, the
+entry expansion begins after carrier construction; it does not select the
+producer scheduling left open in §9. No runtime tag or new source construct
+is introduced to conceal either missing proof.
+
+## 11. Next construction and decision boundary
 
 The economical candidates are:
 
@@ -421,8 +692,9 @@ the frozen implementation is not justified.
 The next source package must complete the producer/consumer typing rules,
 inferred annotation-role derivation, scheduling/representation simulation and
 admitted conversions, then prove one of these representation routes. Section
-8 constructs a role-annotated candidate; it does not discharge its missing
-raw-source premises. The characterized strict case behavior is a reasonable
+10 fixes common invocation and its entry expansion. Section 8's prior
+role-annotated skeleton does not discharge the remaining raw-source premises.
+The characterized strict case behavior is a reasonable
 compatibility candidate; it is not independent authority for all consumers.
 Potentially removing `≈` as an operational choice by proving identity/η
 coherence is a separate simplification, not an established result: equal

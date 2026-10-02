@@ -404,3 +404,36 @@ evidence. It does not revive an expired occurrence, inherit a maker's capture
 grant by family equality, or move selector/arm effects under that handler.
 This declaration authorizes its source semantic direction, not a compiler
 optimization or implementation gate.
+
+## 16. User clarification: every function receives a computation (2026-10-02)
+
+The user clarified the intended Oracle source semantics: every function is a
+handler; an ordinary pure function forces its input at the very start of
+function activation and rebinds the resulting value. Use this common
+computation-receiving invocation as the source reference for the successor
+proof, rather than taking force-before-invocation from emitted code as its
+definition.
+
+A value parameter is therefore entry-program sugar: receive the computation,
+force it inside that same invocation, bind the resulting value, then execute
+the body. A computation parameter retains the input for use by the body.
+This does not require an additional wrapper invocation. A pure body does not
+erase effects of its entry force, nor does entry forcing recursively demand
+the returned value's latent descendants.
+
+The common invocation boundary supplies no invented operation arms or capture
+grant. Actual operation coverage, ordered shallow handling, explicit capture
+contracts and corresponding typed paths retain their existing rules. Source
+boundary/receipt evidence precedes entry execution; force/rebinding transports
+the same origin, symbolic family constraints and dependent views. On shallow
+resumption the pending entry/body suffix uses current state and the existing
+owner protocol; expired boundary identities are not revived.
+
+This records the user's intended source reference. It does not certify every
+frozen implementation placement as equivalent to that reference. Moving an
+entry force before invocation requires a complete preservation argument,
+including receiver identity, typed receipt/visibility and divergence.
+Argument carrier construction and source normalization remain proof gates.
+The invocation expansion is specified in ordinary-computation §3 and proved
+within the candidate source machine in source-computation-role §10. Compiler
+implementation and optimization approval remain separate.

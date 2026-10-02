@@ -805,3 +805,55 @@ scoped Git diff and staged whitespace check; full milestones and implementation
 remain open. The next gate is a source-role and scheduling/representation
 construction, followed by solution-complete regular or parametric query
 closure, not another callback-fixture expansion.
+
+### Active production correction and common function entry
+
+Previous goal turn was progress: `de7bfd0a7` recorded and pushed the role
+obstruction/source-map candidate. Follow-up source tracing changed its
+scheduling premise. Frozen public specialization enters `specialize2`;
+previous `solve/expr_solver` and `lib_support` citations were alternate
+machinery. The corrected production trace delays an effectful block as a
+whole, including its local prelude. Inference `evaluation` is expansiveness,
+not a separate effect phase. The source-role package §§6/9 now gives the
+active path; independent reviewers checked the decisive code branches.
+
+Code adaptation cannot be substituted for value adaptation after evaluation.
+An equivalent operation carrier retains payload evaluation before carrier
+construction; pure-expression lifting can instead place the expression code
+inside `MakeThunk`. A pure diverging producer distinguishes construction-first
+retention from delaying construction as well, even without an emitted event.
+These are exact kernel/production-shape results, not executed source-acceptance
+witnesses. Neither a uniformly delayed argument nor universal evaluate-first
+retention is justified. The explored runtime `Ready/Susp` split was not
+adopted; it did not derive the missing source placement.
+
+During this work the user clarified the intended Oracle source semantics:
+every function is a handler, with ordinary pure functions forcing and
+rebinding at the start of activation. Charter §16 records this reference.
+The source now has one computation-receiving invocation, with ordinary value
+parameters expressed as entry force/rebind in that same activation. The old
+pre-call preparation candidate is explicitly historical. A package expansion
+theorem preserves live state, typed receipt before force, latent result paths,
+request origins and symbolic `K,D`, and the pending entry/body/return suffix
+through raw shallow resumption. Expired boundaries are not revived; no
+wrapper call, operation arm or capture grant is introduced.
+
+M3 semantic/conformance review found the generic call rule still lacked
+operation payload acquisition. Primary accepted this as a major scope gap,
+obtained the common-entry derivation, and assigned one bounded documentary
+repair. Operation functions now use the same entry according to their declared
+payload role, then an internal constructor creates the latent request from
+the typed payload. Entry force and later request-thunk force have distinct
+responsibilities. A fresh compiler-referee delta closed the repair without
+findings. The second package review was required by the new user premise;
+unchanged code evidence and callback components were not repeatedly audited.
+
+Frozen force-before-invocation placement remains an optimization-equivalence
+obligation, not an established defect or authority. Carrier construction,
+annotation/declaration-role elaboration, finite principal presentation,
+uniform clients, lifecycle and implementation remain open. The next source
+construction uses this common invocation rather than inventing parameter-site
+handler rules. Primary synchronized task, charter/index, ordinary semantics,
+the source-role package and its exact-interface dependency. No tests, builds
+or performance experiments were run; measurement budget zero. Verification
+is scoped diff inspection and Git whitespace checks before the coherent push.
