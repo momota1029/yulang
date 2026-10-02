@@ -2352,3 +2352,60 @@ review metadata. Verification: focused diff/reference inspection and
 `git diff --check`; tests, builds and measurements budget/consumption zero.
 Only the current research branch is integrated, after explicit staged-path
 and whole outbound-range inspection. The full active goal remains unfinished.
+
+### Source width and regular scoped projection (2026-10-03)
+
+Previous goal turn was progress: `63fd13df9` was committed and pushed; current
+branch/upstream and clean worktree were revalidated. A bounded architecture
+and source audit addressed the pending source bridge rather than extending
+callback microfixtures. No compiler implementation was started.
+
+The width rule gives a concrete local source derivation: under opaque
+`x:kappa` and captured `f:{} -> Unit`, `f {field:x}` type checks without
+comparing the unused field. Frozen `a58eefc3` provides empty-record patterns
+and expected-fields-only structural comparison; it does not lower the `{}`
+annotation. The new package records precise locators and an unexecuted handler
+skeleton using `my consume {} = ()`. Eager exact-reference extrusion of the
+record against an unresolved lower-level domain instead generates a rejected
+`kappa <: parent` edge. This is a completeness obstruction for imposing that
+step, not an Oracle acceptance experiment or a changed existential rule.
+
+The replacement proof derives partial best visible approximations from the
+ordinary coinductive structural relation. For fixed finite contractive graphs
+of opaque atoms, Functions and mandatory Records, signed availability is a
+greatest Boolean fixed point. Positive Records omit exactly unavailable child
+fields; negative Records and both Function signs require their appropriate
+children. These are consequences of width and variance. A shared cyclic output
+has at most `2N` nodes and `2E` edges. Coinductive simulation and factorization
+prove least visible supertypes/greatest visible subtypes whenever they exist.
+No hidden atom is compared against an outer endpoint along the derived proof.
+
+This supplies a finite regular construction for the specified structural
+obligation, including infinite regular unfolding. It does not settle the
+full source interface's class 1/2/3 status. Excluded flexible-bound/lattice/
+effectful forms remain required proof gates, not a supported-envelope cut.
+Joint clause equivalence is for fixed symbolic types with opaque witnesses
+and visible outer assignments. Actual request substitution preserves proof
+soundness, not completeness after concrete instantiation; original witnesses,
+graphs and arbitrary retained `Phi` remain unchanged.
+
+A separate finite complete-lattice countermodel shows that signed uniform
+parents can lose a Function root's mixed-variance correlation before guarding.
+Its restricted hidden domain and union target are not established source
+premises. This bounds the preceding all-model route without treating actual
+callers as generic-arm assumptions. The historical exact-trace theorems remain
+valid, but exact eager extrusion is no longer a mandatory successor bridge.
+
+Next integrate these structural projections into source-generated flexible
+constraints, preserving the remaining invariant/effect relations, then close
+effectful checking and lifecycle. The full objective remains active.
+
+M3: one bounded architect, one source explorer, one documentary producer and
+two independent semantic/conformance reviewers. Both returned no findings;
+the semantic reviewer also independently checked the four frozen source
+slices. Primary closed a wording-only formula cleanup and synchronized
+task/index/progress and review metadata. Static source/diff/link inspection
+and `git diff --check` passed. Tests, builds and measurements budget/consumption
+zero; the source skeleton was not executed. No repair review round was needed.
+Integration is restricted to the coherent research checkpoint and full
+outbound-range inspection; no compiler or frozen-main changes are included.

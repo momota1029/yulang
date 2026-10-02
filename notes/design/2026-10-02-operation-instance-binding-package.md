@@ -523,6 +523,12 @@ scoped extension criterion remains open: a boundary representative may not
 admit the diagonal witness dependency, and guard rejection alone does not
 prove scoped unsatisfiability. This grants no implementation authority.
 
+The [scoped structural projection candidate](2026-10-03-scoped-structural-projection.md)
+constructs partial best visible comparators for a pure regular width/variance
+fragment. It preserves these historical exact-trace claims while retiring
+mandatory eager extrusion as a complete route for unknown cross-scope targets.
+Full source graph generation and effectful/invariant checking remain gates.
+
 The fresh Function-child argument establishes no counterexample to actual
 Simple-sub extrusion and is withdrawn as such. Derived structural summaries
 do not assign stored levels to constructors; comparison decomposes structure

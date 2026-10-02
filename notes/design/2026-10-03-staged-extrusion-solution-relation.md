@@ -315,6 +315,13 @@ and selects no Top exception, guard bypass or source rejection rule.
 
 ## 8. Exact next gate
 
+The [scoped structural projection package](2026-10-03-scoped-structural-projection.md)
+now supplies partial best visible comparators for a pure regular structural
+fragment. Its width derivation retires mandatory eager exact-reference
+extrusion as a blanket completeness route for unknown cross-scope targets;
+the historical exact-trace theorems above remain valid. Full source graph
+generation, unknown endpoints and effectful/invariant clauses remain open.
+
 Before implementation, establish a scoped extension criterion relating the
 uniform source typing judgment, admissible boundary approximations and the
 selected generation-time guard. The fixed-strategy semantic uniform-parent

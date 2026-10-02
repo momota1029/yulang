@@ -930,7 +930,44 @@ diff/reference checks and `git diff --check` passed; tests, builds and
 measurements budget/consumption zero. Implementation and the full objective
 remain open.
 
+### Source width and finite regular scoped projection
+
+The next source audit found a concrete local checking obligation that eager
+exact-reference extrusion cannot handle completely. Under `x:kappa` and
+`f:{} -> Unit`, `f {field:x}` is uniformly typable by record width, with no
+comparison involving `kappa`. Eagerly extruding that record against an
+unresolved captured outer domain instead creates a forbidden witness/parent
+edge. Empty-record patterns and expected-field comparison are established
+frozen source evidence; the illustrative full handler program is not an
+executed or accepted fixture. The exact-reference theorem remains valid;
+mandatory use of that algorithm for every scoped target is retired.
+
+`2026-10-03-scoped-structural-projection.md` constructs partial least visible
+supertypes and greatest visible subtypes for finite contractive regular
+Primitive/Function/mandatory-Record graphs with opaque hidden atoms. A greatest
+availability fixed point over signed nodes selects a shared projection;
+coinductive factorization proves its bestness. Construction uses at most `2N`
+nodes and `2E` edges, including recursive cycles. Record field omission follows
+ordinary width, with no forbidden witness comparison or evidence erasure.
+
+This is an exact finite regular result for the stated structural judgment.
+It does not classify the whole source effect interface or reject excluded
+types. Generic witnesses remain opaque during checking; concrete proof
+substitution preserves soundness, not reflection of arbitrary concrete checks.
+Next extend source constraint generation and solving to select such projections
+for flexible bound graphs while preserving every original invariant/effect
+relation. Declared bounds, lattice constructors, effectful Function checking,
+typed-family lifecycle and implementation remain open.
+
+M3 used one architect, one bounded source explorer, one documentary producer
+and two independent semantic/conformance reviewers. Both reviews found no
+findings. Static source/diff/link checks and `git diff --check` passed; tests,
+builds and measurements budget/consumption zero. Task/index/progress records
+are synchronized for the coherent research checkpoint.
+
 ## Main records
+
+- `notes/design/2026-10-03-scoped-structural-projection.md` — finite regular best visible comparators for a structural fragment; source width obstruction to mandatory eager extrusion; full source constraints remain open.
 
 - `notes/design/2026-10-03-staged-extrusion-solution-relation.md` — exact unscoped graph projection, signed retry, finite consequence replay and relative uniform-parent construction; source-scoped extension criterion remains open.
 
