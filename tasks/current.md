@@ -102,8 +102,8 @@ products retained symbolically. Its operational kernel gives conditional
 heap simulation; explicit selected-pair observations give universal
 selected-incompatibility reflection. Independent semantic and conformance
 package reviews are clean within that conditional envelope. This does not
-construct elaboration from raw source. The exact source gaps are inductive
-callback-boundary relevance/visibility and effective general adapter
+construct elaboration from raw source. The source gaps at that checkpoint were
+inductive callback-boundary relevance/visibility and effective checking/conversion
 descriptors; neither may be hidden in an oracle primitive. The typed-boundary
 package now constructs at most `|T|²` recursive adapter descriptors for fixed
 resolved Function/Thunk graphs, with operational simulation and a finite
@@ -347,6 +347,35 @@ uncertainty alone cannot veto a concrete capture contract when complete
 established. Do not begin lifecycle proof against an undefined representation.
 
 Implementation feasibility evidence is recorded in `notes/progress/2026-10-02-successor-implementation-feasibility.md`: resolved HIR lacks calls/handlers/`Force`, effect views cannot carry nonempty symbolic payloads, and runtime execution surfaces are absent. Do not prototype before the semantic carrier and required compiler surfaces are established. Use Rust for any later executable characterization; do not use Python.
+
+## Checking normalization checkpoint
+
+Typed-computation-core §7 now separates source introduction/consumption,
+proof-only checking of the same decorated interface, and executable admitted
+casts. It proves that erasing only checking labels preserves the executable
+consumer/entry skeleton, actual source contracts, typed evidence, symbolic
+`K,D` and future/resumed execution. Semantic inclusion remains a premise,
+not a new opaque solver instruction. The finite bound covers generated code
+and constraint roots, not solved query closure or principal inference.
+
+The old `Adapt(Unit,alpha)` tower and its dual are conditional counterexamples
+to the old candidate adapter's producer-only inventory, not established
+source obligations. Its `FunctionMap` can execute argument conversion before
+receiver receipt and therefore is not automatically justified under the
+selected source semantics. Bounded frozen source evidence requires outer
+computation passage/execution, Function callbacks and ordinary registered
+casts; the arbitrary nested-thunk assertions inspected use manual mono
+inputs. This is not an absence proof or permission to remove acceptance.
+
+The next milestone package must derive effective relational checking/query
+closure for actual source contracts and normalize required conversions to
+source introduction/consumption, checking, or admitted executable casts.
+Cross-role Function assignments need complete invocation contracts; payload
+variance alone cannot erase different receiver entry behavior. Registered
+casts remain required; method/role/impl resolution stays in its mandatory
+later gate unless a concrete ordinary-effect dependency requires it sooner.
+No class-3 witness, complete finite principal presentation, lifecycle gate
+or compiler implementation approval follows from this checkpoint.
 
 ## Main records
 

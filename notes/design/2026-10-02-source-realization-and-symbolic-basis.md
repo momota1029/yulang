@@ -77,11 +77,14 @@ instantiation are still later obligations.
 
 This restriction is a proved property of the supplied fixed descriptor
 machine, not a consequence of finite raw syntax. The role/elaboration
-package `2026-10-02-source-computation-role-elaboration.md` shows why:
-adaptation to an unknown target can construct type positions absent from the
-initial source producer inventory. Finite source templates do not alone
-instantiate this `Ω`; source role typing and a finite solved or parametric
-constructor/query presentation remain required.
+package `2026-10-02-source-computation-role-elaboration.md` gives a conditional
+warning: its candidate unknown-target adapter equations construct type
+positions absent from the initial producer inventory. Typed-computation-core
+§7 has not established these equations as required source conversions;
+proof-only checking creates no such positions. Neither finite source
+templates nor removal of that unadopted candidate alone instantiates this
+`Ω`. Source checking and a finite solved or parametric constructor/query
+presentation remain required.
 
 ## 3. Constructing the symbolic basis
 
@@ -339,11 +342,15 @@ The constructive results have the following boundary:
    callback relevance. Preserve concrete-contract visibility uniformly
    through direct/Force exposure, nesting, escape and shallow re-entry. Do not
    add boundary exclusions merely to make the traversal executable.
-2. **Adaptation realization.** The coupled core's thunk/function equations
-   leave boundary equivalence `≈`, admissible payload conversions and other
-   non-thunk conversions unspecified. Supply finite recursive descriptors
-   and a source-preservation proof, including force positions and return
-   lineage. Calling `Adapt` an instruction does not satisfy this premise.
+2. **Checking and required conversions.** Typed-computation-core §7 separates
+   source introduction/consumption, proof-only checking, and executable
+   admitted casts. First derive which conversions source acceptance requires;
+   the old arbitrary thunk/function shape equations are not source authority.
+   The inclusions in the checking fragment are semantic propositions, not an
+   effective finite solver. Derive their relational presentation and finite
+   query closure, plus source-preserving descriptors for required executable
+   conversions, including force positions and return lineage. Calling
+   `Adapt` or interface inclusion an instruction does not satisfy this premise.
 3. **Uniform future interactions.** The basis theorem applies after fixing
    finite `Ω`, including linked client bodies. For each such client it
    covers arbitrarily many calls/resumes to those bodies. This is

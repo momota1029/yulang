@@ -1122,3 +1122,55 @@ tests, builds or measurements; measurement budget zero. Primary synchronized
 task/index/charter/decision/core/progress records. Focused diff/whitespace and
 full outbound-range checks govern the coherent checkpoint/push. This turn is
 progress; it does not mark the full goal complete.
+
+### Source checking and the conditional adapter obstruction
+
+Under the selected inert-argument/result-forwarding rules, the primary and
+a bounded architect audit distinguished source introduction/consumption,
+proof-only checking, and admitted executable casts. Typed-computation-core
+§7 records the package. Checking labels may be erased while retaining their
+constraints and every source contract, receipt/view derivation, typed path,
+joint `K,D` dependency and source consumer. A structural proof and the
+identical decorated transitions cover initial and future/resumed execution.
+This is erasure of proof labels, not erasure of changed callback annotations.
+
+Function checking retains the actual callable entry. Its contravariant
+argument and covariant result obligations include the complete invocation
+and typed boundary contracts; equal payload/empty effect rows cannot equate
+strict entry with retained-and-ignored input. An executable value cast is
+not proved by an inclusion check. Semantic inclusion remains a proposition
+requiring an effective presentation, not an opaque solver atom that closes
+Milestone 3 by naming it.
+
+The old fixed-shape adapter theorem remains valid for its candidate equations.
+Its pre-call argument conversion is not automatically compatible with
+receipt-before-entry-force. Likewise its arbitrary Unit-to-thunk-tower family
+refutes producer-only closure for that candidate, but has not been derived
+as a required source conversion. The common source fragment creates no
+new runtime constructors by solving an endpoint assigned such a shape.
+
+A bounded explorer audit inspected five frozen source witnesses: retained
+computation input, effectful callback, stored pure/effectful Function,
+ordinary result cast and record-field casts. The inspected arbitrary/nested
+adapter tests instead construct mono inputs directly. This is an evidence
+gap, not absence/completeness proof. No Oracle capability was removed;
+registered casts and cross-role Function assignments remain explicit
+acceptance obligations. Source-role §5, typed-boundary introduction and
+source-realization §§2/6 now record this qualification at the old gate.
+
+The next package is effective relational checking/query closure for actual
+source contracts and required conversions, with conversion normalization
+and the existing modular future-client/acceptance obligations. Arbitrary
+unadopted adapter equations are not a prerequisite by default. No complete
+finite/principal presentation, class-3 impossibility, lifecycle theorem or
+implementation readiness is claimed.
+
+M3: one architect, one bounded evidence explorer, two independent reviewers
+(compiler_referee and spec_auditor). Both found no blocking, major or minor
+issue in the scoped proof/authority package; no repair round was needed.
+The primary synchronized task/index/progress records. Checks: scoped diff
+inspection and `git diff --check`; tests/builds not run for this documentary
+package. Measurements: zero samples, zero measurement processes. The coherent
+checkpoint uses explicit staging and complete outbound-range inspection
+before push. This slice narrows the source-obligation gap; the full goal
+remains active and incomplete.

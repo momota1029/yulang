@@ -29,6 +29,13 @@ The adapter result is a structural operational subtheorem, not a new supported
 source envelope. It does not supply source typing, all conversions, arbitrary
 unknown-shape instantiation, or the missing component interaction theorem.
 
+Following the user's inert-argument and result-forwarding decisions,
+typed-computation-core §7 audits which of these equations are source
+obligations. The fixed-shape result remains conditional machinery. In
+particular, its pre-call `FunctionMap` argument conversion is not a proof of
+the selected receipt-before-entry execution protocol. No general adapter
+admissibility or source acceptance restriction follows from this package.
+
 ## 2. Resolved source scope choices
 
 On 2026-10-02 the user selected typed-value transport for both alternatives

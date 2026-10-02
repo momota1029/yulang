@@ -7,6 +7,7 @@ Approved-by: none for this construction; charter §§13–18 govern its source p
 Drafted-by: primary with bounded architect construction and independent semantic attack
 Reviewed-by: independent compiler_referee and spec_auditor, 2026-10-02; no blocking/major findings; minor handler-subcode construction clarification closed by primary
 Source-synthesis review: independent compiler_referee and spec_auditor, 2026-10-02; no findings in §6 result/consumer construction, source-role coherence and scoped substitution theorem
+Checking review: independent compiler_referee and spec_auditor, 2026-10-02; no findings in §7 proof-label erasure, actual receiver contract obligations and conditional adapter-obstruction scope
 Supersedes: no source authority; refines the executable-code premise of source-computation-role §12
 
 Provenance: inert computation introduction, typed consumption and shallow
@@ -445,3 +446,204 @@ The source forwarding blocker is closed. The next obligations are complete
 annotation/checking and admitted-conversion coherence, finite regular or
 parametric symbolic query solving, modular future clients and acceptance;
 then the selected milestone order reaches lifecycle and implementation.
+
+## 7. Checking normalization and the scope of the adapter obstruction
+
+### Three different obligations
+
+The source decision determines introduction and consumption independently of
+the solved value shape. Consequently three operations must not be identified:
+
+1. constructing/consuming a known source computation, as in §6;
+2. proving that the same decorated value or computation meets another
+   interface, without executing a conversion;
+3. executing an admitted value conversion, for example a registered cast.
+
+This is a decomposition of proof obligations, not a decision to remove (3).
+Frozen source accepts ordinary value casts. Nor does this assert that every
+Function assignment belongs to (2). A theorem normalizing every required
+source conversion to these operations is still required.
+
+For (2), write `VIncl(A,B)` for inclusion of the **same decorated values**,
+and `CIncl(J,J')` for inclusion of their complete computation interfaces under
+the same symbolic assignment. The decorations include source profiles,
+typed-path correspondences, joint `K,D`, and lineage. These names abbreviate
+semantic propositions; they are not proposed new solver atoms or opaque
+runtime instructions. In particular, ordinary row inclusion alone is not
+the definition of `CIncl`.
+
+The representation-preserving checking fragment is:
+
+```text
+Check(Value(A),Value(B)):
+    establish VIncl(A,B); retain the value and its evidence
+
+Check(Computation(E,A),Computation(F,B)):
+    establish CIncl(Comp(E,A),Comp(F,B)); retain its computation
+```
+
+Original annotation slots remain identifiable when the existing typed `Flow`
+relation carries their views to corresponding paths. A checking proof is
+not an additional receipt, boundary introduction, view delimiter or source
+execution. Actual source annotations and their receipt/view derivations
+remain in the elaboration, including when the representation does not change.
+The target contract is not silently replaced with the inferred source row.
+
+The fragment has no rule changing a `Value` tag into a `Computation` tag or
+conversely by inspecting a solved `Thunk` shape. Section 6 supplies the
+source introduction/consumption derivations when they exist. This restriction
+describes this fragment only; it does not establish completeness of checking
+or authorize rejecting other source programs.
+
+### Erasure and constraint-retention theorem
+
+Fix a §6 source derivation, its original contracts, and its common typed
+transport/receipt derivations. Insert finitely many proof-only checks of
+the above form. Define their erasure to remove the proof labels while
+retaining their inclusion constraints and all those source decorations.
+For assignments satisfying the constraints:
+
+- the erased and annotated derivations generate identical executable
+  instruction graphs, up to administrative proof labels;
+- they have identical source introduction/consumption positions, receiver
+  entry programs, native return delimiters and handler/view order;
+- each checked value/interface has the asserted membership; family
+  constraints remain symbolic in the same joint assignment.
+
+**Proof.** A value check generates the existing data descriptor unchanged;
+a computation check generates its existing code descriptor unchanged. Its
+membership assertion follows from the corresponding inclusion premise.
+Induct through the derivation constructors: children share the same code
+and environment references, so lambda/reification stores the same code;
+call passes the same whole carrier to the same entry program; bind uses
+the same result continuation; a handler keeps the same selection, guard
+and arm programs. None of these cases creates a new dynamic boundary for
+a proof label. Typed evidence is retained, not erased with that label.
+Thus the two initial decorated states coincide modulo static proof labels.
+Every primitive transition has the same operands and current context on
+both sides, including request emission and ordered visibility. Its target
+states again coincide. Stored code and raw resumptions reuse those same
+descriptors and the current store, proving the result for future executions
+as well as the initial prefix. Constraint retention, unlike materializing
+a concrete type and reconstructing evidence, preserves the shared symbolic
+`K,D` throughout this argument.
+
+The theorem compares a derivation **with and without proof labels**, not
+programs with different source callback annotations. Replacing a concrete
+contract with a wildcard may change handler visibility; that replacement
+is not this erasure. Nor is this a proof that arbitrary proposed inclusions
+hold. An effective sound/principal presentation of inclusion is still an
+open part of Milestone 3; hiding it inside `VIncl/CIncl` would not close it.
+
+### Function contracts and actual receiver entry
+
+All callees receive a computation carrier. The callable retains its own
+declared entry, including whether to force/rebind or retain that carrier.
+Function checking without executable conversion must therefore establish:
+
+```text
+every target-admissible argument satisfies the actual receiver's contract;
+the actual complete invocation satisfies the target result contract.
+```
+
+Contravariant arguments and covariant results are consequences only where
+these premises hold, including the typed boundary/protection obligations.
+Even matching parameter roles do not license ignoring these obligations.
+For different roles, comparing the payload endpoints alone is insufficient.
+A value receiver executes its input at entry; a computation receiver may
+ignore it. Passing a pure diverging computation distinguishes those
+behaviors even with an empty effect row. The example rules out equality of
+entry behavior based on payload/row equality; it does not require termination
+precision in effect inference or declare every cross-role assignment invalid.
+
+No wrapper is required merely to convey an already admissible carrier under
+this uniform calling convention. Conversely, effectful/numeric/structural
+conversions need their own admitted source computation and correct placement.
+An inclusion proof cannot stand in for executing such a conversion.
+
+### Old adapter equations are conditional machinery
+
+Typed-boundary §§3–5 proves a finite implementation of its chosen fixed-shape
+equations, not source admissibility of those equations. In particular:
+
+```text
+Apply(FunctionView(f,da,dr),x) =
+    RunD(da,x) >>= (lambda y. Call(f,y)) >>= (lambda z. RunD(dr,z))
+```
+
+When `da` executes the argument computation before `Call`, this equation
+does not directly realize receipt-before-entry-force. For a receiver that
+retains and ignores the carrier, it can introduce execution absent from the
+source invocation. For a strict receiver, moving execution across receipt
+still requires a context/visibility preservation proof. The equation's
+simulation of itself proves neither fact. If an admitted source conversion
+requires an executable adapter, its placement must be derived from the
+source receiver/consumer relation; a synthetic receiver or a new boundary
+cannot be introduced solely to make the equation fit.
+
+In particular, the pure value supplied to a computation parameter is
+already represented by the whole-argument code for `Result(Value(A))`.
+This does not require `Adapt(A,Thunk(E,A))` on an ordinary value result.
+Similarly, `id(op())` executes the designated outer operation computation
+inside the received argument's entry force (§1); it does not recursively
+force arbitrary latent values until their shape becomes `Int`.
+
+The unbounded `Adapt(Unit,alpha)` thunk-tower family in source-role §5 is
+therefore a real obstruction to that **candidate adapter's producer-only
+inventory**, not an established obstruction imposed by successor source
+checking. In this checking fragment, assigning a thunk-like shape to
+`alpha` adds neither constructors nor execution to `Unit <: alpha`.
+Whether such an assignment satisfies value inclusion is a typing question;
+checking does not manufacture a value of an unrelated type. Recursive type
+equalities likewise do not authorize another source elimination.
+
+### Bounded source-acceptance evidence
+
+The following frozen `a58eefc3` assertions were inspected, not executed.
+The locators establish only the stated witnesses, not an exhaustive
+acceptance characterization.
+
+| Frozen source/test locator | Required capability |
+|---|---|
+| `crates/specialize/src/tests.rs:1072–1091` | `keep(x:[_]int)=1; keep(out::read(()))`: retain/ignore the outer computation |
+| same file, `675–700` | `accept(f:int -> [out]unit)=f 1`: effectful Function callback, no asserted FunctionAdapter requirement |
+| `crates/yulang/src/source/tests/case_01.rs:696–718,760–767` | stored `run:() -> [probe]str` with effectful or pure lambda body; inert function construction |
+| `crates/specialize/src/tests.rs:933–948` | ordinary result cast inside the function body; explicitly no whole-function cast adapter |
+| same file, `952–971` | registered casts on record fields; explicitly no whole-record adaptation |
+
+The Function/thunk adapter assertions at `crates/specialize/src/tests.rs:93–195`
+and `260–333` instead manually construct mono types and expressions. The
+shape comparison at `crates/specialize/src/specialize2/tests.rs:1432–1463` is also a
+manual runtime-shape test. They characterize an implementation mechanism,
+without deriving arbitrary nested-thunk conversions from source annotations.
+Source Function annotations separate immediate result effect/value
+(`crates/infer/src/annotation/builder.rs:123–142,409–413`), while an Effectful
+annotation in value bounds is lowered through its result
+(`crates/infer/src/annotation/constraints.rs:334`).
+Repeated surface annotations are not evidence for arbitrary latent layers.
+
+No inspected source witness requires the arbitrary tower conversion. This
+is an evidence gap, not proof of absence. No Oracle acceptance is dropped
+by this audit. Registered casts are positively evidenced and must remain
+in the acceptance bridge; their method/role/impl resolution belongs to the
+mandatory later gate unless the ordinary-effect proof needs it earlier.
+
+### Consequence for finite presentation and the next gate
+
+For a source derivation with `n` constructors and `k` proof-only checking
+occurrences, these checks generate no executable constructors or dynamic
+type inspection. Static checking labels/constraint roots take `O(k)` space;
+§6's executable-template bound remains `O(n+m)`. Shared recursive references
+are not unfolded. This is a finite-generation theorem, **not** a bound on
+solved type graphs, symbolic query closure, saturation or principal inference.
+
+Milestone 3 must now derive an effective relational presentation for the
+actual source contracts and required conversions. It need not first solve
+an unadopted arbitrary runtime-shape conversion calculus. Its acceptance
+bridge must show which required conversions normalize to source
+introduction/consumption, evidence-preserving checking or an admitted cast;
+cross-role Function assignments and casts cannot be removed by assumption.
+The old unknown-shape family remains available if that bridge actually
+derives it. Finite unbounded, regular, and genuinely non-finite presentations
+remain distinct; this audit supplies no class-3 counterexample and closes
+no generalization/intrusion or implementation gate.

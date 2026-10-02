@@ -181,6 +181,15 @@ copying annotations across unrelated result paths.
 
 ## 5. Why initial source producers do not close the unknown-shape gate
 
+**Scope after source decisions §§17–18:** this section analyzes the candidate
+adapter equations, not conversions established as successor source rules.
+Typed-computation-core §7 now separates source consumption, proof-only
+checking and admitted executable casts. Its source-evidence audit does not
+derive the arbitrary thunk-tower family below; nor does it prove that all
+required conversions avoid it. Retain this obstruction conditionally on
+adopting those equations, without making their solution a prerequisite for
+the successor merely because the frozen runtime has shape adapters.
+
 For source-created values, associating each allocation site with a constructor
 and symbolic child endpoints is a useful invariant: repeated allocation need
 not create another static type endpoint. That does not cover values created
