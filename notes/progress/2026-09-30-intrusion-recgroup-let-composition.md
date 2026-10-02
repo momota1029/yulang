@@ -621,12 +621,17 @@ contract expressed in the same environment/computation relation. Oracle's
 `FetchValue`/`FetchComputation` bit is characterization and an implementation
 index for this boundary, not the successor's semantic selector.
 
-A recursive Function SCC is the simultaneous value-binding case of this
-fold: all members receive shared monomorphic self assumptions while their
-external entries are the respective `Poly(MemberTypes)` sets. A component
-whose recursive dependency requires evaluating a computation is outside this
-pure recursive rule; the frozen source contract diagnoses cyclic computed
-fetches because initialization order and value sharing are then observable.
+A recursive Function SCC is the proposed simultaneous value-binding case of
+this fold: all members receive shared monomorphic self assumptions while
+their external entries are the respective `Poly(MemberTypes)` sets. The exact
+publication rule and this member-set characterization remain unproved from
+the source declaration contract. A component whose recursive dependency
+requires evaluating a computation is outside this pure recursive rule; the
+frozen source contract diagnoses a multi-root SCC with an internal
+computation-fetch edge because initialization order and value sharing are
+then observable. It explicitly does not diagnose every cyclic computed
+fetch: a singleton computed self-cycle is outside that diagnostic rule. This
+distinction is source-contract evidence, not a new successor semantic rule.
 After dependency SCCs are typed, computation roots still execute in source
 order, which is independent of the dependency order used to expose schemes.
 Thus one source/module relation has two order observations—static SCC
@@ -642,3 +647,31 @@ complete source evaluation relation, symbolic effect-family transport, and
 all computed-binding lookups remain unproved. In particular, the effectful
 computation case must retain its entire coupled typed interface rather than
 only `T`; deriving that case belongs to the ordinary effect/handler gate.
+
+#### Frozen top-level source-contract audit (2026-10-02)
+
+An independent source audit compared the conditional fold above with the
+frozen computed-fetch, principal-monomorphization, and mono-VM contracts at
+`/tmp/yulang-intrusion-scc-owned-trace` (`a58eefc31`). It found source support
+for the value/computation fetch distinction, source-order roots for computed
+bindings (including unused ones), and retaining a computed instance's result
+for later references. These facts support the shape of the fold, but do not
+establish its declaration typing theorem.
+
+The exact recursive-group publication rule remains open: permission to
+generalize recursive functions does not prove that each member's external
+entry is exactly `Poly(MemberTypes)`, that the member set has the proposed
+joint validity relation, or that every top-level dependency is represented by
+this fold. Likewise, `Mono(T)` is not yet proved to retain the complete
+interface shared by later computed-binding references; exported reference
+tables and non-generalization metadata do not establish imported/exported
+anchor identity or transport. The general value case also needs a fixed outer
+assignment: only locally eligible binders may vary at a lookup, while imports
+and outer non-generic identities remain shared.
+
+Accordingly, the module theorem and general declaration fold remain
+conditional hypotheses, not source-derived rules. The audit found no basis
+for changing expected outputs or compiler behavior. Next proof obligation is
+the source declaration/export relation for recursive groups and computed
+bindings, including retained interface and anchor correspondence. This audit
+did not use solver routes as semantic authority and ran no tests.

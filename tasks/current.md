@@ -4137,3 +4137,15 @@ subtyping-law mismatch and stuck-application gap in the first formulation;
 both were corrected and delta-reviewed clean. This is not a complete
 soundness or principality proof. See the subsection in
 `notes/progress/2026-09-30-intrusion-recgroup-let-composition.md`.
+
+The pure top-level fold received an independent frozen-source audit. The
+value/computation fetch distinction, source-order computed roots, and retained
+computed results have source support, but the proposed `Poly(MemberTypes)`
+recursive publication rule, complete monomorphic computed interface, and
+import/export anchor correspondence remain unproved. The cycle diagnostic
+claim is narrowed to the specified multi-root internal computation-fetch
+case; it does not cover singleton computed self-cycles. No compiler behavior
+or expected output changes follow. See the audit subsection in
+`notes/progress/2026-09-30-intrusion-recgroup-let-composition.md`. The active
+next gate remains the common source call/handler transition with symbolic
+typed-family transport.
