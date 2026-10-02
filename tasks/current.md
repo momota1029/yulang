@@ -211,6 +211,14 @@ corrected production paths. No runtime `Ready/Susp` mechanism is adopted.
 
 The immediate gate is source producer/annotation elaboration and its
 scheduling-preserving representation **under this common invocation**.
+One foundational clarification is pending in
+`2026-10-02-source-call-scheduling-choice.md`: does application reify the
+whole argument computation, or execute a source-derived construction prefix
+before receipt? The user has been asked; neither alternative is selected.
+The receiver's force/rebind after receipt remains fixed under both. A kernel
+divergence discriminator and component-level frozen fixtures support the
+comparison, but the complete ignored-argument source program's acceptance is
+unverified. Continue only work independent of the answer until it arrives.
 Frozen force-before-call placement requires a receiver/receipt/view
 preservation proof; it is not automatically authority or an established bug.
 Nested effectful annotation coverage, admitted adapters and inferred roles
@@ -267,6 +275,7 @@ Implementation feasibility evidence is recorded in `notes/progress/2026-10-02-su
 
 ## Main records
 
+- `notes/design/2026-10-02-source-call-scheduling-choice.md` — pending global argument-construction clarification, concrete conditional discriminator and exact acceptance-evidence limits.
 - `notes/design/2026-10-02-source-computation-role-elaboration.md` — corrected active source map, producer-placement obstruction and common invocation entry expansion; raw-source scheduling/typing and finite solved/parametric presentation remain open.
 - `notes/design/2026-10-02-typed-source-owner-realization.md` — reviewed owner-span/control and typed-view context construction; user-selected outside-image equation.
 - `notes/design/2026-10-02-typed-boundary-realization-draft.md` — selected common typed-value transport and reviewed conditional transport/lifetime theorem package; reviewed fixed-shape cyclic adapter construction and symbolic equality; full realization open.

@@ -857,3 +857,42 @@ handler rules. Primary synchronized task, charter/index, ordinary semantics,
 the source-role package and its exact-interface dependency. No tests, builds
 or performance experiments were run; measurement budget zero. Verification
 is scoped diff inspection and Git whitespace checks before the coherent push.
+
+### Argument-construction boundary isolated for user clarification
+
+Previous goal turn was progress: `470270046` recorded and pushed the common
+function-entry expansion and corrected active production map. The next
+construction showed that §16 fixes force after receipt but does not choose
+what argument construction does before receipt. The source scheduling
+decision record is `2026-10-02-source-call-scheduling-choice.md`.
+
+Two global alternatives are now concrete: reify the whole argument
+computation, or execute a source-derived carrier-construction prefix before
+invocation. Both preserve the selected function entry rule. The existing
+pure-divergence kernel witness distinguishes them, but the smallest concrete
+source composition has not been executed or certified accepted. A bounded
+frozen-source audit located component fixtures for computation parameters,
+unused ordinary arguments, recursion and annotations; none proves all the
+composition's acceptance premises. The record lists those exact limits.
+The user was asked for this foundational scheduling clarification; neither
+alternative has been adopted and no reply is assumed from elapsed time.
+
+Independent of that question, completed-result typing was kept separate from
+carrier-producing representation. A proposed completion formulation would
+force an operation carrier before invocation exit; that movement cannot be
+certified merely from matching `Comp(E,A)` endpoints. No new invocation
+lifetime rule or runtime carrier tag was adopted. The decision comparison
+holds its result/continuation protocol fixed and leaves source representation
+simulation open.
+
+M3 budget: one bounded architect construction, one bounded explorer evidence
+audit, one independent compiler-referee decision-record review. No
+blocking/major finding. Primary accepted one minor notation correction: the
+divergence witness uses internal `MakeRequestThunk` on its acquired payload,
+not the now carrier-receiving public `ApplyValue`. The owning earlier witness
+was corrected as the direct dependency. A suggested fixed completion/return
+order was not added without its source derivation; the record instead states
+that it changes no such order. No tests, builds or measurements were run.
+Primary synchronized task/index/source-role/progress records and used scoped
+diff/whitespace checks. Full inference and implementation goals remain active;
+source scheduling work dependent on the answer is held until it arrives.

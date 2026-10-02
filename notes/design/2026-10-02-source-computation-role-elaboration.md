@@ -505,10 +505,11 @@ delay construction too:
   Return(Delay(p >>= lambda t. Force(t) >>= d))
 ```
 
-Choose `p = Run(g()) >>= lambda a. ApplyValue(op,a)` in the ordinary
-call-by-value kernel, with a pure diverging `g` of the payload type and `op`
-an operation value. Choose an operation whose result type
-is `Unit` and identity `d`. The first expression diverges during construction;
+Choose `p = Run(g()) >>= lambda a. Return(MakeRequestThunk(op,a))` in the
+carrier-construction kernel, with a pure diverging `g` of the payload type.
+The internal constructor takes the acquired typed payload; it is not a public
+operation invocation taking a computation argument. Choose an operation whose
+result type is `Unit` and identity `d`. The first expression diverges during construction;
 the second returns a delayed carrier immediately. A continuation that discards
 the produced carrier and returns `Unit` distinguishes them. The operation
 need not emit any request for this distinction. Source effect bounds do not
@@ -700,8 +701,14 @@ Potentially removing `≈` as an operational choice by proving identity/η
 coherence is a separate simplification, not an established result: equal
 undecorated shapes alone do not prove preservation of view/receipt evidence.
 
-There is no user decision requested by this document. The completed judgment
-and its alternatives should be reviewed as a whole source-semantics gate,
-instead of asking for a new site-specific rule at each gap. Full source
+One foundational scheduling clarification is now isolated in
+`2026-10-02-source-call-scheduling-choice.md`: reify the entire argument
+computation, or execute a source-derived carrier-construction prefix before
+receipt. Charter §16 fixes entry force/rebind under either choice; it does
+not decide this earlier placement. The complete discriminator is not yet
+certified as an accepted Oracle source program. No choice has been inferred
+from the emitted code. The completed judgment and its alternatives should
+be reviewed as a whole source-semantics gate, rather than adding per-site
+handler rules. Full source
 soundness/principality, modular client coverage, lifecycle and implementation
 remain open; this package must not be used to declare Milestone 3 complete.
