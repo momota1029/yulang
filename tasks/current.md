@@ -27,6 +27,18 @@ handler forms or origin transport exist to prototype. Next derive those source
 incidences compositionally, then repeat the feasibility check; implementation
 remains unauthorized.
 
+Injective closure-value transport now has a conditional lemma: Lambda
+construction and later `ApplyValue` commute with `Tr_θ` when source body,
+environment capture, and lineage re-entry are equivariant. This transports
+typed-family `K,D`, source origin, and compile-time boundary evidence together
+through freshening while fixing runtime IDs and store. Compiler-referee review
+closed the statement; it does not prove escaped-handler visibility or
+non-injective parent preservation. The code audit found only narrow Lambda
+collection support and still no resolved application or executable closure
+path. Next derive source closure/re-entry behavior and its visible-handler
+condition, then repeat implementation feasibility; see the updated callback
+and feasibility records.
+
 This turn corrected the non-authoritative intrusion sketch's misleading
 one-parent-per-variable picture. Ordinary Simple-sub extrusion has separate
 polarity representatives scoped to an extrusion call; the candidate now uses

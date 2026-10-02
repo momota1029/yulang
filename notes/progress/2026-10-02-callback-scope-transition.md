@@ -524,3 +524,13 @@ without major front-end, solver/scheme, and runtime work, before the source
 relation is settled. The next theory gate is to derive the call/value/handler
 incidences compositionally, including wrapper/forwarding and escaped
 closure/re-entry cases; repeat feasibility review after that gate.
+
+A conditional closure-value transport lemma now specializes the existing
+`Tr_θ`/bind equivariance to Lambda construction and later `ApplyValue`. Under
+source `Run`, captured-environment, and lineage-reentry equivariance, injective
+freshening maps code, captured environment, `K,D`, origin, and compile-time
+boundary evidence together while fixing runtime event/activation identities and
+store. The lemma neither snapshots the live handler stack nor proves that an
+escaped request is visible to a later handler. Compiler-referee review closed
+this statement with no findings; source closure/re-entry adequacy,
+non-injective intrusion, and full solution-fiber preservation remain open.

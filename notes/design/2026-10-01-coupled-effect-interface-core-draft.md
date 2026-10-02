@@ -2796,6 +2796,40 @@ operation relation are equivariant under the same map. It does not validate
 the withdrawn independent-support decomposition, and it says nothing about a
 non-injective parent quotient or solution-fiber completeness of a solver.
 
+**Conditional closure-value transport.** Let a source closure value consist
+of its code, captured lexical environment, and the value-carried source
+boundary lineage specified by ordinary evaluation; do not capture a snapshot
+of the live handler stack unless the source transition explicitly places that
+lineage in the value. Let `θ` be the same injective, capture-avoiding map over
+the code's free symbolic identities, the environment, typed-family formulas,
+owned occurrences, and compile-time boundary binders. It fixes concrete
+runtime event/activation IDs and the live store. If closure creation returns
+that value without evaluating its body, and application evaluates the body
+under the captured environment extended by the argument and the source-defined
+lineage re-entry, then:
+
+```text
+Tr_θ(Closure(e,η,lineage)) = Closure(Tr_θ(e),Tr_θ(η),Tr_θ(lineage))
+Tr_θ(ApplyValue(cl,v,c))
+  = ApplyValue(Tr_θ(cl),Tr_θ(v),Tr_θ(c))
+```
+
+The first equation follows from structural transport of the code, environment,
+and captured boundary evidence. For the second, both applications reduce to
+the body `Run` relation with corresponding environments; apply its
+equivariance and the state-threading bind equation above. Therefore every
+finite request prefix of a later closure call is mapped together with its
+typed endpoint, `K,D` incidence, source origin, and compile-time boundary
+identity. A use-site freshening maps each binder once across the complete
+closure interface. The lemma rules out reconstructing a callback effect only
+after materializing the closure's concrete row.
+
+This result is conditional on the source closure, environment-capture, and
+re-entry rules being equivariant. It does not establish that an escaped request
+is visible to a particular later handler, that its latent Function contract
+contains all such requests, or that non-injective intrusion preserves complete
+solution fibers. Those remain separate source-adequacy and principality gates.
+
 **Pattern-binding transport.** Extend `Tr_θ` structurally to patterns and
 their embedded expressions. Assume it fixes field/constructor labels,
 preserves the runtime present/missing test, and that each atomic pattern test

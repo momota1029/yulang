@@ -170,3 +170,13 @@ still exposes no origin/handler transport path. No small implementation slice
 can realize this relation end to end; a prototype would prematurely require
 the unresolved source judgment and substantial cross-layer architecture. No
 code or tests were changed or run.
+
+The closure-transport slice has one limited HIR substrate: `ResolvedExpr`
+contains `Lambda` with an occurrence, parameter, and body, and the collector's
+`emit_lambda` handles only parameter identity, integer, or resolved-name
+bodies. It still has no resolved application node or source execution relation
+for a closure call; `yu-core`, VM, and native remain boundary stubs. Thus closure
+creation can be represented for narrow collection cases, but the reviewed
+`Tr_θ`/captured-environment/re-entry equation cannot be exercised end to end.
+The next plausible implementation checkpoint is after the ordinary resolved
+call and value/environment relation exists; no code change is authorized now.
