@@ -444,3 +444,16 @@ its saved continuation, but does not prove reachability of every later request
 under stateful multi-shot resumption, handler visibility, or full `K,D`
 incidence preservation. Those remain separate source and interface-composition
 obligations.
+
+Substituting the three nonidentity `Adapt` equations into that bind lemma gives
+conditional cases: force-to-concrete preserves already observed labels and
+appends result adaptation to their continuations; concrete-to-thunk dispatches
+nothing at wrap time and exposes the latent relation only at a later force;
+thunk-to-thunk delays `Force(v) >>= Adapt(A,B)`, preserving prior request labels
+and giving later conversion requests their own source labels. Review caught
+that appended adaptation is not guaranteed to execute: a shallow arm may
+abort, or resumption may not return. The wording now says it runs outside the
+selected activation only if reached through raw resumption, unless an
+independent source transition re-enters that activation. Delta review closed
+this correction. The equations still require source provenance and symbolic
+`K,D` transport premises.

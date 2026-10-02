@@ -4268,3 +4268,13 @@ Independent compiler-referee review closed the local bind label-stability
 lemma; it does not close request reachability under multi-shot state changes,
 handler visibility, or full symbolic `K,D` preservation. See the latest
 callback-scope-transition progress entry.
+
+The same bind lemma was instantiated for all three thunk `Adapt` cases.
+Wrapping dispatches no request; forcing preserves labels already on exposed
+requests; thunk-to-thunk adaptation composes force and result adaptation. A
+review correction now conditions execution of appended adaptation on raw
+resumption reaching it, with independent re-entry allowed. The relational
+source provenance and `K,D` premises remain open. The alternating code check
+confirmed that `yu-core` and both backend entrypoints are documentation-only
+stubs, so there is no runtime path for a bounded Force/continuation
+implementation yet. See the latest source transition and feasibility entries.

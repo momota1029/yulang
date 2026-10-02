@@ -109,7 +109,8 @@ types. Syntax `HirExpr::Apply` carries its operator, operands, and source range,
 but is not lowered into a resolved call node; source ranges also cannot serve
 as dynamic request-event or activation identities. The core and both backend
 crates likewise have no request/continuation, force, handler-frame, or thunk
-runtime forms to reuse. This is a broader gap than adding one callback flag:
+runtime forms to reuse; the three `yu-core` / VM / native entrypoint source
+files are currently crate-level documentation only. This is a broader gap than adding one callback flag:
 the future carrier must survive value flow, wrappers, force, mixed
 computations, and continuation resumption. No production code was changed;
 this is not ready for a bounded compiler implementation.

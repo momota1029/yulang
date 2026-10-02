@@ -1602,6 +1602,21 @@ candidate computation relation. Source typing/evaluation must still establish
 the request labels on thunk force, and handler dispatch must still apply the
 raw-continuation cutoff before making any later visibility claim.
 
+Substituting the three nonidentity thunk cases in `Adapt` yields the same
+limited result without extra rules. For `Thunk(E,A) → T`, the forcee's already
+observed requests keep their origins while result adaptation is appended to
+their saved continuations; if a shallow handler handles one, that appended
+work, if reached through raw resumption, runs outside that activation unless an
+independent source transition re-enters it. For `S → Thunk(F,B)`,
+adaptation returns a delayed value, so no request is dispatched merely by
+wrapping it; its latent relation is exposed only at a later force, under that
+force's source context. For `Thunk(E,A) → Thunk(F,B)`, the latent relation is
+`Force(v) >>= Adapt(A,B)`: requests already emitted by `Force(v)` retain their
+per-request origins, and requests emitted later by the result adaptation keep
+their own source-derived origins. In all three cases, symbolic `K,D` transport
+still depends on the common value-boundary/interface relation; bind preserves
+an observed request but does not by itself prove the full incidence equation.
+
 For a function adapter, the displayed `CallView` equation composes argument
 adaptation, the underlying call, and result adaptation. For a callback-origin
 request `q` already related to `h`'s contract (including one exposed by a force
