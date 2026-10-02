@@ -32,7 +32,7 @@ The redesign charter governs. F5 Function generalization is comparison/rollback 
 |---|---|---|
 | 1. Coherent ordinary computation semantics for calls, closures, `Force`, requests, callback visibility, and shallow handlers | Candidate source semantics uses the user's rule: concrete typed callback boundaries govern direct and Force-exposed request visibility; origin/identity/`K,D` remain distinct and `Force` creates no authority | Preserve this boundary rule in Milestone 2; no callback micro-cases without a counterexample |
 | 2. Source-to-complete-interface adequacy/simulation | Closed for the candidate ordinary machine: exact embedding covers initial `R`, primitive source-rule images, latent future use, and typed resumptions; bind lifting separately reviewed | This proves the candidate machine embeds in its exact complete interface, not that current Yulang typing derives the candidate binder ownership or has a finite presentation |
-| 3. Finite symbolic presentation | Generic finite carrier/certificate theorem, typed transport, symbolic basis, and a conditional two-direction residual factorization lemma reviewed; source-wide guard-context closure and full raw-source realization remain open | Establish the finite source-generated guard/evidence-context system beyond the admitted unsealed equality fragment; construct an effective joint residual/projection representation for unknown Records and feedback; close source refinement, uniform future interaction, and typing/acceptance bridge before selecting the abstraction |
+| 3. Finite symbolic presentation | Generic finite carrier/certificate theorem, typed transport, symbolic basis, and a conditional two-direction residual factorization lemma reviewed; source-wide guard-context closure and full raw-source realization remain open | Generate every annotation/conversion/invocation/handler comparison with stable provenance; prove finite instance/context closure including replay and sealed transport; construct effective joint residual/projection for unknown Records and feedback; close source refinement and typing/acceptance bridge |
 | 4. Generalization, fresh instantiation, SCC intrusion | Waiting on a Milestone-3 presentation | Prove lifecycle transport for that presentation, including external uses, internal SCC sharing, parent ports, and symbolic effects |
 | 5. Implementation feasibility | Deferred until milestone 4 determines required surfaces | Targeted architecture/resource audit of the reviewed semantics and representation |
 | 6. Implementation | Not authorized | Explicit user-approved design, completed required gates, implementation and verification |
@@ -1058,6 +1058,19 @@ gate is that source-wide context derivation, alongside effective residual
 satisfiability and joint projection; the theorem remains conditional and the
 full goal stays active.
 
+The source-wide audit is recorded in
+`notes/progress/2026-10-03-source-guard-context-audit.md`. It maps ordinary
+structural, annotation/conversion, invocation/callback, request, handler and
+family comparison origins. Existing records supply only partial premises:
+ordinary parameter/result and invocation-port skeletons, operation witness
+maps, and an unsealed lexical equality construction. Annotation/conversion
+generation, full Function and store interactions, sealed lifecycle, finite
+use-site instance closure and multi-parent context provenance remain open.
+The source map yields a candidate context `(origin, lexical openings, witness
+map, retained typed evidence)` but selects no implementation representation.
+It finds no class-3 impossibility proof; full-source finiteness remains
+unclassified.
+
 ## Main records
 
 - `notes/design/2026-10-03-scoped-constraint-solving.md` — scoped regular equality quotient and finite closed structural subtype saturation; the following reviewed candidate addresses open residual factorization.
@@ -1090,6 +1103,7 @@ full goal stays active.
 - `notes/design/2026-10-02-finite-abstract-safety-presentation.md` — reviewed generic finite carrier and principal certificate theorem; source application open.
 - `notes/progress/2026-10-02-finite-interface-obstruction.md` — classification, lower bound, construction progress, and review record.
 - `notes/progress/2026-10-03-open-residual-factorization.md` — candidate theorem, adjudicated review findings, and remaining proof/solver gates.
+- `notes/progress/2026-10-03-source-guard-context-audit.md` — source comparison origins, partial context premises, and exact source-wide finiteness gaps.
 - `notes/design/2026-10-02-ordinary-computation-semantics-package.md` — current milestone-1 theorem package.
 - `notes/design/2026-10-01-coupled-effect-interface-core-draft.md` — relational carrier and prior derivations.
 - `notes/progress/2026-10-02-callback-scope-transition.md` — callback/escape evidence and decisions.
