@@ -759,3 +759,49 @@ additional review round was required. Primary synchronized task/index and
 the direct descriptor/adapter dependencies. Staged Git whitespace check is
 the final deterministic verification. Full source inference, principality,
 lifecycle and implementation remain active work.
+
+### Source roles, computation arguments and elaboration coherence
+
+The previous scoped role/obstruction package was committed and pushed as
+`ee521e4c2`. The next bounded architecture and source-map investigation is
+recorded in its §§6–9, rather than adding callback-specific mechanisms.
+
+Frozen `a58eefc3` has separate source computation effect/value positions.
+Ordinary local bindings complete the RHS and store its value; an effectful
+parameter can instead retain a caller computation for execution within its
+receiver. The source `listen add_and_say() ""` demonstrates that this capability
+does not require an explicit unit closure. The runtime `Thunk` representation
+is not automatically a source value constructor. Nested `Effectful` AST
+preservation alone supplies no latent-result theorem: frozen value-bound
+lowering strips the nested row. Exact locators and inspection limits are in
+the package; all are characterization, not authority.
+
+A regular candidate-kernel witness `A=Thunk(E,A)` refutes overlapping pure
+lifting and implicit exposure as a coherent source elaboration rule. At the
+same assignment a delayed producer can either be returned without a request
+or forced to emit `E` and return another latent `A`. This does not establish
+raw-source acceptance or a non-finite principal presentation.
+
+The package constructs a sorted role-annotated candidate and proves uniqueness
+of its finite control skeleton under fixed binding/parameter roles and
+admitted adapters. It separates source value endpoints from computation
+interfaces, retaining the selected direct/imported callback visibility and
+typed result transport. Unknown role inference, complete-interface inclusion,
+source normalization and principal solving are not discharged. Its simple
+retained-argument equation delays the whole computation; simulation must still
+factor carrier construction correctly or justify a source scheduling choice.
+Effect purity alone cannot justify delaying divergence or state changes.
+No scheduling decision, source restriction or implementation is approved.
+
+M3 budget: one bounded architect construction, one explorer source map, two
+independent semantic/conformance delta reviewers. No blocking/major finding;
+one minor statement was narrowed to role selection because separately admitted
+value adapters can inspect constructors and force latent results. Primary
+closed that textual qualifier without changing candidate semantics. Reviewers
+did not independently audit the immutable frozen code locators. No tests,
+builds or performance measurements (zero measurement budget consumed).
+Primary synchronized task/index/design/progress. Final verification is the
+scoped Git diff and staged whitespace check; full milestones and implementation
+remain open. The next gate is a source-role and scheduling/representation
+construction, followed by solution-complete regular or parametric query
+closure, not another callback-fixture expansion.

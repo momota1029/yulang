@@ -180,10 +180,31 @@ result. The common `Execute(Comp(E,A)) = Force` theorem preserves an arbitrary
 result `A` without adding descendant demand; admitted result conversion is
 a separate composition. It does not yet derive the role from raw syntax.
 
-The immediate construction is therefore one producer/consumer and
-annotation-role typing judgment, followed by a solution-complete regular
-normalization or a finite parametric adapter/query presentation. Finite syntax
-template collection alone proves neither. Strict data elimination must not
+The same package now maps frozen source computation/value positions and gives
+a sorted role-annotated candidate. Ordinary local binding completes its RHS
+and stores a value; computation parameters can retain a caller computation
+until the receiver demands it. A generic combination of pure lifting and
+implicit exposure is incoherent at the regular candidate type
+`A=Thunk(E,A)`: the same expected computation admits both no request and one
+current request. This is a candidate-kernel counterexample, not proved raw
+source acceptance or non-finiteness. Fixed role descriptors avoid that overlap
+and determine a finite control skeleton, conditionally on supplied roles and
+admitted adapters. They do not yet derive all inferred source roles.
+
+The immediate construction is a complete producer/consumer and annotation-role
+judgment with a scheduling-preserving representation, followed by a
+solution-complete regular normalization or finite parametric adapter/query
+presentation. A naive retained argument delays its entire computation, while
+the frozen boundary first evaluates its carrier; effect purity does not
+justify delaying divergence or stateful construction. Keep that simulation,
+nested effectful annotation coverage and inferred role determination open.
+Runtime `Thunk` is not automatically a source value constructor, so neither
+the prior thunk-tower family nor a sorted syntax alone settles the finite
+presentation. Independent semantic/conformance delta review found no
+blocking/major issue; primary closed one minor qualifier distinguishing role
+selection from constructor-sensitive admitted value adaptation. Frozen source
+locators were mapped by the explorer, not independently re-audited by those
+reviewers. Strict data elimination must not
 be generalized to require every computation result to be non-thunk. The
 source judgment, admitted conversions and representation choice remain draft
 work for one complete reviewed gate, not per-site user choices. Its output
@@ -239,7 +260,7 @@ Implementation feasibility evidence is recorded in `notes/progress/2026-10-02-su
 
 ## Main records
 
-- `notes/design/2026-10-02-source-computation-role-elaboration.md` — reviewed role-preservation/adapter obstruction package; actual source typing and finite solved/parametric presentation remain open.
+- `notes/design/2026-10-02-source-computation-role-elaboration.md` — reviewed role-preservation, source-map and role-annotated candidate package; raw-source scheduling/typing and finite solved/parametric presentation remain open.
 - `notes/design/2026-10-02-typed-source-owner-realization.md` — reviewed owner-span/control and typed-view context construction; user-selected outside-image equation.
 - `notes/design/2026-10-02-typed-boundary-realization-draft.md` — selected common typed-value transport and reviewed conditional transport/lifetime theorem package; reviewed fixed-shape cyclic adapter construction and symbolic equality; full realization open.
 - `notes/design/2026-10-02-source-realization-and-symbolic-basis.md` — finite ownership inventory, conditional operational realization, selected-fault reflection, and exact remaining source definitions.

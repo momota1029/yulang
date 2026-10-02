@@ -1,11 +1,12 @@
 # Source elaboration: computation roles and unknown constructors
 
 Date: 2026-10-02
-Status: Draft; scoped role theorem and obstruction package reviewed; full source elaboration remains open; not implementation authority
+Status: Draft; scoped role theorems, source map and obstruction package reviewed; full source elaboration remains open; not implementation authority
 Scope: computation/value role separation, source-template generation, and the remaining finite symbolic bridge
 Approved-by: none for the elaboration candidate; charter §§11–15 govern selected source behavior
 Drafted-by: primary with bounded architect construction and counterexample audit
 Reviewed-by: compiler_referee and spec_auditor, 2026-10-02; no blocking/major findings; two minor scope/priority clarifications closed by primary
+Role-candidate-review: compiler_referee and spec_auditor, 2026-10-02; §§6–9 clean after one minor role-versus-adaptation clarification; immutable source locators mapped by explorer, not independently audited by these reviewers
 Supersedes: none; the fixed-shape value-adapter theorem keeps its original scope
 
 ## 1. Milestone target and existing inputs
@@ -202,7 +203,207 @@ are not thereby elements of the fixed finite `T/PΩ` basis. Conversely, failure
 of that particular basis does not establish a class-3 obstruction. The
 possible regular/parametric presentation is still to be constructed and proved.
 
-## 6. Next construction and decision boundary
+## 6. Source evidence: a computation slot is not a runtime constructor
+
+The following is characterization at frozen commit `a58eefc3`, not semantic
+authority. It constrains any claim of source coverage by a replacement
+judgment. The paths below are relative to that immutable revision.
+
+| Source position | Characterized representation | Locator |
+|---|---|---|
+| `() -> [E] A` | Function with separate `ret_eff=E` and result `A` | `crates/infer/src/annotation/builder.rs:123–143,409–413` |
+| `[E] A` parameter | Separate parameter computation effect and value constraints | `crates/infer/src/annotation/constraints.rs:251–284` |
+| `[E] A` expression/binding annotation | Separate outer computation effect and value constraints | same file, `223–248` |
+| Explicit latent function result `() -> [E] (() -> [F] A)` | Nested Function keeps its own call-effect slot | builder `123–143,268–273`; structural derivation, not an executed fixture |
+| Nested effectful result `[E] ([F] A)` | Builder retains nested `Effectful`, but value-bound lowering recursively strips its row | constraints `334`; nesting is not evidence for a preserved latent contract |
+| `\() -> body` and `f()` | Explicit unit Function construction and ordinary invocation | `crates/infer/src/lowering/expr/tail.rs:455–476`; `lib/std/text/parse.yu:252–257` |
+
+There is no dedicated source `Force`, `Delay`, `Perform`, or pure `Return`
+in the inspected parser/poly-expression map. Surface `return` is a standard
+`sub` operation (`lib/std/control/flow.yu:1–5`), not the mathematical return
+constructor. The downstream runtime `Type::Thunk` is formed from an
+effect/value pair (`crates/specialize/src/types/mod.rs:419–433`). It must not
+be identified with either the explicit unit Function or an arbitrary source
+value-type constructor without a representation proof.
+
+Ordinary local binding completes the RHS and stores its result. Lowering
+contributes `body.effect` to the statement and generalizes `body.value`
+(`crates/infer/src/lowering/expr/block_local.rs:545–590`); the bound local
+gets `effect: None` (`1225–1263`) and lookup has pure effect
+(`crates/infer/src/lowering/name_ref.rs:146–186`). Specialization demands
+the RHS result value (`crates/specialize/src/solve/expr_solver/control.rs:
+232–268`), and runtime `Let` evaluates then binds it
+(`crates/mono-runtime/src/runtime/eval.rs:620–639`); local lookup reads the
+stored value (`12–18`). `BindingFetch` controls generalization/value
+restriction (`crates/infer/src/lowering/expr/tail.rs:944–989`), not replay or
+memoization of a deferred computation. A returned value may still have its
+own latent behavior.
+
+Computation-bearing parameters are different. The existing source
+`examples/10_effect_handler.yu:13–17` passes `add_and_say()` to
+`listen(x: [_] _, log: str)`, whose body is `catch x`. No unit closure wraps
+the argument. The effectful parameter boundary retains its computation
+carrier (`crates/specialize/src/solve/expr_solver.rs:363–372`); `catch`
+demands its result inside the handler (`control.rs:37–39`). Runtime applies
+an operation by constructing `Thunk::Effect`
+(`crates/mono-runtime/src/runtime/flow.rs:29–32`) and emits the request when
+forcing it (`runtime/thunk.rs:124–125`). Consequently a judgment that eagerly
+completes **every** argument before receiver entry cannot claim to preserve
+this computation-passing capability.
+
+These facts support deriving roles at typed source positions. They neither
+approve reproducing every frozen conversion nor establish a source rule for
+arbitrary nested effectful results. That rule cannot be justified by the AST
+builder alone when its later constraint lowering discards the inner row.
+
+## 7. Why a disjunction of lifting and exposure is not enough
+
+Consider these possible checking rules, not selected successor rules:
+
+```text
+e : A             ==> e : Comp(empty,A) via Return(e)
+e : Thunk(E,A)    ==> e : Comp(E,A)     via Force(e)
+Comp(E0,A), E0<=E ==> Comp(E,A)        via effect weakening
+```
+
+In the regular candidate value kernel let `A = Thunk(E,A)` and let a finite
+recursive producer be
+
+```text
+make() = Delay(emit E >>= lambda _. make())
+t = make()
+```
+
+Each force emits one `E` and returns another delayed value of `A`. At the
+**same assignment**, checking `t` against `Comp(E,A)` can use pure lifting
+and weakening to return `t` without a request, or exposure to emit `E` and
+return a latent value of `A`. The row is an upper bound permitting both
+behaviors. It does not require emission. Retaining both constraint solutions
+does not choose a coherent elaboration of one source expression: the two
+programs have observably different current effects.
+
+This is a finite regular counterexample to deriving execution roles solely
+from solved value types plus those overlapping rules. It is not a proved
+well-typed raw Yulang program, a class-3 non-finiteness result, or a
+counterexample to a role-separated source judgment. In particular the runtime
+`Thunk` equation cannot silently be assumed to be a source value equation.
+The result says that a role derivation must precede this representation
+collapse, and that principal constraint solutions alone do not prove
+elaboration coherence.
+
+## 8. A sorted elaboration candidate
+
+Separate source value endpoints from computation interfaces before choosing
+their runtime representation:
+
+```text
+V ::= base | Fun(P, Comp(E,V)) | structural values | alpha_value
+P ::= Value(V) | Computation(E,V)
+Gamma |- e => Comp(E,A) ~> c
+```
+
+These are mathematical sorts and binding/parameter descriptors, not proposed
+surface keywords. `c` denotes executable computation code. The internal
+runtime `Thunk` implements a retained computation; it is not assumed to be
+an arbitrary constructor of `V`. Parameter roles include computation-bearing
+parameters rather than forcing all arguments before receiver entry.
+
+The following rules define a candidate for a role-annotated ordinary
+fragment. They are not yet a total elaboration of raw Yulang syntax:
+
+| Form / role | Computation code |
+|---|---|
+| Literal | `Return(literal)` |
+| Variable bound as `Value(A)` | `Return(stored value)` |
+| Variable bound as `Computation(E,A)` | `Force(stored carrier)` |
+| Ordinary local `my x = e; body` | `c_e >>= lambda v. c_body[x := Value(v)]` |
+| Lambda with parameter role `P` | `Return(Closure(body code, environment))` |
+| Application | `c_callee >>= lambda f. Prepare_P(argument) >>= lambda x. Call(f,x)` |
+
+`Call` is the existing call/body/result composition inside its derived typed
+view, including any admitted argument/result adapters. For an operation it
+constructs the existing request carrier and executes that identified
+computation. Construction and emission remain separate kernel steps. These
+rules do not recover the computation/value role by inspecting a result value's
+solved constructor. Separately admitted `ValueAdapt` remains constructor
+sensitive and may force a latent result, with its own resulting requests.
+All sequencing uses the common state-threaded bind.
+
+Two candidate preparation equations make the role distinction explicit:
+
+```text
+Prepare_Value(A)(e) = c_e >>= ValueAdapt(A_e,A)
+Prepare_Computation(E,A)(e)
+  = Return(Delay(c_e >>= ValueAdapt(A_e,A)))
+```
+
+The second requires inclusion of the complete delayed interface in the
+parameter contract, not just inclusion of immediate row support. Both
+equations retain the original typed packets and adapter correspondences.
+Inclusion and admission of `ValueAdapt` remain proof premises. In particular,
+the second equation is a **candidate scheduling choice**, not a demonstrated
+simulation of the frozen argument boundary: it delays all of `c_e`.
+Frozen execution evaluates an argument carrier before receiver entry, and
+that construction may diverge or execute earlier computation. A representation
+proof must either factor the same construction before retention or justify
+the scheduling difference from independent source semantics. Effect purity
+alone cannot justify moving divergence or stateful computation. No scheduling
+change is approved by this document.
+
+Explicit computation parameter annotations supply a `Computation` role;
+ordinary value annotations supply a `Value` role. A function's immediate
+return annotation supplies its result computation contract. Each original
+annotation slot retains
+`(boundary site, annotation occurrence, role projection)`. An annotated
+returned Function has its own corresponding call-effect slot, not a copy of
+the outer call annotation. Inferred parameter roles and omitted-protection
+positions still require derivation; they cannot be recovered from family
+support or selected arbitrarily to fit a runtime fixture. Nested effectful
+value annotations and the characterized deferred polymorphic local need
+coverage/normalization rules before claiming full source acceptance.
+
+**Conditional role-coherence and template theorem.** For a finite ordinary
+syntax graph with fixed parameter/binding roles and fixed admitted adapter
+descriptors, these rules generate a finite computation skeleton with unique
+choices of value lookup, computation execution and argument retention.
+These choices are invariant under assignments to the value endpoints that
+preserve the roles. This is uniqueness of the role-directed control skeleton,
+not uniqueness of arbitrary adapters, effect solutions or source execution.
+
+Proof is structural induction. A literal or lookup adds one command, with
+lookup selected by its environment descriptor. A lambda records its finite
+body without executing it. A local binding composes the two subderivations
+and installs the result as a value. An application composes its callee and
+argument with the one preparation selected by its fixed parameter descriptor.
+Recursive references return to existing syntax sites. Explicit annotation
+occurrences add finitely many original slots; assignments do not add syntax
+occurrences or convert a value endpoint into a computation role. Consequently
+regular value equality cannot reproduce §7's overlapping lookup rules.
+Runtime occurrences can still be unbounded, and none of this bounds newly
+generated solved constructor positions or proves a finite query closure.
+
+Within that decorated fragment, an imported computation lookup inside a
+callback is `Force(t)` in its current complete view. A direct operation
+application executes its identified request carrier in that same view.
+The existing visibility relation therefore treats exposed requests equally
+under the same concrete contract; their different origins, event identities
+and symbolic `K,D` remain intact. This consequence assumes the view and typed
+path correspondence supplied by the derivation. It is not a proof that every
+raw callback expression has such an elaboration. Arbitrary returned values
+are preserved by §3; later latent Function calls use their own typed paths.
+Shallow selection, patterns/guards and arms use the outside relation; deep
+handling continues to expand into explicit shallow reapplication.
+
+The conceptual benefit over untyped constructor-driven adaptation is one
+computation/value distinction for local completion, argument retention and
+callback execution. Its cost is an explicit source-role and scheduling
+derivation. It avoids introducing per-site handler rules. Its principality,
+source coverage and representation simulation remain unproved. In particular,
+the runtime thunk-tower family in §5 does not automatically refute a sorted
+source representation; eliminating it requires the missing normalization and
+acceptance bridge, not merely restricting the spelling of `alpha_value`.
+
+## 9. Next construction and decision boundary
 
 The economical candidates are:
 
@@ -217,9 +418,11 @@ rigid atoms fail the existing boundary families. Forcing every nested thunk
 fails the computation-result theorem. Choosing one merely because it mirrors
 the frozen implementation is not justified.
 
-The next source package must give the actual producer/consumer typing rules,
-annotation-role derivation and admitted conversions, then prove one of these
-representation routes. The characterized strict case behavior is a reasonable
+The next source package must complete the producer/consumer typing rules,
+inferred annotation-role derivation, scheduling/representation simulation and
+admitted conversions, then prove one of these representation routes. Section
+8 constructs a role-annotated candidate; it does not discharge its missing
+raw-source premises. The characterized strict case behavior is a reasonable
 compatibility candidate; it is not independent authority for all consumers.
 Potentially removing `≈` as an operational choice by proving identity/η
 coherence is a separate simplification, not an established result: equal
