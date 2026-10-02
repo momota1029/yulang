@@ -992,7 +992,37 @@ diff/link checks and `git diff --check` passed. Tests, builds and measurements
 budget/consumption zero; no compiler changes or implementation approval.
 Task/index/progress are synchronized; the full goal remains active.
 
+### Scoped equality and closed structural solving (2026-10-03)
+
+`notes/design/2026-10-03-scoped-constraint-solving.md` packages the next
+finite solver slice. A rational equality quotient merges aliases and matching
+constructor nodes, propagates arbitrary finite lexical allowed-name sets
+through shared/cyclic descriptors, and factors all scope-respecting regular
+equality solutions through residual free classes. This is relative to the
+regular constructor equality fragment; original `Eq`, family equations and
+joint `K,D/Phi` remain attached.
+
+After quotienting, closed structural subtype checks use a greatest relation on
+the finite ordered node pairs, with generation-time scope guards before
+structural outcomes. The result does not solve open inequalities. In
+particular, `X <: {}` has no principal closed substitution in the fixed-label
+grammar, but the original edge is already an exact finite residual; this is
+not a non-finiteness witness or source-envelope restriction.
+
+The exact next theorem is principal residual factorization for open heads and
+Record extensions, composed with scope restrictions and projection summaries.
+The bounded code map confirms this cannot be a generalizer-only rewrite:
+current HIR lacks calls/effects, and the solver lacks typed families, symbolic
+`K,D`, and relational source profiles. This is feasibility evidence, not an
+implementation plan or authority. M3 used one architect, one source explorer,
+one documentary producer and two independent semantic/conformance reviewers;
+both found no findings. Static link/diff checks passed. Tests, builds and
+measurements budget/consumption remain zero. No compiler changes; the full
+goal remains active.
+
 ## Main records
+
+- `notes/design/2026-10-03-scoped-constraint-solving.md` — scoped regular equality quotient and finite closed structural subtype saturation; open residual factorization remains the next gate.
 
 - `notes/design/2026-10-03-scoped-structural-projection.md` — finite regular best visible comparators, invariant-coordinate support and substitution-parametric projection with closed imports; full flexible source constraints remain open.
 

@@ -535,6 +535,12 @@ hole inputs. Its five profiles control projection only; original shared
 endpoints, invariant equations and joint `K,D` remain retained. Flexible-bound
 solving, full operation compatibility and lifecycle are still open.
 
+The separate [scoped constraint-solving package](2026-10-03-scoped-constraint-solving.md)
+gives a regular equality quotient with scoped residual-class factorization
+and finite closed structural subtype saturation. Open-head/Record-extension
+residual bounds still require a principal composition theorem; original
+equations, shared witness identity and joint `K,D` remain retained.
+
 The fresh Function-child argument establishes no counterexample to actual
 Simple-sub extrusion and is withdrawn as such. Derived structural summaries
 do not assign stored levels to constructors; comparison decomposes structure

@@ -356,6 +356,10 @@ No source-semantic approval or compiler implementation authority follows.
 
 The §6 symbolic transformer closes projection for the stated closed imports,
 including structural invariant coordinates, not flexible inference constraints.
+The separate [scoped constraint-solving slice](2026-10-03-scoped-constraint-solving.md)
+constructs a rational equality quotient and finite closed subtype saturation.
+It leaves open-head/Record-extension residual factorization as the next solver
+gate; closed substitutions alone cannot represent every such open bound.
 Next construct and solve the full source-generated joint graph while retaining
 these summaries and handling feedback/unknown endpoints, then complete
 effectful Function checking and invariant typed-family and lifecycle

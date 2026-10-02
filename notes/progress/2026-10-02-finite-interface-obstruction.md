@@ -2458,3 +2458,37 @@ task/index/progress and review metadata; static diff/link inspection and
 `git diff --check` passed. Tests, builds and measurements budget/consumption
 zero. Integrate only this coherent documentation checkpoint after staged-path
 and full outbound-range inspection. The full active goal is unfinished.
+
+### Scoped equality and closed structural solving (2026-10-03)
+
+`notes/design/2026-10-03-scoped-constraint-solving.md` adds a finite regular
+equality quotient and a separate closed structural subtype solver. Equality
+aliases and matching constructor descriptors merge by a finite worklist;
+arbitrary finite allowed-rigid-name sets propagate through descriptor children
+and shared/cyclic classes. The quotient factors all scope-respecting regular
+equality solutions through residual free classes. Constructor cycles remain
+regular graph cycles; rigid binder identity is not collapsed by equal depth.
+
+For a fixed quotient, closed comparisons use greatest-relation saturation on
+at most `N^2` ordered node pairs. Generation-time scope checks guard queried
+and derived comparisons before structural head results; guard failure remains
+distinct from subtype refutation. The theorem does not cover open flexible
+inequalities or certify symbolic family constraints by projected profiles.
+
+The `X <: {}` counterexample refutes only a principal *closed substitution* in
+the fixed-label Record grammar. The same edge is an exact finite residual
+constraint, so this is not class 3 and supplies no reason to add row syntax or
+shrink source support. The precise next gate is principal composition and
+factorization for open heads and Record extensions, preserving scope,
+projection summaries, original equality and joint `K,D`.
+
+Implementation feasibility was checked at the owning surfaces: current HIR
+has no calls/effects, and the solver has no typed-family relation, symbolic
+`K,D`, or relational source profile. SCC scheduling, transactional routing
+and source identities are reusable, but a replacement cannot be limited to
+the generalizer. This is a bounded ownership map, not implementation
+approval. M3 used one architect, one source explorer, one documentary producer
+and two independent semantic/conformance reviewers. Both reviewers found no
+blocking, major or minor issues, including on permission propagation through
+shared/cyclic descriptors. Static diff/link checks passed; tests, builds and
+measurements budget/consumption remain zero. No compiler code changed.
