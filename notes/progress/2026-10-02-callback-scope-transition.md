@@ -477,3 +477,11 @@ dynamic instances. Compiler-referee review found this identity split consistent
 with the general equivariance theorem after explicitly identifying it as the
 runtime-ID-fixing specialization. This is identity bookkeeping only; it does
 not prove source lineage generation or non-injective intrusion preservation.
+
+The origin-labeled bind equation is recorded as the request clause of the
+existing `Tr_θ`/bind commutation proof. Review confirmed it transports the
+request, origin coordinate, configuration, and continuation together while
+fixing concrete runtime IDs. Its conclusion is conditional on source `Capture`
+equivariance and the existing injective transport assumptions; source label
+generation, complete solution-fiber preservation, and non-injective parent
+quotients remain open.

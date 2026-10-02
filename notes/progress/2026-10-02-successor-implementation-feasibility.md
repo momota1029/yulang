@@ -134,4 +134,13 @@ runtime stubs. The candidate transport split therefore has a plausible
 static-occurrence anchor for some existing nodes, but no end-to-end mapping
 for call/force behavior.
 
+The scheme-transport check confirms the gap extends into substitution:
+`f5c_binder_substitution.rs` walks current positive/negative type nodes but
+rebuilds Function effect endpoints as singleton `Bottom`/`Empty`; it has no
+owned-occurrence or origin map. Thus the existing substitution cannot realize
+the origin-labeled `Tr_θ`/bind equation, even if a source request node were
+added above it. A successor needs a jointly transported type/formula,
+occurrence-owner, and compile-time boundary map before its finite schemes can
+preserve this evidence.
+
 No source code was changed. No tests or builds were run.

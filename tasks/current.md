@@ -4297,3 +4297,13 @@ boundary maps carry compile-time handler-binder metadata, while concrete
 runtime event/activation IDs stay fixed. Independent review closed this
 terminology gap. Generation of such lineage by source rules and non-injective
 intrusion remain open.
+
+The request-origin bind equation now composes with `Tr_θ`: `K` follows type
+maps, `D` and owned origin labels follow occurrence maps, and compile-time
+handler binders follow boundary maps, while concrete runtime IDs stay fixed.
+Independent review confirmed the equation under existing injective transport
+and source `Capture` equivariance premises only. The code audit found the F5
+substitution walker cannot carry it: Function effects are rebuilt as
+`Bottom`/`Empty`, with no occurrence/origin map. Source origin generation,
+full solution-fiber preservation, and non-injective parent intrusion remain
+open. See the callback progress and feasibility entries.

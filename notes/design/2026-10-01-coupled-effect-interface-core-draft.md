@@ -1558,6 +1558,23 @@ lineage is installed in the live context. This callback transport is the
 runtime-ID-fixing specialization of `Tr_θ`: `Θ_h` may reindex compile-time
 handler-binder metadata and its references in the presentation of `κ`, while
 acting identically on concrete activation IDs in a machine configuration.
+Treating the request-origin pair as part of the request record gives the
+corresponding bind-transport equation:
+
+```text
+Tr_θ(Request(q[o],c,k) >>= F)
+  = Request(θ·q[θ·o], Tr_θ(c), λr'. Tr_θ(k(Tr_θ⁻¹(r')) >>= F))
+```
+
+The right side is the transported request with the transported continuation;
+its concrete event ID is unchanged. Under equivariance of the source
+`Capture` projection, the origin/handler witness maps with the owned-occurrence
+and boundary components, and its `D` incidence maps alongside `K`. This is the
+origin-labeled instance of the existing `Tr_θ`/bind commutation proof, so
+injective freshening and injective intrusion renaming do not stale the capture
+evidence. It does not derive the source origin labels, prove arbitrary
+solution-fiber preservation, or justify a non-injective parent quotient that
+merges distinct origins or boundaries.
 Effects independently emitted by a conversion have their own source origins
 whose eligibility must be derived from the full source relation; family match
 alone does not grant them `Capture`.
