@@ -9,6 +9,7 @@ Reviewed-by: independent compiler_referee and spec_auditor, 2026-10-02; no block
 Source-synthesis review: independent compiler_referee and spec_auditor, 2026-10-02; no findings in §6 result/consumer construction, source-role coherence and scoped substitution theorem
 Checking review: independent compiler_referee and spec_auditor, 2026-10-02; no findings in §7 proof-label erasure, actual receiver contract obligations and conditional adapter-obstruction scope
 Certificate-comparison review: independent compiler_referee and spec_auditor, 2026-10-02; no findings in §8 fixed-domain construction, routing preservation and scoped future-use theorem
+Invocation-port review: M3 compiler_referee/spec_auditor package review; operation-consumer omission repaired and closed by independent compiler_referee delta review, 2026-10-02
 Supersedes: no source authority; refines the executable-code premise of source-computation-role §12
 
 Provenance: inert computation introduction, typed consumption and shallow
@@ -352,7 +353,10 @@ binding computation is reified without running an RHS construction prefix.
 
 `E_call,A_call`, `E_bind` and `E_handler,A_handler` are symbolic endpoint
 names constrained by the existing complete invocation/bind/shallow-image
-relations. They are not invented row unions or solved effect supports. The
+relations. Complete invocation here means the producer's `ExecuteCallable`
+from §3, including an operation's declared result consumer after its native
+return; §9 distinguishes that image from the closure body/result skeleton.
+They are not invented row unions or solved effect supports. The
 callee constraint identifies a Function interface at the result of `n_f`;
 the argument constraint relates the **whole** computation `Result(I_a)` to
 its parameter interface, with the existing typed path/contract obligations.
@@ -447,6 +451,13 @@ The source forwarding blocker is closed. The next obligations are complete
 annotation/checking and admitted-conversion coherence, finite regular or
 parametric symbolic query solving, modular future clients and acceptance;
 then the selected milestone order reaches lifecycle and implementation.
+
+Section 9 makes an important distinction in this table explicit:
+`Result(I_body)` describes the body result port. It is not, by itself, a
+closed bound on complete invocation of a value receiver with arbitrary
+effectful argument carriers. The application row's `E_call` already depends
+on the complete source-call relation. Keeping that carrier dependence is
+required by the same-activation entry semantics.
 
 ## 7. Checking normalization and the scope of the adapter obstruction
 
@@ -831,3 +842,218 @@ method/role gate stays downstream unless their concrete dependency appears
 earlier. The useful finite construction here removes opaque comparison for
 fixed-domain certificate weakening while keeping the actual broader source
 obligation explicit.
+
+## 9. Source-derived invocation ports and interaction directions
+
+This section derives the ordinary port directions used by §8 from the
+source primitives. It also retains the input computation in the complete
+invocation equation. This removes supplied direction labels for a resolved
+ordinary interface graph; it does not construct a finite presentation of
+every possible caller's behavior.
+
+### Entry is part of the interface, even with a pure body
+
+For a callable `f` distinguish the received carrier and complete call ports,
+and, for a closure, its source body/result port:
+
+```text
+J_arg       the whole received computation carrier
+J_body      closure body Result(I_body), with its received/rebound binding
+J_call      the complete invocation observation/interface
+```
+
+The parameter mode `P` selects entry, not an eager construction prefix.
+It does not by itself describe the effectful behavior of `J_arg`. In
+particular, `P=Value(A)` identifies the value obtained by entry demand;
+it is not a proof that the incoming carrier is pure.
+
+For a closure, the ordinary source entry rule expands the value case as
+
+```text
+enter actual receiver; establish its source boundaries and receipt;
+within its complete executing view:
+    Force_argument(t) >>= (a,current_state).
+    RebindResultPath(t,a,current_state);
+    Run(body with x := Value(a)) >>= ReturnFromInvocation
+```
+
+For a retained computation parameter, bind the same carrier view as the
+declared computation interface and enter the body without entry force.
+The body's explicit consumers can still execute it. In particular, the
+user-selected forwarding rule for body `x` may generate that consumer;
+retaining a parameter does not imply that its body ignores it.
+
+These equations use one actual receiver activation, current state and the
+original complete view. They add no synthetic wrapper or source boundary.
+When entry exposes a request, ordinary bind gives
+
+```text
+Request(q,C,k_arg) >>= suffix
+  = Request(q,C, lambda response. k_arg(response) >>= suffix)
+
+suffix = typed rebind; closure body; return from this invocation.
+```
+
+The actual raw continuation takes the current resumed state as before.
+It preserves the same operation instance, request origin, response endpoint
+and joint `K,D`; resumed entry does not start again. Handler selection and
+any transformation of the request occur in the actual source context.
+For a closure, this gives the entry/rebind/body image. Generically, `J_call`
+is the complete relational image of the actual producer's `ExecuteCallable`
+from §3, parameterized by `J_arg`, the environment and current configuration.
+It includes the actual entry, body and designated result consumer with all
+native return delimiters and the surrounding complete executing view, plus
+any separately admitted result adaptation where applicable. It is not
+defined by a union of two outward support rows.
+
+In particular, an operation's native body returns `MakeRequestThunk`, not
+its declared result computation. For `op: Unit -> [E]Int`, native return
+alone exposes neither `E` nor an `Int` response. Its `ExecuteCallable` then
+runs the existing `Execute_decl_result` after native invocation return,
+within the retained complete consumer view. Entry requests keep that
+post-return consumer in the complete pending suffix through ordinary bind.
+This is the §3 consumer derived from the operation declaration/application
+judgment; it adds no implicit force, cast or wrapper invocation. `J_body`
+above names a closure's body result and must not identify an operation's
+native-body return with its declared result port.
+
+For example, a value receiver whose body returns its Int parameter has a
+pure body result. An admitted carrier that requests `E` before returning
+that Int exposes `E` during entry. In an ambient configuration with no
+eligible handler, the complete call exposes the request despite the pure
+body. Conversely, a retained-computation receiver with constant Unit body
+does not execute the carrier at all. These are direct reductions of the
+same rule, not source-site exceptions or decisions about Oracle lowering.
+The former refutes equating `J_body` with `J_call`; the latter refutes an
+exact unconditional addition of all incoming support to call support.
+
+For the resolved ordinary core, construct a carrier port and the actual
+producer's entry/bind/body/result-consumer links and return delimiters per
+callable, linking each application to its actual argument port.
+Recursive references share existing nodes. This takes bounded metadata per
+source node plus its supplied typed-profile/path entries; it does not
+invent an argument-effect generalization rule or a new surface type binder.
+The symbolic complete image remains an inference obligation. The lambda
+table in §6 is consequently a source body/result skeleton, not a solved
+complete-call scheme.
+
+### Derive directions from the primitive interactions
+
+Choose a component interface root being offered to its context and mark it
+`+`. A sign describes the direction of a **typed interface occurrence**:
+an offered behavior at `+`, the corresponding supplied behavior at `-`.
+It is neither the request's historical origin nor capture authority.
+Let `-s` reverse the direction `s`.
+
+| Typed interaction at direction `s` | Derived child direction |
+|---|---|
+| immutable structural component or returned value | `s` |
+| callable receives whole carrier `J_arg` | `-s` |
+| callable's complete invocation/result port `J_call` | `s` |
+| computation emits its operation payload | `s` |
+| computation receives its operation response | `-s` |
+| exported raw continuation | callable at `s`, response input at `-s`, raw suffix completion at `s` |
+| exposed cell read | `s` |
+| exposed cell write | `-s` |
+
+Computation introduction exposes no execution event. Explicit force opens
+the corresponding computation interaction at its existing direction; it
+does not recursively force a latent returned value. Whole carriers therefore
+retain both their latent structure and the way their execution can later
+contribute to an enclosing invocation.
+
+**Primitive derivation.** Invocation receives the carrier from the side
+opposite the offered callable and returns observations to that side.
+`Request(q,C,k)` supplies its payload and suspends until a response is
+supplied back. Applying the raw continuation is exactly that response input
+followed by its existing suffix. Reading produces stored data; writing
+consumes replacement data. These are the directions in the table. Replacing
+the root side reverses each transfer, so the rules compose through nested
+callables. A handler consuming an externally supplied computation has the
+Function-input reversal: it receives that computation's payloads and supplies
+responses. No additional handler-specific direction rule is needed.
+
+Induction on a finite interaction derivation proves the classification for
+every revealed typed path. A nested callback applies the same two call edges;
+two reversals restore the original direction. Latent return, storage and
+repeated resumption preserve the already-typed path correspondence and use
+the same primitive clauses when activated. Shallow handler expiry changes
+eligibility, not who supplies a payload or response at that typed port.
+
+Entry/bind also links challenges to guaranteed observations. An entry
+request may contribute to the complete invocation; the same dependency
+can therefore occur at both an input and an output position. This is a
+relational dependency, **not** equality of their outward rows. Actual
+observation, routing, response and body constraints still determine the
+complete image. Role bits alone cannot compute it.
+
+### Finite classification, sharing and §8's stronger freeze
+
+Build the direction-preserving/reversing edges from these constructors of
+the resolved finite graph and its source-derived typed correspondences.
+Seed exported roots positively and imported roots at their supplied side.
+Propagate signs over edges; join the two bits at shared occurrences and
+recursive references. Each node receives at most two bits. With a worklist,
+classification takes linear work in the graph's nodes and adjacency entries
+and terminates without unfolding recursive types or executions.
+
+The construction is least: every propagated bit has a finite root-path
+witness, and every root-path sign is propagated by induction on path length.
+Hence all finite typed interaction paths are covered, including recursive
+ones. Unknown endpoint leaves receive their occurrence signs but are not
+decomposed speculatively. Finiteness of classification does not prove
+finiteness of subsequently inferred type shapes or runtime alias worlds.
+
+Writable exposure combines read and write constraints on the **same**
+content view. It does not solve aliases independently. Family-argument
+equality remains invariant; the operation's response occurrence and raw
+continuation input retain their shared witness correspondence. Classifying
+value occurrences of an operation-local binder does not permit freshening
+that binder at resume or imposing family invariance on every local binder.
+The original global constraints and `K,D` incidence remain joint. Opposite
+signs do not cancel predicates or manufacture an equality of unrelated views.
+Boundary profiles, original slots and activation references are retained;
+sign propagation neither unions aliases' hygiene profiles nor creates grants.
+
+For §8, generate assumption roots from the supplied/challenge ports and
+then take its **whole-descriptor closure**, disregarding later reversals.
+That checker intentionally fixes the complete challenge domain. The more
+precise structural signs here do not authorize weakening a nested assumption
+under §8 merely because two reversals would make it positive. The generated
+classification removes that checker's supplied-label premise for this
+resolved ordinary graph, while its original-certificate and complete
+graph/alias premises remain. It does not extend the checker's acceptance rule.
+
+### One joint law for domain-changing comparison
+
+The semantic comparison can now state the missing quantifiers without a
+new source mechanism. At the same `nu`, let `D_i` contain the complete
+admissible challenges for description `i`: initial configuration/carrier
+and admissible future input histories, with all shared dependencies. Let
+`P_i(d)` bound the complete joint observations under challenge `d`.
+Interpret an actual callable using its original source entry and contracts.
+
+The sufficient containment law is
+
+```text
+D_checked subset D_actual
+for every d in D_checked: P_actual(d) subset P_checked(d).
+```
+
+If the callable satisfies the actual description, each checked challenge
+is an actual admissible challenge, so every actual execution observation
+is in `P_actual(d)`, hence in `P_checked(d)`. This proves the semantic
+law directly, including finite future/resumption histories. It uses whole
+joint relations under one assignment, not separately chosen row, value,
+store or family witnesses. The derived port reversals explain argument
+contravariance and result covariance where a structural rule can establish
+these joint inclusions; they do not establish those inclusions by themselves.
+
+Constructing a finite symbolic presentation of the complete `ExecuteCallable`
+image and these higher-order/store challenge relations remains the precise source
+gate. This section derives ports/directions and the semantic containment
+law, not an effective general subtype algorithm. Existing row and capacity
+procedures can solve their stated fragments once generated; they cannot
+stand in for the unconstructed interaction relation. No source acceptance
+restriction, new generalization policy, lifecycle closure or implementation
+approval follows.

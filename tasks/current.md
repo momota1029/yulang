@@ -510,14 +510,37 @@ the receiver's formerly pure result can fail. No source acceptance rule is
 changed. The reviewed raw-resumption counterexample also prohibits using
 outward effect support to bound every pre-dispatch routing observation.
 
-The source gate is now precise: derive challenge/guarantee classification
-from complete source interfaces and construct invocation containment for
-different admissible arguments/responses, with finite symbolic closure.
-The §8 theorem assumes that classification and an original certificate;
-it does not generate either from arbitrary source. Its actual-entry and
-profile-preservation proof covers future use and raw resumption within the
+The §8 theorem assumes challenge/guarantee classification and an original
+certificate; it does not generate either from arbitrary source. Its actual
+entry and profile-preservation proof covers future use and raw resumption within the
 unchanged domain. This closes one finite comparison kernel, not Milestone 3,
 general Function inclusion, lifecycle or implementation readiness.
+
+## Source-derived invocation-port checkpoint
+
+Typed-computation-core §9 constructs whole-carrier and complete-call ports
+for the resolved ordinary core and derives interaction directions from its
+call, force, request and resumption primitives. Function carrier inputs and
+operation responses reverse direction; results and payloads preserve it.
+Shared read/write exposure retains both obligations. Finite sign propagation
+uses graph back edges; it neither unfolds recursion nor drops `K,D` based
+on polarity. §8's stronger whole-challenge freeze is preserved.
+
+The incoming computation cannot be erased from the call interface: a value
+receiver with pure body can expose argument effects at entry; a retained
+receiver with constant body need not expose any. The complete source call
+must include its actual entry, body and designated result consumer with
+their existing delimiters. Body result synthesis alone is not its closed
+effect bound. This is a consequence of the selected source semantics, not
+a new argument-effect generalization or annotation rule.
+
+The semantic containment law reverses inclusion of complete admissible
+challenges and preserves inclusion of their joint observations, all under
+one assignment. The remaining source gate is a finite presentation of this
+input-dependent invocation image and higher-order/store interaction relation.
+The direction-classification premise is discharged for resolved ordinary
+graphs; arbitrary inferred graph shapes, alias worlds, general Function
+inclusion, principality, lifecycle and implementation remain open.
 
 ## Main records
 

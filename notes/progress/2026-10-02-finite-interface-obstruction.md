@@ -1473,3 +1473,63 @@ explicit staged paths and inspected outbound commits before push. Next
 construct source-derived challenge/guarantee classification and complete
 invocation containment across different domains, including finite symbolic
 closure. The full proof-and-implementation objective remains active.
+
+### Source-derived ports and polarity, with complete producer execution
+
+Previous goal turn: progress. The reviewed fixed-domain certificate checker
+is pushed as `9e379cd46`. This turn revalidated the clean branch and pursued
+its supplied-classification premise and the broader input comparison.
+
+The bounded architect construction derives input/output directions from
+source invocation, computation requests, raw continuations and exposed
+read/write capabilities. A focused primary check additionally identified
+that classification must include the whole argument computation: a pure
+body is not a pure complete call when value entry executes an effectful
+carrier. The retained-computation case, conversely, need not execute an
+unused argument. Both follow the user's existing source semantics.
+
+Typed-computation-core §9 now records carrier/body/complete-call ports,
+the same-activation entry/bind equation, primitive direction extraction,
+least finite sign propagation over resolved regular graphs, and the joint
+semantic domain/observation containment law. Response ports keep their
+operation-instance correspondence; aliases, family equalities and `K,D`
+remain correlated. Signs classify typed occurrences, not capture authority
+or historical origin. §8 still freezes the entire challenge subgraph even
+where two structural reversals occur. Unknown shapes and runtime alias
+worlds are not inferred by this graph traversal.
+
+The first M3 semantic/conformance reviews covered the integrated §9 and
+direct §6 clarification. Conformance found no issue. The semantic reviewer
+found a major omission in the generic complete-call equation: an operation's
+native carrier-producing body does not itself complete source application.
+For `op:Unit -> [E] Int`, pure entry plus `MakeRequestThunk` still returns
+computation data; governing core §3 requires its declaration-derived consumer
+after native return. The primary accepted this finding and assigned one
+documentary repair bundle, preserving §3's existing delimiter and consumer.
+The complete producer view, rather than entry/body alone, must define
+generic `J_call`. No new source policy or user decision is needed.
+
+The source-classification construction removes supplied direction labels
+only for the resolved ordinary interface graph. The remaining source gate
+is the finite symbolic image of complete producer execution parameterized
+by its carrier, current configuration and shared higher-order/store worlds.
+The semantic containment law does not implement that relation or prove
+general source principality. Lifecycle and implementation remain downstream.
+
+One implementer repaired only §9 and its §6 clarification. Closure entry
+and body are now distinguished from each producer's complete `ExecuteCallable`.
+Operations retain the existing declaration-derived consumer after native
+return, including in the suffix of a suspended entry request. Generic
+metadata and image claims use that complete execution. A fresh independent
+compiler referee inspected the accepted finding and direct dependency cone
+and found it closed, with no remaining issue. Initial clean classification
+and quantifier scope are carried forward; no broader new review was run.
+
+M3 budget consumed: bounded architect with a focused carrier-port check,
+two initial reviewers, one documentary repair bundle and one independent
+delta reviewer. Verification is scoped diff/whitespace inspection; no tests,
+builds, compiler changes or measurements (budget/consumption zero). Current
+task, design index and review header are synchronized. Explicit staged paths
+and the entire outbound range are inspected before normal branch push.
+This is progress on source construction, not closure of the complete finite
+presentation, lifecycle, implementation or full persistent objective.
