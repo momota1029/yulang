@@ -1,0 +1,189 @@
+# Source result synthesis and computation interface preservation
+
+Date: 2026-10-02
+Status: Draft; source result-synthesis choice pending; no implementation authority
+Scope: selecting inferred function-result computation ports before code generation
+Approved-by: none for the alternatives in §4
+Drafted-by: primary with bounded architect and frozen-source mapping
+Reviewed-by: independent compiler_referee and spec_auditor, 2026-10-02; no blocking/major findings; shared minor result-port normalization clarification closed by primary
+Supersedes: none; inert computation introduction and known-interface entry remain fixed
+
+## 1. The remaining source rule
+
+Charter §§16–17 fixes whole-argument inert introduction, same-activation
+entry, known-interface elimination and preservation of latent results. The
+typed-computation core now generates executable code from a finite declarative
+port derivation. The remaining question here is how an **unannotated function
+result** obtains that derivation.
+
+A computation-valued name can be observed as data without executing it.
+A declared computation consumer can instead eliminate its known interface.
+These laws fix each operation but do not yet say which result interface to
+synthesize for the body occurrence in:
+
+```yu
+our h(x: [handled; 'e] 'a) = x
+```
+
+This exact source is the frozen `a58eefc3`
+`tests/yulang/regressions/effect/effectful_parameter_forwarding.yu` after its
+`type handled` declaration. The inference fixture at
+`crates/yulang/src/source/tests/case_02.rs:2712–2730` expects forwarded result
+effects. It supplies compatibility evidence, not source authority or a runtime
+timing assertion. No new execution was performed for this inquiry.
+
+This is a result-synthesis rule, not a new capture selector, operation-family
+rule, or permission to run any argument during construction. Every alternative
+keeps computation introduction inert and needs an explicit consumer to run it.
+
+## 2. Raw parameter evidence narrows the problem
+
+Frozen parameter lowering already distinguishes the **outer annotation
+occurrence** before solving value shapes:
+
+| Raw parameter | Source effect-slot initialization | Frozen locator |
+|---|---|---|
+| `x` | pure argument effect; local effect absent | `lowering/expr/lambda.rs:1252–1264` |
+| `x:'a` or another non-Effectful annotation | exact-pure effect slot; value constraints | `lambda.rs:1344–1353`; `annotation/constraints.rs:263–284` |
+| `x:[_] 'a` | outer Effectful, fresh effect slot and local stack effect | `lambda.rs:1308–1325,1344–1353` |
+| `x:[E] 'a` | same outer-Effectful path, plus concrete row constraints | same lambda locators; `annotation/constraints.rs:709–724` |
+
+Paths in this table are below `crates/infer/src/` at `a58eefc3`. Parameter
+creation still uses a fresh value variable and common `Def::Arg`/`Pat::Var`
+constructors (`lambda.rs:285–301`, `lowering/pattern.rs:229–268`). Name lookup
+uses the binding's local effect (`lowering/name_ref.rs:146–186`). Ordinary
+local bindings store a result with no local effect
+(`lowering/expr/block_local.rs:1232–1249`). No separate runtime role follows
+from these facts alone.
+
+This evidence supports a syntax-derived parameter interface candidate:
+
+```text
+parameter with ordinary value interface A:   Value(A), entry force/rebind
+parameter with outer computation interface: Computation(E,A), entry retain
+```
+
+An unknown `A` does not require guessing which of these outer declarations
+was written. Likewise, solving `E` to the empty row does not remove its
+original annotation occurrence. Oracle `StackWeight`, `All`, `AllExcept` and
+their routing rules are not premises of this candidate.
+
+The mapping does not settle the function's result occurrence. Even a known
+computation parameter can be returned as data or consumed through its known
+interface, depending on the source result rule. The claim that simply
+preserving its interface requires no policy choice is too strong: deciding
+whether result synthesis performs that preservation or adds a data-result
+layer is precisely the missing rule.
+
+## 3. Independent non-collapse obligation
+
+For a selected source port derivation, two changes cannot be justified by
+solved representation equality alone:
+
+1. A value endpoint `A` becomes a latent representation under substitution.
+   This does not introduce a consumer of that latent value.
+2. A retained computation's effect row becomes empty. This does not convert
+   retention into value-parameter entry forcing.
+
+The second has a direct decorated-source discriminator. Let `t` be a pure
+diverging computation with interface `Comp(empty,Unit)`, and let a receiver
+ignore its parameter. The retained-computation entry returns through its
+body without executing `t`; the value-parameter entry forces `t` and diverges
+before that same body. Hence empty effect support cannot identify these
+entry semantics. This uses ordinary divergence and the selected entry laws,
+not a raw-source acceptance assertion or an additional callback fixture.
+
+Similarly, the regular `A = Thunk(E,A)` witness in source-computation-role §7
+permits a returning data interpretation and an executing interpretation with
+the same erased result shape. `E` is an upper bound, so it does not require
+an actual request. Keeping annotation paths can **preserve an already chosen
+derivation**; path names and upper bounds alone do not prove which derivation
+raw result checking must select. A new source checking rule must close that
+coherence obligation.
+
+Capture-avoiding renaming transports a selected port, its original profile,
+and all corresponding symbolic `K,D` together. Value/effect substitution
+preserves the interpretation when it preserves that source derivation's
+consumer premises. This is not unconditional code invariance when a newly
+revealed interface requires additional elaboration, nor the as-yet-unproved
+generalization/intrusion theorem.
+
+## 4. Three candidate result policies
+
+Use a concrete input `t : Comp(E,Int)` that emits an `E` request when
+eliminated. Consider executing the result computation of the displayed
+forwarding function once and then discarding its returned value.
+
+| Policy | Synthesized result interface | First explicit execution of the result |
+|---|---|---|
+| A. Preserve the expression's known computation interface | `Comp(E,Int)` | Executes `t` and obtains its `Int` result |
+| B. Return computation data under a new pure result layer | `Comp(empty, computation-data(E,Int))` | Returns `t` as unexecuted data; another consumer is needed to execute it |
+| C. Generalize the result interpretation in the public interface | A public unresolved result-port parameter | A use selects an interpretation; its code and proof must follow the same selected public port |
+
+This discriminator assumes the stated effectful input, not merely an `E`
+row bound. It is expressed in the decorated source/core relation. The exact
+complete frozen-source execution of this comparison is unverified.
+
+**A is the primary's recommended candidate.** It preserves the known source
+interface of a forwarding expression and does not insert an extra pure layer
+in synthesis. It matches the recorded forwarding inference expectation and
+uses the existing core's declared callable execution view. Synthesis itself
+does not execute anything; a source consumer of the synthesized computation
+is what runs it. Ordinary lookup/storage/return of data remains inert.
+
+Its proposed rule is:
+
+```text
+Gamma(x) = I                    Synth(body) = I
+----------------              -----------------------------------
+Synth(name x) = I             Synth(lambda(P,body)) = Fun(P,Result(I))
+
+Result(Value(A))          = Comp(empty,A)
+Result(Computation(E,A))  = Comp(E,A)
+```
+
+`I` retains source value/computation positions, not just a solved runtime
+type. Ordinary value results use the existing pure `result(d)` computation
+port. This rule adds no extra pure layer around an already known computation
+interface. It does not by
+itself prove checking with nested annotations, admitted conversions or
+principal inference. Explicit result checking still must derive the selected
+typed result path without resurrecting overlapping lift/expose choices.
+
+B gives ordinary data observation priority in an unannotated result. It is
+also compatible with inert introduction, but changes forwarding's result
+layer and therefore its callers' elimination requirements. That compatibility
+impact is semantic, not merely inference-stage scheme formatting.
+
+C can avoid prematurely selecting a result interpretation, but introduces
+a genuine public interface parameter. It needs a principal quantified
+interface, coherent code for every resolved port and lifecycle transport.
+Neither disjunctive constraints nor a hidden runtime tag proves those facts.
+Keeping the choice only in hidden binding provenance would violate the
+typed abstraction requirement. Its larger proof/implementation burden is not
+justified merely by matching a fixture.
+
+None of these policies is certified sound/principal for the whole successor
+by this comparison. No alternative has been adopted or implemented here.
+The user has been asked for the intended result interface. Time passing
+does not select a policy.
+
+## 5. Closure after the decision
+
+Use the selected rule to construct result ports compositionally with
+parameter annotations, names, application, ordinary binding and handlers.
+Prove checking/coherence for nested results and recursive interfaces together
+with substitution/renaming under explicit premises. Then instantiate the
+reviewed derivation-core construction; do not add another theorem that
+merely assumes arbitrary result ports.
+
+This scope leaves the settled inert introduction, shallow outside handling,
+activation-scoped typed-value transport and symbolic-family invariance intact.
+It authorizes no compiler implementation and does not relax the finite
+principal presentation, uniform-client, acceptance or lifecycle gates.
+
+Provenance: the already selected entry/inertness laws are Yulang extensions.
+The inference policy alternatives and their successor application are new
+conjectures, not Simple-sub-original rules. The two non-collapse witnesses
+are deductions in the declared candidate source/kernel, not claims that
+frozen weight routing is sound.

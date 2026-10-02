@@ -1003,3 +1003,56 @@ equality and row inclusion cannot supply that derivation by themselves.
 The finite regular/parametric presentation and acceptance bridge then remain
 before lifecycle, implementation feasibility and implementation. No goal
 completion or supported-envelope reduction is claimed.
+
+### Raw result synthesis narrowed to one source decision
+
+Previous goal turn was progress: `ec106aff8` added and pushed the constructive
+typed computation core. This turn started from that clean synchronized state
+and attacked the remaining raw port derivation, not another core translation
+with supplied roles.
+
+A bounded frozen-source audit found a useful reduction: outer parameter
+annotation structure selects the local effect policy before solving. Omitted
+or value annotations, including a value variable, use an exact-pure argument
+effect; outer `Effectful` annotations use a retained effect slot/stack.
+All still share the ordinary parameter/value constructors. This removes the
+need to infer that syntactic distinction from later runtime value shapes, but
+does not itself define successor source semantics or endorse Oracle weights.
+
+The remaining policy is the result of the actual forwarding source
+`our h(x:[handled; 'e]'a)=x`: preserve its known computation interface, return
+computation data under a new pure result layer, or generalize the choice as
+part of its public interface. The new decision record is
+`2026-10-02-source-result-synthesis-choice.md`. It gives a concrete
+actual-request discriminator, the exact frozen inference fixture evidence,
+and the acceptance/consumer implications. No runtime comparison was run.
+
+Architect construction recommends preserving the expression's source
+interface, with ordinary value results embedded into `Comp(empty,A)` and
+already computational results retaining `Comp(E,A)`. The primary likewise
+recommends that economical candidate. Independent semantic audit establishes
+that first-class inertness alone does not require this synthesis policy;
+deciding that no additional pure layer is inferred is still a source rule.
+The primary therefore treats the proposal as pending, not approved merely
+by its economy or compatibility. A user question presents all three options;
+no reply is assumed. This is the first turn with this specific unresolved
+decision, not a repeated instance of the resolved argument-scheduling choice.
+
+Independent of selection, the record proves the non-collapse obligation for
+retained pure divergence versus value entry force. It also limits the
+annotation-path claim: paths can transport a selected consumer through
+recursive type equality, but cannot alone determine raw checking roles from
+an upper effect bound. Substitution preservation remains conditional on the
+same source consumer premises; arbitrary newly exposed shapes do not prove
+code invariance or the lifecycle theorem.
+
+M3 budget: one read-only architect, one bounded source explorer, and two
+independent decision-record reviewers (semantic/conformance). No major
+finding; both identified the same minor need to show ordinary value-result
+normalization in the proposed lambda rule. Primary added `Result(Value(A))`
+versus `Result(Computation(E,A))` explicitly and inspected the narrow change.
+Source policy remains pending. Primary synchronized task/index/decision and
+progress records. No tests, builds or performance experiments; measurement
+budget zero. Focused whitespace/diff and complete outbound-range inspection
+precede the coherent checkpoint/push. The goal remains unfinished; dependent
+source checking/coherence work awaits the requested result-synthesis decision.

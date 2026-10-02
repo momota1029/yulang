@@ -252,6 +252,29 @@ is a coherent derivation of these ports from raw syntax/annotations/inference,
 including recursive role overlap and admitted conversions. No arbitrary
 executable `ArgumentCode` premise remains for the displayed core, but the
 input declarative port derivation is still an explicit assumption.
+
+The current source decision is isolated in
+`2026-10-02-source-result-synthesis-choice.md`. Frozen evidence now shows
+parameter outer annotations select effect-slot policy before solving:
+omitted/value annotations have pure slots; outer effectful annotations retain
+their computation slot. This is evidence for source parameter derivation,
+not authority to adopt Oracle routing. It does not determine an unannotated
+result's role. The exact existing source `h(x:[handled; 'e]'a)=x` admits the
+two proposed policies: preserve the known result computation interface, or
+return that computation as data under a pure layer. A third candidate exposes
+the result-port choice publicly for generalization. The primary recommends
+interface preservation; the user has been asked and no answer is assumed.
+Only dependent result-synthesis/checking work awaits that decision. Inert
+construction, receiver entry and shallow scope are already fixed.
+
+The independent non-collapse argument shows why an empty effect row cannot
+turn a retained pure diverging computation into entry force; similarly,
+recursive solved equality cannot choose between data return and an explicit
+consumer. Original paths preserve a chosen derivation but alone do not prove
+the raw selection. M3 semantic/conformance decision review found no major
+issue; both requested the same minor normalization of ordinary value results
+to `Comp(empty,A)`, now explicit in the candidate rule. No compiler changes,
+tests, builds or measurements; zero measurement budget.
 Frozen force-before-call placement requires a receiver/receipt/view
 preservation proof; it is not automatically authority or an established bug.
 Nested effectful annotation coverage, admitted adapters and inferred roles
@@ -308,6 +331,7 @@ Implementation feasibility evidence is recorded in `notes/progress/2026-10-02-su
 
 ## Main records
 
+- `notes/design/2026-10-02-source-result-synthesis-choice.md` — pending unannotated-result synthesis policy, source-parameter evidence and non-collapse arguments; A recommended, not adopted.
 - `notes/design/2026-10-02-typed-computation-core-elaboration.md` — reviewed constructive derivation-core translation/simulation; source consumer coherence and finite principal inference remain open.
 - `notes/design/2026-10-02-source-call-scheduling-choice.md` — authoritative A: first-class computation introduction is inert, whole-argument reification precedes receiver elimination; conditional discriminator and exact acceptance-evidence limits retained.
 - `notes/design/2026-10-02-source-computation-role-elaboration.md` — corrected active source map, producer-placement obstruction and common invocation entry expansion; raw-source scheduling/typing and finite solved/parametric presentation remain open.
