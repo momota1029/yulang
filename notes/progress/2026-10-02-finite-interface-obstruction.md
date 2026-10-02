@@ -24,8 +24,34 @@ dynamic event identity, and symbolic `K,D` remain attached to each event.
 
 ## Milestone-3 result
 
-The existing finite candidates do not close the joint typed interface under
-ordered handler image and interface projection:
+The existing candidates do not yet construct a finite joint typed interface
+under ordered handler image and interface projection. A stronger conditional
+algorithmic target is now isolated in the coupled-interface draft as the
+finite guarded-saturation theorem:
+
+- Fix a finite complete-state quotient `Q` and a finite basis `P` of
+  predicates over the shared assignment `ν`.
+- Represent every formula by its truth table over the `2^|P|` predicate
+  valuations. The abstract state is a vector of such formulas, one per `q∈Q`.
+- If each primitive transition has an exact guard `G_qr` in this basis and
+  keeps `ν` fixed, transfer is `F(φ)_r = Init_r ∨ ⋁q(φ_q ∧ G_qr)`.
+- For each predicate valuation this is reachability on a finite graph over
+  `Q`; iteration from bottom reaches the least fixed point in at most `|Q|`
+  rounds. The result is the least reachable relation in this declared finite
+  presentation and retains disjunctive assignments without choosing a match.
+
+This is a reviewed conditional theorem, not a constructed Yulang presentation.
+It materially sharpens the missing construction: show that recursive calls,
+live state, activation identities, raw resumptions, latent future use,
+existential local binders, ordered handler selection, and all dependent
+`K,D` views admit a finite *joint* `Q`; show every generated type/family
+predicate remains in a fixed finite `P`; and prove projected interfaces are
+exact for the selected derivation preorder. Incompatible-arm admissibility
+must follow actual ordered selection, not be hidden in a runtime guard or
+invented by spurious quotient routes. The callback contract rule remains
+uniform for direct and Force-exposed requests.
+
+The older candidates still do not close the joint typed interface:
 
 - finite request-support closure can forget correlations between family
   predicates, root views, residual effects, and continuation views;
@@ -40,9 +66,9 @@ Thus no terminating finite formula language is currently shown to preserve
 these joint fibers through handler images and yield the least representable
 well-typed interface. This is the precise obstruction to closing Milestone 3,
 not an impossibility theorem or proven expressibility limit. The next proof
-target is one terminating compositional presentation with effective source
-images and principal projection; support leastness alone cannot discharge
-inference principality.
+target is to construct `Q`, `P`, their exact source-image guards, and the
+principal projection bridge for the conditional saturation theorem;
+support leastness alone cannot discharge inference principality.
 
 ## Boundary-rule delta
 
