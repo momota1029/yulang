@@ -57,6 +57,16 @@ selection, latent/resumption future use, existential identities, and shared-`ν`
 fibers, then prove least representable projection. Class 1/2/3 remain
 unclassified for the complete interface, with no class-3 witness.
 
+A conditional lower bound rules out requiring a total effective quotient
+with decidable exact selected-event reachability over an envelope encoding
+arbitrary Turing-machine runs: a designated event iff halt would decide the
+halting problem. Frozen Yulang features make the encoding plausible, but the
+candidate machine lacks recursive/list/enum typing rules, and a resource-
+bounded envelope may exclude it. This does not obstruct conservative
+principality and is not a class-3 result. Next derive an effective
+conservative effect abstraction that retains soundness and principal
+projection without requiring exact trace/event reachability.
+
 ## Current work
 
 The milestone-1 candidate is `notes/design/2026-10-02-ordinary-computation-semantics-package.md`. It defines one state-threaded `Run` relation, concrete closure-frame re-entry under the current caller store/activations, latent `Force`, per-event origins and symbolic `K,D`, event-relevant ordered visibility, and shallow handler images. The user selected preservation of existing callback incidence while its receiver is active, ordinary current-handler search after escape, and concrete typed-boundary visibility for both direct and Force-exposed requests. `Force` exposes latent computation but creates no authority; origin and `K,D` remain event-specific.

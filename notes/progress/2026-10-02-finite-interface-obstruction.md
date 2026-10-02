@@ -152,6 +152,52 @@ theorem only proves termination after the quotient, predicate closure, source
 image, and projection premises are supplied. A resource ceiling cannot stand
 in for those proofs.
 
+## Conditional lower bound for exact event quotients
+
+There is a conditional obstruction to demanding an *exact, effective*
+finite/regular event quotient. Let `L` be a source fragment with an effective
+encoding `(M,w) ↦ p(M,w)` of deterministic Turing machines and finite inputs
+as closed, well-typed programs under an effectively supplied finite
+monomorphic signature. Require the encoding to have one designated operation
+`E` such that some actual execution selects `E` exactly when `M` halts on
+`w`. Suppose a total computable presentation builder `Q` works on every such
+program and a total computable predicate `HasE` decides from `Q(p)` whether an
+actual selected `E` event is represented exactly. Then
+`HasE(Q(p(M,w)))` decides the halting problem, a contradiction. Therefore no
+such pair `(Q, HasE)` exists.
+
+The encoding premise is plausible for frozen Yulang source: recursive
+function SCCs are allowed; immutable lists have finite constructors and
+head/tail patterns; enums and ordered cases express a finite machine state and
+transition table; and one concrete shallow handler can select the designated
+operation. Represent the tape by the current symbol and two lists for its left
+and right stacks. Each machine transition is one case branch and a recursive
+call at the same monomorphic function type; only the halt branch requests
+`E`. A concrete handler around the run selects that operation. Frozen-source
+locators at commit `a58eefc3`: `web/docs/reference/types.md` § recursive
+components; `web/docs/reference/std/list.md` construction and head/tail
+access; `web/docs/reference/patterns.md` list and enum patterns;
+`web/docs/reference/functions.md` type/effect annotations; and
+`web/docs/reference/effects.md` operation calls and shallow handlers.
+
+This remains conditional, not a theorem already derived from the candidate
+ordinary-machine rules: those rules do not define recursive binding,
+list-pattern, enum, or general typing judgments. It also assumes the effective
+supported envelope contains the full machine-encoding family. A deterministic
+resource boundary that excludes some encodings limits the theorem's scope.
+
+The lower bound concerns exact event reachability. The adequacy target permits
+a sound conservative presentation (`Sem ⊆ ⟦P⟧`), so a presentation may retain
+`E` even for a non-halting machine. That does not decide halting and may still
+be principal relative to a chosen coarse abstraction. The result also does
+not rule out finite graph syntax whose exact event query is undecidable; it
+rules out the effective exact-query package stated above. It is therefore not
+a class-3 result for the successor abstraction and does not justify shrinking
+the supported envelope. It rules out requiring exact trace support as a
+decidable inference presentation over an envelope encoding arbitrary
+Turing-machine runs, consistent with using exact traces only as a soundness
+reference.
+
 The user explicitly permits class-1 resource limits. A later representation
 may cap an explicit structural dimension such as presentation nodes, symbolic
 states, or saturation work. Exceeding the cap must produce a deterministic
