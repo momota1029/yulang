@@ -101,10 +101,11 @@ without executing any part of it. The user's source-reference clarification
 receiver. Value-parameter forcing belongs to entry in that same invocation.
 Let `ArgumentCode(e₂,η)` be the code for the complete argument computation
 with its lexical typed-value references; construction of `Delay` runs none of
-that code. The application rule is:
+that code. The following is the **kernel producer application**, before any
+separately derived source computation-result consumer:
 
 ```text
-Runν(e₁ e₂,C) =
+RunProducerν(e₁ e₂,C) =
   Runν(e₁,C) >>= λ(f,C₁).
   let t = Delay(ArgumentCode(e₂,η_argument), lexical lineage) in
   ApplyValueν(f,t,C₁)
@@ -122,6 +123,12 @@ source-computation-role elaboration gate; this equation fixes introduction
 and invocation order rather than pretending that derivation is already
 available. In particular there is no implicit caller-side `CompleteResult`
 force after `ApplyValue` merely because it returns an operation carrier.
+The constructive source computational-call rule is in
+`2026-10-02-typed-computation-core-elaboration.md`, §3. It derives
+`ExecuteCallable` from the callable's declared computation port; the native
+operation producer alone is not a completed `Comp(E,A)` call. Explicitly
+consuming that port may force its carrier after native return, with the
+surrounding complete view intact. Data observation alone still does not.
 
 Applying a closure evaluates its body in the closure's lexical environment
 with the current caller's live store and ordered active source activations:

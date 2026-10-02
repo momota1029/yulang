@@ -232,6 +232,26 @@ from source typing, together with the existing annotation/path correspondence.
 M3 semantic and conformance delta reviews found no findings in this package.
 Only design/progress records changed; no compiler tests, builds or performance
 experiments were run, and the measurement budget was zero.
+
+The subsequent constructive package is
+`2026-10-02-typed-computation-core-elaboration.md`. A concrete source-port
+attack found that copying native operation producer code into an argument
+delay returns a request carrier to a known `Int` parameter instead of `Int`.
+The completed callable execution view now consumes the explicitly designated
+operation interface after native return, inside the delayed argument and
+its current complete view. No force comes from result shape or ordinary data
+lookup. A finite declarative Value/Comp derivation now generates all core
+code, including callee/argument execution, closure/operation entry, bindings,
+handler guard/arm subcode and explicit consumers. Its whole-core simulation
+carries initial relatedness, current state, typed paths and symbolic `K,D`
+through future use and raw resumption. Static templates are `O(n+m)` in the
+supplied derivation/profile size; this is not solved-type/query finiteness.
+M3 semantic/conformance reviews found no major issue; the semantic review's
+minor handler-subcode clarification was incorporated. The next source gate
+is a coherent derivation of these ports from raw syntax/annotations/inference,
+including recursive role overlap and admitted conversions. No arbitrary
+executable `ArgumentCode` premise remains for the displayed core, but the
+input declarative port derivation is still an explicit assumption.
 Frozen force-before-call placement requires a receiver/receipt/view
 preservation proof; it is not automatically authority or an established bug.
 Nested effectful annotation coverage, admitted adapters and inferred roles
@@ -288,6 +308,7 @@ Implementation feasibility evidence is recorded in `notes/progress/2026-10-02-su
 
 ## Main records
 
+- `notes/design/2026-10-02-typed-computation-core-elaboration.md` — reviewed constructive derivation-core translation/simulation; source consumer coherence and finite principal inference remain open.
 - `notes/design/2026-10-02-source-call-scheduling-choice.md` — authoritative A: first-class computation introduction is inert, whole-argument reification precedes receiver elimination; conditional discriminator and exact acceptance-evidence limits retained.
 - `notes/design/2026-10-02-source-computation-role-elaboration.md` — corrected active source map, producer-placement obstruction and common invocation entry expansion; raw-source scheduling/typing and finite solved/parametric presentation remain open.
 - `notes/design/2026-10-02-typed-source-owner-realization.md` — reviewed owner-span/control and typed-view context construction; user-selected outside-image equation.

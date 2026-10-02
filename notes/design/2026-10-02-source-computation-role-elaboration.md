@@ -724,6 +724,13 @@ remain open; this package must not be used to declare Milestone 3 complete.
 
 ## 12. First-class computation introduction and elimination package
 
+The constructive refinement is
+`2026-10-02-typed-computation-core-elaboration.md`: for its finite declarative
+core, code is generated rather than supplied. The `Call` equation below is
+the kernel producer application. A source computational call uses the
+declared execution view constructed there; copying a native operation
+producer alone into `ArgumentCode` fails its result-port typing.
+
 ### Source law and representation boundary
 
 A computation value denotes code with lexical typed-value references.

@@ -244,6 +244,15 @@ lookup/return and operation-carrier construction do not insert a completion
 force. The image theorem stays conditional on supplied source code/consumer
 derivations; it does not manufacture the missing raw-source elaboration.
 
+The constructive typed-core package supplies those code derivations for its
+finite source-port core. A callable's execution view composes the kernel
+producer with any explicitly derived declaration consumer: for an operation,
+native return precedes that consumer's force within the complete view. Bind
+lifting and the `Force` primitive image justify the composition. Pure data
+observation adds no such consumer. Thus adequacy for that core no longer
+assumes arbitrary executable `ArgumentCode`; its declarative port/typed-path
+inputs, raw-source coherence and finite principal presentation remain open.
+
 For closure/thunk future use, the complete interface stores the source
 latent relation rather than only its emitted prefix. Any admissible
 application/force is consequently another induction case above. This proves

@@ -943,3 +943,63 @@ records. No compiler changes, tests, builds or measurements; measurement
 budget zero. Focused diff/whitespace and explicit Git scope checks precede
 the coherent commit/push. The full proof-and-implementation objective remains
 unfinished; the former unanswered source-choice blocker is resolved.
+
+### Constructive computation-port core and native-carrier mismatch
+
+Previous goal turn classified as progress: `f8040a5e6` recorded the user's
+inert first-class computation source law and was pushed. The current checkout
+was clean and synchronized before continuing. This turn pursued the remaining
+source-code derivation premise rather than repeating callback scope cases.
+
+A bounded source-map audit located frozen documentation and assertions for
+effectful result interfaces, computation-parameter forwarding, ordinary local
+binding and `id(out::read(()))`. These are inspected historical assertions,
+not newly executed tests. They supply evidence of the computation/result
+distinction, not an authority to copy frozen force placement. Current syntax
+reference material explicitly leaves inference/lowering semantics undefined.
+
+An independent semantic attack localized the next construction's gap:
+`Delay(native operation invocation)` yields a request carrier on one force,
+not the result required by a known value parameter. The prior conditional
+constructor theorem is not refuted, because it assumed correct code. The
+proposed native-code substitution for that premise is invalid. The primary
+accepted this blocker on that proposed milestone claim.
+
+The new `2026-10-02-typed-computation-core-elaboration.md` constructs the
+executable view of a declared computation port. Closures execute their
+translated bodies; operations use native payload entry/construction followed
+by the explicitly justified declaration-result consumer, after native return.
+The surrounding complete view and receiving activation remain current. This
+is not automatic completion of arbitrary data. Whole-argument construction
+remains inert, and a latent result `A` is never forced merely for its shape.
+
+One structural translation now covers the finite declarative Value/Comp core:
+literals, names, closures, operation values, inert reification, explicit
+elimination, call, binding and shallow handlers. It generates code rather
+than accepting arbitrary executable argument code. The theorem supplies
+initial data relatedness, primitive forward simulation, future use and raw
+resumption under the existing typed-view/owner relation and one symbolic
+assignment. Recursive definitions share labels; code/profile templates take
+`O(n+m)` space in the supplied derivation. No solved-type/query bound,
+principal inference theorem or full raw-source derivation follows from that
+static count.
+
+M3 budget: one bounded architect, one read-only source explorer, two
+independent package reviewers (semantic/conformance). The semantic review
+closed the native-consumer blocker for the stated core and found one minor
+omission: handler guards/arms/defaults must be explicitly translated by the
+same recursion before calling the shallow-image primitive. Primary made
+that clarification; conformance review had no findings. The reviews do not
+certify raw-port coherence, general patterns/adapters, finite symbolic
+presentation, uniform clients or implementation. The primary synchronized
+ordinary semantics, role-elaboration and exact-interface dependency locators,
+task/index and this record. No tests, builds or performance measurements;
+measurement budget zero. Scoped diff/whitespace and Git outbound-range checks
+govern the commit/push.
+
+The exact next source obligation is coherent port derivation, not a new
+scheduling choice. Recursive source-role overlap shows why solved type
+equality and row inclusion cannot supply that derivation by themselves.
+The finite regular/parametric presentation and acceptance bridge then remain
+before lifecycle, implementation feasibility and implementation. No goal
+completion or supported-envelope reduction is claimed.
