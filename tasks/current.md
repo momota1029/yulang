@@ -605,6 +605,42 @@ shared/captured existentials must not become independent witnesses under each
 local universal binder. The complete scoped checking/solving theorem remains
 open. This correction does not remove request maps or symbolic `K,D`.
 
+## Uniform arm checking and scoped equality checkpoint
+
+Operation-instance package §§7–9 constructs one generic checking template
+with captured/shared witnesses outside the rigid operation-local scope and
+body-local witnesses inside it. A fixed, substitution-stable body proof can
+be instantiated at every admissible actual request map without caller
+enumeration; the request's payload, response, raw suffix and symbolic `K,D`
+remain correlated. Pointwise re-elaboration at each concrete type is not
+such a template.
+
+The constructive solver fragment is scoped unification for finite acyclic
+free-constructor equality conjunctions. It propagates allowed-rigid-name
+sets through variable bindings and produces a principal uniform syntactic
+substitution, or a contradiction in that fragment. It does not implement
+subtyping, recursive/equi-recursive equality, row equality, declaration
+bounds or the full inference machine. A rigid parameter is not a concrete
+type tag disjoint from Int; failing a uniform equality must never produce
+that runtime exclusion.
+
+Generic arm validity removes the false need for caller-restricted local
+specialization. The outstanding execution template is the complete
+invocation/shallow-handler image: entry effects, callback execution,
+actual ordered selection and resumed suffix effects. Valid generic arms do
+not justify unconditional family subtraction. Full source generation and
+scoped solving still precede lifecycle and implementation gates.
+
+A bounded frozen audit found ordinary fresh signature variables but no
+explicit generic-arm universal checking step or narrowing-rejection fixture
+in the inspected owners. This is an evidence gap, not a demonstrated Oracle
+acceptance conflict: no synthetic source ran. Charter §19 remains authority.
+Independent M3 semantic/conformance review found no findings in the scoped
+template/equality package. A primary wording clarification makes the existing
+raw-suffix/store assumptions explicit: operation-map instantiation alone
+does not establish the suffix's effect bound. Static diff checks only; no
+compiler tests, builds or measurements ran.
+
 ## Main records
 
 - `notes/design/2026-10-02-parametric-component-linking.md` — finite grafting and exact joint linking; revised per-program proof target, source summary construction still open.

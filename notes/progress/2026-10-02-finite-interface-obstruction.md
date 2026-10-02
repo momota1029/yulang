@@ -1654,3 +1654,65 @@ safe generalization, executable acceptance and whole-source principality
 remain unverified. Tasks, charter, design index and affected dependency
 summaries are synchronized. Final static checks cover explicit staged paths;
 the full outbound range is inspected before normal research-branch push.
+
+### Uniform arm instantiation and a constructive scoped equality kernel
+
+Previous goal turn: progress. The generic-arm source correction and finite
+parametric linking package were reviewed and pushed as `e7eb39b28`. This
+turn revalidated the clean branch and used the corrected source premise to
+remove caller enumeration from generic-arm validity.
+
+Operation-instance §§7–9 now construct one scoped checking template: fixed
+family instance and captured environment, rigid operation-local names, one
+shared declaration map, actual payload and raw continuation interface, and
+body-local witnesses in their proper scope. A substitution-stable generic
+proof instantiates at any admissible retained request map. The template's
+source consumers are fixed; separately elaborating programs for individual
+concrete type arguments does not count as a uniform proof. Actual store and
+raw-suffix interface assumptions remain necessary and are not inferred from
+the declaration map alone.
+
+The same package supplies an effective equality fragment: finite acyclic
+free-constructor equations, existential inference variables with permitted
+rigid dependencies, finite decomposition/binding/scope-propagation worklists.
+Solution-preserving transformations terminate and give factorization through
+a principal uniform syntactic substitution. Residual variables retain their
+dependency scopes. Rigidity is never interpreted as runtime disjointness:
+`kappa=Int` fails uniformly but an actual request may instantiate kappa at Int.
+Subtype constraints, semantic row equality, declaration bounds/implications,
+recursive types and full source checking remain outside this kernel. The
+source ascription in the user's rejected example is not silently changed
+from subtype checking to equality.
+
+A bounded explorer audit of frozen `a58eefc3` found operation locals in
+`lib/std/testing.yu:10–17` and their public fixture at
+`tests/yulang/cases.toml:3518–3525`; neither is a narrowing handler test.
+`crates/yulang/src/source/tests/case_01.rs:311–329` records specialization of
+the family parameter in `var::get` at Int, which is a different scope.
+The inspected arm path rebuilds a shared ordinary inference-variable map
+(`crates/infer/src/lowering/control.rs:1115–1117,1235–1269`), connects its
+signature by subtype bounds (`1328–1353`), and shares continuation input with
+the operation result (`1562–1628`). Signature names allocate ordinary fresh
+variables in `lowering/mod.rs:849–862` and levels in `arena.rs:34–42`.
+No explicit universal arm check or narrowing-rejection fixture was found in
+these owners. This is an apparent mechanism/evidence gap relative to user
+§19, not a demonstrated accepted-program contradiction. No synthetic source
+was parsed, tested or claimed accepted.
+
+M3 budget: one bounded architect, one evidence explorer, two independent
+semantic/conformance package reviewers. Both reviews returned no findings;
+no repair round or third reviewer was needed. Their scope is conditional
+uniform instantiation and principal scoped syntactic equality, not full
+source principality. A primary textual clarification makes the already-used
+store/raw-suffix premises explicit. Convergence is reached for this declared
+package without revisiting unchanged earlier components.
+
+The remaining common execution gate is finite generation of the complete
+invocation/shallow-handler image: entry, callback execution, actual ordered
+selection, arm effects and resumed suffix effects. Generic arm validity does
+not justify whole-family subtraction or erasing operation-local `K,D`.
+Full scoped subtype solving, source template completeness, lifecycle and
+implementation remain open. Tasks/index and this progress record are
+synchronized. Static diff/whitespace checks only; no compiler changes,
+builds, tests or measurements (budget/consumption zero). Integration uses
+explicit staged paths and inspected outbound commits before normal push.
