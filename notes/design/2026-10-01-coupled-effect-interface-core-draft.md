@@ -4376,18 +4376,53 @@ Passing part 1 cannot be cited as evidence for part 2. In particular, it does
 not permit dropping a symbolic family constraint during solving,
 residualization, generalization, freshening, or intrusion.
 
+### Milestone-3 closure result (2026-10-02)
+
+The candidate ordinary machine and its exact complete-interface embedding now
+provide the source-step reference for this commuting-diagram gate, including
+the selected concrete callback-boundary rule: a concrete callback contract
+governs both direct and `Force`-exposed requests in its complete `CallView`,
+while origin, event identity, and `K,D` remain attached to the event. The
+exact-interface embedding is potentially infinite and does not itself supply
+an inference presentation.
+
+The finite candidates in this draft establish only conditional subresults:
+closed point-row formulas retain disjunctive matches, and a Galois-connected
+complete lattice would give least reachability closure. Neither candidate
+constructs an effectively closed finite presentation of the **joint typed
+interface after ordered handler image and interface projection**. This is the
+precise remaining obstruction for Milestone 3. Request-support closure alone
+forgets correlations; point-row formulas do not cover assignment-dependent
+visibility, residual and continuation views, or their shared symbolic
+family fibers. No current proof shows a finite terminating formula language
+that closes under these images while preserving those fibers and yields the
+least representable well-typed interface. This is a missing construction, not
+an impossibility theorem or a demonstrated expressibility limit.
+
+Accordingly, the milestone has a precise obstruction but no completed finite
+soundness/principality theorem. The `UnknownOrigin` blocker in the older
+may-block candidate is not part of the selected source semantics: origin
+uncertainty alone cannot veto a concrete capture contract when the complete
+`CallView`, exact operation coverage, and active receiver-local handler are
+established. Blockers must be derived from the actual candidate configuration
+and current event-relevant boundaries. This is the selected-boundary delta;
+it does not repair the finite-closure obstruction.
+
 ## Open gates
 
-This draft does not yet define the supported source semantics or prove the
-carrier adequate. Before a successor contract or implementation, establish:
+The companion ordinary-computation and exact-interface theorem drafts define a
+candidate source machine and its exact semantic embedding. They are not yet an
+Authoritative source typing account, and current Yulang binder ownership has
+not been shown to derive their candidate `σ`. Before a successor contract or
+implementation, establish:
 
-1. declarative source computation, callback, thunk, and shallow-handler
-   relations, including activation-specific visibility;
+1. source typing/lookup rules that supply binder ownership and typed-family
+   constraints to the candidate machine;
 2. sound may-row and typed-family denotations whose symbolic invariance
    survives solving, residualization, generalization, instantiation, and
    intrusion;
-3. a finite terminating principal presentation and its relation to the
-   carrier;
+3. an effectively closed finite presentation of the joint typed interface
+   under ordered handler images and projection, with soundness/principality;
 4. SCC/root closure and parent-map preservation for the declared source
    envelope;
 5. explicit counterexample search for repeated pushes/one pop, nested

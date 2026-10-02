@@ -244,6 +244,25 @@ and then solve effect rows. If origin discovery depends on inferred rows, or
 the two analyses run together, monotonicity of the combined operator must be
 proved; the separate finite-lattice theorem does not establish it.
 
+### 2026-10-02 selected-boundary correction
+
+The later selected source rule supersedes the candidate's use of
+`UnknownOrigin` as an independent blocker. Origin remains attached to each
+request for provenance and event identity, but origin uncertainty alone cannot
+veto a concrete capture contract. If the complete callback `CallView` exposes
+concrete effect `E`, exact operation coverage is established, and the source
+configuration proves the receiver-local handler is active for that view, then
+direct and `Force`-exposed `E` requests have the same visibility regardless of
+caller origin. `Force` exposes the latent request; it creates no authority.
+
+Blockers must therefore be derived from the actual candidate configuration
+and event-relevant active boundaries. `UnknownOrigin` can imply a blocker only
+when it leaves the operation, current behavior, or boundary incidence
+unresolved. A wildcard row, family equality, surface row, or handler ownership
+alone still cannot establish the concrete contract. This correction selects
+source meaning only; the finite may-block domain and its transfers remain
+unproved presentation candidates.
+
 ### Proposed provenance transfers (unproved)
 
 The following table is a candidate transfer contract for checking against the
