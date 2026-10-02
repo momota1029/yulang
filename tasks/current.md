@@ -32,7 +32,7 @@ The redesign charter governs. F5 Function generalization is comparison/rollback 
 |---|---|---|
 | 1. Coherent ordinary computation semantics for calls, closures, `Force`, requests, callback visibility, and shallow handlers | Candidate source semantics uses the user's rule: concrete typed callback boundaries govern direct and Force-exposed request visibility; origin/identity/`K,D` remain distinct and `Force` creates no authority | Preserve this boundary rule in Milestone 2; no callback micro-cases without a counterexample |
 | 2. Source-to-complete-interface adequacy/simulation | Closed for the candidate ordinary machine: exact embedding covers initial `R`, primitive source-rule images, latent future use, and typed resumptions; bind lifting separately reviewed | This proves the candidate machine embeds in its exact complete interface, not that current Yulang typing derives the candidate binder ownership or has a finite presentation |
-| 3. Finite symbolic presentation | Generic finite carrier/certificate theorem and decorated-kernel typed transport, emission-context routing, and position-indexed symbolic basis reviewed; raw-source instantiation remains open | Construct source executable view decorations, close abstract refinement and uniform future interaction, and prove the intended typing/acceptance bridge before selecting the abstraction |
+| 3. Finite symbolic presentation | Generic finite carrier/certificate theorem, typed transport and symbolic basis reviewed; a principal constrained residual presentation for open structural bounds is now a reviewed candidate; full raw-source realization remains open | Formalize and prove the residual factorization; construct an effective joint residual/projection representation for unknown Records and feedback; close source refinement, uniform future interaction, and typing/acceptance bridge before selecting the abstraction |
 | 4. Generalization, fresh instantiation, SCC intrusion | Waiting on a Milestone-3 presentation | Prove lifecycle transport for that presentation, including external uses, internal SCC sharing, parent ports, and symbolic effects |
 | 5. Implementation feasibility | Deferred until milestone 4 determines required surfaces | Targeted architecture/resource audit of the reviewed semantics and representation |
 | 6. Implementation | Not authorized | Explicit user-approved design, completed required gates, implementation and verification |
@@ -1009,8 +1009,9 @@ particular, `X <: {}` has no principal closed substitution in the fixed-label
 grammar, but the original edge is already an exact finite residual; this is
 not a non-finiteness witness or source-envelope restriction.
 
-The exact next theorem is principal residual factorization for open heads and
-Record extensions, composed with scope restrictions and projection summaries.
+The next theorem gate is principal residual factorization for open heads and
+Record extensions, composed with scope restrictions and projection summaries;
+its reviewed candidate is recorded in `notes/design/2026-10-03-open-residual-factorization.md`.
 The bounded code map confirms this cannot be a generalizer-only rewrite:
 current HIR lacks calls/effects, and the solver lacks typed families, symbolic
 `K,D`, and relational source profiles. This is feasibility evidence, not an
@@ -1020,9 +1021,35 @@ both found no findings. Static link/diff checks passed. Tests, builds and
 measurements budget/consumption remain zero. No compiler changes; the full
 goal remains active.
 
+### Open residual factorization candidate (2026-10-03)
+
+`notes/design/2026-10-03-open-residual-factorization.md` now states a
+conditional factorization candidate over the reviewed regular equality
+quotient. Known descriptor comparisons normalize into a finite pair graph;
+open flexible-head obligations remain residual edges, so `X <: {}` still
+covers Record extensions without selecting a fixed shape. Normalization has
+separate scope-failure, structural-failure, and successful-residual outcomes.
+Original `Eq`, witness identities, invariant endpoints and joint `K,D/Phi`
+remain attached to one quotient assignment; projection summaries are derived
+from that whole assignment rather than guessed independently.
+
+The M3 semantic/conformance review found one major missing structural-failure
+outcome and one minor missing atomic base case. Both were repaired, and a
+fresh semantic delta review found no further findings. This closes review of
+the candidate draft, not the factorization proof or open-bound acceptance.
+Effective satisfiability, finite joint projection over unknown Record labels
+and feedback, source realization/uniform scoped typing, later effect/family
+and lifecycle work, and implementation remain open. No source policy or
+compiler implementation was approved. Static review only; tests, builds and
+measurements remain zero. The immediate gate is to prove the candidate
+normalization/factorization theorem, then construct the effective joint
+residual/projection representation; full goal remains active.
+
 ## Main records
 
-- `notes/design/2026-10-03-scoped-constraint-solving.md` — scoped regular equality quotient and finite closed structural subtype saturation; open residual factorization remains the next gate.
+- `notes/design/2026-10-03-scoped-constraint-solving.md` — scoped regular equality quotient and finite closed structural subtype saturation; the following reviewed candidate addresses open residual factorization.
+
+- `notes/design/2026-10-03-open-residual-factorization.md` — reviewed conditional principal residual presentation candidate; open-bound satisfiability and effective joint projection remain open.
 
 - `notes/design/2026-10-03-scoped-structural-projection.md` — finite regular best visible comparators, invariant-coordinate support and substitution-parametric projection with closed imports; full flexible source constraints remain open.
 
@@ -1049,6 +1076,7 @@ goal remains active.
 - `notes/design/2026-10-02-source-realization-and-symbolic-basis.md` — finite ownership inventory, conditional operational realization, selected-fault reflection, and exact remaining source definitions.
 - `notes/design/2026-10-02-finite-abstract-safety-presentation.md` — reviewed generic finite carrier and principal certificate theorem; source application open.
 - `notes/progress/2026-10-02-finite-interface-obstruction.md` — classification, lower bound, construction progress, and review record.
+- `notes/progress/2026-10-03-open-residual-factorization.md` — candidate theorem, adjudicated review findings, and remaining proof/solver gates.
 - `notes/design/2026-10-02-ordinary-computation-semantics-package.md` — current milestone-1 theorem package.
 - `notes/design/2026-10-01-coupled-effect-interface-core-draft.md` — relational carrier and prior derivations.
 - `notes/progress/2026-10-02-callback-scope-transition.md` — callback/escape evidence and decisions.
