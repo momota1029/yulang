@@ -433,7 +433,42 @@ This records the user's intended source reference. It does not certify every
 frozen implementation placement as equivalent to that reference. Moving an
 entry force before invocation requires a complete preservation argument,
 including receiver identity, typed receipt/visibility and divergence.
-Argument carrier construction and source normalization remain proof gates.
+Section 17 settles argument carrier scheduling; source normalization remains
+a proof gate.
 The invocation expansion is specified in ordinary-computation §3 and proved
 within the candidate source machine in source-computation-role §10. Compiler
 implementation and optimization approval remain separate.
+
+## 17. User clarification: whole-argument reification (2026-10-02)
+
+The user selected A in `2026-10-02-source-call-scheduling-choice.md`, as the
+source semantics intended from the original Oracle implementation:
+
+Effectful computations are **first-class source data**. Their introduction is
+inert; execution begins only at explicit receiver elimination (`Force` or
+handling). Whole-argument reification follows from this introduction/elimination
+distinction, not merely an interchangeable evaluation-order preference.
+Executing a source-derived prefix while supposedly constructing the
+computation value would already partially execute the represented computation.
+
+- Obtain the callee, then reify the **entire argument expression** as a
+  computation. No source construction prefix of that argument executes before
+  receiver entry merely to produce a carrier.
+- Enter the same receiver activation and apply only its statically known
+  interface demand. A value parameter forces and rebinds at entry; a
+  computation parameter remains retained and does not execute if unused.
+- Force yields a value. A latent/thunk/function result alone does not justify
+  another force. Unknown interface portions do not induce speculative demand.
+
+This parallels handling only effects exposed by the current known interface.
+Typed-value transport, activation-scoped authority, symbolic `K,D`, ordered
+shallow selection and raw resumption retain their existing rules. Reification
+captures lexical value references, not a snapshot of store or handler activity.
+
+Frozen pre-entry construction and `ForceThunk` placement are characterization
+evidence only. They may be lowering/optimization choices if observationally
+equivalent to this source rule; unproved placements do not define the intended
+Oracle semantics. This approval closes the source scheduling question, not
+raw-source typing, result-role elaboration, finite principality, lifecycle
+transport or compiler implementation. Those proofs must use A as their source
+reference rather than infer a source rule from emitted code.

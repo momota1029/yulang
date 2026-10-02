@@ -3,11 +3,12 @@
 Date: 2026-10-02
 Status: Draft; scoped role theorems, corrected active source map, obstruction and invocation-entry package reviewed; full source elaboration remains open; not implementation authority
 Scope: computation/value role separation, source-template generation, and the remaining finite symbolic bridge
-Approved-by: none for the elaboration candidate; charter §§11–16 govern the source reference and selected behavior
+Approved-by: none for the elaboration candidate; charter §§11–17 govern the source reference and selected behavior
 Drafted-by: primary with bounded architect construction and counterexample audit
 Reviewed-by: compiler_referee and spec_auditor, 2026-10-02; no blocking/major findings; two minor scope/priority clarifications closed by primary
 Historical role-candidate review (de7bfd0a7): compiler_referee and spec_auditor, 2026-10-02; former §§6–9 clean after one minor role-versus-adaptation clarification; immutable source locators mapped by explorer, not independently audited in that round
 Production/entry-review: compiler_referee and spec_auditor, 2026-10-02; corrected active code paths and placement obstruction checked; new-user-premise entry delta reviewed; operation-payload gap repaired and closed by independent compiler_referee; prior §8 skeleton is historical
+Introduction/elimination review: independent compiler_referee and spec_auditor, 2026-10-02; no findings in §§3/10–12 and their source-law/exact-interface dependencies; raw-source elaboration and finite principality remain open
 Supersedes: none; the fixed-shape value-adapter theorem keeps its original scope
 
 ## 1. Milestone target and existing inputs
@@ -83,7 +84,8 @@ resumption/family relation. This is a mathematical judgment role, not a new
 surface type constructor, selector, linear resource or extra capture right.
 `Thunk(E,A)` is the latent value holding such a computation.
 
-For an explicitly identified computation role the elimination equation is:
+For an explicitly identified **source consumer of a computation**, the
+elimination equation is:
 
 ```text
 Execute(Comp(E,A), t) = Force(t)
@@ -96,6 +98,13 @@ existing value-conversion relation when that conversion is admitted; it
 retains its own identity/force/delay/function clauses and proof boundary.
 In the no-result-conversion instance, completion is
 `Force(t) >>= Return`, for every result type `A`.
+
+Charter §17 fixes the introduction/elimination distinction: these equations
+describe an already justified consumer. Merely holding a `Comp`/`Thunk`
+interface, looking up a computation-valued name or returning computation data
+does not invoke `Execute` or `Complete`. Representation metadata and result
+shape cannot supply a missing source elimination. Admitted adapters likewise
+need a source consumer derivation, not only a matching constructor pair.
 
 **Role-preservation theorem for `Execute`.** Once the source judgment
 identifies the outer computation role, `Execute` (equivalently completion
@@ -561,7 +570,7 @@ the need for separate source call mechanisms for value and computation
 parameters. The pre-call value-force rule in §8 is superseded as a source
 candidate by the following entry expansion.
 
-After source argument construction has produced carrier `t`, invoke the
+After inert whole-argument reification has produced carrier `t`, invoke the
 function under the current caller configuration:
 
 ```text
@@ -671,9 +680,10 @@ before invocation (`specialize2/task_solver.rs:498–505`,
 itself evidence of unsoundness. Any optimization moving force out of entry
 must preserve activation/receipt/view behavior as well as ordinary effects
 and divergence. Such a theorem has not been established here. Likewise, the
-entry expansion begins after carrier construction; it does not select the
-producer scheduling left open in §9. No runtime tag or new source construct
-is introduced to conceal either missing proof.
+entry expansion begins after inert introduction. Section 17 of the charter
+now settles the earlier source scheduling question; §9 remains frozen
+characterization and a counterexample to blanket prefix hoisting. No runtime
+tag or new source construct is introduced to conceal the remaining proof.
 
 ## 11. Next construction and decision boundary
 
@@ -701,14 +711,128 @@ Potentially removing `≈` as an operational choice by proving identity/η
 coherence is a separate simplification, not an established result: equal
 undecorated shapes alone do not prove preservation of view/receipt evidence.
 
-One foundational scheduling clarification is now isolated in
-`2026-10-02-source-call-scheduling-choice.md`: reify the entire argument
-computation, or execute a source-derived carrier-construction prefix before
-receipt. Charter §16 fixes entry force/rebind under either choice; it does
-not decide this earlier placement. The complete discriminator is not yet
-certified as an accepted Oracle source program. No choice has been inferred
-from the emitted code. The completed judgment and its alternatives should
-be reviewed as a whole source-semantics gate, rather than adding per-site
-handler rules. Full source
+The user closed the scheduling question with A in
+`2026-10-02-source-call-scheduling-choice.md`: computations are first-class
+data, introduction is inert, and execution requires receiver elimination.
+Charter §§16–17 govern the same-activation entry rule and whole-argument
+reification. The complete frozen discriminator is still not certified as an
+accepted Oracle source program; source authority comes from the user's
+clarification. Section 12 packages the introduction/elimination simulation
+with invocation and future use. Full source
 soundness/principality, modular client coverage, lifecycle and implementation
 remain open; this package must not be used to declare Milestone 3 complete.
+
+## 12. First-class computation introduction and elimination package
+
+### Source law and representation boundary
+
+A computation value denotes code with lexical typed-value references.
+Writing `⟨c,η,L⟩` for that source value and `Delay(c,η,L)` for its kernel
+representation introduces no new surface construct. Both are inert. Only
+the explicit consumer executes the represented code:
+
+```text
+Introduce(c,η,L,C) = Return(Delay(c,η,L),C)
+Eliminate(Delay(c,η,L),Cnow) = Run(c,η,Cnow;L)
+
+Call(e1,e2,η,C) =
+  Run(e1,η,C) >>= lambda (f,C1).
+  let t = Delay(ArgumentCode(e2,η),η,L) in
+  ApplyValue(f,t,C1)
+```
+
+`ArgumentCode` identifies the entire represented computation; deriving its
+code, consumers and corresponding typed positions from arbitrary source is
+still a premise. `η` contains immutable bindings and references to mutable
+locations, not frozen location contents. `L` retains required lineage and
+typed boundary references, not saved handler activity. The same current
+configuration is used on each side of an elimination, including its executing
+typed view. The equation does not erase that view or move elimination across
+an invocation return delimiter.
+
+For a computation-valued binding `x=t`, value lookup is `Return(t)`.
+Receiving, storing or returning that value does not call `Eliminate`.
+For example, eliminating `Delay(Return(t))` yields `t` as data, with no
+recursive elimination. If source handling or another declared consumer
+demands execution of `t`, that consumer supplies a distinct elimination.
+This leaves the source derivation of an annotated expression's consumer open;
+it does not decide that all occurrences in annotated function bodies are
+mere value lookup.
+
+For operation values, the existing native invocation in §10 still obtains
+its declared payload and returns `MakeRequestThunk(op,a)` normally. There is
+no added `CompleteResult` force after that return. An operation carrier's
+explicit use is required to emit its request. No representation flag, effect
+annotation copied without a consumer derivation, or latent result shape can
+justify an extra elimination. The kernel's construction/emission distinction
+therefore keeps its existing invocation lifetime.
+
+### Conditional realization theorem
+
+Fix `ν`, corresponding typed code and environments, and the previously
+defined view/owner/receipt relation. Suppose the represented code and all
+its explicit consumers have the ordinary source-to-kernel simulation; this
+premise must be discharged by source elaboration, not by choosing a runtime
+shape. Then inert introduction, explicit elimination and common invocation
+preserve that simulation for every finite execution prefix and every
+admissible finite future-use/resumption history. Computation-valued results
+remain related as values. This is a closure theorem for the chosen source
+constructors, not an arbitrary raw-source typing or principality theorem.
+
+**Initial relation.** Extend related environments/stores by relating
+`⟨c,η,L⟩` to `Delay(c',η',L')` when code, lexical references and transported
+typed evidence correspond. Require the same shared assignment `ν` and joint
+`K,D` incidence; do not materialize family arguments. Source introduction
+and kernel allocation return that related pair without executing code,
+changing source store contents, allocating a request event, observing a
+request or creating a capture grant. Administrative carrier allocation has
+no source-visible effect. Existing boundary references remain references;
+live authority is recomputed from actual receipt and activity at use.
+
+**Primitive execution and calls.** Explicit elimination unfolds the related
+code at the current live state under the corresponding executing view, so
+its forward step follows the code-simulation premise. In a call, the callee
+computations are related by that same premise. A callee request preserves the
+still-unexecuted argument introduction and invocation in its continuation.
+On callee return, introduction produces the related carrier pair and both
+sides enter the corresponding receiver. Receipt and boundary entry precede
+the declared demand. A computation parameter retains the related pair; a
+value parameter uses elimination followed by the same typed result rebind
+and body. This is §10's common entry expansion, with no extra invocation.
+The body receives the returned value without inspecting its shape to force
+descendants. An unused computation parameter never invokes the code premise
+for its argument and hence never executes that argument.
+
+**Requests and resumption.** State-threaded bind appends the same pending
+rebind/body/return suffix. The matched request preserves operation instance,
+origin, dynamic event correspondence and every symbolic `K,D` incidence.
+Current-view projection supplies identical `Observe`; corresponding `Flow`
+and `Receive` give the same active `Inc_C`. Ordered handler search and
+`OpCompat` consequently use the same premises. On shallow capture, both save
+the same crossed view/owner contexts. Resume uses the current response/store
+and the existing borrow-or-fresh-owner protocol; it neither repeats receipt
+nor revives original expired boundary authority. Matching, guards and arms
+remain outside the selected shallow handler. The saved suffix continues from
+its suspension point, rather than restarting argument execution.
+
+**Future values and conclusion.** Environment/store/result transport keeps
+the same typed-path relational image on the related computation values.
+Each later explicit elimination is again the primitive execution case in its
+then-current state. Expired receiver/handler references confer no authority;
+latent effects, origins and joint symbolic constraints remain present.
+Induction on finite interaction histories, with the existing bind and
+saved-context simulation, closes these clauses, including repeated raw
+resumption. Diverging code has matching finite prefixes under the code
+premise; introduction itself cannot introduce source divergence. This proves
+the closure theorem and the candidate exact-interface image for these
+constructors without a new selector or source-site rule.
+
+### What remains for the milestone
+
+The source scheduling and inertness choices are closed. Still required are
+raw-source derivations of `ArgumentCode`, known-interface demand, explicit
+consumer positions and annotation/path correspondence; admitted adapter
+coherence; and the finite regular/parametric symbolic presentation, abstract
+identity correlation, uniform clients and acceptance bridge of §11. A finite
+syntax inventory does not discharge those obligations. No new runtime tag,
+eager result completion or supported-envelope restriction is adopted here.

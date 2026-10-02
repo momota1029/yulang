@@ -896,3 +896,50 @@ that it changes no such order. No tests, builds or measurements were run.
 Primary synchronized task/index/source-role/progress records and used scoped
 diff/whitespace checks. Full inference and implementation goals remain active;
 source scheduling work dependent on the answer is held until it arrives.
+
+### A selected: inert first-class computation introduction
+
+The user resolved the preceding scheduling blocker with A, as the source
+semantics intended from the original Oracle implementation. A further
+clarification makes its basis explicit: effectful computations are first-class
+data; constructing that value is inert, and execution begins only at explicit
+receiver elimination (`Force`/handling). This is not merely a scheduling
+preference. Charter §17 and the source-call-scheduling record now carry that
+source authority. After callee evaluation, the whole argument is reified;
+no construction prefix runs before receiver entry. Known-interface value
+demand forces/rebinds in that same activation. Computation parameters remain
+retained; unused arguments do not execute. Latent results are not recursively
+forced merely because of their shape.
+
+The ordinary call rule and exact-interface image were synchronized.
+Source-computation-role §12 packages inert introduction, explicit elimination,
+common invocation and future-use/raw-resumption closure. Its initial relation
+retains code and lexical typed references without a store/handler snapshot or
+new grant. Elimination uses current state and executing views. Bind preserves
+pending suffixes, request origins and joint symbolic `K,D`; existing typed
+transport and owner rules supply ordered visibility and expiry. Computation
+lookup/storage/return does not itself force. Operation construction returns
+its request computation without an implicit result-completion step or changed
+invocation lifetime.
+
+The bounded architect construction was revised under the new first-class-data
+clarification: automatic computation-name/result-mode completion would have
+inserted an unsupported elimination and was not adopted. The resulting
+theorem is explicitly conditional on related executable code and source
+consumer derivations. It closes constructor realization, not arbitrary-source
+elaboration, sound principal inference or finite symbolic closure. Those
+remain the immediate milestone obligations; no new local selector or runtime
+carrier tag was introduced. Frozen pre-entry placements remain optimization
+equivalence obligations; the existing kernel divergence discriminator rules
+out a blanket hoisting law, while whole-source Oracle acceptance impact
+remains unverified.
+
+M3 budget: one bounded read-only architect, two independent delta reviewers
+(compiler_referee and spec_auditor); both returned no findings. Scope was the
+new authority, ordinary call/introduction rule, role-elaboration §§3/10–12,
+and exact-interface dependency. Settled callback packages were carried
+forward. Primary synchronized task/index/charter/progress and authority
+records. No compiler changes, tests, builds or measurements; measurement
+budget zero. Focused diff/whitespace and explicit Git scope checks precede
+the coherent commit/push. The full proof-and-implementation objective remains
+unfinished; the former unanswered source-choice blocker is resolved.

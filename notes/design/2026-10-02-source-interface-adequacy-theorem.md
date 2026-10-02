@@ -213,9 +213,10 @@ the step clause by induction on the source transition derivation:
 | Source transition | Complete-interface image |
 |---|---|
 | expression evaluation and return | project the same current value and live configuration |
+| application argument introduction | after callee evaluation, relate the inert whole-argument computation values and lexical typed references; execute no argument prefix before receiver receipt |
 | source function invocation | use the same entry and body (closure or operation native body), current caller store and activations; establish the same invocation frame and typed receipt before entry force/rebind. A suspended call carries the same re-entry wrapper and pending entry/body suffix through unwind and reinstalls only its source-prescribed execution occurrence on resume |
 | typed value adaptation | compose argument, call, and result relations with the same binder map `σ` and assignment `ν`; one map renames all type/effect/`K,D` views, so no endpoint is independently re-instantiated |
-| thunk construction / `Force` | construction stores the latent relation; `Force` exposes its next request without changing origin or `K,D`. During an active concrete callback `CallView`, visibility comes from its declared capture contract for both direct and force-exposed requests |
+| thunk construction / `Force` | construction stores the latent relation without running body steps or creating event observations/grants; explicit `Force` executes that relation in the current state and retains a returned latent value as data, preserving origin and `K,D`. During an active concrete callback `CallView`, visibility comes from its declared capture contract for both direct and force-exposed requests |
 | operation request | instantiate declaration binders using the request site's fixed lookup map; copy operation, payload, event identity, origin, and joint `K,D`; embed the same continuation |
 | shallow-handler search | follow the same ordered active candidates, current concrete boundary and visibility evidence, selected arm or forwarding rule, and raw continuation; `OpCompat` checks selected arms without changing search |
 
@@ -233,6 +234,15 @@ native bodies construct requests from the already acquired declared payload.
 There is no additional wrapper invocation or interface rule. This synchronizes
 the exact embedding with the current candidate; it proves no force-before-call
 optimization or raw-source elaboration theorem.
+
+Charter §17 and source-computation-role §12 add the inert introduction rule:
+the source computation value and stored latent relation are initially related
+without executing the argument. Explicit receiver elimination unfolds the
+same relation in the actual current view. Their closure proof supplies this
+new primitive image and its future-use/resumption cases. Computation-valued
+lookup/return and operation-carrier construction do not insert a completion
+force. The image theorem stays conditional on supplied source code/consumer
+derivations; it does not manufacture the missing raw-source elaboration.
 
 For closure/thunk future use, the complete interface stores the source
 latent relation rather than only its emitted prefix. Any admissible
@@ -317,7 +327,8 @@ The same `ν`, origin, and every still-live `K,D` incidence are preserved.
 
 Relational composition is associative by reassociating intermediate related
 value/configuration witnesses subject to the same reachable-return premise.
-Consequently call-by-value application,
+Consequently callee evaluation followed by inert argument introduction and
+common invocation,
 argument/result adaptation, and sequencing after `Force` are instances of
 this lemma. It supplies composition only; atomic closure/handler/force images
 are the separate cases in the exact-interface simulation proof in §4.

@@ -90,20 +90,38 @@ and delayed computations.
 
 ## 3. Calls, closures, delayed values, and requests
 
-Application evaluates the callee and constructs the argument carrier in
-ordinary operand order, then enters the invocation, threading one
-configuration through those stages. The user's source-reference clarification
-(charter §16) makes every function a computation receiver: value-parameter
-forcing belongs to invocation entry, not to caller-side argument construction.
-The exact raw-source carrier-construction schedule remains an elaboration
-obligation. The following `Run(e₂)` denotes that carrier-producing evaluation:
+Effectful computations are first-class source data. Their introduction is
+inert, and their execution begins only through explicit receiver elimination
+(`Force` or handling), including the declared entry expansion below.
+Construction is not a phase allowed to execute a prefix of that computation.
+
+Application obtains the callee and reifies the **entire argument expression**
+without executing any part of it. The user's source-reference clarification
+(charter §§16–17; scheduling choice A) makes every function a computation
+receiver. Value-parameter forcing belongs to entry in that same invocation.
+Let `ArgumentCode(e₂,η)` be the code for the complete argument computation
+with its lexical typed-value references; construction of `Delay` runs none of
+that code. The application rule is:
 
 ```text
 Runν(e₁ e₂,C) =
   Runν(e₁,C) >>= λ(f,C₁).
-  Runν(e₂,C₁) >>= λ(t,C₂).
-  ApplyValueν(f,t,C₂)
+  let t = Delay(ArgumentCode(e₂,η_argument), lexical lineage) in
+  ApplyValueν(f,t,C₁)
 ```
+
+`η_argument` is the lexical environment at the application site; mutable
+locations are retained by reference. Callee evaluation supplies the current
+store and active configuration `C₁`. Reification does not snapshot either.
+There is no carrier-construction execution prefix before `ApplyValue`.
+`ArgumentCode` is the code represented by the introduced computation. Its
+result may itself be computation data; neither lookup of such data nor the
+result shape inserts another force. Any elimination within the code must
+come from a source consumer. Its raw-source derivation is addressed by the
+source-computation-role elaboration gate; this equation fixes introduction
+and invocation order rather than pretending that derivation is already
+available. In particular there is no implicit caller-side `CompleteResult`
+force after `ApplyValue` merely because it returns an operation carrier.
 
 Applying a closure evaluates its body in the closure's lexical environment
 with the current caller's live store and ordered active source activations:
@@ -134,7 +152,9 @@ only while its same receiver and handler remain active.
 
 The source boundary instances and typed receipt of `t` are established in
 that invocation before its entry code runs. A computation parameter binds
-the received carrier for the body. A value parameter has the entry expansion
+the received carrier for the body, executing none of its argument if unused.
+The statically known parameter interface determines demand; unknown portions
+do not license speculative execution. A value parameter has the entry expansion
 
 ```text
 Force(t) >>= lambda (v,C1).
@@ -168,7 +188,10 @@ entry. This is a realization candidate for the above control rule, with
 arbitrary-source elaboration still open.
 
 A thunk is a delayed `Run` with its lexical environment and required lineage.
-Construction returns the thunk without exposing its body requests. `Force`
+Construction returns the thunk without running any body step, mutating the
+source store, emitting a request, or generating a body event. Lexical typed
+references are retained, not activated into grants. Lookup, storage, passing
+and return of this first-class value do not by themselves execute it. `Force`
 executes that delayed relation under the current configuration, using the
 same state-threading bind. Each request exposed by force retains its own
 origin and `K,D`; force may allocate a new dynamic event identity but cannot

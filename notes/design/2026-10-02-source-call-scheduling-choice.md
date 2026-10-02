@@ -1,33 +1,42 @@
 # Source application: argument computation construction
 
 Date: 2026-10-02
-Status: Draft; source scheduling clarification pending; no implementation authority
-Scope: argument construction before the common invocation of charter §16
-Approved-by: none for either alternative
+Status: Authoritative for source scheduling; elaboration/proofs remain separately scoped; no compiler implementation authority
+Scope: whole-argument reification before the common invocation of charter §§16–17
+Approved-by: user; A records the originally intended Oracle source semantics
+Approved-at: 2026-10-02
 Drafted-by: primary with bounded architect and frozen-source mapping
 Reviewed-by: compiler_referee, 2026-10-02; no blocking/major finding; internal-constructor notation clarified by primary
-Supersedes: none
+Selected-law review: independent compiler_referee and spec_auditor, 2026-10-02; no findings in A/inert-introduction authority delta and its conditional realization dependency
+Supersedes: the pending A/B choice in this record and the carrier-producing argument evaluation in ordinary-computation §3
 
-## 1. The selected rule and the remaining boundary
+## 1. Selected source rule
 
 Charter §16 fixes one invocation: receive a computation, then execute the
 declared entry and body. A value parameter forces/rebinds at entry in that
 same activation; a computation parameter retains its input. This is not an
-outstanding choice. Neither alternative below moves that entry force back
-into the caller.
+outstanding choice.
 
-The remaining question is what evaluating an **argument expression** does
-before its carrier reaches that invocation. A carrier is a runtime value
-holding a computation; code that constructs it can itself run. Fixing force
-after receipt alone does not decide whether that construction runs before
-receipt or is itself part of the argument's suspended computation.
+The user selected **A: reify the whole argument expression**, explicitly as
+the originally intended source semantics. After obtaining the callee, the
+application passes the entire argument as a computation. No part of that
+expression executes before receiver entry merely to construct its carrier.
 
-The question is global source evaluation order, not a callback fixture or a
-new family/handler selector. Existing frozen instruction placement is
-characterization evidence. Both alternatives still need source soundness,
-principal inference and the same symbolic family/typed-path invariants.
+The user's further clarification supplies the reason: effectful computations
+are first-class data. Introducing their value is inert; running any
+source-derived prefix would partially execute the represented computation.
+Only explicit receiver elimination (`Force` or handling) begins execution.
+This is a source introduction/elimination law, not merely a scheduling
+preference. `Delay` below is notation for inert computation introduction, not
+a newly proposed surface keyword or an extra authority-generating boundary.
 
-## 2. Two complete scheduling alternatives at the argument boundary
+This settles global source evaluation order. It introduces no callback,
+family or handler selector. Frozen instruction placement is characterization
+evidence; it can implement A only under an observational-equivalence proof.
+Source soundness, principal inference and symbolic family/typed-path
+preservation remain proof obligations, not consequences of user approval.
+
+## 2. Selected schedule and rejected source alternative
 
 For this comparison, keep callee evaluation, the common `Invoke`, result
 completion/adaptation and every typed owner/view delimiter fixed. Let
@@ -35,7 +44,7 @@ completion/adaptation and every typed owner/view delimiter fixed. Let
 computation; this notation is not a claim that its source elaboration is
 already proved.
 
-### A. Reify the whole argument computation
+### A. Reify the whole argument computation — selected
 
 After obtaining the callee value `f`, application passes
 
@@ -49,13 +58,25 @@ executes that computation when it forces the carrier. A computation receiver
 which ignores its input does not execute any of the argument expression.
 An ordinary value receiver forces the argument at its selected entry point.
 
-This has one source construction rule and no producer-shape dispatch at
-argument passage. It is a coherent proposal for that boundary, not a result
-derived from §16, a complete source elaborator, or an approved successor rule.
+The receiver's statically known interface determines entry demand. A value
+parameter forces and rebinds in that same activation; a computation parameter
+retains its carrier. Unknown portions are not guessed or executed in advance.
+The result of force remains a value even when it is a function/thunk/latent
+value; that shape alone does not demand another force. This is the same
+principle as a handler acting only on its currently known effect interface.
 
-### B. Preserve construction before receipt
+In particular, looking up, storing, passing or returning a computation value
+does not itself eliminate it. Any elaborated force must correspond to an
+explicit source consumer (including the declared value-parameter entry
+expansion), not a runtime shape test or a desire to complete a carrier.
 
-After obtaining `f`, application instead performs
+This is one source construction rule with no producer-shape dispatch at
+argument passage. It is source authority, not yet a complete source elaborator
+or compiler implementation approval.
+
+### B. Construction before receipt — rejected as source semantics
+
+The previously considered alternative would perform, after obtaining `f`,
 
 ```text
 ConstructArgumentCarrier(e) >>= lambda t.
@@ -67,8 +88,10 @@ function starts. The receiver still forces/rebinds its received carrier only
 after entry. Ignoring the carrier skips its retained computation, not
 necessarily its construction prefix.
 
-This requires a source relation that determines the prefix compositionally.
-It must not merely copy Oracle shape tests, weights or emission flags.
+This is not the selected source relation. A compiler may perform such a
+transformation only after proving observational equivalence to A, including
+divergence, store behavior, request order and current boundary eligibility.
+Neither purity alone nor Oracle shape tests, weights or emission flags prove it.
 In particular, "evaluate every producer first" is not the already observed
 frozen behavior either: some expression-level lifts place the entire code
 inside a thunk. The corrected active production map and both branch shapes
@@ -121,7 +144,11 @@ Even if those two definitions infer separately, their composition must also
 specialize without an additional suspending boundary before claiming a
 concrete Oracle runtime divergence. The inspected operation-carrier recipe
 predicts the timing conditionally; it is not a substitute for those remaining
-acceptance premises. No compatibility loss is approved by this record.
+acceptance premises. The selected successor behavior is A; this kernel
+discriminator prohibits a blanket construction-hoisting law. No verified
+whole-source Oracle acceptance loss is established here. A concrete frozen
+placement incompatible with A is not the user's intended source semantics;
+its final-acceptance impact must still be recorded if demonstrated.
 
 ## 4. Source result completion is a separate invariant
 
@@ -145,12 +172,11 @@ select a second invocation-lifetime change.
 
 ## 5. Next action
 
-The primary asked the user whether arguments should be reified as complete
-computations or retain a construction prefix before receipt. Neither choice
-is inferred from elapsed time or from the current compiler. Both retain the
-selected same-activation entry rule and the common shallow handler semantics.
+The pending choice is closed by the user's explicit A decision. There is no
+remaining permission gate on whole-argument reification. Charter §17 records
+the decision; ordinary-computation §3 is the corresponding call rule.
 
-Once this source boundary is fixed, construct one source computation judgment
+Construct one source computation judgment
 for literals, names, closures, local binding, application, operations and
 handlers, with explicit typed result completion. Prove its simulation and
 effective symbolic closure as a package. Do not substitute finite syntax

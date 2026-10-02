@@ -6,7 +6,7 @@ Updated: 2026-10-02. Branch: `research/simple-sub-intrusion`.
 
 Prove that the successor plan in `notes/design/2026-09-29-scc-intrusion-generalization-sketch.md` and `notes/design/2026-09-29-scc-intrusion-redesign-charter.md` can preserve soundness and principality while matching Oracle's final well-typed-program capability on the supported envelope, then implement the reviewed and approved inference machine. The full objective remains active.
 
-The redesign charter governs. F5 Function generalization is comparison/rollback material, not the target. The new source semantics and implementation remain non-authoritative until reviewed and explicitly approved. No compiler implementation is authorized yet.
+The redesign charter governs. F5 Function generalization is comparison/rollback material, not the target. User-approved source decisions govern their declared scope; the remaining source theory and implementation require their respective gates. No compiler implementation is authorized yet.
 
 ## User-selected invariants
 
@@ -18,6 +18,7 @@ The redesign charter governs. F5 Function generalization is comparison/rollback 
 - Method selection, roles, and implementation resolution are a mandatory later gate after ordinary effects/handlers settle, unless a dependency appears sooner.
 - Shallow handling is primitive; selection, patterns/guards and arms execute outside the candidate. Deep behavior is explicit shallow reapplication to resumed computation; optimizations must preserve that source expansion.
 - The user clarified the source reference: every function is a handler/computation receiver. An ordinary value parameter forces and rebinds its input at the start of that same activation; force-before-invocation is a separate optimization obligation.
+- Computations are first-class data. Their introduction is inert; after obtaining the callee, application reifies the whole argument with no pre-entry construction prefix. Execution starts only at explicit receiver elimination/handling under the known interface; lookup, transport and latent result shape do not themselves force a computation. Charter §17 closes scheduling choice A as the originally intended source semantics.
 
 ## Milestone state
 
@@ -211,14 +212,26 @@ corrected production paths. No runtime `Ready/Susp` mechanism is adopted.
 
 The immediate gate is source producer/annotation elaboration and its
 scheduling-preserving representation **under this common invocation**.
-One foundational clarification is pending in
-`2026-10-02-source-call-scheduling-choice.md`: does application reify the
-whole argument computation, or execute a source-derived construction prefix
-before receipt? The user has been asked; neither alternative is selected.
-The receiver's force/rebind after receipt remains fixed under both. A kernel
-divergence discriminator and component-level frozen fixtures support the
-comparison, but the complete ignored-argument source program's acceptance is
-unverified. Continue only work independent of the answer until it arrives.
+The user closed `2026-10-02-source-call-scheduling-choice.md` with A and
+clarified its first-class-data basis: computation introduction is inert,
+execution requires explicit receiver elimination. The former scheduling
+blocker is resolved; this is the originally intended source semantics, not
+a choice inferred from frozen code. The kernel divergence discriminator
+still rules out blanket prefix hoisting; complete frozen source acceptance
+of the discriminator remains unverified.
+
+Source-computation-role §12 now gives the conditional introduction/elimination
+and common-call realization package: initial related computation values,
+primitive forward steps, future use and raw resumption preserve current
+state, typed boundary references and joint symbolic `K,D`. It adds no
+automatic computation-name or result-carrier force. The exact-interface
+image includes inert introduction; argument/code consumer derivation remains
+a premise, not a completed raw-source theorem. The next construction must
+derive explicit consumer positions and known-interface demand compositionally
+from source typing, together with the existing annotation/path correspondence.
+M3 semantic and conformance delta reviews found no findings in this package.
+Only design/progress records changed; no compiler tests, builds or performance
+experiments were run, and the measurement budget was zero.
 Frozen force-before-call placement requires a receiver/receipt/view
 preservation proof; it is not automatically authority or an established bug.
 Nested effectful annotation coverage, admitted adapters and inferred roles
@@ -275,7 +288,7 @@ Implementation feasibility evidence is recorded in `notes/progress/2026-10-02-su
 
 ## Main records
 
-- `notes/design/2026-10-02-source-call-scheduling-choice.md` — pending global argument-construction clarification, concrete conditional discriminator and exact acceptance-evidence limits.
+- `notes/design/2026-10-02-source-call-scheduling-choice.md` — authoritative A: first-class computation introduction is inert, whole-argument reification precedes receiver elimination; conditional discriminator and exact acceptance-evidence limits retained.
 - `notes/design/2026-10-02-source-computation-role-elaboration.md` — corrected active source map, producer-placement obstruction and common invocation entry expansion; raw-source scheduling/typing and finite solved/parametric presentation remain open.
 - `notes/design/2026-10-02-typed-source-owner-realization.md` — reviewed owner-span/control and typed-view context construction; user-selected outside-image equation.
 - `notes/design/2026-10-02-typed-boundary-realization-draft.md` — selected common typed-value transport and reviewed conditional transport/lifetime theorem package; reviewed fixed-shape cyclic adapter construction and symbolic equality; full realization open.
