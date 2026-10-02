@@ -457,17 +457,46 @@ effectful-let generalization. No frozen acceptance of that attack was
 established, and no value restriction or other acceptance change is adopted.
 The lifecycle proof must preserve or safely discharge dependent witnesses.
 
-The next milestone package must construct effective arm/body demands and
-complete compatibility with shared declaration maps, cover all selected
-instances in the chosen conservative interaction abstraction, and expose
-live dependencies to generalization. Finite source checking, modular
-future-use coverage and principal solving remain open. Keep this as one
-interaction/typing package rather than proliferating callback fixtures.
+The follow-up architecture audit can generate finite body-demand locations
+structurally, but those demands still include complete invocation checking.
+For a callback call, ordinary domain/result variance and row inclusion have
+not been proved to preserve its actual receiver/capture contract, current
+store, ordered selection and future use. The next source package must
+construct this common invocation simulation and its finite symbolic closure;
+an opaque `CIncl` predicate or an operation/arm Cartesian inventory does not
+discharge it. Keep this as one interaction/typing package rather than
+proliferating callback fixtures. Live dependencies remain exposed to the
+later generalization proof.
 No class-3 obstruction, milestone-4 closure or implementation approval
 follows from the local theorem. M3 semantic and conformance review found
 no major issue; the minor graph-work accounting clarification is closed.
 
+## Counting-aware row projection checkpoint
+
+`2026-10-02-counting-aware-row-projection.md` constructs exact elimination
+for joined membership/counting constraints, including the request-register
+quotient's restricted `AtLeast` predicates. With maximum threshold `b` and
+`h` hidden rows, retained capacity queries through `b 2^h` suffice. Distinct
+named aliases are treated consistently; full color partitions construct one
+simultaneous witness under the same type assignment. Finite-row and arbitrary
+subset interpretations have separate exact feasibility rules; no source
+row-domain choice is inferred.
+
+This closes nonpointwise hiding for unary predicates built from row
+membership, named equality, family heads and independent global guards.
+It does not hide live external `K,D`, solve arbitrary type predicates, or
+establish a finite complete invocation interface. The principal result is
+an exact projected constraint relation, not source inference principality.
+Full Milestones 3–6 and the later method/role gate remain open.
+M3 semantic and conformance reviews found no major issue. The minor
+decidability clarification is closed: eliminating every row can leave
+domain-capacity conditions, so both row interpretations need those facts
+to decide satisfiability. Tests/builds/measurements were not run for this
+documentary construction.
+
 ## Main records
+
+- `notes/design/2026-10-02-counting-aware-row-projection.md` — exact counting-aware row elimination with bounded residual thresholds; complete invocation checking remains the source dependency.
 
 - `notes/design/2026-10-02-operation-instance-binding-package.md` — shared operation-local witnesses, local preservation and generalization interference obligation.
 

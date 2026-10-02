@@ -125,6 +125,11 @@ clients.
 
 ## 4. Exact hiding of local row variables
 
+This section's pointwise theorem excludes counting constraints. The later
+`2026-10-02-counting-aware-row-projection.md` constructs a separate exact
+projection for joined membership/capacity blocks under its finite family
+and dependency premises; it does not license pointwise erasure of counts.
+
 Partition the row variables into retained `X` and hidden `Y`, with `h=|Y|`.
 Assume every occurrence/dependency of `Y` being hidden occurs in this block;
 none remains in a root, latent view, continuation/store interface, `K`, or

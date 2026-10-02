@@ -1354,3 +1354,62 @@ implementation remain unfinished. Tasks, index and owning theorem locators
 are synchronized. Checks are scoped diff/whitespace inspection; tests/builds
 are omitted for this research-only slice. Measurement budget/consumption:
 zero. Commit and push use explicit paths and full outbound-range inspection.
+
+### Exact row projection with request capacities
+
+The previous goal turn made progress: `00e47c4bf` is pushed, with reviewed
+operation-instance ownership/local preservation and the concrete dependent
+generalization obligation. The full proof/implementation objective remains
+active. This turn inspected the clean current branch before proceeding.
+
+The bounded architecture audit narrowed the next common source theorem.
+Finite body-demand locations can be generated from source derivations, but
+executing a supplied callback still requires complete invocation checking.
+Matching regular shape and row support is insufficient to justify a change
+in actual entry/capture contracts and ordered handler visibility. Neither
+an operation/arm Cartesian inventory nor a renamed `CIncl` closes that
+relation. The next source package must construct the invocation simulation
+with current store, future use and joint dependencies, plus its finite
+symbolic closure. No new source choice or acceptance restriction follows.
+
+An independent concrete presentation gap could be closed now. The register
+quotient retains existence-of-distinct-points capacities, which the earlier
+pointwise row projection explicitly excludes. The new
+`2026-10-02-counting-aware-row-projection.md` constructs exact elimination
+for the membership-derived fragment including Boolean capacity constraints.
+It partitions named aliases consistently and unnamed points by family and
+retained/hidden membership colors. Capped counts describe simultaneous
+disjoint witnesses; partition feasibility is exact. With maximum threshold
+`b` and `h` hidden rows, output thresholds through `b 2^h` suffice.
+
+Finite-row reconstruction handles infinite exterior cells by requiring the
+all-zero hidden cell to remain infinite. A separate arbitrary-subset proof
+permits an infinite remainder in a saturated color. Both yield the exact
+existential residual; neither interpretation is adopted as source authority.
+Hiding remains forbidden when the row has unjoined family/type/global or
+live output `K,D` dependencies. Named type arguments remain symbolic under
+the same assignment. Finite whole-block alternatives do not move under a
+point quantifier. Repeated eligible projection stays in the counting language.
+
+M3 budget: one bounded architect with a focused construction follow-up,
+two independent package reviewers (compiler_referee and spec_auditor),
+zero measurements. Both reviews found no blocking/major issue. The referee
+identified one minor corollary scope issue: after all rows are hidden,
+arbitrary-subset satisfiability can still depend on domain capacity. The
+primary accepted and clarified that both interpretations need those facts,
+or retain them as symbolic globals; for example, existence of a two-point
+row requires a domain with at least two available points. Domain cases are
+fixed or finitely guarded construction parameters, not fresh per-cell
+type choices. This clarifies effectiveness without changing projection.
+Primary diff inspection closes the minor-only repair under the mode budget.
+
+The result is principal constraint projection for the displayed language,
+not full source inference principality, arbitrary subtype normalization,
+or implementation readiness. It removes a previously explicit obstacle
+to residualizing the register predicates. Current task, design index and
+the two owning theorem locators are synchronized. Documentary verification
+uses explicit-path diff/whitespace checks, including the new file after
+staging; no tests or builds run, measurement consumption zero. The coherent
+slice is committed and pushed only after full outbound-range inspection.
+Complete invocation checking remains the next source gate; the remaining
+milestones and full goal are unfinished.

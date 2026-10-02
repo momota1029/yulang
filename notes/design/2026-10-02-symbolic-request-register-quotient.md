@@ -130,6 +130,14 @@ does not treat predicate bits as independently realizable type assignments.
 This is a finite *symbolic* inventory. Deciding its satisfiability in the
 underlying type/row theory is not established merely by the bound.
 
+The subsequent `2026-10-02-counting-aware-row-projection.md` gives exact
+row-variable elimination when these unary predicates are membership
+circuits over a finite family partition, named equality and row-independent
+global conditions. It preserves capacity correlations and derives finite
+residual thresholds. It does not decide arbitrary subtype predicates or
+permit hiding unjoined live dependencies; it is not the earlier pointwise
+projection applied to counts.
+
 ## 4. Constructing states and transitions
 
 For each static profile and mode in `L`, a register descriptor records:
