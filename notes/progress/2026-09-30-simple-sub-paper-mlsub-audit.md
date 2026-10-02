@@ -142,3 +142,27 @@ on that fast path. The scoped equality kernel performs that traversal;
 subtype preservation for the extension has not been proved. These traces
 are pinned-source characterization, not original existential semantics,
 executed fixtures or a complete extension proof.
+
+### Extrusion writes bypass `constrain`: guarded-opening discriminator
+
+Pinned `extrude` allocates a positive representative `R`, writes `R` into the
+original `X.upper`, then fills `R.lower` from the recursively extruded
+snapshot of `X.lower`. The negative case writes to `X.lower` and fills
+`R.upper` from `X.upper`. Those graph mutations are direct list updates, not
+calls to `constrain` for each edge.
+
+With `kappa_l <: X_(l+1)`, the positive trace
+`Record{f:X} <: Y_l` (unbounded `Y`) triggers positive extrusion. It copies
+`kappa` into `R.lower`, establishing the unchecked edge `kappa_l <: R_l`.
+The retried record comparison may simply add `Record{f:R}` to `Y.lower`, so
+checking only the `constrain` entry and retry is insufficient. Dually,
+`X_(l+1) <: kappa_l` followed by `Y_l <: Record{f:X}` can copy `kappa` to
+`R.upper`, leaving `R_l <: kappa_l` unchecked by the outer retry.
+
+Classification: ordered insertion and polarity-specific raw extrusion writes
+are Simple-sub original; eager rejection of either opened-variable edge is
+the user-selected Yulang §22 extension; routing every raw edge through a
+guarded staged comparison is a required but unproved successor construction.
+It needs a solution-fiber/principality theorem in addition to the conditional
+quiescence invariant. This is an algorithm-level coverage counterexample,
+not a source-level counterexample or executed fixture.

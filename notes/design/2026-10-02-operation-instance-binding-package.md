@@ -458,6 +458,61 @@ whole solver, principality or complete source acceptance. Comparison
 generation is still the checking site; no exit-time scope checker or separate
 rigid-node representation is required by this statement.
 
+**Reference-extrusion coverage gap.** The premise above is not satisfied by
+wrapping only the reference `constrain` entry. In pinned Simple-sub
+`extrude`, a deep positive visit at boundary `l` allocates representative
+`R_l`, directly inserts it into `X.upper`, then assigns `R.lower` from the
+recursively extruded snapshot of `X.lower`; the negative case writes the
+opposite source and representative sides. These bound mutations do not call
+`constrain` for every copied edge.
+
+For the bounded trace, let `kappa_l <: X_(l+1)` first place `kappa` in
+`X.lower`, then compare `Record{f:X} <: Y_l` with an unbounded `Y`. The
+record's derived level is `l+1`, so the variable/structure case positively
+extrudes it to `Record{f:R}`. Extrusion directly links `X.upper += R` and
+copies the at-boundary `kappa` into `R.lower`. The retried comparison
+`Record{f:R} <: Y` takes the ordinary level-`<=` bound-insertion path and
+can add the record to `Y.lower` without traversing `R.lower`. Thus the graph
+contains the forbidden edge `kappa_l <: R_l` even though a guard around the
+original call and structural retry saw no such comparison. The negative dual
+starts with `X_(l+1) <: kappa_l` and compares `Y_l <: Record{f:X}`; negative
+extrusion copies `kappa` into `R.upper`, leaving `R_l <: kappa_l` unchecked
+by the successful outer retry. These are counterexamples to coverage by
+verbatim extrusion, not to the user's level discipline or source semantics.
+
+To realize §22's guard, the successor must expose source-side links and every
+copied bound as guarded pending comparisons through the common entry. It must
+stage the mutation and its replay closure, reject a forbidden edge before
+successful publication, and include extrusion-created edges in dependency
+invalidation. Memoized cyclic representatives must remain provisional until
+all their incident obligations pass. This makes the conditional quiescence
+theorem applicable only after that routing/atomicity premise is proved. It
+does not establish that guarded extrusion preserves the original
+approximation, termination or principality; those require a separate
+relation-preservation theorem. The
+existing finite acyclic equality theorem does not cover subtype-bound copying
+or polarity-indexed cyclic extrusion.
+
+**Conditional staged-extrusion scope lemma.** Suppose the initial visible
+graph has current guard evidence for every published non-identity edge, and
+an extrusion transition stages its source-side links and copied bounds; emits
+each as a comparison
+through `Compare`; preserves opened-variable identities; and keeps each
+memoized representative provisional until its incident obligations are
+checked. Suppose also that bound/frontier changes invalidate and replay every
+dependent comparison, and publication waits for exhaustive successful
+closure. Then no published non-identity edge can relate an opened variable
+at `l` to an endpoint at level `<= l`.
+
+**Proof.** A new edge is published only after its `Compare` check, which
+rejects exactly such an endpoint comparison under §22. Memo hits only reuse a
+provisional node, so a cycle cannot make an unchecked edge visible. Any later
+bound or frontier change invalidates the evidence and requeues the edge before
+publication. At successful quiescence every published edge therefore has
+current guard evidence. This is a scope-safety invariant conditional on
+complete obligation routing; it does not show that this staged transition
+preserves the unguarded extrusion's solution fiber or is principal.
+
 The fresh Function-child argument establishes no counterexample to actual
 Simple-sub extrusion and is withdrawn as such. Derived structural summaries
 do not assign stored levels to constructors; comparison decomposes structure

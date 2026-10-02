@@ -856,12 +856,28 @@ extrusion, retaining free-witness dependencies.
 Independent M3 semantic and conformance reviews closed the variable-only and
 lexical-frontier delta with no blocking/major findings; one source-line locator
 was corrected. Verification: static diff/reference checks and `git diff --check`;
-no tests, builds or measurements. Next prove variable-versus-structure ingress
-and extrusion preserve opening identity and scope for actual subtype/effect
-obligations. Sealed packets, nonprefix contexts, generative heads, recursive
+no tests, builds or measurements. The next gate is signed solution-relation
+preservation for staged extrusion and its copied-bound snapshots. Sealed
+packets, nonprefix contexts, generative heads, recursive
 equality and lifecycle remain outside this equality theorem. No source
 capability is rejected to fit the fragment; full source principality and
 compiler implementation remain later gates.
+
+The next audit found a concrete coverage gap in verbatim Simple-sub extrusion:
+extrude writes source links and copied bounds directly, outside `constrain`.
+The trace `kappa_l <: X_(l+1)`, then `Record{f:X} <: Y_l`, can publish
+`kappa_l <: R_l` through `R.lower` while the outer retry succeeds without
+visiting that bound; the negative polarity has the dual `R_l <: kappa_l`.
+This contradicts the claim that wrapping only `constrain`/retry enforces §22,
+not the user's level semantics. The successor must route/stage every extrusion
+edge through guarded comparison; scope safety then holds conditionally on
+complete replay, while preserving the original approximation/principality is
+still unproved. Operation-instance §8 and the pinned audit record this gate.
+Independent M3 semantic and conformance reviewers found no blocking/major
+issues. Two minor semantic precision points (the opening is at boundary level,
+and the conditional invariant needs initially certified visible edges) were
+repaired without changing the claim. The immediate next proof is signed
+solution-relation preservation for staged extrusion, not another scope lemma.
 
 ## Main records
 

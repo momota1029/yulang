@@ -2206,3 +2206,47 @@ tests, builds and measurements zero; focused diff/reference inspection and
 `git diff --check`. Primary synchronized task/index/progress and review metadata
 before inspecting explicit staged paths and the complete outbound range for
 normal push. The full proof-and-implementation goal remains active.
+
+### Extrusion edge writes and eager scope guards (2026-10-03)
+
+Continuing from the reviewed variable-only lexical-frontier package, a bounded
+architect audit compared charter §22's every-derived-comparison guard with the
+pinned original `extrude` mutation sequence. This is progress on actual subtype
+ingress, not compiler implementation.
+
+The reference routine inserts each polarity representative directly into a
+source bound list, then assigns the representative's opposite-bound list from
+a recursively extruded snapshot. Those writes do not call `constrain` for each
+edge. A concrete positive trace starts with `kappa_l <: X_(l+1)`, then compares
+`Record{f:X} <: Y_l` with an unbounded `Y`. Positive extrusion puts `kappa`
+into `R.lower`, creating `kappa_l <: R_l`; the retry can add `Record{f:R}`
+to `Y.lower` without visiting `R.lower`. The negative dual leaves
+`R_l <: kappa_l` in `R.upper`. Therefore a guard around only source `constrain`
+and retry does not implement the selected eager discipline.
+
+The required successor path is to expose source links and copied bounds as
+guarded pending comparisons, retain opening identity, stage the graph until
+replay closes, and keep memoized cyclic representatives provisional. Under
+those premises, an elementary quiescence/edge-scope lemma follows: every
+published edge passed the current level guard; cycles cannot expose unchecked
+edges; dependency mutations invalidate prior evidence. This only proves scope
+safety conditional on complete routing. Staging extrusion changes the raw
+algorithm; no solution-fiber, polarity-approximation preservation, global
+termination or principality theorem has been shown. The finite equality
+kernel is outside this subtype/cyclic-bound domain.
+
+The discriminator is pinned-source characterization and a concrete algorithm
+coverage counterexample, not a counterexample to source semantics. The user
+already requires checking every derived comparison, so this calls for a
+guarded extrusion realization rather than a new semantic choice. Next gate:
+specify staged extrusion and prove its signed solution-relation preservation,
+including copied snapshots, source links, cyclic memo hits and atomic failure.
+Until that closes, do not claim a complete variable-only subtype algorithm.
+
+One bounded architect identified the gap and its conditional repair theorem.
+Independent M3 semantic and conformance reviews found no blocking/major
+issues. The semantic review's two minor precision repairs were accepted:
+`kappa` is at the boundary and the invariant assumes initially certified
+visible edges. Verification: reference/diff inspection and `git diff --check`;
+tests, builds and measurements zero. The full proof-and-implementation goal
+remains active.
