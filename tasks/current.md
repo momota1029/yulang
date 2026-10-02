@@ -104,19 +104,22 @@ conversions and assignment-dependent outer shapes remain open. Independent
 reviews found no blocking/major issue; a minor formula-equality clarification
 uses truth tables, not syntactic convergence.
 
-Two genuine source choices are awaiting the user's async reply: whether
-callback protection follows a value into a helper's captured environment,
-and whether a returned latent value retains that boundary after its complete
-CallView ends but while the receiver remains active. Both alternatives expire
-with the receiver; neither drops latent effects or `K,D`. The proposed
-direction is scoped typed-value transport for both, not yet adopted. The
-definition/proof of that policy waits on the reply; independent adapter work
-does not depend on it. See the exact scenarios and source-path caveat in the
-typed-boundary draft §2.
+The user resolved both source scope choices: typed-value transport preserves
+callback boundary/protection through captured environments/store and through
+corresponding latent result paths after CallView completion while the receiver
+remains active. Outer annotations must not be copied to unrelated nested
+positions. Charter §13 records this decision. Typed-boundary draft §6 gives
+the common relational image, receiving-owner incidence, local grant/protection
+query, composition/expiry laws and conditional concrete realization. Package
+review repaired exact-handler expiry and retention of both actual result-view
+evidence and matching callee-result evidence; fresh semantic delta review is
+clean. Persistent source profiles are not cached handler grants. Raw-source
+profiles, path correspondences and exact resumption owner mapping remain
+source-realization obligations; no additional
+source choice or implementation approval has been inferred.
 
-The further
-interaction gap is uniformity: a finite presentation for every separately
-linked finite client does not establish one component presentation for all
+The further interaction gap is uniformity: a finite presentation for every
+separately linked finite client does not establish one component presentation for all
 admissible future clients. Close those source and modular definitions before
 the source typing/acceptance bridge and lifecycle theorem.
 
@@ -132,7 +135,7 @@ Implementation feasibility evidence is recorded in `notes/progress/2026-10-02-su
 
 ## Main records
 
-- `notes/design/2026-10-02-typed-boundary-realization-draft.md` — pending common value-boundary scope choices; reviewed fixed-shape cyclic adapter construction and symbolic equality.
+- `notes/design/2026-10-02-typed-boundary-realization-draft.md` — selected common typed-value transport and reviewed conditional transport/lifetime theorem package; reviewed fixed-shape cyclic adapter construction and symbolic equality; full realization open.
 - `notes/design/2026-10-02-source-realization-and-symbolic-basis.md` — finite ownership inventory, conditional operational realization, selected-fault reflection, and exact remaining source definitions.
 - `notes/design/2026-10-02-finite-abstract-safety-presentation.md` — reviewed generic finite carrier and principal certificate theorem; source application open.
 - `notes/progress/2026-10-02-finite-interface-obstruction.md` — classification, lower bound, construction progress, and review record.

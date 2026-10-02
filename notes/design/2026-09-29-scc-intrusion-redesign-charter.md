@@ -326,3 +326,31 @@ classification and its open quotient construction.
 This amendment does not select a complete finite/regular quotient, set a
 resource threshold, establish Oracle acceptance equivalence, or authorize
 implementation. Those remain proof and representation gates.
+
+## 13. User-selected typed-value boundary transport (2026-10-02)
+
+The user resolved both remaining source scope choices in favor of typed-value
+transport. This is a source semantic direction, not approval of a concrete
+representation, proof completion, or compiler implementation.
+
+- Capture/protection follows the corresponding source-level typed value path
+  through arguments, lexical environments, stores, returns and structural
+  adapters. Changing an argument route into a captured-value route must not
+  let an inner handler without a contract capture the callback's effect.
+- A callback's returned thunk/closure retains its boundary reference along
+  the corresponding typed result path. A completed CallView does not remove
+  that information while the receiver activation remains live.
+- An outer effect annotation is not copied indiscriminately onto nested
+  latent values. Only information belonging to the corresponding signature
+  path is transported; positions without exposure/protection create no
+  capture authority.
+- Receiver/handler expiry disables its activation-scoped authority/protection.
+  Origin, event identity, latent effects, symbolic family constraints and
+  their `K,D` incidence remain.
+- Define and prove one common typed-value transport relation; do not introduce
+  independent argument/environment/return exception rules.
+
+The current realization candidate and conditional theorem package are in
+`notes/design/2026-10-02-typed-boundary-realization-draft.md`, §6. Existing
+concrete-contract Force visibility, active-incidence preservation, ordinary
+handling after expiry, and the soundness/principality priority remain binding.

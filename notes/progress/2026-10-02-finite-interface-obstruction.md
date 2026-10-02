@@ -6,6 +6,63 @@ Status: generic conservative construction proved; source instantiation open; no 
 
 ## Latest constructive result and review
 
+### Selected typed-value transport and conditional theorem package
+
+This slice follows pushed checkpoint `3bff85369`; the previous turn made
+substantive progress. The user resolved both remaining source scope choices:
+capture/protection follows typed value paths through lexical environments and
+store, and through corresponding latent result paths while the receiver is
+active. Charter §13 records that source direction. It does not approve a
+compiler representation or implementation. No source-scope question remains
+pending from the previous slice.
+
+Typed-boundary realization §6 now uses one multi-input relational image
+`χ_out = ⋃_i M_i*χ_i`. Value views separate typed paths/evidence from raw object
+identity. Thus argument, capture, store, return and adapter transport share
+one rule; equal families or aliased pointers create no transport edge.
+Result transport retains both the actual value's existing evidence and the
+callee signature's matching result-path evidence. It never copies an outer
+computation annotation onto all nested latent values.
+
+The package proves identity/composition, distribution over indexed inputs,
+no authority creation, typed-depth preservation, and commutation with
+current-scope filtering. Receiving ownership supplies the candidate handler
+query: persistent source profiles are distinct from incidence derived for an
+exact live handler, its owner and the original receiver. Receiver-local
+explicit grants discharge transported protection for the observed event;
+they cannot authorize a nested owner. A consumed shallow handler has no live
+incidence on raw resumption; a different handler requires a current derivation.
+Symbolic `K,D` and the shared assignment remain with the transported graph.
+Ordinary source §4 links this refinement and disambiguates its previous
+generic boundary wording.
+
+M3 budget: bounded read-only architect construction input; independent
+compiler-referee and spec-auditor package review; one implementer repair
+bundle; fresh compiler-referee delta review. The spec major finding identified
+receiver-only expiry as underspecified. The referee minor finding identified
+the two result evidence sources left implicit. Exact-handler incidence and
+the multi-input image close these findings; fresh focused delta review is
+clean. No new fixture-specific semantic rule was introduced. Convergence is
+no unresolved blocking/major finding within this conditional package.
+
+The remaining proof boundary is explicit: derive finite signature profiles
+and correspondences from source typing; realize exact ownership under
+repeated resumptions; cover unknown shapes and uniform future clients; prove
+the full source typing/acceptance bridge. The reviewed algebra does not prove
+these premises or complete Milestone 3. A read-only external-client driver
+construction was considered, but requires protocol closure, correct public
+accessibility and a fixed symbolic basis; it is not adopted or certified.
+Proceed with those source-realization and modular obligations before lifecycle
+and the next implementation checkpoint. No additional user decision is
+inferred.
+
+No tests, builds, performance samples or compiler changes. Verification is
+the scoped proof reviews and staged whitespace/scope inspection. Current task,
+design index, charter and source-realization pointers are synchronized in
+this checkpoint.
+
+### Previous fixed-shape adapter construction
+
 The typed-boundary package
 `notes/design/2026-10-02-typed-boundary-realization-draft.md` gives an actual
 finite adapter construction for fixed resolved Function/Thunk graphs.
@@ -26,9 +83,10 @@ authorize source rejection.
 The boundary construction audit found two source choices not fixed by prior
 decisions: a helper calling a callback through its captured environment, and
 latent result execution after CallView completion but before receiver expiry.
-Explicit async questions are pending. Scope/authority remains receiver-local
+Explicit async questions were pending at that checkpoint; the selection above
+now resolves them. Scope/authority remains receiver-local
 and expires; latent effects and `K,D` stay live in either option. A common
-typed-value transport policy is proposed but not adopted. No new
+typed-value transport policy was proposed but not yet adopted. No new
 fixture-specific rule or callback-role tag is implemented. Source territory
 proof depends on the answers; the adapter theorem is independent of them.
 

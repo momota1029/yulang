@@ -247,19 +247,21 @@ shrink `S`; that is disclosed abstraction loss, not a concrete source error.
 ## 6. Exact remaining source definitions and future use
 
 The follow-up `2026-10-02-typed-boundary-realization-draft.md` constructs finite
-recursive adapters for fixed resolved Function/Thunk graphs and isolates two
-pending source choices for common value-boundary transport. It does not
-select general `≈`, derive shapes from raw source, or settle those choices.
+recursive adapters for fixed resolved Function/Thunk graphs. The user selected
+typed-value transport for both scope choices; its §6 now gives the common
+transport/query candidate. It does not select general `≈`, derive shapes and
+profiles from raw source, or prove re-entry ownership and arbitrary-client
+closure.
 
 The constructive results have the following boundary:
 
-1. **Visibility realization.** Ordinary semantics §4 says the source
-   derivation connects an event to a callback argument and refers to every
-   applicable current boundary. It gives no inductive generation/query rules
-   or exhaustive vocabulary for those links. Active-frame walking alone
-   does not prove callback relevance. Supply that common relation and prove
-   that its queries use finite control, pointer/identity operations and
-   `Admit_b,o`. Preserve concrete-contract visibility uniformly through
+1. **Visibility realization.** Typed-boundary §6 now supplies common typed
+   transport, receiving ownership and exact-handler incidence, with an
+   effective graph query for supplied finite signature profiles/maps. Its
+   composition and lifetime package is reviewed. Derive those profiles/maps
+   from source typing and establish exact re-entry ownership to instantiate
+   it for all source rules. Active-frame walking alone does not prove callback
+   relevance. Preserve concrete-contract visibility uniformly through
    direct/Force exposure, nesting, escape and shallow re-entry. Do not add
    boundary exclusions merely to make the traversal executable.
 2. **Adaptation realization.** The coupled core's thunk/function equations

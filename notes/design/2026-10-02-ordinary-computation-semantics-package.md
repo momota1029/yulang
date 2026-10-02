@@ -150,6 +150,18 @@ together, even when the request is not in immediate support.
 
 ## 4. Callback boundaries and candidate visibility
 
+The user's later typed-value transport decision is recorded in charter §13.
+The common relational realization in
+`2026-10-02-typed-boundary-realization-draft.md`, §6, refines the boundary
+relevance used here: evidence follows corresponding typed value paths through
+arguments, environments, store, results and adapters. A current receiver-local
+explicit contract discharges transported callback protection for that event;
+an inherited protection does not independently veto it. Outer receiver grants
+do not authorize nested owners. Persistent source profile metadata is distinct
+from incidence derived for an exact currently active handler. No additional
+invalidating source boundary is defined by this ordinary package. Source
+profile elaboration and re-entry ownership remain realization premises.
+
 `Visibleν(q,h,C_h)` is checked at the actual configuration `C_h` where
 ordered search tests handler activation `h`. It requires that `h` is active in
 the current ordered activation sequence, that no applicable source boundary
@@ -207,9 +219,9 @@ callback boundary visible there, not by hidden provenance of the computation
 that produced the request. When the boundary exposes concrete effect `E`, an
 `E` request exposed during the callback's complete `CallView` is eligible for
 the receiver-local handler, including a request revealed by forcing a
-caller-owned thunk, subject to ordinary ordered search and every other
-applicable current boundary. `Force` only exposes latent computation; the
-callback contract supplies the authority. The request keeps its caller
+caller-owned thunk, subject to ordinary ordered search and current
+receiver-local eligibility as refined above. `Force` only exposes latent
+computation; the callback contract supplies the authority. The request keeps its caller
 origin, dynamic event identity, and symbolic `K,D`. Without a concrete
 capture contract, no callback incidence follows. `[_]`, family equality,
 surface rows, and handler ownership alone confer none. A direct callback
