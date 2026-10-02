@@ -4442,6 +4442,20 @@ Only then does the least fixed point give the least representable well-typed
 interface. This theorem isolates a concrete algorithmic target without
 claiming that such a `Q`, `P`, or source bridge currently exists.
 
+The selected-event premise cannot be discharged by an ordinary existential
+may-image alone. Suppose reachable concrete state `c₁` and unreachable state
+`c₂` are merged into one abstract state `q`, and only `c₂` can reach an
+incompatible selected arm. The existential abstract edge `q → bad` then puts
+`bad` in the least reachable abstract state even though no source execution
+selects that arm. Rejecting `ν` from this abstract edge loses a source
+admissible program; dropping the edge because another compatible arm exists
+can instead hide an actually selected incompatible arm. Thus the quotient must
+preserve the actual ordered-selection admissibility observation, or carry a
+separate exact witness for it. A support over-approximation may still be used
+for effect rows, but it cannot be reused as the source typing obligation
+without this proof. This is a congruence requirement on the quotient, not a
+new route selector or fixture-specific rule.
+
 ### Milestone-3 closure result (2026-10-02)
 
 The candidate ordinary machine and its exact complete-interface embedding now

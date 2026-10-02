@@ -51,6 +51,16 @@ must follow actual ordered selection, not be hidden in a runtime guard or
 invented by spurious quotient routes. The callback contract rule remains
 uniform for direct and Force-exposed requests.
 
+The compiler-referee audit supplied a concrete reason the quotient condition
+is stronger than may-reach soundness. If reachable `c₁` and unreachable `c₂`
+share `q`, and only `c₂` reaches an incompatible selected arm, the existential
+abstract edge reports that arm as reachable and can reject an admissible
+source program. Dropping it because another route is compatible can hide a
+real incompatible selection. Therefore selected-event admissibility must be
+preserved by the quotient itself or by a separate exact witness; the ordinary
+support over-approximation cannot impose typing obligations on its invented
+routes. This does not forbid conservative row support.
+
 The older candidates still do not close the joint typed interface:
 
 - finite request-support closure can forget correlations between family
