@@ -1,29 +1,38 @@
 # Source result synthesis and computation interface preservation
 
 Date: 2026-10-02
-Status: Draft; source result-synthesis choice pending; no implementation authority
+Status: Authoritative for result synthesis A; proof/implementation gates remain separately scoped
 Scope: selecting inferred function-result computation ports before code generation
-Approved-by: none for the alternatives in §4
+Approved-by: user; A preserves known source computation interfaces
+Approved-at: 2026-10-02
 Drafted-by: primary with bounded architect and frozen-source mapping
 Reviewed-by: independent compiler_referee and spec_auditor, 2026-10-02; no blocking/major findings; shared minor result-port normalization clarification closed by primary
-Supersedes: none; inert computation introduction and known-interface entry remain fixed
+Selected-rule review: independent compiler_referee and spec_auditor, 2026-10-02; no findings in A authority and source-synthesis theorem delta
+Supersedes: the pending A/B/C choice in this record; inert introduction and known-interface entry remain fixed
 
-## 1. The remaining source rule
+## 1. The selected source rule
 
 Charter §§16–17 fixes whole-argument inert introduction, same-activation
 entry, known-interface elimination and preservation of latent results. The
 typed-computation core now generates executable code from a finite declarative
-port derivation. The remaining question here is how an **unannotated function
-result** obtains that derivation.
+port derivation. This record fixes how an **unannotated function result**
+preserves the body's known source interface.
 
 A computation-valued name can be observed as data without executing it.
 A declared computation consumer can instead eliminate its known interface.
-These laws fix each operation but do not yet say which result interface to
-synthesize for the body occurrence in:
+The user now selects interface forwarding for the body occurrence in:
 
 ```yu
 our h(x: [handled; 'e] 'a) = x
 ```
+
+For `x : Computation(E,A)`, result synthesis preserves `Comp(E,A)` and
+inserts no additional pure layer. Lookup, transport and synthesis remain
+inert; only an explicit consumer (`Force`, handling or known-interface
+demand) executes the computation. Returning computation data under an extra
+pure layer requires explicit inert introduction/lifting. Result interpretation
+is not itself polymorphic. Section 4 retains the rejected alternatives as
+decision history, not open choices.
 
 This exact source is the frozen `a58eefc3`
 `tests/yulang/regressions/effect/effectful_parameter_forwarding.yu` after its
@@ -68,12 +77,10 @@ was written. Likewise, solving `E` to the empty row does not remove its
 original annotation occurrence. Oracle `StackWeight`, `All`, `AllExcept` and
 their routing rules are not premises of this candidate.
 
-The mapping does not settle the function's result occurrence. Even a known
-computation parameter can be returned as data or consumed through its known
-interface, depending on the source result rule. The claim that simply
-preserving its interface requires no policy choice is too strong: deciding
-whether result synthesis performs that preservation or adds a data-result
-layer is precisely the missing rule.
+This parameter mapping alone did not settle the result occurrence. The
+user's separate A decision now supplies that rule. Keeping evidence and
+authority distinct matters: the frozen initialization did not authorize
+implicit source lifting or a polymorphic interpretation of the result.
 
 ## 3. Independent non-collapse obligation
 
@@ -108,7 +115,7 @@ consumer premises. This is not unconditional code invariance when a newly
 revealed interface requires additional elaboration, nor the as-yet-unproved
 generalization/intrusion theorem.
 
-## 4. Three candidate result policies
+## 4. Selected A and rejected implicit alternatives
 
 Use a concrete input `t : Comp(E,Int)` that emits an `E` request when
 eliminated. Consider executing the result computation of the displayed
@@ -116,22 +123,22 @@ forwarding function once and then discarding its returned value.
 
 | Policy | Synthesized result interface | First explicit execution of the result |
 |---|---|---|
-| A. Preserve the expression's known computation interface | `Comp(E,Int)` | Executes `t` and obtains its `Int` result |
-| B. Return computation data under a new pure result layer | `Comp(empty, computation-data(E,Int))` | Returns `t` as unexecuted data; another consumer is needed to execute it |
-| C. Generalize the result interpretation in the public interface | A public unresolved result-port parameter | A use selects an interpretation; its code and proof must follow the same selected public port |
+| A. Preserve the expression's known computation interface — selected | `Comp(E,Int)` | Executes `t` and obtains its `Int` result |
+| B. Return computation data under a new pure result layer — explicit introduction only | `Comp(empty, computation-data(E,Int))` | Returns `t` as unexecuted data; another consumer is needed to execute it |
+| C. Generalize the result interpretation in the public interface — rejected | A public unresolved result-port parameter | Would require use-site interpretation selection |
 
 This discriminator assumes the stated effectful input, not merely an `E`
 row bound. It is expressed in the decorated source/core relation. The exact
 complete frozen-source execution of this comparison is unverified.
 
-**A is the primary's recommended candidate.** It preserves the known source
+**A is selected by the user.** It preserves the known source
 interface of a forwarding expression and does not insert an extra pure layer
 in synthesis. It matches the recorded forwarding inference expectation and
 uses the existing core's declared callable execution view. Synthesis itself
 does not execute anything; a source consumer of the synthesized computation
 is what runs it. Ordinary lookup/storage/return of data remains inert.
 
-Its proposed rule is:
+The source rule is:
 
 ```text
 Gamma(x) = I                    Synth(body) = I
@@ -150,25 +157,25 @@ itself prove checking with nested annotations, admitted conversions or
 principal inference. Explicit result checking still must derive the selected
 typed result path without resurrecting overlapping lift/expose choices.
 
-B gives ordinary data observation priority in an unannotated result. It is
-also compatible with inert introduction, but changes forwarding's result
-layer and therefore its callers' elimination requirements. That compatibility
-impact is semantic, not merely inference-stage scheme formatting.
+B would give ordinary data observation priority in an unannotated result.
+The user rejected its implicit insertion: the additional result layer must
+come from an explicit inert introduction. Its caller impact is semantic,
+not merely inference-stage scheme formatting.
 
-C can avoid prematurely selecting a result interpretation, but introduces
+C would retain a result interpretation choice, but introduces
 a genuine public interface parameter. It needs a principal quantified
 interface, coherent code for every resolved port and lifecycle transport.
 Neither disjunctive constraints nor a hidden runtime tag proves those facts.
 Keeping the choice only in hidden binding provenance would violate the
 typed abstraction requirement. Its larger proof/implementation burden is not
-justified merely by matching a fixture.
+justified merely by matching a fixture. The user explicitly rejected this
+polymorphism for ordinary forwarding; value/effect type polymorphism remains
+a separate requirement.
 
-None of these policies is certified sound/principal for the whole successor
-by this comparison. No alternative has been adopted or implemented here.
-The user has been asked for the intended result interface. Time passing
-does not select a policy.
+The A decision closes the result-synthesis choice. It does not certify the
+whole successor as sound/principal or authorize compiler implementation.
 
-## 5. Closure after the decision
+## 5. Proof work under the decision
 
 Use the selected rule to construct result ports compositionally with
 parameter annotations, names, application, ordinary binding and handlers.
@@ -182,8 +189,8 @@ activation-scoped typed-value transport and symbolic-family invariance intact.
 It authorizes no compiler implementation and does not relax the finite
 principal presentation, uniform-client, acceptance or lifecycle gates.
 
-Provenance: the already selected entry/inertness laws are Yulang extensions.
-The inference policy alternatives and their successor application are new
-conjectures, not Simple-sub-original rules. The two non-collapse witnesses
+Provenance: selected A and the entry/inertness laws are Yulang extensions,
+not Simple-sub-original rules. Their complete successor inference application
+remains a proof obligation. The two non-collapse witnesses
 are deductions in the declared candidate source/kernel, not claims that
 frozen weight routing is sound.

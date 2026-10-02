@@ -1075,3 +1075,50 @@ the full proof-and-implementation objective preserved. This status record is
 M0 bookkeeping, not substantive progress; no new review, test, build or
 measurement was performed. A/B/C approval is not inferred from automatic
 continuation instructions.
+
+### User-selected result forwarding and constructive source synthesis
+
+The user selected A explicitly. `Result(Value(A))=Comp(empty,A)` and
+`Result(Computation(E,A))=Comp(E,A)` now govern source result synthesis.
+Lookup, transport and synthesis remain inert. The user requires explicit
+inert introduction/lifting to add another pure result layer and rejects
+polymorphic result interpretation for ordinary forwarding. Charter §18 and
+the now-authoritative result decision record close the former blocker.
+Work resumed under that decision; the full goal remains unfinished.
+
+This decision enabled a constructive source result/consumer package in
+typed-computation-core §6. Synthesis generates `(I,d,n)` by source structure:
+`d` is inert data and `n` is code derivation for an explicit consumer of
+`Result(I)`. It handles literals, names, function/operation values, calls,
+ordinary local binding, shallow handlers and explicit inert introduction.
+Names preserve their declared source interface; lambda results use the
+selected normalization. Whole-argument reification remains unconditional at
+the caller; an unknown callee's entry is owned by its actual declaration,
+with unresolved Function/boundary constraints retained symbolically.
+
+The package proves unique result/consumer structure up to fresh labels for
+the stated lexical/declaration interfaces, naturality under ordinary
+endpoint substitution preserving those roles/path premises, and finite
+source-to-core construction. Latent/recursive assigned value shapes and an
+empty effect row cannot change a source tag or insert another force. It
+then reuses the reviewed core simulation for initial relatedness, request
+prefixes, current-context visibility, future use and raw resumption with
+joint symbolic `K,D`. No result-interpretation variable, new selector or
+implicit pure layer was added. Existing operation native return/result
+consumer placement stays intact.
+
+This closes the specific result-synthesis source choice and derives the
+corresponding ordinary-source skeleton. It does not prove general raw
+annotation/checking or conversion coherence, recursive-binding inference,
+finite solved queries, principal effect inference, uniform client coverage
+or the final acceptance bridge. Explicit introduction is a semantic
+derivation here; no new surface keyword or compiler representation is
+approved. Remaining gates retain the selected milestone order.
+
+M3 budget: one bounded read-only architect and two independent package
+reviewers (compiler_referee/spec_auditor); both returned no findings in the
+source-authority and synthesis/coherence/transport delta. No compiler code,
+tests, builds or measurements; measurement budget zero. Primary synchronized
+task/index/charter/decision/core/progress records. Focused diff/whitespace and
+full outbound-range checks govern the coherent checkpoint/push. This turn is
+progress; it does not mark the full goal complete.

@@ -3,9 +3,10 @@
 Date: 2026-10-02
 Status: Draft; no implementation authority; full raw-source elaboration remains open
 Scope: finite derivation-indexed ordinary core, executable-code construction and simulation
-Approved-by: none for this construction; charter §§13–17 govern its source premises
+Approved-by: none for this construction; charter §§13–18 govern its source premises
 Drafted-by: primary with bounded architect construction and independent semantic attack
 Reviewed-by: independent compiler_referee and spec_auditor, 2026-10-02; no blocking/major findings; minor handler-subcode construction clarification closed by primary
+Source-synthesis review: independent compiler_referee and spec_auditor, 2026-10-02; no findings in §6 result/consumer construction, source-role coherence and scoped substitution theorem
 Supersedes: no source authority; refines the executable-code premise of source-computation-role §12
 
 Provenance: inert computation introduction, typed consumption and shallow
@@ -281,9 +282,166 @@ derivations. A source occurrence/path rule must decide those roles before
 representation collapse, and must remain stable under permitted substitution.
 This construction gives no ad hoc priority to either derivation.
 
+Charter §18 now selects forwarding in synthesis. Section 6 constructs those
+result/consumer derivations for the ordinary source constructors, rather than
+leaving this specific choice as input. General checking/conversion coherence
+and the remaining symbolic presentation obligations are still separate.
+
 Next close that source derivation/coherence gate together with the regular
 or parametric symbolic query presentation, uniform clients and acceptance
 bridge. Generalization/fresh instantiation/intrusion then preserve the chosen
 presentation; implementation feasibility and implementation follow their
 existing gates. No acceptance restriction or representation language is
 approved merely because this core has finite executable templates.
+
+## 6. Source result synthesis under user-selected forwarding
+
+### Source interface and one normalization
+
+Charter §18 selects two disjoint source interface forms:
+
+```text
+I ::= Value(A) | Computation(E,A)
+Result(Value(A))         = Comp(empty,A)
+Result(Computation(E,A)) = Comp(E,A)
+```
+
+These distinguish the source interface being forwarded, not two runtime
+shapes. `A` may denote first-class computation data, a function or a recursive
+value without changing the `Value` tag. An empty `E` does not change a
+`Computation` tag. There is no result-interpretation type variable.
+
+Synthesis constructs `(I,d,n)`: a source interface, an inert data derivation
+and the computation derivation for **explicit consumption of Result(I)**.
+Constructing `n` is not executing it. Normalize by the original interface:
+
+```text
+Normalize(Value(A),d)         = result(d)
+Normalize(Computation(E,A),d) = eliminate_p(d)
+```
+
+In the second clause, `p` is the corresponding known source computation port,
+retaining its original profile and symbolic `K,D`. The clause is not selected
+by comparing the solved representation of `A` with `Thunk(E,A)`.
+
+### Structural rules producing the core derivation
+
+The following rules operate on the ordinary expression constructors using
+known lexical/declaration interfaces in `Gamma`. They generate result roles;
+they do not take arbitrary result-role derivations or executable code as input.
+Parameter entry remains owned by the callable's declared source interface.
+Unknown value/effect endpoints remain symbolic constraints.
+
+| Source constructor | Synthesized interface `I` | Inert data derivation `d` |
+|---|---|---|
+| literal | `Value(type of literal)` | `literal` |
+| name `x` | `Gamma(x)` | `name x` |
+| function with parameter interface `P` and body `b` | `Value(Fun(P,Result(I_b)))` | `lambda(P,n_b)` |
+| operation name | `Value(Fun(P_decl,Comp(E_decl,A_decl)))` | `operation(decl)` |
+| application `f a` | `Computation(E_call,A_call)` | `reify(call(n_f,n_a))` |
+| ordinary local binding `my x = r; b` | `Computation(E_bind,A_b)` | `reify(bind(x,n_r,n_b))` |
+| shallow handling of `b` | `Computation(E_handler,A_handler)` | `reify(handle(H,n_b))` |
+| explicit inert introduction of `b` as data | `Value(computation-data(Result(I_b)))` | `reify(n_b)` |
+
+Each row constructs `n=Normalize(I,d)`. For local binding,
+`Result(I_r)=Comp(E_r,A_r)` and the body environment binds `x:Value(A_r)`.
+This is result binding when the enclosing computation executes. The entire
+binding computation is reified without running an RHS construction prefix.
+
+`E_call,A_call`, `E_bind` and `E_handler,A_handler` are symbolic endpoint
+names constrained by the existing complete invocation/bind/shallow-image
+relations. They are not invented row unions or solved effect supports. The
+callee constraint identifies a Function interface at the result of `n_f`;
+the argument constraint relates the **whole** computation `Result(I_a)` to
+its parameter interface, with the existing typed path/contract obligations.
+The caller always passes a reified argument. It need not guess an unknown
+callee's entry mode; the actual callable owns its entry expansion. Failure
+to solve a callable or boundary constraint is not repaired by an extra force.
+
+The handler's guards/arms/defaults use the same source synthesis and known
+consumer interfaces before §3 constructs their executable descriptors. Their
+execution remains outside the selected handler. General raw pattern typing
+and arbitrary boundary adapters are not solved by this rule table.
+
+The introduction row denotes the explicit source introduction/lifting
+derivation required by the user; it proposes no new surface keyword.
+Selecting its surface spelling is not part of this theorem. A type annotation
+or a solved shape alone does not silently supply that introduction.
+
+This table gives a complete result-role construction for these expression
+forms relative to `Gamma`, callable declarations and the existing handler
+typing premises. It does not claim arbitrary raw annotation resolution,
+recursive-binding inference or constraint satisfiability is now implemented.
+Forward references reuse registered declaration endpoints; solving definition
+SCCs remains a later inference/lifecycle obligation.
+
+### Coherence, transport and realization theorem
+
+For a finite ordinary expression graph with those lexical/declaration
+interfaces, the rules construct a unique result/consumer skeleton, up to
+fresh endpoint/label renaming. They introduce no inference alternative
+between returning computation data and executing its known outer interface.
+The explicit consumer, not synthesis, determines when execution occurs.
+
+**Uniqueness.** Induct on the expression construction. Literal and name copy
+their fixed source interface; a lambda's result is the single `Result(I_b)`
+from its inductively determined body; operation declarations fix their
+interface. Application, sequencing and handling have a computation result
+role, with endpoint constraints rather than role alternatives. Explicit
+introduction alone creates a value containing a computation. In every case
+the two `Normalize` clauses are disjoint by source tag. Reusing labels for
+recursive definition references does not unfold their bodies or change their
+registered interface. This proves skeleton coherence, not uniqueness of
+type solutions or admissible coercions.
+
+For `Gamma(x)=Computation(E,A)`, synthesis of `h(x)=x` now constructs
+`Fun(P,Comp(E,A))`, a data lookup and the explicit known-interface consumer
+for its completed result. It cannot construct `Comp(empty,computation-data(E,A))`
+without an explicit introduction row. Synthesis of a value-valued result uses
+`Comp(empty,A)` and returns the data. Even if recursive type equality later
+identifies the erased endpoint shapes, it does not add a second synthesis
+derivation: the source tags and introduction occurrences remain distinct.
+
+**Endpoint substitution.** Let `sigma` substitute ordinary value/effect
+endpoints and consistently rename typed binders/paths while preserving the
+source declaration/interface tags and typing premises. Directly in the two
+cases,
+
+```text
+Result(sigma(I)) = sigma(Result(I))
+Normalize(sigma(I),sigma(d)) = sigma(Normalize(I,d)).
+```
+
+Induction through the table gives the same property for the generated
+result/consumer skeleton and all corresponding `K,D` payloads. An endpoint
+assigned a latent/recursive shape causes no further elimination; assigning
+an empty effect row creates no entry force for a retained parameter. This
+does not assert that every substitution preserves typing premises, that
+arbitrary adapters stay unchanged, or that a source interface may be changed
+from `Value` to `Computation` by such substitution. Generalization must
+preserve those source positions; the full solver/lifecycle theorem remains
+unproved.
+
+**Execution.** Apply the whole-core construction of §§3–4 to the generated
+derivation. At an explicit consumer, `n` returns the designated `A` with the
+same current view, source origin and joint symbolic constraints. Nested
+`eliminate(reify(c))` uses the existing same-context delay/force law; it does
+not move execution across a receipt, handler or return delimiter. Retaining
+that administrative pair is also valid. The operation's completed execution
+view remains distinct from its native carrier producer, as established in
+§3. A latent `A` is returned without another force. The existing simulation
+then covers initial relatedness, request prefixes, ordered handler visibility,
+future use and raw resumption of this generated skeleton. No independent
+capture rule or result-interpretation dispatch is added.
+
+**Finite construction.** Per source constructor the table introduces a
+bounded number of core nodes and symbolic endpoint names; child derivations
+and definition references are shared. The earlier `O(n+m)` static-template
+bound therefore applies to source-generated result skeletons as well, where
+`m` includes the supplied profile/typed-path descriptors. This establishes
+finite generation, not finite solved constraints or principal inference.
+
+The source forwarding blocker is closed. The next obligations are complete
+annotation/checking and admitted-conversion coherence, finite regular or
+parametric symbolic query solving, modular future clients and acceptance;
+then the selected milestone order reaches lifecycle and implementation.

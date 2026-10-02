@@ -472,3 +472,27 @@ Oracle semantics. This approval closes the source scheduling question, not
 raw-source typing, result-role elaboration, finite principality, lifecycle
 transport or compiler implementation. Those proofs must use A as their source
 reference rather than infer a source rule from emitted code.
+
+## 18. User decision: result synthesis forwards computation interfaces (2026-10-02)
+
+The user selected A in `2026-10-02-source-result-synthesis-choice.md`:
+
+```text
+Result(Value(A))          = Comp(empty,A)
+Result(Computation(E,A))  = Comp(E,A)
+```
+
+If `x : Computation(E,A)`, the result of `h(x) = x` preserves that computation
+interface. Lookup, typed transport and result synthesis are inert. Synthesis
+does not run `x`; execution still requires an explicit consumer (`Force`,
+handling or known-interface demand).
+
+No implicit `pure x` layer is inserted. Returning the computation itself as
+ordinary data under another result layer requires explicit inert introduction
+or lifting. Result interpretation is not generalized as a new public mode:
+simple forwarding has one source meaning. Ordinary value/effect endpoint
+polymorphism is unaffected by that exclusion.
+
+This decision closes the result-synthesis blocker. Checking, symbolic solving,
+principal effect abstraction and lifecycle proofs must derive from it; their
+completion and compiler implementation are not implied by this source approval.

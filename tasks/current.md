@@ -2,11 +2,9 @@
 
 Updated: 2026-10-02. Branch: `research/simple-sub-intrusion`.
 
-Execution state: blocked awaiting the source result-synthesis decision in
-`2026-10-02-source-result-synthesis-choice.md`. The same unanswered decision
-has persisted through its originating goal turn and two continuation turns.
-The full objective is unchanged; no policy is selected by the continuation
-messages. Resume source synthesis/coherence after the user's A/B/C decision.
+Execution state: source work resumed after the user's explicit A decision in
+`2026-10-02-source-result-synthesis-choice.md`. The former result-synthesis
+blocker is resolved. The full proof-and-implementation objective is unchanged.
 
 ## Objective and authority
 
@@ -25,6 +23,7 @@ The redesign charter governs. F5 Function generalization is comparison/rollback 
 - Shallow handling is primitive; selection, patterns/guards and arms execute outside the candidate. Deep behavior is explicit shallow reapplication to resumed computation; optimizations must preserve that source expansion.
 - The user clarified the source reference: every function is a handler/computation receiver. An ordinary value parameter forces and rebinds its input at the start of that same activation; force-before-invocation is a separate optimization obligation.
 - Computations are first-class data. Their introduction is inert; after obtaining the callee, application reifies the whole argument with no pre-entry construction prefix. Execution starts only at explicit receiver elimination/handling under the known interface; lookup, transport and latent result shape do not themselves force a computation. Charter §17 closes scheduling choice A as the originally intended source semantics.
+- Result synthesis forwards known interfaces: `Result(Value(A))=Comp(empty,A)` and `Result(Computation(E,A))=Comp(E,A)`. Synthesis is inert; an additional pure result layer requires explicit introduction/lifting. Result interpretation is not polymorphic (charter §18).
 
 ## Milestone state
 
@@ -259,19 +258,33 @@ including recursive role overlap and admitted conversions. No arbitrary
 executable `ArgumentCode` premise remains for the displayed core, but the
 input declarative port derivation is still an explicit assumption.
 
-The current source decision is isolated in
-`2026-10-02-source-result-synthesis-choice.md`. Frozen evidence now shows
+The result-synthesis choice in
+`2026-10-02-source-result-synthesis-choice.md` is closed by the user's explicit
+A decision. Frozen evidence shows
 parameter outer annotations select effect-slot policy before solving:
 omitted/value annotations have pure slots; outer effectful annotations retain
 their computation slot. This is evidence for source parameter derivation,
-not authority to adopt Oracle routing. It does not determine an unannotated
-result's role. The exact existing source `h(x:[handled; 'e]'a)=x` admits the
-two proposed policies: preserve the known result computation interface, or
-return that computation as data under a pure layer. A third candidate exposes
-the result-port choice publicly for generalization. The primary recommends
-interface preservation; the user has been asked and no answer is assumed.
-Only dependent result-synthesis/checking work awaits that decision. Inert
-construction, receiver entry and shallow scope are already fixed.
+not authority to adopt Oracle routing. The user now specifies that the exact
+forwarding form `h(x:[handled; 'e]'a)=x` preserves its known computation
+interface. Ordinary value results get `Comp(empty,A)`; already computational
+results retain `Comp(E,A)`. No implicit pure layer or generalized result
+interpretation is introduced. Construction, lookup, transport and synthesis
+remain inert; only explicit known-interface consumption executes code.
+
+Typed-computation-core §6 now constructs `(I,d,n)` for ordinary source forms:
+the known source interface, inert data and the derivation for explicit
+consumption of `Result(I)`. Names forward their interface; functions apply
+`Result` to their bodies; calls, ordinary local bindings and shallow handlers
+build reified computations; explicit introduction alone adds a data layer.
+Unknown callee endpoints generate Function/boundary constraints, not guessed
+entry modes. The same source-tag normalization commutes with endpoint
+substitution preserving declaration/path premises, including latent/recursive
+value shapes and empty effect rows. The core simulation therefore applies
+to these source-generated result/consumer skeletons. Independent M3 semantic
+and conformance reviews found no findings in this package. General checking,
+annotation resolution, adapters and principal symbolic solving remain open;
+finite code generation is not their proof. No new compiler implementation is
+authorized by closing the source-result choice.
 
 The independent non-collapse argument shows why an empty effect row cannot
 turn a retained pure diverging computation into entry force; similarly,
@@ -337,7 +350,7 @@ Implementation feasibility evidence is recorded in `notes/progress/2026-10-02-su
 
 ## Main records
 
-- `notes/design/2026-10-02-source-result-synthesis-choice.md` — pending unannotated-result synthesis policy, source-parameter evidence and non-collapse arguments; A recommended, not adopted.
+- `notes/design/2026-10-02-source-result-synthesis-choice.md` — authoritative A: source result synthesis preserves known computation interfaces; explicit introduction alone adds a pure layer; result interpretation is not polymorphic.
 - `notes/design/2026-10-02-typed-computation-core-elaboration.md` — reviewed constructive derivation-core translation/simulation; source consumer coherence and finite principal inference remain open.
 - `notes/design/2026-10-02-source-call-scheduling-choice.md` — authoritative A: first-class computation introduction is inert, whole-argument reification precedes receiver elimination; conditional discriminator and exact acceptance-evidence limits retained.
 - `notes/design/2026-10-02-source-computation-role-elaboration.md` — corrected active source map, producer-placement obstruction and common invocation entry expansion; raw-source scheduling/typing and finite solved/parametric presentation remain open.
