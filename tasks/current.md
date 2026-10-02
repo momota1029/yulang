@@ -84,6 +84,31 @@ spurious rejections are disclosed, not approved.
 
 ## Current work
 
+### Concrete compatibility boundary (2026-10-03)
+
+The user's latest semantic decision separates transitive bound propagation
+among type variables from local concrete compatibility, which may resolve a
+cast or adapter and is not a transitive subtype relation. Optional Record
+examples require that `{foo?: string} <: {}` and `{}` `<:` `{foo?: int}` do not
+compose into `{foo?: string} <: {foo?: int}`. The candidate separation and
+its bounded source map are recorded in
+`notes/design/2026-10-03-concrete-compatibility-boundary.md`.
+
+This narrows the source applicability of the mandatory-Record structural
+theorems without refuting their fragment proofs. The next gate is to define
+local compatibility outcomes with retained conversion evidence, then prove
+that variable-bound propagation emits guarded boundary queries and that
+residual factorization preserves those outcomes. Current successor terms lack
+Record and adapter constructors; cast declarations are outside successor HIR.
+Optional Record Oracle observations are not implemented syntax/contracts in
+this branch. No compiler change is authorized; the complete replacement goal
+remains active.
+
+The M3 clarification received clean bounded compiler-referee and spec-auditor
+reviews after architect pre-write review. Its evidence, exact limitations and
+next gate are recorded in
+`notes/progress/2026-10-03-concrete-compatibility-boundary.md`.
+
 The milestone-1 candidate is `notes/design/2026-10-02-ordinary-computation-semantics-package.md`. It defines one state-threaded `Run` relation, concrete closure-frame re-entry under the current caller store/activations, latent `Force`, per-event origins and symbolic `K,D`, event-relevant ordered visibility, and shallow handler images. The user selected preservation of existing callback incidence while its receiver is active, ordinary current-handler search after escape, and concrete typed-boundary visibility for both direct and Force-exposed requests. `Force` exposes latent computation but creates no authority; origin and `K,D` remain event-specific.
 
 The ordinary-computation package received a bundled architect/compiler-referee/spec-auditor review and a focused closure delta review. It repaired event-specific callback relevance, ordinary receiver-body handling, actual post-application `C_h` and current-boundary checks, closure re-entry, and the suspended invocation wrapper across handler unwind. The user selected concrete typed-boundary visibility for direct and Force-exposed requests; its delta review found no major issue. The exact semantic embedding has been package-reviewed: initial `R`, primitive source-rule images, latent future-use, and typed resumptions are covered; finite-resumption bind lifting was separately reviewed. Milestone 2 is closed for the candidate machine, not for the current Yulang typing relation.
