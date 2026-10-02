@@ -965,9 +965,36 @@ findings. Static source/diff/link checks and `git diff --check` passed; tests,
 builds and measurements budget/consumption zero. Task/index/progress records
 are synchronized for the coherent research checkpoint.
 
+### Symbolic projection and invariant coordinates
+
+The projection package's §6 extends the structural theorem to declared
+covariant, contravariant and invariant constructor positions. Invariant
+positions retain the original coordinate when a visible equivalent exists;
+having both upper/lower approximations is insufficient. Three availability
+bits have at most five profiles, but those bits never decide type equality.
+The original symbolic family equations, witnesses and joint `K,D/Phi` remain.
+
+For an open regular template whose holes receive shared closed regular
+graphs, a finite Boolean equation system computes exact projection control
+and a shared graph recipe supplies the resulting roots. Imports and their
+derived projections stay correlated; profiles are not free choices. This
+constructs the transformation under shape-changing inputs without claiming
+to solve unknown bounds. A predicate can be recovered from projected
+coordinates only when constant on projection fibers; equality generally is
+not, explaining why original invariant coordinates must survive symbolically.
+
+Next close flexible-bound satisfiability and source-generated joint solving,
+including aliases/recursive feedback, without treating the five profiles as
+a type model. Effectful compatibility, declared bounds and full lifecycle
+remain open. M3 used one architect, one documentary producer and two
+independent semantic/conformance reviewers; both found no findings. Static
+diff/link checks and `git diff --check` passed. Tests, builds and measurements
+budget/consumption zero; no compiler changes or implementation approval.
+Task/index/progress are synchronized; the full goal remains active.
+
 ## Main records
 
-- `notes/design/2026-10-03-scoped-structural-projection.md` — finite regular best visible comparators for a structural fragment; source width obstruction to mandatory eager extrusion; full source constraints remain open.
+- `notes/design/2026-10-03-scoped-structural-projection.md` — finite regular best visible comparators, invariant-coordinate support and substitution-parametric projection with closed imports; full flexible source constraints remain open.
 
 - `notes/design/2026-10-03-staged-extrusion-solution-relation.md` — exact unscoped graph projection, signed retry, finite consequence replay and relative uniform-parent construction; source-scoped extension criterion remains open.
 

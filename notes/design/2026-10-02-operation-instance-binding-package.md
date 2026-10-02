@@ -529,6 +529,12 @@ fragment. It preserves these historical exact-trace claims while retiring
 mandatory eager extrusion as a complete route for unknown cross-scope targets.
 Full source graph generation and effectful/invariant checking remain gates.
 
+That candidate's §6 now extends common variance projection with invariant
+visible-equivalent support and a finite symbolic transformer for closed regular
+hole inputs. Its five profiles control projection only; original shared
+endpoints, invariant equations and joint `K,D` remain retained. Flexible-bound
+solving, full operation compatibility and lifecycle are still open.
+
 The fresh Function-child argument establishes no counterexample to actual
 Simple-sub extrusion and is withdrawn as such. Derived structural summaries
 do not assign stored levels to constructors; comparison decomposes structure

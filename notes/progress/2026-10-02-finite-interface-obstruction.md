@@ -2409,3 +2409,52 @@ and `git diff --check` passed. Tests, builds and measurements budget/consumption
 zero; the source skeleton was not executed. No repair review round was needed.
 Integration is restricted to the coherent research checkpoint and full
 outbound-range inspection; no compiler or frozen-main changes are included.
+
+### Invariant coordinates and symbolic projection (2026-10-03)
+
+Previous goal turn was progress: `b842d5921` was reviewed, committed and pushed.
+The clean current branch was revalidated. This package extends the existing
+structural theory instead of adding a source-site-specific effect mechanism.
+No compiler implementation or later feasibility gate was started.
+
+Declared constructor variance now includes equality positions. An invariant
+child must have a visible equivalent and is retained with its original
+identity; positive/negative approximations cannot substitute for it. Mutual
+structural subtyping proves that visible-equivalent support is exactly the
+absence of reachable hidden atoms in this grammar. Local `kappa = kappa`
+remains valid independently of that boundary-support question.
+
+Upper, lower and visible-equivalent availability yield at most five profiles.
+Both signed approximations can exist while the third bit is false. The five
+profiles classify control only: equal bits for `Int` and `Bool` do not prove
+type equality. Original symbolic invariant equations and their `K,D/Phi`
+dependencies therefore remain attached to the original endpoints.
+
+For a fixed regular open template with closed shared imports, greatest Boolean
+equations compute exact profiles under every permitted substitution. Closure
+separates imported equations from local equations, so their greatest solutions
+compose. A correlated shared graph recipe uses the same imported original and
+projected roots. One finite presentation has at most `5^m` profile cases and
+`3N` local states/nodes per case; imported graph sizes are additional, not
+constant-size hidden data. No enumeration or measurement was run.
+
+The factorization theorem extends per closed substitution while retaining the
+full original joint relation. The general fiber criterion proves why this
+does not authorize replacing incident invariant operands: a predicate descends
+through a projection iff constant on its fibers, and equality generally is not.
+This is symbolic preservation of original obligations, not reconstruction
+after materialization. The result remains a finite projection transformer,
+not an algorithm for flexible-bound satisfiability or principal source inference.
+
+Next solve the source-generated joint constraints, including unknown shapes
+and recursive/alias feedback; retain the full type identities and relations
+alongside these summaries. Full effectful/family compatibility and lifecycle
+remain required gates. No source envelope is narrowed and no implementation
+authority is inferred.
+
+M3 used one architect, one documentary producer and two independent semantic/
+conformance reviewers. Both delta reviews found no findings. Primary updated
+task/index/progress and review metadata; static diff/link inspection and
+`git diff --check` passed. Tests, builds and measurements budget/consumption
+zero. Integrate only this coherent documentation checkpoint after staged-path
+and full outbound-range inspection. The full active goal is unfinished.
