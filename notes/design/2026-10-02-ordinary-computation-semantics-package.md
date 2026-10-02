@@ -355,5 +355,5 @@ is treated as an accepted compatibility difference.
 No implementation is authorized by this draft. The concrete callback-boundary
 rule is selected by the user's 2026-10-02 decision and received focused
 compiler-referee delta review with no major finding. The exact-interface
-theorem package receives one bundled review before the candidate semantics
-can advance to finite presentation and principality.
+theorem package also received compiler-referee review with no major finding;
+the candidate semantics now advances to finite presentation and principality.
