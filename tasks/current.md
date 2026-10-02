@@ -404,7 +404,44 @@ connect those symbolic requests to the joint invocation/handler interface
 with typed paths, current state, original contract slots, and future/resumed
 use. Full Milestones 3–6 remain open.
 
+## Correlated symbolic-request checkpoint
+
+`2026-10-02-symbolic-request-register-quotient.md` constructs a finite graph
+and predicate inventory for a finite-control kernel retaining boundedly many
+request points. Equality partitions and unary-query colors preserve their
+correlation. Capped existence-of-distinct-points formulas allow every graph
+edge to lift from every concrete representative at the same static
+assignment, rather than merely one possibly unreachable representative.
+The bound includes all old registers and all simultaneous witness variables.
+
+The existing certificate theorem then supplies kernel-relative principal
+certificates and exact designated-fault reachability. New point inputs do
+not require enumeration of new ground endpoint names. This is neither a
+source runtime type-comparison feature nor a complete source theorem.
+Dynamic events/activations remain distinct; all source symbolic `K,D`
+dependencies must still be represented. Capacity formulas are nonpointwise,
+so their row variables cannot use the prior pointwise hiding theorem.
+
+The next owning gate is the typed modular interaction abstraction: derive
+finite retained-point representation for arbitrary caller/continuation
+behavior, normalize complete payload/response/interface `OpCompat`, and
+establish effective interpretation of the resulting symbolic predicates.
+None follows merely from the finite number of source sites. No source
+counterexample, class-3 obstruction, acceptance restriction, lifecycle
+completion or implementation readiness is claimed.
+
+Frozen source gives a concrete compatibility dependency: parameterless
+`std::testing::assertion` has an `assert_eq` operation with independent
+`'a`, `'left_eff`, and `'right_eff` signature parameters. The declaration
+and recorded generic-use fixture show family equality cannot determine
+payload and callback interfaces. Normalize operation-local binder ownership
+and substitutions before reducing complete compatibility queries. This
+does not open method/role resolution; the witness's role constraints remain
+outside the current proof gate.
+
 ## Main records
+
+- `notes/design/2026-10-02-symbolic-request-register-quotient.md` — finite equality/unary request-point quotient and uniform lifting; modular source applicability remains open.
 
 - `notes/design/2026-10-02-parametric-open-row-presentation.md` — finite open point-row schema, exact eligible projection and positive recursion; full source interaction remains open.
 

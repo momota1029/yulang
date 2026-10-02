@@ -1235,3 +1235,70 @@ diffs and whitespace checks, including the new artifact after explicit
 staging. Tests/builds not run; measurement budget and consumption both zero.
 The coherent checkpoint is subject to full outbound-range inspection before
 push. This is progress toward Milestone 3; the full goal remains active.
+
+### Correlated symbolic request-point quotient
+
+The preceding goal turn is progress: reviewed open-row construction
+`d6c329d6b` is pushed and supplies parametric membership circuits. The next
+architecture audit targeted the remaining uniform future-input problem.
+No complete typed source-client driver was found. A finite register kernel
+does, however, admit a constructive correlated-point quotient, recorded in
+`2026-10-02-symbolic-request-register-quotient.md`.
+
+The new construction takes finite control, bounded retained request points,
+named point terms, equality and finitely many unary predicates. At one
+unchanging type/row assignment, named partitions, unary colors and capped
+existential capacities produce finite states and predicate profiles.
+Transition construction enumerates complete joint old/witness diagrams.
+Enough distinct members of each color allow every quotient edge to lift
+from every concrete representative, eliminating the spurious-path hole of
+an existential may-edge argument for this kernel. Initial, observation and
+fault predicates retain their declared finite signature.
+
+This constructs the inputs to the existing guarded-certificate theorem
+without enumerating every future operation site or ground argument. It
+proves kernel-relative exact designated-fault paths and principal
+certificates, not a whole-source theorem. Dynamic events/activations are
+not type points. Live symbolic dependencies remain represented jointly;
+the new existence-of-distinct-points formulas are nonpointwise, so the old
+pointwise row-projection theorem cannot hide rows occurring in them.
+
+The bounded source-clause audit identified common `OpCompat` between
+request and handler substitutions, with invariant family arguments plus
+payload/response/complete-interface constraints. It did not establish a
+normalization of those constraints into equality/unary tests, nor a source
+bound on points retained by arbitrary caller values and continuations.
+The source-connection table keeps both obligations, predicate realizability,
+and common typed operational refinement explicit. No new source selector,
+cardinality operation, runtime type dispatch, accepted loss of programs,
+class-3 witness or implementation permission follows from the kernel proof.
+
+M3 budget: bounded architect and evidence explorer, two independent initial
+reviewers (semantics and source conformance), one documentary repair bundle,
+and fresh semantic closure of that repair. Both initial reviewers found no
+issue under the intended complete joint-diagram interpretation. The architect
+identified a necessary bound clarification: count every old register and
+every simultaneous new witness, including registers not inspected by a
+guard. Otherwise two- and three-point universes can be merged despite a
+post-state distinguishing them. The primary accepted that clarification.
+One implementer made the premise explicit and required point queries to use
+set registers. Fresh independent semantic delta review closed the finding
+with no remaining issue; the rest of the package is carried forward.
+
+A further bounded frozen-declaration audit found a concrete reason not to
+erase complete compatibility into family equality: parameterless
+`std::testing::assertion` declares `assert_eq` with independent value and
+callback-effect parameters. Its generic public-use fixture and owning
+signature/family construction paths are recorded in the new package §7.
+No test was executed, successor variance policy selected or method/role
+gate begun. The next source normalization must account for these local
+operation binders and their full payload/interface substitutions.
+
+Next derive the typed modular interaction abstraction and complete
+compatibility presentation, rather than assert a bounded client interface
+from finite source-site counts. The row and kernel results remain reusable
+components of that gate. Tasks/index and both prior theorem boundary
+locators are synchronized. Documentary diff/whitespace checks govern this
+slice; no compiler changes, tests, builds or measurements. Coherent staging,
+outbound inspection and push preserve the checkpoint. The full goal remains
+active and unfinished.

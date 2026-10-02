@@ -274,3 +274,10 @@ Existing selected-fault/certificate and source-simulation results can then
 use this row algebra; they cannot be instantiated solely by this theorem.
 Required executable conversions, final Oracle acceptance, generalization,
 fresh instantiation, SCC intrusion and implementation remain separate gates.
+
+The follow-up `2026-10-02-symbolic-request-register-quotient.md` constructs
+a finite correlated-point kernel from equality/unary queries. Its derived
+existence-of-distinct-points formulas are nonpointwise row dependencies;
+§4 here cannot eliminate their row variables without a separate joint
+projection proof. That kernel's retained-register and predicate signature
+premises are not yet established for arbitrary future source clients.

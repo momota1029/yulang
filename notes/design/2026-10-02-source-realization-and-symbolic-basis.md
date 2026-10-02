@@ -131,6 +131,14 @@ algebra, but does not prove that novel client endpoints/grounded queries
 belong to the fixed finite `T/PΩ` inventory here. Connecting these parametric
 queries to complete invocation and handler interactions remains required.
 
+`2026-10-02-symbolic-request-register-quotient.md` constructs an alternative
+finite symbolic inventory for a bounded register kernel: unknown request
+points use equality partitions, unary-query colors and capped existential
+capacities instead of new ground endpoint names. Its uniform lifting theorem
+handles arbitrarily many input points within that interface. It does not
+derive a bound on live source dependencies, reduce general `OpCompat`, or
+turn this fixed-source descriptor theorem into a modular source theorem.
+
 The name-level bound is
 
 ```text
