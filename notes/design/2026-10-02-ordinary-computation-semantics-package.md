@@ -126,6 +126,16 @@ or creates a blocking mask. An
 already-derived capture incidence is transported through this transition
 only while its same receiver and handler remain active.
 
+The explicit occurrence protocol is developed in
+`2026-10-02-typed-source-owner-realization.md`, §2. Saved source owner spans
+cover deferred resumes even when their owner was outside the selected handler
+and was not unwound by the original search. Resume borrows an exact live
+owner, or installs a fresh execution occurrence when it has ended. A borrowed
+completion delimiter cannot pop the live original invocation. Control-owner
+resolution does not rename retained boundary references or replay callback
+entry. This is a realization candidate for the above control rule, with
+arbitrary-source elaboration still open.
+
 A thunk is a delayed `Run` with its lexical environment and required lineage.
 Construction returns the thunk without exposing its body requests. `Force`
 executes that delayed relation under the current configuration, using the

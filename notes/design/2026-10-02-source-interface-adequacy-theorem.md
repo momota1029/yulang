@@ -185,6 +185,15 @@ The common invariant for every image step is:
    a consumed shallow handler or an exited maker handler. Lineage data alone
    does not implement this transition.
 
+The owner-span realization in `2026-10-02-typed-source-owner-realization.md`
+refines that wrapper premise. Both sides use its same control context:
+borrowing an exact still-live owner does not pop it at span completion;
+resuming code whose owner expired allocates a fresh execution occurrence
+without renaming old value/evidence ownership. Intermediate completion
+continues the captured parent suffix, and only the capture delimiter returns
+to the current resumer. The exact-embedding argument copies this protocol
+on both sides; it does not itself establish raw-source owner elaboration.
+
 ### Proof
 
 Relate `C` to `Eν,σ(C)` by equality of the source-observable projections and

@@ -118,6 +118,22 @@ profiles, path correspondences and exact resumption owner mapping remain
 source-realization obligations; no additional
 source choice or implementation approval has been inferred.
 
+The next source-realization package is
+`notes/design/2026-10-02-typed-source-owner-realization.md`. It constructs
+saved executable owner spans: borrow an exact still-live owner, otherwise
+allocate a fresh execution occurrence, leaving original boundary references
+unchanged. Initial M3 review found a major captured-parent completion omission.
+The repair makes saved contexts inductive and routes inner completion through
+the remaining captured suffix before the root returns to the resumer.
+Independent repair closure is pending: both fresh reviewer launch and existing
+reviewer restart failed with `agent thread limit reached`. Do not call this
+theorem closed or push its unreviewed repair. A primary follow-up obligation
+is the current handler reference of a pending effectful guard/search after
+forwarding re-entry; owner-slot resolution alone does not yet define it.
+Next complete this common control relation and obtain independent semantic
+closure when reviewer execution is available. No user semantic choice is
+currently requested.
+
 The further interaction gap is uniformity: a finite presentation for every
 separately linked finite client does not establish one component presentation for all
 admissible future clients. Close those source and modular definitions before
@@ -135,6 +151,7 @@ Implementation feasibility evidence is recorded in `notes/progress/2026-10-02-su
 
 ## Main records
 
+- `notes/design/2026-10-02-typed-source-owner-realization.md` — owner-span/control-context construction; initial review and repair; independent closure and pending-search handler-reference proof open.
 - `notes/design/2026-10-02-typed-boundary-realization-draft.md` — selected common typed-value transport and reviewed conditional transport/lifetime theorem package; reviewed fixed-shape cyclic adapter construction and symbolic equality; full realization open.
 - `notes/design/2026-10-02-source-realization-and-symbolic-basis.md` — finite ownership inventory, conditional operational realization, selected-fault reflection, and exact remaining source definitions.
 - `notes/design/2026-10-02-finite-abstract-safety-presentation.md` — reviewed generic finite carrier and principal certificate theorem; source application open.

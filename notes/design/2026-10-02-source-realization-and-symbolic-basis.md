@@ -187,6 +187,13 @@ Stored handler records alone are not active. Frame ownership/reference
 remapping on resumed invocation occurrences must agree with the source
 wrapper; this table does not invent a fresh capture grant by remapping an ID.
 
+`2026-10-02-typed-source-owner-realization.md` supplies an explicit candidate
+for that ownership protocol: saved executable owner spans resolve to exact
+live occurrences or fresh execution occurrences, and owned/borrowed delimiters
+govern completion. It preserves original value/evidence ownership references.
+Its theorem covers the decorated operational kernel, conditional on supplied
+source profiles/maps, rather than deriving arbitrary raw-source elaboration.
+
 The kernel table is a compilation schema conditional on the finite source
 descriptors and wrapper transitions. It does not yet implement the unspecified
 visibility and adaptation primitives. In particular, a `DerivationLink` graph

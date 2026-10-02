@@ -6,6 +6,65 @@ Status: generic conservative construction proved; source instantiation open; no 
 
 ## Latest constructive result and review
 
+### Typed source owner realization (current slice)
+
+This continuation follows pushed checkpoint `0b9b44cd4`; the previous goal
+turn was progress. The current scope is a decorated-source ownership and
+transport theorem, not implementation. M3 budget: one bounded architect
+construction and one source-locator exploration, independent semantic and
+conformance package reviewers, one batched repair if needed, and at most one
+fresh focused closure reviewer. Convergence requires no unresolved accepted
+blocking/major finding and an explicit boundary around raw-source elaboration.
+Tests/builds/performance measurements are outside this documentation slice;
+the verification budget is proof review plus staged whitespace/scope checks.
+
+The candidate is `2026-10-02-typed-source-owner-realization.md`. Saved
+continuations carry source owner spans, including owners outside the initially
+selected handler. This closes a concrete omission in crossed-frame-only
+bookkeeping: a continuation can be stored, its un-crossed owner can return,
+and only then can the suffix execute another handler entry needing a live
+owner. Resolution borrows an exact live owner or creates a fresh execution
+occurrence; it never rewrites original boundary references in saved values.
+Owned and borrowed delimiters must preserve captured caller suffixes and the
+raw continuation's outer return boundary. Initial package review is complete;
+repair closure remains open.
+
+Initial conformance review found no authority violation. Semantic review
+found a major completion-routing omission: in `f -> g`, where `g` requests
+`A` and the saved remainder of `f` requests `B`, closing `g` must run the
+captured `f` suffix before returning to the resumer. An unconditional
+span-to-resumer edge would skip `B`. One repair bundle makes saved control
+contexts and their parent completion route inductive; ownership/evidence
+separation otherwise passed the package reviews. Closure delta remains pending.
+The fresh reviewer launch and two existing-reviewer follow-up attempts failed
+with `agent thread limit reached`; no reviewer was started by those calls.
+The draft is retained as an incomplete local checkpoint, not pushed or
+certified. This is the first turn with this review-execution blocker; the
+goal remains active and this turn made substantive construction/repair
+progress.
+
+Primary inspection additionally localized a pending control obligation:
+when an effectful guard suspends and its candidate handler is unwound and
+re-entered by a forwarding wrapper, pending search must use the current
+handler occurrence. Owner-only slot resolution does not yet specify that
+transition. It is recorded in the candidate's proof boundary; the full
+preservation claim remains unclosed. Next resolve the common search/control
+relation and review it with the already repaired parent-suffix routing.
+
+The implementer ran Python text assertions for fences, metadata and
+whitespace despite the no-Python direction. No Python model or artifact was
+added. Those assertions are not semantic verification; no further Python
+checks are used. Primary verification is the narrow diff/scope and Git
+whitespace checks. No compiler test, build or performance sample was run.
+
+The source locator audit confirms that syntax-v0 arrow/bracket-row pages
+preserve source annotation occurrences but expressly leave type meaning and
+lowering undefined. Current HIR/types cannot supply the missing semantic
+elaboration by themselves. Thus this theorem's decorated finite profiles/maps
+remain an explicit input; a syntax walk is not evidence that arbitrary source
+has the required typing derivation. No annotation role or acceptance boundary
+has been inferred from Oracle implementation or parser shape.
+
 ### Selected typed-value transport and conditional theorem package
 
 This slice follows pushed checkpoint `3bff85369`; the previous turn made
