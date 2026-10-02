@@ -17,6 +17,21 @@ computation interfaces. Row operations, handler residuals, callback effects,
 and SCC lifecycle steps are derived views or relational compositions, rather
 than separate source-site constraint systems.
 
+### Later source decision: callback visibility under `Force`
+
+The user's 2026-10-02 decision supersedes the imported-`Force` A/B discussion
+and any provenance-based veto stated below. Visibility during an active
+callback is determined by the concrete typed callback boundary visible at
+the receiver-local handler. A request revealed by forcing a caller-owned
+thunk inside the callback's complete `CallView` is eligible under that same
+concrete contract as a direct callback request. `Force` exposes latent
+computation but creates no authority. Caller origin, dynamic event identity,
+and symbolic `K,D` remain intact and event-specific. Without the concrete
+contract, there is no incidence from wildcard rows, family equality, surface
+rows, or handler ownership. The incidence ends with the receiver/handler
+activation. Older A/B passages below are historical analysis, not unresolved
+policy.
+
 The design target remains soundness and principality relative to the selected
 expressible abstraction. Exact execution traces are the soundness reference;
 the inferred interface may conservatively over-approximate them. No
@@ -1394,7 +1409,7 @@ alter runtime selection.
 | Discriminator | Consequence of the selected default | Remaining proof obligation |
 |---|---|---|
 | Escaped callback under a fresh caller handler | Preserve latent request and lineage; allow handling only if ordinary current `Visible` and ordered search derive it | Derive the fresh-handler/source-origin join; maker grant alone proves neither eligibility nor ineligibility |
-| Mixed-origin callback and caller thunk | Keep event origins and each symbolic `K,D` incidence distinct; family equality transfers nothing | Prove closure/Force/application transport in one valuation; the separate imported-Force A/B gate remains open |
+| Mixed-origin callback and caller thunk | Keep event origins and each symbolic `K,D` incidence distinct; use the visible concrete callback contract for requests in its complete `CallView` | Prove closure/Force/application transport in one valuation; family equality alone transfers no authority |
 | Ordinary effectful closure | Retain its latent effect and use the same ordinary handler relation | Prove the escaped case is a consequence of the same relation, not a callback-only rule |
 | Repeated request with raw shallow resumption | A fresh handler may consume one request without erasing an unhandled suffix | Compute the complete handler image over reachable continuations |
 | Ordered selection with typed incompatibility | Search selects by ordinary runtime/source order and visibility; an actually selected incompatible arm makes the typing derivation fail | Prove universal `OpCompat` over reachable selected events |
@@ -1720,10 +1735,12 @@ premise for direct callback requests, forwarded thunks, wrappers, and mixed
 computations. The frozen reference describes the callback contract but does
 not prove this successor derivation.
 
-**Open contract-scope question: imported `Force`.** The current constraints do
-not decide whether the exact callback contract also connects an inherited
-caller request when the callback explicitly forces a caller-owned thunk while
-the receiver handler is active. Two source relations remain possible:
+**Historical pre-decision analysis: imported `Force`.** The following A/B
+alternatives record the analysis before the user's 2026-10-02 decision and are
+superseded by the later source-decision note near the start of this draft.
+The adopted rule is concrete typed-boundary visibility for direct and
+Force-exposed requests alike; `Force` creates no authority and provenance does
+not veto the contract.
 
 - The contract covers the complete executed callback computation. `Force`
   preserves the request's caller origin and may derive a separate capture
@@ -1755,7 +1772,7 @@ event; each such event needs its own source-flow and visibility derivation.
 The finite inference presentation may quotient these execution witnesses only
 after proving that the quotient preserves handler selection.
 
-**Conditional Force/dispatch composition lemma (policy-parametric).** Fix one
+**Historical conditional Force/dispatch composition lemma (policy-parametric).** Fix one
 assignment `ν` and one complete represented `Force` derivation. Each request
 actually exposed on that derivation inherits the source computation lineage of
 the delayed computation, while its typed endpoints and every dependent `K,D`
@@ -1952,23 +1969,17 @@ displayed `Adapt` equations, conditional on the source `Force` and value-boundar
 preserving their inherited interface coordinates. It does not transfer an
 outer capture entitlement to effects newly produced by an unrelated conversion.
 
-**Returned-thunk caller-hygiene discriminator.** The origin premise must be
-tested on the value-flow edge, not inferred from family equality. Fix one
-assignment and two same-family requests `q_cb` and `q_caller`. If a returned
-thunk exposes a request with callback computation lineage `o_cb`, and the
-source argument contract already derives `Capture(o_cb,h)`, then forcing that
-thunk during nested result adaptation may preserve `Visible(q_cb,h,κ)` while
-`h` stays active and the same transport maps its typed payload and `K,D`. If
-the callback instead returns or forwards a caller-owned thunk with lineage
-`o_caller`, `Capture(o_cb,h)` does not derive `Capture(o_caller,h)`; forcing
-`q_caller` cannot borrow the callback's entitlement merely because its family
-and payload match. An independent caller-side derivation may still make
-`q_caller` visible. Lineage therefore belongs to each exposed request, not to
-one whole thunk: a callback-created wrapper that forces a caller-owned thunk
-must preserve the inner request's `o_caller`, and a thunk combining both
-computations must retain both origins and their separate `K,D` incidences.
-Which origins a source value/force relation exposes remains to be proved; this
-discriminator does not define them or add a source-site rule.
+**Returned-thunk caller-hygiene discriminator (updated by source decision).**
+Fix one assignment and same-contract callback requests `q_cb` and
+`q_caller`, where the latter is exposed by forcing a caller-owned thunk inside
+the callback's complete `CallView`. Both are visible to the receiver-local
+handler when the same concrete callback contract exposes their operation;
+their origins, dynamic event identities, and `K,D` incidences remain
+separate. Visibility follows the typed boundary and event path, not a transfer
+between origins and not family equality alone. If the thunk is forced only
+after the receiver/handler activation has ended, its old callback incidence
+is gone and ordinary current-caller visibility applies. A mixed thunk keeps
+both request events and their separate origins and `K,D`.
 
 This per-request stability is a consequence of the existing resumable bind
 equation, once `q` is observed with its origin and typed incidence:

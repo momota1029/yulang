@@ -18,12 +18,14 @@ search, and raw resumption.
 
 The theorem preserves an already-derived callback capture incidence through
 nested call/adaptation/`Force` transitions while its receiver and handler
-remain active, as selected by the user. Origin and `K,D` remain unchanged;
-lineage alone grants no eligibility or mask, and no maker activation survives
-return. It is parametric in the remaining milestone-1 choice of whether
-forcing a caller-owned thunk during callback execution creates a new
-receiver-local incidence or only transports one already established. The
-preservation instruction alone does not decide creation.
+remain active, as selected by the user. The selected candidate source relation
+also makes an `E` request exposed by forcing a caller-owned thunk visible when
+the callback's complete `CallView` is under a concrete capture contract that
+exposes `E`. The contract, not `Force` or hidden provenance, supplies the
+authority. Origin, dynamic event identity, and `K,D` remain unchanged. A
+caller-owned request performed by the receiver's own body is outside that
+callback boundary. Lineage alone grants no eligibility or mask, and no maker
+activation survives return.
 
 ## 2. Complete operational observation
 
@@ -130,20 +132,30 @@ a conservative complete-interface image, but not an empty or partial one.
 Later, a finite presentation must prove its denotation covers this transition
 system and its universally quantified future-use relation.
 
-## 4. Compositional simulation theorem
+## 4. Exact complete-interface embedding
 
-**Theorem (ordinary source execution is simulated by complete interfaces).**
-Fix `π`, `σ`, `ν`, and a source-well-typed initial configuration `C`. Suppose
-there is an initial interface `I₀` with `C Rν,σ,π I₀`, and forward coverage
-holds for every primitive transition in the supported machine: expression
-execution, closure application, typed value adaptation, thunk construction/
-`Force`, operation request, and shallow-handler search. Stateful bind is
-covered by the reusable lifting lemma below. Then
-every finite source execution prefix, return, and request suspension has a
-matching path in `Psrc(C)`, and each matching state remains related by `R`.
-Every typed resumption of a matched request extends both paths while preserving
-`R` and the same `ν`. Consequently the contextual source relation is covered
-fiberwise by the complete-interface transition system.
+The complete interface for this milestone is semantic and potentially
+infinite; it is not yet the finite presentation used by an inference engine.
+For a candidate source configuration `C` at assignment `ν`, define
+`Eν,σ(C)` to contain its current value roots, live store, ordered activations,
+lineage, typed request/resumption interface, and every latent closure/thunk
+behavior under admissible future interactions. Request observations retain
+the source origin, dynamic event identity, and joint `K,D` incidence. The
+interface uses the same lexical binder map `σ` and assignment `ν` as the
+source configuration. Its transition rules are the relational images of the
+source rules described in the ordinary-computation package, with stateful
+bind interpreted by the bind equations above.
+
+**Theorem (source execution is simulated by the exact complete interface).**
+For the candidate source machine, every well-typed configuration `C` has the
+initial related interface `Eν,σ(C)`. Every source step
+`C →π,σ,ν C′` has a matching interface image
+`Eν,σ(C) →#π,σ,ν Eν,σ(C′)` and the successor remains related. This covers
+every finite prefix, return, and request suspension. For every source-
+admissible typed response and reachable well-typed resumed state at the same
+`ν`, the interface continuation steps to the embedding of the source resumed
+configuration. Thus the complete contextual relation is covered fiberwise,
+including latent future use and resumptions.
 
 The common invariant for every image step is:
 
@@ -175,46 +187,52 @@ The common invariant for every image step is:
 
 ### Proof
 
-Use guarded coinduction on `R`, with induction on the finite interaction
-context exposed at each guard. For each source step, apply forward coverage to
-obtain the matching interface step and successor relation. A value/return
-step uses the identity image. Source sequencing is relational composition at
-the shared intermediate value and configuration. The return bind clause
-composes the next computation; the request bind clause preserves the request
-and maps the appended computation into its saved continuation. At suspension,
-use the resumption clause of `R` for each source-admissible response and
-reachable live state. It supplies the next related configurations without
-resetting state or changing origin. Where search unwound an invocation frame,
-primitive coverage must image its continuation wrapper installing a
-fresh/resumed occurrence before the saved suffix and `ReturnFromInvocation`,
-and removing exactly that occurrence on normal completion. This obligation
-cannot be discharged by lineage preservation alone or by reinstating the
-selected shallow handler or exited maker handlers.
+Relate `C` to `Eν,σ(C)` by equality of the source-observable projections and
+the included complete future interaction relation. Initial relatedness is
+therefore immediate and does not assume a separately chosen interface. Prove
+the step clause by induction on the source transition derivation:
 
-The bind lifting lemma below derives compositionality from the atomic rule
-images. The application rule is the composition of callee evaluation,
-argument evaluation, and `ApplyValue`. Function adaptation is a composition
-of argument adaptation, call, and result adaptation. The identity, forced,
-delayed, and thunk-to-thunk cases use the same typed-boundary image; a force
-exposes the latent source computation only at that transition. The shared
-assignment and joint `K,D` incidence are carried through each composition.
+| Source transition | Complete-interface image |
+|---|---|
+| expression evaluation and return | project the same current value and live configuration |
+| closure application | use the same lexical closure body, caller store and activations; push its invocation frame in both configurations. A suspended call carries the same re-entry wrapper through unwind and reinstalls only that invocation occurrence on resume |
+| typed value adaptation | compose argument, call, and result relations with the same binder map `σ` and assignment `ν`; one map renames all type/effect/`K,D` views, so no endpoint is independently re-instantiated |
+| thunk construction / `Force` | construction stores the latent relation; `Force` exposes its next request without changing origin or `K,D`. During an active concrete callback `CallView`, visibility comes from its declared capture contract for both direct and force-exposed requests |
+| operation request | instantiate declaration binders using the request site's fixed lookup map; copy operation, payload, event identity, origin, and joint `K,D`; embed the same continuation |
+| shallow-handler search | follow the same ordered active candidates, current concrete boundary and visibility evidence, selected arm or forwarding rule, and raw continuation; `OpCompat` checks selected arms without changing search |
 
-For a shallow handler, induct on ordered search and the source arm list.
-Pattern and guard computations compose before the next arm decision. A
-selected arm is imaged outside the selected activation and receives the raw
-continuation. A forwarded request advances to the next active candidate and
-adds the source-defined re-entry to the saved continuation. Every resumed
-suffix therefore re-enters the same simulation relation at its actual
-configuration. Clause 4 preserves candidate-specific eligibility, and
-clause 5 preserves the raw suffix. The proof uses the handler transition
-itself; it does not infer subtraction from immediate support.
+For stateful sequencing, use the bind lifting lemma. In its return case,
+source and interface apply their continuations to the same related value and
+full live configuration. In its request case, both append the continuation;
+after every admissible resumption the resumed pair lies in the finite
+resumption closure used by the lemma. The same `ν` is used throughout, so
+typed-family formulas remain joined with all dependent `D` views.
 
-The future-use clause of `R` handles latent closure and thunk behavior and
-request continuations; finite-prefix induction alone would not establish
-those observations. The final fiber condition follows from clauses 1 and 3:
-every composed predicate is interpreted under the single joined assignment
-and remains attached to every dependent output view. This proves the
-conditional simulation claim.
+For closure/thunk future use, the complete interface stores the source
+latent relation rather than only its emitted prefix. Any admissible
+application/force is consequently another induction case above. This proves
+the future-use clause by induction on the finite interaction context, nested
+under the closure/thunk constructor; the next source transition is observed
+before the induction recurs. For a suspended request, the interface stores
+the actual continuation and live state. The resumption case quantifies over
+the same typed response and resumed configuration on both sides, so it
+reduces to the source transition simulation without an arbitrary-state or
+store-snapshot premise. Shallow selection passes the raw continuation
+outside the selected activation; forwarding adds only source-prescribed
+re-entry for still-enclosing handlers. If search unwound an invocation frame,
+its continuation wrapper reinstalls exactly the resumed occurrence before the
+saved suffix and removes it on normal completion. No store snapshot or exited
+handler is restored. Guarded coinduction over requests then proves resumption
+preservation at the same `ν`.
+
+This is an exact semantic embedding, not a finite solver construction. Its
+adequacy follows from the explicit case simulation above; it makes no claim
+that `Eν,σ(C)` has a finite representation or that a finite presentation is
+principal. Those are the next milestone's proof obligations.
+
+The exact embedding proves source adequacy only at the semantic carrier
+level. In particular, it does not establish that a finite symbolic `P` can
+present this relation or that a solver computes a principal one.
 
 ### Bind lifting lemma
 
@@ -275,9 +293,8 @@ Relational composition is associative by reassociating intermediate related
 value/configuration witnesses subject to the same reachable-return premise.
 Consequently call-by-value application,
 argument/result adaptation, and sequencing after `Force` are instances of
-this lemma. The lemma does not prove the atomic closure/handler/force images
-or the admissibility of their responses; those remain the primitive coverage
-premises of the main theorem.
+this lemma. It supplies composition only; atomic closure/handler/force images
+are the separate cases in the exact-interface simulation proof in §4.
 
 ## 5. Why this is one theorem, not separate site rules
 
@@ -287,34 +304,17 @@ ordinary source transition system. Row union, filtering, and handler residual
 support are projections after those relational images; they do not enter the
 simulation proof as independent semantics. Callback capture is only one
 receiver-local visibility premise for an event whose derivation crosses the
-relevant callback boundary; receiver-body events use ordinary visibility.
-Capture creation follows fixed policy parameter `π`, while already-derived
-incidence preservation is selected.
+relevant typed callback boundary; receiver-body events use ordinary
+visibility. Direct requests and requests exposed by `Force` within one
+callback `CallView` use the same concrete capture contract, with event origin
+and `K,D` kept distinct.
 
 This theorem deliberately proves only source execution into the complete
 relational carrier. It does not claim that a finite `P` exists, that a solver
 computes the least representable `P`, or that generalization admissibility is
 proved. Those are the next representation and principality gates.
 
-## 6. Exact closure boundary
-
-The proof above is a conditional simulation theorem. Its application to
-Yulang source semantics is not yet certified. The imported-thunk
-incidence-creation policy must be selected, and the primitive forward-simulation clauses and initial relation must then be proved:
-
-- Every primitive transition must preserve the lexical binder map `σ` on
-  lookup, application, callback, recursive root, and request occurrence.
-  The selected map is capture-avoiding and shared across each declaration
-  binder's value, latent effect, payload/result, and `K,D` occurrences;
-  `Force` does not instantiate again. This is a source rule of the candidate
-  machine, not a request-family grouping rule. The full admissibility of
-  generalization across stores/effectful right-hand sides remains in the
-  later lifecycle theorem.
-- The selected `Capture` incidence must be shown to follow the complete
-  source `CallView` through every callback call/adaptation/force transition.
-  Preservation of an established incidence is selected; creation for a
-  caller-owned thunk forced during callback execution remains the single
-  policy choice. Coverage must be proved for whichever policy is selected.
+## 6. Source ownership and scope of the result
 
 ### Selected lexical ownership for one scheme lookup
 
@@ -338,9 +338,9 @@ request-family grouping mechanism:
    instances; equal operation/family heads do not identify their binders.
 
 This uses one lexical substitution law for values and effects and directly
-preserves the same-binder invariant required by `K,D`. It is the selected
-source rule for this candidate machine. The syntax reference and retired F5
-implementation do not establish effect generalization; this rule defines
+preserves the same-binder invariant required by `K,D`. It is the source rule
+of this candidate machine, not a claim that the current syntax reference or
+retired F5 implementation already specifies effect generalization. It defines
 lookup ownership only and does not claim a generalization theorem. No Oracle
 routing behavior is used to derive it.
 
@@ -352,81 +352,42 @@ sides; this package imports no value restriction and does not claim that
 store-root exclusion alone suffices. Generalization must preserve source type
 and store relations together.
 
-### Selected preservation and remaining incidence-creation choice
+The exact-interface theorem proves initial relatedness by choosing
+`I₀=Eν,σ(C)` and proves every primitive image by case analysis on the
+candidate source transition, using the table and the bind-lifting lemma in
+§4. Its future-use proof opens each admissible closure/thunk interaction into
+the same source rule cases; its resumption proof uses the same typed response,
+live state, and `ν` on both sides. It therefore closes the source-to-exact-
+interface adequacy milestone for this candidate semantics.
 
-An already-derived `Captureν(q,h)` incidence is preserved through nested
-calls, adaptation, and `Force` while the same `(r,a,h)` is active. It applies
-only to a source derivation crossing callback argument boundary `a` toward
-`h`; a request generated by the receiver's own body follows ordinary ordered
-handler visibility. Handler ownership, family equality, wildcard rows, and
-residual upper bounds cannot establish incidence. The event retains origin,
-identity, and joint `K,D`. No exited activation is restored, and retained
-lineage creates neither a grant nor a maker mask.
-
-For a caller-owned thunk forced during callback execution, the remaining
-milestone-1 choice is (A) create a new receiver-local incidence when its exact
-operation is admitted, or (B) preserve only an incidence already established
-by the callback-boundary derivation. The user's preservation choice does not
-by itself reject either creation policy. The simulation schema fixes one
-policy as a parameter and requires coverage for that policy. Ordinary caller
-handling after maker return is already selected under both alternatives.
-
-Closure and thunk re-entry uses the current caller's live store and ordered
-active source activations, pushing/popping only the current invocation frame.
-A suspended invocation carries its re-entry wrapper through search unwind;
-resumption reinstalls a fresh/resumed call-frame occurrence before its saved
-suffix, and normal completion removes precisely that occurrence. Coverage
-must prove these transitions preserve the actual live store and required
-lineage without reinstating consumed shallow or exited maker handlers.
-Lineage data alone does not supply frame re-entry. Existing active incidence
-is preserved only under its already-stated activation premises. At dispatch, coverage must match the actual `C_h`: ordered
-search reaches `h`, every applicable current boundary admits the event, the
-exact operation is covered, and the selected arm satisfies `OpCompat`.
-Maker expiry removes maker premises only; unrelated active boundaries remain.
-
-The local simulation relation `R` also has to be realized concretely for
-closures, thunks, and resumptions. The proof must show that every source step
-has an interface image, and that related returned values quantify over all
-typed future uses. Merely preserving the five coordinates below is
-insufficient: an image that omits a latent closure request can preserve current
-state/origin/formulas and still fail when the closure is later called. Likewise,
-resumption quantification is over source-admissible responses and reachable
-well-typed stores at the same `ν`, not arbitrary responses or corrupted
-states. `OpCompat`, store preservation, and frame re-entry must establish that
-the admissibility premise survives each resume.
-
-The ownership draft also needs the generalization-admissibility theorem: a
-scheme may freshen only the binders its source boundary permits, and no binder
-still shared with a reachable mutable store may be copied independently. This
-is an ownership/lifecycle condition on the same complete relation, not a
-per-fixture special case. Its exact source boundary is not determined by the
-current pure F5 contract.
-
-These are source-semantics premises, not solver implementation gaps.
-Conditional relational transport is available for any fixed `σ`; no theorem
-can show that a successor inference result preserves Yulang's intended
-sharing until the source relation defines it. Likewise, exact image
-construction by definition would make forward coverage vacuous and certify
-no finite inference procedure. The next proof must discharge the displayed
-simulation obligations for the selected source rules, not rename them as
-invariants. No Oracle routing rule supplies missing authority.
+This exact interface is an extensional semantic object and may be infinite.
+The result does not prove a finite `P`, a decision procedure, finite
+principality, or that the current Yulang typing implementation realizes the
+candidate source rules. In particular, effectful lookup/generalization is
+outside the current syntax-reference authority; lifecycle admissibility for
+shared stores and effectful right-hand sides remains Milestone 4. The next
+gate is to derive a finite symbolic presentation of this exact relation and
+prove soundness/principality relative to that presentation.
 
 ## 7. Status and next gate
 
 This is a theorem package candidate, not an authoritative semantics. It
-consolidates existing bind, adaptation, handler-image, ordered-search, and
-`K,D` transport evidence into one simulation argument. Its first bundled
-review found missing forward coverage and future-use obligations; the
-relation above is the repair. The remaining milestone-1 decision is the imported-thunk incidence-creation
-choice above; ordinary escape handling and preservation of established active
-incidence are selected. A subsequent delta review should inspect the selected
-clause and its dependent coverage obligations without restarting fixture-level
-reviews. The conditional schema proves no primitive coverage, initial
-relation, universal future-use premise, or admissible-resumption premise by
-itself; those remain proof obligations before adequacy can close.
+consolidates bind, adaptation, handler-image, ordered-search, and `K,D`
+transport into one exact-interface simulation proof. Its first bundled review
+found missing forward-coverage and future-use obligations; §4 now gives the
+initial relation, primitive case simulation, and contextual future-use and
+resumption argument for the candidate machine. The user's 2026-10-02 decision
+closes imported-Force visibility: concrete typed callback visibility applies
+uniformly to direct requests and requests exposed by `Force`, without
+provenance-based veto or authority creation by `Force`. Ordinary escape
+handling and preservation of established active incidence are also selected.
+This closes Milestones 1–2 for the candidate semantics at the exact
+relational-carrier level.
 
-No compiler implementation or tests follow from this draft. After source
-semantics is fixed, the next task is to instantiate the theorem against every
-supported transition in the ordinary machine and either close adequacy or
-exhibit a concrete source execution not covered by the complete interface.
-Only then derive and prove the finite presentation and its principality.
+The remaining source-language gap is whether an Authoritative Yulang
+typing/evaluation relation supplies the candidate lookup ownership and every
+transition listed in §4. This exact interface may be infinite; the result
+does not prove a finite symbolic presentation, a decision procedure, or
+principality. Milestone 3 must construct that presentation and prove its
+soundness/principality, or identify one precise obstruction. No compiler
+implementation or tests follow from this draft.

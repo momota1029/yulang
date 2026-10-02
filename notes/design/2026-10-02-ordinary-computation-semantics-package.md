@@ -1,7 +1,7 @@
 # Ordinary source computation semantics: milestone package
 
 Date: 2026-10-02
-Status: Draft; selected source rules with one remaining incidence-creation choice; adequacy and principality unproved; not implementation authority
+Status: Draft; coherent candidate source rules; adequacy and principality unproved; not implementation authority
 Scope: calls, closures, thunk force, operation requests, callback boundaries,
 and shallow handlers for the ordinary effect sublanguage
 Supersedes: none
@@ -202,6 +202,23 @@ callback `Capture` premise. Callback `Capture` is required only for an event
 whose source derivation crosses the relevant callback argument boundary
 toward that receiver-local handler.
 
+Visibility at the candidate handler is determined by the concrete typed
+callback boundary visible there, not by hidden provenance of the computation
+that produced the request. When the boundary exposes concrete effect `E`, an
+`E` request exposed during the callback's complete `CallView` is eligible for
+the receiver-local handler, including a request revealed by forcing a
+caller-owned thunk, subject to ordinary ordered search and every other
+applicable current boundary. `Force` only exposes latent computation; the
+callback contract supplies the authority. The request keeps its caller
+origin, dynamic event identity, and symbolic `K,D`. Without a concrete
+capture contract, no callback incidence follows. `[_]`, family equality,
+surface rows, and handler ownership alone confer none. A direct callback
+request and one revealed by `Force` have the same visibility under the same
+concrete callback effect type. For example, under `(() -> [E] A)`,
+`\() -> perform E` and `\() -> t` where `t : [E] A` have the same
+callback-boundary visibility. The incidence ends with the receiver/handler
+activation.
+
 `Capture` is scoped to `(r,a,h,q,ν)`. The user's selected preservation rule
 transports an already-derived incidence through nested calls, adaptation, and
 `Force` while the same receiver and handler activations remain active and the
@@ -209,15 +226,14 @@ same event relation is transported. It does not grant eligibility to a new
 nested handler. When search leaves `r`, its handler frames and incidence are
 no longer active; latent effect, origin, `K,D`, and runtime lineage remain.
 
-One milestone-1 source-policy choice remains: for a caller-owned thunk forced
-during callback execution, does that `Force` (A) establish a new incidence at
-`(r,a,h)` when the exact operation is admitted, or (B) transport only an
-incidence already established by the callback-boundary derivation? The
-preservation instruction selects transport of an existing incidence, not its
-creation for an imported thunk. Both alternatives preserve caller origin and
-`K,D`, ordinary receiver-body handling, and ordinary caller handling after
-escape. Until explicit selection, the source simulation is parametric in this
-incidence-creation policy; the ordinary escape default is already selected.
+The selected candidate rule above treats direct callback requests and
+caller-owned requests exposed by nested `Force` as instances of one callback
+`CallView`. It does not make `Force` a source of authority. Their shared
+visibility follows from the same concrete callback effect type; their origins
+and `K,D` remain event-specific. A caller-owned request evaluated by the
+receiver's own body is outside the callback relation and uses ordinary
+visibility. Thus the typed boundary determines eligibility while provenance
+remains an independent observation in the common relation.
 
 At a handler outside an exited receiver, visibility is derived from the
 ordinary current boundary path after the actual unwind. No premise asks that
@@ -238,7 +254,7 @@ candidate-indexed relation gives the three cases:
 This is a common scope relation, not a callback-versus-ordinary selector. The
 source-adequacy theorem must show that every source call/adaptation/force
 transition produces exactly the `CallView` incidences of the selected
-incidence-creation policy. The runtime lineage
+typed-boundary relation. The runtime lineage
 mapping and candidate configuration must preserve every eligibility-relevant
 coordinate, including active frames, request IDs, and live state. The
 ordinary caller eligibility after escape follows from the active-sequence
@@ -311,12 +327,16 @@ theorem package.
 
 ## 7. Proof order and non-goals
 
-This package records the selected ordinary source rules for the supported
-call/closure/force/request/shallow-handler sublanguage. The selected
+This package records the coherent candidate ordinary source rules for the
+supported call/closure/force/request/shallow-handler sublanguage. The selected
 callback-incidence preservation rule follows the user's decision through the
-complete callback call view without a historical maker mask. Milestone 1 is
-not fully frozen: only the imported-thunk incidence-creation choice in §4
-remains. After selecting that choice, prove source-to-complete-interface adequacy for the complete machine,
+complete callback call view without a historical maker mask. The user's
+2026-10-02 decision fixes visibility by the concrete typed callback boundary:
+direct requests and requests exposed by caller-owned `Force` have equal
+eligibility under that type, while origin and `K,D` remain distinct. The
+source ownership map per scheme lookup is specified in the adequacy candidate
+and still needs theorem-level validation.
+Prove source-to-complete-interface adequacy for the complete machine,
 including all force/adaptation positions, ordered visibility, callback origin,
 shallow raw resumptions, and transport of `ν,K,D`. Then derive a finite
 symbolic presentation and prove its soundness/principality. Only after that
@@ -332,8 +352,8 @@ soundness/principality must have a concrete conflict witness, the behavior
 dropped, the successor rule, and final-acceptance impact recorded before it
 is treated as an accepted compatibility difference.
 
-No implementation is authorized by this draft. One bundled theorem-package
-review has been completed and its findings incorporated; the remaining
-receiver-local `Force` scope choice requires explicit user approval, followed
-by a delta review of that clause, before this document can become
-authoritative.
+No implementation is authorized by this draft. The concrete callback-boundary
+rule is selected by the user's 2026-10-02 decision and received focused
+compiler-referee delta review with no major finding. The exact-interface
+theorem package receives one bundled review before the candidate semantics
+can advance to finite presentation and principality.
