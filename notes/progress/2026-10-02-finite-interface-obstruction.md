@@ -1716,3 +1716,59 @@ implementation remain open. Tasks/index and this progress record are
 synchronized. Static diff/whitespace checks only; no compiler changes,
 builds, tests or measurements (budget/consumption zero). Integration uses
 explicit staged paths and inspected outbound commits before normal push.
+
+### Constructed query control and joint shallow-handler image
+
+Previous goal turn: progress. The uniform-arm and scoped equality package
+is reviewed and pushed as `cc26e3978`. This turn revalidated the clean branch
+and attacked the remaining supplied ordinary execution/query routine.
+
+Source-realization §7 constructs finite-control administrative routines
+from the reviewed typed boundary and owner/view descriptions for a finite
+linked resolved template. Concrete observations, exact activation checks,
+profile/receipt path joins, incidence and grant checks become graph/list
+walks with linked queues and exact-tuple visited records. These queries run
+without source effects while their source roots/evidence remain fixed.
+Concrete finite evidence products terminate; original profile slots and
+dynamic identities are not replaced with family or value-pointer equality.
+
+The construction lowers those concrete routines before applying the existing
+weak-store abstraction. It does not compute absence by complementing may
+reachability, or replace visited concrete jobs with abstract-address-set
+membership. One abstract state may represent protected and unprotected
+configurations without grants; `not MayProtected` would suppress the latter's
+real capturing branch. Instruction simulation retains a finite matching path
+to each concrete true/false result. Extra abstract loops do not invalidate
+finite-path simulation; finite joint-state saturation remains terminating.
+
+The same generated control preserves ordered candidate unwinding and the
+source outside-selection equation. Original-event applicability is obtained
+at the yielding boundary, then patterns/guards/finish/arms run outside.
+Their new requests use current-context observation and search. Raw resume
+reconstructs only prescribed owner/view and forwarding frames. The output
+relation records requests crossing each output delimiter separately from
+predispatch observation, with packets, raw suffixes and `K,D` retained.
+
+The generated guarded graph instantiates the existing least-reachability,
+designated-fault safety and joint-image equations. A projection gives
+outward rows only afterward. This is a finite conservative presentation
+for the stated resolved input, not full source inference or an exact alias
+quotient. Unknown callable code/host responses require a linked provider or
+separately justified interaction summary. Source template generation,
+effective full predicates/scoped checking and the acceptance bridge remain
+open; no source rejection or implementation approval is selected.
+
+M3 budget: one bounded architect and two independent semantic/conformance
+package reviewers; at most one fresh repair-delta reviewer if required.
+Convergence requires no accepted blocking/major finding in query simulation,
+source phase order, outward-image construction and declared applicability.
+Checks are static document/diff inspection; no compiler changes, builds,
+tests or measurements (budget/consumption zero). Primary owns records and
+integration. Both independent reviewers returned no findings within the
+resolved-input envelope. They carried forward the existing symbolic predicate,
+source-map and primitive premises and did not certify source generation,
+all-source-fault reflection, unknown clients, full principality or lifecycle.
+No repair round or third reviewer was needed. Task, design index, header and
+the generic finite-safety source-gate locator are synchronized. Integration
+uses explicit staged paths, whitespace checks and full outbound-range
+inspection before normal research-branch push.

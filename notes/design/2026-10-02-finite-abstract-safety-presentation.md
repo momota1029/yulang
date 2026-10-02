@@ -238,9 +238,10 @@ proved; generalization, freshening, and intrusion remain Milestone 4.
 
 The companion `2026-10-02-source-realization-and-symbolic-basis.md` constructs
 the predicate inventory from a finite monomorphic descriptor graph and proves
-selected-fault reflection for its encoding. Its kernel simulation remains
-conditional on effective visibility/adaptation primitives. It does not yet
-derive the descriptors or uniform future interactions from full source.
+selected-fault reflection for its encoding. Its §7 now constructs ordinary
+visibility/query and shallow-control routines for finite linked resolved
+templates. General adaptation, raw-source descriptor generation and unknown
+future interactions retain their separate realization obligations.
 
 The finite carrier, local simulation, and principal-certificate results close
 their declared mathematical claims. Successor closure needs:

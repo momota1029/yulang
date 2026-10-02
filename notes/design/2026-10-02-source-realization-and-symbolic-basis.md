@@ -7,6 +7,7 @@ Approved-by: none
 Drafted-by: primary with bounded control/heap and symbolic-basis architect inputs
 Reviewed-by: compiler_referee and spec_auditor, independent package reviews, 2026-10-02; no findings within the declared conditional envelope
 Projection-basis-review: structural observation package and position-indexed admission repair reviewed; independent compiler_referee closure clean, 2026-10-02
+Execution-image-review: §7 constructive query/shallow-control package independently reviewed by compiler_referee and spec_auditor; no findings within the resolved-input envelope
 Supersedes: none
 
 ## 1. What this package establishes
@@ -19,9 +20,11 @@ lowered to that heap machine, and derives universal error reflection for
 selected-arm incompatibility. It does not assume finitely many ground types
 or bounded execution depth.
 
-Two remaining source definitions prevent an unconditional source-realization
-theorem: inductive callback-boundary relevance/visibility, and effective
-general value adaptation. Open-client interaction also remains separate.
+At the initial checkpoint, callback-boundary relevance/visibility and effective
+general value adaptation prevented unconditional source realization. The
+reviewed typed-boundary relation and §7 below now construct visibility queries
+for finite resolved ordinary templates. Raw-source template generation,
+general value adaptation and open-client interaction remain separate.
 These are not evidence of a non-finite presentation. The exact source
 embedding remains valid: it copies the source relations without establishing
 their effective implementation.
@@ -269,9 +272,10 @@ Its theorem covers the decorated operational kernel, conditional on supplied
 source profiles/maps, rather than deriving arbitrary raw-source elaboration.
 
 The kernel table is a compilation schema conditional on the finite source
-descriptors and wrapper transitions. It does not yet implement the unspecified
-visibility and adaptation primitives. In particular, a `DerivationLink` graph
-could store boundary evidence but is not proved to answer source relevance.
+descriptors and wrapper transitions. Section 7 expands visibility into
+concrete graph-query instructions for those resolved ordinary inputs, using
+the typed-boundary relation rather than an unexamined `DerivationLink` graph.
+Arbitrary source adaptation and template generation remain unproved.
 
 ## 5. Simulation and selected-fault reflection
 
@@ -400,3 +404,191 @@ Milestone-2 embedding and generic principal-certificate algebra need no new
 review unless these definitions change their premises. Generalization,
 fresh instantiation, intrusion, the next feasibility gate and implementation
 remain downstream of a complete source presentation and acceptance bridge.
+
+## 7. Construct the ordinary query and shallow-image control
+
+This section discharges the remaining supplied **routing routine** premise
+for a finite linked resolved ordinary template. It constructs the guarded
+execution image, with symbolic type predicates still interpreted under one
+assignment. It does not construct that resolved template or solve all its
+typing constraints from arbitrary source.
+
+### Input and finite control generation
+
+Use the finite linked descriptor graph from §2, the core's generated source
+consumers, the reviewed owner/view context grammar, and the common typed-flow
+descriptors. All callable bodies and primitive execution routines reachable
+in the linked context are supplied finite code. An external response that
+introduces callable code needs its linked provider or a separately proved
+interaction summary; it is not implicitly represented by an existing body.
+Unknown-shape conversions are not included by naming them `Adapt`.
+
+The finite profile/map states are those of typed-boundary §6's graph query.
+All fields are finite static labels or links to runtime records, including
+variable-length queues, paths, environments and dependency lists. A future
+source map that cannot be realized with these states/linked records needs
+its own realization proof. No unbounded type expression is hidden in a
+finite scalar field.
+
+Generate entry/exit and successor code labels for each core instruction.
+Use shared finite-control routines for list walking, exact identity comparison,
+queue insertion, visited membership and template-state transition lookup.
+Their loops jump back to the same labels. Recursive source definitions also
+retain code back edges; neither control construction unfolds recursion.
+
+Symbolic tests branch on formulas in the finite `P_Omega` basis; structural
+tests branch on record tags, scalar tests or runtime identity. This generates
+a symbolic analysis graph, not an implementation of runtime type reflection.
+Predicate satisfiability and full source checking are separate obligations.
+
+### Exact finite administrative queries before abstraction
+
+At a query boundary, hold the source roots and evidence fixed while running
+the administrative query. The query invokes no user computation and mutates
+only its private queue/visited/result records. Effectful source patterns,
+guards and arms are separate code, never administrative predicates.
+
+| Query | Concrete routine |
+|---|---|
+| current activity of an occurrence | walk the current active roots/list; compare exact occurrence IDs; saved heap reachability alone does not suffice |
+| observations for a fresh event | walk executing view delimiters, read their marked current ports, append event/occurrence/port records before dispatch |
+| typed profile/receipt path | start jobs at the event's recorded observations; traverse matching evidence edges in product with the supplied profile/map states and candidate owner |
+| incidence | for each actual path witness, test the exact handler, owner and original boundary receiver against current activity |
+| protection/grant | accumulate existence of an incident witness; for a grant additionally require exact receiver/owner equality and the original slot's `Admit_b,p,o` |
+
+A path job retains all tuple coordinates needed by the common relation,
+including original profile-slot/source tags. Matching joins use the same
+view, event and intermediate typed port. Equal family heads or equal value
+pointers cannot substitute for these joins.
+
+Use a queue and a visited set of **concrete job tuples**, stored as linked
+records. Pop a job, compare its full tuple with visited entries, skip it only
+on exact equality, otherwise mark it and enumerate the applicable outgoing
+transitions. A finite execution prefix has a finite evidence graph. Its
+product with the fixed finite query states and current candidate has finitely
+many distinct jobs; the visited routine therefore terminates, even when
+profile/evidence edges have cycles. Active and executing lists likewise have
+finite concrete length. The result equals the least path relation by the
+usual worklist invariant: visited jobs are reachable, and every unprocessed
+successor is queued. Exhaustion proves absence only for this exact graph.
+
+Compute `Visible` from the resulting exact `Protected` and `Grant` booleans
+and the source activity/coverage premises. This expands the common relation;
+it introduces no new authority, selector or source-specific exception.
+
+### Ordered shallow control, including effectful selection
+
+For an original request, walk candidates in source order, performing the
+source-prescribed unwinds between them. At the yielding candidate boundary,
+compute the original event's applicability in that boundary configuration.
+Then leave the candidate before executing its pattern/guard/finish/arm code,
+as required by the outside-selection source equation. The pending match
+retains the original applicability fact for that event, not a live grant for
+new selector or arm requests.
+
+All pattern/guard and value-arm code is generated with ordinary bind and
+pending-continuation records. If that code performs an effect, dispatch its
+new event in the current outer context; preserve the pending old match in
+the new raw suffix. Returning resumes that match with the current store.
+Exhaustion forwards the original request with only the source-prescribed
+forwarding wrapper. Selection supplies its raw suffix without the selected
+handler wrapper. `Selected(o,h)` is observed before static compatibility
+checking; incompatibility never changes selection into forwarding.
+
+Raw resumption reconstructs exactly the saved `Bind`, `Owner`, `View` and
+forwarding-handler frames. Owner resolution searches for the saved exact
+live occurrence and borrows it, or creates the permitted fresh executable
+occurrence. Completion acts according to owned/borrowed mode. Original
+boundary/receipt IDs are not rewritten by this executable-owner map. These
+are the existing owner-realization instructions, now composed with the same
+activity routine above. The selected shallow handler is never restored.
+
+### Abstraction must preserve the query program, including negative results
+
+Only after defining these concrete routines apply the existing weak-store
+abstraction to their instructions and their auxiliary records. A comparison
+of colliding abstract addresses permits both concrete equality outcomes.
+In particular, the visited structure remains an abstracted concrete data
+structure; it is not replaced by an exact set of abstract addresses.
+
+Why this matters: one abstract state can represent a protected state and an
+unprotected state at the same candidate, with no grant in either. A may-path
+query reports possible protection. Using `not MayProtected` as the concrete
+absence test then suppresses visibility in the represented unprotected state.
+It loses a real capturing branch, and may consequently omit a selected-arm
+fault or residual effect. Conversely, treating an address collision as a
+visited concrete job can skip a later distinct witness. These are failures
+of naive abstractions, not changes to source handler hygiene.
+
+The instruction-level simulation avoids those shortcuts: for every concrete
+query step its actual record and comparison outcome remain abstract choices.
+Induction on the finite concrete query run reaches a representing abstract
+return with the same Boolean result. Both true and false concrete outcomes
+are covered. Abstract runs may also return additional answers or loop through
+collisions; neither supplies a new source execution. Concrete query termination
+provides a finite matching abstract path; not every abstract administrative
+path must terminate. Saturation terminates on the finite joint abstract state
+space, including query queues and pending control. No timeout/truncation is
+used to decide a negative query.
+
+This proves weak simulation for these query/search/control routines under
+the stated resolved input. The same assignment and original `K,D` references
+are preserved by every step. It does not prove an exact alias quotient or
+approve possible loss of source acceptance from extra abstract paths.
+
+### Generate the outward image after routing
+
+Predispatch `Observe` and outward support are distinct. Add an output
+observation when a request crosses the particular invocation/force/handler
+output delimiter being summarized, or exits the root. A request handled
+inside that delimiter contributes no outward request there; a request handled
+later outside it has already crossed that port. Match/arm requests follow
+their own current context. Preserve the complete request packet and raw
+suffix as part of the observation, not only its family head.
+
+Return and latent-value observations likewise retain their typed packets,
+source path correspondences and dependency references. Constructing a latent
+value emits no observation of its future execution. When the linked context
+later consumes it, ordinary source code enters its own corresponding view.
+Resumptions use their current store and new event observations; they are not
+erased because the earlier request was consumed. Thus a raw suffix that
+emits the same family can contribute an outward effect after shallow handling.
+
+Enumerate the generated finite control/heap states and instruction transitions.
+Let `G_ij` be their Boolean guards, `I_i` initialization, `Bad_i` the §5
+universally reflected designated faults, and `Out_i(w)` the finite complete
+output-observation alternatives. Define, in the finite Boolean algebra,
+
+```text
+R_i = I_i or disjunction_j (R_j and G_ji)          [least fixed point]
+S   = Base and not disjunction_i (R_i and Bad_i)
+U(w)= S and disjunction_i (R_i and Out_i(w)).
+```
+
+`Base` retains source and generic-arm checking constraints. The graph
+construction does not solve them. Finite worklist reachability computes
+`R`; Boolean operations produce `S,U`. This is the existing principal
+certificate theorem instantiated with constructed ordinary control/query
+routines. Its principal claim is relative to this conservative graph and
+designated-fault judgment. Coverage of every source fault is still required
+for full type safety.
+
+An outward row is a derived projection of `U`: join the guarded family
+instances of outward request packets at that port. Keep `S`, the joint
+packet relation and live `K,D` alongside it. No family is subtracted merely
+because a generic arm exists, and no removed row entry discharges a dependent
+type predicate. There is no new source row constructor in these equations.
+
+### Scope of closure
+
+For finite linked resolved ordinary templates with the stated primitive and
+typed-map inputs, this construction removes a supplied `Visible`/route oracle
+and expands ordered shallow image computation into guarded finite control.
+Known admitted adapter code can participate if already supplied and proved;
+arbitrary adapter or raw-source shape generation is not derived here.
+
+Still open: generation of all resolved source templates, effective complete
+type/subtype predicates and scoped checking, reusable parametric summary
+completeness, foreign interaction summaries where code is not linked, and
+the acceptance bridge for this conservative abstraction. Neither full
+Milestone 3 nor lifecycle/implementation readiness follows from this result.

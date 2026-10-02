@@ -641,6 +641,38 @@ raw-suffix/store assumptions explicit: operation-map instantiation alone
 does not establish the suffix's effect bound. Static diff checks only; no
 compiler tests, builds or measurements ran.
 
+## Constructed ordinary query and execution image
+
+Source-realization §7 expands the reviewed typed-boundary/owner relations
+into finite-control heap routines for a finite linked resolved ordinary
+template. Exact administrative scans use queues and visited lists of
+concrete job tuples, with no user code during the query. Only afterward
+does weak-store abstraction apply to all instructions and auxiliary records.
+This removes the supplied `Visible`/routing-routine premise for that input.
+
+Negative visibility is preserved by instruction simulation, not by negating
+a may-path result. A collision of abstract addresses cannot establish exact
+identity or that a concrete query job was visited. Concrete scans terminate;
+some abstract scans may loop, while finite joint-state saturation still
+terminates and covers each concrete finite scan result.
+
+Search keeps original-event applicability from the yielding boundary, then
+runs patterns/guards/finish/arms outside the candidate. New events use the
+current outer context. Raw suffixes retain only the prescribed owner/view
+and forwarding frames. Output observations occur when requests cross their
+particular port delimiter, separately from predispatch observation. The
+constructed graph feeds the existing joint reachability/safety/image equations;
+generic arm validity does not justify whole-family subtraction.
+
+Remaining source gate: resolved template generation, complete scoped
+type/subtype predicates and checking, and reusable parametric summary
+completeness. Unknown external callable code/responses still require a
+linked provider or justified interaction summary. The graph is conservative;
+its source-acceptance bridge and all-source-fault coverage remain open.
+The full Milestone-3/lifecycle/implementation objective is unchanged.
+M3 semantic/conformance package review found no findings within this resolved
+input. Static diff checks only; no tests, builds or measurements ran.
+
 ## Main records
 
 - `notes/design/2026-10-02-parametric-component-linking.md` — finite grafting and exact joint linking; revised per-program proof target, source summary construction still open.
