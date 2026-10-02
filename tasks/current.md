@@ -795,17 +795,25 @@ obligations, and a proved decomposition of complete payload/response/Function
 checks. The named-row subcase is no longer an opaque realizability premise;
 general annotation generation and unknown client interfaces remain open.
 
-### User steering: existential scope via levels
+### Existential scope: eager checks on all derived comparisons
 
-The user requests generation/comparison-time level discipline rather than
-exit-time escape checks or a special logical inference mechanism: a witness
-introduced at level `l` must not escape to level `<= l`, while deeper local
-constraints may propagate. Implementation is not begun. The primary has
-asked whether "ordinary generic variable" retains the opened witness rigid
-(consistent with charter §20) or permits flexible specialization. This exact
-interpretation is pending; the independent admission/row proof does not
-depend on its representation. No temporary answer or elapsed time supplies
-approval to solve an opened witness from caller-private instances.
+Charter §22 records the user's generation/comparison-time level discipline.
+An existential introduced at `l` rejects comparisons/unification with types
+at level `<= l`; deeper internal generic constraints may propagate. The
+user clarified that transitivity eventually produces the direct comparison
+with `Int`, which is checked and rejected there. The primary withdrew the
+rigid-versus-flexible question: the alias sequence was not a counterexample
+to checking every derived comparison. There is no pending choice on that
+question, and no exit-time checker or special quantified solver is mandated.
+
+Operation-instance §8 specifies one guarded comparison entry, with dependency
+changes invalidating and requeuing affected comparisons and opposite-bound
+consequences. Under exhaustive coverage, its conditional invariant ensures
+every recorded comparison has current guard evidence at successful quiescence.
+Two independent M3 reviewers found no findings. The theorem does not supply
+complete path coverage, semantic guard sufficiency or source principality.
+Its proof quantifiers and the earlier equality kernel do not prescribe a
+separate rigid node or authorize narrowing an operation-local witness.
 
 The bounded frozen audit confirms levels belong to variables, not nullary
 constructors such as `Int`. Existing extrusion lowers effective variable
@@ -814,6 +822,13 @@ therefore follow aliases and transitive structural/bound dependencies, not
 birth levels alone. This is an implementation invariant to prove, not a
 refutation of eager checking or permission to adopt frozen extrusion as
 successor authority. No exit-time scan is proposed.
+
+Composite-type level definition remains a proof/representation dependency;
+fresh children cannot by themselves justify imposing a callable shape on a
+hidden generic payload. No max-only definition or special-case exception is
+adopted. Next derive the structural comparison levels and their preservation
+through the actual constraint rules, while retaining packet witness/`K,D`
+correspondence. Implementation remains a later gate.
 
 ## Main records
 

@@ -8,6 +8,7 @@ Drafted-by: primary with bounded architect and frozen-source audits
 Reviewed-by: compiler_referee and spec_auditor; scoped M3 package review; independent compiler_referee generic-arm correction delta, no findings
 Scoped-template-review: §§7–9 independently reviewed by compiler_referee and spec_auditor; no findings in the declared fragment
 Existential-opening-review: charter §20 and §§2–4,7–8 delta independently reviewed by compiler_referee and spec_auditor; no findings; full checking/lifecycle remain open
+Level-discipline-review: charter §22 and §8 eager comparison/conditional scheduling delta independently reviewed by compiler_referee and spec_auditor, 2026-10-03; no findings; composite levels and full semantic preservation remain open
 Supersedes: no source decision; refines the existing complete OpCompat obligation
 
 ## 1. Existing authority and the missing distinction
@@ -389,6 +390,81 @@ Generic validity alone does not calculate a handler's outward image.
 There is a small effective fragment within the checking template. It is
 useful for constructor/invariant endpoint equalities; it is not a replacement
 for source subtype checking.
+
+### User-selected level discipline and the kernel's limit
+
+Charter §22 selects an existential introduced at level `l` to reject
+comparisons/unification with types at level `<= l` when generated or compared.
+Above `l`, internal ordinary generic propagation is permitted. Every derived
+comparison, including transitive, alias and bound-replay consequences, must
+re-enter that same guard before committing a forbidden comparison or
+specialization. For `kappa <: X_inner` and `X_inner <: Int`, the derived
+`kappa <: Int` is therefore checked; the alias sequence is not a counterexample
+to fully guarded propagation.
+
+This is the selected checking discipline, not an exit-time scope check or
+a requirement for a special quantified-logic engine. The essential request
+package and uniform arm proof of §§2 and 7 remain semantic obligations;
+their mathematical quantifiers do not dictate runtime or solver machinery.
+No separate rigid IR node is prescribed. The syntactic equality algorithm
+below is a limited illustrative construction, not the adopted mandatory
+successor representation. Its conditional theorem and input fragment remain
+unchanged.
+
+Defining levels of composite types, covering all generation/propagation paths
+and proving preservation remain representation/proof tasks. This package
+does not invent their definitions or exceptions, or claim a complete level
+algorithm, principal source inference or implementation approval.
+
+### Common comparison entry and conditional guarded closure
+
+Use one common `Compare` entry for canonicalization, bound insertion,
+transitive opposite-bound replay and structural decomposition. Each route
+generates its comparison through the selected level guard before committing
+any forbidden mutation or specialization. Derived child comparisons and
+alias-normalized comparisons are not exempt. An implementation must not
+publish a partially successful closure when a pending comparison fails.
+
+For mutable endpoints, record the dependencies of each successful check.
+An alias, level or dependency change invalidates affected prior checks and
+queues them, together with affected opposite-bound consequences, for the
+same `Compare` entry again. A once-only pair cache without dependency or
+version invalidation is insufficient. This states the required scheduling
+invariant without selecting a concrete cache or dependency representation.
+
+**Conditional closure theorem.** Assume every comparison-producing route
+uses `Compare`, its guard is checked before a forbidden mutation, every
+relevant dependency change invalidates and requeues all affected checks and
+consequences, and processing is exhaustive before successful publication.
+At quiescence, every recorded comparison has passed the current guard under
+its current dependencies.
+
+**Proof.** Initially no unchecked successful comparison is published. At
+insertion, `Compare` establishes the guard result for the recorded current
+dependencies before the permitted mutation. A later relevant change marks
+the affected evidence invalid and queues its comparison and consequences;
+it therefore cannot remain certified merely by an old pair-cache entry.
+Rechecking either establishes current evidence or prevents successful
+publication. Induction over insertions and rechecks preserves this invariant.
+Exhaustive invalidation coverage and an empty pending queue at quiescence
+leave no recorded comparison justified only by stale evidence.
+
+The theorem is conditional on complete scheduling and dependency coverage.
+It does not prove semantic sufficiency of the guard, termination of the
+whole solver, principality or complete source acceptance. Comparison
+generation is still the checking site; no exit-time scope checker or separate
+rigid-node representation is required by this statement.
+
+Composite levels remain unresolved. In particular, taking only the maximum
+free-variable level is not justified for an open constructor. Schematically,
+for `put : forall a. a -> ()`, an arm applying its payload as `x()` demands
+a Function shape with fresh children. Those children's fresh levels alone
+cannot establish that the hidden declaration witness admits callable shape.
+This is a hypothetical discriminator for a max-only representation, not a
+counterexample to the user's discipline or a tested Oracle fixture. It
+introduces no source-case rule or composite-level definition. The original
+existential packet, uniform arm proof and all their semantic premises remain
+in force; their preservation by a chosen level representation is still open.
 
 ### Input and solution language
 

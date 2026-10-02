@@ -9,7 +9,7 @@ Reviewed-by: compiler_referee and spec_auditor, independent package reviews, 202
 Projection-basis-review: structural observation package and position-indexed admission repair reviewed; independent compiler_referee closure clean, 2026-10-02
 Execution-image-review: §7 constructive query/shallow-control package independently reviewed by compiler_referee and spec_auditor; no findings within the resolved-input envelope
 Guarded-closure-review: §8 independently reviewed by compiler_referee and spec_auditor, 2026-10-03; no blocking/major findings; minor pure-rule side-condition omission corrected by primary reference/diff inspection
-Admission-row-review: §9 independently reviewed by compiler_referee and spec_auditor, 2026-10-03; no findings within the explicit-list and eligible-row fragments; pending existential-level representation interpretation excluded
+Admission-row-review: §9 independently reviewed by compiler_referee and spec_auditor, 2026-10-03; no findings within the explicit-list and eligible-row fragments; separate existential-level representation work excluded
 Supersedes: none
 
 ## 1. What this package establishes

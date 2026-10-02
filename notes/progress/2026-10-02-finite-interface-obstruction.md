@@ -2053,3 +2053,57 @@ consult effective dependency levels after aliasing, not only birth levels.
 It does not refute a complete eager level discipline. Full structural type
 level definition, witness rigidity and preservation through all propagation
 paths remain to be specified/proved; no compiler experiment was run.
+
+### Eager existential checks include transitive comparisons (2026-10-03)
+
+Previous goal turn was progress: admission/row package `21045e2b9` was pushed,
+and the branch was revalidated clean. The user corrected the primary's
+remaining question: transitivity produces the direct comparison with `Int`,
+so the level guard rejects it at that point. The alias example therefore
+does not refute the user's fully guarded propagation. The primary withdrew
+the rigid-versus-flexible question; it is no longer a pending user decision.
+
+Charter §22 records the approved discipline: existential introduction at
+level `l`, rejection of comparisons/unification with levels `<= l` at
+generation/comparison, internal ordinary generic propagation above it, and
+the same check on every derived comparison. Essential existential request
+meaning and uniform-arm rejection remain semantic obligations. They require
+neither an exit-time escape checker nor a special quantified inference engine
+or separate rigid IR node. The earlier scoped equality kernel is illustrative,
+not a mandated successor representation.
+
+Operation-instance §8 gives one common guarded comparison entry. Alias,
+level and dependency changes invalidate affected old check evidence and
+requeue it with the affected bound consequences. Under complete route and
+dependency coverage, induction proves that successful quiescence leaves
+every recorded comparison checked under its current dependencies. A stale
+pair cache or partial publication cannot certify success. This conditional
+scheduling invariant is not a proof of semantic guard sufficiency, full
+termination, principality or lifecycle preservation.
+
+Composite type levels still need a definition and preservation proof. The
+open-constructor example concerns a hypothetical max-free-variable-level
+implementation: fresh Function children alone cannot justify treating an
+arbitrary hidden payload as callable. It is not a counterexample to the
+user-selected discipline or an executed source/Oracle fixture. No new
+source exception or composite-level representation is adopted here.
+
+M3 budget: one bounded architect, one documentary producer, two independent
+semantic/conformance reviewers. Both found no findings in the charter and
+operation-package delta. Convergence is no accepted blocking/major finding;
+no repair round was needed. Primary synchronized task, index, progress and
+review metadata, including removal of stale pending-choice wording.
+Verification: focused reference/diff inspection and `git diff --check` only;
+tests, builds and measurements budget/consumption zero. Integration inspects
+explicit staged paths and the complete outbound range before normal push.
+
+Independent next-direction audit: admission equality can be simplified when
+`Base and Reach and Inc` entails membership in the original capture list.
+That premise concerns the complete predispatch observation image, including
+entry Force, not merely outward/body support. Core §9's distinction between
+argument-entry and body interfaces prevents assuming domination from a pure
+body alone. The schematic parameterized-family interaction was not given a
+complete concrete source acceptance derivation; no new source counterexample
+or compatibility loss is claimed. Semantic endpoint equality/separation and
+complete invocation checking remain open. An unconditional head-only routing
+rewrite is not justified by this audit.

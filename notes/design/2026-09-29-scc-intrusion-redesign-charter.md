@@ -599,3 +599,33 @@ derives parameter roles and body bindings for these forms before body
 synthesis. Full annotation/pattern checking, conversions, unknown globals,
 Function subtyping, principal inference and lifecycle remain proof gates.
 This is source authority, not compiler implementation approval.
+
+## 22. User decision: existential levels guard every derived comparison (2026-10-03)
+
+The user selects the following discipline. An existential introduced at
+level `l` rejects comparisons/unification with types at level `<= l` at
+generation/comparison time. Comparisons above `l` permit internal ordinary
+generic constraint propagation. Every derived comparison re-enters the same
+guard, including transitivity, aliases and bound replay, before committing
+a forbidden comparison or specialization.
+
+Thus `kappa <: X_inner` followed by `X_inner <: Int` is not a counterexample
+to this discipline: propagation eventually derives `kappa <: Int`, and that
+comparison is checked and rejected by the same level guard. The primary's
+earlier rigid-versus-flexible question was an invalid objection to this
+fully guarded propagation and is withdrawn. No exit-time scope checker or
+special quantified-logic inference engine is required by this decision.
+
+Essential existential request opening, retained packet/witness correspondence
+and rejection of a narrowing generic arm remain semantic proof obligations.
+Mathematical `forall/exists` notation expresses those obligations without
+mandating runtime quantification or a solver representation. This decision
+does not require a separate rigid IR node; the scoped syntactic equality
+kernel is a limited illustrative algorithm, not a mandatory successor
+representation.
+
+Composite-type level definition, exact coverage of every comparison path,
+and preservation of this discipline remain proof/representation tasks.
+No definition, exception or completed full algorithm is selected here.
+User approval covers the stated level discipline only; source principal
+inference, lifecycle and compiler implementation remain unapproved gates.
