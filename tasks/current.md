@@ -44,7 +44,13 @@ many dormant identities, recursive stack frames, and saved continuations; a
 sound overflow fiber must preserve all re-entry possibilities. The exact best
 transfer may be uncomputable, while a top-fallback transfer may lose most
 subtraction precision. See the latest finite-event section of the feasibility
-record.
+record. This requirement refines existing `ReqFact`/bounded-lineage/
+`KontFact` work: the request-event, callback-invocation, contract-boundary,
+handler, route, and symbolic fiber must remain a joint record, and `UnknownKont`
+must cover arbitrary old/new identity relations through stores and re-entry.
+The existing Zero/One/Many stack projection proves only primitive push/pop,
+not captured-snapshot restoration. No second independent provenance ledger is
+being introduced.
 
 The callback `Capture` source-projection candidate was revised after review:
 the handler must be connected by the ordinary source relation to the exact

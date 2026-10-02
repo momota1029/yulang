@@ -328,3 +328,27 @@ The implementation recheck found the same architecture boundary: resolved
 expressions still have only `Lambda`, `Integer`, `Name`, and `Error`, and no
 runtime Force/handler/continuation state exists to exercise `π` or its transfer.
 Thus the new step is theoretical; no Rust prototype, tests, or builds were run.
+
+### Relation to the existing may-origin carrier
+
+The event references belong inside the existing request/continuation relation,
+not in another independently joined ledger. Current `ReqFact` projects family,
+operation, origin site, and may-blockers; the candidate separately describes
+bounded lineage and `KontFact`. The reviewed event distinction requires each
+offered request to remain paired with its request-event, callback-invocation,
+contract-boundary, and candidate-handler references (or one whole unknown
+record), together with route and its symbolic fiber. Equality partitions and
+scope alternatives must be joined as complete records so a contract from one
+recursive invocation cannot attach to a same-site request from another.
+
+The existing stack projection already saturates old-frame multiplicity as
+`Zero/One/Many`; its primitive push/pop review does not cover saved snapshots.
+The separate `UnknownKont` proposal supplies the needed conservative shape
+only if its concretization includes arbitrary old/new identity relations,
+captured-store references, forwarded wrapper re-entry, and every raw-resume
+suffix. A summary may conservatively add impossible relationships, but it may
+not omit one or recycle an identity still reachable from a dormant value or
+continuation. Any ambiguity must make universal `Drop` fail. This connects the
+new event-scope obligation to existing finite-carrier work rather than
+introducing a second provenance model; its transition coverage and symbolic
+`K,D` coupling remain unproved.
