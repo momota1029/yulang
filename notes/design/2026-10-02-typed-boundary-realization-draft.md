@@ -644,6 +644,17 @@ parametric descriptor interpreter or richer symbolic presentation, and does
 not justify rejecting such source uses. Its resolution belongs to the
 source elaboration/representation bridge.
 
+The reviewed scope/obstruction package
+`2026-10-02-source-computation-role-elaboration.md` sharpens that bridge.
+`Adapt(Unit,α)` can itself construct assignment-dependent nested thunks, so
+initial source producer sites alone do not close the shape inventory. Also,
+executing an outer computation and returning its possibly latent result is
+not the same operation as value conversion from `Thunk(E,A)` to `A`.
+Source computation/result roles must survive typing and cannot be recovered
+solely from the solved constructor pair. The existing value-adapter theorem
+retains its original scope; these are source-applicability obligations, not
+counterexamples to that theorem or class-3 non-finiteness results.
+
 ## 6. Common typed-view transport
 
 ### Views, signature positions and introductions

@@ -170,13 +170,28 @@ uniform clients and the source typing/acceptance bridge remain open. Do not
 equate the constructor-only adapter graph with those executable decorations.
 
 The next Milestone-3 package is raw-source construction of those finite
-executable typed views and original profile slots, including unknown type
-shapes and demanded adaptation/force positions. Its output must connect to
-the existing symbolic basis and source typing; supplying another unexplained
-event-routing oracle would not advance that gate. After that, close the
-abstract identity/client-coverage and acceptance bridge as a package before
-lifecycle or implementation. The current control counterexample is closed;
-do not expand callback micro-cases without another concrete blocker.
+executable typed views and original profile slots. The reviewed
+`2026-10-02-source-computation-role-elaboration.md` now establishes two
+obstacles to shortcuts: executing an outer computation cannot be replaced by
+value adaptation to its result type when that result is itself latent; and
+`Adapt(Unit,α)` can construct arbitrarily nested target positions absent from
+the initial source producer inventory. Neither is a source non-finiteness
+result. The common `Execute(Comp(E,A)) = Force` theorem preserves an arbitrary
+result `A` without adding descendant demand; admitted result conversion is
+a separate composition. It does not yet derive the role from raw syntax.
+
+The immediate construction is therefore one producer/consumer and
+annotation-role typing judgment, followed by a solution-complete regular
+normalization or a finite parametric adapter/query presentation. Finite syntax
+template collection alone proves neither. Strict data elimination must not
+be generalized to require every computation result to be non-thunk. The
+source judgment, admitted conversions and representation choice remain draft
+work for one complete reviewed gate, not per-site user choices. Its output
+must connect to the existing symbolic basis and source typing; an unexplained
+event-routing oracle would not advance it. Then close abstract identity,
+uniform-client coverage and the acceptance bridge before lifecycle and
+implementation. The current control counterexample is closed; do not expand
+callback micro-cases without another concrete blocker.
 
 `notes/design/2026-10-02-typed-source-owner-realization.md` now has a fresh
 semantic delta review. It repaired owner-span completion so a child return
@@ -224,6 +239,7 @@ Implementation feasibility evidence is recorded in `notes/progress/2026-10-02-su
 
 ## Main records
 
+- `notes/design/2026-10-02-source-computation-role-elaboration.md` — reviewed role-preservation/adapter obstruction package; actual source typing and finite solved/parametric presentation remain open.
 - `notes/design/2026-10-02-typed-source-owner-realization.md` — reviewed owner-span/control and typed-view context construction; user-selected outside-image equation.
 - `notes/design/2026-10-02-typed-boundary-realization-draft.md` — selected common typed-value transport and reviewed conditional transport/lifetime theorem package; reviewed fixed-shape cyclic adapter construction and symbolic equality; full realization open.
 - `notes/design/2026-10-02-source-realization-and-symbolic-basis.md` — finite ownership inventory, conditional operational realization, selected-fault reflection, and exact remaining source definitions.

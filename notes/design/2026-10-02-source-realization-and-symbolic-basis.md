@@ -75,6 +75,14 @@ inspection/decomposition that recursively creates new type queries is not
 included by calling its result a scalar. Generalization and polymorphic
 instantiation are still later obligations.
 
+This restriction is a proved property of the supplied fixed descriptor
+machine, not a consequence of finite raw syntax. The role/elaboration
+package `2026-10-02-source-computation-role-elaboration.md` shows why:
+adaptation to an unknown target can construct type positions absent from the
+initial source producer inventory. Finite source templates do not alone
+instantiate this `Ω`; source role typing and a finite solved or parametric
+constructor/query presentation remain required.
+
 ## 3. Constructing the symbolic basis
 
 Define finite symbolic predicate names, with their intended meanings under

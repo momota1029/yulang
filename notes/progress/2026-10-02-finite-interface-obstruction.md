@@ -711,3 +711,51 @@ reviews; both clean, with no repair round. No tests, builds or measurements.
 The exact raw-source typing and finite presentation remain the next package.
 Primary updated the task, charter/index and progress record; Git whitespace
 check passed. Implementation/optimization authority remains unchanged.
+
+### Source computation roles and unknown constructor generation
+
+The primitive/derived handler package was committed and pushed as
+`da089bbd4`. Independent source-elaboration construction then isolated two
+precise obstacles, now collected in one reviewed package:
+`notes/design/2026-10-02-source-computation-role-elaboration.md`.
+
+First, the resolved pair `(Thunk(E,A),A)` does not encode the role "execute
+the outer computation and return its value". When `A=Thunk(F,Unit)` and the
+types fail the identity test, `ThunkMap` delays the outer execution and later
+forces the inner result too. A concrete outer `E` computation returning a
+latent `F` value distinguishes this from executing just the outer layer. The
+argument uses actual request behavior, not an effect upper bound as a mandate
+to emit. The value-adapter theorem remains valid within its original scope.
+The package proves the common `Execute = Force` rule preserves arbitrary
+result values, event identity and joint symbolic `K,D`; any separately
+admitted result conversion contributes its own behavior. Raw-source role
+derivation remains open.
+
+Second, a finite source producer inventory is insufficient by itself:
+`Adapt(Unit,α)` creates wrappers for each nested thunk constructor in its
+assigned target, even when there was no initial source thunk producer.
+Together with the earlier `α→Unit` forcing family, this rules out inferring
+finite solved shapes/predicates from finite endpoint names or lexical sites.
+It does not rule out regular/parametric presentations, prove raw-source
+admissibility of the family, or permit narrowing accepted programs. The
+alternative constructions are principal normalization of source constraints
+and a finite parametric adapter/query presentation; both need proof.
+
+The architecture audit also identified computation/result roles as the limit
+of a proposed uniformly strict consumer: rigid data elimination can demand
+a value shape, while a computation may legitimately return a thunk. A future
+common typing judgment must distinguish those roles without site-specific
+effect rules. Explicit annotation slots can retain syntax identities, but
+their semantic placement and omitted protection still require that judgment.
+
+M3: one bounded architect construction, independent compiler-referee and
+spec-auditor package review, zero tests/builds/measurements. Both reviewers
+reported no blocking/major issue. Primary accepted and clarified two minor
+findings: the negative adapter calculation requires failure of the preceding
+identity test, and role preservation covers `Execute`/completion without
+result conversion, not an arbitrary adapter that intentionally forces the
+returned value. No new semantics was selected by those clarifications; no
+additional review round was required. Primary synchronized task/index and
+the direct descriptor/adapter dependencies. Staged Git whitespace check is
+the final deterministic verification. Full source inference, principality,
+lifecycle and implementation remain active work.
