@@ -96,7 +96,25 @@ selected-incompatibility reflection. Independent semantic and conformance
 package reviews are clean within that conditional envelope. This does not
 construct elaboration from raw source. The exact source gaps are inductive
 callback-boundary relevance/visibility and effective general adapter
-descriptors; neither may be hidden in an oracle primitive. The further
+descriptors; neither may be hidden in an oracle primitive. The typed-boundary
+package now constructs at most `|T|²` recursive adapter descriptors for fixed
+resolved Function/Thunk graphs, with operational simulation and a finite
+symbolic label-equality variant. General source equivalence, admitted
+conversions and assignment-dependent outer shapes remain open. Independent
+reviews found no blocking/major issue; a minor formula-equality clarification
+uses truth tables, not syntactic convergence.
+
+Two genuine source choices are awaiting the user's async reply: whether
+callback protection follows a value into a helper's captured environment,
+and whether a returned latent value retains that boundary after its complete
+CallView ends but while the receiver remains active. Both alternatives expire
+with the receiver; neither drops latent effects or `K,D`. The proposed
+direction is scoped typed-value transport for both, not yet adopted. The
+definition/proof of that policy waits on the reply; independent adapter work
+does not depend on it. See the exact scenarios and source-path caveat in the
+typed-boundary draft §2.
+
+The further
 interaction gap is uniformity: a finite presentation for every separately
 linked finite client does not establish one component presentation for all
 admissible future clients. Close those source and modular definitions before
@@ -114,6 +132,7 @@ Implementation feasibility evidence is recorded in `notes/progress/2026-10-02-su
 
 ## Main records
 
+- `notes/design/2026-10-02-typed-boundary-realization-draft.md` — pending common value-boundary scope choices; reviewed fixed-shape cyclic adapter construction and symbolic equality.
 - `notes/design/2026-10-02-source-realization-and-symbolic-basis.md` — finite ownership inventory, conditional operational realization, selected-fault reflection, and exact remaining source definitions.
 - `notes/design/2026-10-02-finite-abstract-safety-presentation.md` — reviewed generic finite carrier and principal certificate theorem; source application open.
 - `notes/progress/2026-10-02-finite-interface-obstruction.md` — classification, lower bound, construction progress, and review record.

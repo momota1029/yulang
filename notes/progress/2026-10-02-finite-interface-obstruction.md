@@ -6,6 +6,42 @@ Status: generic conservative construction proved; source instantiation open; no 
 
 ## Latest constructive result and review
 
+The typed-boundary package
+`notes/design/2026-10-02-typed-boundary-realization-draft.md` gives an actual
+finite adapter construction for fixed resolved Function/Thunk graphs.
+Memoizing source/target pairs before recursion yields at most `|T|²`
+descriptors. Its interpreter matches the identity-first thunk cases and
+contravariant-argument/covariant-result call composition, including cyclic
+execution and live-state resumptions. A greatest fixed point in the finite
+Boolean algebra constructs symbolic label-sensitive equivalence without
+materializing family arguments. Rigid structural equivalence and that
+symbolic variant are candidates, not the selected general source `≈`.
+
+The `(α,Unit)` boundary supplies a concrete limit of this construction:
+assignments making `α` a unit, one thunk, or deeper thunks demand different
+force structure. A fixed endpoint name alone does not provide resolved
+constructor nodes. This does not refute a richer parametric presentation or
+authorize source rejection.
+
+The boundary construction audit found two source choices not fixed by prior
+decisions: a helper calling a callback through its captured environment, and
+latent result execution after CallView completion but before receiver expiry.
+Explicit async questions are pending. Scope/authority remains receiver-local
+and expires; latent effects and `K,D` stay live in either option. A common
+typed-value transport policy is proposed but not adopted. No new
+fixture-specific rule or callback-role tag is implemented. Source territory
+proof depends on the answers; the adapter theorem is independent of them.
+
+M3 research slice follows `ca590e4c1` (previous turn: progress). Two bounded
+read-only architect construction tasks; compiler-referee and spec-auditor
+package reviews. No blocking/major findings. One minor finding noted that
+raw formula syntax need not stabilize; explicit truth-table representation
+now makes equality semantic as required by the proof. Primary closed this
+wording-only clarification under the minor-only rule; no new review round.
+No tests, builds, or performance measurements; no compiler changes. Staged
+whitespace/scope checks accompany the checkpoint. Full source typing, modular
+future use, lifecycle and implementation remain open.
+
 The next package is
 `notes/design/2026-10-02-source-realization-and-symbolic-basis.md`. It replaces
 the supplied finite-predicate premise by an explicit inventory construction

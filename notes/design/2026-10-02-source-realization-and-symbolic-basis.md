@@ -246,6 +246,11 @@ shrink `S`; that is disclosed abstraction loss, not a concrete source error.
 
 ## 6. Exact remaining source definitions and future use
 
+The follow-up `2026-10-02-typed-boundary-realization-draft.md` constructs finite
+recursive adapters for fixed resolved Function/Thunk graphs and isolates two
+pending source choices for common value-boundary transport. It does not
+select general `≈`, derive shapes from raw source, or settle those choices.
+
 The constructive results have the following boundary:
 
 1. **Visibility realization.** Ordinary semantics §4 says the source
