@@ -4094,6 +4094,15 @@ does not define how concrete receiver contracts compose or prove where every
 settled source rule. Details and compatibility evidence are in
 `notes/progress/2026-10-02-callback-scope-transition.md`.
 
+Implementation-feasibility checkpoints now alternate with the theory gates.
+The current read-only audit found the selected effect-preservation rule is not
+end-to-end implementable in the existing compiler yet: HIR/collection do not
+represent application, handlers, force, or resumption, and closed effect views
+cannot retain nonempty typed rows. The polarized term/bound/extrusion substrate
+is reusable evidence, not successor implementation. Keep compiler changes
+deferred while the source relation and finite principal presentation remain
+open. See `notes/progress/2026-10-02-successor-implementation-feasibility.md`.
+
 Theory-economy audit: an independent architect and compiler-referee review
 found the coupled complete-interface relation remains the smallest candidate
 so far, with fiber product, relational composition, restriction, and
