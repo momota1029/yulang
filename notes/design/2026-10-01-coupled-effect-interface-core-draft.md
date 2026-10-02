@@ -1538,6 +1538,60 @@ outputs of the stateful `Search_H` and raw continuation image is still open.
 In particular, equal may-support can hide different resumed suffixes, so a
 support-only transformer cannot justify residual subtraction.
 
+**Callback-origin transport through `Adapt` and `CallView`.** Let `q` be an
+individual dynamic request event, and let `origin(q)` be the source computation
+whose execution emitted it; a finite presentation may index that relation by
+static source sites, but a site label is not a dynamic activation ID. The
+origin-preservation premise for `B_{S,T}` is: a request exposed from an input
+computation/thunk keeps that source origin in the output observation, while
+one uniform type transport maps its typed endpoints and `K,D` incidence.
+Effects independently emitted by a conversion have their own source origins
+whose eligibility must be derived from the full source relation; family match
+alone does not grant them `Capture`.
+
+Under this premise, the three thunk-shape clauses for `Adapt` preserve
+callback-origin requests by structural composition. Identity adaptation
+leaves the computation untouched. Thunk-to-computation adaptation forces the
+input and then adapts its result, so an exposed request retains the forcee's
+origin. Computation-to-thunk adaptation delays the same adaptation and carries
+the latent origin and formula incidence in the returned value interface;
+thunk-to-thunk adaptation delays `Force` followed by result adaptation and
+carries both in that latent interface. Later force exposes the same source
+origin under the source-defined activation context and required re-entry
+lineage; it does not itself allocate a fresh identity unless that boundary
+requires one. This is a structural case analysis over the displayed `Adapt`
+equations, conditional on the source `Force` and value-boundary relations
+preserving their inherited interface coordinates. It does not transfer an
+outer capture entitlement to effects newly produced by an unrelated conversion.
+
+For a function adapter, the displayed `CallView` equation composes argument
+adaptation, the underlying call, and result adaptation. For a callback-origin
+request `q` already related to `h`'s contract (including one exposed by a force
+in either conversion), the same origin/`K,D` transport premise composes across
+those three relations. Conversion-generated requests require their own
+source-derived incidence. For each such request, the previous lemma preserves
+`Visible(q,h,κ)` up to the composed type transport only along the transition
+prefix where `h` remains active and no independent source event invalidates
+the entitlement. The user's selected rule says nested receiver entry alone is
+not an invalidator; it does not keep `h` active after that same shallow handler
+is selected. If `h` handles an earlier request in this `CallView`, its raw
+continuation runs outside `h`, and a later suffix request receives no
+preservation claim for that removed activation. A still-active independent
+outer handler is governed by its own `Visible` derivation. If result
+adaptation returns a still-delayed thunk and the enclosing source boundary
+does not force it before leaving `h`, this proof establishes latent origin and
+lineage transport only; it makes no claim that `h` remains eligible after
+return. That is the separately open escaped-value question.
+
+The frozen VM/runtime contract describes function-adapter adaptation as
+including argument and result conversions, and locates thunk effects at
+explicit force. Those statements characterize the composition shape and
+runtime force placement, but do not prove the origin-preservation premise for
+the successor `B` relation. That premise must be a theorem of the successor
+source semantics, and its implementation must keep static source sites,
+symbolic family binders, dynamic activation identities, and request events
+distinct. This closes neither whole-language soundness nor principality.
+
 The same derivation does not grant `h` eligibility for another caller-owned
 `choose::get`. Such a request has a distinct origin `o'`; absent an independent
 source incidence `Capture(o',h)`, the visibility premise fails even though its

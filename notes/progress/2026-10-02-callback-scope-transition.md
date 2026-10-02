@@ -381,3 +381,33 @@ and absence of an independent source invalidator. The reviewer found no other
 issue in this conditional lemma; closure does not extend to the source-stage
 premises, concrete `K,D` transport, soundness, finite inference, or
 principality.
+
+### Adaptation-origin transport and shallow cutoff (2026-10-02)
+
+The draft now case-analyzes the existing `Adapt` equations. Under an
+origin-preservation premise for the value-boundary relation, identity
+adaptation leaves origin unchanged; forcing a thunk exposes the forcee's
+origin; wrapping as a thunk retains the origin and `K,D` incidence latently;
+thunk-to-thunk adaptation composes force and result adaptation. The
+`CallView` composition then transports callback-origin `Visible` across
+argument adaptation, call, and result adaptation under the composed type map.
+Requests independently produced by conversions need their own source
+incidence; family equality alone does not grant them the callback's capture.
+
+Adversarial review found an essential cutoff: if `h` itself handles an earlier
+request during the still-running `CallView`, shallow semantics removes `h`
+before resuming the raw continuation. A later suffix request cannot inherit
+that activation's entitlement. The theorem now applies only along prefixes
+where `h` remains active and no independent invalidator occurs; an independent
+outer handler must use its own visibility derivation. This is not a
+counterexample to the user's preservation decision because selecting `h` is
+an independently specified shallow-handler boundary. The review also corrected
+the force wording so it distinguishes source origin and restored re-entry
+lineage from boundary-specific allocation of fresh dynamic identity. Both
+findings closed under compiler-referee delta review.
+
+This closes only the conditional `Adapt`/`CallView` decomposition. The
+successor source rules still must prove origin and `K,D` preservation for each
+adaptation/force, typed compatibility before dispatch, and complete handler
+image behavior across repeated requests. Global soundness, finite
+representation, and principality remain open.

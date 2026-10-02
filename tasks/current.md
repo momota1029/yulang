@@ -4122,6 +4122,16 @@ local lemma with no remaining findings. It remains conditional: source
 adaptation/origin/force premises, full symbolic `K,D` transport, soundness, and
 principality are not closed.
 
+The new `Adapt`/`CallView` case analysis preserves inherited callback origin
+and `K,D` only under the value-boundary transport premise. A reviewed scope
+correction limits `Visible` preservation to prefixes where `h` remains active:
+if `h` handles an earlier request, its shallow raw suffix is outside `h`, so a
+later request cannot inherit that activation. Force re-entry lineage does not
+imply fresh ID allocation on every force. The compiler-referee closed both
+local findings; actual source transport rules and repeated-request handler
+image remain open. See the latest subsection in
+`notes/progress/2026-10-02-callback-scope-transition.md`.
+
 Theory-economy audit: an independent architect and compiler-referee review
 found the coupled complete-interface relation remains the smallest candidate
 so far, with fiber product, relational composition, restriction, and
