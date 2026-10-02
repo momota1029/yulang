@@ -8,6 +8,7 @@ Approved-at: 2026-10-02
 Drafted-by: primary with bounded architect and frozen-source mapping
 Reviewed-by: independent compiler_referee and spec_auditor, 2026-10-02; no blocking/major findings; shared minor result-port normalization clarification closed by primary
 Selected-rule review: independent compiler_referee and spec_auditor, 2026-10-02; no findings in A authority and source-synthesis theorem delta
+Parameter-default review: §2 and charter §21 independently reviewed by compiler_referee and spec_auditor, 2026-10-03; no findings
 Supersedes: the pending A/B/C choice in this record; inert introduction and known-interface entry remain fixed
 
 ## 1. The selected source rule
@@ -45,7 +46,18 @@ This is a result-synthesis rule, not a new capture selector, operation-family
 rule, or permission to run any argument during construction. Every alternative
 keeps computation introduction inert and needs an explicit consumer to run it.
 
-## 2. Raw parameter evidence narrows the problem
+## 2. Parameter-role authority and historical frozen evidence
+
+Charter §21 records the user's 2026-10-03 decision: unannotated `x` and
+ordinary value-annotated `x:A` have `Value(A)` entry force/rebind; explicit
+outer computation annotations `x:[_] A` and `x:[E] A` have
+`Computation(E,A)` retention. Missing `A` is a fresh inferred value endpoint;
+the wildcard retains its existing symbolic source meaning. Whole-argument
+construction is inert in every case. Value entry executes once before the
+body even for unused, effectful or divergent arguments; latent returned
+values are not recursively forced. Computation-core §6 generates these
+roles and bindings before body synthesis. This authority preserves the
+separate result-synthesis A decision.
 
 Frozen parameter lowering already distinguishes the **outer annotation
 occurrence** before solving value shapes:
@@ -65,22 +77,12 @@ local bindings store a result with no local effect
 (`lowering/expr/block_local.rs:1232–1249`). No separate runtime role follows
 from these facts alone.
 
-This evidence supports a syntax-derived parameter interface candidate:
-
-```text
-parameter with ordinary value interface A:   Value(A), entry force/rebind
-parameter with outer computation interface: Computation(E,A), entry retain
-```
-
-An unknown `A` does not require guessing which of these outer declarations
-was written. Likewise, solving `E` to the empty row does not remove its
-original annotation occurrence. Oracle `StackWeight`, `All`, `AllExcept` and
-their routing rules are not premises of this candidate.
-
-This parameter mapping alone did not settle the result occurrence. The
-user's separate A decision now supplies that rule. Keeping evidence and
-authority distinct matters: the frozen initialization did not authorize
-implicit source lifting or a polymorphic interpretation of the result.
+The table is historical characterization, not the authority for current
+entry timing or argument-effect admission. An unknown `A`, an empty solved
+`E`, or body usage does not change the role selected by §21. Oracle
+`StackWeight`, `All`, `AllExcept` and their routing rules do not supply this
+source rule. Frozen initialization alone authorized neither implicit source
+lifting nor a polymorphic interpretation of the result.
 
 ## 3. Independent non-collapse obligation
 

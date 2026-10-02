@@ -568,3 +568,34 @@ ban; lifecycle preservation remains a proof gate. The scoped equality kernel's
 existential inference variables are distinct from hidden request binders.
 This decision closes this source typing choice only; compiler implementation,
 full checking completeness and lifecycle approval do not follow.
+
+## 21. User decision: parameter roles follow the outer source annotation (2026-10-03)
+
+The user fixes the ordinary parameter roles as follows:
+
+```text
+x                 -> Value(A), with a fresh inferred value endpoint A
+x:A               -> Value(A), for an ordinary value annotation
+x:[_] A / x:[E] A -> Computation(E,A), for an explicit outer computation annotation
+```
+
+The effect wildcard retains its existing symbolic source meaning; this
+decision introduces no new wildcard quantification. Every call constructs
+the whole argument computation inertly. A value parameter then forces and
+rebinds it once inside the same receiver activation before the body, even
+when the parameter is unused or the argument is effectful or divergent.
+A computation parameter retains that carrier for explicit body consumption.
+Roles are fixed by the source boundary, not body usage, an empty solved row,
+or a solved latent representation of `A`. Entry does not recursively force
+latent returned values.
+
+Thus `ignore x = ()` executes its argument before the body; an explicitly
+computation-annotated ignore retains it. A pure divergent argument still
+distinguishes these cases despite empty effect support. Body usage supplies
+ordinary endpoint constraints, not an alternative entry role.
+
+Result-synthesis A from §18 remains unchanged. The core §6 construction now
+derives parameter roles and body bindings for these forms before body
+synthesis. Full annotation/pattern checking, conversions, unknown globals,
+Function subtyping, principal inference and lifecycle remain proof gates.
+This is source authority, not compiler implementation approval.

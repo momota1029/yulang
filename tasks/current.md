@@ -24,6 +24,7 @@ The redesign charter governs. F5 Function generalization is comparison/rollback 
 - The user clarified the source reference: every function is a handler/computation receiver. An ordinary value parameter forces and rebinds its input at the start of that same activation; force-before-invocation is a separate optimization obligation.
 - Computations are first-class data. Their introduction is inert; after obtaining the callee, application reifies the whole argument with no pre-entry construction prefix. Execution starts only at explicit receiver elimination/handling under the known interface; lookup, transport and latent result shape do not themselves force a computation. Charter §17 closes scheduling choice A as the originally intended source semantics.
 - Result synthesis forwards known interfaces: `Result(Value(A))=Comp(empty,A)` and `Result(Computation(E,A))=Comp(E,A)`. Synthesis is inert; an additional pure result layer requires explicit introduction/lifting. Result interpretation is not polymorphic (charter §18).
+- Parameter roles are syntax-directed (charter §21): omitted `x` and ordinary `x:A` use value entry, forcing/rebinding once at the same receiver activation even when unused; explicit outer `x:[_] A` / `x:[E] A` retain. Body usage, empty solved rows and latent value shapes do not change roles.
 
 ## Milestone state
 
@@ -692,13 +693,11 @@ Independent M3 semantic/conformance delta reviews found no findings in this
 source rule and its conditional substitution consequences. Static diff and
 reference inspection only; no compiler changes, tests, builds or measurements.
 
-A separate source question remains pending: for `my ignore x = ()`, does
-omission of the parameter annotation select value entry (executing an
-effectful argument), or computation retention? The async question already
-sent to the user is unanswered; §20 does not answer it. Frozen omitted-parameter
-initialization and caller-side `ForceThunk` placement are characterization
-only. Continue work independent of that default; do not infer it from unused
-body occurrences or solved endpoint shapes.
+The separate omitted-parameter question was subsequently closed by the user
+on 2026-10-03 in charter §21: `my ignore x = ()` has value entry and executes
+its argument before its body. Explicit outer computation annotations retain.
+Frozen initialization and caller-side `ForceThunk` remain characterization;
+the user's source rule, not that placement, supplies authority.
 
 ## Executable linking before joint recertification
 
@@ -720,12 +719,33 @@ This removes the supplied merged executable-kernel premise for resolved
 finite instances. It does not establish general Function subtyping, arbitrary
 client coverage, source-template generation or complete predicate solving.
 Next in Milestone 3: derive effective complete checking and source summary
-generation/instance completeness; the separate omitted-parameter default
-remains unanswered. Milestone 4 and the implementation gates remain later.
+generation/instance completeness. The omitted-parameter default is now fixed
+by charter §21. Milestone 4 and the implementation gates remain later.
 M3 semantic/conformance reviews found no blocking/major issue; the primary
 closed one minor translation-layer notation issue and clarified retained
 runtime descriptor dispatch. Static diff/reference checks only; no tests,
 builds or measurements.
+
+## Parameter construction closed; joint signed constraints next
+
+Core §6 now generates the outer parameter role, body binding and entry
+skeleton for omitted/value and explicit outer computation annotations.
+Combining this with the existing result table gives coherent source role
+skeletons without body-usage inference. Typed-path/annotation checking and
+all ordinary endpoint obligations remain. M3 semantic/conformance delta
+reviews found no findings; primary clarified the retained typed-path premise.
+
+The bounded solver audit localized the next M3 obligation. Positive constraint
+enforcement is not a decision of guard truth: separate satisfiability of
+`alpha=Int` and `alpha=Bool` does not establish their joint satisfiability.
+Negative polarity is not logical negation of equality/subtyping. The effect
+certificate therefore needs joint signed-constraint feasibility under one
+assignment, retaining scoped generic-arm proof obligations and full `K,D`.
+The next construction must address that decision/projection language, rather
+than wrap independent positive Simple-sub calls in Boolean enumeration.
+This is a missing solver construction, not a class-3 non-finiteness proof or
+an approved source restriction. Full source principality and later gates
+remain open. Static inspection only; no tests, builds or measurements.
 
 ## Main records
 

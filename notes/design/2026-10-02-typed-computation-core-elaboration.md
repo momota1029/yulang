@@ -3,10 +3,11 @@
 Date: 2026-10-02
 Status: Draft; no implementation authority; full raw-source elaboration remains open
 Scope: finite derivation-indexed ordinary core, executable-code construction and simulation
-Approved-by: none for this construction; charter §§13–18 govern its source premises
+Approved-by: none for this construction; charter §§13–21 govern its source premises
 Drafted-by: primary with bounded architect construction and independent semantic attack
 Reviewed-by: independent compiler_referee and spec_auditor, 2026-10-02; no blocking/major findings; minor handler-subcode construction clarification closed by primary
 Source-synthesis review: independent compiler_referee and spec_auditor, 2026-10-02; no findings in §6 result/consumer construction, source-role coherence and scoped substitution theorem
+Parameter-role review: independent compiler_referee and spec_auditor, 2026-10-03; no findings in charter §21's syntax-directed role and entry-skeleton construction
 Checking review: independent compiler_referee and spec_auditor, 2026-10-02; no findings in §7 proof-label erasure, actual receiver contract obligations and conditional adapter-obstruction scope
 Certificate-comparison review: independent compiler_referee and spec_auditor, 2026-10-02; no findings in §8 fixed-domain construction, routing preservation and scoped future-use theorem
 Invocation-port review: M3 compiler_referee/spec_auditor package review; operation-consumer omission repaired and closed by independent compiler_referee delta review, 2026-10-02
@@ -79,7 +80,9 @@ referenced by binders. It contains:
 It contains **no executable argument code, force schedule, runtime shape
 dispatch, or selected handler**. An elimination witness identifies which
 computation interface is consumed; it does not contain its implementation.
-Inferred role variables are not resolved by guessing in this theorem.
+Inferred role variables are not resolved by guessing in this theorem. Section
+6 derives roles directly for charter §21's ordinary parameter forms; other
+annotation/role resolution remains outside this derivation-indexed input.
 
 The following proof notation displays the constructors of that derivation:
 
@@ -327,12 +330,67 @@ In the second clause, `p` is the corresponding known source computation port,
 retaining its original profile and symbolic `K,D`. The clause is not selected
 by comparing the solved representation of `A` with `Thunk(E,A)`.
 
+### Source parameter-role generation before body synthesis
+
+Charter §21 fixes these syntax-directed rules for ordinary parameter names:
+
+| Parameter syntax | Generated `P` | Body binding `Gamma(x)` |
+|---|---|---|
+| `x` | `Value(A)` with fresh inferred value endpoint `A` | `Value(A)` after entry rebind |
+| `x:A`, ordinary value annotation | `Value(A)` | `Value(A)` after entry rebind |
+| `x:[_] A`, explicit outer computation annotation | `Computation(E,A)` | `Computation(E,A)` retained |
+| `x:[E] A`, explicit outer computation annotation | `Computation(E,A)` | `Computation(E,A)` retained |
+
+For the wildcard, retain the symbolic effect endpoint with its existing
+source meaning; no new quantification rule is assumed. Annotated endpoints
+use the admitted annotation derivation. This table determines their outer
+role, not all nested annotation checking or constraint satisfiability.
+
+Generate `P` and its entry skeleton before synthesizing the body. Receipt
+path references retain the admitted annotation/typed-flow premises; this does
+not solve all nested paths from the outer role alone. Every application still
+delays the whole argument inertly. Value entry
+establishes the actual receiver/receipt, forces the designated argument view
+once and rebinds its result before executing the body. Retained entry binds
+the same carrier without executing it. Body uses generate ordinary endpoint
+and contract constraints; they cannot revise the source role or remove entry
+execution. Substitution making `A` latent introduces no recursive force;
+substitution making `E` empty does not change retention.
+
+For example, `ignore x = ()` executes the argument before its constant body,
+including effects or divergence. With an explicit outer computation
+annotation, that constant body retains and ignores the carrier. A pure
+divergent carrier of empty effect support still distinguishes these entries.
+The role rule therefore does not infer entry behavior from effect support.
+
+**Finite generation and coherence.** Each parameter occurrence constructs
+one fixed role, a finite binding/receipt/entry skeleton and its endpoint
+references. Combine it with the result table below to synthesize a lambda's
+body under the generated `Gamma` and its result via `Result(I_b)`. Structural
+induction gives one skeleton up to fresh endpoint/label renaming: the four
+source forms choose a disjoint outer role and no body-use alternative.
+Finite recursive references reuse registered nodes rather than unfolding.
+
+Capture-avoiding renaming transports the generated binder, profiles and
+typed paths together. Admissible endpoint substitution preserves the source
+tag and entry skeleton, and the existing result/consumer substitution law
+then applies to the synthesized body. This proves coherence of these roles
+and their structural composition, not principal solving of the endpoint
+constraints or invariance under an unproved annotation conversion.
+
+Only the supplied parameter-role premise for these forms is removed. Full
+annotation/pattern elaboration, casts/adapters, unknown global interfaces,
+Function subtyping and inference remain open; operation declarations retain
+their independently declared interfaces. No generalization or implementation
+policy follows from this construction.
+
 ### Structural rules producing the core derivation
 
 The following rules operate on the ordinary expression constructors using
 known lexical/declaration interfaces in `Gamma`. They generate result roles;
 they do not take arbitrary result-role derivations or executable code as input.
-Parameter entry remains owned by the callable's declared source interface.
+Parameter entry remains owned by the callable's source interface, generated
+above for the stated parameter forms and declared independently otherwise.
 Unknown value/effect endpoints remain symbolic constraints.
 
 | Source constructor | Synthesized interface `I` | Inert data derivation `d` |

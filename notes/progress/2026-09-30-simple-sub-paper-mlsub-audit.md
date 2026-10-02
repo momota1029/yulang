@@ -74,3 +74,24 @@ Labels are provenance categories, not approval. “Simple-sub original” means 
 Simple-sub supplies a concrete baseline for level-based generalization, per-use freshening, polarity-sensitive extrusion, cyclic bound traversal, and bound propagation. It does **not** supply SCC-wide preallocation, parent sharing across polarity, an authoritative generalized SCC object, Yulang scheduling/effect behavior, or a proof that parent substitution gives principal independent specializations. The correspondence is therefore a source for one component algorithm and its proof obligations, not a ready-made intrusion implementation.
 
 The next proof target is a finite graph characterization of the reference extrusion transition: represent each copied identity as `(v, polarity, boundary)`, include the source-side link and copied opposite bounds above, and compare on-demand memo allocation with preallocation under the same map. The simple two-bound discriminator rejects sharing positive and negative extrusion representatives under their ordinary assignment interface. Check preallocation on a cycle and a shared diamond while retaining distinct polarity ports, before considering any Yulang-specific quotient or component projection. Separately, the Yulang recursive interval projection trace remains unresolved: the prior `q ∪ K`/`Pred` explanation was withdrawn; the audited compact upper is an intersection (`q ∩ K`), so dropping the negative-only interval requires a new preservation argument. This paper audit does not discharge that Oracle adequacy obligation.
+
+## Signed-query follow-up (2026-10-03)
+
+The earlier complete-paper audit remains the reading record. Its named `/tmp`
+PDF/text and checkout caches are absent in the current environment; this
+follow-up does not claim another complete paper reading.
+
+The primary re-read the pinned
+[`Typer.scala`](https://raw.githubusercontent.com/LPTK/simple-sub/9bae772624c23b52a93c1b226157e16898b4d9db/shared/src/main/scala/simplesub/Typer.scala),
+including `constrain`, `extrude`, `freshenAbove` and the internal type grammar.
+The `constrain` entrypoint enforces a positive subtype pair by changing bounds;
+its constructor cases are Function, Record, Primitive and flexible Variable.
+That grammar contains no Boolean constraint or rigid operation-arm binder
+node. This is an entrypoint audit, not a claim that no related extension
+exists elsewhere. Negative polarity in extrusion is not logical negation of
+an equality or subtype proposition. No tests/builds ran.
+
+Consequently the successor's signed guard and scoped-arm queries cannot be
+certified merely by citing this positive enforcement procedure. The current
+M3 gate must preserve joint feasibility and quantifier scope; the follow-up
+is provenance evidence, not a new language restriction or non-finiteness proof.

@@ -1876,3 +1876,61 @@ diff inspection under the minor-only exception. No repair round or additional
 reviewer was required. Task/index/progress and package review metadata are
 synchronized; integration inspects explicit staged paths and the full outbound
 range before normal branch push.
+
+### Parameter default closed; signed-query solver gate (2026-10-03)
+
+Previous goal turn: progress, executable-linking package reviewed/pushed as
+`e6f36998f`; branch revalidated clean. The user then answered the pending
+parameter-default question with A. Charter §21 fixes omitted/ordinary-value
+parameters to same-activation entry force/rebind, and explicit outer
+computation annotations to retention. Unused bodies and empty solved effects
+do not change that choice. Core §6 now derives parameter roles and body
+bindings before the existing result synthesis, retaining the admitted nested
+annotation/typed-path premises. The earlier frozen lowering evidence remains
+characterization, not a definition of source timing.
+
+M3 source delta review: one documentary producer and independent semantic and
+conformance reviewers; both found no findings. Primary clarified that the
+outer role constructs an entry skeleton, not all nested receipt paths. This
+minor wording clarification changes no premise. No extra review round was
+needed. Source-default uncertainty is closed; implementation approval and full
+typing/lifecycle gates remain open.
+
+In parallel, a bounded explorer located the complete original paper audit,
+and the primary re-read the pinned original `Typer.scala` entrypoint. The
+bounded architect localized the effective-predicate gap. Positive constraint
+enforcement does not decide Boolean guard truth or uniform generic validity:
+
+```text
+SAT(alpha = Int) = true
+SAT(alpha = Bool) = true
+SAT(alpha = Int and alpha = Bool) = false
+
+exists alpha. alpha = Int       is satisfiable
+forall kappa. kappa = Int       is not uniformly valid
+```
+
+These are mathematical constraint discriminators with distinct Int/Bool
+constructors, not new source fixtures or executed Oracle acceptance claims.
+Likewise, `not (A <: B)` is not `B <: A`. The certificate uses negation in
+faults and safe-domain construction, so independently enforcing positive
+predicates cannot supply its jointly realizable Boolean cells.
+
+The next exact solver obligation is `SAT_T(Gamma and signed_cell)` for the
+chosen constraint theory, with one assignment and the original binder blocks.
+Where the corresponding scoped semantics permits, entailment reduces to
+unsatisfiability of `Gamma and not phi`. Scoped generic bodies require a
+uniform syntactic checking template; enumeration must not choose a new shared
+witness or elaboration separately for each rigid instance. Retain the relation
+of assignments: `alpha=Int or alpha=Bool` cannot be replaced by the single
+assignment `alpha=Int union Bool`. Existing row/projection and scoped equality
+procedures cover only their stated fragments. Signed source subtyping, bounds,
+complete Function predicates and their joint decision/projection remain open.
+
+This is a precisely localized missing construction, not a class-3 witness,
+not rejection of finite/regular presentations, and not an adopted acceptance
+restriction. It changes the next action from naming complete predicates to
+solving their joint signed language. No compiler implementation, tests, builds
+or measurements ran (budget/consumption zero). Task/index/design records are
+synchronized; primary checks explicit paths and the complete outbound range
+before normal research-branch integration.
