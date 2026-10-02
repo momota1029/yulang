@@ -1419,6 +1419,31 @@ source visibility derivation. Current equations still admit the logical
 independence model where this ordinary-flow premise is absent, so this is not
 yet an unconditional derivation or a final soundness theorem.
 
+There is a useful conditional check against the frozen runtime guard contract
+at `a58eefc3:spec/2026-06-13-runtime-guard-markers.md`, “dynamic unwind.” If
+the escaped value reinstalls its required marker frame `F_m` inside an already
+active caller handler `h`, the ordered search pops that frame before testing
+the enclosing handler. At `h`, the runtime guard contract tests exact operation
+path and `q.guard_ids ∩ G_h = ∅`, where `G_h` is the active `GuardIdList` after
+the unwind. Thus the exited frame's `m` does not persist in `G_h`; if `q`
+carries only `m`, no other active occurrence of `m` remains, and no other
+request ID intersects `G_h`, then `m` alone does not mask `h`. Another still-
+active frame with the same ID or another intersecting request ID can still
+prevent handling; an active `add_id` can attach such an ID. A `marker[m]`
+transports a frame but does not itself add `m` to request IDs; only `add_id`
+does that. For a
+handler installed inside a still-active receiver frame, that frame remains on
+the list while the inner candidate is tested; the callback contract's
+source-derived visibility controls that request there. The ordering of these
+frames is essential.
+
+This is runtime-contract evidence, not a source typing theorem and not a claim
+that the frozen evaluator implements its own guard specification correctly.
+The closure/application source relation must prove that a new caller handler
+is outside the re-entered value marker and that the corresponding static
+`Visible` derivation has the same result after source-level unwind. The known
+escaped-callback runtime mismatch remains a concrete simulation obligation.
+
 The previous alternative table is retained as a compatibility record, with
 the user's preference now fixed:
 

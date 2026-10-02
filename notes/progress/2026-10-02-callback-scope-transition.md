@@ -668,6 +668,31 @@ entrypoints are still stubs. This semantic slice has no bounded production
 prototype until those interfaces exist, so continue the source relation before
 another implementation audit. No implementation, tests, or builds were run.
 
+#### Runtime dynamic-unwind check for the ordinary-flow premise
+
+Compiler-referee delta review checked the exact frozen runtime guard contract
+in `a58eefc3:spec/2026-06-13-runtime-guard-markers.md` §§ request visibility,
+`marker[id]`, and dynamic unwind. If a closure's required marker frame
+`F_m` is reinstalled inside caller handler `h`, ordered search pops `F_m`
+before testing `h`. At that test, eligibility requires exact operation path
+and `q.guard_ids ∩ G_h = ∅`, for the then-active list `G_h`. So maker marker
+`m` alone is not a persistent mask after the frame exits: if `q` carries only
+`m`, no duplicate active `m` remains, and no other request ID intersects
+`G_h`, it passes the guard check. Another active frame with the same ID or a
+different intersecting request ID can still block it. `marker[m]` re-enters
+the frame but does not itself add `m` to a request; only `add_id` does that.
+
+This supports compatibility of value-lineage re-entry with the user's
+ordinary caller choice; it is not source typing authority or proof that the
+frozen evaluator follows the spec. A handler installed inside a still-active
+receiver frame is tested before that frame is popped, preserving the distinct
+inner-handler hygiene case; its capture contract and request IDs still decide
+visibility. Shallow operation arms also stay outside the selected handler,
+and resuming raw `k` does not reinstall it. The static `Visible` source rule
+must be shown to simulate these frame paths while retaining origin and `K,D`.
+This proof step narrows the required source/runtime correspondence but does
+not close it.
+
 ### Next bounded source theorem after preservation selection
 
 An independent compiler-referee audit identified the next proof obligation as

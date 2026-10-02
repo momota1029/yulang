@@ -40,6 +40,17 @@ mixed-origin `K,D`, shallow raw-suffix behavior, and the imported-Force A/B
 gate separate. The exact audit and conditional lemma are recorded in the
 latest callback-scope progress section and the coupled-effect draft.
 
+The frozen guard specification now supplies a narrow runtime consistency
+lemma: if a carried marker frame `F_m` is reinstated inside a fresh caller
+handler and search exits `F_m` before testing that handler, `m` is no longer
+in the active guard list there. The handler can pass the runtime guard test
+when exact path matches and request guard IDs are disjoint from the post-unwind
+active list. This shows required lineage need not itself mask the caller; it
+does not prove source `Visible` or implementation/spec parity. See the new
+dynamic-unwind check in the callback-scope progress record. Next prove the
+source-to-runtime frame correspondence, then resume the full callback source
+adequacy and effect/principality gates.
+
 The common Force/dispatch composition was reviewed without choosing A/B. A
 `Capture(origin, handler)` pair cannot act as a globally reusable grant because
 one lineage may expose multiple dynamic events. Incidence must be scoped to the
