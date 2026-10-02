@@ -890,3 +890,32 @@ that raw resumption runs outside the selected handler activation, not
 necessarily outside the arm's dynamic execution. That wording is corrected.
 Compiler-referee and architect reviews now agree on the remaining open source
 definition; no proof or implementation claim was added.
+
+### Ordinary computation theorem package (2026-10-02)
+
+The local call/closure/Force/handler evidence is now assembled in
+`notes/design/2026-10-02-ordinary-computation-semantics-package.md` and
+reviewed as one M3 theorem package by architect, compiler referee, and spec
+auditor. The package keeps the stateful `Run`/bind relation, latent thunk
+requests, event origins with symbolic `K,D`, candidate-indexed ordered
+visibility, and shallow raw resumption in one source-machine presentation.
+
+The review found that ordinary escaped-closure eligibility was still assumed
+through `Visible`; the package now states the ordinary path as search over the
+current active ordered handler sequence after normal receiver unwind. Thus a
+fresh caller handler is eligible under the same source search rule as for a
+direct effectful closure, without a maker `Capture` premise or persistent
+maker mask. This closes only that dispatch consequence relative to the
+candidate active-sequence rule. The package also corrects operation-value
+application to construct a thunk and makes source-demanded `Force` expose the
+request.
+
+One receiver-local callback scope choice remains: whether a caller-owned thunk
+explicitly forced during the callback's complete call view joins the concrete
+callback capture contract. Both candidate rules preserve the thunk's caller
+origin and symbolic `K,D`; only the receiver handler's eligibility and the
+outward residual differ. The package does not derive this incidence from row
+support or family equality. Once this source choice is settled, freeze
+milestone 1 and proceed to the single source-to-complete-interface adequacy
+theorem. No compiler code or tests were changed/run; the later finite
+presentation, principality, and SCC-intrusion gates remain open.
