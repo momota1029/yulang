@@ -854,3 +854,39 @@ is a consistent semantic direction, not yet a proved consequence of the
 complete source semantics. No tests or implementation were run; implementation
 remains blocked on source adequacy, handler-image/principality, and finite
 presentation gates.
+
+### Candidate closure re-entry rule and implementation alternation (2026-10-02)
+
+The ordinary-flow gap is now stated at the transition level. A closure keeps
+its lexical environment, latent request relation, and required lineage; its
+application runs the body under the current caller configuration. Re-entry
+restores value lineage but not exited maker handler activations. `Force` and
+stateful bind expose each event with its own origin and joint `K,D`, and
+ordered search tests each candidate after the prescribed unwind. Callback
+`Capture` is a projection only for an active receiver boundary. Direct and
+escaped closures use the same clauses; mixed-origin requests are processed per
+event; raw suffixes after a shallow arm use their own search configuration.
+
+This is a candidate rule, not a completed theorem: the complete source
+definition of closure re-entry and the declarative boundary-path clauses is
+still missing, so the candidate eligibility premise cannot be derived merely
+from request support or preserved lineage. Architect and compiler-referee audits
+agree on that gap and found no source rule supporting a persistent maker mask.
+The latest code inspection alternated this theory slice with implementation
+feasibility: resolved HIR remains limited to lambda/integer/name/error, the
+collector has no call/Force/handler execution transitions, and current closed
+effect views cannot carry the symbolic payload. There is no bounded production
+prototype surface yet. No compiler code or tests were changed/run. The next
+semantic subgate is to define the shared boundary-path and re-entry transitions
+and prove path congruence; then repeat the targeted implementation audit.
+
+Delta review of the candidate rule found one major proof-contract gap: path
+congruence must compare all coordinates that can affect eligibility, not only
+stack shape and typed predicates. The repaired statement now includes
+event-specific origin/lineage, active boundary evidence, guard IDs, relevant
+state, and exact operation coverage; historical closure construction can
+matter only through these transported coordinates. The reviewer also caught
+that raw resumption runs outside the selected handler activation, not
+necessarily outside the arm's dynamic execution. That wording is corrected.
+Compiler-referee and architect reviews now agree on the remaining open source
+definition; no proof or implementation claim was added.

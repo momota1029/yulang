@@ -26,19 +26,27 @@ finite handler-image/principality and implementation feasibility. The latest
 read-only implementation audit found no resolved call/Force/handler execution
 path or effect-lineage carrier, so this remains theory-only.
 
-The fresh-handler audit confirms that current `ApplyValue` and relational
-composition preserve origin/`K,D` but do not create an origin-to-caller
-`Visible` connection; ordered search and `OpCompat` consume/constrain that
-connection rather than deriving it. The next theorem is the generic
-ordinary-flow lemma for normal closure return and later application: execute
-under the current dynamic context, propagate each request through stateful
-bind, and let current handler-boundary visibility plus ordered search decide
-selection. Prove direct and escaped closures coincide under the same current
-boundary path, while active receiver contracts still constrain inner handlers.
-This is a missing source premise, not authority for a persistent mask. Keep
-mixed-origin `K,D`, shallow raw-suffix behavior, and the imported-Force A/B
-gate separate. The exact audit and conditional lemma are recorded in the
-latest callback-scope progress section and the coupled-effect draft.
+The fresh-handler audit confirms that `ApplyValue` and relational composition
+preserve origin/`K,D` but do not derive the event's ordinary boundary-path
+eligibility. The draft now records one candidate closure-reentry rule shared
+by direct and escaped closures: run the body in its captured lexical
+environment under the current caller configuration, reinstall required value
+lineage without restoring exited maker activations, propagate each request
+through stateful bind, and test it after the actual ordered unwind. Callback
+`Capture` constrains a candidate only while its receiver boundary is active;
+it is not a universal prerequisite or persistent mask. Architect and
+compiler-referee agree this is a conditional derivation, with closure re-entry
+and boundary-path generation still unspecified. The first delta review
+requires path congruence over every eligibility-relevant coordinate, including
+per-event lineage, guard IDs, active boundary evidence, and relevant state;
+stack shape alone is insufficient. It also corrected that raw suffixes run
+outside the selected handler activation. Next define those clauses once for
+all values/contexts and prove full-coordinate path congruence for direct,
+escaped, mixed-origin, and shallow-resumption cases. Keep imported-Force A/B
+separate.
+The targeted code audit still finds no resolved application/Force/handler
+surface or lineage carrier, so this remains theory-only; repeat feasibility
+after the source transition is specified.
 
 The frozen guard specification now supplies a narrow runtime consistency
 lemma: if a carried marker frame `F_m` is reinstated inside a fresh caller

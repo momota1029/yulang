@@ -1443,6 +1443,68 @@ source visibility derivation. Current equations still admit the logical
 independence model where this ordinary-flow premise is absent, so this is not
 yet an unconditional derivation or a final soundness theorem.
 
+**Candidate closure re-entry rule and its local consequence.** Make the
+distinction between lexical capture and dynamic execution explicit in the
+common machine configuration. A closure value contains its body, lexical
+environment, latent request relation, and required value-carried lineage. Its
+application evaluates the body in that lexical environment while threading
+the *current* caller configuration through the ordinary `Run` relation:
+
+```text
+ApplyValue_ν(Closure(body, η_cl, L), x, C_now)
+  = Run_ν(body, η_cl[x], C_body)
+```
+
+Here `C_body` is the configuration produced by the ordinary closure-
+application transition from `C_now`, including required value-lineage
+re-entry. This is one case of the common `Run` relation, not a new source
+construct, selector, or data store. The transition reinstalls the runtime
+lineage required by the closure, but does not restore exited maker handler
+activations. A request
+exposed by body execution or a source-required `Force` keeps its own origin
+and joint `K,D` predicate through stateful bind. Ordered search then examines
+the actual candidate configurations produced by unwind. At candidate `h`,
+source eligibility is determined from that event's current boundary path;
+the callback contract contributes its `Capture` projection only while its
+receiver boundary is active and `h` is inside that receiver. Once search has
+exited the receiver, historical origin or lineage alone does not retain its
+capture restriction or transfer a grant. Exact operation coverage and
+`OpCompat` remain separate premises, and actual selection remains with the
+ordered search relation.
+
+This gives a small structural derivation for the three discriminators. A
+direct effectful closure and an escaped callback closure both run through the
+same `ApplyValue`/`Run`/bind/search clauses; neither requires a callback-only
+handler rule. The escaped value's latent request and lineage survive return,
+but its former receiver activation is absent from `C_now`. A fresh caller
+handler may consume the request exactly when the ordinary boundary-path
+relation admits that event at the candidate reached by search. A mixed-origin
+body composes the same clauses per event: forcing a caller thunk transports
+that request's caller origin, while an operation performed by the callback
+retains its callback origin. Sharing `K`'s family instance does not merge
+their origins or `D` incidence. If a shallow arm handles the first request,
+the resumed raw suffix enters its own search configuration outside the
+selected handler activation.
+
+The local consequence is conditional only on the machine's ordinary closure
+application, `Force`, bind, unwind, and candidate boundary-path clauses.
+Those clauses must be defined once for all values and source contexts. In
+particular, closure application cannot itself decide visibility: if two
+executions reach candidates with an eligibility-preserving correspondence of
+their complete source configurations, event-specific typed relations, and
+operation coverage, their eligibility result must agree even if one closure
+was made inside a callback receiver and the other was not. The configuration
+correspondence includes every coordinate that can affect the candidate test,
+such as request origin and runtime lineage, active boundary evidence, guard
+identities, and relevant state; equality of stack shape alone is insufficient.
+Historical closure construction may affect eligibility only through these
+transported coordinates. This path-congruence condition is the check that
+ordinary caller handling follows from the common relation rather than a
+callback-site exception. The current
+draft supplies the composition shape, but has not yet supplied a complete
+source definition of closure application and the boundary-path clauses; therefore
+the rule is a candidate, not a completed soundness or principality proof.
+
 There is a useful conditional check against the frozen runtime guard contract
 at `a58eefc3:spec/2026-06-13-runtime-guard-markers.md`, “dynamic unwind.” If
 the escaped value reinstalls its required marker frame `F_m` inside an already
