@@ -14,9 +14,13 @@ proof obligation quantifies over.
 
 Repository evidence:
 
-- `crates/yu-hir/src/module.rs::ResolvedExpr` currently has only `Lambda`,
-  `Integer`, `Name`, and `Error`. It has no application, thunk/force,
-  operation request, handler, or resumption nodes.
+- `crates/yu-hir/src/lib.rs::HirExpr` retains syntax-associated operator
+  applications as `Apply`, so the parser/association layer has a useful
+  application-shape substrate. The later source-resolved
+  `crates/yu-hir/src/module.rs::ResolvedExpr` currently has only `Lambda`,
+  `Integer`, `Name`, and `Error`; it has no resolved call/application, typed
+  thunk/force, operation request, handler, or resumption nodes. `HirExpr::Apply`
+  is syntax association data, not a resolved evaluation or inference step.
 - `crates/yu-solver/src/lib.rs::Collector::emit_lambda` handles a narrow set
   of lambda bodies (parameter name, integer, resolved name); its other shapes
   return without a lambda recipe. There is no call or handler transition to
@@ -80,9 +84,10 @@ identity bookkeeping question, not the conditional source `Force` /
 `B_{S,T}` preservation premise or the full soundness and principality proof.
 
 The corresponding code check found no existing representation for source
-origins, callback/thunk lineage, or these activation coordinates. In addition
-to the missing call/handler/force HIR already recorded above, the current
-closed effect views remain singleton `Bottom` / `Empty`. So the identity
+origins, callback/thunk lineage, or these activation coordinates. Syntax HIR
+does retain associated operator applications, but the resolved HIR and solver
+collection path have no call/handler/force semantics to attach lineage to; the
+current closed effect views also remain singleton `Bottom` / `Empty`. So the identity
 distinction can be described in the proposed relational interface, but there
 is no present compiler path where it can be implemented or exercised. This
 reinforces the current decision to alternate proof slices with read-only

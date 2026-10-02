@@ -4231,9 +4231,11 @@ The next proof slice distinguishes static source-site templates, dynamic
 request events, callback/thunk computation lineage, and activation identities.
 Type transport maps symbolic payloads and `K,D`; it does not rename runtime
 event or activation IDs. Delta review found no issue in that identity
-distinction. The alternating feasibility check found no source-origin,
-callback/thunk-lineage, or activation-coordinate representation in current
-HIR/solver/types, and closed effect views are still only `Bottom` / `Empty`.
+distinction. The alternating feasibility check found syntax-associated
+operator applications in `HirExpr::Apply`, but no resolved call/evaluation
+semantics in `ResolvedExpr` or the solver collection path. There is also no
+source-origin, callback/thunk-lineage, or activation-coordinate
+representation, and closed effect views are still only `Bottom` / `Empty`.
 Thus the current compiler cannot host this proof slice end to end; continue the
 theory first and repeat read-only feasibility checks at subsequent semantic
 gates. See the appended entry in
