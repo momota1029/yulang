@@ -856,9 +856,9 @@ extrusion, retaining free-witness dependencies.
 Independent M3 semantic and conformance reviews closed the variable-only and
 lexical-frontier delta with no blocking/major findings; one source-line locator
 was corrected. Verification: static diff/reference checks and `git diff --check`;
-no tests, builds or measurements. The next gate is signed solution-relation
-preservation for staged extrusion and its copied-bound snapshots. Sealed
-packets, nonprefix contexts, generative heads, recursive
+no tests, builds or measurements. Signed solution-relation preservation is
+now supplied by the separate finite extrusion package below for unscoped
+assignments. Sealed packets, nonprefix contexts, generative heads, recursive
 equality and lifecycle remain outside this equality theorem. No source
 capability is rejected to fit the fragment; full source principality and
 compiler implementation remain later gates.
@@ -871,15 +871,43 @@ visiting that bound; the negative polarity has the dual `R_l <: kappa_l`.
 This contradicts the claim that wrapping only `constrain`/retry enforces §22,
 not the user's level semantics. The successor must route/stage every extrusion
 edge through guarded comparison; scope safety then holds conditionally on
-complete replay, while preserving the original approximation/principality is
-still unproved. Operation-instance §8 and the pinned audit record this gate.
+complete replay. Operation-instance §8 and the pinned audit record this gate;
+the separate relation package now addresses exact unscoped preservation.
 Independent M3 semantic and conformance reviewers found no blocking/major
 issues. Two minor semantic precision points (the opening is at boundary level,
 and the conditional invariant needs initially certified visible edges) were
-repaired without changing the claim. The immediate next proof is signed
-solution-relation preservation for staged extrusion, not another scope lemma.
+repaired without changing the claim.
+
+### Exact extrusion relation and remaining scoped extension
+
+`2026-10-03-staged-extrusion-solution-relation.md` gives one candidate package:
+exact source-order discovery in a private heap, with unchanged snapshots and
+no replay feedback, conservatively extends the original unscoped constraint
+relation. Assigning each parent the original variable's value proves the
+reverse projection; signed source links and structural variance prove the
+forward enclosing-retry direction. Literal retained relations over original
+family/evidence coordinates are preserved jointly. Variable cycles remain
+graph edges, with at most two representatives per input variable in one call.
+Fixed-term, deduplicated consequence-only replay preserves the relation and
+terminates; this is not a termination theorem for an allocating whole solver.
+
+The diagonal extension can depend on a witness unavailable at the destination.
+A conditional greatest-type model supplies an independent uniform upper
+approximation despite guard rejection, so unscoped preservation cannot alone
+prove scoped completeness/principality. The bounded source audit found frozen
+`never` syntax and internal Top, but no admitted source obligation establishing
+that countermodel as a Yulang acceptance conflict. No guard exception or source
+capability restriction is adopted. Next derive the scoped extension criterion
+from uniform source checking, admissible boundary approximations and declared
+interfaces, rather than treating rejected graphs as semantically unsatisfiable.
+Independent M3 semantic/conformance reviewers found no findings in this
+package. Static diff/reference checks passed; tests, builds and measurements
+were not run. Compiler implementation, effectful checking and lifecycle
+remain open.
 
 ## Main records
+
+- `notes/design/2026-10-03-staged-extrusion-solution-relation.md` — exact unscoped graph projection, signed retry and finite consequence replay; scoped extension criterion remains open.
 
 - `notes/design/2026-10-02-parametric-component-linking.md` — finite grafting and exact joint linking; revised per-program proof target, source summary construction still open.
 

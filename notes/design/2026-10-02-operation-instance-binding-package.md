@@ -513,6 +513,13 @@ current guard evidence. This is a scope-safety invariant conditional on
 complete obligation routing; it does not show that this staged transition
 preserves the unguarded extrusion's solution fiber or is principal.
 
+The separate [staged-extrusion solution-relation package](2026-10-03-staged-extrusion-solution-relation.md)
+now gives a Draft unscoped diagonal-extension and signed-retry theorem for
+one exact ordered trace, with a separate finite consequence replay. Its
+scoped extension criterion remains open: a boundary representative may not
+admit the diagonal witness dependency, and guard rejection alone does not
+prove scoped unsatisfiability. This grants no implementation authority.
+
 The fresh Function-child argument establishes no counterexample to actual
 Simple-sub extrusion and is withdrawn as such. Derived structural summaries
 do not assign stored levels to constructors; comparison decomposes structure

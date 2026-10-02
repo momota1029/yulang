@@ -2250,3 +2250,61 @@ issues. The semantic review's two minor precision repairs were accepted:
 visible edges. Verification: reference/diff inspection and `git diff --check`;
 tests, builds and measurements zero. The full proof-and-implementation goal
 remains active.
+
+### Exact staged-extrusion relation package (2026-10-03)
+
+Previous goal turn was progress: guard-bypass checkpoint `e3ac21646` was
+reviewed and pushed; current branch/upstream and clean tree were revalidated.
+The new `2026-10-03-staged-extrusion-solution-relation.md` closes one bundled
+relative theorem for finite frozen input, exact ordered discovery and fixed
+consequence replay. Compiler implementation remains gated.
+
+A private discovery heap retains the original source-link writes, immutable
+list snapshots and first-visit polarity memo. Every edge enters the common
+guard when generated; replay cannot mutate the active discovery heap. For a
+successful attempt, its trace is the exact reference trace up to fresh names.
+Each original solution extends by assigning every fresh representative its
+source variable's value. Source links become reflexive, while copied bounds
+evaluate to original bounds or prior source links. Retaining original edges
+gives the converse, proving exact original-variable projection. This extends
+pointwise to any unchanged joint relation `Phi` over original family/evidence
+coordinates, without independently solving or erasing them.
+
+Signed root inequalities follow from source links and constructor variance,
+with Function argument reversal. Together with the diagonal extension they
+prove the enclosing original/retry obligations have the same projected
+unscoped solution relation. Variable recursion stays in graph edges. One
+finite discovery call creates at most two ports per input variable; fixed-term
+deduplicated replay adds only entailed inequalities and has at most `N^2`
+pairs. Constructor decomposition needs an explicit reflection law. These are
+finite discovery/replay results, not termination or principality for a whole
+allocating solver.
+
+The remaining scoped bridge is now precise. The diagonal value can depend on
+an opening unavailable to a boundary port. Conversely, a carrier with a
+witness-independent greatest `U` admits `X:=kappa, R:=U,
+Y:=Record{f:U}` uniformly in the positive bypass trace, although the guard
+rejects the copied edge. Therefore rejection cannot simply mean absence of
+all uniform semantic solutions. No Top exception or source restriction is
+selected. Next establish the scoped extension criterion from the uniform
+source typing judgment and its admitted independent approximations.
+
+A bounded independent source audit did not establish a concrete source
+acceptance conflict. Current `syntax-reference/en/src/types/type-expression-core.md`
+explicitly excludes type meaning, and current HEAD lacks `spec/` and `lib/`.
+Frozen `a58eefc3:lib/std/control/flow.yu:1–2,19` uses the real `never`
+annotation; `crates/poly/src/types.rs:64–82` and
+`crates/infer/src/lowering/mod.rs:783–804` recognize/lower bottom.
+Internal Top is printed as `any` by
+`crates/poly/src/dump/type_format/formatter.rs:304`, but the builtin matcher
+does not expose a general `any`/`Any`/`Top` annotation. Frozen `where 'a: Add`
+is a role predicate, not evidence for an operation-local subtype bound.
+These are frozen characterization facts, not successor semantic authority.
+
+M3: one bounded architect, one documentary producer, one source explorer and
+two independent semantic/conformance reviewers. Both reviewers found no
+findings; no repair round was needed. Primary synchronized task/index/progress
+and review metadata. Verification was focused reference/diff inspection and
+`git diff --check`; the producer also checked relative links. Tests, builds
+and measurements budget/consumption zero. The full objective remains active;
+normal integration inspects explicit paths and the entire outbound range.
