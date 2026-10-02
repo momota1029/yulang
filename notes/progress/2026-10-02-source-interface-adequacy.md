@@ -59,6 +59,19 @@ cover effectful application; F5 remains legacy comparison material. The
 candidate therefore still needs user approval before the theorem can be
 instantiated for Yulang.
 
+The theorem package now contains a reusable stateful bind lifting lemma for
+calls, adaptation, and sequencing after `Force`. An independent compiler-
+referee delta review found and repaired the prior gap where the next
+computation was constrained only on immediate returns, leaving returns after
+resumption uncovered. The final premise quantifies over every related
+value/configuration pair reachable after any finite sequence of admissible
+matched resumptions, including zero; configurations retain the same `ν` and
+full live `K,D` incidence. Guarded closure then covers nested requests. This
+proves the compositional bind step under its premises. It does not prove
+atomic forward coverage, the initial relation, or admissibility/re-entry of
+concrete source responses, so the source-to-interface theorem remains
+conditional.
+
 An adversarial store-sharing witness found that freshening the type of a
 captured mutable cell at each external use is unsound. The candidate now keeps
 identities free in reachable shared-store roots fixed, uniformly across value,
@@ -81,9 +94,9 @@ before its saved suffix, and return removes exactly that occurrence without
 restoring consumed shallow or maker handlers. Review found this coherent; it
 remains a forward-coverage obligation, not a completed adequacy proof. The
 conditional schema still lacks primitive coverage, initial `R`, and universal
-future-use/resumption realization. Resolve the single source choice, close
-that theorem package, then move to the finite constrained-interface
-soundness/principality theorem. The implementation-feasibility gate remains
-after lifecycle preservation.
+future-use/resumption realization, though the bind-composition lemma itself
+is closed. Resolve the single source choice, close that theorem package, then
+move to the finite constrained-interface soundness/principality theorem. The
+implementation-feasibility gate remains after lifecycle preservation.
 
 No compiler code or tests changed/run.

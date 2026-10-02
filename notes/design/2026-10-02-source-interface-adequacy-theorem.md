@@ -136,8 +136,9 @@ system and its universally quantified future-use relation.
 Fix `π`, `σ`, `ν`, and a source-well-typed initial configuration `C`. Suppose
 there is an initial interface `I₀` with `C Rν,σ,π I₀`, and forward coverage
 holds for every primitive transition in the supported machine: expression
-execution, stateful bind, closure application, typed value adaptation, thunk
-construction/`Force`, operation request, and shallow-handler search. Then
+execution, closure application, typed value adaptation, thunk construction/
+`Force`, operation request, and shallow-handler search. Stateful bind is
+covered by the reusable lifting lemma below. Then
 every finite source execution prefix, return, and request suspension has a
 matching path in `Psrc(C)`, and each matching state remains related by `R`.
 Every typed resumption of a matched request extends both paths while preserving
@@ -190,13 +191,13 @@ and removing exactly that occurrence on normal completion. This obligation
 cannot be discharged by lineage preservation alone or by reinstating the
 selected shallow handler or exited maker handlers.
 
-The application rule is the composition of callee evaluation, argument
-evaluation, and `ApplyValue`. Function adaptation is itself a composition of
-argument adaptation, call, and result adaptation. The identity, forced,
-delayed, and thunk-to-thunk cases all use the same typed-boundary image; a
-force exposes the latent source computation only at that transition. By the
-induction hypotheses and clauses 1–3 of the invariant, every request and its
-family incidence is present in the composed image at the same assignment.
+The bind lifting lemma below derives compositionality from the atomic rule
+images. The application rule is the composition of callee evaluation,
+argument evaluation, and `ApplyValue`. Function adaptation is a composition
+of argument adaptation, call, and result adaptation. The identity, forced,
+delayed, and thunk-to-thunk cases use the same typed-boundary image; a force
+exposes the latent source computation only at that transition. The shared
+assignment and joint `K,D` incidence are carried through each composition.
 
 For a shallow handler, induct on ordered search and the source arm list.
 Pattern and guard computations compose before the next arm decision. A
@@ -214,6 +215,69 @@ those observations. The final fiber condition follows from clauses 1 and 3:
 every composed predicate is interpreted under the single joined assignment
 and remains attached to every dependent output view. This proves the
 conditional simulation claim.
+
+### Bind lifting lemma
+
+This is the reusable composition result used by calls, adapters, and `Force`.
+Write a source computation outcome as either
+
+```text
+Ret(v,C′)
+Req(q,C′,k)       // k receives a typed response and the live resumed state
+```
+
+and define source bind by
+
+```text
+Ret(v,C′) >>= F  = F(v,C′)
+Req(q,C′,k) >>= F = Req(q,C′, λ(r,C″). k(r,C″) >>= F)
+```
+
+The interface transition uses the same bind on interface outcomes. With
+`σ` and policy `π` fixed, let `Simν(S,S#)` be the greatest relation such
+that every source outcome has a matching interface outcome at the same `ν`.
+A return matches related values and full configurations under `Rν,σ,π`,
+including live stores, ordered activations, required lineage, and live `K,D`
+incidences. A request matches operation, payload, origin, event path, and joint
+`K,D`, with related suspension configurations; for every source-admissible
+typed response and related reachable well-typed resumed configuration, its
+continuation pair is again in `Simν`. This recursive requirement is guarded
+by the matched request constructor.
+
+**Lemma (bind preserves simulation).** Suppose `Simν(S,S#)` holds. Require
+that, for every admissible related value/configuration pair `(v,C′)` and
+`(v#,I′)` returned by related computations reachable from `S,S#` after any
+finite sequence of admissible matched resumptions (including zero),
+`Simν(F(v,C′),F#(v#,I′))` holds. The pair carries the full relevant
+configuration under `Rν,σ,π`, not just its store. Then
+
+```text
+Simν(S >>= F, S# >>= F#)
+```
+
+Proof: take all related computation pairs reachable by finite admissible
+matched resumptions, and form the candidate relation consisting of their
+bound pairs together with the `Simν` pairs supplied by the next-computation
+premise. In a return case at any such pair, that premise supplies simulation
+of the next computations at the actual related value/configuration pair. In
+a request case, both binds preserve the matched request and append `F/F#`
+to its continuations. After every admissible matched resumption, the resumed
+computation pair is again reachable, so its bound pair belongs to the
+candidate relation. Thus the candidate satisfies the return clause and the
+request clause with its recursive obligation beneath a request constructor;
+guarded coinductive closure places it in the greatest relation `Simν`.
+This includes requests whose continuations return only after further
+resumptions. Live configurations are threaded through unchanged by bind;
+source re-entry transitions remain explicit, with no store snapshot or reset.
+The same `ν`, origin, and every still-live `K,D` incidence are preserved.
+
+Relational composition is associative by reassociating intermediate related
+value/configuration witnesses subject to the same reachable-return premise.
+Consequently call-by-value application,
+argument/result adaptation, and sequencing after `Force` are instances of
+this lemma. The lemma does not prove the atomic closure/handler/force images
+or the admissibility of their responses; those remain the primitive coverage
+premises of the main theorem.
 
 ## 5. Why this is one theorem, not separate site rules
 
