@@ -9,6 +9,7 @@ Reviewed-by: compiler_referee and spec_auditor; scoped M3 package review; indepe
 Scoped-template-review: §§7–9 independently reviewed by compiler_referee and spec_auditor; no findings in the declared fragment
 Existential-opening-review: charter §20 and §§2–4,7–8 delta independently reviewed by compiler_referee and spec_auditor; no findings; full checking/lifecycle remain open
 Level-discipline-review: charter §22 and §8 eager comparison/conditional scheduling delta independently reviewed by compiler_referee and spec_auditor, 2026-10-03; no findings; composite levels and full semantic preservation remain open
+Level-representation-review: §8 prefix-cap equality realization independently reviewed by compiler_referee and spec_auditor, 2026-10-03; no findings; exact scope is fixed-head acyclic uniform equality with supplied ordered-prefix permissions
 Supersedes: no source decision; refines the existing complete OpCompat obligation
 
 ## 1. Existing authority and the missing distinction
@@ -558,6 +559,188 @@ equality. The user's `checked:int=x` example is rejected by the generic
 source rule. Its ordinary assignment obligation need not literally be an
 equality node; any admitted checking rule must establish it uniformly under
 the rigid input, and actual Int callers cannot supply that proof.
+
+### Candidate representation: head scope and endpoint dependency frontier
+
+This is a bounded research representation for the equality kernel above,
+not an implementation approval or additional source restriction. Separate
+availability of a known constructor head from the dependency frontier of
+its unknown children. This distinction addresses the open-constructor
+question without defining all source type levels.
+
+**Input fragment.** Retain the finite acyclic free-constructor equality
+language and uniform syntactic solution order of §8. Fix a constructor
+signature whose heads are available before every opening; assign those heads
+level zero and opening levels `l >= 0`. There are no lattice equality laws,
+declared subtype bounds or generative local heads in this fragment.
+
+Let the live binder frontier be ordered. Each flexible variable `X` has
+an allowed **prefix** represented by a cap:
+
+```text
+Allowed(X) = { kappa | intro(kappa) < cap(X) }.
+```
+
+Treat opened names introduced at the same level as one block: a frontier
+does not admit only selected members of that block. Keep each opening's
+identity and the original existential packet correspondence even when
+aliases or bindings are canonicalized. These are representation invariants,
+not a requirement for a separate rigid IR node.
+
+### Prefix/cap equivalence
+
+For the fixed live ordered frontier, choose canonical cap representatives
+for its distinct prefixes. Then
+
+```text
+kappa in Allowed(X) iff intro(kappa) < cap(X)
+Allowed(X) intersect Allowed(Y)
+  = { kappa | intro(kappa) < min(cap(X),cap(Y)) }.
+```
+
+The membership statement is the representation definition. For intersection,
+a name precedes both frontiers exactly when it precedes the earlier one.
+The same-level-block condition ensures this comparison cannot select part
+of a block. Thus set restriction in the existing algorithm is exactly cap
+lowering in this prefix fragment, including the empty prefix. General
+nonprefix permissions cannot be represented by a single such cap.
+
+Head availability is a separate test. Comparing an opened `kappa` with
+itself is an identity tautology. Distinct opened identities fail uniform
+syntactic equality, without implying semantic disequality at actual
+instances. A known constructor head versus an opened `kappa` fails: its
+head level is zero, hence `headlevel <= intro(kappa)`, independently of any
+fresh child levels. This is the rigid/head clash of the existing equality
+kernel expressed through the known-head premise, not a new subtype rule.
+
+### Procedure within the common comparison entry
+
+Use the existing term DAG and equation worklist, with caps replacing allowed
+sets. Every generated/replayed equation still enters common `Compare` and
+its current dependency checks before a forbidden binding is committed.
+
+1. Dereference existing bindings while retaining opening identities and
+   packet correspondence. Delete identical endpoints. Decompose equal known
+   constructor heads into their child equations. Distinct fixed heads and
+   the opening/head cases above fail the uniform equality obligation.
+2. Orient `X=t` with a flexible variable on the left and perform the standard
+   finite-term occurs check. Traverse `t` and reachable existing bindings
+   using graph identities; detect a prospective binding cycle rather than
+   unfolding it. The admitted input/binding graph remains acyclic.
+3. Require every free opened name in the traversed term to satisfy
+   `intro(kappa) < cap(X)`. This checks endpoint dependence, separately from
+   constructor-head availability. It does not compute a syntactic maximum
+   child level and call that the type's level.
+4. For each residual flexible `Y` in the term, lower its cap to
+   `min(cap(Y),cap(X))`. Propagate this restriction through its existing
+   bindings, revisiting affected occurrences and equations through common
+   `Compare`. Reject a newly forbidden opening before successful publication;
+   otherwise commit the permitted binding `X=t`.
+
+An alias retains the common prefix via the minimum cap, not a new witness.
+All dependency changes invalidate affected checks as required by the
+preceding scheduling theorem. Re-enter derived comparisons, decomposition
+children and opposite-bound replay where applicable; a stale once-only
+pair cache is not a substitute for that coverage.
+
+No constructor copying or infinite recursive unfolding is required. Nodes
+and constructor pairs come from the existing finite DAG; substituted terms
+are shared references. A prospective occurs-cycle is detected and rejected
+within this finite-term input language. That restriction is the existing
+kernel premise, not a source recursive-type rejection policy.
+
+### Termination and exact correspondence
+
+There are finitely many input nodes, variables, opening blocks and canonical
+caps. Each variable binding eliminates an unresolved variable after
+dereferencing. Each strict cap decrease removes at least one permitted
+opening block and can happen only finitely often. Decomposition processes
+finitely many node pairs, with dependency changes causing only finitely
+many rechecks. Under exhaustive scheduling, these finite measures establish
+termination of this procedure, not a practical runtime bound.
+
+Map every cap state to its represented `Allowed` sets. Prefix membership
+maps step 3 to the existing algorithm's rigid-occurrence test; the minimum
+law maps step 4 to its set intersection and restriction propagation. Head
+cases, identity deletion, constructor decomposition and occurs checking are
+the same equality cases. Induction over transitions therefore gives exact
+correspondence of the two procedures' residual equations and permissions,
+modulo canonical cap encoding and processing order.
+
+Conversely, every allowed-set restriction reachable in this prefix input
+remains a prefix and has its canonical cap representation. Each existing
+algorithm step can therefore be reproduced by the cap procedure. Neither
+direction changes permitted endpoint substitutions or creates an opening
+witness. At quiescence the common scheduling premise ensures no old check
+survives merely under a superseded cap.
+
+The equality kernel's solution-preservation and factorization theorem thus
+transfers: failure is failure of a uniform syntactic equality obligation,
+and success gives a principal **uniform syntactic constructor substitution**
+ordered by further scope-respecting instantiation in this prefix fragment.
+It does not assert a semantic `forall/exists` pointwise-witness completeness
+theorem, full subtype principality or complete source inference.
+
+Uniform static equality failure must not answer a semantic `Eq_nu` guard
+with false. `kappa=Int` fails uniformly but can be true at the actual instance
+`kappa:=Int`. Semantic guard realization remains a separate obligation;
+the existing warning about failed uniform equality remains in force.
+
+A consistent name bijection and strictly increasing level relabelling that
+fixes head level zero preserve `<`, minimum caps and represented permissions.
+The procedure therefore commutes with that transport, up to renamed graph
+references. This is a representation transport lemma, not generalization,
+fresh instantiation or SCC intrusion.
+
+### Why neither whole-tree maximum nor minimum substitutes for this split
+
+A head's availability cannot be licensed solely by fresh inner endpoints.
+For an opened generic payload, a demand for `Fun(X_fresh,Y_fresh)` still
+compares its hidden witness with a known Function head. Taking only maximum
+child levels could conceal that forbidden uniform head equation. This
+illustrates a representation failure, not a new source-case rule.
+
+Conversely, whole-tree minimum alone loses dependency information:
+`Box(Int)` and `Box(kappa)` both fold to the known head's level zero, yet
+binding to an outer `X` with `cap(X) <= intro(kappa)` admits the first and
+forbids the second. Full dependency traversal distinguishes them. For an
+inner `X` whose prefix admits `kappa`, `X=Box(kappa)` remains a valid scoped
+equality. This makes no blanket claim about algorithms also using minimum
+with additional dependency evidence. Endpoint dependence and head
+availability answer different questions and must not be collapsed.
+
+| Representation candidate | Exact scope of this result |
+|---|---|
+| Explicit `Allowed` sets | Existing finite equality algorithm; can express nonprefix permissions |
+| Prefix caps plus opening/head identity | Equivalent representation for this ordered prefix fragment |
+| Whole-tree maximum child level | Does not justify known-head comparison with an opening |
+| Whole-tree minimum level alone | Cannot distinguish permitted `Box(Int)` from forbidden hidden dependencies in `Box(kappa)` |
+
+The cap construction offers a smaller permission representation where the
+prefix premise holds. This comparison is an economy argument within the
+kernel, not selection of a public type construct or general compiler policy.
+
+### Remaining representation and source gates
+
+Sibling/nonprefix scopes, lifecycle-generated frontiers and arbitrary
+generalization contexts are not covered. Keep their existing constraints
+until an adequate representation is proved; this fragment does not authorize
+rejecting those source capabilities. Type heads outside the fixed signature,
+local generativity, declared bounds, recursive equality and semantic row
+equalities need separate laws. Subtyping and effectful Function contracts
+likewise remain outside this equality proof.
+
+Positive subtype propagation can reuse the prior guarded closure only under
+its fixed finite bounds, carrier laws and compatible monotone scope premises.
+No full soundness or principality for it follows from cap/equality equivalence.
+In particular, no new `Top`/`Bottom` exceptions are introduced: this free
+constructor equality fragment contains no lattice laws to establish them.
+
+This is a new successor representation construction for an existing limited
+checking algorithm. The packet identity and source generic-arm obligations
+remain semantic requirements; no separate rigid IR or exit-time checker is
+mandated. Compiler implementation, full source preservation and lifecycle
+approval remain gated independently.
 
 ## 9. Source consequences and remaining execution image
 

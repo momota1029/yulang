@@ -823,12 +823,29 @@ birth levels alone. This is an implementation invariant to prove, not a
 refutation of eager checking or permission to adopt frozen extrusion as
 successor authority. No exit-time scan is proposed.
 
-Composite-type level definition remains a proof/representation dependency;
-fresh children cannot by themselves justify imposing a callable shape on a
-hidden generic payload. No max-only definition or special-case exception is
-adopted. Next derive the structural comparison levels and their preservation
-through the actual constraint rules, while retaining packet witness/`K,D`
-correspondence. Implementation remains a later gate.
+Operation-instance §8 now gives a candidate concrete level representation for
+the finite acyclic free-constructor equality kernel. Known heads precede the
+openings; variable dependency permissions are supplied ordered prefixes.
+`Allowed(X)={kappa | intro(kappa)<cap(X)}` represents each such prefix, and
+intersection is exactly minimum cap. Head comparison and child-dependency
+traversal remain separate, so fresh children do not license a hidden payload's
+Function shape and known heads do not hide escaping child dependencies.
+
+The cap procedure reproduces the existing allowed-set algorithm, including
+binding traversal, occurs checks and restriction propagation. Its finite
+binding/cap/pair measures prove termination; correspondence transfers solution
+preservation and principality for uniform syntactic constructor substitutions.
+Consistent name transport and increasing level relabelling preserve these
+checks. Neither result is a generalization/freshening/intrusion theorem.
+Uniform equality failure is not a negative semantic `Eq_nu` guard result.
+
+Two independent M3 reviewers found no findings in this representation package.
+Static diff/reference checks only; no tests, builds or measurements. Next
+derive the source frontiers and extend the structural comparison account to
+actual subtype/effect obligations. Sibling/nonprefix scopes, generative heads,
+recursive equality and lifecycle remain outside this supplied-frontier theorem;
+no source capability is rejected to fit the fragment. Compiler implementation
+remains a later gate, and full source principality is still open.
 
 ## Main records
 

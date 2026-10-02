@@ -2107,3 +2107,51 @@ complete concrete source acceptance derivation; no new source counterexample
 or compatibility loss is claimed. Semantic endpoint equality/separation and
 complete invocation checking remain open. An unconditional head-only routing
 rewrite is not justified by this audit.
+
+### Concrete level representation for the scoped equality kernel (2026-10-03)
+
+Previous goal turn was progress: eager comparison discipline `620583f3f` was
+reviewed and pushed. The branch was revalidated clean. The next package
+constructs a level representation in operation-instance §8 rather than
+assuming a scope guard already correct. It remains research material, not
+implementation approval or a new source restriction.
+
+For the existing finite acyclic free-constructor equality language, assume
+fixed heads available before all openings and supplied ordered-prefix
+permissions. Represent a flexible variable's permitted openings by
+`intro(kappa)<cap(X)`. Same-level openings form one block; intersection of
+prefix permissions is minimum cap. Known-head availability and dependency
+frontiers are separate: fresh children cannot make a Function demand generic,
+while `Box(kappa)` can be bound to an inner variable that admits that opening.
+A whole-tree minimum alone loses the distinction between `Box(Int)` and a
+hidden dependency in `Box(kappa)`; full dependency traversal remains required.
+
+The procedure retains the term DAG, occurs checking, opening/packet identity,
+and generation-time common comparison entry. It lowers residual variable caps
+and propagates restrictions through bindings with invalidation/rechecks.
+Transition correspondence with the existing allowed-set kernel proves exact
+solution preservation and principal uniform syntactic substitutions. Finite
+bindings, strict cap decreases and constructor-pair processing establish
+termination in this fragment. No practical performance bound is claimed.
+Consistent name transport and increasing level relabelling preserve the
+represented permissions and operations; this does not establish source
+generalization, fresh instantiation or SCC intrusion.
+
+Uniform checking remains distinct from semantic guard realization: failed
+uniform `kappa=Int` cannot be compiled to a false `Eq_nu` predicate at actual
+instances. The theorem assumes source frontiers rather than deriving them.
+Sibling/nonprefix contexts, generative heads, declared bounds, recursive
+equality, semantic rows and subtype/effectful Function checking remain open.
+No source acceptance envelope is narrowed to the proven equality fragment.
+The full proof-and-implementation goal remains active.
+
+M3 budget: one architect, one documentary producer and two independent
+semantic/conformance reviewers. Both reviewers found no findings. Primary
+tightened the minimum-level example before review to state information loss
+rather than attributing an unjustified rejection to every minimum-based
+algorithm. No post-review semantic repair or additional review round occurred.
+Convergence criterion: no accepted blocking/major finding. Verification is
+focused reference/diff inspection plus `git diff --check`; tests, builds and
+measurements budget/consumption zero. Primary synchronized task/index/progress
+and review metadata, and inspects explicit paths and the entire outbound
+range before normal research-branch integration.
