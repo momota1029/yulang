@@ -4,12 +4,12 @@ Date: 2026-10-02
 Branch: `research/simple-sub-intrusion`
 Status: theorem package candidate; no implementation authority
 
-The ordinary escaped-closure caller-search consequence is now isolated from
-the receiver-local capture question. After maker return, dispatch uses the
-current caller's ordered active handlers and their source boundary path; no
-maker capture premise or historical mask is carried into the call. The
-ordinary machine's operation-value application also constructs a thunk, with
-the source-demanded `Force` exposing its request.
+The ordinary escaped-closure caller-search consequence is settled independently
+of receiver-local capture: after maker return, dispatch uses the current
+caller's ordered active handlers and applicable source boundaries at the
+actual post-application configuration. No maker capture premise or historical
+mask is carried into the call. Operation-value application constructs a
+thunk, with source-demanded `Force` exposing its request.
 
 The next milestone is consolidated in
 `notes/design/2026-10-02-source-interface-adequacy-theorem.md`. It states one
@@ -67,12 +67,23 @@ residual issue in that clause; neither review treats it as a complete
 effectful generalization theorem. Whether and where an effectful right-hand
 side may generalize remains open for the lifecycle theorem.
 
-No compiler code or tests changed/run. The next step is one bundled semantic
-decision on lexical binder ownership and receiver-local capture for a
-caller-owned thunk forced inside a callback. After that decision, close the
-ordinary source machine and prove its primitive source/interface simulation as
-one theorem package; do not reopen callback micro-cases absent a counterexample
-to that package. Then move directly to the finite constrained-interface
-presentation and its soundness/principality theorem, or record one precise
-obstruction. The implementation-feasibility gate remains after lifecycle
-preservation.
+The user's decisions select preservation of an already-derived callback
+incidence through nested active call/adaptation/Force transitions and ordinary
+caller search after escape. They do not conclusively select whether forcing a
+caller-owned thunk creates a new incidence. The current package records this
+single A/B source-policy choice without reopening settled escape cases. The
+bundled package review repaired event-relevant callback boundaries, ordinary
+handling for receiver-body events, actual-`C_h` boundary checks, and concrete
+closure-frame re-entry using the caller's current store and activations. A
+focused referee delta then required invocation re-entry across handler unwind:
+suspension retains a wrapper, resume reinstalls the invocation occurrence
+before its saved suffix, and return removes exactly that occurrence without
+restoring consumed shallow or maker handlers. Review found this coherent; it
+remains a forward-coverage obligation, not a completed adequacy proof. The
+conditional schema still lacks primitive coverage, initial `R`, and universal
+future-use/resumption realization. Resolve the single source choice, close
+that theorem package, then move to the finite constrained-interface
+soundness/principality theorem. The implementation-feasibility gate remains
+after lifecycle preservation.
+
+No compiler code or tests changed/run.

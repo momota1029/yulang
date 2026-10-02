@@ -16,14 +16,14 @@ system, with the same assignment `ν` and the same complete request/resumption
 interface through evaluation, application, adaptation, `Force`, handler
 search, and raw resumption.
 
-The theorem is parameterized by a callback-capture policy `π` only at the
-receiver-local incidence point. This keeps the operational simulation and
-`K,D` transport proof independent of the still-open choice about a
-caller-owned thunk forced during a callback. Specializing `π` changes which
-receiver-local handler transitions are available and therefore can change a
-handler image; it does not change origin preservation, ordinary post-escape
-caller search, or the shared-assignment composition laws. This parameterization
-is proof factoring, not approval of either policy.
+The theorem preserves an already-derived callback capture incidence through
+nested call/adaptation/`Force` transitions while its receiver and handler
+remain active, as selected by the user. Origin and `K,D` remain unchanged;
+lineage alone grants no eligibility or mask, and no maker activation survives
+return. It is parametric in the remaining milestone-1 choice of whether
+forcing a caller-owned thunk during callback execution creates a new
+receiver-local incidence or only transports one already established. The
+preservation instruction alone does not decide creation.
 
 ## 2. Complete operational observation
 
@@ -95,7 +95,8 @@ must still hold in that fiber. A projection that changes `ν`, rebuilds `K`
 after materializing the request family, or drops live `D` incidence does not
 satisfy the condition.
 
-Relate concrete configurations and complete interfaces by `C Rν,σ,π I` when:
+Relate concrete configurations and complete interfaces by
+`C Rν,σ,π I` when:
 
 - their current source values, live stores, and ordered activations have the
   same well-typed observable interpretation at `ν`; and
@@ -163,7 +164,13 @@ The common invariant for every image step is:
 5. **Resumption fidelity:** requests carry the actual continuation and live
    state. Bind appends to each resumption; shallow selection passes the raw
    continuation outside the selected handler; forwarding adds only the
-   source-prescribed re-entry for still-enclosing handlers.
+   source-prescribed re-entry for still-enclosing handlers. A suspended
+   invocation retains a re-entry wrapper even if search unwinds its active
+   call-frame occurrence. Before the saved suffix runs, resumption installs a
+   fresh/resumed occurrence; normal completion removes exactly that occurrence.
+   The wrapper preserves live store and required lineage without reinstalling
+   a consumed shallow handler or an exited maker handler. Lineage data alone
+   does not implement this transition.
 
 ### Proof
 
@@ -176,7 +183,12 @@ composes the next computation; the request bind clause preserves the request
 and maps the appended computation into its saved continuation. At suspension,
 use the resumption clause of `R` for each source-admissible response and
 reachable live state. It supplies the next related configurations without
-resetting state or changing origin.
+resetting state or changing origin. Where search unwound an invocation frame,
+primitive coverage must image its continuation wrapper installing a
+fresh/resumed occurrence before the saved suffix and `ReturnFromInvocation`,
+and removing exactly that occurrence on normal completion. This obligation
+cannot be discharged by lineage preservation alone or by reinstating the
+selected shallow handler or exited maker handlers.
 
 The application rule is the composition of callee evaluation, argument
 evaluation, and `ApplyValue`. Function adaptation is itself a composition of
@@ -210,38 +222,40 @@ closures, adaptation, force, requests, and shallow handlers are cases of the
 ordinary source transition system. Row union, filtering, and handler residual
 support are projections after those relational images; they do not enter the
 simulation proof as independent semantics. Callback capture is only one
-candidate-specific visibility premise for a receiver-local handler. The
-policy parameter `π` is fixed across the whole derivation and cannot be
-changed by a later phase.
+receiver-local visibility premise for an event whose derivation crosses the
+relevant callback boundary; receiver-body events use ordinary visibility.
+Capture creation follows fixed policy parameter `π`, while already-derived
+incidence preservation is selected.
 
 This theorem deliberately proves only source execution into the complete
 relational carrier. It does not claim that a finite `P` exists, that a solver
-computes the least representable `P`, or that the source typing/ownership
-rules have already been selected. Those are the next representation and
-principality gates.
+computes the least representable `P`, or that generalization admissibility is
+proved. Those are the next representation and principality gates.
 
 ## 6. Exact closure boundary
 
 The proof above is a conditional simulation theorem. Its application to
-Yulang source semantics is not yet certified. Two semantic relations must be
-fixed, then their primitive forward-simulation clauses proved:
+Yulang source semantics is not yet certified. The imported-thunk
+incidence-creation policy must be selected, and the primitive forward-simulation clauses and initial relation must then be proved:
 
-- The source typing derivation must define ownership and instantiation of
-  operation-declaration binders across each lookup, application, callback,
-  recursive root, and request occurrence. The current syntax reference does
-  not specify effect-inference ownership, and the candidate core explicitly
-  leaves this rule open. Without it, `σ` and the source-induced sharing
-  presented by `D` are parameters, not a Yulang theorem.
-- The receiver-local `Capture` incidence for a caller-owned thunk forced
-  during callback execution remains the unresolved choice in the milestone-1
-  source package. The simulation proof is uniform in `π`, but handler-image
-  adequacy for Yulang must specialize one policy before this transition case
-  can be certified.
+- Every primitive transition must preserve the lexical binder map `σ` on
+  lookup, application, callback, recursive root, and request occurrence.
+  The selected map is capture-avoiding and shared across each declaration
+  binder's value, latent effect, payload/result, and `K,D` occurrences;
+  `Force` does not instantiate again. This is a source rule of the candidate
+  machine, not a request-family grouping rule. The full admissibility of
+  generalization across stores/effectful right-hand sides remains in the
+  later lifecycle theorem.
+- The selected `Capture` incidence must be shown to follow the complete
+  source `CallView` through every callback call/adaptation/force transition.
+  Preservation of an established incidence is selected; creation for a
+  caller-owned thunk forced during callback execution remains the single
+  policy choice. Coverage must be proved for whichever policy is selected.
 
-### Candidate ownership rule, pending source review
+### Selected lexical ownership for one scheme lookup
 
-The most compact candidate makes `σ` the ordinary lexical type-binder
-environment, rather than a request-family grouping mechanism:
+`σ` is the ordinary lexical type-binder environment, rather than a
+request-family grouping mechanism:
 
 1. A source lookup of a polymorphic value opens its scheme with one
    capture-avoiding substitution map. The map applies consistently to every
@@ -255,65 +269,56 @@ environment, rather than a request-family grouping mechanism:
    `Force` creates a dynamic event but does not instantiate declaration
    binders again. Repeated execution of one source site can therefore create
    distinct event IDs with the same static family arguments.
-4. Generalization excludes identities free in the fixed lexical environment,
-   imported anchors, or the type roots of mutable locations reachable from
-   the shared live store. These identities remain fixed across external uses;
-   all views incident to them, including effect and `K,D` views, keep that
-   identity. In particular, a closure that reads and writes one captured
-   `List α` cell cannot be generalized independently at each use as
-   `α → List α`; the `α` in the shared store keeps its instantiations coupled.
-   This captures the ordinary non-generic-variable invariant without adding a
-   storage-specific effect rule.
-5. A monomorphic parameter remains fixed within its body. Internal recursive
-   SCC uses remain connected to their live roots. After a component freezes,
-   each independent external use receives one fresh map over the entire
-   generalized interface, including effect and family identities, while
-   identities excluded by clause 4 remain fixed.
-6. A handler arm resolves the same operation declaration under its own
+4. A handler arm resolves the same operation declaration under its own
    capture-avoiding map. `OpCompat` relates the complete request and arm
    instances; equal operation/family heads do not identify their binders.
 
 This uses one lexical substitution law for values and effects and directly
-preserves the same-binder invariant required by `K,D`. It is a candidate source
-semantics, not something already supplied by the syntax reference or the
-retired F5 implementation. F5 establishes only the pure Function fragment's
-parameter-monomorphism, fresh incoming-use, within-use sharing, and open
-internal-use rules; its scope excludes effect generalization and operation
-applications. The successor extension therefore still needs independent
-review and user approval. No Oracle routing behavior is used to derive it.
+preserves the same-binder invariant required by `K,D`. It is the selected
+source rule for this candidate machine. The syntax reference and retired F5
+implementation do not establish effect generalization; this rule defines
+lookup ownership only and does not claim a generalization theorem. No Oracle
+routing behavior is used to derive it.
 
-Clause 4 is necessary for the captured-mutable-state witness below, but it is
-not yet a full generalization theorem. The successor must prove the complete
-source admissibility condition for quantifying an interface at each boundary,
-including what happens when the bound expression itself performs effects.
-This package does not silently import a value restriction or assume that
-excluding current store roots alone suffices. Generalization admissibility
-must preserve the source type relation and store relation together.
+Generalization still requires its own admissibility theorem. A captured
+mutable-cell witness shows that identities free in reachable shared-store
+roots cannot be copied independently at external uses. The successor must
+prove the complete admissibility condition, including effectful right-hand
+sides; this package imports no value restriction and does not claim that
+store-root exclusion alone suffices. Generalization must preserve source type
+and store relations together.
 
-### Candidate receiver-local capture rule, pending source review
+### Selected preservation and remaining incidence-creation choice
 
-The compact candidate specializes `π` to the complete callback execution:
-while receiver `r` and its handler activation `h` are active for callback
-argument boundary `a`, every request event exposed in that argument's complete
-`CallView` is eligible for `h` when the concrete capture annotation at `(r,a)`
-admits the exact operation. This includes an inherited caller request exposed
-by a source-demanded `Force` during that `CallView`. The event keeps its caller
-origin, dynamic event identity, and joint `K,D`; the rule creates only the
-receiver-local incidence for this exact event/argument/handler activation. A
-family match, wildcard surface row, or residual upper bound cannot create the
-incidence on its own. No incidence keeps an exited handler active or masks a
-later caller handler.
+An already-derived `Captureν(q,h)` incidence is preserved through nested
+calls, adaptation, and `Force` while the same `(r,a,h)` is active. It applies
+only to a source derivation crossing callback argument boundary `a` toward
+`h`; a request generated by the receiver's own body follows ordinary ordered
+handler visibility. Handler ownership, family equality, wildcard rows, and
+residual upper bounds cannot establish incidence. The event retains origin,
+identity, and joint `K,D`. No exited activation is restored, and retained
+lineage creates neither a grant nor a maker mask.
 
-The competing supplied-computation-ownership rule would withhold this
-receiver-local incidence from the forced caller request, leaving it in the
-outward residual. The complete-execution candidate is preferred here because
-the request is part of the source callback `CallView` actually executing
-under `r`; preserving its caller origin and typed constraints does not erase
-that dynamic containment. The distinction changes which handler consumes
-the event and therefore changes the residual effect image. This is a semantic
-proposal, not a theorem consequence or an already approved decision; it needs
-source-level review and explicit user approval before the source package is
-frozen.
+For a caller-owned thunk forced during callback execution, the remaining
+milestone-1 choice is (A) create a new receiver-local incidence when its exact
+operation is admitted, or (B) preserve only an incidence already established
+by the callback-boundary derivation. The user's preservation choice does not
+by itself reject either creation policy. The simulation schema fixes one
+policy as a parameter and requires coverage for that policy. Ordinary caller
+handling after maker return is already selected under both alternatives.
+
+Closure and thunk re-entry uses the current caller's live store and ordered
+active source activations, pushing/popping only the current invocation frame.
+A suspended invocation carries its re-entry wrapper through search unwind;
+resumption reinstalls a fresh/resumed call-frame occurrence before its saved
+suffix, and normal completion removes precisely that occurrence. Coverage
+must prove these transitions preserve the actual live store and required
+lineage without reinstating consumed shallow or exited maker handlers.
+Lineage data alone does not supply frame re-entry. Existing active incidence
+is preserved only under its already-stated activation premises. At dispatch, coverage must match the actual `C_h`: ordered
+search reaches `h`, every applicable current boundary admits the event, the
+exact operation is covered, and the selected arm satisfies `OpCompat`.
+Maker expiry removes maker premises only; unrelated active boundaries remain.
 
 The local simulation relation `R` also has to be realized concretely for
 closures, thunks, and resumptions. The proof must show that every source step
@@ -348,9 +353,13 @@ This is a theorem package candidate, not an authoritative semantics. It
 consolidates existing bind, adaptation, handler-image, ordered-search, and
 `K,D` transport evidence into one simulation argument. Its first bundled
 review found missing forward coverage and future-use obligations; the
-relation above is the repair. The next review should inspect the whole theorem
-package and the proposed lexical ownership/callback-capture rules, not restart
-fixture-level reviews.
+relation above is the repair. The remaining milestone-1 decision is the imported-thunk incidence-creation
+choice above; ordinary escape handling and preservation of established active
+incidence are selected. A subsequent delta review should inspect the selected
+clause and its dependent coverage obligations without restarting fixture-level
+reviews. The conditional schema proves no primitive coverage, initial
+relation, universal future-use premise, or admissible-resumption premise by
+itself; those remain proof obligations before adequacy can close.
 
 No compiler implementation or tests follow from this draft. After source
 semantics is fixed, the next task is to instantiate the theorem against every

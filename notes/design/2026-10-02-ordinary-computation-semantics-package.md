@@ -1,7 +1,7 @@
 # Ordinary source computation semantics: milestone package
 
 Date: 2026-10-02
-Status: Draft; receiver/Force scope unresolved; not implementation authority
+Status: Draft; selected source rules with one remaining incidence-creation choice; adequacy and principality unproved; not implementation authority
 Scope: calls, closures, thunk force, operation requests, callback boundaries,
 and shallow handlers for the ordinary effect sublanguage
 Supersedes: none
@@ -11,14 +11,16 @@ and symbolic typed-family transport
 
 ## 1. Milestone claim
 
-This package gathers the existing local evidence into one candidate source
-machine. Its central choice is that a handler tests an event at the actual
+This package gathers the existing local evidence into one source-machine
+candidate. Its central choice is that a handler tests an event at the actual
 configuration reached by ordered search. Ordinary visibility follows the
 current active source configuration: a handler can handle an exact covered
 operation when ordered search reaches it, subject to source-defined active
 boundaries. No boundary belonging to an exited maker activation is carried
 forward as a mask. Callback capture is the narrower contract relation used
-when the candidate handler belongs to the active callback receiver; it is not
+when the event derivation crosses the relevant callback argument boundary
+toward the active receiver-local candidate; handler ownership alone does not
+require capture. It is not
 a property of an operation family or a value's historical maker.
 
 Under this choice, normal return ends the receiver and its handler
@@ -31,12 +33,11 @@ relation admit it. No maker boundary remains as a persistent mask.
 The ordinary-flow / escaped-callback consequence follows from the current
 configuration rule below: normal return removes the maker's activations, and
 later search uses only the caller's active ordered handlers and their
-source-defined boundaries. Review exposed one remaining scope choice for a
-caller-owned thunk forced during a callback, which affects receiver-local
-capture but not escaped-callback caller handling. This package records the
-common machine shape and that exact fork; it must not be treated as frozen
-semantics. Source/interface adequacy, finite principality, and intrusion
-preservation remain later milestones.
+source-defined boundaries. The selected preservation rule also keeps a
+receiver's already-derived concrete capture incidence available through nested
+transitions in its callback's complete call/adaptation/force view while that receiver and handler remain
+active. Source/interface adequacy, finite principality, and intrusion
+preservation remain unproved milestones.
 
 ## 2. Complete configurations and requests
 
@@ -98,20 +99,32 @@ Runν(e₁ e₂,C) =
   ApplyValueν(f,x,C₂)
 ```
 
-Applying a closure evaluates its body in the closure's lexical environment,
-but starts from the current dynamic caller configuration. Required value
-lineage is re-entered by this ordinary application transition. The closure
-does not restore handler or receiver activations that have returned:
+Applying a closure evaluates its body in the closure's lexical environment
+with the current caller's live store and ordered active source activations:
 
 ```text
 ApplyValueν(Closure(body,ηcl,L),x,Cnow)
-  = Runν(body,ηcl[x],Cbody)
+  = Runν(body,ηcl[x],Cbody) >>= ReturnFromInvocation
 ```
 
-`Cbody` is the output of the common closure-application transition from
-`(Cnow,L)`. This notation adds no source construct or separate store; the
-transition's exact lineage and boundary action is part of the machine whose
-adequacy is tested in milestone 2.
+`Cbody` retains `Cnow`'s live store and active activation sequence, replaces
+the expression and lexical environment by `body` and `ηcl[x]`, and pushes
+only the current invocation's fresh call frame. On normal return,
+`ReturnFromInvocation` pops that invocation frame and retains the resulting
+live store. A request suspension retains an invocation re-entry wrapper in
+its continuation. Handler search may unwind the active occurrence of that
+call frame; on resumption the wrapper installs a fresh/resumed occurrence
+before running the saved source suffix and its `ReturnFromInvocation`.
+Normal completion removes exactly that resumed occurrence. Re-entry threads
+the actual live resumed store and required lineage; it never reinstalls the
+consumed shallow handler or any exited maker receiver or handler activation.
+This is ordinary invocation/continuation composition, not a new source
+construct or callback-specific rule. `L` and inherited request origins are
+preserved as proof/runtime lineage, not as an activation snapshot: lineage
+alone neither implements invocation re-entry nor grants handler eligibility
+or creates a blocking mask. An
+already-derived capture incidence is transported through this transition
+only while its same receiver and handler remain active.
 
 A thunk is a delayed `Run` with its lexical environment and required lineage.
 Construction returns the thunk without exposing its body requests. `Force`
@@ -139,23 +152,24 @@ together, even when the request is not in immediate support.
 
 `Visibleν(q,h,C_h)` is checked at the actual configuration `C_h` where
 ordered search tests handler activation `h`. It requires that `h` is active in
-the current ordered activation sequence, that no intervening source boundary
-has removed it from this request's search, and that `h` covers the exact
-operation. Search examines candidates in order; visibility is never computed
-once for a whole stack. On ordinary computation after closure escape, the
-current caller configuration is the boundary path: exited maker activations
-are absent, and no historical maker mask is consulted. For a handler installed
-by an active callback receiver, its additional callback-contract eligibility
-is the `Capture` relation below. `OpCompatν` is a separate typing condition on
-every arm actually selected; it cannot change runtime selection or turn an
-incompatible selected arm into forwarding.
+the current ordered activation sequence, that no applicable source boundary
+on this event's derivation excludes `h`, and that `h` covers the exact
+operation. A callback contract applies only when this event is related to
+that callback argument in the complete call/adaptation/force derivation; an
+ordinary request from the receiver's own body does not need callback
+incidence. Search examines candidates in order; visibility is never computed
+once for a whole stack. After closure escape, exited maker activations are
+absent and no historical maker mask is consulted. `OpCompatν` is a separate
+typing condition on every arm actually selected; it cannot change runtime
+selection or turn an incompatible selected arm into forwarding.
 
 The ordinary search path is the active source activation sequence itself.
 Dispatch tests the innermost active handler first. Forwarding crosses that
 handler by the shallow-handler rule and proceeds to the next active candidate;
 selection exits the selected handler for its arm, while raw resumption resumes
 outside that selected activation. These are transitions over existing call
-and handler activations, not an additional boundary mask. Callback `Capture`
+and handler activations, not an additional boundary mask. For an event whose
+derivation crosses the relevant callback argument boundary, `Capture`
 constrains the receiver-local candidate through its explicit callback
 contract; it is not retained after that receiver activation exits.
 
@@ -168,42 +182,42 @@ a static escape filter, not a capture grant. These distinctions follow the
 frozen public reference and remain independent of the inferred residual row.
 
 A callback-capture incidence is a join in the complete source relation, not a
-consequence of row support alone:
+consequence of row support alone. It applies only when the event derivation
+crosses callback argument boundary `a` toward receiver handler `h`:
 
 ```text
 Captureν(q,h) iff
   h is a handler activation installed by r, and
-  the source relation connects request event q to callback argument boundary a
+  the source derivation connects request event q to callback argument boundary a
   in r's complete CallView, and
   the explicit capture annotation at (r,a) admits q.operation under ν
 ```
 
 The incidence is per request event and includes source-defined adaptation and
 force positions. Function-effect upper bounds constrain which requests occur
-in the callback behavior; they do not by themselves establish capture
-incidence. In particular, ordinary composition and origin preservation do
-not decide whether a caller-owned thunk forced during the callback joins
-`(r,a,h)`. The two candidate source contracts are:
+in callback behavior; neither those bounds, handler ownership, family
+equality, nor support rows establish capture incidence. An event generated by
+the receiver's own ordinary body uses ordinary ordered visibility without a
+callback `Capture` premise. Callback `Capture` is required only for an event
+whose source derivation crosses the relevant callback argument boundary
+toward that receiver-local handler.
 
-| Candidate | Incidence rule for caller-owned thunk `t` forced during callback `a` | Handler image |
-|---|---|---|
-| Complete callback execution | If the request occurs in the complete `CallView` and the explicit capture annotation admits its exact operation, derive `Capture(q,h)` while `r,h` are active; keep the caller origin and `K,D` | The receiver-local handler may consume it; an outer handler sees only the residual behavior |
-| Supplied-computation ownership | Preserve the caller origin but do not derive callback capture from `a` for `t` without another source connection | The request remains available to the outer handler; the receiver-local handler cannot consume it on the callback contract alone |
+`Capture` is scoped to `(r,a,h,q,ν)`. The user's selected preservation rule
+transports an already-derived incidence through nested calls, adaptation, and
+`Force` while the same receiver and handler activations remain active and the
+same event relation is transported. It does not grant eligibility to a new
+nested handler. When search leaves `r`, its handler frames and incidence are
+no longer active; latent effect, origin, `K,D`, and runtime lineage remain.
 
-Both candidates distinguish a concrete capture annotation from wildcard
-surface support, preserve per-event origins and `K,D`, and agree that no
-receiver grant/mask survives normal return. The available source reference and
-the user-selected escape rule do not choose between them. This is a genuine
-source-scope decision; the first candidate must not be described as a theorem
-of the Function upper bound.
-
-`Capture` is scoped to `(r,a,h,q,ν)`. It can persist through nested calls and
-adaptation while the same receiver and handler activations remain active and
-the same event relation is transported. It does not create visibility for a
-new handler installed by a nested receiver. When search leaves `r`, its
-handler frames and this incidence are no longer active. The request's latent
-effect, origin, `K,D`, and runtime lineage remain in the returned value or
-continuation.
+One milestone-1 source-policy choice remains: for a caller-owned thunk forced
+during callback execution, does that `Force` (A) establish a new incidence at
+`(r,a,h)` when the exact operation is admitted, or (B) transport only an
+incidence already established by the callback-boundary derivation? The
+preservation instruction selects transport of an existing incidence, not its
+creation for an imported thunk. Both alternatives preserve caller origin and
+`K,D`, ordinary receiver-body handling, and ordinary caller handling after
+escape. Until explicit selection, the source simulation is parametric in this
+incidence-creation policy; the ordinary escape default is already selected.
 
 At a handler outside an exited receiver, visibility is derived from the
 ordinary current boundary path after the actual unwind. No premise asks that
@@ -223,7 +237,8 @@ candidate-indexed relation gives the three cases:
 
 This is a common scope relation, not a callback-versus-ordinary selector. The
 source-adequacy theorem must show that every source call/adaptation/force
-transition produces exactly these `CallView` incidences. The runtime lineage
+transition produces exactly the `CallView` incidences of the selected
+incidence-creation policy. The runtime lineage
 mapping and candidate configuration must preserve every eligibility-relevant
 coordinate, including active frames, request IDs, and live state. The
 ordinary caller eligibility after escape follows from the active-sequence
@@ -270,15 +285,18 @@ Suppose:
 3. a later application of `d` occurs in current configuration `Cnow`, and
    ordinary `ApplyValue`, source-demanded `Force`, and stateful bind expose
    event `q` without changing its origin or dropping its live `K,D`;
-4. ordinary search in `Cnow` reaches active caller handler `h` as a candidate
-   before any earlier handler selects, `h` covers the exact operation, and the
-   selected arm satisfies `OpCompatν`.
+4. in the actual post-application search configuration `C_h`, ordinary ordered
+   search reaches active caller handler `h` before any earlier handler
+   selects; every applicable current source boundary admits this event for
+   `h`, `h` covers the exact operation, and the selected arm satisfies
+   `OpCompatν`.
 
-Then `Visibleν(q,h,C_h)` holds by the ordinary active-sequence search rule, so
-`h` may handle `q`. No `Capture` premise from `r` appears: `r` and its handler
-activations are absent at the fresh call. A direct effectful closure follows the same
-dispatch. In a mixed-origin execution the argument applies independently to
-every event.
+Then `Visibleν(q,h,C_h)` holds. If its pattern/guard selects that compatible
+arm, `h` handles `q` at `C_h`. No `Capture` premise
+from `r` appears: `r` and its handler activations are absent at the fresh
+call. Other current callback/source boundaries still constrain their own
+events. A direct effectful closure follows the same dispatch. In a
+mixed-origin execution the argument applies independently to every event.
 After a shallow selection, a resumed raw suffix is tested in the configuration
 outside the selected handler and needs its own visibility and compatibility
 derivations.
@@ -287,25 +305,24 @@ The ordinary caller case is closed relative to the current-configuration
 search rule: after maker return, a fresh caller handler is tested by the same
 ordinary active-handler/boundary relation as for any direct effectful closure;
 there is no maker `Capture` premise or persistent maker mask. This is a
-source-rule consequence, not an inference from family equality. The
-caller-owned-`Force` incidence above remains a separate receiver-local scope
-decision and does not reopen this escape consequence. Source-to-complete-
-interface adequacy for all supported expressions remains the next theorem
-package.
+source-rule consequence, not an inference from family equality. Source-to-
+complete-interface adequacy for all supported expressions remains the next
+theorem package.
 
 ## 7. Proof order and non-goals
 
-This package is a milestone-1 candidate, not a closed milestone. The ordinary
-caller-after-escape consequence is settled relative to the active-sequence
-rule; resolve the receiver-local callback/`Force` scope and delta-review that
-clause, then freeze milestone 1. Next prove source-to-complete-interface
-adequacy for the complete machine, including all force/adaptation positions,
-ordered visibility, callback origin, shallow raw resumptions, and transport
-of `ν,K,D`. Then derive a finite symbolic presentation and prove its
-soundness/principality. Only after that prove generalization, fresh
-instantiation, and SCC intrusion preserve the presentation. Perform the next
-implementation-feasibility gate after those semantic obligations identify
-the required compiler surfaces.
+This package records the selected ordinary source rules for the supported
+call/closure/force/request/shallow-handler sublanguage. The selected
+callback-incidence preservation rule follows the user's decision through the
+complete callback call view without a historical maker mask. Milestone 1 is
+not fully frozen: only the imported-thunk incidence-creation choice in §4
+remains. After selecting that choice, prove source-to-complete-interface adequacy for the complete machine,
+including all force/adaptation positions, ordered visibility, callback origin,
+shallow raw resumptions, and transport of `ν,K,D`. Then derive a finite
+symbolic presentation and prove its soundness/principality. Only after that
+prove generalization, fresh instantiation, and SCC intrusion preserve the
+presentation. Perform the next implementation-feasibility gate after those
+semantic obligations identify the required compiler surfaces.
 
 Method selection, roles, and implementation resolution remain a later
 mandatory gate. Exact trace support remains the soundness reference, not a
