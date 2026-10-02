@@ -331,3 +331,16 @@ is conditional preservation at the handler-image algebra step, not proof that
 the source rules or concrete solver produce/preserve the right `K,D` throughout
 the entire lifecycle. Soundness, finite principality, and intrusion quotient
 adequacy remain open. No tests were run.
+
+The follow-up compiler-referee review found that the first preservation/search
+decomposition had replaced the existing stateful ordered `Search_H` with a
+simplified visibility-and-operation-coverage test, omitting pattern rejection,
+guards, and guard effects. The draft now treats preservation solely as
+transport of candidate-specific visibility and delegates actual selection to
+the existing `Search_H` relation, including its source-order state and effects.
+The review also corrected raw-resumption wording: the selected shallow
+activation is absent after handling, while an independent outer activation
+may handle a later request only through its own visibility derivation and
+ordered search. The compiler-referee delta review closed both findings with no
+remaining issue in this decomposition. This does not close the source-stage
+transport premises or the global soundness/principality gate.

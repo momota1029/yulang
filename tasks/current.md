@@ -4178,3 +4178,13 @@ resume reinstatement are already Authoritative. See
 `notes/progress/2026-10-02-callback-scope-transition.md` and the selected
 clause/proof gate in
 `notes/design/2026-10-01-coupled-effect-interface-core-draft.md`.
+
+The preservation lemma now leaves actual dispatch to the existing stateful
+`Search_H` relation, including ordered patterns, guards, state changes, and
+effects; it only transports candidate-specific visibility. A compiler-referee
+delta review closed the simplified-search and raw-resumption wording findings.
+The full source-stage simulation, symbolic `K,D` lifecycle transport, and
+soundness/principality proofs remain open. Immediate next work is still the
+source call/handler transition proof; this review does not authorize compiler
+implementation. See the latest audit entry in
+`notes/progress/2026-10-02-callback-scope-transition.md`.

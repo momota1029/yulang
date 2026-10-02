@@ -1427,6 +1427,58 @@ that the current source typing rules derive premises 1–4. It is specific to a
 request-free raw suffix; the generic `handle` callback may emit a second
 request there, outside this shallow activation.
 
+**Preservation and ordered search are separate lemmas.** Write
+`Visible_ν(q,h,κ)` where typed request endpoints need to be explicit; the
+shorter `Visible(q,h,κ)` notation fixes the same assignment as the enclosing
+complete-interface relation. Let `Capture_ν(o,h)` denote the projection of
+that source relation connecting origin `o` to the concrete contract at `h`;
+it is not a separate grant store. Under the selected rule, a nested
+`CallView` transition preserves `Capture_ν(o,h)` and `Visible_ν(q,h,κ)` when
+it carries the same origin, keeps `h` active, and has no independent source
+event that invalidates this entitlement. Its proof obligation factors over
+the composition:
+
+1. Callee/argument evaluation and entry of `b` preserve the source origin and
+   push `b` at the front of the nearest-first context.
+2. Argument adaptation and callback execution preserve the same `ν`, or apply
+   one explicit equivariant transport to every request endpoint and its `K,D`
+   incidence. A force emits the source occurrence carried by the delayed
+   computation; it cannot manufacture callback ownership from family equality.
+3. The underlying call and result adaptation satisfy the same transport
+   premise. Activation lineage required by the runtime contract is restored
+   on resume, while static family binders remain distinct from fresh dynamic
+   identities.
+4. Returning from `b` removes only `b`; it does not remove still-active `h`.
+
+By composition of these stage relations, the complete `CallView` preserves
+the handler-specific entitlement. This is conditional: the source
+typing/evaluation rules must prove each stage premise, particularly the
+adaptation-origin map and force placement. The user-selected source clause
+rules out a negative premise that treats the mere presence of `b` as an
+invalidator.
+
+Ordered search then determines dispatch, not entitlement. Preservation
+transports candidate-specific `Visible_ν(q,h_i,κ)` facts; it does not select a
+handler or simplify the existing stateful ordered search. `Search_H` evaluates
+source-ordered patterns and guards, including their state changes and effects;
+a nearer arm that rejects may allow an outer arm to select, while a nearer
+guard's effects run under the active outer context. Thus an outer `h_i` can
+retain its visibility derivation while a nearer independently eligible `h_0`
+is considered first. Only the existing `Search_H` relation determines which
+handler actually selects. An unrelated same-family caller request has a
+different origin and no `Capture_ν(o',h)` premise merely by sharing its family
+head, so the preserve rule cannot grant it eligibility.
+
+After `h_i` handles a request, its operation arm receives the raw continuation
+outside that selected shallow frame. The preserve rule does not wrap this raw
+continuation with `h_i`; a resumed suffix therefore cannot be re-caught by
+that same selected activation. An independent outer activation may handle a
+later request if its own visibility derivation and the ordered `Search_H`
+permit it. Any forwarded continuation instead follows the source forwarding
+rule and its specified frame re-entry. This separation prevents the
+nested-call preservation clause from accidentally changing shallow-handler
+semantics.
+
 The same derivation does not grant `h` eligibility for another caller-owned
 `choose::get`. Such a request has a distinct origin `o'`; absent an independent
 source incidence `Capture(o',h)`, the visibility premise fails even though its
