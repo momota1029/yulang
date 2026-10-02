@@ -693,6 +693,20 @@ must be shown to simulate these frame paths while retaining origin and `K,D`.
 This proof step narrows the required source/runtime correspondence but does
 not close it.
 
+The two-candidate route makes that obligation concrete. For an event `q` with
+guard ID `m`, inner candidate `h_inner` inside active frame `F_m` fails when
+the request carries `m`. On an ordered-search prefix that reaches outer
+caller `h_outer` without an earlier arm selecting, search pops the `F_m`
+occurrence; `h_outer` passes the guard test only if exact path matches and
+`q.guard_ids ∩ G_{h_outer} = ∅`. Passing is eligibility, not selection; pattern
+and guard outcomes remain in the search relation. This shows that one
+handler-relative `Visible` relation can represent inner caller-hygiene and
+ordinary fresh-caller handling without a persistent mask or node-local
+visibility bit. Retain per-event origin/`K,D` and keep shallow raw suffixes
+outside the selected handler. Derive this route in the source relation and
+prove the runtime mapping before extending the result to full
+handler-image/principality.
+
 #### Adjudication of the concrete escaped-callback conflict
 
 The three relevant observations now have separate roles:

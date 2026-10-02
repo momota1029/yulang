@@ -52,6 +52,17 @@ the new dynamic-unwind check in the callback-scope progress record. Next prove
 the source-to-runtime frame correspondence, then resume the full callback
 source adequacy and effect/principality gates.
 
+The next frame-correspondence witness has two candidates for one event: inner
+`h_inner` inside active marker frame `F_m` fails when the request carries `m`;
+on a search prefix that reaches outer `h_outer` without an earlier selection,
+the frame is popped and `h_outer` passes only when exact path matches and
+request IDs are disjoint from `G_{h_outer}`. This checks that one relation can
+preserve inner caller-hygiene and ordinary fresh-caller handling without a
+persistent mask or node-local visibility bit. Retain per-event origin/`K,D`
+and keep shallow raw suffixes outside the selected handler. Derive this route
+in the source relation and prove the runtime mapping before extending the
+result to full handler-image/principality.
+
 The escaped `maker` witness is now adjudicated by evidence layer: the frozen
 checker’s `Bot` latent row is unsound and must be dropped; the evaluator’s
 unhandled route is characterization only; the runtime guard spec permits an

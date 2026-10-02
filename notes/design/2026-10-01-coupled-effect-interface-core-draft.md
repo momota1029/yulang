@@ -1444,6 +1444,31 @@ is outside the re-entered value marker and that the corresponding static
 `Visible` derivation has the same result after source-level unwind. The known
 escaped-callback runtime mismatch remains a concrete simulation obligation.
 
+The same guard equations explain how an active inner handler can remain
+protected while the caller handler handles the request. Let `h_inner` be a
+candidate inside `F_m`, `h_outer` an enclosing caller candidate outside
+`F_m`, and `k_raw` the request's continuation. If `q` carries `m` and
+`m ∈ G_{h_inner}`, then the inner candidate fails the guard-intersection test.
+On an ordered-search execution prefix that reaches `h_outer` without an
+earlier arm selecting the request, search exits `F_m` and pops its active
+occurrence before testing that outer candidate. If
+`q.guard_ids ∩ G_{h_outer} = ∅` and `q.path = h_outer.path`, the guard test at
+`h_outer` passes. This is eligibility, not proof that search selects it;
+pattern and guard outcomes remain part of the search prefix. The same event
+can therefore be hidden from an inner handler yet visible to an outer caller
+after unwind, without retaining a maker-wide mask. If an explicit callback
+contract changes request coloring for its matching family, the resulting IDs
+affect each candidate's own test; they do not rewrite the event's origin or
+`K,D`. A selected shallow arm still receives `k_raw` outside its handler, so
+later suffix requests require another visibility and search derivation.
+
+This two-candidate calculation is conditional on the displayed runtime IDs,
+frame order, exact paths, and source-to-runtime mapping. It gives a compact
+adversarial check for the source theorem: a proposed static `Visible` rule
+must represent both outcomes for the same event at distinct handler
+activations, preserve origin and symbolic incidence, and respect ordered
+search. A single vertex-local visibility bit cannot represent this case.
+
 The previous alternative table is retained as a compatibility record, with
 the user's preference now fixed:
 
