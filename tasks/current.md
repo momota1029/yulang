@@ -2,6 +2,18 @@
 
 Updated: 2026-10-02. Branch: `research/simple-sub-intrusion`.
 
+The callback `Force` scope is now isolated as an unresolved source decision:
+whether an explicit `[F]` callback contract creates capture incidence for an
+inherited caller request forced during that callback, while preserving its
+caller origin. Existing preservation and family-equality constraints do not
+settle it, and frozen docs do not choose. A and B produce different handler
+images; both need the same missing origin/incidence/`K,D` carrier, and neither
+can be prototyped through current resolved HIR or scheme interfaces. The
+question has been presented to the user; do not proceed with dependent source
+semantics until answered. Evidence and exact alternatives are in
+`notes/design/2026-10-01-coupled-effect-interface-core-draft.md` and the
+latest section of `notes/progress/2026-10-02-successor-implementation-feasibility.md`.
+
 The callback `Capture` source-projection candidate was revised after review:
 the handler must be connected by the ordinary source relation to the exact
 receiver activation and argument-contract boundary. Dynamic containment in an

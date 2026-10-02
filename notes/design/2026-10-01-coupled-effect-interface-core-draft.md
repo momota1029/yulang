@@ -1486,6 +1486,29 @@ premise for direct callback requests, forwarded thunks, wrappers, and mixed
 computations. The frozen reference describes the callback contract but does
 not prove this successor derivation.
 
+**Open contract-scope question: imported `Force`.** The current constraints do
+not decide whether the exact callback contract also connects an inherited
+caller request when the callback explicitly forces a caller-owned thunk while
+the receiver handler is active. Two source relations remain possible:
+
+- The contract covers the complete executed callback computation. `Force`
+  preserves the request's caller origin and may derive a separate capture
+  incidence from the exact callback argument boundary, execution, active
+  handler, and typed compatibility. This is not a grant from family equality.
+- The contract covers requests owned by the supplied callback computation;
+  a forced imported thunk keeps its caller boundary and receives no new
+  incidence without a separate contract connection.
+
+Both relations must retain the request's origin and its joint symbolic
+`K,D` predicates. Under the first, a handler may consume the request and the
+outer handler does not see it; under the second, the request remains in the
+outward interface for an outer handler. The frozen source reference does not
+select between them. Preserving an already-derived `Capture` through a nested
+receiver and forbidding grants based only on family equality also do not
+select between them: origin transport and capture-incidence creation are
+separate relations. Until this scope is specified, the imported-thunk case is
+a discriminator, not a proved counterexample or an established source rule.
+
 The projection can be audited as one join in the common source relation: (i)
 the request-origin/value-flow derivation connects `o` to the computation
 supplied at `(r,a)`; (ii) the handler-installation/context derivation connects

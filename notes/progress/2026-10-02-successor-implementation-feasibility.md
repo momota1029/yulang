@@ -178,6 +178,31 @@ bodies. It still has no resolved application node or source execution relation
 for a closure call; `yu-core`, VM, and native remain boundary stubs. Thus closure
 creation can be represented for narrow collection cases, but the reviewed
 `Tr_θ`/captured-environment/re-entry equation cannot be exercised end to end.
+
+## Alternating proof / feasibility check: imported Force under callback contract
+
+The source proof review exposed a contract-scope distinction not settled by the
+selected rules. An explicit callback `[F]` contract may either derive a new
+capture-incidence edge for an inherited caller request executed by `Force`, or
+leave that request at its imported caller boundary unless a separate contract
+connection exists. Both candidates preserve caller origin and symbolic `K,D`;
+they differ in whether the receiver handler consumes the request or forwards
+it to an outer handler. Preserve-through-nested-receiver applies to an already
+derived edge and family equality alone grants none, so neither decision selects
+this case. The frozen source reference does not settle it. Independent
+architectural, compiler-referee, and source-contract reviews agree that this
+must remain an explicit source-rule question; the corresponding counterexample
+must keep origin fixed and vary only the contract-incidence rule.
+
+The implementation check found that both candidates use the same missing
+cross-layer carrier: per-request source origin plus a separate handler capture
+incidence and the dependent typed-family predicate. Their difference belongs
+in source `Force`/callback relation derivation, not in a new row encoding. The
+current resolved HIR has no application, Force, or handler transition, and the
+scheme path cannot retain the necessary effect interfaces, so neither candidate
+supports a bounded end-to-end compiler prototype. Defer production changes
+until the source rule is selected and its relation is proved. No tests or builds
+were run.
 The next plausible implementation checkpoint is after the ordinary resolved
 call and value/environment relation exists; no code change is authorized now.
 
