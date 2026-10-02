@@ -4301,6 +4301,24 @@ source call/handler transition proof; this review does not authorize compiler
 implementation. See the latest audit entry in
 `notes/progress/2026-10-02-callback-scope-transition.md`.
 
+The user asked to alternate theoretical progress with implementation-feasibility
+checks. Apply that cadence at each settled semantic slice: first close/review a
+bounded proof result, then inspect the corresponding HIR, solver/type,
+substitution, core, and runtime surfaces before choosing the next slice. The
+latest audit confirms the selected nested-capture preservation rule still
+requires a large front-end, symbolic-effect, and runtime architecture change;
+there is no end-to-end implementation checkpoint yet. Continue with the common
+source call/value/handler proof and repeat feasibility review after that gate.
+See `notes/progress/2026-10-02-successor-implementation-feasibility.md`.
+
+The next bounded proof is source adequacy of per-request origin and symbolic
+`K,D` through one complete `CallView`, including forwarded, caller-forcing, and
+mixed-origin thunks under one assignment. The current formulation is
+conditional; source ownership/Force rules still need to derive its premises.
+Keep escaped caller-handler eligibility separate. After this proof slice is
+settled, target the implementation audit at its derived carrier and transitions.
+See `notes/progress/2026-10-02-callback-scope-transition.md`.
+
 The next proof slice distinguishes static source-site templates, dynamic
 request events, callback/thunk computation lineage, and activation identities.
 Type transport maps symbolic payloads and `K,D`; it does not rename runtime

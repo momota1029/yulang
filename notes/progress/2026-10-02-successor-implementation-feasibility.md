@@ -188,3 +188,25 @@ crates expose no activation-stack push/pop/resume path. Existing static
 normal return removes exactly that activation while continuation resume
 restores it. The reviewed result remains a semantic consequence of the common
 machine candidate; implementing it awaits the broader runtime path.
+
+## Alternating check: selected nested-capture preservation
+
+After the user selected preservation of an already-derived outer callback
+capture through a nested concrete receiver, I rechecked the exact implementation
+surfaces that rule would cross. Syntax `HirExpr::Apply` remains an associated
+syntax shape only; `ResolvedExpr` has no application/call, Force, request,
+handler, or resumption cases. `Collector::emit_lambda` still emits recipes only
+for parameter identity, integer, and resolved-name bodies. Closed effect views
+still expose only `Bottom` / `Empty`, and the backend-neutral core plus VM/native
+entrypoints have no execution representation to carry origin, `K,D`, or active
+handler identity across the complete `CallView`.
+
+This confirms a **large architecture change**, not a bounded implementation
+slice: the preservation theorem needs a resolved call/value relation, symbolic
+effect-family carrier and lifecycle transport, and runtime request/handler/
+resumption semantics. The source relation and its soundness/principality proof
+are not closed, and the user decision is semantic rather than implementation
+approval. Defer compiler changes. Continue the source proof; after its next
+settled semantic gate, repeat the feasibility audit against the concrete
+carrier and transition rules then available. This record update adds no test or
+build evidence.

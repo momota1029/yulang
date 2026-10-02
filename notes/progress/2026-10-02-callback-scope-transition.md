@@ -559,3 +559,31 @@ source-justified carried-boundary mask. Both retain latent effects and runtime
 lineage; neither may be selected from frozen runtime routing. Exact pure-caller
 acceptance still depends on the finite handler-image abstraction. This is a
 genuine source decision to resolve before the escaped-closure proof gate.
+
+### Next bounded source theorem after preservation selection
+
+An independent compiler-referee audit identified the next proof obligation as
+source adequacy of per-request provenance through thunk adaptation. Fix one
+assignment `ω`, one receiver argument boundary `(r,a,E)`, and an already-derived
+`Capture_ω(o,h)`. For each finite prefix of argument adaptation, the call, and
+result adaptation in `CallView`, derive from the ordinary value/Force/application
+rules that each exposed request retains its own origin and dependent symbolic
+`K,D` incidence. Therefore `Capture_ω(o,h)` remains derivable at that request
+while `h` remains active, unless an independently specified source transition
+invalidates it. A distinct caller-owned request must not gain the incidence by
+family equality. Start with forwarded thunks, callback wrappers forcing caller
+thunks, and mixed-origin computations; stop at selection/removal of `h` and do
+not settle post-return caller-handler eligibility in this theorem.
+
+The current draft proves only conditional composition: its source ownership,
+Force-origin, and complete-interface transport premises are not yet derived
+from source rules. A stress case is a callback returning
+`Delay(Force(u_caller) >>= callback_request)` where both requests share one
+symbolic family `F<α>`: whole-wrapper ownership would wrongly grant the caller
+request, while dropping incidence at the wrapper would lose the callback
+request's `K_F(α),D`. Stagewise witnesses are insufficient; both requests and
+all incidence must inhabit the same assignment and joined interface. This is
+a blocking gap for claiming source-theorem closure, not a contradiction of the
+selected preservation rule. No implementation claim follows until the source
+correspondence is proved; then run a targeted feasibility audit against the
+derived carrier instead of repeating only the current broad surface inventory.
