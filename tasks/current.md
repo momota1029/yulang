@@ -16,6 +16,7 @@ The redesign charter governs. F5 Function generalization is comparison/rollback 
 - Keep typed-family constraints symbolic through solve, residualization, generalization, freshening, and intrusion. Prefer one compositional relation over site-specific selectors/obligations. Oracle weight routing is characterization evidence, not authority.
 - Callback capture is receiver-activation scoped and preserved through nested transitions. Escaped closures retain latent effects, origins, symbolic `K,D`, and required runtime lineage. Fresh caller handling follows the current source relation; no persistent maker mask without an independent source principle.
 - Method selection, roles, and implementation resolution are a mandatory later gate after ordinary effects/handlers settle, unless a dependency appears sooner.
+- Shallow handling is primitive; selection, patterns/guards and arms execute outside the candidate. Deep behavior is explicit shallow reapplication to resumed computation; optimizations must preserve that source expansion.
 
 ## Milestone state
 
@@ -195,6 +196,16 @@ eligibility test. This discharges the reviewed outside-image control proof's
 extent premise. New matching/arm events have their own current-context
 dispatch; completing the original match neither reactivates its expired
 candidate nor transfers authority. No selector source choice remains open.
+
+The user's follow-up made shallow handling primitive and deep handling an
+explicit derived expansion (charter §15). Ordinary-computation §5 now gives
+that recursive expansion and its finite-prefix/future-use law. Reapplication
+surrounds execution of the raw suffix, not its already evaluated return value;
+continuation uses in guards, arms and retained closures use the same wrapper.
+Source owners, typed contracts and fresh handler occurrences come from the
+expansion, with no inherited grant or primitive deep mode. Independent M3
+semantic/conformance review is clean. The law is definitional execution
+equivalence, not recursive typing/principality or implementation approval.
 
 The further interaction gap is uniformity: a finite presentation for every
 separately linked finite client does not establish one component presentation for all

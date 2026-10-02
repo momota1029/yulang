@@ -685,3 +685,29 @@ index; `git diff --check` passed. No compiler code, tests, builds or performance
 measurements were added or run. The next package constructs executable view
 decorations and original profile slots from source typing, then closes the
 abstract/client/acceptance bridge before lifecycle and implementation.
+
+### Primitive shallow handling and explicit deep expansion
+
+Previous goal continuation was progress: reviewed context projection and
+admission-position corrections were committed and pushed as `9a56904b8`.
+The user then declared shallow handling primitive, all selection/pattern/
+guard/arm computation outside the candidate, and deep handling derived by
+explicit shallow reapplication to resumed computation. Charter §15 records
+the declaration. Original-boundary applicability remains a judgment about
+the yielded request, not a selector computation running under the handler
+or authority for the selector's new events.
+
+Ordinary-computation §5 gives the capture-avoiding recursive expansion,
+including continuation use by guards and escaped closures, ordinary
+forwarding once, and the requirement to delay the raw resumed computation
+until it is inside the reapplied handler. Its finite-prefix/future-use law
+follows ordinary call, bind and shallow image under current state; source
+owners/annotations determine any capture authority. This is a definitional
+execution law, not a recursive-typing theorem. A recognized deep optimization
+must preserve the complete source relation, not just immediate rows.
+
+M3 budget: independent compiler-referee and spec-auditor declaration/package
+reviews; both clean, with no repair round. No tests, builds or measurements.
+The exact raw-source typing and finite presentation remain the next package.
+Primary updated the task, charter/index and progress record; Git whitespace
+check passed. Implementation/optimization authority remains unchanged.

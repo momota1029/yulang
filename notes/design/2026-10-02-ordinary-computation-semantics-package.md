@@ -8,6 +8,7 @@ Supersedes: none
 Inputs: user-selected soundness/principality priority, unified-relation
 requirement, nested-capture preservation, ordinary escaped-callback handling,
 and symbolic typed-family transport
+Primitive/derived review: compiler_referee and spec_auditor, 2026-10-02; no findings in charter §15's outside shallow selection and explicit deep expansion
 
 ## 1. Milestone claim
 
@@ -340,9 +341,9 @@ value still depends on it. Soundness requires the inferred handler result to
 overapproximate this complete image. Principality is relative to the selected
 finite interface language, not to exact continuation-use counts.
 
-Charter §14 records the user's selection of **outside** selector extent.
-Eligibility of the original request is tested at the current body boundary;
-the candidate then exits before pattern/default/guard evaluation. Matching,
+Charter §§14–15 record **outside** selection and primitive shallow handling.
+The original request's applicability is a fact of its yielding body boundary;
+the selection computation executes after the candidate exits. Matching,
 its finish continuation and the selected arm run in the outer context by
 ordinary bind. A new selector/arm request has its own current-context
 dispatch. Exhaustion forwards the original request with only the ordinary
@@ -350,6 +351,69 @@ forwarding wrapper; the raw suffix passed to a selected arm does not regain
 the selected handler. Typed-source-owner §6 supplies the reviewed equations
 and pending-match preservation proof. Thus later completion of the original
 match requires no live reference to the expired candidate.
+
+### Primitive shallow image and explicit deep reapplication
+
+The source has one primitive handler image, the shallow image above. Selection
+includes ordered arm search, pattern/default/guard evaluation and completion;
+all of that computation runs outside the candidate. The applicability premise
+uses the original request's typed boundary evidence. Reading that premise
+does not evaluate user code under the candidate or retain its live authority
+for a selector's new request. Every store access during selection uses the
+current outer state.
+
+Write `S_H[c]` for the shallow image of computation `c`, and use brackets to
+emphasize that `c` executes inside that image. Define a derived recursive
+source expansion `D_H` by wrapping the continuations supplied by `H`:
+
+```text
+wrap_H(k) = λa. D_H[Resume(k,a)]
+D_H[c]   = S_{H with each exposed raw continuation k bound as wrap_H(k)}[c]
+```
+
+This notation specifies an explicit source expansion, not a second primitive
+handler mode. The transformation is capture-avoiding and applies wherever
+that continuation binding is visible, including a continuation-binding
+pattern or guard that uses it, the selected arm, and a closure retaining it.
+Return/value arms have no newly supplied operation continuation to wrap.
+An exhausted search retains ordinary shallow forwarding of the original raw
+request/suffix; applying the transformed handler on that forwarded suffix is
+the same derived `D_H`, not a second additional wrapper.
+
+Reapplication encloses execution of `Resume(k,a)`. A call-by-value helper that
+first evaluates `Resume(k,a)` and handles only its returned value is not this
+expansion; a helper must receive a delayed computation and execute it inside
+the reapplied shallow image. The source expansion's actual calls, signatures
+and typed paths govern owners and capture contracts. The notation neither
+copies an old capture grant to a fresh owner nor restores an expired handler.
+If the expansion needs a typed callback contract, ordinary source typing must
+derive it; the word "deep" supplies no authority or annotation.
+
+**Expansion law.** Every finite execution/future-interaction prefix of this
+derived form is an execution of its shallow source expansion, with the same
+returns, requests, current store, activation ordering, typed boundary views
+and joint `ν,K,D`. The proof relates the derived call to one unfolding of the
+displayed recursive source definition. Continuation wrapping constructs a
+latent closure; it does not execute the raw suffix. Invoking that closure
+enters a fresh shallow handler occurrence around the raw resumed computation.
+The ordinary shallow rules then perform selection/guards/arms outside that
+occurrence. A further invocation uses another unfolding, with the same
+captured typed environment and current state. Ordinary bind and context
+preservation compose the steps, including multiple uses of the continuation.
+Requests raised by a selector or arm before invoking the wrapped continuation
+stay outside the candidate; no equation moves them under it. Forwarding uses
+the transformed shallow descriptor once. Induction on finite source steps
+and future invocations proves the claim; infinite runs retain all finite
+prefixes. This proves a definitional source expansion, not a new type-safety
+or principal-inference theorem for recursive definitions.
+
+A finite handler body produces a finite recursive expansion with shared code;
+each continuation binding has one wrapper body referencing that definition.
+This is a code-template bound, not a bound on dynamic handler occurrences or
+a finite inferred scheme. An implementation may recognize this expansion,
+but must prove equivalence to the complete source relation, including new
+handler/owner identity, outside selector effects, raw suffix order, all future
+uses and symbolic typed-family transport. No optimization is authorized here.
 
 ## 6. Ordinary-flow / escaped-callback theorem
 

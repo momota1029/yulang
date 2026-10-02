@@ -378,3 +378,29 @@ extent is recorded explicitly here so it is not left implicit in that word.
 This selects the already-reviewed outside source equation. It does not
 approve an inference representation, establish full source soundness or
 principality, or authorize compiler implementation.
+
+## 15. Shallow primitive and derived deep handling (2026-10-02)
+
+The user fixed the primitive/derived boundary explicitly:
+
+- Shallow handling is primitive. Handler selection, pattern/default/guard
+  evaluation and arm execution occur outside the candidate handler.
+- Deep handling is derived by explicitly reapplying a shallow handler to
+  resumed computation. It is not an independent primitive handler mode.
+- Implementations may recognize and optimize that derived pattern only when
+  they preserve its source semantics.
+
+The original request's typed applicability at the yielding handler boundary
+is still an input to the outside selection relation. This is a fact about
+that request boundary, not user computation executed under the candidate,
+and not live authority for new requests produced by selection. Matching and
+arm evaluation use the actual outer store and activation context; no saved
+store or selected-handler activation is restored.
+
+The derivation and optimization obligation are in ordinary-computation §5.
+Explicit reapplication creates the handler occurrence and ownership required
+by the source expansion, preserving typed-family constraints and value-path
+evidence. It does not revive an expired occurrence, inherit a maker's capture
+grant by family equality, or move selector/arm effects under that handler.
+This declaration authorizes its source semantic direction, not a compiler
+optimization or implementation gate.

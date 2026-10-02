@@ -400,9 +400,9 @@ result; this is corroboration, not a proof of full backend equivalence.
 
 Selector computations run outside the candidate by charter §14. Let `H[c]` mean
 apply the shallow handler image to body computation `c`, with its current
-fresh activation while the body executes. At a body's request boundary, test
-the current candidate visibility once at its actual configuration. Leaving
-that candidate then produces a computation in the outer context:
+fresh activation while the body executes. Applicability of the original
+request is defined by its actual yielding body boundary. Selection itself
+executes after leaving the candidate, in the outer context (charter §15):
 
 ```text
 H[Return(v)]       = MatchValue_H(v)              // outside H
@@ -446,6 +446,13 @@ trace, but it is not a live `Inc_C` witness or transferable capture authority.
 Once H exits, its live incidence remains false. This distinction is a
 consequence of composing a handler image with ordinary matching; it is not a
 new source ticket, obligation kind or stored grant.
+
+The applicability premise is a judgment about the yielded request boundary,
+not a selector computation running under the candidate. Thus the equations
+implement outside **selection**, not merely outside arm execution. Deep
+behavior is the explicit shallow reapplication defined in ordinary-computation
+§5; it adds no special `Owner` or `ForwardHandler` constructor and supplies no
+primitive deep-mode flag.
 
 ### Control preservation for the selected extent
 
