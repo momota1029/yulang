@@ -1056,3 +1056,22 @@ progress records. No tests, builds or performance experiments; measurement
 budget zero. Focused whitespace/diff and complete outbound-range inspection
 precede the coherent checkpoint/push. The goal remains unfinished; dependent
 source checking/coherence work awaits the requested result-synthesis decision.
+
+### Result-synthesis blocked audit
+
+The originating decision turn produced `ff912292a` and is classified as
+progress. The following continuation revalidated the unanswered source choice
+and is classified as no progress, not a live-process wait. This continuation
+again found the decision unapproved, the same clean synchronized checkout,
+and no user answer. The same blocker has now persisted for three consecutive
+goal turns, counting its originating turn.
+
+Independent parameter evidence and non-collapse arguments are already
+recorded. More port-conditional translations would not close the raw source
+gate; lifecycle and implementation remain behind the previously selected
+milestone order. No settled component is reopened merely to create activity.
+The goal is therefore marked blocked on the result-synthesis decision, with
+the full proof-and-implementation objective preserved. This status record is
+M0 bookkeeping, not substantive progress; no new review, test, build or
+measurement was performed. A/B/C approval is not inferred from automatic
+continuation instructions.

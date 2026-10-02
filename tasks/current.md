@@ -2,6 +2,12 @@
 
 Updated: 2026-10-02. Branch: `research/simple-sub-intrusion`.
 
+Execution state: blocked awaiting the source result-synthesis decision in
+`2026-10-02-source-result-synthesis-choice.md`. The same unanswered decision
+has persisted through its originating goal turn and two continuation turns.
+The full objective is unchanged; no policy is selected by the continuation
+messages. Resume source synthesis/coherence after the user's A/B/C decision.
+
 ## Objective and authority
 
 Prove that the successor plan in `notes/design/2026-09-29-scc-intrusion-generalization-sketch.md` and `notes/design/2026-09-29-scc-intrusion-redesign-charter.md` can preserve soundness and principality while matching Oracle's final well-typed-program capability on the supported envelope, then implement the reviewed and approved inference machine. The full objective remains active.
