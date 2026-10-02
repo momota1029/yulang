@@ -86,9 +86,21 @@ certificate package instead declares its abstract derivation judgment and
 proves its principal interface. It supplies a generic finite heap construction,
 not yet the complete source refinement or a selected successor acceptance
 policy. Package review repaired the safety theorem's error-reflection
-quantifiers; independent delta review is clean. The immediate remaining
-package is source refinement, fixed symbolic endpoint closure, and modular
-future-use coverage, followed by the source typing/acceptance bridge.
+quantifiers; independent delta review is clean.
+
+The source-realization package now constructs the predicate basis from a
+finite monomorphic ownership/descriptor graph, with all query-schema endpoint
+products retained symbolically. Its operational kernel gives conditional
+heap simulation; explicit selected-pair observations give universal
+selected-incompatibility reflection. Independent semantic and conformance
+package reviews are clean within that conditional envelope. This does not
+construct elaboration from raw source. The exact source gaps are inductive
+callback-boundary relevance/visibility and effective general adapter
+descriptors; neither may be hidden in an oracle primitive. The further
+interaction gap is uniformity: a finite presentation for every separately
+linked finite client does not establish one component presentation for all
+admissible future clients. Close those source and modular definitions before
+the source typing/acceptance bridge and lifecycle theorem.
 
 Finite presentation need not be uniformly small; resource overflow may be a
 distinct deterministic inference-complexity failure. Full-source class 1/2
@@ -102,6 +114,7 @@ Implementation feasibility evidence is recorded in `notes/progress/2026-10-02-su
 
 ## Main records
 
+- `notes/design/2026-10-02-source-realization-and-symbolic-basis.md` — finite ownership inventory, conditional operational realization, selected-fault reflection, and exact remaining source definitions.
 - `notes/design/2026-10-02-finite-abstract-safety-presentation.md` — reviewed generic finite carrier and principal certificate theorem; source application open.
 - `notes/progress/2026-10-02-finite-interface-obstruction.md` — classification, lower bound, construction progress, and review record.
 - `notes/design/2026-10-02-ordinary-computation-semantics-package.md` — current milestone-1 theorem package.

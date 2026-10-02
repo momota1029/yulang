@@ -6,6 +6,39 @@ Status: generic conservative construction proved; source instantiation open; no 
 
 ## Latest constructive result and review
 
+The next package is
+`notes/design/2026-10-02-source-realization-and-symbolic-basis.md`. It replaces
+the supplied finite-predicate premise by an explicit inventory construction
+for a finite monomorphic descriptor graph: original constraints, all
+finite-arity query-schema endpoint tuples, operation/arm pairs, and
+boundary/operation pairs. Ground types and runtime identities need not be
+finite. Type queries do not require concrete materialization of family
+arguments. A control/heap encoding covers the operational kernel conditional
+on effective source primitives; selected-pair observations make universal
+reflection of selected-arm incompatibility constructive.
+
+Two read-only architect construction tasks localized the source gap:
+ordinary §4 does not inductively define callback-boundary relevance or all
+applicable boundaries, and the core adapter equations leave `≈`, admitted
+conversions, and non-thunk cases unspecified. Exact semantic embedding does
+not make these relations computable. A heap instruction named `Visible` or
+`Adapt` would hide the missing definition. This is a source-definition gap,
+not a class-3 witness. Separately, finite inventories for each finite linked
+client cannot be exchanged for one inventory covering all admissible clients.
+
+This continuation follows the completed proof checkpoint `c421accbc`; the
+previous turn was substantive progress. Scope: research authority only,
+uncertain source realization, internal theory across source/representation
+layers. M3 budget: two independent read-only construction inputs, one
+compiler referee and one spec auditor for this package, one batched repair
+if a major finding requires it. Convergence is no unresolved major/blocking
+finding in the declared package, with source gaps explicitly retained.
+No tests, builds or performance samples were run; no compiler changes.
+Both independent reviews are clean, with no blocking/major/minor findings
+within the conditional package. No repair round was needed. Source realization,
+full safety, final acceptance and lifecycle were not certified. Staged
+whitespace and scope checks accompany the research checkpoint.
+
 `notes/design/2026-10-02-finite-abstract-safety-presentation.md` now constructs
 a finite allocation-site heap carrier for a specified local instruction
 machine and proves a principal interface for a declared abstract

@@ -236,6 +236,12 @@ proved; generalization, freshening, and intrusion remain Milestone 4.
 
 ## 7. Remaining source and acceptance gates
 
+The companion `2026-10-02-source-realization-and-symbolic-basis.md` constructs
+the predicate inventory from a finite monomorphic descriptor graph and proves
+selected-fault reflection for its encoding. Its kernel simulation remains
+conditional on effective visibility/adaptation primitives. It does not yet
+derive the descriptors or uniform future interactions from full source.
+
 The finite carrier, local simulation, and principal-certificate results close
 their declared mathematical claims. Successor closure needs:
 
