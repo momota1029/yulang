@@ -98,7 +98,10 @@ This narrows the source applicability of the mandatory-Record structural
 theorems without refuting their fragment proofs. The next gate is to define
 local compatibility outcomes with retained conversion evidence, then prove
 that variable-bound propagation emits guarded boundary queries and that
-residual factorization preserves those outcomes. Current successor terms lack
+residual factorization preserves those outcomes. Frozen Oracle evidence
+separates optional-Record field comparison from exact-path nominal cast
+resolution; a common successor resolver remains a candidate dispatch layer,
+not an established shared Oracle mechanism. Current successor terms lack
 Record and adapter constructors; cast declarations are outside successor HIR.
 Optional Record Oracle observations are not implemented syntax/contracts in
 this branch. No compiler change is authorized; the complete replacement goal

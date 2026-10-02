@@ -35,13 +35,28 @@ the next research gate. It grants no implementation authority.
   pattern defaults are different syntax and semantics.
 - The typed-boundary adapter theorem covers fixed-shape Function/Thunk
   realization. It does not decide concrete compatibility or optional Records.
+- Frozen Oracle Record comparisons and registered nominal casts use distinct
+  paths. `enqueue_record_fields` skips absent lower fields and otherwise
+  derives matching-field comparisons; specialization separately checks
+  missing required upper fields and matching children. By contrast,
+  `NominalCastNeeded` for different nominal paths adds candidate cast
+  constraints, then eligible source boundaries resolve exact path candidates
+  as missing, unique or ambiguous. The optional-Record examples therefore do
+  not establish that Oracle routes them through the nominal cast table.
+
+This evidence supports a common successor compatibility boundary only as a
+candidate dispatch interface. Record adaptation and registered nominal casts
+need distinct derivations/evidence unless a preservation proof justifies a
+stronger unification. It neither rejects the user's direction nor establishes
+that the two Oracle paths already share a runtime adapter mechanism.
 
 The new draft passed bounded independent semantic and conformance reviews with
-no findings. The compiler referee did not audit the whole call graph, frozen
-cast implementation, or full predecessor proofs; the spec auditor did not run
-Oracle or tests. No code or test expectations changed. `git diff --check`
-passed. No tests, builds or measurements were run. Measurement budget
-consumed: 0.
+no findings. A further compiler-referee delta audit verified the frozen
+Record and nominal-cast routes described above. The compiler referee did not
+audit the whole successor call graph, full predecessor proofs or backend
+adapter realization; the spec auditor did not run Oracle or tests. No code or
+test expectations changed. `git diff --check` passed. No tests, builds or
+measurements were run. Measurement budget consumed: 0.
 
 ## Next gate
 

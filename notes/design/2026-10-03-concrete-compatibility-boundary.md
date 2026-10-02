@@ -4,7 +4,7 @@ Status: Reviewed; records the user's 2026-10-03 semantic decision; operational r
 Date: 2026-10-03
 Scope: separate transitive variable-bound propagation from local concrete compatibility and adaptation resolution
 Approved-by: user for the relation distinction and Oracle observations recorded in §1 only
-Reviewed-by: compiler_referee and spec_auditor, 2026-10-03; no findings in §§1–5 within their bounded scopes
+Reviewed-by: compiler_referee and spec_auditor, 2026-10-03; additional compiler_referee audit of the frozen Oracle-route evidence in §4 found no findings
 Implementation authority: none
 Supersedes: none; narrows source applicability of structural relation candidates without invalidating their fragment theorems
 
@@ -125,6 +125,35 @@ expression envelope (`crates/yu-hir/src/module.rs`). The parser owns
 implicit value casts in that contract corpus. The typed-computation design
 also records frozen evidence for registered field casts, while explicitly
 not establishing general whole-Record adaptation.
+
+The frozen Oracle implementation has two distinct routes that a successor
+could place behind one compatibility interface, but they should not be
+conflated as existing evidence of one adapter mechanism:
+
+- For Record-to-Record constraints,
+  `a58eefc3:crates/infer/src/constraints/machine/propagate.rs` visits upper
+  fields in `enqueue_record_fields`, skips absent lower fields, skips the
+  lower-optional/upper-required case, and otherwise emits a field-type
+  comparison. Frozen specialization separately rejects a missing *required*
+  upper field and recursively checks matching fields at
+  `a58eefc3:crates/specialize/src/specialize2/type_graph.rs`.
+- For different nominal constructor paths, constraint propagation emits
+  `NominalCastNeeded`. `AnalysisSession::constrain_nominal_cast` eagerly adds
+  constraints for exact-path cast candidates; eligible source-boundary
+  diagnostics later use `CastTable::resolve_value` to classify missing,
+  unique, or ambiguous candidates. This route is implemented in the frozen
+  `crates/infer/src/analysis/session/{generalize,ocast_activation}.rs` and
+  `crates/infer/src/casts.rs`.
+
+Consequently the optional-Record examples do not show that Oracle routes those
+checks through its registered nominal cast table. They show why successor
+concrete compatibility cannot be the transitive closure of every local
+structural/adaptation success. The user-selected direction remains to
+investigate one local compatibility/adaptation boundary; a candidate resolver
+may dispatch to Record adaptation and nominal cast rules while retaining
+distinct derivations and evidence. Whether that unification is sound and
+operationally faithful is open; it must not silently turn Record checking into
+registered nominal casts or compose boundary successes.
 
 Successor named-Record type syntax currently requires `name: Type` fields;
 the optional Record pattern syntax concerns pattern defaults and named
