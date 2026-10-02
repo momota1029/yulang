@@ -1302,3 +1302,55 @@ locators are synchronized. Documentary diff/whitespace checks govern this
 slice; no compiler changes, tests, builds or measurements. Coherent staging,
 outbound inspection and push preserve the checkpoint. The full goal remains
 active and unfinished.
+
+### Operation-instance ownership and the lifecycle dependency
+
+The preceding correlated-request checkpoint `08ef32d18` is pushed. This
+slice follows its concrete operation-local binder gap and records the
+reviewed result in `2026-10-02-operation-instance-binding-package.md`.
+The source result rule remains the user's A: known computation interfaces
+are forwarded inertly, with no implicit pure layer or synthesis-time force.
+
+A typed operation use supplies one declaration substitution. Payload,
+response, nested callback interfaces and symbolic `K,D` retain that same
+instance through an arm opening and raw resumption. Operation-local
+coordinates are absent from family support and cannot be recovered from
+row colors. Actual arm demands remain independently checked under one
+captured environment assignment for every reachable selected event.
+The existing source quantifier supports both uniformly generic proofs and
+specialized proofs covering all actual selections; no new choice is needed.
+
+The package proves conditional local payload/resumption preservation and
+constructs finite signature transport preserving graph sharing. It does
+not derive full source typing or safe let-generalization. A shallow
+nested-resumption adaptation of the primary literature's interference
+example exposes a concrete failure of hypothetical unrestricted effectful
+generalization. The referenced paper was consulted at §§2.3–2.4 and relevant
+typing excerpts, not read in full in this slice. Its deep CBV calculus is
+not successor authority. No frozen acceptance of the attack was established;
+no value restriction, linearity or signature restriction was selected.
+
+Bounded frozen-source inspection distinguishes family-parameter `get`
+specialization from independent operation-local result polymorphism. The
+owning lowering shares a named-signature map within an arm and gives its
+continuation the operation-result variable. This is characterization,
+not a safety theorem. The audit did not find evidence certifying generic
+stored resumptions or mixed local instances under one handler.
+
+M3: bounded architect and frozen-source explorer, followed by independent
+compiler-referee and spec-auditor package reviews. Neither found blocking
+or major issues. The referee's minor complexity finding is accepted and
+closed: signature size counts nodes, edges and profile/incidence entries,
+with indexed binder lookup, rather than nodes alone. Primary inspection
+closes this accounting-only clarification; no new review round is needed.
+Reviewers certified the stated theorem scope, not frozen locators or full
+inference. The audit supplies the former separately; the latter remains open.
+
+Next construct the common interaction/typing package's effective arm demands,
+complete compatibility and conservative selected-event obligations, retaining
+live dependencies for the lifecycle theorem. Uniform future-client coverage,
+full finite principal inference, generalization/instantiation/intrusion and
+implementation remain unfinished. Tasks, index and owning theorem locators
+are synchronized. Checks are scoped diff/whitespace inspection; tests/builds
+are omitted for this research-only slice. Measurement budget/consumption:
+zero. Commit and push use explicit paths and full outbound-range inspection.

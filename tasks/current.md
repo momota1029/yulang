@@ -439,7 +439,37 @@ and substitutions before reducing complete compatibility queries. This
 does not open method/role resolution; the witness's role constraints remain
 outside the current proof gate.
 
+## Operation-instance checkpoint
+
+`2026-10-02-operation-instance-binding-package.md` refines complete
+`OpCompat` without a new source choice. Each typed operation instantiation
+has one declaration map, retained across payload, response, callback
+interfaces, raw suffix and symbolic `K,D`. Family equality forgets local
+coordinates. Opening an arm or resuming does not reinstantiate them;
+captured endpoints remain shared across all selected events. Actual arm
+demands are checked for every reachable selection; a uniformly generic arm
+is sufficient but is not mandatory by this package.
+
+The reviewed result is local preservation under explicit body/store/typing
+premises and finite signature transport with preserved sharing. A shallow
+nested-resumption attack shows why this is not a theorem of unrestricted
+effectful-let generalization. No frozen acceptance of that attack was
+established, and no value restriction or other acceptance change is adopted.
+The lifecycle proof must preserve or safely discharge dependent witnesses.
+
+The next milestone package must construct effective arm/body demands and
+complete compatibility with shared declaration maps, cover all selected
+instances in the chosen conservative interaction abstraction, and expose
+live dependencies to generalization. Finite source checking, modular
+future-use coverage and principal solving remain open. Keep this as one
+interaction/typing package rather than proliferating callback fixtures.
+No class-3 obstruction, milestone-4 closure or implementation approval
+follows from the local theorem. M3 semantic and conformance review found
+no major issue; the minor graph-work accounting clarification is closed.
+
 ## Main records
+
+- `notes/design/2026-10-02-operation-instance-binding-package.md` — shared operation-local witnesses, local preservation and generalization interference obligation.
 
 - `notes/design/2026-10-02-symbolic-request-register-quotient.md` — finite equality/unary request-point quotient and uniform lifting; modular source applicability remains open.
 

@@ -310,6 +310,14 @@ payload/interface substitutions, then prove which compatibility predicates
 fit this kernel or require a richer joint presentation. This is an ordinary
 operation-signature dependency, not a reason to start method resolution.
 
+`2026-10-02-operation-instance-binding-package.md` now derives that binder
+protocol and local payload/resumption preservation. Family-support
+projection forgets operation-local coordinates even when operation identity
+is retained. An application of this quotient to complete compatibility must
+retain those coordinates and their dependencies separately; unary row
+colors cannot reconstruct them. Effective compatibility and a finite
+retained-point source abstraction remain open.
+
 The next milestone work is to derive a typed interaction abstraction with
 these premises, or exhibit a source dependency requiring a richer relational
 signature. General binary predicates and point constructors need their own

@@ -2928,6 +2928,17 @@ formulas, but those formulas are projections of one `OpCompat` fact and must
 share the same `θ`, `φ`, assignment `ν`, and incidence with the request, arm,
 continuation, and output interfaces.
 
+The reviewed successor construction in
+`2026-10-02-operation-instance-binding-package.md` makes this ownership
+explicit. A selected arm opens the request's existing declaration instance;
+its actual input/body/response demands remain independent checks. The
+distinct `phi` view above must not manufacture a new witness for the same
+request or independently solve captured endpoints. Keeping one request
+instance does not discharge either transfer direction. The package proves
+local preservation under those premises and identifies the still-open
+effectful-generalization dependency; it does not replace complete
+compatibility with family equality or impose universally generic arms.
+
 The first two value-transfer directions have a conditional safety
 justification: a request supplies a value of `Aθ`, so the arm must accept it;
 the arm resumes with `Bφ`, so the raw request continuation must accept that
