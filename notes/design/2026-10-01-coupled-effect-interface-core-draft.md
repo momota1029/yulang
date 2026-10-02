@@ -1549,7 +1549,7 @@ computation/thunk keeps that source lineage in the output observation. The
 complete transport is split by identity kind: its type component maps the
 typed endpoints and `K` formulas; its owned-occurrence component maps the
 `D` incidences and any source/request-owner coordinates used to represent
-that lineage; and its compile-time boundary component maps handler binders.
+that lineage; its compile-time boundary component maps handler binders.
 None of these maps renames a concrete dynamic request-event ID or dynamic
 activation ID. A later
 execution may create a fresh event and activation while retaining the
@@ -3399,6 +3399,21 @@ source relation and the complete future-client observation must be defined.
 The point-fragment entailment condition below is a tractable sufficient
 criterion for one chosen `≈_Obs`; `FamAgree_A` alone fails the exact criterion
 for the interval counterexample that follows.
+
+**Origin-sensitive observation test for a parent quotient.** Instantiate
+`Obs_C` with the complete request/handler observation: request origin, typed
+payload and `K,D` incidence, ordered visibility/selection, and the resumable
+suffix. Two same-family, same-payload requests can still differ because one
+origin has `Capture(o_cb,h)` and the other caller origin lacks it. If ordered
+search handles the former and forwards the latter, a quotient that also
+collapses their owner labels and replaces the edge evidence with one
+node-local capture value cannot factor this observation: granting capture to
+the merged label hijacks the caller request, while denying it loses the
+callback request's eligible route. This is an adversarial test of the
+observation-factorization premise, not a claim that a type-only parent map is
+invalid. A type-only quotient may retain injective owner and boundary maps and
+keep both request edges distinct; it must still satisfy the complete
+solution-fiber criterion above, including `K,D` and use-site observations.
 
 ### A sufficient parent-quotient condition (point fragment)
 

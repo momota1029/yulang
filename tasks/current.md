@@ -4307,3 +4307,12 @@ substitution walker cannot carry it: Function effects are rebuilt as
 `Bottom`/`Empty`, with no occurrence/origin map. Source origin generation,
 full solution-fiber preservation, and non-injective parent intrusion remain
 open. See the callback progress and feasibility entries.
+
+The parent-quotient test now includes caller hygiene in `Obs_C`: equal family
+and payload do not make two origins observationally equivalent when one is
+capturable and the other is caller-owned. Review found the failure applies to
+quotients that collapse owner labels/evidence; type-only non-injective `P` may
+remain possible with distinct edge and boundary maps, subject to the complete
+fiber criterion. Feasibility audit also confirmed F5c `PhysicalOwnerKind` is
+memory-accounting metadata, not semantic effect ownership. See the new
+quotient test and feasibility entry.

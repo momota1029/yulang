@@ -485,3 +485,13 @@ fixing concrete runtime IDs. Its conclusion is conditional on source `Capture`
 equivariance and the existing injective transport assumptions; source label
 generation, complete solution-fiber preservation, and non-injective parent
 quotients remain open.
+
+The general parent-quotient observation criterion now has a specific
+caller-hygiene stress case. Same-family, same-payload requests can still have
+different complete handler observations when one origin is captured and the
+caller origin is not. Merging their owner labels and replacing edge evidence
+with one node-local capture bit cannot preserve both routes. Independent
+review confirmed this only rejects that evidence-collapsing quotient; a
+type-only parent map may keep owner/boundary identities and request edges
+distinct, subject to the full solution-fiber test. This does not prove the
+actual successor source owns the hypothesized events.

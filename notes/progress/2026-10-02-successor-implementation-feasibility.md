@@ -143,4 +143,11 @@ added above it. A successor needs a jointly transported type/formula,
 occurrence-owner, and compile-time boundary map before its finite schemes can
 preserve this evidence.
 
+One naming collision is not reusable: `PhysicalOwnerKind` in
+`f5c_draft_heap.rs` classifies vector-allocation accounting for the F5c
+resource ledger. It is not a semantic owner of a request, family formula, or
+`D` incidence. The existing HIR occurrence identity is a possible static
+label substrate only; source-owner and handler-boundary maps still need new
+typed carriers in a successor.
+
 No source code was changed. No tests or builds were run.
