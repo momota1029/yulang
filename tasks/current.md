@@ -4278,3 +4278,12 @@ source provenance and `K,D` premises remain open. The alternating code check
 confirmed that `yu-core` and both backend entrypoints are documentation-only
 stubs, so there is no runtime path for a bounded Force/continuation
 implementation yet. See the latest source transition and feasibility entries.
+
+The force/catch cut now carries per-request origin through latent, immediate,
+and post-catch force positions. Visibility still requires the matching
+origin-indexed capture derivation and an active/re-entered handler; origin
+alone cannot restore a handler removed by shallow resumption. Reviewer noted
+and prompted a qualification for independent source re-entry; the corrected
+wording has delta closure. The latest resolved-HIR/backend check found
+no Force or handler execution surface. See the new origin-indexed cut in the
+coupled-interface draft and feasibility record.

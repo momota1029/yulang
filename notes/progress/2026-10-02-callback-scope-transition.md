@@ -457,3 +457,13 @@ selected activation only if reached through raw resumption, unless an
 independent source transition re-enters that activation. Delta review closed
 this correction. The equations still require source provenance and symbolic
 `K,D` transport premises.
+
+The first-dispatch force/catch cut now has an origin-indexed refinement. A
+thunk's latent interface retains each request origin before force; force
+exposes the same first request origin before active ordered dispatch; after a
+non-forcing value arm returns and unwinds the handler, a later forced request
+retains its own source origin but cannot use the departed handler without an
+independent re-entry transition. A shallow-selected handler remains absent
+from its raw suffix, with independently specified re-entry allowed. Adversarial
+review required that qualification and then closed the wording. The `Visible`
+capture derivation, `K,D` transport, and source Force/value rules remain open.

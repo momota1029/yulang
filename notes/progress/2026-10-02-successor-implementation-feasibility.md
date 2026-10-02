@@ -115,4 +115,13 @@ the future carrier must survive value flow, wrappers, force, mixed
 computations, and continuation resumption. No production code was changed;
 this is not ready for a bounded compiler implementation.
 
+The follow-up source check re-confirmed that the resolved `ResolvedExpr` is
+the only matching expression declaration in the current HIR/solver/type/core/
+backend slice, and it contains no `Force` or handler transition. `yu-core`,
+VM, and native crate entrypoints remain one-line module docs. Thus the new
+origin-indexed force/catch distinction has a mathematical home in `Run`,
+`Visible`, and the latent interface candidate, but no existing execution
+surface to host a prototype. This remains a theory-only step pending a settled
+source relation and implementation authority.
+
 No source code was changed. No tests or builds were run.

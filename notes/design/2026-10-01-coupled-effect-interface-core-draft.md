@@ -2167,6 +2167,24 @@ must derive the boundary, and any finite presentation must transport its
 symbolic family predicate, incidence, and saved lineage unchanged through the
 corresponding relation image.
 
+**Origin-indexed refinement of the force/catch cut.** Attach each request's
+own origin to the observations of `C`, rather than one origin flag to `d`. In
+(a), no request is observed yet, but the latent relation retains its individual
+origins. In (b), if the first request is `q[o]`, force exposes that same request
+origin before dispatch; visibility still requires the independent
+`Capture(o,H)` and ordered `Visible(q[o],H,κ)` premises. Under the selected
+nested-receiver rule, those premises persist through `b` only while `H` stays
+active and the source transition preserves that origin and its `K,D` incidence.
+In (c), a later event `q'[o']` keeps the origin assigned by the later source
+operation, but `H` has already unwound; its origin alone cannot restore
+visibility. Re-entry can change that conclusion only when the source
+saved-lineage transition explicitly reinstalls the relevant activation. If a
+shallow arm selected `H` before resumption, later raw-suffix requests are
+outside `H` regardless of their origin, unless an independent source
+transition explicitly re-enters that activation. This separates request
+provenance from handler availability; the source rules and symbolic transport
+premises remain open.
+
 Textual nesting and exact operation path still do not prove that the request
 is eligible for the active arm. Focused frozen-Oracle witnesses place the same
 `choose::get` callback under a matching catch outside `call(...)`, or outside
