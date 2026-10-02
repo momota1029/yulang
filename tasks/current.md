@@ -4149,3 +4149,17 @@ or expected output changes follow. See the audit subsection in
 `notes/progress/2026-09-30-intrusion-recgroup-let-composition.md`. The active
 next gate remains the common source call/handler transition with symbolic
 typed-family transport.
+
+The source call/handler gate has one genuine semantic decision before its
+visibility relation can be fixed: whether an outer concrete callback capture
+remains eligible across a nested concrete receiver's complete call/adaptation
+transition, or is suspended there and restored on return. The source docs
+grant capture locally at each receiver but specify no nested precedence. The
+Authoritative runtime rule requires lineage transport/re-entry, but does not
+choose which receiver entitlement that lineage carries after escape. The
+architect audit recommends preservation as the smaller compositional
+hypothesis, conditional on soundness/principality proofs; it is not approved.
+See the follow-up in
+`notes/progress/2026-10-02-callback-scope-transition.md`. Do not infer the
+answer from Oracle routing. Other safe work may continue, but this source
+clause cannot be closed until the decision is made.

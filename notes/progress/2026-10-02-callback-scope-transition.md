@@ -232,3 +232,38 @@ sources. Exact nested concrete permission propagation and per-handler
 eligibility after escape are not. No policy was selected. The reviewer delta
 closed after narrowing the frozen marker spec to characterization evidence;
 this does not approve its routing algorithm or any successor source rule.
+
+### Follow-up source decision audit
+
+A focused architect review compared only the frozen annotation/handler text
+and the current Yulang3 runtime-lineage authority. It confirmed that the
+reference grants capture at each concrete receiving-function boundary but
+does not define composition when an outer handler surrounds a second concrete
+receiver whose result adaptation forces the callback. The missing rule is one
+boundary-crossing clause in the existing origin-indexed `Visible(q,h,κ)`
+relation: whether an enclosing incidence remains derivable across that nested
+`CallView`. No additional selector or obligation kind is needed to state the
+choice.
+
+The two source interpretations remain distinct. Preservation extends the
+existing visibility derivation through the nested transition, subject to its
+full ordered-context premises and the same origin/typed-family constraints.
+Suspension makes the enclosing entitlement ineligible during that nested
+transition and restores it afterward; it must define which boundary counts
+and its extent, since matching family heads alone cannot identify competition.
+Both still require complete-call simulation and principality proofs. The
+source docs do not select either. Preservation is the smaller compositional
+hypothesis, but source economy cannot substitute for the soundness proof.
+
+Escape/re-entry is only partly open. Authoritative architecture already
+requires activation-specific lineage to travel through closures, thunks, and
+continuations and to be reinstated on resume. The unresolved question is
+which receiver entitlement that transported lineage represents when an
+escaped value later runs; deleting all lineage on return is not admissible.
+No runtime-marker routing rule is used as semantic authority. This audit
+leaves one explicit user decision: preserve or suspend the enclosing
+entitlement across a nested concrete receiver for the same callback-origin
+incidence. Exact locators: frozen `web/docs/reference/effects.md:127–151,
+153–204, 244–265`; frozen `web/docs/reference/type-theory.md:154–179`; current
+`docs/yulang3-architecture.md:702–718`; draft §§1240, 1281, 1321. No source
+implementation or tests changed.
