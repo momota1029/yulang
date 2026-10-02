@@ -121,6 +121,30 @@ does not close source-level bound-replay conservation or authorize
 implementation. See
 `notes/design/2026-10-03-finite-bound-replay-closure.md`.
 
+A bounded semantic audit established a necessary replay condition: independent
+local checks `Compat(A,X)` and `Compat(X,B)` cannot alone justify adding
+`Compat(A,B)`; optional Records provide a counterexample at `X={}`. The
+reviewed note records a transparent producer/consumer port as one conditional
+explanation for stronger lower/upper bound meaning. It remains unverified:
+source elaboration must distinguish transparent variable transport from an
+actual concrete compatibility/adaptation boundary, and conversion must stay
+at its proper consumer. Fresh semantic and conformance reviews found no
+findings in this hypothesis. Frozen-source inspection now grounds
+producer-to-local-to-consumer flow through open value slots and locates
+registered argument casts at expression-consumption boundaries. A local type
+annotation only constrains its existing value slot; it does not establish a
+conversion boundary. This refines but does not prove the port hypothesis for
+the successor, especially for Record adapters. The next gate is source-ledger
+conservation across those actual conversion sites; do not use an annotated
+local as a proxy for an inserted adapter.
+
+One semantic review caught an overclaim that a producer-view boundary must
+emit a runtime conversion. The repaired draft separates a source check that may
+seal a typed view from runtime adaptation: identity realization could preserve
+the original value while later checks use the sealed view. This remains a
+candidate interpretation; check-only Record sealing has no established source
+rule here.
+
 Frozen specialization rechecks materialized concrete boundaries, while the
 Evidence VM has a recursive Record adapter distinct from generic `Coerce`
 aliasing and registered nominal cast resolution. No one shared runtime

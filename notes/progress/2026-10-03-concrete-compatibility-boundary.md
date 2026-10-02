@@ -170,6 +170,33 @@ boundary-replay completeness, conversion placement and source-wide finiteness
 remain open. No implementation, tests, builds or measurements were run.
 Measurement budget consumed: 0.
 
+The next semantic audit asked whether replay follows from treating lower and
+upper payloads as independent suspended checks. It does not: with optional
+Record endpoints `{foo?: string}`, `{}`, `{foo?: int}`, the two local checks
+pass while replay's direct check fails. This is recorded as a necessary
+condition, not a rejection of the frozen replay route. A transparent
+producer/consumer port is one conditional hypothesis: variable transport keeps
+the producer view intact, while an actual concrete adaptation boundary ends
+that transport and starts a new producer contract. Fresh compiler-referee and
+spec-auditor reviews found no issue in the hypothesis' presentation; neither
+establishes source applicability. Frozen-source inspection then grounded a
+producer-to-local-to-consumer path through open value slots and located
+registered casts at concrete function-argument consumption/emission. A local
+annotation constrains the same existing value slot and does not establish a
+conversion boundary. The design draft now cites the frozen local-lowering,
+specialization and argument-emission owners; a bounded semantic delta review
+found no issue. A follow-up clarification now says a successful check alone
+does not by itself establish a new consumer-facing contract. The contract
+could be sealed by a source check even if runtime preserves the original value;
+conversion evidence and typed-view evidence are separate. A reviewer found a
+major overclaim in the prior version, which incorrectly made emitted conversion
+necessary. The primary revised the hypothesis to leave check-only typed views
+open for source proof; the same reviewer confirmed the major finding is closed
+with no new issue. Successor source generation and exact Record adapter
+placement remain unverified.
+No tests, builds or measurements were run.
+Measurement budget consumed: 0.
+
 ## Next gate
 
 Prove bound-replay conservation for a fixed finite source elaboration and

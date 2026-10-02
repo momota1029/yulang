@@ -1,10 +1,10 @@
 # Finite guarded closure for variable bound replay
 
-Status: Draft
+Status: Reviewed
 Date: 2026-10-03
 Scope: least closure of a fixed finite variable-bound graph with finite replay contexts
 Approved-by: none; the user's approved relation distinction is recorded in §1 of `2026-10-03-concrete-compatibility-boundary.md`
-Reviewed-by: architect pre-write audit; compiler_referee and spec_auditor review pending
+Reviewed-by: architect pre-write audit; compiler_referee and spec_auditor review §§1–6 clean after primary closure of minor findings; fresh compiler_referee and spec_auditor review of §7 hypothesis; compiler_referee source-bridge and revised check-only contract-boundary deltas clean after major-finding repair
 Implementation authority: none
 Supersedes: none
 
@@ -230,3 +230,94 @@ successor obligations:
 
 No source syntax, acceptance behavior, cast-selection policy, runtime adapter
 rule, resource limit, or implementation representation is selected here.
+
+## 7. Source-meaning obstruction and a conditional port hypothesis
+
+A bounded architecture audit identified a necessary distinction for any
+source-preservation proof. Suppose a lower and upper payload were interpreted
+only as two independent suspended local checks:
+
+```text
+Lower(A, X) means Compat(A, X)
+Upper(X, B) means Compat(X, B)
+```
+
+For `A = {foo?: string}`, `X = {}`, and `B = {foo?: int}`, both suspended
+checks pass under the user's Oracle observations, but replay's `Compat(A, B)`
+fails. Thus those two independent checks do not entail a replay query. This
+does not contradict the frozen Oracle route; it rules out using independent
+local-check satisfaction as its source justification.
+
+One conditional explanation is to treat an inference variable as a
+transparent interface port between producers and consumers. A lower payload
+would retain a producer contract and its typed view at the port; an upper
+payload would retain a consumer demand. Variable-bound transport would move
+those contracts without inserting a conversion. If the port is transparent,
+each admitted producer must safely reach each admitted consumer, so the
+lower/upper replay becomes a separately resolved local compatibility query.
+This can explain replay without composing successful conversions.
+
+An actual source compatibility boundary might break transparent transport by
+establishing a new consumer-facing contract, but need not emit a data
+conversion. For example, a shape check could seal the exposed view to `{}`
+while runtime preserves the original Record with its extra fields. Conversely,
+a selected and emitted adapter could materialize a target-facing value. These
+are separate questions: whether the source boundary starts a new typed
+contract, and whether its runtime realization changes the value. A successful
+`Compat` check at an arbitrary comparison does not by itself establish such a
+contract boundary; nor does an emitted adapter by itself explain which source
+obligations are discharged. In schematic form:
+
+```text
+producer A → transparent X → consumer B
+    requires a justified local A-to-B query
+
+producer A → source boundary exposing {} → producer-view {} → consumer B
+    keeps the two boundary queries separate; realization may retain or adapt data
+```
+
+The common local resolver under consideration can resolve each justified
+query, retaining Record-check, nominal-cast and adapter evidence as distinct
+derivations. Its result must distinguish a successful check from selected
+conversion evidence and from an adapter actually emitted. Source elaboration
+must also say whether a particular check establishes a new consumer-facing
+contract. The resolver cannot decide by itself whether a variable path is
+transparent or whether a source operation created such a boundary. Execution
+must preserve the producer view and place any selected conversion at the
+correct consumer boundary; a check-only identity realization may still carry
+a distinct typed view if the source contract requires it.
+
+The frozen source provides a grounded transport example and a more precise
+boundary locator. In `lowering/expr/block_local.rs::lower_local_binding_stmt`,
+the local's public value is the body value; `connect_local_binding_annotation`
+adds annotation constraints to that same value slot. During specialization,
+`specialize2/task_solver/control.rs::local_let_binding_type` gives a
+non-lambda local a fresh open variable, even when annotated. Its initializer
+supplies lower information and a later consumer supplies upper information.
+So a local annotation does not itself establish a converted port.
+
+By contrast, `specialize2/task_solver.rs::apply_type` and
+`consume_expr_value` record a function argument's actual/expected pair against
+a materialized signature. When a registered cast is selected,
+`specialize2/emit.rs::emit_expr_with_boundary` and
+`boundary_expr_with_argument_contract` emit it at that argument expression
+boundary through `cast_boundary_instance`. The emitted cast is evidence of
+runtime conversion at that site, while the source comparison identity and
+consumer view establish the logical boundary. This is frozen-source
+characterization, not a successor rule: whether check-only Record boundaries
+seal a typed view, and where optional-Record adapters execute, remain
+unresolved.
+
+This port account is an unverified hypothesis, not a source rule or approval.
+Frozen bound replay establishes the operational route and its logical bound
+parents; it does not establish that every eligible pair is a source-level
+producer/consumer interaction. The hypothesis fails if substitution loses a
+producer view, replay crosses a source boundary that seals a new
+consumer-facing contract, or any generated rejecting pair lacks a
+source-contract justification. Before adopting it,
+trace supported producer-to-local-to-consumer and cast-at-consumer examples
+through source generation, specialization and emission, including aliases,
+multiple consumers and incompatible guards; then prove replay conservation in
+both directions for the resulting source-bound and replay ledgers. A local
+type annotation must not serve as the distinguishing example unless its
+conversion behavior is separately established.
