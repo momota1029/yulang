@@ -68,4 +68,25 @@ implementable, needs a bounded prototype, or requires a larger architecture
 change. Method selection, roles, and implementation resolution remain a later
 mandatory gate.
 
+## Alternating proof / feasibility check: event identity
+
+The callback-origin proof now distinguishes four coordinates: a static source
+site template, an individual dynamic request event, the source computation or
+callback/thunk value lineage, and an activation identity. Repeated execution
+may create a new event from the same template and lineage; symbolic type
+transport changes typed endpoints and `K,D`, not runtime event or activation
+IDs. A delta review of this distinction found no issue. This closes only the
+identity bookkeeping question, not the conditional source `Force` /
+`B_{S,T}` preservation premise or the full soundness and principality proof.
+
+The corresponding code check found no existing representation for source
+origins, callback/thunk lineage, or these activation coordinates. In addition
+to the missing call/handler/force HIR already recorded above, the current
+closed effect views remain singleton `Bottom` / `Empty`. So the identity
+distinction can be described in the proposed relational interface, but there
+is no present compiler path where it can be implemented or exercised. This
+reinforces the current decision to alternate proof slices with read-only
+feasibility checks and defer production changes until the semantic carrier is
+settled and implementation authority is granted.
+
 No source code was changed. No tests or builds were run.

@@ -1539,12 +1539,15 @@ In particular, equal may-support can hide different resumed suffixes, so a
 support-only transformer cannot justify residual subtraction.
 
 **Callback-origin transport through `Adapt` and `CallView`.** Let `q` be an
-individual dynamic request event, and let `origin(q)` be the source computation
-whose execution emitted it; a finite presentation may index that relation by
-static source sites, but a site label is not a dynamic activation ID. The
+individual dynamic request event, and let `origin(q)` identify the source
+computation lineage that produced it, including the callback/thunk value
+lineage carrying that computation. Repeated executions may produce distinct
+dynamic events from one source-site template; a finite presentation may index
+the template, but a site label is not an event or activation identity. The
 origin-preservation premise for `B_{S,T}` is: a request exposed from an input
-computation/thunk keeps that source origin in the output observation, while
-one uniform type transport maps its typed endpoints and `K,D` incidence.
+computation/thunk keeps that source lineage in the output observation, while
+one uniform type transport maps its typed endpoints and `K,D` incidence. The
+type map does not rename the dynamic event or activation identities.
 Effects independently emitted by a conversion have their own source origins
 whose eligibility must be derived from the full source relation; family match
 alone does not grant them `Capture`.
@@ -1557,10 +1560,10 @@ origin. Computation-to-thunk adaptation delays the same adaptation and carries
 the latent origin and formula incidence in the returned value interface;
 thunk-to-thunk adaptation delays `Force` followed by result adaptation and
 carries both in that latent interface. Later force exposes the same source
-origin under the source-defined activation context and required re-entry
-lineage; it does not itself allocate a fresh identity unless that boundary
-requires one. This is a structural case analysis over the displayed `Adapt`
-equations, conditional on the source `Force` and value-boundary relations
+lineage in a new dynamic event under the source-defined activation context and
+required re-entry lineage; it does not itself allocate a fresh identity unless
+that boundary requires one. This is a structural case analysis over the
+displayed `Adapt` equations, conditional on the source `Force` and value-boundary relations
 preserving their inherited interface coordinates. It does not transfer an
 outer capture entitlement to effects newly produced by an unrelated conversion.
 
