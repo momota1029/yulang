@@ -6,6 +6,48 @@ Status: generic conservative construction proved; source instantiation open; no 
 
 ## Latest constructive result and review
 
+### Selector-extent audit and conditional completion
+
+This continuation follows local checkpoint `6b0a8a85d`; the previous turn was
+progress. The existing reviewer follow-up was retried and again failed with
+`agent thread limit reached`. This is the second consecutive turn with that
+review-execution blocker, but meaningful source analysis remained possible.
+The source-owner candidate is still not certified or pushed.
+
+The pending-guard issue is not only ID remapping. The ordinary source package
+and syntax-v0 do not specify whether a handler's own pattern/default/guard
+effects execute within that handler. Section 6 of the owner-realization
+candidate records an E/P source-level discriminator: handling the guard's P
+inside H1 can abort to result 1, whereas outside matching lets H0 resume it
+with true and yields result 0. This is semantic pseudocode, not an executed
+Oracle fixture or an accepted-source claim. A focused source choice was sent
+to the user; no default or approval has been inferred.
+
+Immutable `git show a58eefc3:...` reads of mono-runtime `eval.rs` establish
+that pattern/guard requests propagate through ordinary bind, with the same
+catch wrapper added only when forwarding the original request after arm
+exhaustion. Evidence-vm `eval_catch` removes its active catch entry before
+dispatching the body result. This is characterization evidence, not semantic
+authority or full backend equivalence. The frozen worktree was not modified.
+
+For the outside interpretation, a single conditional shallow-handler image
+equation uses existing ordered matching followed by ordinary bind. A guard
+request retains the remaining match/finish computation outside H; forwarding
+the original request rewraps only its original raw suffix. Thus pending
+matching needs source code, a cursor and environment, not a revived live
+handler ID. Eligibility of the original event was tested at the body's
+boundary; its delayed match completion supplies no grant to a new event.
+The finite-interaction preservation argument is recorded as primary,
+conditional reasoning awaiting source selection and independent review.
+The forwarding wrapper wording also now explicitly retains the source
+value-arm computation before returning to its parent context.
+
+This continues the same M3 control package and convergence criterion; no
+new reviewer panel, tests, builds, Python, or measurements were run. Git
+whitespace/scope checks cover the local research checkpoint only. Source
+choice, repair review, full typing, principality and implementation remain
+open; no completion or accepted compatibility loss is claimed.
+
 ### Typed source owner realization (current slice)
 
 This continuation follows pushed checkpoint `0b9b44cd4`; the previous goal

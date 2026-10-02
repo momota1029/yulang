@@ -1,7 +1,7 @@
 # Typed source transport and resumption ownership
 
 Date: 2026-10-02
-Status: Draft; initial package reviewed; completion-routing repair awaits independent closure; pending-search control obligation open
+Status: Draft; initial package reviewed; repair closure unavailable; selector-extent source choice pending, with conditional outside-image proof
 Scope: ordinary decorated source control, typed value transport and live owner realization
 Approved-by: user for charter §13 transport/lifetime principles; concrete realization unapproved
 Drafted-by: primary with bounded resumption-owner architect input
@@ -93,8 +93,12 @@ Handlers and new receipts use that current owner. A genuine new call made by
 `F` allocates its ordinary fresh occurrence with its own nested return frame.
 
 Entry to `ForwardHandler(H,ownerSlot,K)` installs the source-prescribed fresh
-handler under the currently resolved owner slot and executes its child. Its
-normal completion exits that exact handler and continues the parent context.
+handler under the currently resolved owner slot and executes its child through
+the complete source shallow-handler image. On a normal body return it exits
+that exact handler and runs the ordinary value-arm computation; only that
+computation's result continues the parent context. Its requests retain that
+parent continuation by ordinary bind. The value arm is not skipped merely
+because this is a re-entry wrapper.
 Capture composes contexts by replacing `Hole` with the captured inner context:
 ordinary bind contributes `Bind`, invocation control contributes `Owner`,
 and shallow forwarding contributes only its source-prescribed
@@ -270,7 +274,9 @@ relation, including whether the candidate is active during the guard phase,
 and prove it with the context reconstruction invariant. This is a primary
 proof obligation, not an independently established source counterexample or
 a new callback rule. Consequently the guard/search case above and the full
-decorated-kernel preservation theorem remain unclosed.
+decorated-kernel preservation theorem remain unclosed. Section 6 localizes
+the selector-extent source choice and proves a conditional resolution for
+outside matching; that choice and independent review are still pending.
 
 The four saved-context constructors, source suffix labels with typed
 environments, owned/borrowed pending frames, control environment links and
@@ -299,3 +305,136 @@ presentation for each linked decorated program is still not a reusable
 principal scheme for every future client. Lifecycle and compiler
 implementation remain downstream. This package does not claim that the
 chosen abstract judgment already accepts every intended well-typed source.
+
+## 6. Selector extent: localized source decision
+
+The remaining guard obligation cannot be settled by renaming a handler ID.
+The extent in which the handler's own pattern/default/guard computation runs
+must first be specified. Ordinary-computation §5 retains those computations
+but does not say whether the candidate handles their new requests.
+Syntax-v0 `expressions/case-catch.md` explicitly excludes guard/handler
+semantics from its authority. The coupled core's `Match_i` equations already
+give ordinary state-threaded sequencing, but a recursive handler application
+around that result is a separate semantic choice.
+
+### Source-level discriminator
+
+Use operations `E : Unit -> Unit` and `P : Unit -> Bool`, and result type
+`Int`. This is semantic pseudocode, not an executed or accepted Yulang fixture:
+
+```text
+outer H0: P(_,k) -> k(true)
+inner H1:
+    E(_,k) if perform P() -> 0
+    E(_,k)               -> 2
+    P(_,k)               -> 1       // does not resume k
+body of H1: perform E()
+```
+
+If H1 surrounds its own guard computation, the guard's `P` can select H1's
+`P` arm and return `1`, aborting the suspended E selection. If matching runs
+outside H1, `P` goes to H0; resuming it with `true` completes the pending
+guard and chooses the original E arm, yielding `0`. There are no callback
+contracts or type-family tricks in this distinction. Both computations use
+the displayed ordinary payload/result types. Thus this is a source execution
+choice, not interchangeable owner bookkeeping or a new callback exception.
+
+The user has been asked which extent to adopt. The outside interpretation
+below is a conditional candidate, not an approved default. No compiler or
+source-acceptance conclusion follows before that choice and review.
+
+### Characterization evidence
+
+Frozen `a58eefc3:crates/mono-runtime/src/runtime/eval.rs` has these control
+facts: `eval_catch` evaluates its body and then calls `handle_catch_result`;
+`handle_catch_request_arm` uses `continue_bind`/`continue_with` for patterns,
+continuation binding and guards. A guard-emitted request is returned by that
+ordinary continuation composition, without applying the same catch image
+to it. Only exhausted arm search wraps the *original* request's raw
+continuation with `handle_catch_result`. The value-arm path likewise evaluates
+matching outside the catch body image. These are immutable-source facts, not
+test observations or successor semantic authority. The evidence-vm
+`eval_catch` also removes its active catch entry before dispatching its body
+result; this is corroboration, not a proof of full backend equivalence.
+
+### One conditional outside-image equation
+
+Assume selector computations run outside the candidate. Let `H[c]` mean
+apply the shallow handler image to body computation `c`, with its current
+fresh activation while the body executes. At a body's request boundary, test
+the current candidate visibility once at its actual configuration. Leaving
+that candidate then produces a computation in the outer context:
+
+```text
+H[Return(v)]       = MatchValue_H(v)              // outside H
+
+H[Request(q,k)]    = MatchRequest_H(q,k) >>= Finish_H(q,k)
+                    if q is eligible at H's current boundary
+
+H[Request(q,k)]    = Forward(q, λa,Cnow. H[k(a,Cnow)])
+                    otherwise
+
+Finish_H(q,k)(Accepted(arm,bindings), C) = Run(arm.body,bindings,C)
+Finish_H(q,k)(NoArm, C)                = Forward(q, λa,Cnow. H[k(a,Cnow)])
+```
+
+All equations thread the full current state and shared `ν`; the shortened
+notation does not discard them. `MatchRequest_H` is the existing ordered
+`BindPat`/continuation-binding/guard relation, ending in `Accepted` or
+`NoArm`, not a new effect selector. Its code is ordinary source evaluation.
+The arm receives the raw `k`, and static `OpCompat` constrains an actually
+accepted arm without redirecting runtime search. A guard may itself invoke
+that raw continuation; ordinary bind covers that computation too. Each
+application of the displayed forwarding `H[...]` enters a fresh handler
+occurrence, never the old one.
+
+If matching emits `Request(qg,kg)`, the bind equation yields
+
+```text
+Request(qg, λa,Cnow. kg(a,Cnow) >>= Finish_H(q,k)).
+```
+
+There is no `H[...]` around this new request or its match continuation.
+Consequently pending matching needs its source arm cursor, typed bindings,
+original `(q,k)` and handler descriptor; it does not need an active reference
+to the expired candidate handler. Suspending and resuming this computation
+uses the same `Bind`/owner-span rules as any other source computation.
+
+This completion concerns only the *original* event already tested at the
+handler boundary. It grants no visibility for `qg`, a raw-suffix request, or
+any later event. The historical eligibility test may remain in the proof
+trace, but it is not a live `Inc_C` witness or transferable capture authority.
+Once H exits, its live incidence remains false. This distinction is a
+consequence of composing a handler image with ordinary matching; it is not a
+new source ticket, obligation kind or stored grant.
+
+### Conditional control preservation
+
+For the outside interpretation, a pending match continuation is ordinary
+source code plus its environment and cursor, so it is an `F` in §2's
+`Bind(K,F)`. Structural induction on the ordered match relation proves:
+
+1. mismatch/false guard advances the saved cursor using the current store;
+2. a request retains exactly the remaining match and `Finish_H` composition;
+3. a resumed accepted match runs its body in the resumed outer configuration;
+4. exhaustion forwards the original `(q,k)` and current state, with H only
+   around a future execution of that original suffix;
+5. none of these cases reactivates an expired handler identity or rewrites
+   a retained boundary receiver, event identity, or symbolic `K,D`.
+
+The request case follows directly from the displayed bind equation and the
+other cases from ordinary return sequencing. Induction over any finite
+multi-shot interaction history repeats those same cases; it does not count
+continuation uses or require a linear type. Pending-search handler rebinding
+is unnecessary in this interpretation. The initially suspected stale-ID
+case assumed that matching still ran under H; it is not a counterexample to
+the outside-image equation.
+
+This conditional lemma is primary reasoning awaiting independent review.
+Adopting it requires explicitly refining the older informal `Select(h,arm)`
+wording: eligibility is checked at H's body boundary, while completion of
+that event's ordered match may occur later outside H. Full source safety,
+the finite principal presentation and acceptance equivalence are still not
+proved by this control lemma. The inside interpretation would instead need
+its own nested dispatch and handler-control preservation theorem; the two
+cannot be equated by changing an ID map.
