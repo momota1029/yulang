@@ -8,6 +8,7 @@ Drafted-by: primary with bounded control/heap and symbolic-basis architect input
 Reviewed-by: compiler_referee and spec_auditor, independent package reviews, 2026-10-02; no findings within the declared conditional envelope
 Projection-basis-review: structural observation package and position-indexed admission repair reviewed; independent compiler_referee closure clean, 2026-10-02
 Execution-image-review: §7 constructive query/shallow-control package independently reviewed by compiler_referee and spec_auditor; no findings within the resolved-input envelope
+Guarded-closure-review: §8 independently reviewed by compiler_referee and spec_auditor, 2026-10-03; no blocking/major findings; minor pure-rule side-condition omission corrected by primary reference/diff inspection
 Supersedes: none
 
 ## 1. What this package establishes
@@ -597,3 +598,203 @@ type/subtype predicates and scoped checking, reusable parametric summary
 completeness, foreign interaction summaries where code is not linked, and
 the acceptance bridge for this conservative abstraction. Neither full
 Milestone 3 nor lifecycle/implementation readiness follows from this result.
+
+## 8. Guarded positive obligations and joint bound closure
+
+### Operational guards and checking obligations
+
+This section concerns the explicit ordinary routing generator of §7, not
+every supplied query signature `Sigma`. Its activity/incidence/protection
+tests use runtime identity, active owners and typed paths. Its grant test
+uses the original slot's `Admit` relation. When that relation has been
+normalized to the existing equality/row membership grammar, its query is
+within that grammar; arbitrary supplied `Admit` is not covered by this claim.
+Source guards execute ordinary code. `Compat` is checked after selection,
+and proof-only `VIncl/CIncl` does not determine runtime control.
+
+Let `B` be the Boolean algebra over a fixed finite operational inventory
+`P`. Guard formulas are interpreted under one complete assignment `nu`.
+They may reference endpoint equalities evaluated under that same assignment;
+finiteness does not prove their realizability or effective satisfiability.
+The earlier interim signed-gate interpretation overstated a mandatory
+arbitrary negative-subtype solver. This generator instead permits the
+following conditional separation of routing and checking.
+
+Suppose initialization factors as `I = J0 and I0`, with `Base => J0`, and
+the transition guards permit reachability to factor as `R = J0 and R0`.
+Then, for selected states `s` whose designated compatibility fault is
+`not Compat_s`, the corresponding certificate clause is
+
+```text
+S = Base and AND_selected_s (R0_s implies Compat_s)
+         and OtherFaultExclusion.
+```
+
+`OtherFaultExclusion` retains the separate clauses for all other designated
+faults. The formula follows from `Base` implying `J0`; it does not remove
+the other faults or infer the factorization from copied ledger references.
+Establish the actual initialization/transition premises before using it.
+If `J0` constrains transitions in a way that prevents the factorization,
+retain the original `R` rather than applying this normal form.
+
+The occurrence of `not Compat` in `Bad` therefore does not by itself demand
+a solver for arbitrary negative subtype formulas. A selected state imposes
+a positive checking obligation under its operational reachability guard.
+Generic-arm uniform checking remains in `Base`, with its original scopes,
+and cannot be replaced by compatibility at reached caller instances.
+
+A complete checking predicate `C` enters the positive kernel below only
+after a proved decomposition into that kernel's guarded obligations.
+Unnormalized `Admit`, complete effectful Function contracts, and other
+queries outside the established equality/row kernels remain interpreted
+obligations. The pure Function rule below is not their decomposition proof.
+No opaque predicate is made effective by naming it in a finite alphabet.
+
+### Guarded lift of the finite pure closure
+
+Use the finite endpoint graph and fixed-scope pure rules of
+`2026-09-29-intrusion-abstract-semantics-draft.md` §1's finite saturation.
+Let `N+`, `N-` be its positive/negative endpoints and subterms, and `V` its
+variable identities. Introduce the finite fact inventory
+
+```text
+Q[p,n]          for p in N+, n in N-
+L[v,p]          for v in V, p in N+
+U[v,n]          for v in V, n in N-
+Mismatch[p,n]   for p in N+, n in N-.
+```
+
+Every fact has a label in `B`, initially false. For each input obligation
+`g => p <: n`, OR `g` into `Q[p,n]`. Multiple inputs for one pair retain
+their disjunction. These labels describe one joint conditional bound graph;
+they do not run independently mutating solvers for separate branches.
+Sharing a pair label shares only the pure proof obligation. Original source
+occurrences, profile/path IDs and `K,D` incidences remain separate; equal
+type pairs or guard truth do not merge capture/protection views. This
+bookkeeping is neither Oracle `StackWeight` routing nor a source construct.
+
+Lift each existing finite Horn rule. For premises with labels `a_1,...,a_t`
+and an admitted rule side guard `g`, OR
+`g and a_1 and ... and a_t` into every conclusion label. The side guard
+expresses only a proved applicability condition at the fixed scope/level.
+It supplies no new type nodes, extrusion or generalization operation.
+
+In particular, the lifted pure rules include:
+
+- `Q[Var(v)+,Var(w)-]`, for `v != w`, inserts both `L[w,Var(v)+]` and
+  `U[v,Var(w)-]`, retaining the same guard on both directions;
+- `Q[Var(v)+,n]`, for nonvariable `n`, inserts `U[v,n]`, and
+  `Q[p,Var(w)-]`, for nonvariable `p`, inserts `L[w,p]` under their guards;
+- `Q[Var(v)+,Var(v)-]` generates no new bound;
+- `L[v,p]` and `U[v,n]` insert `Q[p,n]` under the conjunction of
+  their labels, so lower/upper propagation retains branch correlation;
+- pure `Fun+(a-,r+) <: Fun-(a+,r-)` inserts `Q[a+,a-]` and
+  `Q[r+,r-]`, with argument contravariance and result covariance;
+- a positive union on the left inserts both component obligations;
+  a negative intersection on the right inserts both component obligations;
+- `Bottom` on the left, `Top` on the right and proved matching atomic
+  trivialities close without generating a new obligation.
+
+The distinct-variable case retains both bound insertions rather than choosing
+one side. No negative-union or positive-intersection choice rule is added.
+All facts use the same existing endpoints and ownership levels.
+
+An irreducible pair contributes to `Mismatch[p,n]` only where the pure
+carrier law proves that pair impossible. Its label is the region in which
+that proved failure is required. In particular, rigid `kappa` is not an
+atom disjoint from every concrete type: no `kappa != Int` or mismatch
+classification follows from checking rigidity. Unsupported constructors
+remain outside this closure theorem rather than being classified as failure.
+
+### Finite schedule and pointwise exactness
+
+Process eligible rules until no conclusion label grows. A worklist must
+reschedule dependents whenever a premise label grows. A once-only visited
+pair is invalid: reaching `Q[p,n]` under `g1` does not process its later
+addition under `g2`. Comparing labels means equality in the finite Boolean
+algebra, not merely remembering the endpoint pair.
+
+For example, `L[v,Int]=p or r` and `U[v,Bool]=q` require
+`Int <: Bool` under `(p or r) and q`. Where the pure mismatch law for those
+atoms is proved, this is its failure guard. Adding `r` after processing `p`
+must extend the derived label rather than being skipped as a visited pair.
+
+One explicit representation is truth tables over the `2^|P|` Boolean cells.
+Each fact/cell can be inserted once, giving at most
+`number_of_facts * 2^|P|` fact/cell insertions. This is a termination bound,
+not a claim that the resulting table or rule scheduling is practically small.
+Symbolic labels may share formula nodes instead, subject to equivalent
+finite-algebra operations. At each cell, at most `number_of_facts` synchronous
+rounds add every reachable fact: each nonstable round adds a fact. The same
+round bound therefore holds pointwise for the symbolic construction.
+
+**Evaluation theorem.** Fix one `nu` and evaluate every label at its induced
+operational valuation. Evaluation commutes with false, OR and AND, hence
+with each lifted Horn stage. By induction, the evaluated stage is exactly
+the corresponding unguarded pure Horn stage with the active inputs and
+side guards at that `nu`. Taking the finite fixed point proves exact
+pointwise closure and independence from any fair rule-processing order.
+
+Guards may depend on the same endpoints whose bounds are being recorded.
+They are interpreted at fixed `nu` throughout this theorem, not re-solved
+or independently sampled after each insertion. Boolean cells not realized
+by any assignment are algebraic cells only; no feasibility claim is made
+for them. Routing-guard realizability, including semantic type equality,
+remains a separate checking obligation.
+
+### Joint solution preservation and binder discipline
+
+Assume the existing pure carrier laws preserve solutions and every admitted
+side guard justifies its rule at that assignment. Retain all initial guarded
+clauses and append derived guarded clauses. Evaluation at fixed `nu` reduces
+the preservation argument to the existing pure bound-insertion,
+decomposition and transitivity laws: every added active clause is entailed.
+Conversely, any solution of the saturated relation satisfies the retained
+initial clauses. Thus the original and saturated **joint constraint
+relations** are equal under those premises.
+
+The mismatch formula is the OR of labels for proved impossible pairs.
+It denotes only the established failure region of this fragment. This
+does not give SAT completeness, complete source checking or source
+principality. Equivalence is of the retained relations, not a claim that
+the closure decides every interpreted predicate or selects a witness.
+
+Keep original clauses, source contracts, all `K,D` references and their
+binder blocks alongside the derived graph. In particular, preserve
+`exists shared. forall kappa. exists body` without moving captured endpoints
+under the universal or solving rigid `kappa` as flexible. A Boolean cell
+does not license a fresh shared witness or independently inferred arm.
+Existential request opening and its pack/unpack correspondence remain
+distinct from existential inference variables in the pure equality kernel.
+Fixed-scope closure neither instantiates nor skolem-unifies `kappa`;
+unresolved rigid checks remain in `Base` or the scoped checking gate.
+
+This is conditional closure of one joint bound relation. It does not
+materialize type witnesses from independently satisfiable marginal graphs,
+and does not merge protected profiles or declaration instances by equal
+effect support. Re-entry and raw-resumption control still come from §7;
+positive obligations cannot change selection into forwarding.
+
+### Contribution and next source gate
+
+The pure bound-propagation rules are a Simple-sub-original ingredient in
+the stated fragment. Their Boolean guard lift is a new successor
+construction; the source handler/routing rules are user-selected Yulang
+extensions. Neither provenance transfers authority to a broader effectful
+Function rule or a changed source acceptance policy.
+
+The contribution is a finite conditional bound graph retaining all
+operational branches jointly, together with a precise guard/check separation
+when the displayed factorization premises hold. It corrects the interim
+claim that this ordinary generator necessarily requires arbitrary negative
+subtype solving before any progress is possible.
+
+The next gate is normalization of the **actual emitted predicate syntax**
+and its joint equality/row realization, including routing guards and
+original-slot `Admit`. Complete inclusion predicates need proved
+decompositions before this closure can be instantiated for them. Arbitrary
+first-order subtyping is not silently substituted for that bounded task.
+
+Full source principal presentation and its acceptance bridge remain open.
+No source capability is narrowed, no generalization/lifecycle theorem is
+closed, and no implementation gate is opened by this conditional package.

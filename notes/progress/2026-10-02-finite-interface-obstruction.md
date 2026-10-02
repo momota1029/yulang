@@ -1934,3 +1934,54 @@ solving their joint signed language. No compiler implementation, tests, builds
 or measurements ran (budget/consumption zero). Task/index/design records are
 synchronized; primary checks explicit paths and the complete outbound range
 before normal research-branch integration.
+
+### Guarded positive closure narrows the signed-query gate (2026-10-03)
+
+Previous checkpoint `1a9a9f281` recorded the value-default parameter decision
+and its source entry construction. The subsequent emitted-query audit refines
+that checkpoint's blanket signed-subtype requirement. Runtime routing uses
+identity/activity/path and original-slot admission; complete compatibility is
+checked after selection. Under explicitly stated initialization/reachability
+factorization and `Base => J0`, source-realization §8 rewrites selected-fault
+exclusion into guarded positive checking obligations. Other designated faults
+and uniformly scoped generic-arm validity remain. Arbitrary supplied `Admit`
+or query signatures are not silently normalized by this result.
+
+The same section lifts the existing finite pure Horn closure to Boolean
+labels on obligations and bounds. Premise conjunction preserves branch
+correlation; alternative derivations join by disjunction. Evaluation under one
+fixed assignment commutes with every stage. Finite fact/cell insertion proves
+termination and fair-order independence; retaining the inputs proves joint
+solution preservation conditional on the pure carrier laws. Growing labels
+must revisit dependent rules. The truth-table bound can be exponential and
+does not claim small presentations or practically cheap scheduling.
+
+Original source occurrences, profiles, paths and symbolic `K,D` remain
+distinct. Rigid operation-local witnesses and shared/body quantifier blocks
+remain unchanged. A failed uniform `kappa = Int` check is not a runtime
+disjointness fact. The pure Function rule is not a decomposition of complete
+effectful callable contracts. The result neither decides all guard cells nor
+establishes full source principality, a class-3 obstruction, an acceptance
+restriction or implementation readiness.
+
+The next bundled gate is normalization of actual emitted predicates and joint
+equality/row realization, including original-slot admission. Complete checks
+need proved decomposition into the supported positive fragment; otherwise
+identify the first required predicate outside it. No arbitrary first-order
+subtype solver is required merely because `Bad` contains negated compatibility.
+Marginal satisfiability still cannot replace one jointly scoped assignment.
+
+M3 budget: one bounded architect, one read-only source-query explorer, one
+documentary producer, and two independent reviewers. Convergence requires no
+accepted blocking/major finding. Semantic review found no findings;
+conformance review found one minor omission of the referenced variable-rule
+side conditions. Primary restored distinct-variable/nonvariable conditions
+and the self-pair no-new-bound case by direct source comparison. This restores
+the existing closure rather than adding a rule; minor-only closure uses
+primary diff inspection, with no additional reviewer or repair round.
+
+Verification: `git diff --check` and focused reference/diff inspection only;
+compiler tests, builds and measurements budget/consumption zero. Primary
+synchronized task/index/progress and review metadata. Integration stages only
+the two theorem documents and three records, inspects the complete outbound
+range and uses a normal push on `research/simple-sub-intrusion`.

@@ -726,7 +726,7 @@ closed one minor translation-layer notation issue and clarified retained
 runtime descriptor dispatch. Static diff/reference checks only; no tests,
 builds or measurements.
 
-## Parameter construction closed; joint signed constraints next
+## Guarded positive closure; emitted-predicate normalization next
 
 Core §6 now generates the outer parameter role, body binding and entry
 skeleton for omitted/value and explicit outer computation annotations.
@@ -735,17 +735,34 @@ skeletons without body-usage inference. Typed-path/annotation checking and
 all ordinary endpoint obligations remain. M3 semantic/conformance delta
 reviews found no findings; primary clarified the retained typed-path premise.
 
-The bounded solver audit localized the next M3 obligation. Positive constraint
-enforcement is not a decision of guard truth: separate satisfiability of
-`alpha=Int` and `alpha=Bool` does not establish their joint satisfiability.
-Negative polarity is not logical negation of equality/subtyping. The effect
-certificate therefore needs joint signed-constraint feasibility under one
-assignment, retaining scoped generic-arm proof obligations and full `K,D`.
-The next construction must address that decision/projection language, rather
-than wrap independent positive Simple-sub calls in Boolean enumeration.
-This is a missing solver construction, not a class-3 non-finiteness proof or
-an approved source restriction. Full source principality and later gates
-remain open. Static inspection only; no tests, builds or measurements.
+The emitted-query audit narrows the earlier blanket signed-subtype gate.
+Ordinary routing uses identity/activity/path and original-slot admission;
+compatibility is checked after selection. Source-realization §8 separates
+operational guards from positive compatibility obligations under explicit
+initialization/reachability factorization premises. Other faults and generic
+arm `Base` obligations remain. Supplied predicates outside this grammar are
+not automatically covered.
+
+For the fixed finite pure fragment, Boolean-labelled Horn propagation closes
+one joint bound graph. AND combines premise labels; OR joins derivations.
+Pointwise evaluation at one assignment commutes with closure, giving finite
+termination and fair-order independence. Retaining original clauses preserves
+the joint solution relation under the existing pure carrier laws. Growing
+labels reschedule dependents; once-only pair memoization is insufficient.
+Occurrence/profile/`K,D` identities and rigid binder blocks remain retained.
+
+Next: normalize actual emitted complete predicates into the proved fragment
+and establish joint equality/row guard realization, or identify the first
+required predicate outside it. Independent satisfiability of marginal graphs
+is still insufficient. This package proves neither full SAT completeness nor
+source principality; pure Function decomposition does not handle complete
+effectful contracts. No class-3 obstruction or source restriction follows.
+Lifecycle and implementation remain later gates. Verification uses static
+diff/reference inspection; no compiler changes, tests, builds or measurements.
+M3 semantic review found no findings. Conformance review found one minor
+omission of the referenced variable-rule side conditions; primary restored
+distinct-variable/nonvariable cases and the no-new-bound self case. No new
+rule or review round was required; no blocking/major finding remains.
 
 ## Main records
 

@@ -462,7 +462,11 @@ acceptance is narrowed to obtain finiteness.
 Milestone 3 still requires generation of the admitted open templates/maps,
 effective complete checking predicates and the source soundness/principal
 denotation bridge. This section removes the supplied merged executable
-kernel premise within its finite resolved input envelope, not those gates.
+kernel premise. Source-realization §8 gives conditional guard/check
+separation and a joint guarded pure bound closure; the next concrete checking
+gate is actual emitted-syntax normalization and joint equality/row realization,
+not a blanket arbitrary negative-subtype requirement. This leaves the other
+source gates open within the finite resolved input envelope.
 Milestone 4 must then derive legal generalization/freshening/SCC instance
 graphs and preserve binder ownership and dependent lifecycle. Milestone 5
 addresses implementation feasibility; Milestone 6 requires approval before
