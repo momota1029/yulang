@@ -153,6 +153,15 @@ consumer checks and conversions that discharge it, including repeated
 consumers and aggregate solved views; do not use an annotated local as a proxy
 for an inserted adapter.
 
+The user's requested common local compatibility/adaptation boundary is now
+recorded as a documentary candidate in §5.1 of the compatibility note. It
+dispatches tagged local check derivations for structural, Record and nominal
+cast routes, while keeping conversion selection and executable realization
+separate. This preserves the nontransitive concrete relation and does not
+claim that optional Records use the nominal cast table. Bound-replay
+conservation remains the first proof gate; cast ambiguity, check-only
+identity, Record runtime behavior and conversion placement remain undecided.
+
 One semantic review caught an overclaim that a producer-view boundary must
 emit a runtime conversion. The repaired draft separates a source check that may
 seal a typed view from runtime adaptation: identity realization could preserve

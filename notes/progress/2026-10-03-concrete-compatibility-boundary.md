@@ -227,6 +227,19 @@ frozen-source evidence only; no successor semantics or implementation
 authority follows from it. No tests, builds or measurements were run.
 Measurement budget consumed: 0.
 
+The requested common-dispatcher direction was then examined as a documentary
+candidate. §5.1 gives one local query boundary with tagged structural, Record
+and nominal-cast check derivations, while keeping compatibility evidence,
+selected conversion/adapter evidence and emitted execution correspondence
+separate. Record children remain independent local queries; their successes
+cannot compose into another check or an executable aggregate adapter without
+a realization proof. An architect pre-write review plus independent bounded
+compiler-referee and spec-auditor reviews found the candidate consistent with
+current authority. Cast policy, check-only identity, Record runtime behavior
+and conversion placement remain undecided. The candidate does not change the
+theorem order: establish bound-replay conservation before selection and
+runtime realization. No implementation or tests were authorized or run.
+
 ## Next gate
 
 Prove bound-replay conservation for a fixed finite source elaboration and

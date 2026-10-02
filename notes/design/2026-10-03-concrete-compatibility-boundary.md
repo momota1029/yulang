@@ -4,7 +4,7 @@ Status: Reviewed; records the user's 2026-10-03 semantic decision; operational r
 Date: 2026-10-03
 Scope: separate transitive variable-bound propagation from local concrete compatibility and adaptation resolution
 Approved-by: user for the relation distinction and Oracle observations recorded in §1 only
-Reviewed-by: compiler_referee and spec_auditor §§1–5, 2026-10-03; architect pre-write audit plus fresh compiler_referee/spec_auditor review of §5; architect pre-write audit plus compiler_referee/spec_auditor review of §§2/6 boundary-conservation and bound-replay clarifications, all clean within bounded scopes after factual qualification
+Reviewed-by: compiler_referee and spec_auditor §§1–5, 2026-10-03; architect pre-write audit plus fresh compiler_referee/spec_auditor review of §5; architect pre-write audit plus compiler_referee/spec_auditor review of §§2/6 boundary-conservation and bound-replay clarifications; architect pre-write audit plus compiler_referee/spec_auditor review of §5.1 shared-dispatcher candidate, all clean within bounded scopes after factual qualification
 Implementation authority: none
 Supersedes: none; narrows source applicability of structural relation candidates without invalidating their fragment theorems
 
@@ -326,6 +326,70 @@ is still missing for how omitted fields, extra fields and optional-to-required
 fields behave at runtime, and whether a selected field adapter can be embedded
 in an aggregate adapter. No composition law may be inferred from successful
 boundary checks.
+
+### 5.1 Candidate shared local-query boundary
+
+The user's requested direction can be explored as one dispatcher for local
+concrete queries, with distinct tagged derivations and realization evidence.
+This unifies where checks and adaptation resolution are requested; it does not
+claim that optional Records use the registered nominal-cast table, or that the
+frozen routes already share an implementation. This is a documentary candidate
+only.
+
+```text
+LocalQuery_j = {
+  boundary_or_replay_id,
+  actual,
+  expected,
+  scope_guard,
+  retained_typed_context
+}
+
+LocalOutcome_j =
+    Suspended { dependencies }
+  | Rejected { reason, check_derivation }
+  | Accepted {
+      check_derivation,
+      realization_evidence
+    }
+
+check_derivation =
+    StructuralCheck
+  | RecordCheck { presence, shared_field_queries, ignored_extras }
+  | NominalCastCheck { candidate_resolution }
+
+realization_evidence =
+    Unresolved
+  | ProvenIdentity
+  | GenericAdapterPlan { child_evidence, runtime_requirements }
+  | SelectedNominalCast { rule, instantiated_constraints }
+```
+
+The names above are placeholders for separate evidence kinds, not source rules.
+In particular, `ProvenIdentity` requires an independent source/runtime proof;
+it cannot be inferred merely from `Accepted`. A resolver result also does not
+show that an operation was emitted. A separate execution correspondence must
+connect query identity, selected evidence, consumer boundary and emitted
+operation. Different boundary contexts sharing the same endpoint pair must
+remain distinguishable, while variable-bound replay remains the only source
+of generated replay queries.
+
+At a Record boundary, the outer `RecordCheck` records presence/extra-field
+facts and issues a distinct local child query for each shared field. A child
+nominal cast may supply child selection evidence, but an aggregate adapter
+cannot be constructed from those successes until runtime composition is
+specified and proved. Likewise, two accepted local queries never entail a
+third query: check evidence stays attached to its own boundary or replay id
+and never becomes a concrete reachability edge.
+
+This shape gives one local place to request structural checking, Record
+adaptation planning, and nominal cast resolution, while keeping check success,
+candidate selection, adapter planning, and execution separate. It does not
+settle optional-to-required acceptance or presence guarantees, omitted/extra
+field realization, cast ambiguity or selection timing, nested casts, effects,
+or the location where replay evidence executes. The existing gate remains
+bound-replay conservation first, followed by selection/conversion preservation
+and executable realization; this dispatcher cannot shortcut those proofs.
 
 ## 6. Next theorem gate: bound-replay conservation
 
