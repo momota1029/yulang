@@ -98,13 +98,15 @@ This narrows the source applicability of the mandatory-Record structural
 theorems without refuting their fragment proofs. A reviewed candidate
 Record-local table separates field presence from child comparisons and
 distinguishes inference propagation from concrete validation. An architect
-audit found that one earlier candidate rule was too strong: variable
-transitivity alone cannot justify a concrete lower/upper endpoint cross-product
-when each endpoint check may remain a separate local compatibility obligation.
-The corrected next gate is boundary-obligation conservation: specify the
-source meaning of concrete-to-variable bounds, preserve each original guarded
-boundary under propagation and specialization, and require independent source
-derivation for any additional concrete query.
+audit found that variable transitivity alone cannot justify a concrete
+lower/upper endpoint cross-product when endpoint checks are treated as
+independent local compatibilities. A follow-up source trace found that frozen
+Oracle has an explicit same-variable lower/upper replay rule, retaining the
+pivot and both bound-record identities. This can justify a bound-derived
+concrete query as its own local check; it does not compose prior `Compat`
+successes. The next gate is bound-replay conservation: define the source
+meaning of concrete-to-variable bounds, preserve original guarded boundaries,
+and prove exactly which replay queries arise with their parent evidence.
 
 Frozen specialization rechecks materialized concrete boundaries, while the
 Evidence VM has a recursive Record adapter distinct from generic `Coerce`

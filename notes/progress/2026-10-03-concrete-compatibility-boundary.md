@@ -123,15 +123,40 @@ reviews; both confirmed the conditional counterexample and unresolved source
 semantics. No implementation or tests were run. This clarification preserves
 the user's relation split and does not extend ordinary structural closure.
 
+## Explicit bound-replay route
+
+A follow-up frozen-source read found that Oracle has a specific same-variable
+lower/upper replay rule. `cpk_lower_bound_replay_actions` prepares routes from a
+new lower bound to existing uppers; `cpk_upper_bound_replay_actions` does the
+symmetric operation. Eligible replay comparisons retain
+`BinaryReplayDerivation { pivot, lower, upper, rule }` and replay claim parents;
+trivial, duplicate and evidence-only routes can be prefiltered. An independent
+architect audit confirmed the significance: this is a bound-derived concrete
+query, not composition of two successful local compatibility judgments. The
+conditional `X={}` counterexample only rejects interpreting the pair of local
+checks as the entire variable-bound semantics; it does not refute a distinct
+bound-replay judgment.
+
+The theorem gate is therefore refined from plain boundary-obligation
+conservation to bound-replay conservation: establish which source bound
+premises admit replay, preserve original boundaries and replay parent
+identities, prove no mandatory query is lost or unjustifiably added, and retain
+the generated query's own local conversion evidence. The frozen proof parents
+do not locate the runtime expression boundary for executing that conversion.
+Architect pre-write audit plus independent compiler-referee and spec-auditor
+reviews found no blocking or major semantic/conformance issue. Both reviewers
+identified one factual overstatement that replay plans always enqueue; the text
+now records route eligibility and prefiltering. No tests or builds were run.
+
 ## Next gate
 
-Prove boundary-obligation conservation for a fixed finite source elaboration
-and closed Record shapes. Define what concrete-to-variable bounds mean, how
-original guarded obligations survive variable propagation, and how every
-additional concrete query gets an independent source derivation. Prove finite
-context/provenance closure before extending residual normalization. Afterward,
-specify Record adapter behavior and prove evidence-preserving normalization
-and residual factorization; keep Record checks, nominal-cast resolution and
-runtime adapter evidence distinct behind any candidate shared dispatcher.
-Source-wide context finiteness, unknown Record shapes, effectful interfaces,
-lifecycle and implementation remain open.
+Prove bound-replay conservation for a fixed finite source elaboration and
+closed Record shapes. Define concrete-to-variable bound meaning and admissible
+same-pivot replay; prove original guarded obligations and required replay
+queries are preserved with their identities, without deriving queries from
+successful `Compat` compositions. Prove finite replay provenance/context
+closure before extending residual normalization. Then establish where replay
+conversion evidence executes, specify Record adapter behavior and prove
+evidence-preserving normalization and residual factorization. Source-wide
+context finiteness, unknown Record shapes, effectful interfaces, lifecycle and
+implementation remain open.

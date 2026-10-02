@@ -4,7 +4,7 @@ Status: Reviewed; records the user's 2026-10-03 semantic decision; operational r
 Date: 2026-10-03
 Scope: separate transitive variable-bound propagation from local concrete compatibility and adaptation resolution
 Approved-by: user for the relation distinction and Oracle observations recorded in §1 only
-Reviewed-by: compiler_referee and spec_auditor §§1–5, 2026-10-03; architect pre-write audit plus fresh compiler_referee/spec_auditor review of §5; architect pre-write audit plus compiler_referee/spec_auditor review of §§2/6 boundary-conservation clarification, all clean within bounded scopes
+Reviewed-by: compiler_referee and spec_auditor §§1–5, 2026-10-03; architect pre-write audit plus fresh compiler_referee/spec_auditor review of §5; architect pre-write audit plus compiler_referee/spec_auditor review of §§2/6 boundary-conservation and bound-replay clarifications, all clean within bounded scopes after factual qualification
 Implementation authority: none
 Supersedes: none; narrows source applicability of structural relation candidates without invalidating their fragment theorems
 
@@ -62,34 +62,40 @@ Resolve(Compat_j(A, B))          selected conversion evidence / adapter
 endpoints. Compatibility does not merge equality classes.
 
 The bound graph may propagate relations between type variables transitively.
-That permission alone does not establish which queries a path with concrete
-endpoints must generate. In particular, it does not justify taking a lower
-concrete bound on one variable and an upper concrete bound on another and
-requiring a fresh `Compat_j(A, B)` merely because variable-bound propagation
-connects them. The source meaning of concrete-to-variable bounds and suspended
-boundary checks must first be specified.
+That permission alone does not establish which queries an arbitrary path with
+concrete endpoints must generate; the source meaning of concrete-to-variable
+bounds and suspended checks must first be specified. The frozen Oracle does,
+however, contain a specific lower/upper replay rule: when bounds share a pivot
+variable, adding a lower bound prepares routes against existing uppers, and
+adding an upper bound prepares the symmetric routes. Eligible pair replays
+carry the pivot and both bound-record identities in the replay plan; routing
+may enqueue, deduplicate or prefilter them. This is candidate evidence for an
+admissible bound-propagation derivation that generates a new concrete query;
+the resulting pair still needs its own local check and conversion resolution.
+It does not compose two previously successful `Compat` results.
 
-Retain each source boundary as an obligation with its own identity and
-endpoints. If a boundary endpoint is unresolved, suspend that obligation with
-its context and later recheck its own substituted endpoints. A propagation
-rule may move a bound payload along variable edges only when its source
-semantics justifies the move, retaining the originating boundary and guard.
-It must not merge two successful local checks into a new concrete comparison.
-For example, under the suspended-boundary interpretation, obligations
-`Compat_j({foo?: string}, X)` and `Compat_k(X, {foo?: int})` both pass when
-`X` is assigned `{}`, while the direct comparison
-`Compat_l({foo?: string}, {foo?: int})` fails. Therefore adding that direct
-comparison as an extra conjunct would reject a substitution satisfying both
-original local obligations. This is a conditional counterexample to
-unconditional lower/upper endpoint cross-product, not a claim that every
-source form gives variables this suspended-boundary meaning.
+Keep original source-boundary obligations and generated replay obligations
+separately identified. An unresolved source boundary can remain suspended
+with its context and later be checked on its substituted endpoints. A replay
+query needs its own derivation from the relevant lower/upper bound records,
+pivot, and inherited guards; variable reachability alone cannot invent one.
+The replay rule's source preservation and conversion placement remain to be
+proved for the successor.
+
+For example, if two suspended obligations are interpreted as nothing more
+than `Compat_j({foo?: string}, X)` and `Compat_k(X, {foo?: int})`, then both
+pass for `X = {}` while direct `Compat_l({foo?: string}, {foo?: int})` fails.
+This conditional counterexample shows that independent local compatibility
+checks alone do not justify or account for the frozen lower/upper replay rule;
+it does not refute a distinct variable-bound judgment that explicitly
+generates that replay query.
 
 Successful compatibility and its conversion evidence stay attached to their
-own boundary query; they are not inserted into variable reachability as a
-concrete edge. In particular, successful `Compat_j(A, B)` and
-`Compat_k(B, C)` do not discharge `Compat_l(A, C)`. Any composed conversion
-or derived concrete query needs a source-obligation derivation and a separate
-operational-validity argument.
+own source or generated boundary query; they are not inserted into variable
+reachability as concrete edges. In particular, successful
+`Compat_j(A, B)` and `Compat_k(B, C)` do not discharge `Compat_l(A, C)`.
+Any concrete query generated by bound replay needs the replay derivation and a
+separate operational-validity argument for its conversion evidence.
 
 The index `j` stands for the originating source boundary, lexical opening,
 retained typed evidence and applicable scope context. Every derived query
@@ -189,6 +195,20 @@ assuming that a propagation skip permanently discharged them. It does not
 prove how every original inference obligation is transported, nor authorize
 the successor to reproduce this implementation topology.
 
+The frozen inference machine also explicitly combines lower and upper bounds
+stored on one variable. In `crates/infer/src/constraints/machine/bounds.rs`,
+`cpk_lower_bound_replay_actions` pairs a newly added lower bound with existing
+upper records; `cpk_upper_bound_replay_actions` performs the symmetric
+pairing. Eligible pair replay actions carry the endpoint comparison,
+`BinaryReplayDerivation { pivot, lower, upper, rule }`, and replay claim
+parents. Replay routing may enqueue or classify a route as trivial, duplicate,
+or evidence-only and prefilter it. Thus Oracle has a bound-derived concrete
+comparison route in addition to direct source-derived boundaries. This is narrower than closing
+all successful concrete comparisons transitively, but the successor proof
+must establish why each replay is part of its variable-bound judgment. The
+frozen derivation records logical bound parents; it does not by itself locate
+the runtime expression boundary where a resulting conversion should execute.
+
 Runtime realization is also split across paths. In the frozen
 `crates/mono/src/boundary.rs`, Record boundary support checks required-field
 presence and recursively asks whether shared field boundaries are supported;
@@ -286,26 +306,31 @@ fields behave at runtime, and whether a selected field adapter can be embedded
 in an aggregate adapter. No composition law may be inferred from successful
 boundary checks.
 
-## 6. Next theorem gate: boundary-obligation conservation
+## 6. Next theorem gate: bound-replay conservation
 
 Do not extend structural residual normalization yet. First specify the source
 meaning of concrete-to-variable bounds and suspended compatibility obligations.
-Then prove a boundary-obligation conservation claim for a fixed finite source
-elaboration. Each source comparison has an identity, ordered endpoints, scope
-context and symbolic coordinates. Under an admissible shared assignment, the
-claim must show that propagation, alias substitution and specialization
-preserve the conjunction of those original guarded boundary judgments: no
-original obligation is lost; each is rechecked on its substituted endpoints;
-every additional mandatory concrete query has an independent derivation from
-the source judgment; and no query is discharged by composing successful local
-compatibilities. This is a target statement, not an established theorem.
+Then prove a bound-replay conservation claim for a fixed finite source
+elaboration. Each original source comparison has an identity, ordered
+endpoints, scope context and symbolic coordinates. Each admissible replay has
+its pivot and lower/upper premise identities. Under an admissible shared
+assignment, propagation, alias substitution and specialization must preserve
+all original guarded boundaries and generate exactly the concrete checks
+required by the source bound judgment: no original obligation is lost, no
+mandatory replay is omitted, and no extra rejecting query is introduced.
+Each replay query is locally checked with its derived guard/context, and its
+conversion evidence remains attached to that replay derivation. Successful
+local compatibilities do not create replay premises. This is a target
+statement, not an established theorem.
 
 The first proof fragment can fix closed Record shapes and treat nominal cast
 resolution as an uninterpreted tagged result. It should prove both directions
-between the original boundary ledger and the propagated representation,
+between the source-bound and replay ledger and the propagated representation,
 preserve different contexts for equal endpoint pairs, and recheck scope guards
-on generated comparisons and replay. It must not derive a concrete
-lower/upper cross-product from variable transitivity alone. Finite semantic
+on generated comparisons and replay. A replay is admissible only when its
+bound premises and pivot derive it; arbitrary paths of successful local
+compatibilities cannot substitute. It must also explain how logical replay
+parents connect to executable conversion boundaries. Finite semantic
 provenance and source-wide context closure remain premises to prove, not
 implementation details to assume.
 
