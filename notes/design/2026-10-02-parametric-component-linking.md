@@ -127,6 +127,16 @@ to replace rigid `kappa` by a solvable existential from caller instances.
 Source construction and completeness of this uniformly checked arm
 presentation remain separate proof obligations.
 
+Charter §20's hidden request `beta_local` is likewise distinct from logical
+projection witnesses and solvable inference variables. `Req_p(rho)` binds
+all dependent packet fields together; its elimination opens rigid `kappa`
+under the declared bounds while the known family instance stays fixed.
+Caller-private witness equations remain jointly retained, not assumptions
+available to that arm proof. Pack/unpack cut transports the existing witness
+without changing shared/captured scopes. Dependent result/store roots retain
+that correspondence; this algebra proves no new escape restriction or source
+lifecycle completeness.
+
 At each linked instance choose an admissible external type substitution
 `sigma_i` and the required identity transport. Alpha-rename the genuinely
 local `Z_i` to be pairwise disjoint and absent from all other relations and

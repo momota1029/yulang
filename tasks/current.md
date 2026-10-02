@@ -673,6 +673,33 @@ The full Milestone-3/lifecycle/implementation objective is unchanged.
 M3 semantic/conformance package review found no findings within this resolved
 input. Static diff checks only; no tests, builds or measurements ran.
 
+## Essential existential request opening
+
+Charter §20 records the user's source typing decision. A declaration/use
+instantiates `forall beta_local`; the handler receives one existential
+request package and opens it rigidly. Payload, response, raw suffix (when
+dependent), profiles and symbolic `K,D` share the retained witness. Known
+family coordinates are not hidden. Uniform checking follows from existential
+elimination, and application of the checked proof follows by pack/unpack cut.
+No surface existential syntax, runtime box or new execution is introduced.
+
+Caller-private instance equations remain in the joint ledger but are not
+assumptions available to the generic arm. Thus all actual callers choosing
+Int still cannot justify `kappa = Int`. Aliasing, resumption and dependent
+return/store transport must retain the same witness correspondence. Complete
+scoped inference, lifecycle and implementation gates remain open.
+Independent M3 semantic/conformance delta reviews found no findings in this
+source rule and its conditional substitution consequences. Static diff and
+reference inspection only; no compiler changes, tests, builds or measurements.
+
+A separate source question remains pending: for `my ignore x = ()`, does
+omission of the parameter annotation select value entry (executing an
+effectful argument), or computation retention? The async question already
+sent to the user is unanswered; §20 does not answer it. Frozen omitted-parameter
+initialization and caller-side `ForceThunk` placement are characterization
+only. Continue work independent of that default; do not infer it from unused
+body occurrences or solved endpoint shapes.
+
 ## Main records
 
 - `notes/design/2026-10-02-parametric-component-linking.md` — finite grafting and exact joint linking; revised per-program proof target, source summary construction still open.

@@ -7,6 +7,7 @@ Approved-by: none for a new inference/generalization rule
 Drafted-by: primary with bounded architect and frozen-source audits
 Reviewed-by: compiler_referee and spec_auditor; scoped M3 package review; independent compiler_referee generic-arm correction delta, no findings
 Scoped-template-review: §§7–9 independently reviewed by compiler_referee and spec_auditor; no findings in the declared fragment
+Existential-opening-review: charter §20 and §§2–4,7–8 delta independently reviewed by compiler_referee and spec_auditor; no findings; full checking/lifecycle remain open
 Supersedes: no source decision; refines the existing complete OpCompat obligation
 
 ## 1. Existing authority and the missing distinction
@@ -83,12 +84,29 @@ resumption does not automatically reinstall the selected handler or acquire
 the derived deep handler's result type. Lambda contains the signature's
 typed paths; no outer callback effect is copied to unrelated descendants.
 
-Opening a request view gives the arm names for this already chosen instance.
-It does not choose new values for `beta_local`. One may model that opening
-as an existential package elimination, but this is proof notation for the
-retained view, not a new source type or runtime packaging requirement.
-Every name introduced by the opening remains related to `theta` throughout
-the payload, raw continuation, latent values and live dependency incidence.
+Charter §20 makes existential opening essential source typing. With the
+family instance `rho` already fixed and known, the handler receives
+
+```text
+Req_p(rho) = exists beta_local.
+  Packet(payload : A(rho,beta), raw_k : B(rho,beta) => J_q(rho,beta),
+         profiles/evidence, K,D, latent dependencies).
+Pack_s(Packet_s) : Req_p(rho), where s = theta(beta_local).
+```
+
+`J_q` belongs inside the package when dependent. `Pack_s` records the witness
+chosen by the operation use; it adds no runtime box, source type syntax,
+execution or fresh instantiation. `Unpack` introduces fresh rigid `kappa`
+for checking under the declared interface and bounds, not caller-private
+facts about `s`. A private equation `s = Int` remains in the joint ledger
+but cannot supply the checking assumption `kappa = Int`, even for Int-only
+callers. This separates checking access from retained correspondence without
+erasing `K,D`, reflecting private facts, or introducing a new obligation.
+Ledger references in `K,D` are mathematical correspondence, not permission
+to expose every caller-private equation as a source-visible proof field or
+arm assumption; checking uses the declared interface and bounds.
+All fields are transported together and remain related to the same `theta`;
+aliases, raw resumptions and latent uses do not choose another witness.
 
 ## 3. Arm compatibility over the same instance
 
@@ -295,7 +313,9 @@ and the raw continuation at `B(rho,kappa) => J_raw`. Generate the body and
 its source consumers once under this environment. The complete raw suffix
 is an interface parameter, not the arm's output or an implicitly deep result.
 
-The scope of a candidate checking relation is
+Existential elimination derives the existing universal checking obligation:
+the hidden witness is arbitrary under its declared bounds, so one arm proof
+must work uniformly for its fresh rigid opening. Its scope is
 
 ```text
 exists Z_shared.
@@ -333,8 +353,9 @@ binders; it does not itself establish a bound on the current suffix's effects.
 That obligation remains in the complete invocation/handler image.
 
 **Proof.** Alpha-rename bound proof names to avoid the actual endpoints.
-Instantiate universal elimination at the complete local tuple of `theta`;
-the actual declaration bounds discharge its antecedent. Shared witnesses
+Compose `Pack_s` with the uniformly checked `Unpack` proof: pack/unpack cut
+substitutes the complete local tuple of `theta` for its rigid opening.
+The actual declaration bounds discharge its antecedent. Shared witnesses
 are unchanged, while the body witnesses follow the checked proof's scope.
 For each source rule, use the same rule and transport its operand tuple.
 Core §6's result/consumer substitution law preserves source roles and force
@@ -351,6 +372,12 @@ reinstalls the consumed handler. Fresh proof names denote the retained
 instance; they are not fresh runtime or independently solved type instances.
 Different requests may specialize the template differently, but they never
 re-solve the captured environment separately.
+
+For dependent returned values or stored roots, retain the joint binder
+correspondence and all incident packet fields; do not expose a free skolem
+as an unrelated endpoint. This is a lifecycle preservation obligation, not
+a new value restriction or source escape ban. That lifecycle theorem remains
+open, and the cut proof retains its primitive/store/raw-suffix premises.
 
 Consequently declaration validity can be established without enumerating
 future callers' operation-local maps. Actual requests still need their maps
@@ -371,6 +398,9 @@ idempotence or recursive unfolding. There are rigid checking symbols
 `kappa` and existential inference variables `X`. Each `X` has a finite set
 `Allowed(X)` of enclosing rigid names on which its solution may depend.
 Earlier captured variables have no permission to mention a later arm binder.
+These solvable inference variables `X` are not the hidden request binders
+`beta_local` of `Req_p`; existential request elimination opens the latter
+rigidly. The equality kernel and its other premises are unchanged.
 
 A solution is a **uniform syntactic constructor substitution**, preserving
 rigid symbols and respecting these dependency sets. Residual existential

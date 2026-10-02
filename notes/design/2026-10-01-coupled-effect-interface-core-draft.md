@@ -2913,7 +2913,11 @@ for its exact operation identity, declared family projection, payload and
 result types, and all declared effect obligations/interfaces. This tuple is
 only a view of the declaration under one substitution; it is not a new source
 construct or separate solver obligation. The request and arm may use distinct
-capture-avoiding substitutions `θ` and `φ` for the same declaration.
+capture-avoiding names `θ` and `φ` for their views of the declaration, but
+`φ`'s operation-local coordinates are rigid opening aliases of the same
+hidden request witness, not independent existential solutions. The known
+family compatibility and actual arm input/body/response demands remain
+independent checks.
 
 Define one source-level compatibility relation
 `OpCompat_ν(q,h)` between a typed request occurrence and an arm. Its
@@ -2942,6 +2946,12 @@ under rigid operation-local declaration binders before instantiating the
 checked arm proof at an actual retained request instance. Compatibility of
 all reached selections alone is insufficient for source declaration acceptance;
 family-parameter specialization remains distinct from local-binder checking.
+Charter §20 makes this opening essential existential source typing:
+`Req_p(rho)` hides the local witness with all dependent packet fields while
+leaving the family instance known. The uniform arm sees the declared bounds,
+not caller-private witness equations. Pack/unpack cut instantiates its checked
+proof at the retained witness without new execution or instantiation; dependent
+return/store correspondence and the existing lifecycle premises remain.
 
 The first two value-transfer directions have a conditional safety
 justification: a request supplies a value of `Aθ`, so the arm must accept it;

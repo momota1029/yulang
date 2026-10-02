@@ -532,3 +532,39 @@ declaration. It does not alter ordered selection, shallow handling, callback
 visibility, symbolic instance transport or raw-resumption rules. The complete
 generic-arm inference rule, effective scoped solving and principal source
 template theorem remain to be proved; implementation is not authorized.
+
+## 20. User decision: existential request opening is essential source typing (2026-10-02)
+
+The user selected existential request opening as an essential source typing
+rule, not optional proof notation. A use instantiates the operation's
+`forall beta_local` once. At an already fixed, known family instance `rho`,
+the handler receives
+
+```text
+Req_p(rho) = exists beta_local.
+  Packet(payload : A, raw_k : B => J, profiles/evidence,
+         K,D, latent dependencies).
+```
+
+Every dependent field, including `J` when it depends on the local binder,
+lies inside that package. `Pack_s` records the existing witness; it adds no
+runtime box, source type syntax, execution or fresh instantiation. Elimination
+opens fresh rigid names `kappa` and checks one uniform arm under the declared
+interface and bounds with its captured environment fixed. A caller-private
+equation `s = Int` remains jointly retained in the constraint ledger but is
+not an arm-checking assumption `kappa = Int`, even when all actual calls use
+Int. No `K,D` is erased or reflected into new checking authority.
+
+The universal checking scope in operation-instance §7 follows from this
+existential elimination. Its instantiation theorem is the pack/unpack proof
+substitution (cut), subject to the existing primitive, store and raw-suffix
+premises. Payload, continuation, profiles and dependent views travel together;
+aliases and resumptions retain the same witness. Fresh proof names do not
+create independently solvable instances.
+
+Dependent returned or stored roots retain joint binder correspondence rather
+than a free escaping skolem. This adds no value restriction or source escape
+ban; lifecycle preservation remains a proof gate. The scoped equality kernel's
+existential inference variables are distinct from hidden request binders.
+This decision closes this source typing choice only; compiler implementation,
+full checking completeness and lifecycle approval do not follow.

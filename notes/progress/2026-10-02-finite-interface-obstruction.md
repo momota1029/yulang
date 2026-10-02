@@ -1772,3 +1772,53 @@ No repair round or third reviewer was needed. Task, design index, header and
 the generic finite-safety source-gate locator are synchronized. Integration
 uses explicit staged paths, whitespace checks and full outbound-range
 inspection before normal research-branch push.
+
+### Essential existential request opening and the remaining parameter question
+
+Previous goal turn: progress, reviewed query/execution-image checkpoint
+`de6917090`. The current source-generation inquiry isolated one separate
+unanswered choice: omitted parameter annotation in `my ignore x = ()` with
+an effectful argument. Known Value/Computation interfaces already determine
+entry force versus retention; the omitted default has not been selected.
+The pending async question asks whether that argument executes. No default
+is inferred from unused parameters, endpoint shapes or the user's subsequent
+operation-binder clarification.
+
+Read-only frozen audit at `a58eefc3`: source `case_01.rs:146–163` records
+unannotated `id(out::read(()))` with argument-boundary `ForceThunk`;
+specialization `tests.rs:1072–1091` records explicit `keep(x: [_] int)` with
+a retained thunk. Neither isolates the unannotated unused-parameter case or
+provides its runtime effect count. `infer/lowering/expr/lambda.rs:1252–1264`
+initializes omitted argument effects to Never; `specialize2/emit.rs:814–937`
+selects boundary forcing from solved actual/consumer shapes. These facts
+characterize the frozen compiler and do not authorize a source default or
+pre-entry argument execution.
+
+The user's next decision instead makes existential opening essential source
+typing. Charter §20 and the operation-instance package now retain one
+`exists beta_local` packet at fixed known family coordinates. Uniform arm
+checking opens rigid names under the declared interface; the actual retained
+witness enters the proof only by pack/unpack cut. All dependent raw-suffix,
+profile, payload/response and `K,D` fields remain correlated. Private caller
+equations are retained mathematical ledger facts, not additional assumptions
+that permit a generic arm to specialize its skolem. No surface syntax,
+runtime packaging or type-reflection feature is introduced.
+
+The linking/core dependency cone distinguishes request witnesses from
+solvable inference existentials, and forbids independent arm-view witnesses.
+Dependent returned/stored roots keep their joint binder correspondence;
+the delta adds no source escape prohibition or value restriction. Complete
+checking, source presentation and lifecycle preservation remain open.
+
+M3 budget: one bounded architect, one documentary producer, two independent
+semantic/conformance delta reviewers; a fresh repair reviewer only for an
+accepted major finding. Convergence requires no accepted blocking/major
+finding in package opening, uniform checking, same-witness transport and
+declared proof scope. Primary owns records and integration. Static diff and
+reference checks only; tests, builds and measurements budget/consumption zero.
+Both independent reviewers returned no findings within the source-rule and
+conditional substitution delta. No repair round or third reviewer was needed.
+Effective full checking, dependent escape/lifecycle and source principality
+were not certified. Tasks, design index and package review metadata are
+synchronized. Integration uses explicit staged paths, whitespace checks and
+the complete inspected outbound range before normal research-branch push.
