@@ -96,21 +96,27 @@ its bounded source map are recorded in
 
 This narrows the source applicability of the mandatory-Record structural
 theorems without refuting their fragment proofs. A reviewed candidate
-Record-local table now separates field presence from child comparisons and
-distinguishes inference propagation from concrete validation. Its next gate
-is to prove how the source comparison judgment preserves that evidence across
-variable bounds and specialization. Frozen specialization rechecks
-materialized concrete boundaries, while the Evidence VM has a recursive
-Record adapter distinct from generic `Coerce` aliasing and registered nominal
-cast resolution. No one shared runtime resolver exists in that evidence, so a
-successor common local dispatcher remains a candidate with separate check,
-cast-resolution and adapter-plan evidence. The next operational proof must
-resolve identity-preserving versus projecting Record behavior, absence, extras
-and optional-to-required fields. Current successor terms lack Record and
-adapter constructors; cast declarations are outside successor HIR. Optional
-Record Oracle observations are not implemented syntax/contracts in this
-branch. No compiler change is authorized; the complete replacement goal
-remains active.
+Record-local table separates field presence from child comparisons and
+distinguishes inference propagation from concrete validation. An architect
+audit found that one earlier candidate rule was too strong: variable
+transitivity alone cannot justify a concrete lower/upper endpoint cross-product
+when each endpoint check may remain a separate local compatibility obligation.
+The corrected next gate is boundary-obligation conservation: specify the
+source meaning of concrete-to-variable bounds, preserve each original guarded
+boundary under propagation and specialization, and require independent source
+derivation for any additional concrete query.
+
+Frozen specialization rechecks materialized concrete boundaries, while the
+Evidence VM has a recursive Record adapter distinct from generic `Coerce`
+aliasing and registered nominal cast resolution. No one shared runtime
+resolver exists in that evidence, so a successor common local dispatcher
+remains a candidate with separate check, cast-resolution and adapter-plan
+evidence. Record runtime realization still needs identity-preserving versus
+projecting behavior, absence, extras and optional-to-required cases. Current
+successor terms lack Record and adapter constructors; cast declarations are
+outside successor HIR. Optional Record Oracle observations are not implemented
+syntax/contracts in this branch. No compiler change is authorized; the
+complete replacement goal remains active.
 
 The M3 clarification received clean bounded compiler-referee and spec-auditor
 reviews after architect pre-write review. Its evidence, exact limitations and

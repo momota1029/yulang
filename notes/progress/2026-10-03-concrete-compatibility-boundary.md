@@ -102,16 +102,36 @@ now states that exception. The primary independently checked the cited
 deferment branch. Review was limited to these added source-path claims and did
 not re-audit the prior relation theorem or candidate Record table.
 
+## Boundary-conservation correction
+
+A bounded architect audit found that the prior §2 candidate sentence deriving
+`Compat(A,B)` whenever a variable path exposed concrete endpoints was not
+justified by the user's authority. Under the conditional interpretation where
+`Compat(A,X)` and `Compat(X,B)` remain separate suspended local obligations,
+assigning `X={}` satisfies both optional-Record checks while direct
+`Compat(A,B)` fails. Therefore variable-bound transitivity alone cannot
+license an unconditional concrete lower/upper cross-product.
+
+The candidate now retains source-boundary identities and requires source
+semantics to justify any moved bound payload or additional concrete query.
+The next theorem is boundary-obligation conservation under a shared
+assignment: original guarded checks are neither lost nor replaced, and any
+additional mandatory query must have its own source derivation. This does not
+settle the source meaning of variable bounds or suspended checks. The
+candidate edit received clean bounded compiler-referee and spec-auditor
+reviews; both confirmed the conditional counterexample and unresolved source
+semantics. No implementation or tests were run. This clarification preserves
+the user's relation split and does not extend ordinary structural closure.
+
 ## Next gate
 
-Prove that a source comparison judgment can preserve the Record-local checking
-evidence tree across unresolved variable bounds and concrete specialization,
-including how the specialization boundary relates to each original inference
-obligation. Then specify adapter plans for identity-preserving versus
-projecting Records, absence, extras and optional-to-required fields. Explore a
-shared local dispatcher that keeps Record derivations, cast candidate
-resolution and emitted adapter evidence distinct; do not copy the frozen
-first-match/all-candidates discrepancy as a policy. Only then prove guarded
-query generation from variable-bound propagation and evidence-preserving
-residual factorization. Source-wide context finiteness, unknown Record shapes,
-effectful interfaces, lifecycle and implementation remain open.
+Prove boundary-obligation conservation for a fixed finite source elaboration
+and closed Record shapes. Define what concrete-to-variable bounds mean, how
+original guarded obligations survive variable propagation, and how every
+additional concrete query gets an independent source derivation. Prove finite
+context/provenance closure before extending residual normalization. Afterward,
+specify Record adapter behavior and prove evidence-preserving normalization
+and residual factorization; keep Record checks, nominal-cast resolution and
+runtime adapter evidence distinct behind any candidate shared dispatcher.
+Source-wide context finiteness, unknown Record shapes, effectful interfaces,
+lifecycle and implementation remain open.

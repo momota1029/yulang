@@ -4,7 +4,7 @@ Status: Reviewed; records the user's 2026-10-03 semantic decision; operational r
 Date: 2026-10-03
 Scope: separate transitive variable-bound propagation from local concrete compatibility and adaptation resolution
 Approved-by: user for the relation distinction and Oracle observations recorded in §1 only
-Reviewed-by: compiler_referee and spec_auditor §§1–5, 2026-10-03; architect pre-write audit plus fresh compiler_referee/spec_auditor review of §5 found no findings within bounded scopes
+Reviewed-by: compiler_referee and spec_auditor §§1–5, 2026-10-03; architect pre-write audit plus fresh compiler_referee/spec_auditor review of §5; architect pre-write audit plus compiler_referee/spec_auditor review of §§2/6 boundary-conservation clarification, all clean within bounded scopes
 Implementation authority: none
 Supersedes: none; narrows source applicability of structural relation candidates without invalidating their fragment theorems
 
@@ -61,14 +61,35 @@ Resolve(Compat_j(A, B))          selected conversion evidence / adapter
 `Eq` identifies regular constructor unfoldings and retains its original
 endpoints. Compatibility does not merge equality classes.
 
-The bound graph may propagate a variable relation transitively. When a path
-through variables exposes concrete endpoints, it generates a guarded local
-`Compat_j(A, B)` obligation. The compatibility result and its conversion
-evidence stay attached to that boundary query; they are not inserted back
-into the variable reachability relation as a concrete edge. In particular,
-successful `Compat_j(A, B)` and `Compat_k(B, C)` do not discharge
-`Compat_l(A, C)`. Any composed conversion needs an independently justified
-resolution and operational-validity argument.
+The bound graph may propagate relations between type variables transitively.
+That permission alone does not establish which queries a path with concrete
+endpoints must generate. In particular, it does not justify taking a lower
+concrete bound on one variable and an upper concrete bound on another and
+requiring a fresh `Compat_j(A, B)` merely because variable-bound propagation
+connects them. The source meaning of concrete-to-variable bounds and suspended
+boundary checks must first be specified.
+
+Retain each source boundary as an obligation with its own identity and
+endpoints. If a boundary endpoint is unresolved, suspend that obligation with
+its context and later recheck its own substituted endpoints. A propagation
+rule may move a bound payload along variable edges only when its source
+semantics justifies the move, retaining the originating boundary and guard.
+It must not merge two successful local checks into a new concrete comparison.
+For example, under the suspended-boundary interpretation, obligations
+`Compat_j({foo?: string}, X)` and `Compat_k(X, {foo?: int})` both pass when
+`X` is assigned `{}`, while the direct comparison
+`Compat_l({foo?: string}, {foo?: int})` fails. Therefore adding that direct
+comparison as an extra conjunct would reject a substitution satisfying both
+original local obligations. This is a conditional counterexample to
+unconditional lower/upper endpoint cross-product, not a claim that every
+source form gives variables this suspended-boundary meaning.
+
+Successful compatibility and its conversion evidence stay attached to their
+own boundary query; they are not inserted into variable reachability as a
+concrete edge. In particular, successful `Compat_j(A, B)` and
+`Compat_k(B, C)` do not discharge `Compat_l(A, C)`. Any composed conversion
+or derived concrete query needs a source-obligation derivation and a separate
+operational-validity argument.
 
 The index `j` stands for the originating source boundary, lexical opening,
 retained typed evidence and applicable scope context. Every derived query
@@ -265,23 +286,34 @@ fields behave at runtime, and whether a selected field adapter can be embedded
 in an aggregate adapter. No composition law may be inferred from successful
 boundary checks.
 
-## 6. Next theorem gate
+## 6. Next theorem gate: boundary-obligation conservation
 
-Before extending structural residual normalization, specify a local concrete
-compatibility judgment and its Record-local evidence tree, while leaving the
-candidate rows and missing runtime rules open until supported by
-source/Oracle evidence. Then prove, in order:
+Do not extend structural residual normalization yet. First specify the source
+meaning of concrete-to-variable bounds and suspended compatibility obligations.
+Then prove a boundary-obligation conservation claim for a fixed finite source
+elaboration. Each source comparison has an identity, ordered endpoints, scope
+context and symbolic coordinates. Under an admissible shared assignment, the
+claim must show that propagation, alias substitution and specialization
+preserve the conjunction of those original guarded boundary judgments: no
+original obligation is lost; each is rechecked on its substituted endpoints;
+every additional mandatory concrete query has an independent derivation from
+the source judgment; and no query is discharged by composing successful local
+compatibilities. This is a target statement, not an established theorem.
 
-1. the variable-only transitive propagation rule generates every required
-   concrete boundary query and rechecks its scope guard;
-2. compatibility normalization preserves the selected query outcome and
-   adapter evidence, without composing independent successes transitively;
-3. residual factorization preserves equality, bound provenance, conversion
-   evidence and the joint symbolic coordinates under one assignment.
+The first proof fragment can fix closed Record shapes and treat nominal cast
+resolution as an uninterpreted tagged result. It should prove both directions
+between the original boundary ledger and the propagated representation,
+preserve different contexts for equal endpoint pairs, and recheck scope guards
+on generated comparisons and replay. It must not derive a concrete
+lower/upper cross-product from variable transitivity alone. Finite semantic
+provenance and source-wide context closure remain premises to prove, not
+implementation details to assume.
 
-Only after those obligations close should the structural projection and
-open-residual candidates be extended to general source inference. Effectful
-interfaces, unknown Record shapes, source-wide evidence contexts, lifecycle,
-and implementation remain open. No optional-Record grammar, acceptance
-surface, conversion-selection policy, resource limit, or implementation
-representation is approved here.
+After boundary conservation, prove that compatibility normalization retains
+selected check/cast outcomes and conversion evidence without composing
+independent successes. Only then extend residual factorization to preserve
+equality, original bound provenance and joint symbolic coordinates under one
+assignment. Effectful interfaces, unknown Record shapes, lifecycle, and
+implementation remain open. No optional-Record grammar, acceptance surface,
+conversion-selection policy, resource limit, or implementation representation
+is approved here.
