@@ -2,7 +2,7 @@
 
 Date: 2026-10-02
 Branch: `research/simple-sub-intrusion`
-Status: design investigation; no source rule selected
+Status: preserve semantics selected; proof and implementation gates remain open
 
 ## Question
 
@@ -212,8 +212,8 @@ the nested `invoke` contains no handler that could consume the request. The
 contract says such an inner handler may consume the named family. However, the
 text does not explicitly specify the transport of that permission through the
 second concrete argument boundary and all generated adaptations/forces. The
-source audit therefore leaves preserve versus suspend unresolved; the frozen
-runtime trace and Oracle's empty row cannot choose it. The immediate proof
+At the time of that audit, preserve versus suspend remained unresolved; the
+frozen runtime trace and Oracle's empty row could not choose it. The immediate proof
 target is to define the common typed call/handler transition so that source
 capture clauses and the specified runtime lineage transport compose, then
 check the witness against the complete transition. No implementation or test
@@ -233,6 +233,42 @@ eligibility after escape are not. No policy was selected. The reviewer delta
 closed after narrowing the frozen marker spec to characterization evidence;
 this does not approve its routing algorithm or any successor source rule.
 
+### User-selected preserve semantics (2026-10-02)
+
+The user selected preservation as the intended source semantics: a concrete
+callback receiver's capture entitlement remains derivable through a nested
+concrete receiver's call/adaptation transition unless the source language
+independently defines a semantic boundary that invalidates that entitlement.
+No such invalidating boundary is currently defined for this transition.
+Suspension/shadowing must not be introduced to reproduce the frozen Oracle
+runtime route. This is a semantic choice, not implementation approval.
+
+The formal clause belongs to the existing handler-relative
+`Visible(q,h,κ)` judgment. If the same request origin and capture incidence
+enter a nested call while the candidate handler remains active, the complete
+visibility derivation transports to the extended ordered context (with the
+new frame prepended because `κ` is written nearest-handler first). This must
+preserve negative as well as positive premises. It covers callee/argument
+evaluation, both `CallView` adaptations, callback execution, and any force
+before handler dispatch. Exact operation identity, request origin, and
+candidate handler remain distinct; equal family heads alone never grant
+visibility. A handler arm receives the raw continuation outside its shallow
+frame, and repeated suffix requests remain subject to the ordinary outer
+search.
+
+Required proof gate: prove source/runtime simulation for that entire
+transition; caller hygiene for unrelated same-family origins; raw-resumption
+and ordered-search soundness; symbolic typed-family formula and `K,D`
+preservation at one assignment through residualization, generalization,
+freshening, and intrusion; and soundness/principality of the finite
+abstraction. If that proof yields a genuine source-level counterexample,
+return the choice for reconsideration rather than adding an ad hoc exception.
+Escaped-value entitlement after return remains a separate open question;
+runtime activation lineage transport/re-entry itself is fixed by the
+Authoritative Yulang3 architecture. No compiler implementation or tests are
+authorized by this decision. Review must assess the proof gate before this
+clause can become implementation-ready.
+
 ### Follow-up source decision audit
 
 A focused architect review compared only the frozen annotation/handler text
@@ -245,25 +281,53 @@ relation: whether an enclosing incidence remains derivable across that nested
 `CallView`. No additional selector or obligation kind is needed to state the
 choice.
 
-The two source interpretations remain distinct. Preservation extends the
-existing visibility derivation through the nested transition, subject to its
-full ordered-context premises and the same origin/typed-family constraints.
-Suspension makes the enclosing entitlement ineligible during that nested
-transition and restores it afterward; it must define which boundary counts
-and its extent, since matching family heads alone cannot identify competition.
-Both still require complete-call simulation and principality proofs. The
-source docs do not select either. Preservation is the smaller compositional
-hypothesis, but source economy cannot substitute for the soundness proof.
+This audit established that the source docs did not themselves select nested
+precedence. The user subsequently made that choice: preserve the enclosing
+entitlement through the nested concrete receiver, absent an independently
+defined source invalidator. The audit remains evidence for why this is an
+explicit source decision rather than a rule inferred from Oracle internals.
+The preserve rule still requires complete-call simulation and principality
+proofs; source economy cannot substitute for soundness.
 
 Escape/re-entry is only partly open. Authoritative architecture already
 requires activation-specific lineage to travel through closures, thunks, and
 continuations and to be reinstated on resume. The unresolved question is
 which receiver entitlement that transported lineage represents when an
 escaped value later runs; deleting all lineage on return is not admissible.
-No runtime-marker routing rule is used as semantic authority. This audit
-leaves one explicit user decision: preserve or suspend the enclosing
-entitlement across a nested concrete receiver for the same callback-origin
-incidence. Exact locators: frozen `web/docs/reference/effects.md:127–151,
+No runtime-marker routing rule is used as semantic authority. The nested
+preserve/suspend decision is now resolved by the user's explicit choice;
+escaped-value entitlement remains separately open. Exact locators: frozen
+`web/docs/reference/effects.md:127–151,
 153–204, 244–265`; frozen `web/docs/reference/type-theory.md:154–179`; current
 `docs/yulang3-architecture.md:702–718`; draft §§1240, 1281, 1321. No source
 implementation or tests changed.
+
+### Conditional one-request reduction and symbolic handler image (2026-10-02)
+
+The common-interface draft now records a conditional `handle`/`invoke`
+reduction. It premises initial handler-specific visibility, source-derived
+result-force timing, preserved callback origin, no earlier eligible handler,
+operation compatibility, and a request-free raw suffix. Under those premises,
+the selected preserve clause plus nearest-first ordered search sends the
+request to the catch; one raw resumption returns normally with empty immediate
+request support. These premises are not all derived from the current source
+typing relation, so this is not yet a source-adequacy theorem.
+
+The compiler-referee review closed two overclaims in the first version: the
+request-origin/force premises are now explicit, and operational handling no
+longer implies successor final-check acceptance. The frozen checker accepts
+the witness, but a finite successor presentation has not yet been shown to
+derive that acceptance. A final narrow review confirmed nearest-first context
+extension and ordered search are consistent, and the “no earlier eligible
+handler” premise prevents the outer handler from incorrectly bypassing a
+nearer eligible one.
+
+For any predicate `K(ν)` already in an input relation, the whole handler image
+preserves its assignment `ν`; selection changes the request observation, not
+the assignment. Therefore output pairs still satisfy `K(ν)`. Formula-to-view
+incidence `D` must continue to identify dependent surviving views; this is a
+presentation obligation, not implied merely by the same-ν equation. The result
+is conditional preservation at the handler-image algebra step, not proof that
+the source rules or concrete solver produce/preserve the right `K,D` throughout
+the entire lifecycle. Soundness, finite principality, and intrusion quotient
+adequacy remain open. No tests were run.

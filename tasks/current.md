@@ -1339,8 +1339,9 @@ the successor rule, and the compatibility impact. A conservative
 continuation-summary candidate and its independent review are recorded in
 `notes/progress/2026-10-01-intrusion-coarse-effect-abstraction-candidate.md`.
 
-Nested concrete callback precedence is now recorded as an unresolved clause of
-the common ordered activation-context relation. The frozen witness accepts
+At this audit stage, nested concrete callback precedence was recorded as an
+unresolved clause of the common ordered activation-context relation. The
+frozen witness accepts
 with Oracle `ret_eff=Bot` but leaves `choose::get` unhandled at runtime; that
 is a checker/runtime conflict, not authority for the successor. Reviewed
 alternatives are (1) preserve enclosing capture incidence through nested
@@ -4018,42 +4019,50 @@ review closed the equation/support inconsistency without selecting that source
 rule. See the latest entry in
 `notes/progress/2026-10-01-intrusion-coarse-effect-abstraction-candidate.md`.
 
-Immediate next gate: define the common source call/handler transition over
-ordered activation contexts and source-owned request origins. Compare the two
-reviewed nested-receiver clauses within that relation. Project support from
-the whole handler image: cover every request on a reachable output path, while
-allowing abort to make an unexecuted continuation suffix unreachable. Carry
-symbolic typed-family invariance through solving, residualization, call/force,
-handler image, generalization, fresh instantiation, and intrusion. The frozen
-`ret_eff=Bot`/unhandled-request pair is characterization only; do not mimic it
-as a rule. Method/roles/impl resolution remain gated until ordinary
-effect/handler semantics closes unless a proved dependency requires them
-sooner. No compiler implementation is authorized.
+Current proof gate: prove the selected common source call/handler transition
+over ordered activation contexts and source-owned request origins. Preservation
+through nested concrete receivers is now the intended source semantics, not an
+unresolved alternative. Prove its complete `Visible(q,h,κ)` transport across
+the full `CallView`; project support from the whole handler image, covering
+every reachable output request while allowing abort to make an unexecuted
+continuation suffix unreachable. Carry symbolic typed-family invariance through
+solving, residualization, call/force, handler image, generalization, fresh
+instantiation, and intrusion. The frozen `ret_eff=Bot`/unhandled-request pair
+is characterization only; do not mimic its runtime route. Method/roles/impl
+resolution remain gated until ordinary effect/handler semantics closes unless
+a proved dependency requires them sooner. No compiler implementation is
+authorized.
 
 The latest callback witness correction rejects the inference that retaining
-request incidence and an outer frame automatically preserves `Visible`.
-Visibility can have negative ordered-context premises; the preserve candidate
-must transport the complete derivation, including those premises, over its
-supported boundary class. A conditional whole-image corollary now claims only
-empty immediate request support under explicit one-request, complete-CallView,
-shallow-resumption, arm, visibility, and symbolic-fiber premises. It does not
-claim termination, singleton return, finite representability, or a pure
-generalized scheme. The generic callback row admits repeated requests, so a
-row-only presentation must retain the residual possibility. Architect,
-compiler-referee, and spec-auditor reviews closed the relevant wording; neither
-nested-boundary policy is selected. See
-`notes/progress/2026-10-02-callback-scope-transition.md`.
+request incidence and an outer frame alone preserves `Visible`. The user has
+since selected a source rule that transports the complete derivation across a
+nested concrete receiver whenever its handler remains active and the request
+origin is unchanged; no source rule currently defines that receiver boundary
+as an invalidator. A conditional one-request reduction shows that, given
+source-derived initial visibility, result-force placement, preserved origin,
+compatible arm selection, and a request-free raw suffix, the selected rule
+plus ordered search yields empty immediate support for `handle`/`invoke`.
+These premises are not yet all derived from source typing. The frozen check's
+acceptance does not prove successor final-check acceptance; that comparison
+waits for a finite presentation. The generic callback row must retain possible
+repeated-suffix requests, and symbolic family predicates stay on the same
+assignment through the handler image. This is not a global soundness or
+principal-inference proof. Compiler-referee review closed the conditional
+reduction's assumptions and final-acceptance claim; spec-auditor review closed
+the separation between runtime lineage transport and escaped capture
+entitlement. See
+`notes/progress/2026-10-02-callback-scope-transition.md` and the selected proof
+gate in the coupled-interface draft.
 
 The formal visibility judgment was then tightened to the candidate-handler
 form `Visible(q,h,κ)`. A global existential `Visible(q,κ)` could transfer an
 outer handler's grant to an inner same-family handler, violating caller
-hygiene. Compiler-referee delta review closed that quantifier defect. The
-remaining source-semantic decision is how origin incidence composes across
-nested concrete callback contracts and whether escaped values carry
-activation lineage; the public contract does not decide either. The
-origin-indexed ordered-boundary relation is the lowest-cost candidate, with
-preservation favored as a hypothesis but not approved. See the latest section
-of `notes/progress/2026-10-02-callback-scope-transition.md`.
+hygiene. Compiler-referee delta review closed that quantifier defect. At that
+audit stage, nested origin-incidence composition remained undecided. The user
+has since selected preservation across nested concrete receiver
+call/adaptation, while escaped-value capture entitlement remains open and
+runtime activation-lineage transport remains Authoritative. See the latest
+sections of `notes/progress/2026-10-02-callback-scope-transition.md`.
 
 An independent M3 audit of the symbolic `K,D` lifecycle found two proof gaps
 and repaired their statements: handler-image commutation now requires
@@ -4109,8 +4118,9 @@ unannotated, wildcard, and concrete callback positions plus covariant result
 filters are distinct source contracts inside the same interface relation. The
 Yulang3 architecture fixes high-level activation identity transport and
 reinstatement on resume; frozen marker transformations remain characterization
-and need independent derivation. Preserve versus suspend through a second
-concrete receiver remains unresolved. The source-spec audit closed its delta
+and need independent derivation. At that audit stage, preserve versus suspend
+through a second concrete receiver remained unresolved; the user has since
+selected preservation. The source-spec audit closed its delta
 review with no findings; see
 `notes/progress/2026-10-02-callback-scope-transition.md`.
 
@@ -4150,16 +4160,21 @@ or expected output changes follow. See the audit subsection in
 next gate remains the common source call/handler transition with symbolic
 typed-family transport.
 
-The source call/handler gate has one genuine semantic decision before its
-visibility relation can be fixed: whether an outer concrete callback capture
-remains eligible across a nested concrete receiver's complete call/adaptation
-transition, or is suspended there and restored on return. The source docs
-grant capture locally at each receiver but specify no nested precedence. The
-Authoritative runtime rule requires lineage transport/re-entry, but does not
-choose which receiver entitlement that lineage carries after escape. The
-architect audit recommends preservation as the smaller compositional
-hypothesis, conditional on soundness/principality proofs; it is not approved.
-See the follow-up in
-`notes/progress/2026-10-02-callback-scope-transition.md`. Do not infer the
-answer from Oracle routing. Other safe work may continue, but this source
-clause cannot be closed until the decision is made.
+The user selected preservation as source semantics for an outer concrete
+callback capture across a nested concrete receiver's complete call/adaptation
+transition, unless an independently defined source boundary invalidates it.
+No such invalidating rule is currently specified. This removes the unresolved
+preserve/suspend choice, but it does not prove soundness or principality and
+does not authorize implementation. Next gate: prove the rule in the common
+ordered `Visible(q,h,κ)` source relation across origin ownership, both
+adaptations, force, shallow raw resumption, and symbolic typed-family `K,D`
+transport through the SCC lifecycle. A receiver contract must not grant
+eligibility to an unrelated caller-owned request solely because its family
+head matches; an independently eligible caller request retains its own
+derivation. Reconsider only if proof finds a genuine source-level
+counterexample; do not add an Oracle-specific suspension rule. Escaped-value
+capture entitlement remains separate; required runtime lineage transport and
+resume reinstatement are already Authoritative. See
+`notes/progress/2026-10-02-callback-scope-transition.md` and the selected
+clause/proof gate in
+`notes/design/2026-10-01-coupled-effect-interface-core-draft.md`.

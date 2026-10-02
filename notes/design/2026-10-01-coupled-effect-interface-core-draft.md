@@ -1239,14 +1239,18 @@ This formulation makes the required distinctions explicit without choosing a
 weight algebra: the source transition determines how nested calls relate their
 activation contexts; unwinding and resuming determine which context is active;
 and a returned closure or thunk carries later re-entry lineage only when its
-complete value interface entails that dependency. The concrete-helper probe
-does not establish whether a nested concrete receiver preserves or shadows an
-enclosing capture relation. That is an unresolved clause of the source
-transition, not a new selector attached to helper call sites. `Capture` is not
-a Boolean copied onto a family: its relation must retain the source
-occurrence, symbolic contract, and activation incidence together. This
-context form is proof notation for the common interface, not a new source
-construct, solver obligation, or implementation data structure.
+complete value interface entails that dependency. The user selected
+preservation as the intended source semantics for a nested concrete receiver:
+an enclosing capture entitlement remains derivable through the nested
+receiver's complete call/adaptation transition unless an independently
+defined source boundary invalidates it. No such invalidating boundary is
+currently specified for this transition. This is a semantics decision, not
+implementation approval, and its source/runtime simulation and soundness proof
+remain open. `Capture` is not a Boolean copied onto a family: its relation
+must retain the source occurrence, symbolic contract, and activation
+incidence together. This context form is proof notation for the common
+interface, not a new source construct, solver obligation, or implementation
+data structure.
 
 #### Capture grants as scoped context, not request flags
 
@@ -1291,31 +1295,32 @@ incidence through generalization and each fresh use.
 
 #### Candidate and open boundary lifetime for callback capture contracts
 
-One candidate is to make a concrete callback contract available while the
-receiving function activation is dynamically active. Its active context would
-be inherited by nested helper calls, so a wildcard helper cannot erase a grant
-established by an enclosing receiver. The returned closure retains its complete
-latent request interface, including symbolic family constraints, regardless of
-whether a capture grant remains active; subtraction of emitted immediate
-support at a handler requires the handler-image proof. Whether a returned
-closure can later restore any of that boundary lineage is unresolved.
-Dynamic-only expiry at return and value-carried re-entry when called are
-competing candidate rules. The handler visibility of that later request must
-be derived from the complete ordered search and its origin; neither preserving
-the latent effect nor expiring a grant alone proves that an outer caller
-handler can consume it.
+The Authoritative runtime-hygiene contract requires fresh activation-specific
+guard/provider identities to travel with closures, thunks, and continuations
+and to be reinstalled on resume. That lineage transport is fixed independently
+of source capture entitlement. A concrete callback contract supplies an
+active context inherited by nested helper calls, so a wildcard helper cannot
+erase an enclosing capture entitlement. The returned closure retains its
+complete latent request interface, including symbolic family constraints;
+subtracting emitted immediate support still requires the handler-image proof.
 
-This is one interpretation of the existing source phrase “handlers inside the
-receiving function may consume” the contracted family, not an adopted rule.
-Both lifetime candidates may be presentable with the existing activation
-context and ordered search, without a family-global grant bit; finite
-presentation remains open. Their distinguishing source rules are function
-entry, helper calls,
-return/unwind, closure escape/re-entry, and saved-continuation resume. Each
-must transport the request's origin and typed-family formula. The source
-reference does not settle whether return removes or suspends the entry, and
-the frozen marker implementation is characterization evidence rather than
-authority for that choice.
+The remaining escape question is which capture entitlement, if any, the
+source relation makes eligible when a returned closure later runs. Candidate
+expiry or dormant re-entry policies concern that eligibility meaning; neither
+may discard the required lineage IDs or confuse them with static family
+binders. The handler visibility of a later request must be derived from the
+complete ordered search and its origin. Neither preserving the latent effect
+nor transporting lineage alone proves that an outer caller handler may consume
+it.
+
+This implements the selected reading of the source phrase “handlers inside the
+receiving function may consume” the contracted family for nested calls while
+the receiving activation and candidate handler remain active. It does not
+settle which entitlement an escaped value carries after return. That separate
+source question still concerns function return/unwind, closure escape/re-entry,
+and saved-continuation resume; each must transport the request origin and
+typed-family formula. The frozen marker implementation remains
+characterization evidence, not authority for that escape rule.
 
 The separate closure-effect soundness invariant is firmer: constructing
 `\_ -> f()` emits no request, but the returned arrow retains the callback's
@@ -1329,7 +1334,7 @@ Accordingly, the runtime outcome and caller acceptance remain conditional on
 the still-open visibility and handler-image rules. No grant-lifetime policy
 or implementation authority is selected here.
 
-#### Nested concrete receiver: unresolved transition clause
+#### Nested concrete receiver: selected preserve clause and proof gate
 
 The frozen both-concrete witness establishes a checker/runtime conflict:
 Oracle accepts the program with `invoke` and `handle` reporting `ret_eff=Bot`,
@@ -1340,33 +1345,125 @@ The exact witness is recorded in
 `notes/progress/2026-10-02-callback-scope-transition.md`. Do not reproduce
 either the empty Oracle row or the runtime route as authority.
 
-There are two candidate clauses for the same ordered source-transition
-relation. Neither clause has yet been proved sound or principal:
+The user selected preservation as the intended source rule. State it within
+the existing handler-relative visibility relation, not as a new grant store:
 
-| Candidate | Consequence | Theory cost and open proof |
-| --- | --- | --- |
-| Preserve enclosing capture incidence across nested calls | An outer handler may consume a request emitted by the complete nested `CallView`; the handler image may remove it only when the universal typed transition proof covers it. | Fits compositional context extension and the documented receiving-function capture promise. Still needs source/runtime simulation for argument adaptation, call, result adaptation, origin eligibility, shallow resumption, and `K,D` transport. |
-| Suspend enclosing incidence across a competing inner concrete receiver | The enclosing frame, request, and symbolic constraints remain. The same `Visible` relation does not derive eligibility across the competing boundary for that route; any request actually emitted and not consumed remains in the complete handler image's outward support. The candidate may reject programs accepted by Oracle or expose an effect Oracle erased. | Fits the same relation but narrows capture behavior and needs source definitions of request ownership, competition, suspension extent, and restoration. Family equality alone cannot establish competition. The frozen runtime does not justify it. |
+```text
+Visible(q,h,κ)       NestedCallAdapt(b) keeps h active and carries q's same
+                     source origin and capture incidence
+───────────────────────────────────────────────────────────────────────────
+Visible(q,h,push_inner(κ,b))
+```
 
-These are not separate `Sel_s`, `Demand`, route, or callback obligations. They
-are alternative clauses for deriving visibility in the one source call and
-handler relation. The abstract context remains ordered; request origin and
-typed-family formulas remain attached; handler subtraction remains the image
-of the complete computation. Candidate one is more economical if it passes
-the stated simulation theorem. Candidate two is not a soundness shortcut: it
-must show source preservation and principality relative to the narrower source
-semantics. Neither candidate is selected here. In particular, the single
-Oracle witness cannot decide outer-handler eligibility. A source transition
-rule and a final-acceptance comparison are required before this clause can be
-closed.
+The stack is written in handler-search order, nearest activation first, so
+`push_inner(κ,b)` prepends the newly entered nested receiver `b` to `κ`.
+
+The premise ranges over the **complete** nested call transition: callee and
+argument evaluation, argument adaptation, callback execution, result
+adaptation, and any force required by the source boundary. It preserves the
+whole visibility derivation, including ordered-context premises, not only
+positive incidence facts. A source-defined event that exits `h`, changes the
+request origin, or otherwise invalidates this exact entitlement is outside
+the premise and must be justified by an independent source rule. No
+same-family test alone invalidates or grants visibility. The selected rule
+does not make an outer handler global: `Visible(q,h,push_inner(κ,b))` remains indexed by
+that exact candidate handler `h`, exact request origin, active ordered
+context, and operation identity. Handler coverage and selection remain
+separate predicates of the complete transition.
+
+This removes suspension/shadowing as an Oracle-matching candidate. It does
+not follow merely from retaining a frame or from associativity of relational
+composition; it is a chosen source clause whose preservation must be proved
+against the operational contract. It adds no `Sel_s`, `Demand`, route, or
+callback-specific obligation. The abstract context remains ordered; request
+origin and typed-family formulas remain attached; handler subtraction remains
+the image of the complete computation.
+
+The proof gate must establish: (1) source/runtime simulation for the whole
+`CallView`, including adaptation and force; (2) exact handler-relative
+visibility without caller-owned same-family capture; (3) shallow handling
+with the raw continuation outside the selected frame, including repeated
+resumption and outer-frame behavior; (4) symbolic typed-family and `K,D`
+transport at the same assignment through request selection, residualization,
+generalization, fresh instantiation, and intrusion; (5) soundness and
+principality for the selected finite abstraction; and (6) final-acceptance
+comparison against the frozen Oracle. If proof yields a genuine
+source-language counterexample to preservation, return the decision for
+reconsideration instead of adding a site-specific exception. No implementation
+is authorized by this source-semantics choice.
 
 The caller-hygiene control is also part of that proof: a receiver's contract
-must not capture an unrelated caller-owned request solely because its family
-matches. Visibility must use the request's source-owned boundary incidence as
+must not grant eligibility to an unrelated caller-owned request solely because
+its family matches. An independently eligible caller-owned request retains
+its own derivation. Visibility must use the request's source-owned boundary incidence as
 well as operation identity and ordered active frames. Any typed-family
 predicate and incidence `K,D` must survive `CallView`, `Force`, handler image,
 and SCC lifecycle transport at the same assignment; immediate support becoming
 empty does not discharge that dependency.
+
+**Conditional one-request source reduction under the selected rule.** For the
+closed `handle`/`invoke` shape, let `h` be the catch activation inside
+`handle`, `o` the callback-origin occurrence, and `b` the nested concrete
+`invoke` receiver. Assume the source typing/evaluation relation establishes:
+
+1. The exact callback contract derives handler-specific `Capture(o,h)` and
+   initial `Visible(q,h,κ)` while `h` is active.
+2. The complete source `CallView_ν(invoke,f)` includes the result adaptation
+   and force before catch dispatch; the callback emits exactly one
+   `choose::get` request `q`, whose origin remains `o` through those steps.
+3. The nested call has no earlier eligible handler for `q`, and operation
+   identity, payload, and result satisfy the selected arm's compatibility
+   relation.
+4. The arm invokes the raw continuation once with `unit`; the continuation
+   lies outside `h` and returns through the remaining adapter with no further
+   request. The value arm and all other parts of the complete computation emit
+   no requests.
+
+The selected preserve clause then transports `Visible(q,h,κ)` to
+`Visible(q,h,push_inner(κ,b))`. Ordered search selects `h`, and the single raw
+resumption returns normally with empty immediate request support in the whole
+handler image. This is a conditional source-machine reduction, not evidence
+that the current source typing rules derive premises 1–4. It is specific to a
+request-free raw suffix; the generic `handle` callback may emit a second
+request there, outside this shallow activation.
+
+The same derivation does not grant `h` eligibility for another caller-owned
+`choose::get`. Such a request has a distinct origin `o'`; absent an independent
+source incidence `Capture(o',h)`, the visibility premise fails even though its
+family and operation labels match. A nearer handler is still examined first
+by ordered search, and an independently eligible nearer handler may consume
+the request. That affects which handler is selected on that path; it does not
+erase `Capture(o,h)` or change the outer handler's source entitlement.
+
+**Symbolic-family preservation at the handler step.** Suppose the input
+relation contains a symbolic typed-family predicate `K(ν)` and incidence `D`
+linking it to the callback input view. Every selected request contributes its
+payload/result compatibility predicate at the same assignment `ν`. By the
+definition of the whole handler image, an output pair `(ν,J)` is produced
+from an input `(ν,I)` satisfying `K`; selection changes the request
+observation, not `ν`. Therefore the output relation still satisfies `K(ν)`.
+If `J` retains a dependent value, callback, continuation, or root view, `D`
+must map that dependency to the output view. Empty immediate request support
+alone is not grounds to project `K` or sever `D`. Generalization binds the
+owned endpoint together with `K,D`; injective fresh instantiation renames all
+of them together. Injective intrusion transports them by equivariance, while
+non-injective parent intrusion remains valid only under the reviewed
+observation-constant fiber condition. This proves the handler-step invariant
+for the relational image, conditional on the source transition generating
+the stated origin/payload facts; it does not prove the concrete solver keeps
+that formula or that a non-injective parent map satisfies the quotient
+condition.
+
+Under premises 1–4, the successor source machine handles the request where the
+frozen runtime reports it unhandled. The frozen `check` acceptance does not
+establish successor final-check acceptance: finite presentation of the
+conditional source relation remains open. If that presentation cannot derive
+the pure result for this witness, record the exact acceptance loss before
+considering any tradeoff. Generic handler principality also remains open: the
+finite inference abstraction must cover every reachable output of the raw
+continuation and retain a possible repeated request unless the complete
+callback relation proves that suffix request-free. The full source/runtime
+preservation proof and least finite output construction remain open.
 
 **Closure construction keeps the latent effect independently.** In the ordinary
 compositional fragment, if
@@ -1409,25 +1506,28 @@ is exactly the generalization/instantiation transport law already required by
 the coupled relation. The pure renaming case is established conditionally;
 preservation under a non-injective intrusion parent quotient remains open.
 
-This formulation is preferable to either a family/path-only selector or a
-sticky grant bit because its parts are ordinary relational composition,
-activation scope, and transport of the complete returned interface. It remains
-a candidate, not a selected successor rule: the frozen runtime has an
-implementation/specification conflict on own-path request coloring, and the
-successor must define its own one-step handler semantics and prove that this
-context formulation is sound and principal before deriving row removal.
+This formulation is the selected source rule for nested concrete receiver
+capture, and is preferable to a family/path-only selector or sticky grant bit
+because its parts are relational composition, activation scope, and transport
+of the complete interface. It does not by itself prove the one-step handler
+semantics sound or principal, so it cannot yet justify inferred row removal.
 
-Retaining the request occurrence, owner incidence, capture relation, and outer
-frame does not by itself preserve `Visible`. A visibility derivation may have
-contextual premises, including the absence of an intervening competing
-boundary; extending the context can invalidate such a premise while retaining
-all those positive facts. The helper probe therefore does not prove visibility
-monotonicity. A preserve-clause proof must transport the *complete* `Visible`
-derivation across its declared helper class, including every positive and
-negative context premise and the entire `CallView`. A suspension clause changes
-derivability in this same source judgment while keeping the frame, request, and
-symbolic `K,D` intact. Neither behavior follows from graph or context
-retention alone.
+Earlier review correctly observed that positive incidence and frame retention
+alone cannot transport `Visible` if the judgment contains an unrelated
+negative premise such as “no nested concrete receiver occurred.” The selected
+source rule resolves that case: a nested concrete call/adaptation boundary
+by itself does not invalidate an existing entitlement. Therefore the complete
+`Visible` derivation must transport over the whole `CallView` whenever the same
+origin/capture incidence is carried and `h` remains active. Its premises may
+still require proof of exact origin, operation, active handler identity, and
+runtime lineage; each must be preserved through argument adaptation, call,
+result adaptation, and force. Ordered handler search remains separate: an
+inner handler may be considered first, but that does not erase the outer
+handler's entitlement. Only an independently specified source event that
+actually exits `h`, changes the request origin, or otherwise invalidates that
+entitlement can break this transport. No such nested-receiver invalidator is
+currently defined. This is the selected semantic clause, not an inference
+from frame retention or Oracle behavior.
 
 **Conditional whole-image calculation for the concrete helper witness.** Let
 `S` be the complete scrutinee relation for `catch invoke(f)`, including callee
