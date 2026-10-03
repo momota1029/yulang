@@ -173,6 +173,29 @@ rules out that encoding, not decidability. The exact remaining theorem is a
 regular-witness construction jointly preserving descriptor sharing, fixed
 heads, present domains and signed comparison obligations.
 
+Sol's follow-up produced two reviewed partial procedures for the finite,
+unguarded ranked structural fragment, recorded in
+`notes/progress/2026-10-03-open-residual-factorization.md`. Finite quotient-
+graph enumeration positively semidecides regular solutions using exact
+descriptor edges and one direct post-fixed comparison relation per original
+inequality. A coherent finite-prefix CSP tower semidecides absence of any
+tree solution by König compactness. A compiler-referee review found no
+blocking or major issue, with the required restriction-coherent frontier and
+finite-signature assumptions. These searches do not decide regular
+satisfiability when a nonregular-only tree solution is possible. The
+unrestricted private-`Top` padding route is refuted by `Int <: X` and
+`Bool <: X`; a marker confined to inactive absent-field payloads remains
+unresolved. A bounded Astra audit did not settle the regular-model property
+or produce a nonregular-only counterexample. It refuted a simple whole-path
+signed-domain closure: `{f:C(Int)} <: {}` terminates at the absent upper
+Record field, so variance below that omitted branch must not reactivate the
+comparison. Any next construction must propagate variance only through
+shared present paths while preserving descriptor sharing and shifted root
+equations. The next theorem question remains an effective regularization
+construction for those jointly activated obligations, a finite
+nonregular-only counterexample, or another terminating regular-satisfiability
+route. This does not authorize source-semantic changes or implementation.
+
 Immediate gate (ordered by the user's 2026-10-03 clarification): realize the
 selected source-level function-introduction and contextual-elaboration path
 before port interpretation:

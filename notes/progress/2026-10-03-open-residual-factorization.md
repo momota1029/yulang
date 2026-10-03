@@ -399,3 +399,91 @@ The audit requested `gpt-6-astra` at low effort after Sol/architect localized
 this new theorem bottleneck; live runtime settings were not independently
 observable. No Oracle inspection, edits, tests, builds, or measurements were
 performed.
+
+### Shared-quotient partial search procedures (2026-10-03)
+
+Sol derived two exact partial procedures for the finite, unguarded ranked
+structural fragment. A compiler-referee independently reviewed them and found
+no blocking or major issue. These procedures do not settle the regular-witness
+gap above.
+
+**Regular-solution positive semidecision.** After finite-label erasure, retain
+the input's fixed constructor heads and finitely many atom identities, along
+with a representative atom for non-input leaves. Enumerate finite well-sorted
+quotient graphs, root maps, exact descriptor edges, and a separate relation of
+ordered graph-node pairs for every original inequality occurrence. Require
+each relation to be post-fixed by the direct local comparison rules: matching
+atoms and heads, Record upper-field inclusion with its required child pairs,
+and variance-directed children (same direction, reversed, or both). Every
+accepted graph is a direct regular solution; every regular solution has a
+finite bisimulation quotient and supplies these certificates. Thus size
+enumeration eventually finds every regular solution. No finite bound on graph
+size, nor negative termination, is established.
+
+**Arbitrary-tree negative semidecision.** For depth `n`, construct one finite
+prefix CSP over all shared descriptor tracks and all per-bound signed
+comparison states. Enforce shifted descriptor equations
+`L(q,iw)=L(child_i(q),w)` only when both addresses are present. Enforce local
+shape and comparison obligations when their inspected coordinates fit; do
+not add a terminal/default head at the frontier. `Pad` represents missing
+shape only, never an active Type or Field value. Restrictions from depth
+`n+1` to `n` preserve feasibility, so coherent prefix assignments form a
+finitely branching tree. König's lemma gives a full possibly nonregular
+assignment exactly when every depth is feasible; every equation and direct
+comparison obligation is checked at some finite depth. Therefore, if no
+arbitrary-tree solution exists, increasing-depth search eventually finds a
+finite infeasible CSP. This does not decide regular satisfiability if an
+arbitrary solution exists but no regular witness is known.
+
+The attempts are complementary but do not combine into a terminating regular
+decision procedure: regular graph enumeration can run forever on a regular-
+unsatisfiable package, while the depth tower remains feasible for any
+arbitrary-tree solution, including a hypothetical nonregular-only one. The
+unresolved theorem is either an effective regular-witness bound/construction
+for every arbitrary-tree solution in this fragment, or another terminating
+regular-satisfiability method.
+
+The sorted uniform-rank attempt remains incomplete. Unrestricted padding of
+an absent-field payload by a fresh `Top` is unsound if that value is available
+at ordinary Type roots: `Int <: X` and `Bool <: X` admit the spurious `X =
+Top`, although direct atom comparison rejects the original package. A marker
+strictly confined to inactive absent-field payloads is not refuted by this
+example; it would need a proven sorting/containment mechanism. This narrows the
+failed padding route and is not an impossibility result.
+
+Review caveats: keep each original inequality's own comparison relation;
+preserve exact descriptor sharing and absent Record slots; do not use endpoint
+success composition; and state finite head/atom alphabets explicitly. This is
+an existence-only theorem result, with no permission/guard/`Phi/K,D`, effects,
+casts, source-acceptance, resource-policy, or implementation claim. No code,
+tests, builds, Oracle inspections, or measurements changed.
+
+### Astra audit of the regular-model boundary (2026-10-03)
+
+After Sol localized the exact remaining regular-witness question, a bounded
+Astra audit tried to prove or refute: if the finite descriptor-and-inequality
+fragment has an arbitrary-tree solution, must it have a regular solution?
+This attempt established neither implication nor counterexample. It did
+identify why a simple whole-path signed-domain replacement for §7.4.3 is not
+sound.
+
+With a contravariant unary constructor `C`,
+`{f:C(Int)} <: {}` succeeds because the upper Record has no `f` field, so
+structural comparison terminates at that Record-width step. A whole-path
+sign analysis that descends through `f` and reverses direction at `C` would
+continue into a branch the comparison never visits and impose a spurious
+requirement. Variance may reverse an active comparison only along descendants
+that survive every preceding head/Record-width check.
+
+A sound route may track head agreement and variance only at shared present
+comparison paths, treating omitted Record branches as terminal successes. The
+audit did not show that this can be combined in an effective finite quotient
+with (1) shifted descriptor equations `(q,i·w)=(child(q,i),w)`, (2) tree-child
+coherence `(q,w)` to `(q,w·i)`, and (3) the same shared interpretation at all
+descriptor occurrences. Thus this is an obstruction to one global signed-path
+closure argument, not to regularity or decidability itself. The remaining
+theorem is a finite regularization construction for those jointly activated
+obligations, or a finite nonregular-only counterexample. No such counterexample
+was found. The Astra request was `gpt-6-astra` at low effort; live runtime
+settings were not independently observable. No files, tests, builds, Oracle
+queries, or measurements changed.
