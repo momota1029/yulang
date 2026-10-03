@@ -320,10 +320,26 @@ the open graph-wide gate for this example only. No test was executed.
 An independent compiler-referee delta review found no issue in the reconstructed
 path or in the separation between test assertions and call-path evidence.
 
+A further source audit found a conditional upstream-spine mechanism. Each
+ordinary source-generated `Var(vᵢ) <: Var(vᵢ₋₁)` stores both the lower edge on
+`vᵢ₋₁` and the mirrored upper edge on `vᵢ`. A concrete lower can replay along
+that upper when it is unclaimed or has an uncovered coverage root. Iterating
+this requires a semantically new lower at each hop or a separate proof that a
+previous duplicate already preserved its next obligation. Fully covered
+connecting uppers can stop concrete replay; mixed roots retain the endpoint
+pair only with uncovered roots. The frozen raw multi-hop test directly inserts
+lower bounds and therefore does not test this mirrored-edge path. A bounded
+compiler-referee audit found this a tractable operational induction under
+empty weights, stable variables and successful processing, while cycles,
+filters, extrusion, contexts and consumer conversion stay open. This remains
+characterization, not successor semantics.
+
 ## Next gate
 
-Prove graph-wide bound-replay conservation for a fixed finite source
-elaboration and closed Record shapes. Define concrete-to-variable bound
+First prove or refute the restricted eligible-edge spine lemma, including
+freshness or prior-processing evidence at every hop. Then prove graph-wide
+bound-replay conservation for a fixed finite source elaboration and closed
+Record shapes. Define concrete-to-variable bound
 meaning and admissible same-pivot replay; account for covered row uppers both
 at their owning variable and through inherited coverage on other variables.
 Preserve original guarded obligations and required replay queries with their

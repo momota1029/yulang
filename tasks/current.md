@@ -112,7 +112,8 @@ and `X <: Y` to lower `X` on `Y` plus upper `Y` on `X`; the replay builders
 select prepared pair routes, compose lower/upper weights, and can prefilter
 actions. Lower insertion also has incremental row-residual routes, outside the
 fixed-endpoint fragment. This refines the candidate, not source authority. The
-next gate is graph-wide bound-replay conservation: define replay admission
+next gate is first to prove or refute the conditional per-hop spine lemma,
+then graph-wide bound-replay conservation: define replay admission
 independently of proof-store/queue policy, preserve original guarded
 boundaries, and prove exactly which ordinary pair queries arise with their
 parent IDs, contexts, weights and eligibility evidence. For covered row
@@ -152,6 +153,16 @@ own generic pair. The test directly asserts suppression and no residual `f`,
 but not the later alpha replay/row derivation. Its constructor heads have no
 arguments, so it does not exercise child-argument obligations. This trace
 supports only this bounded route, not the general conservation theorem.
+
+The next proof slice is an ordinary variable-edge spine: source-generated
+`vᵢ <: vᵢ₋₁` constraints install the mirrored upper needed to send a concrete
+lower back upstream. The operational argument is conditional on an eligible
+upper at every hop (unclaimed or at least one uncovered root), a semantically
+new lower at each hop or prior-processing evidence, empty weights, stable
+variable identities and successful worklist processing. Fully covered bridge
+uppers, duplicate lower/replay records, mixed-root provenance and cycles remain
+outside it. The raw multi-hop bound test bypasses source generation and does
+not install mirrored uppers, so it is not evidence for this lemma.
 
 A separate M3 draft now proves finite least closure for a fixed finite graph,
 payload set and context carrier. Independent semantic and conformance reviews

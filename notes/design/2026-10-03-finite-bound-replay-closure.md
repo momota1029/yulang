@@ -4,7 +4,7 @@ Status: Reviewed
 Date: 2026-10-03
 Scope: least closure of a fixed finite variable-bound graph with finite replay contexts
 Approved-by: none; the user's approved relation distinction is recorded in §1 of `2026-10-03-concrete-compatibility-boundary.md`
-Reviewed-by: architect pre-write audit; compiler_referee and spec_auditor review §§1–6 clean after primary closure of minor findings; fresh compiler_referee and spec_auditor review of §7 hypothesis; compiler_referee source-bridge and revised check-only contract-boundary deltas clean after major-finding repair; compiler_referee review of §8 clean after primary closure of one minor materialization-phase finding; architect pre-write audit plus compiler_referee/spec_auditor review of the §2/3/3.1/6 replay-admission refinement, no findings; compiler_referee §6 live-coverage suppression delta, no findings; architect/compiler_referee/spec_auditor bounded review of the same-owner and cross-source covered-row characterization, candidate only; compiler_referee review of the alpha/beta routed-path delta, no findings
+Reviewed-by: architect pre-write audit; compiler_referee and spec_auditor review §§1–6 clean after primary closure of minor findings; fresh compiler_referee and spec_auditor review of §7 hypothesis; compiler_referee source-bridge and revised check-only contract-boundary deltas clean after major-finding repair; compiler_referee review of §8 clean after primary closure of one minor materialization-phase finding; architect pre-write audit plus compiler_referee/spec_auditor review of the §2/3/3.1/6 replay-admission refinement, no findings; compiler_referee §6 live-coverage suppression delta, no findings; architect/compiler_referee/spec_auditor bounded review of the same-owner and cross-source covered-row characterization, candidate only; compiler_referee review of the alpha/beta routed-path delta, no findings; compiler_referee and spec_auditor review of the conditional eligible-edge spine delta, no findings
 Implementation authority: none
 Supersedes: none
 
@@ -286,6 +286,23 @@ At frozen commit `a58eefc31e22141574b6f20c6a5748151c6d79f1`:
   call path. This fixture uses constructor heads with no arguments, so the
   row-item match generates no child-argument subtype obligations. It is a
   useful concrete trace, not a general conservation theorem.
+- A restricted upstream-spine lemma is a tractable next unit. An ordinary
+  source comparison `Var(v_i) <: Var(v_{i-1})` installs both the lower
+  `v_i` on `v_{i-1}` and the mirrored upper `v_{i-1}` on `v_i`. At each hop,
+  if insertion of concrete `C` there is semantically new and the live mirrored
+  upper has no prepared claim entries or at least one uncovered coverage
+  root, CPK retains a generic pair to the previous variable. Repeated hops
+  then transport `C` upstream, under empty weights, unchanged extrusion and
+  successful worklist processing. This is a frozen operational lemma only.
+  Freshness is required at every hop unless prior processing is separately
+  proved: equivalent lower insertion and duplicate replay can merge evidence
+  without re-running the next hop. A fully covered connecting upper can stop
+  concrete transport; mixed coverage carries only the uncovered roots on the
+  retained pair. The existing raw multi-hop bound test directly calls
+  `add_lower_bound` and does not install the mirrored uppers, so it cannot
+  certify this source-generated chain lemma. Cycles, weights, filters,
+  variable-changing extrusion, guards and consumer conversion remain outside
+  this fragment.
 - `crates/infer/src/constraints/tests/case_01.rs::var_bound_addition_replays_against_opposite_bounds_with_union_weights`
   asserts a composed-weight lower/upper endpoint constraint. The neighboring
   `var_var_replay_materializes_transitive_edges` case asserts propagation of
@@ -313,13 +330,14 @@ successor obligations:
 5. Extend the finite carrier through recursive structural children, symbolic
    effects, generalization, freshening and SCC intrusion.
 
-The next bounded source gate is a graph-wide conservation theorem for covered
-row uppers: each suppressed source-required lower/upper interaction must have
-an identified row derivation or transported obligation, including inherited
-coverage across variable edges. The theorem must distinguish route creation,
-row children, residual queries, worklist completion and consumer conversion;
-neither local row-state visitation nor concrete `Compat` transitivity can
-stand in for those links.
+The next bounded source gate is to prove or refute the restricted eligible-edge
+spine lemma above, including its per-hop freshness/prior-processing premise.
+Then account for covered-only connecting edges, mixed coverage roots and
+cycles in a graph-wide conservation theorem: each suppressed source-required
+lower/upper interaction must have an identified row derivation or transported
+obligation. Distinguish route creation, row children, residual queries,
+worklist completion and consumer conversion; neither local row-state
+visitation nor concrete `Compat` transitivity can stand in for those links.
 
 No source syntax, acceptance behavior, cast-selection policy, runtime adapter
 rule, resource limit, or implementation representation is selected here.
