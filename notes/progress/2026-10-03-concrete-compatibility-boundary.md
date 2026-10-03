@@ -773,23 +773,38 @@ is not successor authority: it does not prove that Oracle-directed rules
 preserve the successor's source denotation, and its `StackWeight` rules must
 not be copied as meaning.
 
-The precise new obligation is the bridge from Function effect-row components
-to existing carriers: map a component to source-owned family occurrence(s),
-their shared assignment/incidence `g(o), ν, K,D`, and the directed-weight
-path/row split that can consume it. The candidate must prove the old split
-denotes the source-supported partial reversal for that component. The old
-weight spec alone does not prove this mapping, while the existing coupled
-relation already has the family ownership, incidence and transport vocabulary;
-do not copy those into another ledger. If this bridge is derivable, no new
-attachment/provenance field is needed. If it is not, isolate the exact
-lost source fact before proposing one.
+The precise new obligation is the source elaboration bridge from Function
+effect-row components to existing carriers. In the coupled-interface
+candidate, `g(o)` owns the family argument of a typed request occurrence; it
+does not identify every abstract component. An abstract component may denote
+an entire correlated row view, while a concrete component may contribute
+multiple typed occurrences. The source rule must map each component to its
+complete interface under the same `ν`, then preserve the existing occurrence
+incidence `D`, predicate `K`, and any applicable directed-weight path/split.
+The existing relation has the ownership/incidence/transport vocabulary; do
+not copy it into another ledger. Exact component-to-occurrence elaboration is
+not in the present source definition, so no exact mapping is derivable yet.
 
-Other genuinely new obligations are deriving the source classification and
+The coupled handler relation defines subtraction by the residual support of
+the complete handler image, not by family-set difference. A handled request
+may be emitted again by the raw continuation and remain in the outward row.
+Therefore old `L - J` residual evidence alone does not prove a reverse step
+that claims a family/key disappears from outward support; that claim needs
+the corresponding output-absence proof through the complete handler image.
+This is not a blanket condition for every reverse step: other partial
+inverses must follow their own source accumulation rule. No lost fact requiring
+a new carrier is identified yet. Prove the existing evidence sufficient first;
+only propose a field if a specific source fact cannot be recovered from it.
+
+Other genuinely new obligations are defining source classification and
 correlation of abstract/concrete type components, proving canonical-flat
 covariant normalization and polarity-specific contravariant descriptor
 elaboration preserve the existing solution fiber, and jointly resolving both
-ports for the linked `[b,d]` / shared-`e` cases. These are integration and
-preservation proofs, not justification for another subtraction algebra.
+ports for the linked `[b,d]` / shared-`e` cases. Existing `Force(D) >>= B`
+source structure accounts for argument and body effects together, but does not
+settle exact `[b,d]` combination, component classification, or `never`
+elaboration. These are source-integration and preservation proofs, not
+justification for another subtraction algebra.
 Until a concrete evidence gap is demonstrated, partial “reverse addition” is
 only a possible reformulation of existing subtraction evidence. No Oracle
 `Never`/`Any`/empty-row behavior was promoted into the account.

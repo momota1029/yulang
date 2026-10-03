@@ -121,22 +121,37 @@ source proof already required by the effect-design gate. The reuse boundary is:
 | Needed fact in a Function inequality | Existing carrier to reuse | Remaining proof question |
 |---|---|---|
 | Which handler boundary may consume a concrete contribution | Directed left-weight path and scoped `SubtractId` in the old calculus; source handler/activation relation in the coupled-interface candidate | Derive the successor eligibility condition and show the edge/path witness denotes it |
-| What was consumed and what remains | Old row head split `J = K ∩ Common(L)` and residual `L - J`; relational handler image and residual support projection | Prove the mapping from typed concrete row components to `J`, preserving dependent arguments and shared assignment |
+| What was consumed and what remains | Old row-head split `J = H ∩ Common(L)` and residual `L - J`; relational handler image and residual support projection | Prove the mapping from typed concrete row components to `J`, preserving dependent arguments and shared assignment; `H` here is the old calculus's concrete head set, not relational predicate `K` |
 | Which symbolic family arguments remain coupled | Existing source-owned `g(o)`, occurrence incidence, shared `ν`, and symbolic `K,D` in the coupled relation | Show a Function effect component occurrence maps to those existing owners; do not add a duplicate ownership map |
 | How constraints survive transformation | Existing replay / variance transport and relational reindexing laws | Prove covariant flat normalization and contravariant descriptor construction preserve the same solution fiber |
 
-The genuinely new obligation is the bridge between the Function effect-row
-syntax/components and those existing carriers: the component-to-occurrence
-mapping, plus a proof that the old subtraction evidence denotes precisely the
-source-supported partial reversal when used by the single `A <: B` resolver.
-The directed-weight specification alone does not supply that source theorem.
-If the bridge can be derived from existing occurrence/incidence and weight
-facts, no extra attachment/provenance datum is needed. If it cannot, identify
-the exact lost source fact before proposing a field. The covariant flat-row
-normalization and the joint two-port Function rule are also new integration
-proofs, but neither licenses a parallel row-subtraction algebra. No new total
-cancellation algebra, shared-correspondence map, family-ownership ledger, or
-parallel regional/attachment/provenance calculus is proposed.
+The genuinely new obligation is the bridge between Function effect-row
+syntax/components and those existing carriers. A general abstract component
+may denote an entire correlated row view, and a concrete component may
+contribute multiple typed request occurrences. Thus neither maps one-to-one
+to `g(o)`. The source elaboration must map a component to the appropriate
+complete interface under the same `ν`, then identify the occurrence incidence
+and directed-weight path/split that account for it. It must prove the old
+subtraction evidence denotes the source-supported partial reversal when used
+by the single `A <: B` resolver. The directed-weight specification alone does
+not supply that theorem.
+
+The coupled-interface candidate defines handler subtraction as residual
+support of the full handler image, not set difference: a handled request may
+be emitted again by its raw continuation, so the request can remain in the
+outward support. The old row split's `L - J` residual is therefore not itself
+the semantic proof that a concrete contribution disappears from outward
+support. Whenever a proposed reverse step claims that a family/key disappears,
+the bridge must establish the corresponding output-absence condition through
+the full handler image. A reverse step that recovers some other source
+accumulation must be justified by that source rule; it should not be forced
+into handler subtraction. If this bridge follows from existing
+occurrence/incidence and weight facts, no extra attachment/provenance datum is
+needed. If not, identify the exact lost source fact before proposing a field.
+Covariant flat-row normalization and the joint two-port Function rule remain
+integration proofs; neither licenses a parallel row-subtraction algebra. No
+new total cancellation algebra, shared-correspondence map, family-ownership
+ledger, or parallel regional/attachment/provenance calculus is proposed.
 
 The intended coupled cases remain:
 

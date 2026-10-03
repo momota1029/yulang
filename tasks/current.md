@@ -120,17 +120,24 @@ is withdrawn. `notes/design/2026-10-03-source-context-finite-closure.md`
 records a conditional finite-context theorem for supplied templates, not the
 source-wide template-generation proof.
 
-Immediate gate: build the source-to-carrier crosswalk for Function effect
-components before elaborating new descriptor machinery. Show whether component
-occurrences map to the existing `g(o)`, shared `ν`, incidence `D`, family
-predicate `K`, and directed-weight path/row-split evidence. Prove that the
-existing subtraction evidence entails each allowed partial reversal, or name
-the exact source fact it cannot express; do not add a duplicate attachment or
-provenance field in advance. Then prove the normalization/transport of the
-canonical-flat covariant view and polarity-specific contravariant view over
-those same carriers. This mapping must account for the intended linked
-`[b,d]` and shared-`e` Function cases without promoting Oracle
-`Never`/`Any`/empty-row artifacts.
+Immediate gate: define the source elaboration from Function effect-row
+components to the existing complete interface before adding descriptor
+machinery. `g(o)` owns an argument of a typed request occurrence, not an
+arbitrary abstract component; one abstract component may denote a whole
+correlated row and one concrete component may contribute multiple requests.
+Specify the component's interface under the same `ν`, then derive its existing
+occurrence incidence `D`, family predicate `K`, and applicable
+directed-weight path/split. A reverse step that claims a family/key disappears
+from outward support must establish output absence through the full handler
+image: old `L - J` evidence alone cannot rule out raw-continuation re-emission.
+Other reverse steps must follow their corresponding source accumulation rule,
+without assuming they are handler subtraction. Prove the existing carriers
+entail each allowed reversal, or identify the exact source fact they cannot
+express; do not add a duplicate attachment/provenance field in advance. Then
+prove canonical-flat covariant and polarity-specific contravariant
+normalization preserve that same solution fiber. Account for the linked
+`[b,d]` and shared-`e` cases without promoting Oracle `Never`/`Any`/empty-row
+artifacts.
 
 After that crosswalk, return to the distinct fixed application-lane gate:
 justify the joint descriptor witnesses/local-exactness premises in §8.2 for
