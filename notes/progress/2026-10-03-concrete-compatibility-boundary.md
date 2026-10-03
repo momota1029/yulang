@@ -953,3 +953,37 @@ using the clause to derive either intended Function inequality. Compiler-
 referee/spec-auditor review is required before any later semantic selection;
 no user decision is needed merely to continue this conditional derivation.
 No tests or builds ran.
+
+### Conditional support projection from receiver comparison (2026-10-03)
+
+Sol derived a source-independent corollary of typed-computation-core §9. Fix
+one admissible assignment `ν`, one checked challenge `d ∈ D_checked(ν)`, a
+common complete-observation carrier, and the same supplied support projection
+`Q` at the same source-defined boundary on both sides. Under
+`P_actual,ν(d) ⊆ P_checked,ν(d)`, each actual observation is itself a checked
+observation, so:
+
+```text
+∀O ∈ P_actual,ν(d):
+  Q(O) ⊆ ⋃ { Q(O′) | O′ ∈ P_checked,ν(d) }.
+```
+
+If the supplied bound additionally satisfies
+`∀O′ ∈ P_checked,ν(d): Q(O′) ⊆ Allowedν(h)`, for the same boundary/context
+`h`, then every actual observation at that checked challenge is covered by
+`Allowedν(h)`. Actual execution coverage also assumes the actual behavior is
+represented in `P_actual`. The accompanying
+`D_checked(ν) ⊆ D_actual(ν)` premise makes checked challenges admissible; it
+does not extend this conclusion to actual-only challenges.
+
+The independent spec-auditor review found no blocking or major defect and
+three minor qualification issues. The statement now quantifies only over
+`d ∈ D_checked`, fixes the same complete observation boundary and supplied
+allowance, and treats empty challenge/observation cases as vacuous. Those
+vacuities do not prove nonempty typed-row fibers; any `RowSub` conclusion still
+needs its separate nonempty-fiber premises. The review confirmed that this is
+only a consequence of supplied `D/P/Q/Allowed` data. It constructs none of
+them from annotations, defines no annotation acceptance rule, and establishes
+no handler subtraction or general Function comparison. `Filterφ` is not used,
+and deleting uncovered behavior cannot establish coverage of the original
+actual relation. No tests or builds ran.

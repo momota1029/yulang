@@ -164,6 +164,17 @@ Family coverage also does not discharge full `OpCompat` or handler checks.
 These are proof constraints on the next derivation, not a selected annotation
 meaning or a new carrier.
 
+Typed-computation-core §9 yields only a conditional support corollary: at a
+fixed shared `ν` and each `d ∈ D_checked(ν)`, inclusion of complete
+observations implies inclusion after the same supplied request-support
+projection `Q`. If checked observations are all within a supplied
+`Allowedν(h)`, actual observations are too. This says nothing about actual-only
+challenges and is vacuous for empty checked domains/observation sets; it does
+not establish nonempty typed-row fibers. Keep the same complete observation
+boundary on both sides, and treat `Allowed` as supplied rather than rebuilt
+from projected family points. The source gate must construct `D`, `P`, and
+`Allowed` from components before this corollary can help either Function case.
+
 For that elaboration, map components to existing complete-interface and
 subtraction evidence. `g(o)` owns an argument of a typed request occurrence,
 not an arbitrary abstract component; one abstract component may denote a
