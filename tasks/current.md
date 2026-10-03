@@ -1900,15 +1900,20 @@ equations do not entail it. Its two-member completions are a formal
 non-entailment witness for the evidence specification, not an executable
 source counterexample; a request may also be admitted by both `b` and `d`, so
 the proof needs an original `d` contribution witness rather than exclusive
-family attribution. Sol's non-circular formulation is a source-context image
-containment: an independently generated `κ` maps the argument `d` contribution
-through this actual `Force(D)` call into the designated positive `d` member.
-The architect audit confirms that this faithfully states the already selected
-linked contribution intent and requires no new user decision. It is not yet a
-proof: `κ` must be generated independently of `Q`, and the positive member's
-source denotation must be established independently rather than defined as
-the desired image. Once source elaboration supplies that projection, the
-existing occurrence relation can carry it without a new carrier.
+family attribution. Under the selected linked-contribution meaning, the
+bounded one-event implication is now explicit: if q is source-typed at the
+negative input d occurrence and the independently generated source context map
+`κ` carries the argument-force execution into `J_call`, bind preserves q and
+the live CallView yields whole-call `Observe`; the linked image-containment
+premise then places that same q at the designated positive d member. This
+does not assume positive membership as a premise, and b may also admit q. The
+architect audit confirms that image containment faithfully formalizes the
+already selected intent and adds no semantic choice. This conditional lemma
+does not yet construct `κ` or the positive member's denotation from an actual
+source profile; defining that denotation as the desired image would be
+circular. The remaining source elaboration must generate both independently
+of `Q`, then establish the base-case fiber. Existing typed paths and
+occurrence/incidence can carry the result without a new carrier.
 Independently,
 `BackgroundWitness` must construct a nonempty shared `Rel_C`/`ν,K,D` source
 fiber without assuming `Q = T_P <: F_cb`. The two receipts and executing views
