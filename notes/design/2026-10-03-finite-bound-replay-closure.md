@@ -4,7 +4,7 @@ Status: Draft; reframed after the user's 2026-10-03 clarification of one inequal
 Date: 2026-10-03
 Scope: finite closure of internal solver states for a fixed finite endpoint-dependent inequality transition system
 Approved-by: no solver semantics or implementation approved; the user's single-inequality direction is recorded in §1 of `2026-10-03-concrete-compatibility-boundary.md`
-Reviewed-by: prior bounded reviews cover frozen-source facts and earlier abstract closures only; compiler_referee reviewed the §8.1 subgate and confirmed its literal-leaf scope and callee-pivot replay repair; the broader reformulation remains unreviewed
+Reviewed-by: prior bounded reviews cover frozen-source facts and earlier abstract closures only; compiler_referee reviewed the §8.1 trace including the positive unique-cast path; no runtime execution was verified, and the broader reformulation remains unreviewed
 Implementation authority: none
 Supersedes: none
 
@@ -497,8 +497,9 @@ without a cast it reports `int -> bool` as `OneSidedReplayPair`, owned by the
 provenance test classifies the one replay parent as the required upper. Adding
 one cast removes the error, while two candidates produce an ambiguity. This
 is exact fixture evidence for that error/eligibility path, not a general
-source-conservation theorem and not evidence that the successful cast is
-emitted for this same fixture.
+source-conservation theorem. The lowering test does not itself run
+specialization; the source path from the same argument endpoints to emitted
+cast application is traced below.
 
 The source lowerer allocates an application-argument boundary, relates the
 callee to a Function demand carrying the argument value variable, and derives
@@ -536,6 +537,26 @@ and the emitter looks up the cast from the solved actual/consumer pair at the
 argument expression. This establishes endpoint correspondence in this fixed
 source shape by source-path inspection, but not equality of inference and
 specialization derivation identities or a runtime result.
+
+For the unique-cast variant in the same fixture, the positive specialization
+path is direct under the one-consumer, literal-leaf assumptions:
+
+1. `apply_type` obtains the known callee Function parts and calls
+   `consume_expr_value(argument, bool)` for a pure argument effect.
+2. The literal's actual type is `int`; `consume_expr_value` records actual
+   `int`, consumer `bool`, and submits that materialized inequality.
+3. `finish` resolves the expression's actual/consumer pair. Emission of the
+   application argument wraps the literal at that consumer boundary.
+4. With exactly one `int -> bool` rule in the arena,
+   `boundary_expr_with_argument_contract` obtains that rule through
+   `direct_cast_rule` and emits `Apply(InstanceRef(cast), argument)`.
+
+This is a source-code path derivation, not an executed end-to-end witness. The
+lowering fixture separately asserts that one cast candidate avoids the
+missing-cast error. Neither path sends the inference replay identity to the
+emitter; their link is the ordered `int <: bool` endpoints and the same
+application argument boundary. The code evidence does not prove universal
+replay conservation or the successor's cast policy.
 
 A useful bounded lemma would fix one monomorphic closed Function signature,
 one monomorphic callee scheme instantiation with no quantified variables, one

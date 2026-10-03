@@ -409,8 +409,14 @@ instantiation; both are now explicit, and the focused delta review found no
 remaining issue. The frozen missing-cast test
 asserts `int -> bool`, `OneSidedReplayPair`, an `ApplicationArgument` owner,
 and the `42`/`f` source sites; this closes one fixed inference-side witness.
-The positive specialization/emission bridge for that same source shape remains
-open, as does the general lemma. Frozen coverage suppression, multi-consumer
-aggregation, Record realization and source-wide replay policy remain open.
+Source inspection also traces the same unique-cast argument through
+specialization: `apply_type` submits `int <: bool`, `finish` resolves the
+actual/consumer pair, and the emitter wraps the argument with the unique cast
+application. This is not an executed end-to-end runtime witness, and no replay
+identity reaches emission. The general two-direction lemma remains open.
+An independent compiler-referee delta review confirmed this fixed positive
+source path and its endpoint scope; the emitted runtime result was not run.
+Frozen coverage suppression, multi-consumer aggregation, Record realization
+and source-wide replay policy remain open.
 See §8.1 of `notes/design/2026-10-03-finite-bound-replay-closure.md`. No tests
 or builds were run.

@@ -145,10 +145,12 @@ multi-consumer conservation remain outside this subgate.
 The frozen inference fixture already asserts the `int -> bool`
 `OneSidedReplayPair`, its `ApplicationArgument` owner and the `42`/`f` source
 sites; this closes one fixed inference-side witness. The positive
-specialization/emission bridge for that same application shape is still open.
-An independent compiler-referee delta review confirmed the repaired literal-
-leaf scope and callee-pivot transition; it did not review or certify the
-broader replay-conservation claim.
+specialization path is now traced in source: it submits the same `int <: bool`
+pair and wraps the argument with the unique cast. No executed end-to-end
+runtime witness or general two-direction conservation proof is established.
+Compiler-referee delta review confirmed the literal-leaf scope, callee-pivot
+transition and unique-cast endpoint path; it did not review or certify broader
+replay conservation.
 
 ## Checking normalization checkpoint
 
