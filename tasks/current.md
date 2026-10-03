@@ -145,8 +145,9 @@ the one minor Record-arity wording ambiguity was repaired and inspected. The
 procedure does not decide the same-witness intersection with permissions,
 guards, or `Phi/K,D`, and picks no complexity cutoff or source rejection rule.
 
-Immediate gate (reordered by the user's 2026-10-03 clarification): derive the
-source-level function-introduction and contextual-elaboration path first:
+Immediate gate (ordered by the user's 2026-10-03 clarification): realize the
+selected source-level function-introduction and contextual-elaboration path
+before port interpretation:
 
 ```text
 function literal + expected context
@@ -267,9 +268,10 @@ supports only the transport schema
 `Interpret(Γ,ν,p,τ)` as a view into existing `Rel_C`, not a denotation. The
 earlier binary question about complete-view bounds versus additional
 contributions is superseded by the user's role-first clarification. Do not
-choose either component interpretation before deriving how introduction and
-expected context select the role and elaborate the complete interface. No
-new carrier or solver phase is justified by the current evidence.
+choose either component interpretation before boundary propagation and
+complete role-indexed interface elaboration determine whether such a mapping
+is needed. No new carrier or solver phase is justified by the current
+evidence.
 
 The bounded source crosswalk now derives the available skeleton: core §6
 constructs a lambda from `Value(Fun(P,Result(I_b)))`; §21 generates `P` and
@@ -302,23 +304,25 @@ unannotated literal without handler expected context is Pure; explicit
 Function annotation is a Handler boundary; callback-position literal is
 Handler from expected context. Core §6 plus §21 already supplies the
 `Value(Fun(P,Result(I_b)))` skeleton and independent parameter-entry choice.
-The remaining bridge is pre-body annotation/expected-context propagation and
-the complete interface each boundary elaborates. In the annotation-plus-
-callback overlap, both select Handler but their two original descriptors and
-the rule relating them remain open. Do not infer role from port spelling or
-give effect-position `never` or `Any` an independent meaning.
+The selected callback source order passes its expected boundary into literal
+elaboration before body constraints. The remaining bridge is to realize that
+pre-body propagation in the source pipeline and derive the complete interface
+each boundary elaborates. In the annotation-plus-callback overlap, both select
+Handler but their two original descriptors and the rule relating them remain
+open. Do not infer role from port spelling or give effect-position `never` or
+`Any` an independent meaning.
 
 For the unannotated callback literal, the user's callback-position rule
 selects Handler and §21 gives `old` ordinary Value entry. The stable-core
 `r.update` fixture has a Function-valued callback formal, but core §6 only
 synthesizes the argument and constrains its whole computation interface
-against the formal; it does not prove the expected interface reaches lambda
-introduction before body elaboration. The next lemma must derive that
-application/lambda contextualization and preserve inert construction and
-receipt/entry order. Treat the prior expected-context path as conditional,
-not closed. Function ports and the pure-value inequality remain later.
+against the formal; it does not implement the selected rule that the expected
+interface reaches lambda introduction before body elaboration. The next
+lemma must connect that source contract to application/lambda elaboration and
+preserve inert construction and receipt/entry order. Function ports and the
+pure-value inequality remain later.
 
-Bounded target for that lemma: when a resolved callee has a declared
+Required bounded clause: when a resolved callee has a declared
 `Value(F_cb)` callback parameter and the argument is a Function literal, pass
 that formal's source boundary/profile into lambda elaboration before body
 synthesis, then generate the literal's own parameter entries by §21. Record
@@ -327,10 +331,12 @@ Function-valued value formals such as `ref.update`; unknown callees,
 computation formals, annotated-literal overlap, effect-port construction and
 complete `CallView` inclusion stay later.
 The existing static signature template `β∈B` and `Slots(β)` record the
-formal/profile; the missing source rule must link the lambda derivation to
-`β` before its body is elaborated. At runtime, a callback-boundary source
-step instantiates `b=(receiver activation, callback slot, typed contract)`
-from `β`. Do not identify this dynamic `b` before a receiver activation
+formal/profile; the source rule links the lambda derivation to
+`β` before its body is elaborated. This is the selected semantic rule, not a
+claim that current HIR/collector implements it. At runtime, a callback-
+boundary source step instantiates
+`b=(receiver activation, callback slot, typed contract)` from `β`. Do not
+identify this dynamic `b` before a receiver activation
 exists. Existing evidence suffices across both levels; no new boundary or
 provenance carrier is currently justified.
 

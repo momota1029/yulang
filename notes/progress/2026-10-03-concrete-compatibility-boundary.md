@@ -2021,3 +2021,22 @@ inequality is proved; complete role-indexed views and challenge-domain
 construction remain open. `git diff --check` is the only verification. No
 code, tests, builds, Oracle inspection or measurements; implementation
 authority remains none.
+
+### Callback expected-context semantics versus implementation (2026-10-03)
+
+The source contract is now recorded at the authority level given by the user's
+clarification: for an unannotated Function literal in a known callback slot,
+the slot's expected boundary reaches literal elaboration first, selects
+Handler, and governs Function-interface elaboration before body constraints.
+The same callback literal still gets its own parameter entry from §21. An
+explicit Function annotation selects its own Handler boundary; when it also
+occupies a callback slot, both descriptors remain distinct and their checking
+relation is open.
+
+The current core §6 synthesize-then-constrain path does not implement this
+selected source order. The formal derivation and source owner/API, declared
+interface input, complete role-indexed interface and effect-port rules remain
+open; the pure-value inequality is still unproved. A bounded spec-auditor
+review found no findings in this status correction. `git diff --check` is the
+only verification. No code, tests, builds, Frozen Oracle work or measurements;
+implementation authority remains none.
