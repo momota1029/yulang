@@ -1869,9 +1869,10 @@ inclusion. A bounded finite-generation schema now constructs the unresolved
 query with candidate receipts, correspondences and views when the finite
 source/profile graph supplies those original occurrence facts. This does not
 prove that raw source constructs the profile or that the generated paths are
-admissible. Immediate next gate: prove source construction of those inputs and
-typed admissibility for the existing bounded identity callback witness, then
-keep universal domain and observation inclusion separate. An independent Astra
+admissible. Immediate next gate: prove `ArgEventToCallMember` for the bounded
+identity callback witness and establish its base-case open source fiber without
+assuming `Q`, then test candidate-evidence admissibility. Keep universal domain
+and observation inclusion separate. An independent Astra
 audit and the follow-up Sol derivation split that gate into two independent
 premises. A bounded compiler-referee audit confirms that, given supplied
 role-indexed typed paths for `F_cb` and original `Slots(β)`, source application
@@ -1880,13 +1881,22 @@ with the argument-effect position, and the supplied positive `d` member of
 `[b,d]` with the complete-call effect position `J_call`; core §9 gives their
 signs, while §21 and the callback slot view preserve the actual Force and
 view. This is only structural occurrence-to-port association and depends on
-the supplied role-indexed interface. It does not prove that requests exposed
-by `Force(D)` are observed at that designated `d` member. The stronger
-`EventPortProjection` must preserve event/dependency identity through
-suspension and resumption and establish the source-generated Flow/Observe
-correspondence to that member under the original profile; row membership,
-matching family names, and the complete-call scope alone are insufficient,
-especially when `b` can contain the same family. Independently,
+the supplied role-indexed interface. For the stipulated decorated identity
+witness, the one-event execution itself preserves `q`, its operation
+instance/origin, `ν,K,D`, response endpoint and pending suffix through bind and
+one current-state resumption; typed-boundary pre-dispatch execution context
+therefore gives `Observe` at both the nested force view and whole `J_call`
+view. This remains conditional on a supplied decorated execution and legal
+response, and `Observe` names the whole call port. It does not attribute `q`
+to the positive `d` member of `[b,d]`. The remaining
+`ArgEventToCallMember` lemma must carry the original negative `d` incidence
+of the request from `Force(J_arg)` to that same positive `d` member at
+`J_call.effect`, preserving its source identity and shared ledger. Whole-call
+`Observe`, `K,D` identity, matching family names, and row membership alone do
+not establish this: the complete row could admit the event through `b`
+without linking it to `d`. This is a source projection obligation expressible
+with existing typed paths and occurrence/incidence, not evidence for a new
+carrier. Independently,
 `BackgroundWitness` must construct a nonempty shared `Rel_C`/`ν,K,D` source
 fiber without assuming `Q = T_P <: F_cb`. The two receipts and executing views
 do not establish fiber nonemptiness. After these premises, candidate evidence
