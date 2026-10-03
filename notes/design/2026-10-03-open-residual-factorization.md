@@ -3,7 +3,7 @@
 Status: Reviewed
 Date: 2026-10-03
 Scope: candidate factorization theorem for open structural bounds after scoped rational equality quotienting
-Reviewed-by: compiler_referee and spec_auditor (M3, 2026-10-03); initial structural-outcome repairs, conditional factorization-lemma review, and operation-instance context delta found no remaining findings in reviewed scopes
+Reviewed-by: compiler_referee and spec_auditor (M3, 2026-10-03); initial structural-outcome repairs, conditional factorization-lemma review, and operation-instance context delta found no remaining findings in reviewed scopes; bounded compiler_referee delta review of §7.1's one-class atomic-Record fiber found no findings
 Implementation authority: none
 Supersedes: none
 
@@ -260,6 +260,90 @@ Before this candidate can be treated as a closed theorem package:
    fixed-strategy uniform-parent result does not establish that bridge or
    finite source syntax.
 
+### 7.1 Exact structural fiber for one atomic-Record class
+
+This subsection closes a bounded structural satisfiability case after a fixed
+successful equality quotient. It is not a source rejection rule or an
+effective solver for the full residual package. Let one descriptor-free class
+`X` have supplied, immutable bound contexts and constraints
+
+```text
+L_i <= X        (i in I_L)
+X <= U_j        (j in I_U)
+```
+
+where every `L_i` and `U_j` is a finite mandatory Record with unique labels,
+and every field value is a primitive atom or a rigid atom compared only by
+identity. Ignore `Perm`, guards and `Phi` for the structural fiber in this
+subsection; conjoin them on the same witness below. Define
+
+```text
+U = ⋃_{j∈I_U} labels(U_j)
+```
+
+Every upper occurrence of one label `f` must have the same atom; call it
+`u_f`. When `I_L` is nonempty, also define
+
+```text
+I = ⋂_{i∈I_L} labels(L_i)
+A = { f∈I | all L_i(f) are the same atom }
+```
+
+For `f∈A`, call that common atom `a_f`. The unguarded structural conjunction
+has a solution exactly when upper occurrences agree for every `f∈U` and, if
+lower bounds exist, `U⊆A` with `u_f=a_f` for every `f∈U`.
+
+Its complete structural fiber is:
+
+- If lower bounds exist: `X = Record(D,t)` where `U⊆D⊆A` and `t(f)=a_f`
+  for every `f∈D`.
+- If there are no lower bounds: `X = Record(D,t)` for any finite `D⊇U`,
+  with `t(f)=u_f` on `U`; every field in `D\U` has an arbitrary
+  contractive regular assignment in the declared structural domain.
+- If there are no bounds: every assignment in that regular domain, including
+  non-Records.
+
+For necessity, any supplied Record bound forces `X` to have a Record head.
+Each `L_i<=X` requires every selected label of `X` to occur in every lower
+record and requires `L_i(f)<=t(f)` at that label. Identity-only atomic
+comparison gives `D⊆A` and `t(f)=a_f`. Each `X<=U_j` requires all labels in
+`U_j` to occur in `X` with the same atom, yielding `U⊆D`, upper agreement,
+and (when there are lower bounds) `U⊆A` and `u_f=a_f`. Conversely, when
+these conditions hold, `D=U` with fields `u_f` witnesses structural
+feasibility; all other assignments listed in the fiber satisfy the same
+width and identity checks. A finite acyclic record is contractive.
+
+In particular, lower-field disagreement only forbids selecting that field
+into `X`; it is not a contradiction unless an upper bound requires it. Thus
+`{f:Int}<=X` and `{f:Bool}<=X` admit `X={}`. Conversely,
+`X<={f:Int}` and `X<={f:Bool}` conflict on required `f`. An empty lower
+record forces `D=∅`, so it conflicts with any nonempty required upper. With
+no lower bounds, `X<={}` has `U=∅` and admits every finite Record extension,
+including arbitrary contractive regular fields; choosing `{}` proves
+existence but is not the entire fiber.
+
+The full joint condition remains the intersection of this structural fiber
+with the original permissions, bound guards, and `Phi`/`K,D` predicates on
+one assignment. `Guards(T,ω)` checks every original bound guard and each
+child-comparison guard reached while evaluating that assignment in its
+original immutable context:
+
+```text
+∃ T in StructuralFiber, ω:
+  Perm_Q(T,ω) ∧ Guards(T,ω) ∧ Phi_q(T,ω)
+```
+
+This does not assume `Phi` satisfiable, nor that separate structural and
+symbolic witnesses can be combined. Guard failure remains `GuardFailure`;
+permission failure is not an atomic mismatch; report structural contradiction
+only after relevant guards admit the comparisons. An unguarded structural
+witness does not establish a permitted or fully joint witness. This lemma
+does not generate replay tasks, alter the fixed quotient, eliminate
+projection summaries, or authorize source rejection. Optional Records,
+non-identity atom subtyping, nested flexible fields, multiple interacting
+open classes, effects, Functions, casts, feedback and effective `Phi` solving
+remain outside it.
+
 Effectful Function and operation compatibility, declared bounds, typed-family
 transport, lifecycle/generalization/freshening, full acceptance, termination,
 and resource limits remain later gates. The compiler implementation remains
@@ -267,8 +351,8 @@ unauthorized.
 
 ## 8. Verification direction
 
-After the theorem is repaired and reviewed, a finite exhaustive model check may
-exercise small regular graphs and compare the original clauses with the
+After the full theorem package is repaired and reviewed, a finite exhaustive
+model check may exercise small regular graphs and compare the original clauses with the
 normalized residual graph. Include the alias contradiction above, `X <= {}`
 with Records of several label sets, permitted-name intersections across
 aliases, productive recursive equality, and guarded recursive subtype pairs.

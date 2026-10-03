@@ -120,6 +120,13 @@ is withdrawn. `notes/design/2026-10-03-source-context-finite-closure.md`
 records a conditional finite-context theorem for supplied templates, not the
 source-wide template-generation proof.
 
+Independent Milestone-3 progress: `open-residual-factorization.md` now records
+an exact structural-fiber characterization for one fixed equality-quotient
+class bounded by mandatory Records with atomic fields. Its bounded
+compiler-referee review is clean. It preserves all `X <= {}` Record
+extensions and retains permissions, guards, and `Phi/K,D` on one witness;
+it does not solve general residual acceptance or alter the source envelope.
+
 Immediate gate: locate or derive the source clause that maps a literal
 effect-row component `τ` to its contribution to an existing complete
 receiver/computation view at one `ν`, preserving literal component identity

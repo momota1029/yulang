@@ -1179,3 +1179,28 @@ constructor-head filter are not evidence that a successor abstract component
 denotes a tail variable or that concrete atoms contribute by the same rule.
 This characterization adds no successor policy or carrier. Read-only source
 inspection; no tests/builds or edits to frozen `main`.
+
+### Independent Milestone-3 Record residual lemma
+
+While the source component decision remains open, I advanced an independent
+pure structural residual slice. For one fixed equality-quotient class `X`
+bounded above and below by finite mandatory Records with unique labels and
+identity-only atomic fields, the draft now gives the exact whole structural
+fiber. If lower bounds exist, `X`'s labels range from the union of required
+upper labels to the common lower labels whose atomic values agree; selected
+fields retain those common atoms, and required upper atoms must agree with
+them. With no lower bounds, every finite extension of the required upper
+labels is admitted, with arbitrary regular field assignments on extra
+labels. With no bounds, the whole regular domain remains. This captures
+`X <= {}` without choosing only the empty Record and shows that conflicting
+lower-only fields may be omitted.
+
+The derivation keeps the structural fiber separate from permissions, immutable
+guards, and `Phi/K,D`, which are conjoined on the same witness. It does not
+claim full residual satisfiability or authorize source rejection. An
+independent bounded M3 `compiler_referee` review found no blocking, major, or
+minor findings on necessity/sufficiency, arbitrary extensions, guard and
+permission distinctions, and the stated edge cases. The draft, index, task
+navigation and this progress record were synchronized. `git diff --check`
+passed; no tests, builds, or measurements ran. General residual acceptance,
+projection with feedback, source-generation closure and lifecycle remain open.
