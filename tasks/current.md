@@ -135,15 +135,19 @@ those descriptions from arbitrary components or Function ports. Use
 `Force(D) >>= B` only for its conditional support upper bound over all
 reachable post-force outcomes; do not assume unconditional row union.
 
-First derive an annotation contribution clause for resolved Act-family
-applications plus abstract effect components. The stable-core `[tick 'a; 'e]`
+The source derivation audit found no existing clause that maps an abstract
+effect component to a contribution in the complete receiver/computation view.
+The owning gap is source annotation/typed-interface elaboration, not a new
+solver carrier. Before deriving the intended inequalities, settle that source
+contribution and its admitted scope; keep the existing `Rel_C` fiber and
+`K,D` incidence as the candidate transport. The stable-core `[tick 'a; 'e]`
 signature is a motivating example only: its expected signature and
 `deny_contains` constraints record surface/signature behavior, while
 authoritative BracketRow and standalone EffectRowType syntax scopes leave
-semantic lowering outside their scope. State whether this first derivation
-is only that admitted fragment or can extend uniformly to all effect-row
-components; a component/type-shape guess is not authority. A reviewed
-candidate for resolved `F(α)` constrains family support of existing typed
+semantic lowering outside their scope. The admitted fragment versus uniform
+scope must follow from the selected source contribution rule, not a
+component/type-shape guess. A reviewed candidate for resolved `F(α)` constrains
+family support of existing typed
 requests and preserves full request data in the complete relation; it does
 not establish that this is the source annotation meaning. The abstract
 component denotation and component-combination rule remain open. Its

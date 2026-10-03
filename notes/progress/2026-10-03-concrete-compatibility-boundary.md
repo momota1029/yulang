@@ -1130,3 +1130,31 @@ is introduced. The genuinely open bridge is mapping source Function row
 components into those existing carriers and proving that their existing
 evidence licenses each partial reversal. No code changed; `git diff --check`
 passed, with no tests, builds, or measurements run.
+
+### Source owner for Function effect components
+
+A bounded Sol architecture derivation inspected the current source-machine,
+typed-computation, complete-interface and operation-instance clauses. Those
+clauses determine invocation, designated force, handler execution, complete
+request retention, and the conditional comparison target
+`D_checked ⊆ D_actual` plus `P_actual(d) ⊆ P_checked(d)`. They do not map an
+abstract effect-row component to a contribution in that complete relation.
+`TypedRow` starts only after occurrences and their source-owned family
+arguments are supplied; it does not create them. The missing owner is source
+annotation/typed-interface elaboration. Treating `α` as “the complete view it
+denotes” would only restate this missing rule.
+
+The existing `Rel_C` fiber is a permissible transport candidate: a source
+rule could identify a typed port there while retaining one `ν`, `K,D`, request
+incidence and continuation. The inspected clauses do not prove that this map
+covers all abstract components or that several component contributions
+combine by occurrence union. The coupled row-union law still requires a
+nonempty joint fiber and a source constructor with that support coordinate.
+The intended inequalities therefore remain selected targets, with no derived
+port-wise rule: the first needs effectful challenge admission and a combined
+argument/body observation bound; the second needs both `e` ports in the same
+assignment/fiber. Diverging prefixes, ignored retained carriers, raw
+continuation re-emission, and operation result-consumer execution remain in
+the complete source image. No `never` effect interpretation follows. The
+exact unresolved decision is the source component contribution and its scope;
+no new carrier or implementation follows from this audit.
