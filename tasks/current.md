@@ -1877,11 +1877,12 @@ inclusion. A bounded finite-generation schema now constructs the unresolved
 query with candidate receipts, correspondences and views when the finite
 source/profile graph supplies those original occurrence facts. This does not
 prove that raw source constructs the profile or that the generated paths are
-admissible. Immediate next gate: derive one shared abstract `d` denotation and
-its two port projections for the bounded identity callback witness; establish
-its base-case open source fiber without assuming `Q`; then test
-candidate-evidence admissibility. Keep universal domain and observation
-inclusion separate. Astra and compiler-referee audits refine the former
+admissible. Immediate next gate: derive the source path from the designated
+positive `d` member to the complete-call observation view and its admissibility
+beside unresolved `T_P <: F_cb`; establish the bounded identity witness's
+open source fiber without assuming `Q`; then test candidate-evidence
+admissibility. Keep universal domain and observation inclusion separate.
+Astra and compiler-referee audits refine the former
 `ArgEventToCallMember` gate into shared support membership, dynamic event
 preservation, and positive typed-incidence claims. A bounded compiler-referee
 audit confirms that, given supplied
@@ -1904,14 +1905,20 @@ observation, `K,D` identity, matching family names, or aggregate row support
 alone; they are not an executable source counterexample. A request may be
 admitted by both `b` and `d`, so exclusive family attribution is unnecessary.
 
-The proof can split into three claims. First, abstract support membership is
-immediate if both signed occurrences independently denote the same
-`Den(d,ν)` at one joint fiber and the negative source contract establishes
-`typed(q) ∈ Support(Den(d,ν))`: membership at the designated positive `d`
-occurrence follows by identity. A cross-polarity event-incidence edge is not
-needed for this set-membership step. Second, §9 bind preserves the actual
-event, origin and `K,D` through the Force-to-call execution, and the live
-CallView supplies whole-call `Observe`. Third, a positive `Path`/`Inc_C`
+The proof can split into three claims. First, the bounded compiler-referee
+delta verifies the ordinary variable clause `Den(d,ν)=ν(d)`: repeated
+occurrences of the same lexical abstract variable under one assignment have
+the same `S_d(ν)=Support(ν(d))`; no port-specific semantic value is needed.
+For the supplied role-indexed interface containing the same binder at both
+signed occurrences, if the negative source contract establishes
+`typed(q) ∈ S_d(ν)`, the designated positive `d` member has that support by
+identity. This closes shared-component support membership conditionally on
+the supplied occurrence map and shared assignment. It does not prove the
+general row-combination equation
+`Support([b,d])=S_b∪S_d`; even the weaker inclusion into the complete row
+depends on the source meaning of a positive member. Second, §9 bind preserves
+the actual event, origin and `K,D` through the Force-to-call execution, and the
+live CallView supplies whole-call `Observe`. Third, a positive `Path`/`Inc_C`
 witness still requires the positive profile occurrence's own typed mapping to
 the executing view. Support identity cannot replace capture evidence.
 
@@ -1933,11 +1940,13 @@ the dynamic execution map for a finite resolved link graph: request packets,
 current-state resumption and pending suffixes are preserved, and the call
 links its actual argument port to the producer's Value-entry path. It assumes
 the source link graph and typed port maps; reuse it rather than reproving
-trace preservation. The remaining source lemma must independently generate
-the shared abstract denotation and its two port projections from the
-role-indexed source profile, at a nonempty joint `Rel_C`/`ν,K,D` fiber. This is
-faithful to the user's same-`d` contribution intent but not yet derived from
-the current source clauses. `BackgroundWitness`, candidate evidence
+trace preservation. The remaining source lemma must generate/admit the typed
+path from the designated positive `d` member through its slot view to
+complete `J_call`, and show how its support contributes to the covariant row
+under a nonempty joint `Rel_C`/`ν,K,D` fiber. It must separately generate/admit
+the negative path to argument `Force`. These obligations preserve the user's
+selected same-`d` contribution meaning without promoting support identity to
+event incidence. `BackgroundWitness`, candidate evidence
 admissibility, and the universal domain and observation inclusions remain
 separate. Existing `Flow`/`Observe`/`Path`/`Inc_C`, `K,D`, and subtraction
 evidence show no concrete carrier gap; implementation authority remains
