@@ -296,6 +296,17 @@ unconditional row union or four independent general-Type port checks. Treat
 must follow from role-specific elaboration, not as an axiom deriving `never`
 semantics.
 
+Luna's Frozen Oracle trace at `main` commit
+`a58eefc31e22141574b6f20c6a5748151c6d79f1` is characterization evidence only:
+its specialization solver decomposes Function comparisons into four
+variance-directed child inequalities, its candidate tests assert separate
+return-effect and argument-effect variance, and its runtime `FunctionAdapter`
+adapts the argument, calls the wrapped function, then adapts the result.
+Those historical mechanisms do not establish the successor's role-derived
+effect lifting or checked port map, and the exact intended inequality was not
+tested in this trace. Do not promote this decomposition into successor
+semantics.
+
 Sol's bounded source derivation, independently reviewed by a compiler
 referee, confirms that ordinary bind yields a request-occurrence partition
 (argument force or body at a reached post-force state) and only a conditional

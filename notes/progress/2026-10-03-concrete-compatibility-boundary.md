@@ -2446,3 +2446,27 @@ is justified. The next gate is the closed identity witness's checked complete
 derive that map, isolate the missing semantic premise for user decision. No
 Oracle inspection, code, tests, API/phase selection, or implementation
 authority resulted from this investigation.
+
+### Frozen Oracle Function-adaptation characterization (2026-10-03, Luna)
+
+Read-only inspection of Frozen Oracle commit
+`a58eefc31e22141574b6f20c6a5748151c6d79f1` establishes the implementation
+shape, not successor semantics. `specialize2/type_graph.rs` decomposes a
+Function comparison into four variance-directed child constraints after
+splitting declared runtime shapes. `specialize2/tests.rs` separately
+characterizes covariant return-effect and contravariant argument-effect
+candidate checks. When both boundary endpoints are Functions,
+`specialize2/runtime_shape.rs` emits a `FunctionAdapter`; the runtime
+`apply_adapter_value_inline_result` adapts the target argument to the wrapped
+function's source argument, invokes that function, then adapts source result
+to target result. Thus the historical pipeline has distinct compatibility
+decomposition and adapter realization stages.
+
+This trace does not prove the intended
+`Fun(a, never, b, c) <: Fun(a, d, [b,d], c)`, does not identify checked
+`p_d⁻`/`p_d⁺`, and does not establish how the successor should derive its
+effect ports. In particular, Oracle's four-child decomposition and its
+`Never`/effect-row representation artifacts are not promoted to the successor
+rule. No Oracle tests were run; the cited assertions are source characterization
+at the frozen commit. No successor source, code, tests, or API/phase decision
+changed.
