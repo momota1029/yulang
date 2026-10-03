@@ -354,6 +354,22 @@ Function denotation does not provide the source context/Env domain lifting.
 No semantic reapproval, API/phase choice, new carrier, implementation
 authority, or complete inequality proof follows yet.
 
+Sol's focused source-clause audit found no existing rule that derives the
+original slot's exact `p_d⁻`/`p_d⁺` executable decorations for this existing
+Pure-value adaptation. The callback expected-context rule covers a newly
+introduced literal; core §9 supplies the complete `Force(D) >>= Return`
+execution and interaction signs; boundary `Observe`/`Flow` projects only
+already supplied positions/correspondences. The minimum remaining source
+lemma must derive the argument-force View at `p_d⁻` and the same event's linked
+complete-call contribution at `p_d⁺` from the original `β/Γβ`, while retaining
+typed correspondence, distinct callback-value/argument receipts, live
+boundary, and shared `ν,K,D`, without an effect-to-effect `Flow` edge or
+assuming inequality success. Independent compiler-referee and spec-auditor
+reviews agree that the fixed identity request/return witness remains valid;
+the owner/re-entry counterexample concerns the superseded outward-only
+observation rule, not the current pre-dispatch decorated kernel. The complete
+domain inclusions remain separately unproved.
+
 For the §8 closed identity witness, the source call reduces to
 `Force(D_req) >>= Return`. The state-threaded bind right-unit law preserves
 its request prefix, response/resumption behavior, state transitions, and

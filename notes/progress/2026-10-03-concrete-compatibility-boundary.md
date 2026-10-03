@@ -2576,3 +2576,45 @@ heads alone do not establish dependent response/history admission. Existing
 `Path`/`Inc_C`, and subtraction evidence remain sufficient candidates; no
 unrepresentable fact or need for a new carrier was found. No semantic choice,
 API/phase ownership, implementation, tests, builds, or Oracle work was added.
+
+### Sol source-clause audit of identity slot positions (2026-10-03)
+
+A focused Sol audit checked whether the exact profile-position mapping can be
+derived from existing clauses for the closed Pure identity callback witness.
+It found no such clause. The approved callback expected-context contract
+covers a *new literal* before body elaboration; its existing-Pure path keeps
+the value's actual introduction and requires a separate concrete `A <: B`
+adaptation. Core §9 supplies the complete `J_call` execution and dependency
+interaction, while typed-boundary `Observe` and `Flow` consume already
+supplied executable positions and correspondences. None equates those generic
+positions with the original slot profile's exact `p_d⁻`/`p_d⁺`; deriving them
+from an admitted adapter descriptor would assume the source fact at issue.
+
+The minimal remaining role-indexed source adequacy lemma is:
+
+```text
+β, Γβ, received V_cb ⊢ the actual Value-entry Force(D_req) executes at p_d⁻
+β, Γβ, received V_cb ⊢ that event's linked complete-invocation contribution
+                         is exposed at p_d⁺
+```
+
+The second position is a direct complete-call contribution under the user's
+selected linked-lifting intent, not an invented `Flow` edge between effect
+positions. The derivation must retain the ordinary typed correspondence from
+argument receipt to the input signature, distinct callback-value and argument
+receipts, original `β/Γβ`, live boundary, and shared `ν,K,D`, all before using
+comparison success. Existing boundary projection lemmas then compose the
+observations once those premises exist. Separately, checked-domain inclusion
+and joint observation inclusion still need proof over all admitted histories;
+the concrete identity simulation does not establish those universal clauses.
+
+Two independent bounded reviews (compiler_referee and spec_auditor) found no
+new defect in the recorded conditional identity execution. Both confirm that
+the owner/re-entry example refutes the superseded outward-only observation
+projection, not `Force(D_req) >>= Return` for this fixed request/return
+witness. The current pre-dispatch decorated kernel records enclosing views
+before dispatch and preserves ambient views during borrowed-owner re-entry;
+its theorem remains conditional on correct source decorations. Therefore this
+example creates no new solver carrier or API/phase decision. The next gate is
+the source-position adequacy proof, followed by the independent complete-domain
+proof. No implementation, tests, builds, or Oracle work occurred.
