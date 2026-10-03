@@ -3426,3 +3426,38 @@ fiber, including `Flow`, `Observe`, `Path`/`Inc_C`, and existing linked
 component evidence. The source-state `EnvStore`/`JointWF`, alias and
 transition-closure construction remains unproved. No semantic contradiction,
 new evidence carrier, or API/phase decision follows.
+
+### Source-derivation domain scope audit (2026-10-04)
+
+A bounded architect audit tested whether query-local adequacy can be
+quantified over source-generated derivation skeletons instead of the
+all-context `CallCfg` domain. This is a viable conditional theorem shape for
+one program derivation: retain its pending `q`, original slot/view and
+`ν,K,D`; define admissible worlds, whole-carrier challenges, actual complete
+`ExecuteCallable` behavior and the checked view independently of resolver
+success; then prove one-way `Resolve(q)=success` implies local adequacy for
+that query. Sequential source preservation lemmas do not compose concrete
+inequality judgments.
+
+This scope reduction is not yet justified as a replacement for the candidate
+all-context contract. To preserve its scope, derivation worlds must cover
+aliases, recursion, callbacks, returned latent interfaces, imports and raw
+resumptions, including repeated or deferred invocation without a new source
+checking occurrence. A callback transported through an alias or returned
+interface and invoked after its original receiver activation is a useful
+failure schema: checking only the immediate slot boundary could wrongly
+retain a live view. This is not an established Yulang counterexample;
+callback-context §8 requires a fresh live `CallView` for escaped invocation.
+
+The remaining irreducible source premise is an independently defined import
+and state relation, including open dependence on tested values, plus
+identity-preserving substitution/transition closure. Closed-program
+reachability alone would exclude semantic free-variable environments;
+arbitrary graph imports could include impossible states. Current authority
+does not choose or prove either construction. Thus source-skeleton adequacy
+can support a particular-program theorem only after runtime-use coverage is
+proved, while exported/generalized soundness additionally needs an
+open-client substitution theorem. Acceptance and principality are unaffected
+only if those worlds are shown to match the intended source scope. No scope
+restriction, new solver carrier, implementation, or API/phase decision is
+approved by this audit.

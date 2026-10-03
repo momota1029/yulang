@@ -1937,6 +1937,18 @@ The callback Function gate remains open, with no demonstrated contradiction
 or semantic ambiguity. Next construct the query-local source domain from
 source derivations and preserved invocation views without assuming resolver
 success or introducing a global concrete subtype semantics.
+A bounded architect audit establishes only a conditional program-local
+source-skeleton theorem shape; it does not justify replacing the candidate
+all-context domain. Before adopting that scope, prove that source derivations
+cover aliases, recursion, callbacks, returned latent interfaces, imports,
+raw resumptions and deferred/repeated runtime uses. Exported/generalized
+soundness also needs open-client substitution and independently defined
+import/state validity with transition closure. These obligations remain
+unresolved, as do acceptance/principality preservation; do not narrow the
+candidate domain to closed-program reachability or arbitrary graph imports.
+The callback transported beyond its original live receiver is a failure
+schema to check, not a confirmed Yulang counterexample. No new carrier,
+source rule, API or phase is approved.
 Astra and compiler-referee audits refine the former
 `ArgEventToCallMember` gate into shared support membership, dynamic event
 preservation, and positive typed-incidence claims. A bounded compiler-referee
