@@ -1666,3 +1666,41 @@ authority.
 No code changed. No tests, builds, Oracle inspection or measurements were
 run; `git diff --check` is the focused integrity check and measurement budget
 consumed remains zero.
+
+### Conditional callback-slot view derivation (2026-10-03)
+
+I traced the pure-value-to-handler-callback case against the existing typed
+boundary, coupled-interface and source call-scheduling records. These provide
+a plausible no-new-carrier route with three independent facts: the closure
+keeps its introduction-selected receiver role; the expected callback slot
+supplies a handler-capable `CallView` on uses through that slot; and the actual
+callable keeps its §21 `Value` or `Computation` entry.
+
+Conditionally, for identity argument/result transport and a `Value`-entry
+callable, the source order is callee/callback acquisition, inert construction
+of the whole argument carrier, actual receipt, then `Force(D) >>= B`. The
+callback-slot `CallView` surrounds that invocation and supplies the
+observation port for requests from both the forced argument and body.
+`Flow`/`Observe`, occurrence/incidence and `K,D` can retain their distinct
+correlations under the same `ν`. If `d` and `b` bound argument and all reached
+post-force body behavior, respectively, their support union is a conditional
+upper bound for this single state-threaded invocation. It is not exact row
+addition or independent port subtyping. A retained computation entry does not
+force unless the body explicitly consumes its carrier.
+
+This is an explanatory source route, not yet a proved source-elaboration
+lemma: the missing premise is that the expected callback context creates the
+handler-capable slot `CallView` for a pre-existing pure-role value, with the
+correct typed observation profile and actual/checked challenge inclusion.
+Non-identity Function adaptation also remains open; the fixed adapter
+realization cannot justify forcing before actual receipt. Thus this advances
+the source explanation for joint `d`/`b` observations but does not prove the
+intended `Fun(a, never, b, c) <: Fun(a, d, [b,d], c)` relation or assign any
+effect meaning to `never`.
+
+The existing `Rel_C`, `Flow`/`Observe`, occurrence/incidence, shared `K,D`,
+and directed-weight/subtraction evidence still show no concrete missing
+fact, so I added no solver/evidence carrier. This derivation is primary-authored
+and remains unreviewed; it is research only with no implementation authority.
+No code, tests, builds, Oracle inspection or measurements were run;
+`git diff --check` is the focused record check.

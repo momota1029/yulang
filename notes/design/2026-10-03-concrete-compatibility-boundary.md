@@ -1568,3 +1568,57 @@ directed-weight/subtraction witnesses. If that derivation identifies a
 specific fact unavailable in those carriers, state the fact and its source
 owner before considering additional evidence. This construction remains
 proof-only and grants no implementation authority.
+
+#### Callback-slot view for an existing pure-role value (conditional derivation)
+
+The typed-boundary and coupled-interface drafts give a candidate source
+route for the remaining pure-value-to-handler-callback bridge. Keep three
+facts distinct:
+
+1. the function literal's introduction selected its actual receiver role;
+2. the callback slot's expected interface selects a handler-capable typed
+   `CallView` for uses through that slot;
+3. the actual callable's §21 entry still determines whether its received
+   argument carrier is forced/rebound or retained.
+
+Under this reading, checking a previously constructed pure-role function at a
+handler-capable callback interface does not rewrite the closure's role or
+entry. The typed callback-slot view encloses the ordinary call. For a
+value-entry actual callable, the source schedule remains: evaluate the
+callback/callee, inertly build the whole argument carrier, establish actual
+receipt, then execute `Force(D) >>= B` inside that call. With identity value
+and result transport, no pre-call conversion force and no synthetic receiver
+are needed. The handler-capable slot's current `CallView` supplies the
+observation port for requests from the forced argument and body; existing
+`Flow`/`Observe`, occurrence/incidence and `K,D` retain their separate
+ownership at the same `ν`.
+
+If `d` bounds the argument execution and `b` bounds body execution at every
+reachable post-force state under that same assignment, the complete
+value-entry call has the conditional support upper bound `supp(d) ∪ supp(b)`.
+This is a bound on one state-threaded call relation, not an equation obtained
+by independently subtyping effect ports. Multi-shot resumes, handler image,
+returned latent paths and future invocations remain in the complete relation;
+no row contribution may be dropped merely because a first call returned.
+Retained `Computation(E,A)` entry does not use this `Force(D)` argument unless
+the source body explicitly consumes it.
+
+This gives an operational source explanation for why a handler-capable
+callback interface can need the combined argument/body effect view while
+preserving an actual pure-role closure. It does not yet derive the complete
+`Fun(a, never, b, c) <: Fun(a, d, [b,d], c)` inequality: the source elaboration
+must still show that the callback expected context creates exactly this slot
+view, that its observation profile denotes the target port, and that the
+actual/checked complete challenge domains satisfy the joint containment law.
+The identity-transport case also does not settle non-identity argument/result
+adaptation; a generic pre-call FunctionMap cannot be assumed because it may
+force before actual receipt.
+
+The function-adapter equation in the typed-boundary draft is a conditional
+realization of `Adapt(A_t,A_s) >>= Call(f) >>= Adapt(B_s,B_t)`, not authority
+for moving `Force` before receipt. The callback-slot derivation reuses its
+complete-CallView scope and the coupled relation's event observations, but
+adds no new adapter, regional, attachment, or provenance carrier. The next
+source proof is the callback-slot elaboration/receipt diagram and its identity
+adaptation instance, followed by a witness that the effect-port projection
+contains both contributions under one `Rel_C` fiber.

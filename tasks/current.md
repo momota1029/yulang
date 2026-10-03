@@ -281,6 +281,18 @@ that source operation and its complete views before port interpretation;
 keep complete-domain/context closure later. No exact `[b,d]` proof or effect
 meaning for `never` follows from this slice.
 
+Conditional bridge candidate for the already-constructed pure-role value:
+keep its actual introduction role and §21 entry, and let the expected
+callback slot supply the handler-capable `CallView` for uses through that
+slot. Under identity argument/result transport and `Value` entry, this view
+encloses the source order `receipt; Force(D) >>= B`; it does not create a
+wrapper force before receipt. The same existing observation path can then
+account for argument and body events together. This is conditional until the
+source derivation proves that callback expected-context elaboration supplies
+that view and its target effect port under the actual/checked domain relation.
+The old FunctionMap equation does not prove this placement and cannot be
+assumed for non-identity conversions.
+
 The immediate bounded theorem is the three source-elaboration clauses and
 their use at an actual callback literal: synthesized unannotated literal,
 explicitly Function-annotated literal, and callback-context literal. Keep the
