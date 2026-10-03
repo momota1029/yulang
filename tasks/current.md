@@ -215,6 +215,19 @@ Finite paired head/orientation labels supply local comparison transitions,
 but do not prove that cycle choices satisfy descriptor transport at the same
 time. No new counterexample or regular-model result emerged.
 
+A separate narrow source-context check closes only the supplied, ordinary
+structural slice: under the user's one-query `A <: B` rule, Function/Record/
+declared-variance decomposition is internal resolution of one originating
+comparison. It selects existing quotient child ports, retains that root's
+obligation and lexical/evidence context, and re-enters the variable-level
+guard before any specialization. On a fixed finite quotient this gives at
+most `|B||P|²` rooted pair/context states. Compiler-referee review confirmed
+this conditional bound. Alias updates can remap these ports and invalidate
+guard certificates; the finite equality package bounds those updates for its
+stated input slice. This does not establish raw-source generation of finite
+`B,P,j`, multi-parent replay, extrusion, schemes/freshening, sealed transport,
+or the regular-witness theorem.
+
 Immediate gate (ordered by the user's 2026-10-03 clarification): realize the
 selected source-level function-introduction and contextual-elaboration path
 before port interpretation:

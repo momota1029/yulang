@@ -92,3 +92,26 @@ The result establishes initial root/context finiteness only. Raw annotation
 generation, complete check/conversion selection, scheme freshening, derived
 query closure and adapter placement remain open; no source-wide finiteness
 claim follows.
+
+## One-query structural child context
+
+The user's selected inequality design provides one root query `A <: B` with
+endpoint-dependent resolution. Within the bounded case where that source
+query already has a stable origin/context and endpoints in one fixed finite
+quotient, Function, mandatory Record and declared-variance decomposition are
+solver-internal resolution steps for the same query. They select existing
+child ports, preserve the originating obligation and exact lexical/evidence
+context, and check the same variable-level guard before any specialization.
+Variance changes endpoint order, not source context. Structural recursion
+therefore ranges over at most `|B||P|²` rooted pair/context states; a recursive
+back-edge revisits a state instead of allocating a path identity.
+
+A compiler-referee confirmed the conditional product bound. Alias/equality
+changes remap endpoints through the finite quotient and invalidate dependent
+guard certificates; the fixed equality construction bounds these changes in
+its stated slice. The context draft and scoped-constraint solver remain Draft,
+so this is not a proof that raw source generation supplies finite `B,P,j`.
+Replay/multi-parent context joins, extrusion-generated ports, schemes and
+freshening, sealed transport, complete source coverage, and regular witness
+existence remain open. In particular, retaining a root context does not permit
+reusing a stale guard certificate after endpoint or permission changes.
