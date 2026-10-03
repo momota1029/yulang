@@ -2292,6 +2292,18 @@ operationalization for the already approved linked lift; the component maps,
 linked-contribution derivation, complete executing view and domain/observation
 inclusion remain open. No API, phase, solver relation, or carrier is selected.
 
+A role-indexed linked-port clause now proposes those static slot-to-view maps
+before `Q`, with separate `d⁻`/`d⁺`/`b⁺` occurrence identities and dynamic
+same-event `Observe`/receipt joins afterward. A compiler-referee review closed
+the two major issues in the first formulation: maps must exist for request-free
+and divergent inputs, and `Flow` cannot transport events between effect rows.
+The minor divergence wording was corrected to retain requests emitted before
+divergence. The result remains an explicit candidate port interpretation, not
+a derivation from current application/Force rules. It preserves the approved
+linked-lift intent; user confirmation is still needed before making this exact
+incidence rule durable authority. It does not prove either complete inequality
+inclusion or authorize implementation.
+
 A bounded Astra audit confirms that none of the three candidate arrows follows
 from current premises: `J_arg` follows only conditional on identifying `d⁻`
 with the whole argument computation; Force-origin observation at `J_call`
