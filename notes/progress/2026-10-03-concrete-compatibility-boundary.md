@@ -889,6 +889,21 @@ conditional on them. No carrier, independent judgment, or port rule is added.
 Next work remains semantic research; implementation and tests are not
 authorized by this result.
 
+Sol's operation-instance follow-up narrows the next source step. `OpInst` and
+`OpCompat` characterize a resolved operation declaration and an already
+typed request occurrence; ordinary invocation plus source-demanded force
+explains how such an occurrence is emitted. They do not build an occurrence
+from a row item. The stable-core fixture `act tick 'a` with bracket-arrow
+slot `[tick 'a; 'e]` and its expected-signature/`deny_contains` assertions
+show accepted surface use, not the row-item-to-interface rule. The fixture is
+bare `BracketRow`, not apostrophe-prefixed standalone `EffectRowType`; both
+syntax authorities reserve semantic lowering outside their scope. Next derive
+the annotation contribution clause for resolved Act-family applications plus
+abstract components, then determine whether it is restricted or extends to
+all admitted components. The pre-write spec review confirmed this boundary
+and cautioned against treating the fixture as an `EffectRowType` instance.
+No semicolon-tail meaning or new evidence carrier is authorized.
+
 The first generalization obstacle remains replay admission: same-pivot records
 alone do not justify a replay, and optional Records refute unconditional
 concrete transitivity. Guard inheritance, row/residual alternatives and

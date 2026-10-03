@@ -135,8 +135,15 @@ those descriptions from arbitrary components or Function ports. Use
 `Force(D) >>= B` only for its conditional support upper bound over all
 reachable post-force outcomes; do not assume unconditional row union.
 
-After finding the source contribution clause, derive both intended
-inequalities jointly from the resulting complete views, including
+First derive an annotation contribution clause for resolved Act-family
+applications plus abstract effect components. The stable-core `[tick 'a; 'e]`
+signature is a motivating example only: its expected signature and
+`deny_contains` constraints record surface/signature behavior, while
+authoritative BracketRow and standalone EffectRowType syntax scopes leave
+semantic lowering outside their scope. State whether this first derivation
+is only that admitted fragment or can extend uniformly to all effect-row
+components; a component/type-shape guess is not authority. Then derive both
+intended inequalities jointly from the resulting complete views, including
 effectful/diverging value-entry inputs, ignored retained carriers, dependent
 `K,D`, continuation re-emission, and operation callables whose native body
 returns a carrier consumed later by the declared result interface. Parameter

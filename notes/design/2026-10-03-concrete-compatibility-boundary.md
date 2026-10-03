@@ -313,6 +313,45 @@ arguments, dependent `K,D`, continuation re-emission, and operation callables
 whose native body returns a carrier consumed later by the declared result
 interface. No such interpretation or rule is selected by this note.
 
+#### Operation declarations supply only a request-instance subcase
+
+The existing operation-instance rule has a useful, narrower contribution.
+Given a resolved operation declaration and substitution `θ`, it constructs
+the complete supplied instance
+`OpInst(p,θ) = (OpId(p), F<θ(ρfamily)>, Aθ, Bθ, Λθ)`. Once a typed request
+occurrence exists, its payload, continuation, symbolic predicates, and
+incidence remain attached; `OpCompat` compares that retained instance with a
+handler arm. The ordinary source operation rule also gives the concrete
+emission path: invocation constructs a request thunk, and a source-demanded
+force emits the request. None of these rules turns a row component into a
+request occurrence.
+
+The stable-core example declares `act tick 'a` with `ping: 'a -> 'a` and
+contains a callable signature with bracket-arrow effect slot `[tick 'a; 'e]`.
+The signature manifest expects `box('a & 'b, 'c) -> ('c -> ['b] 'c) ->
+['b, 'a] ()` and rejects `tick` in the output. This is source/signature
+evidence that an Act-family application and an abstract component occur in
+one effect slot; it is not a semantic rule mapping either item into a
+complete receiver interface. The fixture uses bare `BracketRow`, not the
+separate apostrophe-prefixed standalone `EffectRowType` form `'[...]`.
+Authoritative BracketRow grammar explicitly leaves use-site wiring to HIR /
+lowering / inference out of scope. Standalone `EffectRowType` authority
+likewise leaves open/closed classification, row-tail meaning, inference, and
+annotation lowering outside syntax scope. Neither syntax authority lets a
+semicolon or final variable decide tail meaning.
+
+Thus the existing source theory can describe an Act request **after** its
+declaration and instance are supplied, and can describe how execution emits
+one. It still lacks the annotation clause that resolves an Act-family row
+component to a permitted request/interface contribution, as well as the rule
+for an abstract component such as `'e` to denote a correlated interface view
+under `ν`. It also has not classified every admitted TypeExpression as an
+effect component. The next semantic gate is to derive that annotation clause
+for resolved Act applications together with abstract components, then state
+whether the derivation is restricted to that fragment or extends uniformly
+to every admitted component. This is research only; it adds no occurrence,
+ownership, or provenance carrier and does not select a semicolon-tail model.
+
 The compact signature `'a ['b, write int] -> ['b] int` places `'a` in the
 value-input position and shares effect variable `'b` between input and result
 descriptors. `write int` is subtractive in the contravariant descriptor;
