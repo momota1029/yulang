@@ -1198,3 +1198,45 @@ stationary result state; realizing the latter as `k` gives the witness
 general construction still needs to show that finite joint contexts can be
 formed without losing shared descriptor anchors or correlations with `P/P`
 boundary solutions.
+
+### Finite joint-context state proposal for P/K feedback (unproved)
+
+The package suggests a more precise state than the rejected one-bound fold.
+For an original bound set `B` and finite exact ranked descriptor graph `K`,
+give each flexible endpoint occurrence a context atom
+
+```text
+(bound-id, flexible-endpoint-side, opposing-K-node, orientation)
+```
+
+and associate the **set of all simultaneously active atoms** with the
+flexible type node. The key includes exact `K` identity and endpoint order;
+it must not merge one occurrence merely because a single bound/partner pair
+repeats. A selected constructor head and, for a Record, its finite field mask
+are local labels in addition to the context set. Original descriptor-root
+aliases remain named graph anchors and are preserved as equations, rather
+than being identified solely by matching profiles.
+
+For a ranked child, transfer every atom in the context together: retain its
+original bound, follow the corresponding exact `K` child, and transform side/
+orientation by the declared variance. Invariant coordinates transfer both
+directions. At a Record head, create boundary obligations only for present
+fields demanded by the upper endpoint in that ordered comparison; omitted
+upper-Record branches stop there. Once both children are in `P`, retain their
+ordered original-bound boundary and solve all such boundaries jointly with
+the existing §7.4.3 machinery. Do not compose successful concrete
+comparisons.
+
+There are at most `4|B||K|` context atoms, hence at most
+`2^(4|B||K|)` context sets before finite descriptor-anchor and local-label
+products. In the displayed package this transfer yields exactly the transient
+`z` context and stationary `z₂` context recorded above. This is only a finite
+state proposal: it has not shown that quotienting all repeated
+`(context,anchor,head,field-mask)` states preserves one shared descriptor
+assignment or the same `P/P` fiber. The completeness direction must map an
+arbitrary-tree solution to a finite joint graph while proving deterministic
+child profiles, anchor equations, and compatible simultaneous `P/P` exits.
+The sufficiency direction must exhibit one post-fixed comparison relation per
+original bound on that graph. No regular-witness theorem or terminating
+procedure follows until both directions are proved and independently
+reviewed; this proposal has not received that review.

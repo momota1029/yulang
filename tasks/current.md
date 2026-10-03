@@ -148,6 +148,12 @@ stationary); the next mathematical question is whether a finite joint-context
 automaton with descriptor anchors and jointly solved `P/P` exits preserves
 arbitrary satisfiability in the whole unguarded fragment. This remains a
 candidate, not a reviewed construction.
+A concrete state proposal is now written in the progress note: each flexible
+node carries the set of all active `(bound, endpoint-side, exact-K-partner,
+orientation)` contexts, transferred jointly through ranked children and
+passed to shared §7.4.3 `P/P` boundary solving at Records. Its state count is
+finite, but the arbitrary-solution quotient and descriptor-anchor/boundary-
+fiber preservation proofs remain open; the proposal is unreviewed.
 
 ## Current work
 
