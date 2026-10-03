@@ -213,35 +213,33 @@ unconditional row union or four independent general-Type port checks. Treat
 must follow from role-specific elaboration, not as an axiom deriving `never`
 semantics.
 
-For the §8 identity witness only, the source call reduces to
-`Force(D_req) >>= Return` by §21 Value entry and identity body. The bind
-right-unit law preserves the argument computation's request prefix,
-response/resumption behavior, store/context transitions, and divergence; the
-body contributes no request of its own. This closes only behavior for a shared
-live callback-slot `CallView` after a challenge is admitted. The
-checked-to-actual challenge inclusion and projection of argument observations through the
-target's `[b,d]` view remain open, including membership of the paired
-diverging challenge.
+For the §8 closed identity witness, the source call reduces to
+`Force(D_req) >>= Return`. The state-threaded bind right-unit law preserves
+its request prefix, response/resumption behavior, state transitions, and
+divergence; the body contributes no request. For any checked challenge with
+the same `A = Int` endpoint and Value entry, same source-admissible caller
+state, and same live callback-slot `CallView`, the actual identity closure
+executes that carrier/history unchanged. This gives a runtime-domain
+simulation over finite repeated/resumed histories, not yet the typed clause
+`D_checked(ν) ⊆ D_actual(ν)`; the actual role-derived interface must still be
+shown to denote that Value-entry execution domain.
 
-For this closed identity witness, §21's `Value(A)` entry also gives a local
-runtime-domain lemma: every source-admissible checked argument carrier whose
-exposed value endpoint is `A` can be received and forced by `f`; its effect
-row, store changes, and request/resumption history do not affect the identity
-body's ability to return the forced value. This establishes inclusion into
-the runtime-call domain, not yet into the actual type interface's
-`D_actual(ν)`. The missing bridge is to derive that role-generated interface
-domain from `Value(A)` without assigning independent meaning to the
-effect-position `never`.
+The existing adapter draft has a schedule-preserving identity instance:
+`FunctionMap(Id,Id)(f)` applied to `D` reduces through `RunD(Id,x)=Return(x)`
+to the ordinary `Call(f,D)`. It therefore inserts no pre-receipt force or new
+receiver; actual §21 entry still forces after receipt. This remains a
+conditional realization candidate, not an approved source adapter rule.
 
-More precisely, when the checked challenge uses the same `A = Int`, Value
-entry, source-admissible caller state and live callback-slot `CallView`, the
-identity actual admits that challenge operationally: preserve the carrier and
-history, receive it, run its designated `Force`, then return its result. This
-simulation extends to finite repetitions and resumptions because the closed
-identity body adds no state transition or capture. It establishes the
-source-execution inclusion only; it becomes the interface clause
-`D_checked(ν) ⊆ D_actual(ν)` only after the actual role-derived interface
-domain is shown to be exactly this execution domain.
+Both candidate observations need source-generated executing `View`
+occurrences marked at their exact ports: `p_d⁻` for the input force and
+`p_d⁺` for the same event's exposed complete-call position. Identity `Flow*`,
+`Receive`, operational preservation and shared `ν,K,D` do not create or assign
+these occurrences. `Path`/`Inc_C` join them after source elaboration. The
+cross-polarity step is not a `Flow` edge between effect positions. Derive both
+port assignments from the role-specific source invocation relation, or
+identify the missing source rule. Reuse existing directed-weight/subtraction
+evidence for any witnessed partial reversal. The checked output projection
+remains open; do not infer it from flat row spelling alone.
 
 Keep complete `EnvStore`/`JointWF` construction, source alias/store transition
 closure, and finite-witness adequacy as later proof gates. They remain needed
