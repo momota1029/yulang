@@ -819,6 +819,34 @@ field. The design note now says this explicitly, and `tasks/current.md` keeps
 the fixed application-lane gate as the next action. No code or semantic rule
 changed.
 
+### Fixed application-lane source exactness audit (2026-10-03)
+
+A bounded Sol architecture derivation checked the §8.2 roots against the
+ordinary-computation, source-interface adequacy, concrete-compatibility, and
+coupled-interface clauses. It confirms two separate application roots:
+`j_arg = int <: bool` and the nonreflexive callee Function check. An admitted
+cast branch for `j_arg` separately owns its candidate Function check and
+selected body-instance checks. Neither Function root can be obtained by
+composing concrete successes.
+
+The source machine gives the execution shape `Force(D) >>= B`, and the exact
+interface transports it under one assignment with complete request origins
+and joint `K,D`. Those clauses do not interpret the Function effect ports as
+the challenge/observation domains in that relation. The concrete comparison
+law is sufficient after those domains and images are related; it is not an
+iff characterization of accepted Function comparisons. Thus it cannot prove
+both implications of §8.2 local exactness. The candidate check additionally
+needs a source rule for admission and checking of that candidate branch; the
+one-candidate fixture only removes general selection alternatives.
+
+This audit found a missing source interpretation/exact rule, not an evidence
+storage gap. Keep `W_j` as views over existing carriers. The correct next
+dependency is the source annotation/checking bridge and candidate-branch
+contract; only then can the two Function local-exactness obligations be
+instantiated and the conditional fixed-lane conservation theorem considered.
+No new carrier, resolver phase, semantic rule, or implementation follows.
+No tests/builds ran.
+
 ### Source-call adequacy for the four-port Function cases (2026-10-03)
 
 Sol derived the source call accounting from the selected ordinary-computation

@@ -270,8 +270,13 @@ Function check, rooted in the application contract and admitted candidate
 branch respectively. Neither check is reflexive or justified by
 concrete-success composition. The §8.2 `W_j` is proof notation for views into
 existing carriers, not a proposed solver record or separately allocated
-attachment/provenance bundle. Then prove the conditional fixed-lane
-boundary/task conservation in §8.2 of
+attachment/provenance bundle. The fixed-lane audit confirms that ordinary
+execution and complete-interface adequacy do not map Function effect-port
+spellings to their challenge/observation domains, and the existing comparison
+clause is sufficient rather than exact. First derive the source
+annotation/checking bridge and candidate-branch contract; then instantiate
+local exactness for the callee root and admitted cast branch separately.
+After that, prove the conditional fixed-lane boundary/task conservation in §8.2 of
 `notes/design/2026-10-03-finite-bound-replay-closure.md`. Broader replay
 admission, guards, row/residual alternatives, multi-consumer ownership,
 source-template/context closure, residual satisfiability, generalization,

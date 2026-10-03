@@ -767,6 +767,23 @@ do not prove local exactness for the application rule, literal-slot
 transport, either nonreflexive Function descriptor check, candidate checking,
 or selected-instance checking.
 
+**Fixed-lane source audit.** The current ordinary-computation package derives
+the execution shape `Force(D) >>= B`, and the source-interface adequacy package
+transports that execution through one assignment and the complete relation.
+Neither maps these Function effect-port spellings to the challenge and
+observation domains used by that relation. The component/annotation bridge is
+therefore a prerequisite to constructing `W_j`, not a missing solver record.
+The coupled-interface comparison clause is sufficient once
+`D_checked ⊆ D_actual` and `P_actual(d) ⊆ P_checked(d)` are established; it is
+not an iff characterization of every accepted Function comparison. It cannot
+alone prove both directions of §8.2 local exactness. The callee Function
+comparison remains an independent application-contract root. A cast
+candidate Function comparison belongs to an admitted candidate branch, whose
+source admission and checking contract are also not defined by the one-candidate
+fixture. Consequently neither comparison may be discharged by the historical
+pure fallback, by port-wise checking, or by treating the sufficient support
+law as exact. No additional carrier or resolver phase follows from this gap.
+
 **Conditional fixed-lane result.** If (i) every source root and required
 child task is covered by `ρ`, (ii) each used rule satisfies local exactness,
 (iii) one shared assignment `η` satisfies the shared source-root context
