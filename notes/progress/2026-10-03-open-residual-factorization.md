@@ -331,3 +331,34 @@ confirmed the mandatory Record width cases and the stated exclusions. The
 affirmative decidability and regular-witness claims above were withdrawn; the
 exact unresolved step is one sound, complete encoding into a supported
 decision procedure. See [Niehren, Priesnitz, and Su, §§3.4–4.1](https://www.cs.ucdavis.edu/~su/publications/poset.pdf).
+
+### Fixed constructor heads with variance: first extension boundary
+
+A bounded architect audit considered extending the finite-input-alphabet
+existence fragment to retain fixed Function and declared-variance heads. The
+existing finite-label erasure does preserve successful structural comparisons
+when non-input Record labels are erased, even through Function and
+declared-variance children. But the later replacement of all non-Record
+subtrees by `{}` cannot be used when input descriptors contain fixed
+constructors: doing so changes their exact descriptor equations.
+
+The current unsigned present-domain inclusion also fails as soon as variance
+is retained. Let `E = Record{}`, `R = Record{f:E}`, `S = Function(E,Int)`, and
+`T = Function(R,Int)`. Direct structural checking gives `S <: T`: Function
+argument reversal asks for `R <: E`, which holds by Record width, and the
+results agree. Yet `T` contains `arg.f` and `S` does not, so the current
+global condition `D_T ⊆ D_S` rejects this successful inequality. Reversing
+that global direction would reject ordinary covariant Record width cases;
+invariant coordinates require both directed obligations.
+
+Therefore adding constructor-slot symbols or one polarity bit to the current
+`§7.4.3` path automaton is not a proved extension. A possible next construction
+must jointly saturate present paths, required heads, and signed comparison
+paths. Constructor heads determine mandatory child slots and the variance of
+each child; those child requirements can in turn extend the path domains.
+The proof must preserve every fixed descriptor equation, establish that all
+solutions contain the saturated requirements, and construct a regular
+assignment that satisfies each original inequality directly. Regularity,
+termination, completeness, and finite-witness decoding remain unproved. This
+is a new mathematical extension of the structural existence fragment, not a
+source-semantics or implementation decision. No impossibility result follows.

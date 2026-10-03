@@ -155,6 +155,18 @@ The next theorem gate must supply one supported encoding and prove regular
 witness decoding, or use a different structural decision route. This does not
 reopen the closed §7.3 fixed-endpoint interval result.
 
+A bounded architect audit of Function/finite-arity-head inclusion finds that
+finite-label erasure still preserves successful structural comparisons, but
+the `§7.4.2–3` erasure of all non-Record subtrees to `{}` cannot preserve fixed
+constructor descriptors. The unsigned global domain condition also fails:
+with `E = Record{}`, `R = Record{f:E}`, `S = Function(E,Int)`, and
+`T = Function(R,Int)`, `S <: T` holds by contravariant argument comparison,
+although the target argument has a path absent from the lower argument. The
+extension needs joint present-path, required-head and signed comparison
+closure; merely adding slot symbols or a polarity bit to the current automaton
+is unsupported. This mathematical gate is recorded in the residual progress
+note; it selects no semantics or code.
+
 Immediate gate (ordered by the user's 2026-10-03 clarification): realize the
 selected source-level function-introduction and contextual-elaboration path
 before port interpretation:
