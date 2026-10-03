@@ -4,7 +4,7 @@ Status: Draft; reframed after the user's 2026-10-03 clarification of one inequal
 Date: 2026-10-03
 Scope: finite closure of internal solver states for a fixed finite endpoint-dependent inequality transition system
 Approved-by: no solver semantics or implementation approved; the user's single-inequality direction is recorded in §1 of `2026-10-03-concrete-compatibility-boundary.md`
-Reviewed-by: prior bounded reviews cover frozen-source facts and earlier abstract closures only; current reformulation awaits review
+Reviewed-by: prior bounded reviews cover frozen-source facts and earlier abstract closures only; compiler_referee reviewed §8.1 (minor expression-scope finding repaired); the broader reformulation remains unreviewed
 Implementation authority: none
 Supersedes: none
 
@@ -475,7 +475,56 @@ materialized consumer checks with separate provenance, and places nominal
 casts at argument expressions. It does **not** provide a single identity chain
 from an original source boundary through bound replay to the emitted
 conversion, or a proof that the conversion discharges exactly that replay.
-That cross-stage conservation relation is the next proof obligation. A
-successor may choose a different topology, but it must establish the same
-logical and execution correspondence before using replay to justify a local
-resolver result.
+The cross-stage conservation relation remains the proof obligation, but the
+current evidence supports a smaller first subgate than a universal identity
+chain.
+
+### 8.1 Candidate subgate: one ordinary application argument
+
+The frozen ordinary-cast characterization provides a concrete starting
+fixture at
+`crates/infer/src/lowering/tests/ordinary_cast_characterization.rs::live_application_cast_diagnostics_follow_zero_one_two_cardinality`:
+
+```yu
+cast(x: int): bool = false
+my f(x: bool): bool = x
+f(42)
+```
+
+The source lowerer allocates an application-argument boundary, relates the
+callee to a Function demand carrying the argument value variable, and derives
+an argument comparison through Function decomposition. Inference stores the
+literal's concrete lower and upper payloads on that variable and may generate
+a selected same-pivot replay. Specialization separately materializes the
+argument's actual/expected pair from the known parameter type; the emitter
+then selects any cast from the resolved actual and consumer endpoints and
+wraps the argument expression. The replay identity is not passed to cast
+selection. This is a pair of connected source paths, not proof of a conserved
+replay identity.
+
+A useful bounded lemma would fix one known closed Function signature, one
+ordinary argument that is a literal leaf (with no block/tail subexpressions),
+closed constructor or fixed Record endpoints, empty weights, one consumer,
+and no schemes, aliases, cycles, or row reduction. This makes the initial
+materialized path contain only the application's argument comparison; a
+later extension to block arguments must retain the separate root and tail
+comparisons and their boundary correspondence. Define the source obligation
+from that application and parameter
+contract. Then prove or refute both directions between it and the
+Function-derived argument task plus any mandatory same-pivot replay: ordered
+endpoints must agree, the consumer must remain the application boundary, and
+no extra rejecting inequality may be introduced. Separately relate the one
+materialized specialization comparison to the emitter's one actual/consumer
+pair. Treat nominal cast resolution only as a tagged outcome; this lemma
+chooses no successor cast-selection policy.
+
+This subgate deliberately does not require a single provenance ID to survive
+all stages. Frozen Function-child specialization constraints can have empty
+anchors or incomplete parent positions, while endpoint deduplication,
+consumer aggregation, and endpoint-based emission also merge identities.
+Therefore any successful proof must state the correspondence relation it
+uses, rather than infer identity preservation from matching endpoint pairs.
+This fragment can establish neither covered-row conservation nor full source
+comparison completeness. A successor may choose a different topology, but it
+must prove the same logical and execution correspondence before using replay
+to justify a local resolver result.

@@ -129,6 +129,18 @@ freshening and SCC lifecycle as separate remaining gates. No source rejection,
 cast-selection policy, implementation representation, or compiler change is
 authorized by this record. No tests/builds ran for this documentary gate.
 
+The first bounded subgate is one ordinary application with a literal-leaf
+argument, known closed Function signature, one consumer, empty weights and no
+schemes, aliases, cycles or row reduction. Frozen source connects the
+application origin to a Function-derived argument task and selected replay,
+then independently reconstructs the materialized consumer check and
+endpoint-based cast emission.
+It does not preserve one replay identity across those stages. Prove or refute
+the two-direction correspondence directly, using the application boundary and
+ordered endpoints rather than identity equality; see §8.1 of
+`notes/design/2026-10-03-finite-bound-replay-closure.md`. Covered-row and
+multi-consumer conservation remain outside this subgate.
+
 ## Checking normalization checkpoint
 
 Typed-computation-core §7 now separates source introduction/consumption,

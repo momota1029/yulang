@@ -383,3 +383,26 @@ transitions, not separate semantic `Bound`/`Compat` relations. Its source-ledger
 conservation, concrete evidence placement and source-wide context gates remain
 open. Architect audit found this reformulation viable without a new user
 choice; no implementation or source rejection is selected.
+
+## Bounded application-consumption subgate (2026-10-03)
+
+A frozen-source trace now identifies a concrete first subgate for the open
+source-to-replay conservation proof: one ordinary application with a literal
+leaf argument, one known closed Function signature, one consumer, empty
+weights, and no schemes, aliases, cycles or row reduction. The application
+lowerer creates an `ApplicationArgument` boundary and Function demand;
+Function decomposition derives an argument comparison, and literal lower and
+upper payloads can produce a selected same-pivot replay. Specialization
+independently materializes the argument check, while emission chooses a cast
+from solved actual/consumer endpoints. The inference replay identity does not
+flow to cast selection, so the subgate uses endpoint/boundary correspondence,
+not ID equality.
+
+The initial review found that a general expression may contain both a block
+root and tail materialized comparison. The subgate was narrowed to a literal
+leaf so the one-comparison premise is explicit; extending it to blocks must
+preserve both identities and boundary relations. The lemma remains a target
+to prove or refute. Frozen coverage suppression, multi-consumer aggregation,
+Record realization and source-wide replay policy remain open. See §8.1 of
+`notes/design/2026-10-03-finite-bound-replay-closure.md`. No tests or builds
+were run.
