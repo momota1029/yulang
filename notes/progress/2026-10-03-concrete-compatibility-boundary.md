@@ -387,8 +387,9 @@ choice; no implementation or source rejection is selected.
 ## Bounded application-consumption subgate (2026-10-03)
 
 A frozen-source trace now identifies a concrete first subgate for the open
-source-to-replay conservation proof: one ordinary application with a literal
-leaf argument, one monomorphic closed Function signature and one callee
+source-to-replay conservation proof: the argument lane of one ordinary
+application with a literal leaf, non-Record constructor endpoints, one
+monomorphic closed Function signature and one callee
 scheme instantiation with no quantified variables, one consumer, empty
 weights, and no aliases, cycles or row reduction. The application lowerer
 creates an `ApplicationArgument` boundary and Function demand; a callee-pivot
@@ -396,9 +397,19 @@ replay exposes the Function comparison, Function decomposition derives an
 argument comparison, and literal lower and upper payloads can produce a
 selected same-pivot replay. Specialization
 independently materializes the argument check, while emission chooses a cast
-from solved actual/consumer endpoints. The inference replay identity does not
+from solved actual/consumer endpoints. Specialization also submits a callee
+Function check. For this closed non-Record signature, the callee argument
+component remains equal; reflexivity of the full Function pair still depends
+on return and effect components, whose acceptance impact needs accounting.
+Record shapes may change that callee consumer and need separate accounting. The inference replay identity does not
 flow to cast selection, so the subgate uses endpoint/boundary correspondence,
 not ID equality.
+
+A bounded compiler-referee delta review found no blocking or major issue in
+the corrected scope. It confirmed that whole-pair reflexivity cannot be
+inferred from a closed Function shape alone: runtime-shape normalization and
+callee emission ordering remain relevant to the later whole-application
+proof. No tests ran.
 
 The initial review found that a general expression may contain both a block
 root and tail materialized comparison. The subgate was narrowed to a literal

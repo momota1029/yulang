@@ -545,9 +545,16 @@ path is direct under the one-consumer, literal-leaf assumptions:
    `consume_expr_value(argument, bool)` for a pure argument effect.
 2. The literal's actual type is `int`; `consume_expr_value` records actual
    `int`, consumer `bool`, and submits that materialized inequality.
-3. `finish` resolves the expression's actual/consumer pair. Emission of the
+3. `apply_type` also submits a callee comparison. For this closed
+   non-Record signature, `callee_arg_shape_from_actual` keeps the expected
+   argument `bool`. That establishes equality only for the Function argument
+   component; the whole callee Function pair also depends on both effect and
+   return components. Its reflexivity and immediate discharge remain
+   unverified, so the bounded argument-lane trace does not claim the callee
+   query is irrelevant to acceptance.
+4. `finish` resolves the literal's actual/consumer pair. Emission of the
    application argument wraps the literal at that consumer boundary.
-4. With exactly one `int -> bool` rule in the arena,
+5. With exactly one `int -> bool` rule in the arena,
    `boundary_expr_with_argument_contract` obtains that rule through
    `direct_cast_rule` and emits `Apply(InstanceRef(cast), argument)`.
 
@@ -561,13 +568,19 @@ replay conservation or the successor's cast policy.
 A useful bounded lemma would fix one monomorphic closed Function signature,
 one monomorphic callee scheme instantiation with no quantified variables, one
 ordinary argument that is a literal leaf (with no block/tail subexpressions),
-closed constructor or fixed Record endpoints, empty weights, one consumer, no
-aliases or cycles, and no row reduction. This makes the initial materialized
-path contain only the application's argument comparison; a later extension
-to block arguments must retain the separate root and tail comparisons and
-their boundary correspondence. The remaining lemma is a two-direction result
-for this source shape. Define the source obligation from that application and
-parameter contract. Then prove or refute that it
+closed non-Record constructor endpoints, empty weights, one consumer, no
+aliases or cycles, and no row reduction. Project explicitly to the argument
+lane: `consume_expr_value` materializes the literal's actual/expected
+comparison, while `apply_type` separately submits a callee Function check.
+Record endpoints are excluded because `callee_arg_shape_from_actual` can
+change the callee consumer to the actual Record shape; a later Record subgate
+must retain that additional comparison. Even in this non-Record case, the
+callee query's return/effect components and its effect on acceptance must be
+accounted for before claiming whole-application conservation.
+A later extension to block arguments must likewise retain the separate root
+and tail comparisons and their boundary correspondence. The remaining lemma
+is a two-direction result for this source shape. Define the source obligation
+from that application and parameter contract. Then prove or refute that it
 corresponds exactly to the Function-derived argument task plus any mandatory
 same-pivot replay: ordered endpoints must agree, the consumer must remain the
 application boundary, and no extra rejecting inequality may be introduced.

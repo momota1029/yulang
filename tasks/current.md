@@ -129,13 +129,17 @@ freshening and SCC lifecycle as separate remaining gates. No source rejection,
 cast-selection policy, implementation representation, or compiler change is
 authorized by this record. No tests/builds ran for this documentary gate.
 
-The first bounded subgate is one ordinary application with a literal-leaf
-argument, one monomorphic closed Function signature and callee scheme
+The first bounded subgate is the argument lane of one ordinary application
+with a literal-leaf argument, non-Record constructor endpoints, one monomorphic closed Function signature and callee scheme
 instantiation with no quantified variables, one consumer, empty weights, no
 aliases or cycles, and no row reduction. Frozen source connects the
 application origin through a callee-pivot Function comparison to an
 argument-derived task and selected replay, then independently reconstructs
-the materialized consumer check and endpoint-based cast emission.
+the materialized consumer check and endpoint-based cast emission. The
+specializer also submits a separate callee Function check; only its argument
+component is known equal for this non-Record signature, while the return and
+effect components and acceptance impact remain to be accounted for. Record
+shapes need their own lane accounting.
 It does not preserve one replay identity across those stages. Prove or refute
 the two-direction correspondence directly, using the application boundary and
 ordered endpoints rather than identity equality; see §8.1 of
