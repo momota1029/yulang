@@ -505,3 +505,33 @@ position-sensitive interpretation and combination algebra are open. The
 frozen `EffectRow([]) <: Never` fallback and source-traced candidate cast
 check are characterization only. The current task is to derive the coupled
 rule with kinds and polarity retained; no tests or builds ran.
+
+### Source-semantic effect-lifting derivation candidate (2026-10-03)
+
+The successor derivation now starts from the user-selected source call rules,
+not Oracle propagation: an ordinary `Value(a)` parameter receives a reified
+argument computation, forces it at entry in the same activation, rebinds its
+value, and executes the body. Thus the complete invocation's may-effect
+support is bounded using both the argument bound `d` and body bound `b`; the
+intended `[b,d]` coupling reflects one argument computation executed at
+entry. This explains the coupling mechanism and why the same `d` must occur at both
+Function ports. It does not explain how the displayed negative argument
+effect endpoint `never` denotes or selects that `Value(a)` source role. The
+successor bridge from the kinded Function interface to the source role, exact
+denotation/normalization of `[b,d]`, and symbolic typed-family transport
+remain open.
+
+Luna's bounded frozen-source report supplies only implementation facts at
+commit `a58eefc31e22141574b6f20c6a5748151c6d79f1`: effect lowering uses
+distinct positive/negative row nodes; role materialization maps some
+polarized bottoms/tops to `Never`/`Any`; `is_pure_effect` accepts both
+`Never` and empty rows; and inference has a special negative-bottom Function
+branch. Those facts characterize the historical artifact risk but are not
+premises in the source-semantic derivation. No tests or builds ran.
+
+A bounded compiler-referee review found no blocking or major issue in this
+source-semantic candidate. It identified one wording overclaim: entry force
+and body execution justify a conservative combined output bound, not that
+both supports must occur on every execution (an argument may diverge before
+the body). The task/progress records now say “bound”; the derivation remains
+conditional on the open interface premises above. No tests or builds ran.

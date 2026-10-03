@@ -84,6 +84,45 @@ generalization beyond the displayed shape remain proof obligations. The
 displayed rule is the user's intended case; no broader four-field
 subtyping rule is approved here.
 
+#### Source-semantic derivation candidate
+
+The coupled shape has a source-level explanation independent of the frozen
+Oracle subtype implementation. Under the selected source rules, an ordinary
+value parameter has role `Value(a)`. A call reifies the complete argument as
+one computation, enters the same receiver activation, forces that carrier at
+entry, rebinds its result, and then runs the body. The source continuation
+sequences argument execution before the body; if forcing diverges the body
+may never run, and if it suspends the body remains its pending suffix. For an
+argument computation `D` and body `B`, the source transition has the shape
+`Force(D) >>= (v => B(v))`. Bind preserves the ordered trace prefix from `D`
+and then the trace from `B(v)`; hence the support of the complete call is
+included in `supp(D) ∪ supp(B(v))`. If `d` bounds `supp(D)` and `b`
+uniformly bounds `supp(B(v))` for values admitted by `a`, the call is bounded
+by their may-support combination `[b,d]`. This is why the same `d` appears at
+the input and in the output bound: it is one carried computation executed at
+entry, not two independently compared Function fields. The common value
+endpoints `a,c` preserve the argument and result path in this rule.
+
+This derives the effect-lifting *mechanism* from the source call transition,
+conditional on `[b,d]` denoting a sound may-support combination and on the
+body bound being uniform over the values admitted by `a`; the source notes do
+not yet prove those interface obligations. It does not derive the
+still-missing interpretation of the displayed `never` endpoint. The
+source role rule selects `Value(a)` from an outer value-parameter annotation
+or an ordinary inferred parameter; it does not infer that role by equating
+`never` with an empty effect. To finish the intended inequality, the successor
+type/interface interpretation must connect that source role to the negative
+argument-effect endpoint in `Fun(a, never, b, c)`, or replace that endpoint
+with a kind-correct presentation while preserving the user's intended query.
+Neither `Type::Never` nor `Any` may stand in for an effect port by fiat. This
+bridge is an explicit open proof obligation. The derivation also assumes that
+`[b,d]` is the may-support combination induced by sequential call execution;
+typed-family predicates and dependencies must remain correlated when that
+combination is presented. Source-rule references: the ordinary parameter
+role decision in redesign charter §21, call/entry-force transition in the
+ordinary-computation package §3, and complete call-view effect boundary in
+that package §§3–4.
+
 Frozen-source characterization supports the coupling but does not define its
 successor meaning. `infer/.../propagate.rs` detects a negative `Neg::Bot`
 argument effect and routes both the target argument effect and source return

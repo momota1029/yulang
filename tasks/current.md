@@ -147,13 +147,18 @@ inference materialization also turns the positive bottom return effect into
 Frozen specialization decomposes the callee Function into the non-reflexive
 child `EffectRow([]) <: Never`, which the current non-fixed-head fallback
 accepts. This is historical characterization only. Successor semantics must
-distinguish value `never`, value `Any`, empty effect, any effect-universal
-effect (if the language has one), and polarized solver bottom/top; `Any` must not be assumed to mean an
-effect-universal endpoint. Re-derive the coupled Function effect-lifting rule
-with endpoint kind and polarity preserved before closing this gate. The exact
-scheme and bounded two-lane operational crosswalk are source-traced, while the
-inference fixture lacks a direct stored-scheme assertion. Record shapes need
-their own lane accounting.
+distinguish value `never`, value `Any`, empty effect, a possible effect top,
+and polarized solver bottom/top; `Any` must not be assumed to denote effect
+top. Re-derive the coupled Function effect-lifting rule
+from the source call/entry-force transition, then prove how its `Value(a)` role
+is represented by the Function's negative argument-effect endpoint without
+conflating that endpoint with `never` or an empty effect. The current note has
+a conditional derivation of why the same argument effect `d` must contribute
+to the output bound alongside body bound `b`; `[b,d]`'s exact
+denotation/normalization and typed-family dependency transport remain open.
+The exact scheme and bounded two-lane operational crosswalk are source-traced,
+while the inference fixture lacks a direct stored-scheme assertion. Record
+shapes need their own lane accounting.
 It does not preserve one replay identity across those stages. Prove or refute
 the two-direction correspondence directly, using the application boundary and
 ordered endpoints rather than identity equality; see §8.1 of
