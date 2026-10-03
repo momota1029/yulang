@@ -3032,3 +3032,57 @@ decision authorizes the view and preserves actual role/entry; it cannot be
 used as the proof of the maps that certify compatibility. Non-identity
 conversions, escaped callbacks, and arbitrary Function comparisons remain
 outside this schema.
+
+### Candidate paths are generated before inequality validation (2026-10-04)
+
+Sol's focused follow-up and an independent compiler-referee delta review
+separate construction of the source candidate from acceptance by the
+comparison. For a known instantiated `(β,F_cb,Slots(β))`, a proposed source
+elaboration may construct the slot typed view and its candidate path
+obligations alongside `T_P <: F_cb`, without assuming the query succeeds.
+This is a constraint-generation schema, not a proved raw-source elaboration
+theorem. Under the explicit premises of an ordinary typed binding/receipt for
+that slot and a typed
+application correspondence for identity argument/result views, the candidate
+package is:
+
+```text
+Receive(r, callback_slot, V_slot, M_slot)
+M_slot: β.profile -> V_slot.profile
+M_arg : β.p_d⁻ -> V_force.p_force
+M_call: β.p_d⁺ -> V_call.p_call
+```
+
+The owner receipt is the outer receiver's binding of the callback slot view;
+the actual Pure value `f` separately receives the same argument carrier `D`
+inside its unchanged §21 Value entry, where it executes `Force(D)`. The negative
+path reaches that force occurrence; the positive path reaches the complete
+actual call relation `J_call`. “Identity” stipulates structural correspondence
+and no executable conversion for this candidate, not prior proof of
+`T_P <: F_cb`. Candidate Receive/Flow decorations remain obligations until
+admissibility is shown and cannot grant authority to a rejected use.
+
+This is still conditional rather than raw-source-complete. The full
+`F_cb/profile` must assign `β.p_d⁻` to the `J_arg` input-carrier position and
+`β.p_d⁺` to the complete `J_call` observation position. Binding/application
+correspondence premises and shared-fiber well-formedness must be established.
+Neither checked-domain inclusion nor complete observation inclusion follows
+from the fixed identity witness. Existing `Flow`/`Observe`/`Path`/`Inc_C`
+remains sufficient once those typed maps and views are supplied; this audit
+identifies no need for a new carrier or provenance mechanism.
+
+The exact unsupplied premise is the profile-coordinate assignment itself:
+the complete role-indexed `F_cb/Slots(β)` elaboration must identify
+`β.p_d⁻` with `effect(J_arg)` and `β.p_d⁺` with `effect(J_call)`, preserving
+original occurrence provenance and the shared `ν,K,D` fiber. These symbols
+name required correspondences; they do not propose a new evidence carrier.
+Core §9 derives the signs of `J_arg` and `J_call` but not these embeddings. The
+user-selected linked-lifting intent places `d`
+in both negative input contribution and positive complete-call image; it does
+not construct those coordinates. Even once supplied, candidate map generation,
+map admissibility (including both receipts and typed transports), checked
+challenge-domain inclusion, and complete observation inclusion are distinct
+proof obligations. The next minimal theorem is a bounded source-elaboration
+result deriving `ι⁻_β`, `ι⁺_β` and emitting the candidate maps before resolving
+`T_P <: F_cb`, for the known instantiated slot and identity Pure-value
+invocation. No such derivation is established here.

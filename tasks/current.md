@@ -1823,25 +1823,48 @@ positions, the same `Rel_C`/`K,D`/`ν` fiber, and the existing subtraction
 evidence. Exact role-indexed port projection and shared-fiber accounting
 remain open. No API/phase, new carrier, or implementation is selected.
 
-The focused Sol/compiler-referee delta derivation now narrows the fixed
-identity path package. Given the ordinary typed binding of the known callback
-slot and the typed application correspondence for an identity argument/result
-view, the callback slot's selected invocation view is rooted at the slot
-owner's `Receive`; core §9 supplies the `J_arg`/`J_call` directions, and §21
-places the actual `Force(D)` inside the Pure value's unchanged entry. Thus the
-candidate negative path is original `β.p_d⁻` through the same received carrier
-to the actual force view, while the positive path is `β.p_d⁺` to the complete
-call view. The inner `Receive` of `D` by `f` remains separate from the outer
-receiver's `Receive` of `f` at the slot. These source correspondences are
-generated before checking `A <: B`; no successful comparison is used to
-justify them. Their application/binding premises must remain explicit because
-§9 takes typed correspondence data as input. Once the decorated views are
-supplied, existing `Flow`/`Observe`/`Path`/`Inc_C` joins the same event under
-one `ν,K,D` without a new carrier. This closes only a conditional path schema,
-not proof that the bounded raw source generates every premise, complete-domain
-inclusion, observation inclusion, or the intended inequality. Next derive the
-source binding/application correspondences for the bounded identity witness;
-then keep universal domain and observation proofs separate.
+The focused Sol/compiler-referee derivation distinguishes candidate
+correspondence generation from inequality validation. For a known instantiated
+callback slot `(β,F_cb,Slots(β))`, a proposed source elaboration can emit the
+unresolved query `T_P <: F_cb` alongside a candidate slot view and
+correspondence package, before that query succeeds or fails. This is a
+constraint-generation schema, not yet a theorem that raw source emits these
+maps. Given the ordinary typed binding of the slot and typed application
+correspondence for identity argument/result views, the slot view is rooted at
+the slot owner's `Receive`; core §9 supplies the `J_arg`/`J_call` directions,
+and §21 places the actual `Force(D)` inside the Pure value's unchanged entry.
+The conditional package is:
+
+```text
+Receive(r, callback_slot, V_slot, M_slot)
+M_slot: β.profile -> V_slot.profile
+M_arg : β.p_d⁻ -> V_force.p_force
+M_call: β.p_d⁺ -> V_call.p_call
+```
+
+The negative candidate path connects the input occurrence through the same
+received carrier to the actual force view; the positive path connects the
+complete-call occurrence. The inner `Receive` of `D` by `f` remains separate
+from the outer receiver's `Receive` of `f` at the slot. The identity premise
+means only stipulated structural correspondence with no executable conversion
+in this candidate; it is not a successful identity-adaptation judgment. The
+candidate decorations remain obligations and cannot authorize a rejected use.
+Once their typed binding/application premises are supplied, existing
+`Flow`/`Observe`/`Path`/`Inc_C` joins the same event under one `ν,K,D` without
+a new carrier. Still open are source derivation of the complete `F_cb/profile`
+coordinate assignments (`β.p_d⁻` as `J_arg`, `β.p_d⁺` as complete `J_call`),
+shared-fiber well-formedness, admissibility of the conditional package, and
+both universal clauses: checked challenge-domain inclusion and complete
+observation inclusion. No API/phase, new carrier, or implementation is
+selected. Immediate next gate: derive the bounded source-elaboration theorem
+for the known instantiated `Value(F_cb)` slot and identity Pure-value call.
+It must derive the original-profile correspondences
+`β.p_d⁻ ↔ effect(J_arg)` and `β.p_d⁺ ↔ effect(J_call)`, and show candidate
+`Receive`/application correspondence obligations are generated with
+`T_P <: F_cb` before solving it. These are proof obligations over existing
+typed views, not a proposed new carrier.
+Then check their admissibility under the shared fiber; keep universal domain
+and observation inclusion as separate later proofs.
 
 ## Main records
 
