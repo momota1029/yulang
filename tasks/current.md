@@ -1877,15 +1877,16 @@ bounded finite-generation schema now constructs the unresolved query with
 candidate receipts, correspondences and views when the finite source/profile
 graph supplies those original occurrence facts. This does not prove that raw
 source constructs the profile or that the generated paths are admissible.
-Immediate next gate: extract from the approved source semantics the complete
-admission predicates for the checked callback view and actual Pure invocation;
-if they cannot be derived, identify the exact missing source statement. Then
-prove contextual adequacy for the identity through the retained slot, deriving
-typed receipts/correspondences and same-fiber well-formedness without assuming
-`Q` or its proposed maps, with complete checked-domain and observation
-inclusion over all legal histories. The finite candidate obligation graph is
-an execution/path witness only; it is neither an admitted fiber nor proof of
-the universal clauses.
+Immediate next gate: close the identity-specific source-to-complete-interface
+adequacy bridge. Under the supplied slot view, source rules can construct
+`M_slot`, whole-carrier `M_arg`, complete `J_call`, and event-specific
+`Observe`; typed-core execution derives a checked challenge into `D_core`
+without `Q`. Still to derive is the admission map proving
+`D_checked ⊆ D_actual` for the actual complete interface, plus the source
+abstraction that yields `P_actual` and embeds its whole bound in the checked
+`[b,d]` relation under the same `ν,K,D`. Preserve all legal histories. The
+candidate graph is an execution/path witness only; it is not itself an
+admitted interface or proof of either remaining clause.
 Astra and compiler-referee audits refine the former
 `ArgEventToCallMember` gate into shared support membership, dynamic event
 preservation, and positive typed-incidence claims. A bounded compiler-referee

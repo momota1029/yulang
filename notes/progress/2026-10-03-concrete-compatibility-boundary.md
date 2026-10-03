@@ -3216,3 +3216,31 @@ or new source admission rule is chosen by this audit.
 The requested model was `gpt-6-astra` at low effort; live runtime settings
 were not independently observable. No source edits, Oracle inspection, tests,
 builds, or measurements were performed.
+
+### Source-supported callback execution skeleton: contract bridge remains (2026-10-04)
+
+A bounded compiler-referee follow-up and an independent architecture review
+revisited the identity through the retained callback slot using the typed
+boundary and source-realization records. Under a supplied slot view, source
+rules support construction of `M_slot`, whole-carrier `M_arg`, the complete
+`J_call`, and event-specific `Observe`. The core `Value(Int)` entry then gives
+the checked typed-core execution skeleton, including the unchanged
+`Force(D) >>= Return` behavior, without using the proposed inequality `Q`.
+This narrows the remaining proof to source-to-contract adequacy; it does not
+establish admission to the actual complete interface.
+
+Two inclusions remain distinct. The typed-core skeleton does not yet derive
+`D_checked ⊆ D_actual` for the actual complete interface. Also, `Observe`
+establishes event exposure/routing, while `P_actual` and `P_checked` are
+complete interface bounds; neither exact-image equality nor
+`P_actual(d) ⊆ P_checked(d)` follows from execution preservation alone. The
+remaining bridge must construct the actual interface admission map and show
+that the source abstraction embeds its whole positive bound in the checked
+`[b,d]` relation under the same `ν,K,D`, preserving all legal histories.
+
+Neither review found a legitimate semantic countercompletion or a new user
+decision needed to state that bridge. This remains a missing derivation, not
+an independence result. No compiler/API phase or new carrier was selected;
+no source changes, Oracle inspection, tests, builds, or measurements were
+performed. The primary used the existing `compiler_referee` and `architect`
+reports; this is a theorem/proof gate rather than an implementation gate.
