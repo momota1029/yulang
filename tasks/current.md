@@ -322,8 +322,28 @@ support alone also cannot replace the complete challenge domain or prove
 response/state-preserving observation inclusion. No carrier gap, new rule,
 API/phase choice, or implementation authority is established. Next gate:
 derive the checked complete `CallView` and exact profile-position map for the
-closed identity witness; if the map is not derivable from current source
-clauses, present that precise missing semantic premise for user decision.
+closed identity witness from the selected linked-lifting intent; do not treat
+the user-selected semantic link as an assumed success of the concrete
+inequality.
+
+The user's previously stated linked effect-lifting intent already selects
+that the argument contribution `d` is represented in both the contravariant
+input and positive `[b,d]` complete-call image. Do not ask for that semantic
+choice again or assume the resulting inequality succeeds. Sol's reviewed
+identity proof candidate constructs `Force(D) >>= Return` independently of
+success, composes argument/body relations under the same `ν,K,D`, and assigns
+the same Force event to `p_d⁻` and its linked positive contribution `p_d⁺`.
+The compiler-referee and spec-auditor found the bounded decomposition
+conformant, while both retain two closure obligations: derive the actual and
+checked complete challenge domains and their universal joint inclusions; and
+derive admissible source `View` decorations at the exact slot-profile
+positions independently of inequality success. The actual `Value(Int)`
+runtime simulation is not itself the static domain proof. Next proof gate:
+construct the identity receipt/decorations diagram from the original slot
+profile, prove request and pure-divergence challenge admission, then derive
+the matching `Observe`/`Receive`/`Flow`/`Path`/`Inc_C` evidence under one
+nonempty well-formed fiber. No API/phase choice, new carrier, implementation
+authority, or complete inequality proof follows yet.
 
 For the §8 closed identity witness, the source call reduces to
 `Force(D_req) >>= Return`. The state-threaded bind right-unit law preserves
@@ -380,7 +400,8 @@ preserve the Value-entry Force event and its continuation, while boundary
 `Observe` applies only after source-marked executing views are supplied. No
 evidence-carrier gap is shown. A bounded source rule linking the same Force
 event to both checked ports and the canonical flat support remains a separate
-semantic decision; API and phase ownership are unrelated and remain open.
+proof obligation under the user's already selected linked effect-lifting
+semantics; API and phase ownership are unrelated and remain open.
 
 Keep complete `EnvStore`/`JointWF` construction, source alias/store transition
 closure, and finite-witness adequacy as later proof gates. They remain needed

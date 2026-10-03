@@ -2470,3 +2470,59 @@ effect ports. In particular, Oracle's four-child decomposition and its
 rule. No Oracle tests were run; the cited assertions are source characterization
 at the frozen commit. No successor source, code, tests, or API/phase decision
 changed.
+
+### Sol identity lift candidate under the user's selected linked semantics (2026-10-03)
+
+The user's explicit intended inequality and explanation select the projected
+completion for the closed Pure-value lift: the `d` contribution from the
+argument computation is linked to the positive complete-call row `[b,d]`.
+This resolves whether that semantic link is wanted; it does not authorize
+assuming the concrete inequality's success. The earlier `p_arg`/`p_call`
+completion remains a model of the generic repository kernel only and is
+excluded by the user's selected semantics.
+
+Sol derived the identity-value execution independently from comparison
+success. For an existing Pure `f = λx.x`, with §21 `Value(Int)` entry, the
+actual invocation is
+
+```text
+J_call(D,C) = Force(D,C) >>= Return
+```
+
+The proposed checked complete relation composes the supplied argument relation
+`Arg_d(ν)` with the reached body relation `Body_b(ν)`, retaining response,
+state, pending continuation, and family constraints under one `ν,K,D`; it is
+not a Cartesian product of row supports. The candidate assigns the same Force
+event to the negative input position `p_d⁻` and its linked positive
+contribution `p_d⁺`. Existing `View`/`Observe`, `Receive`, typed `Flow`,
+`Path`/`Inc_C`, and event occurrence evidence can carry these two attachments
+without a new carrier. The actual callback-value receipt remains distinct from
+the later argument receipt, and the §21 force stays after receipt.
+
+The compiler-referee review found no blocking or major defect in this
+**conditional decomposition**: bind composition preserves the complete
+identity execution, including responses, divergence prefixes, and continuation
+suffixes. The spec-auditor confirmed conformance to the already selected user
+intent and callback-delivery scope. Neither review certifies the concrete
+inequality. Both retain these closure obligations:
+
+1. Derive the actual and checked complete challenge domains from their
+   role-derived interfaces and prove both universal inclusions in the same
+   nonempty well-formed fiber, including future uses, resumed states, stores,
+   responses, and pending suffixes. Two sample carriers or request-support
+   containment do not establish this clause.
+2. Derive admissible source-generated `View` occurrences at exact `p_d⁻` and
+   `p_d⁺` from the original callback slot/profile, before inequality success;
+   show both enclose the same emitted event and retain receipt, `ν,K,D`, and
+   live-boundary evidence. `Observe` only consumes these decorations; it does
+   not prove that they satisfy the slot contract.
+3. Establish both request-carrier and pure-divergence challenge admission,
+   and show `Return(Int)` belongs to the body relation at every reachable
+   post-force state.
+
+The exact next proof is a source-generated identity receipt/decorations
+diagram using the existing profile and evidence, followed by the universal
+domain check. No implementation, compiler API/phase, new carrier, tests, builds,
+or Oracle work resulted from this proof candidate. Review scopes were bounded
+to the identity witness and named source contracts; general Function cases,
+escaped callbacks, and the Milestone-3 residual theorem remain outside.
