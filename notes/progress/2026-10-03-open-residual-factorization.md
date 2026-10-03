@@ -1172,3 +1172,15 @@ This candidate has not received an independent compiler-referee review. The
 primary checked the displayed finite witness and the two Record obligations;
 the general acceleration gate remains open. No solver algorithm or source
 semantics follows from this counterexample.
+
+Primary follow-up on this package: the complete active comparison context
+distinguishes the root `z` from its result child `z₂`. At `z`, the bound
+partners are `k` for `b1`, `l` for `b2`, and `l` on the opposite endpoint for
+`b3`. After the chosen Function head, `z₂` has `k` as partner for all three
+bounds, with `b3` retaining the reversed endpoint order. One more covariant
+result step leaves that context unchanged. In this witness, `z=l` realizes
+the first transition with argument `e`, then `z₂=k` closes the repeated
+context. This is a diagnostic for a stronger state key carrying the joint
+cross-bound partner vector and endpoint order; it is not a general finite
+quotient theorem. Any such proposal still has to preserve descriptor aliases,
+child coherence, and all jointly imposed local head/Record constraints.

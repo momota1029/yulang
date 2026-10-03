@@ -138,6 +138,11 @@ forces one flexible argument both empty and nonempty through other original
 bounds. The exact derivation and limits are recorded as an unreviewed
 candidate in the progress note. It does not refute memoized obligations that
 preserve witness positions, nor settle the general P/K acceleration gate.
+A primary follow-up observes that this package's full joint comparison context
+does distinguish the free root from its result child and then stabilizes at
+the child. That suggests a concrete discriminant for a stronger state key,
+but does not prove a general finite quotient; descriptor sharing and
+child-coherence obligations remain open.
 
 ## Current work
 
