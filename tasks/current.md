@@ -1873,17 +1873,27 @@ admissible. Immediate next gate: prove source construction of those inputs and
 typed admissibility for the existing bounded identity callback witness, then
 keep universal domain and observation inclusion separate. An independent Astra
 audit and the follow-up Sol derivation split that gate into two independent
-premises: `SourceLink_β` must derive from source elaboration the typed
-contribution predicates linking the original negative `d` occurrence to
-`J_arg`/the actual `Force(D)`, and the original positive `d` member of `[b,d]`
-to `J_call`; `BackgroundWitness` must construct a nonempty shared
-`Rel_C`/`ν,K,D` source fiber without assuming `Q = T_P <: F_cb`. The two
-receipts and executing views generate candidate edges only when `SourceLink_β`
-is supplied, and do not establish fiber nonemptiness. After these premises,
-candidate evidence admissibility and the two universal inclusions remain
-separate. Astra found no concrete fact unavailable in existing
-`Flow`/`Observe`/`Path`/`Inc_C`, `K,D`, or subtraction evidence. No new carrier
-or implementation authority follows.
+premises. A bounded compiler-referee audit confirms that, given supplied
+role-indexed typed paths for `F_cb` and original `Slots(β)`, source application
+associates the whole inert `t_D` with `J_arg`, its supplied effect occurrence
+with the argument-effect position, and the supplied positive `d` member of
+`[b,d]` with the complete-call effect position `J_call`; core §9 gives their
+signs, while §21 and the callback slot view preserve the actual Force and
+view. This is only structural occurrence-to-port association and depends on
+the supplied role-indexed interface. It does not prove that requests exposed
+by `Force(D)` are observed at that designated `d` member. The stronger
+`EventPortProjection` must preserve event/dependency identity through
+suspension and resumption and establish the source-generated Flow/Observe
+correspondence to that member under the original profile; row membership,
+matching family names, and the complete-call scope alone are insufficient,
+especially when `b` can contain the same family. Independently,
+`BackgroundWitness` must construct a nonempty shared `Rel_C`/`ν,K,D` source
+fiber without assuming `Q = T_P <: F_cb`. The two receipts and executing views
+do not establish fiber nonemptiness. After these premises, candidate evidence
+admissibility and the two universal inclusions remain separate. Astra found
+no concrete fact unavailable in existing `Flow`/`Observe`/`Path`/`Inc_C`,
+`K,D`, or subtraction evidence. No new carrier or implementation authority
+follows.
 
 ## Main records
 
