@@ -129,24 +129,28 @@ freshening and SCC lifecycle as separate remaining gates. No source rejection,
 cast-selection policy, implementation representation, or compiler change is
 authorized by this record. No tests/builds ran for this documentary gate.
 
-The candidate bounded subgate is the argument lane of one ordinary
-application with a literal-leaf argument, non-Record constructor endpoints,
-one monomorphic closed Function signature and callee scheme instantiation
-with no quantified variables, one consumer, empty weights, no aliases or
-cycles, and no row reduction. The fixed
-`my f(x: bool): bool = x; f(42)` fixture is a candidate witness, but its full
-exported scheme has not yet been established. Frozen source connects the
-application origin through a callee-pivot Function comparison to an
+The bounded subgate is the argument lane of one ordinary application with a
+literal-leaf argument, non-Record constructor endpoints, one monomorphic
+closed Function signature and callee scheme instantiation with no quantified
+variables, one consumer, empty weights, no aliases or cycles, and no row
+reduction. A source trace derives the fixed fixture's exact scheme and empty
+side tables through annotation connection, SCC compaction, and publication;
+the fixture itself does not directly assert that scheme. Frozen source
+connects the application origin through a callee-pivot Function comparison to an
 argument-derived task and selected replay, then independently reconstructs
 the materialized consumer check and endpoint-based cast emission. The
 specializer also submits a separate callee Function check. For an ordinary
 annotated argument effect, inference materializes `Never`, while pure
-application construction uses `EffectRow([])`; a conditional source trace
-shows the resulting Function child is accepted by the current non-fixed-head
-fallback, not elided as reflexive. The fixture's exact exported scheme and
-absence of extra bounds/wrappers remain unproved. Next establish that scheme
-and then the conditional non-rejection claim. Record shapes need their own
-lane accounting.
+application construction uses `EffectRow([])`. TaskSolver's principal
+inference materialization also turns the positive bottom return effect into
+`EffectRow([])`, while preserving the negative argument effect as `Never`.
+The callee Function comparison therefore decomposes to the non-reflexive child
+`EffectRow([]) <: Never`, which the current non-fixed-head fallback accepts.
+It is not omitted as reflexive. The exact-scheme trace is documented in §8.1;
+the inference-fixture contract still lacks a direct stored-scheme assertion.
+The next source gate is two-direction conservation between the full
+application ledger and materialized consumer/evidence. Record shapes need
+their own lane accounting.
 It does not preserve one replay identity across those stages. Prove or refute
 the two-direction correspondence directly, using the application boundary and
 ordered endpoints rather than identity equality; see §8.1 of
@@ -156,11 +160,10 @@ multi-consumer conservation remain outside this subgate.
 The frozen inference fixture already asserts the `int -> bool`
 `OneSidedReplayPair`, its `ApplicationArgument` owner and the `42`/`f` source
 sites; this closes one fixed inference-side witness. The positive
-specialization path is traced conditionally: it submits the same `int <: bool`
-pair and wraps the argument with the unique cast if the assumed callee scheme
-reaches the successful path. The fixture does not assert the stored scheme.
-No executed end-to-end runtime witness or general two-direction conservation
-proof is established.
+specialization path is traced from the source-derived scheme: it submits the
+same `int <: bool` pair and wraps the argument with the unique cast. The
+fixture does not directly assert the stored scheme, and no executed end-to-end
+runtime witness or general two-direction conservation proof is established.
 Compiler-referee delta review confirmed the literal-leaf scope, callee-pivot
 transition and unique-cast endpoint path; it did not review or certify broader
 replay conservation.

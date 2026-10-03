@@ -551,16 +551,36 @@ path is direct under the one-consumer, literal-leaf assumptions:
    argument effect as `Neg::Bot`, which specialization materializes as
    `Never`; the pure apply path replaces that component on the consumer side
    with `EffectRow([])`. Thus `is_pure_effect` equality does not make the
-   whole Function query reflexive. The source-derived expected predicate
-   materializes to `Fun(bool, Never, Never, bool)` (or to empty-row effect
-   fields under runtime materialization). If the actual callee type reaching
-   `apply_type` is the inference-materialized form with no Thunk wrappers,
-   Function decomposition creates the child `EffectRow([]) <: Never`; current
-   `TypeGraph` accepts that child through its non-fixed-head fallback. The
-   callee query is then nonrejecting but not omitted as reflexive. The exact
-   exported scheme and absence of extra bounds/wrappers have not been
-   established, so this discharge result is conditional, not yet a theorem
-   about the whole fixture.
+   whole Function query reflexive. A source trace through annotation
+   connection, SCC compaction and scheme publication derives the stored
+   scheme with no quantifiers, role predicates, recursive bounds or stack
+   quantifiers and predicate `Fun(bool, Never, Never, bool)`. The diagnostic
+   fixture does not directly assert this scheme. In the actual TaskSolver
+   variable path, principal inference materialization preserves the negative
+   argument effect as `Never` but materializes positive bottom return effect
+   as `EffectRow([])`. Thus the callee type is
+   `Fun(bool, Never, EffectRow([]), bool)`. Pure application construction
+   replaces its argument effect with `EffectRow([])`, while copying the return
+   effect. The Function query is non-reflexive only in the argument-effect
+   child `EffectRow([]) <: Never`; current `TypeGraph` accepts that child
+   through its non-fixed-head fallback. It is not omitted as reflexive, and
+   this derivation does not compose successful concrete comparisons.
+   The scheme derivation follows frozen commit
+   `a58eefc31e22141574b6f20c6a5748151c6d79f1`: builtin annotations add both
+   bounds (`infer/src/annotation/constraints.rs:124–137,303–308`); ordinary
+   parameter effect uses `Neg::Bot` (`infer/src/lowering/expr/lambda.rs:1344–1353`);
+   the public lambda is assembled from the annotated parameter and body
+   (`infer/src/lowering/expr/lambda.rs:946–975`); compact simplification
+   removes one-polarity slots and exact opposite co-occurrences
+   (`infer/src/compact/analysis/mod.rs:41–57,163–201`,
+   `infer/src/compact/analysis/occurrence/mod.rs:359–397`); SCC publication
+   stores the finalized scheme (`infer/src/analysis/session/instantiate.rs:19–82`,
+   `infer/src/generalize/finalize.rs:16–25`). The two empty-bound
+   representations resolve differently in principal materialization:
+   `specialize/src/types/setup.rs:37`,
+   `specialize/src/types/materialize.rs:68,139,276–279`. Function child
+   generation and fallback acceptance are in
+   `specialize/src/specialize2/type_graph.rs:593–611,886–894,978–992`.
 4. `finish` resolves the literal's actual/consumer pair. Emission of the
    application argument wraps the literal at that consumer boundary.
 5. With exactly one `int -> bool` rule in the arena,
@@ -574,13 +594,11 @@ emitter; their link is the ordered `int <: bool` endpoints and the same
 application argument boundary. The code evidence does not prove universal
 replay conservation or the successor's cast policy.
 
-The exact callee-scheme premise above remains unverified: the fixture checks
-diagnostics rather than the stored `poly::Def.scheme`, and the complete SCC
-generalization/simplification of its internal skeleton slots has not been
-traced. The zero-cast fixture is rejected during inference, so it is not an
-executed successful specialization witness. Treat the unique-cast emission
-path as a conditional source-path derivation until the stored scheme and
-successful specialization entry are established.
+The scheme and callee-query shape above are source-derived, but the diagnostic
+fixture does not directly assert the stored `poly::Def.scheme`. The zero-cast
+fixture is rejected during inference, so it is not an executed successful
+specialization witness. Treat the unique-cast emission path as a source-path
+derivation, not as an executed end-to-end specialization result.
 
 A useful bounded lemma would fix one monomorphic closed Function signature,
 one monomorphic callee scheme instantiation with no quantified variables, one

@@ -445,3 +445,27 @@ successful end-to-end instance. The next bounded evidence target is the
 stored scheme (including quantifiers, role predicates, stack quantifiers and
 recursive bounds), followed by the callee-query non-rejection trace under
 that exact materialized signature.
+
+### Follow-up: application callee scheme and materialization mode (2026-10-03)
+
+A source trace through the annotated declaration, its internal skeleton,
+compact simplification and SCC publication derives the scheme predicate
+`Fun(bool, Never, Never, bool)` with empty value/effect quantifiers, role
+predicates, stack quantifiers and recursive bounds. This is a source
+derivation; the diagnostic fixture has no direct scheme assertion. The
+independent delta reviewer did not certify the exhaustive skeleton-variable
+elimination, so retain the derivation as source evidence rather than a tested
+fixture fact.
+
+Review corrected the TaskSolver materialization premise: principal inference
+materialization turns the positive bottom return effect into
+`EffectRow([])`, while the negative argument effect remains `Never`. The
+callee type is therefore `Fun(bool, Never, EffectRow([]), bool)`. Pure apply
+replaces its argument effect by `EffectRow([])` and copies the return effect,
+so the callee comparison decomposes into reflexive bool/result-effect
+children plus `EffectRow([]) <: Never`. That child reaches the current
+non-fixed-head fallback and succeeds. This is a single-query resolution; no
+concrete successes compose. The zero-cast fixture still fails before
+specialization, so this does not establish an executed successful instance.
+The next gate is two-direction conservation for the complete application
+ledger and materialized consumer/evidence. No tests or builds ran.
