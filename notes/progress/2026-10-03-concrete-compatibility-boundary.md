@@ -871,6 +871,24 @@ carrier for later consumption by the declared result interface as a useful
 additional adequacy case; that case was added to the next-gate record. No
 tests/builds ran.
 
+Sol then tested one uniform diagnostic lift:
+`Cτ(ρ) = ⋃{Rel_c(ρ) | Γ ⊢ c : Comp(E,τ), for some admitted E}`. It is
+meaningful only conditionally: included relations must first share a complete
+interface/challenge carrier, with source-local binders capture-avoidably
+transported while preserving the same `ν`, assignment fiber, occurrence
+incidence, and `K,D`. Even then, it interprets `τ` as a result-type constraint
+and does not map it to an effect contribution, typed-request incidence, or
+receiver challenge/observation behavior. It therefore fails as an
+effect-component interpretation and derives neither target inequality. This
+rejects that candidate only; no source counterexample to every uniform
+interpretation was found. The exact missing source clause is the mapping of a
+literal component into its contribution to an existing complete
+receiver/computation view. Spec-auditor pre-write review flagged the common
+carrier and fiber-preservation condition; the candidate is explicitly
+conditional on them. No carrier, independent judgment, or port rule is added.
+Next work remains semantic research; implementation and tests are not
+authorized by this result.
+
 The first generalization obstacle remains replay admission: same-pivot records
 alone do not justify a replay, and optional Records refute unconditional
 concrete transitivity. Guard inheritance, row/residual alternatives and

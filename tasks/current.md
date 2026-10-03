@@ -120,26 +120,32 @@ is withdrawn. `notes/design/2026-10-03-source-context-finite-closure.md`
 records a conditional finite-context theorem for supplied templates, not the
 source-wide template-generation proof.
 
-Immediate gate: derive a candidate uniform source interpretation from an
-admitted effect-row component to the complete receiver/computation interface
-at one `ν`, preserving literal component identity. Typed-computation-core §9
-already supplies the conditional comparison target
-`D_checked ⊆ D_actual` and `P_actual(d) ⊆ P_checked(d)` for every checked
-challenge, but does not build those descriptions from arbitrary components
-or Function ports. Use `Force(D) >>= B` only for its conditional support upper
-bound over all reachable post-force outcomes; do not assume unconditional
-row union. Derive both intended inequalities jointly from the candidate
-interpretation, including effectful/diverging value-entry inputs, ignored
-retained carriers, dependent `K,D`, continuation re-emission, and operation
-callables whose native body returns a carrier consumed later by the declared
-result interface. The source documents do not yet define that uniform
-interpretation, but do not refute one. Parameter roles, call scheduling,
-result forwarding, and the two target
-inequalities remain selected; no general four-port Function comparison rule
-is selected. Only consider an additional port rule after a source-derived
-counterexample to uniform interpretation. Keep value-bottom `never`, empty
-effect row, and polarized internal bottom distinct. Do not use port-wise
-general-Type checks.
+Immediate gate: locate or derive the source clause that maps a literal
+effect-row component `τ` to its contribution to an existing complete
+receiver/computation view at one `ν`, preserving literal component identity
+and the source-owned assignment fiber. A diagnostic lift
+`⋃{Rel_c | Γ ⊢ c : Comp(E,τ)}` was considered, conditionally transported to
+one common challenge/interface carrier, then rejected as effect-component
+semantics: it interprets `τ` only as a result-type constraint and supplies no
+effect contribution or request incidence. That candidate failure does not
+refute every uniform interpretation. Typed-computation-core §9 supplies the
+conditional comparison target `D_checked ⊆ D_actual` and
+`P_actual(d) ⊆ P_checked(d)` for every checked challenge, but does not build
+those descriptions from arbitrary components or Function ports. Use
+`Force(D) >>= B` only for its conditional support upper bound over all
+reachable post-force outcomes; do not assume unconditional row union.
+
+After finding the source contribution clause, derive both intended
+inequalities jointly from the resulting complete views, including
+effectful/diverging value-entry inputs, ignored retained carriers, dependent
+`K,D`, continuation re-emission, and operation callables whose native body
+returns a carrier consumed later by the declared result interface. Parameter
+roles, call scheduling, result forwarding, and the two target inequalities
+remain selected; no uniform component interpretation or general four-port
+Function comparison rule is selected. Only consider an additional port rule
+after a source-derived counterexample to uniform interpretation. Keep
+value-bottom `never`, empty effect row, and polarized internal bottom
+distinct. Do not use port-wise general-Type checks.
 
 For that elaboration, map components to existing complete-interface and
 subtraction evidence. `g(o)` owns an argument of a typed request occurrence,

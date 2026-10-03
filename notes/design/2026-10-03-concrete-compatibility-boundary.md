@@ -286,15 +286,32 @@ The existing call equation yields only the support upper bound over all
 reachable post-force outcomes. It does not justify an unconditional row-union
 equation: a retained receiver can ignore its carrier, while state-dependent
 continuations and handler transitions affect the complete image. Accordingly,
-the next proof must construct a candidate uniform component interpretation,
-derive both `D` and `P` views jointly at the same `ν`, and then check both
-intended inequalities against the source entry cases. It must preserve
-effectful/diverging value-entry arguments, ignored retained arguments,
-dependent `K,D`, continuation re-emission, and operation callables whose
-native body returns a carrier consumed later by the declared result interface.
-If no uniform interpretation
-works, identify a source counterexample before proposing a separate port rule.
-No such interpretation or rule is selected by this note.
+one diagnostic lifting candidate was considered:
+
+```text
+Cτ(ρ) = ⋃ { Rel_c(ρ) | Γ ⊢ c : Comp(E,τ), for some admitted E }
+```
+
+This is conditional notation only: it is defined only if all included
+`Rel_c` relations can be transported to one compatible complete-interface
+and challenge carrier at the same `ν`. Any capture-avoiding transport must
+preserve the source-owned assignment fiber, occurrence incidence, and `K,D`;
+otherwise the union is not a valid construction. Even under that premise,
+this candidate interprets `τ` as a computation's **result type**. It gives no
+source rule relating that result constraint to the effect contribution,
+typed-request incidence, or receiver challenge/observation behavior required
+of an effect-row component. It does not derive either intended inequality,
+and is rejected as an effect-component interpretation.
+
+The failure is local to this candidate. It does not refute every uniform
+source interpretation or select a separate Function-port rule. The next
+proof must find the source clause that maps a literal component into its
+contribution to an existing complete receiver/computation view, derive both
+`D` and `P` jointly at the same `ν`, and then check both intended inequalities
+against effectful/diverging value-entry arguments, ignored retained
+arguments, dependent `K,D`, continuation re-emission, and operation callables
+whose native body returns a carrier consumed later by the declared result
+interface. No such interpretation or rule is selected by this note.
 
 The compact signature `'a ['b, write int] -> ['b] int` places `'a` in the
 value-input position and shares effect variable `'b` between input and result
