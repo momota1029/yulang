@@ -362,3 +362,40 @@ assignment that satisfies each original inequality directly. Regularity,
 termination, completeness, and finite-witness decoding remain unproved. This
 is a new mathematical extension of the structural existence fragment, not a
 source-semantics or implementation decision. No impossibility result follows.
+
+### Synchronous tree-automaton route audit (2026-10-03)
+
+After Sol localized the joint path/head/variance closure gap, a bounded
+read-only Astra audit tested the natural synchronous multi-track tree
+automaton route. That route cannot directly enforce the fixed descriptor
+equations. The single equation `q = Fun(x,Int,x,Int)` already requires two
+child subtrees of `q` to equal the same arbitrary tree assigned to `x`. If an
+ordinary synchronized finite-state tree automaton recognized this relation,
+existential projection of the `x` track would recognize
+`{ Fun(t,Int,t,Int) | t is a finite type tree }`. That tree language is
+nonregular: after determinizing a bottom-up finite-state automaton, two
+distinct sufficiently numerous trees `u ≠ v` receive the same state. If
+`Fun(u,Int,u,Int)` is accepted, the same parent transition accepts
+`Fun(u,Int,v,Int)`. Regular tree languages are closed under track projection,
+yielding a contradiction. This rules out that direct automaton encoding of
+descriptor sharing; it does not rule out a quotient-specific saturation or
+another decidability method.
+
+The comparison transition itself can still be stated finitely: carry an
+orientation bit for each original bound; require equal heads; for Records,
+check each upper-present field and recurse covariantly only there; for known
+constructors, recurse over all fixed coordinates, preserving, reversing, or
+duplicating orientation according to declared variance. A post-fixed witness
+of these rules satisfies each original inequality directly. The missing
+construction is a regular assignment jointly satisfying these comparison
+obligations and every fixed descriptor equation. Head choice determines
+mandatory children and variance, which determines deeper path demands; the
+finite alphabets and orientation states alone do not prove this joint closure
+regular or effective. Comparison of already supplied regular types does not
+decide satisfiability over shared unknown types. No algorithm, bound, or
+impossibility result is established.
+
+The audit requested `gpt-6-astra` at low effort after Sol/architect localized
+this new theorem bottleneck; live runtime settings were not independently
+observable. No Oracle inspection, edits, tests, builds, or measurements were
+performed.

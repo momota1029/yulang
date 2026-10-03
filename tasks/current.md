@@ -165,7 +165,13 @@ although the target argument has a path absent from the lower argument. The
 extension needs joint present-path, required-head and signed comparison
 closure; merely adding slot symbols or a polarity bit to the current automaton
 is unsupported. This mathematical gate is recorded in the residual progress
-note; it selects no semantics or code.
+note; it selects no semantics or code. A bounded Astra audit then ruled out a
+naive synchronous finite-tree-automaton encoding: `q = Fun(x,Int,x,Int)` needs
+two subtrees to equal one shared arbitrary `x`; projecting out `x` would make
+an ordinary tree automaton recognize the nonregular copy language. This only
+rules out that encoding, not decidability. The exact remaining theorem is a
+regular-witness construction jointly preserving descriptor sharing, fixed
+heads, present domains and signed comparison obligations.
 
 Immediate gate (ordered by the user's 2026-10-03 clarification): realize the
 selected source-level function-introduction and contextual-elaboration path
