@@ -157,6 +157,9 @@ Function-support clause, but it does not supply the annotation-to-occurrence
 rule. A reviewed abstract-view candidate retains the existing `Rel_C`/`K,D`
 fiber and states support union only under a nonempty joint fiber and a
 source-derived occurrence-union rule; that source rule remains unproved.
+Frozen Oracle annotation lowering is recorded as characterization only: its
+`items; tail` split and constructor-head subtraction filter do not define the
+successor component rule.
 Then derive both intended inequalities jointly from
 the resulting complete views, including effectful/diverging value-entry
 inputs, ignored retained carriers, dependent

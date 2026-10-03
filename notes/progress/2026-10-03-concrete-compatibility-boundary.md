@@ -1158,3 +1158,24 @@ continuation re-emission, and operation result-consumer execution remain in
 the complete source image. No `never` effect interpretation follows. The
 exact unresolved decision is the source component contribution and its scope;
 no new carrier or implementation follows from this audit.
+
+### Frozen Oracle annotation-lowering characterization (Luna)
+
+I checked the frozen `main` annotation builder and constraint lowering only as
+historical evidence. Its `AnnEffectRow` has separate `items` and optional
+`tail`; the parser-side builder treats pre-semicolon entries as items,
+accepts only a type variable after the semicolon, and normalizes a lone
+unseparated type variable into the tail slot. Historical positive lowering
+constructs `Pos::Row(items ++ tail)`, while negative lowering constructs
+`Neg::Row(items, tail-or-Top)`. The old subtraction view separately ignores
+type variables when collecting concrete head keys; nonvariable row atoms must
+resolve to constructor paths, then become a set or set-of-sets filter.
+
+Those details explain how the frozen implementation operationalizes its
+historical row syntax and head subtraction. They do not establish successor
+component identity, source occurrence ownership, same-fiber combination, or
+reverse-addition semantics. In particular, the old `items; tail` split and
+constructor-head filter are not evidence that a successor abstract component
+denotes a tail variable or that concrete atoms contribute by the same rule.
+This characterization adds no successor policy or carrier. Read-only source
+inspection; no tests/builds or edits to frozen `main`.
