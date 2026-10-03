@@ -1932,7 +1932,20 @@ do not establish fiber nonemptiness. After these premises, candidate evidence
 admissibility and the two universal inclusions remain separate. Astra found
 no concrete fact unavailable in existing `Flow`/`Observe`/`Path`/`Inc_C`,
 `K,D`, or subtraction evidence. No new carrier or implementation authority
-follows.
+follows. A second, adversarial Astra pass separates projected row membership
+from event incidence: under the coupled-interface `J_R` candidate, sharing a
+source-owned argument binder `g` can place `(head(q), args(q))` in the positive
+row only if the designated positive occurrence belongs to `d`, has
+`head(q)`, shares the same `g`, uses `args(q) = ν(g)`, and the positive row
+has a nonempty joint fiber. `ArgDen_A` denotes invariant argument tuples, so
+`q` itself is ill-sorted as its member; membership of `args(q)` in an allowed
+argument domain does not imply equality with `ν(g)`. Even when projected
+membership follows, it erases event identity and does not transport the
+original negative incidence to a live positive `Path`/`Inc_C` witness. The
+inspected rules also do not map abstract effect component `d` to this
+operation-argument binder `g`; treating them as shared would be an unproved
+crosswalk. This narrows the conditional support lemma but does not establish
+its source premises or justify a new carrier.
 
 ## Main records
 
