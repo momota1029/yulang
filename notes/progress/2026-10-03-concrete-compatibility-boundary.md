@@ -2157,3 +2157,24 @@ same live `CallView` and typed path must carry argument `Observe` events into
 the checked output's `d` component; `[b,d]` spelling alone does not prove that
 projection. This narrows the witness proof but leaves that interface/evidence
 bridge open. Primary-authored, not independently reviewed.
+
+### Identity witness: operational challenge-domain simulation (2026-10-03)
+
+For the same closed `f = λx.x`, specialize the shared endpoint to `A = Int`
+and retain §21 `Value(A)` entry. Under one source-admissible caller state and
+one live callback-slot `CallView`, any checked challenge with that endpoint
+can be reused unchanged as the actual call's carrier/history: reify it
+inertly, receive it, force it at entry, and return the result. The actual
+closure has no captured state or body effect; therefore request prefixes,
+store transitions, responses, and finite repeated/resumed histories all come
+from the supplied challenge and are preserved. This is an operational domain
+simulation that does not inspect or interpret the actual interface's
+effect-position `never`.
+
+The static interface clause still needs a bridge: prove that the actual
+role-derived complete Function domain denotes these `Value(A)` executions,
+and that the checked view admits only challenges in that source domain. The
+second inclusion `P_actual(h) ⊆ P_checked(h)` still needs the input event's
+`Observe`/`Flow`/incidence route into the checked output component `d` under
+shared `ν,K,D`. This is a primary proof candidate, not an independently
+reviewed result; no implementation or tests changed.

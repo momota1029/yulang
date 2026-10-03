@@ -233,6 +233,16 @@ the runtime-call domain, not yet into the actual type interface's
 domain from `Value(A)` without assigning independent meaning to the
 effect-position `never`.
 
+More precisely, when the checked challenge uses the same `A = Int`, Value
+entry, source-admissible caller state and live callback-slot `CallView`, the
+identity actual admits that challenge operationally: preserve the carrier and
+history, receive it, run its designated `Force`, then return its result. This
+simulation extends to finite repetitions and resumptions because the closed
+identity body adds no state transition or capture. It establishes the
+source-execution inclusion only; it becomes the interface clause
+`D_checked(ν) ⊆ D_actual(ν)` only after the actual role-derived interface
+domain is shown to be exactly this execution domain.
+
 Keep complete `EnvStore`/`JointWF` construction, source alias/store transition
 closure, and finite-witness adequacy as later proof gates. They remain needed
 for a complete-domain Function comparison but do not block the bounded
