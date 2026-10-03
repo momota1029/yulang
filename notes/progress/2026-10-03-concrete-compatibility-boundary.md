@@ -1891,3 +1891,20 @@ bounds or adding solver provenance. The next implementation architecture gate
 belongs at successor source application/lambda elaboration, after its source
 rule is fixed. No code, tests, Oracle inspection or measurements; no
 implementation authority inferred.
+
+### Frozen application/lambda order characterization (2026-10-03)
+
+Read-only inspection of frozen `main` at `a58eefc31e22141574b6f20c6a5748151c6d79f1`
+provides a concrete historical contrast. `ExprLowerer::apply_arguments`
+calls `lower_expr` on each argument before `make_source_app`; the latter
+builds the application inequality in `make_app_with_origins`. That routine
+then registers the newly created callee-to-Function constraint as the
+argument's `ExpressionExpected` provenance root. `lower_lambda` accepts the
+syntax node and `LambdaScope`, with no expected callback interface parameter.
+Thus this frozen path records expected-use provenance after argument/lambda
+lowering rather than passing the callback contract before body synthesis.
+This is Oracle characterization only: it neither refutes the user's successor
+rule nor supplies its source semantics. It confirms that the successor needs
+an explicit source-level expected-context route instead of inheriting this
+historical order or recovering context from solver bounds. No code, tests,
+builds or measurements; no Oracle behavior promoted to successor authority.

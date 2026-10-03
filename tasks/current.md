@@ -340,6 +340,13 @@ literal before body elaboration. Keep the next gate on defining the successor
 source application/lambda contextualization owner. Do not patch `yu-solver`
 to reconstruct that context from endpoint bounds.
 
+Frozen `main` is characterization only: its ordinary application lowering
+lowers the argument expression before constructing the call constraint, then
+records that constraint as `ExpressionExpected` provenance. Its lambda entry
+has no expected-callback parameter. This historical order does not establish
+the successor callback-context rule and must not be promoted into it; the
+successor source elaborator needs an explicit pre-body expected-context path.
+
 Charter §24 now records the clarification as superseding §16's universal
 "every function is a handler" receiver-role statement. §16's invocation and
 §21 entry mechanics remain conditional on the role/interface selected by §24;
