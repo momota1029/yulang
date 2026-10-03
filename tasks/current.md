@@ -331,13 +331,14 @@ that the argument contribution `d` is represented in both the contravariant
 input and positive `[b,d]` complete-call image. Do not ask for that semantic
 choice again or assume the resulting inequality succeeds. Sol's reviewed
 identity proof candidate constructs `Force(D) >>= Return` independently of
-success, composes argument/body relations under the same `ν,K,D`, and assigns
-the same Force event to `p_d⁻` and its linked positive contribution `p_d⁺`.
+success, composes argument/body relations under the same `ν,K,D`, and relates
+the same Force event to the negative input and linked positive complete-call
+contributions.
 The compiler-referee and spec-auditor found the bounded decomposition
 conformant, while both retain two closure obligations: derive the actual and
 checked complete challenge domains and their universal joint inclusions; and
-derive admissible source `View` decorations at the exact slot-profile
-positions independently of inequality success. The actual `Value(Int)`
+derive admissible executing source `View`s and typed-flow paths from the slot
+profile positions independently of inequality success. The actual `Value(Int)`
 runtime simulation is not itself the static domain proof. Next proof gate:
 construct the identity receipt/decorations diagram from the original slot
 profile, prove request and pure-divergence challenge admission, then derive
@@ -345,9 +346,9 @@ the matching `Observe`/`Receive`/`Flow`/`Path`/`Inc_C` evidence under one
 nonempty well-formed fiber. Sol has now closed the operational receipt and
 execution diagram for the supplied live boundary, but not the source
 decorations or static domain inclusion. The remaining proof obligations are
-(1) derive admissible `View`s at the original profile's exact `p_d⁻` and
-`p_d⁺`, with typed correspondence and distinct callback-value/argument
-receipts, and (2) show the role-derived Value-entry interface denotes the
+(1) derive admissible executing `View`s and typed-flow paths from the original
+profile's `p_d⁻` and `p_d⁺` to their current positions, with distinct
+callback-value/argument receipts, and (2) show the role-derived Value-entry interface denotes the
 entire checked challenge domain in that fiber, including requests, pure
 divergence, responses, stores, future uses, and resumptions. Existing core
 Function denotation does not provide the source context/Env domain lifting.
@@ -355,16 +356,18 @@ No semantic reapproval, API/phase choice, new carrier, implementation
 authority, or complete inequality proof follows yet.
 
 Sol's focused source-clause audit found no existing rule that derives the
-original slot's exact `p_d⁻`/`p_d⁺` executable decorations for this existing
+original slot's `p_d⁻`/`p_d⁺` paths to executable decorations for this existing
 Pure-value adaptation. The callback expected-context rule covers a newly
 introduced literal; core §9 supplies the complete `Force(D) >>= Return`
 execution and interaction signs; boundary `Observe`/`Flow` projects only
 already supplied positions/correspondences. The minimum remaining source
-lemma must derive the argument-force View at `p_d⁻` and the same event's linked
-complete-call contribution at `p_d⁺` from the original `β/Γβ`, while retaining
-typed correspondence, distinct callback-value/argument receipts, live
-boundary, and shared `ν,K,D`, without an effect-to-effect `Flow` edge or
-assuming inequality success. Independent compiler-referee and spec-auditor
+lemma must derive the argument-force View and complete-call View, then show
+typed-flow paths from original profile positions `p_d⁻` and `p_d⁺` to those
+executing positions. Typed `Path` runs from original profile to execution; a
+literal original-coordinate `Observe` is sufficient but not required. Retain
+distinct callback-value/argument receipts, live boundary, and shared `ν,K,D`,
+without an effect-to-effect `Flow` edge or assuming inequality success.
+Independent compiler-referee and spec-auditor
 reviews agree that the fixed identity request/return witness remains valid;
 the owner/re-entry counterexample concerns the superseded outward-only
 observation rule, not the current pre-dispatch decorated kernel. The complete

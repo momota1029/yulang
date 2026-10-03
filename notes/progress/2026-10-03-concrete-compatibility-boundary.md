@@ -2618,3 +2618,52 @@ its theorem remains conditional on correct source decorations. Therefore this
 example creates no new solver carrier or API/phase decision. The next gate is
 the source-position adequacy proof, followed by the independent complete-domain
 proof. No implementation, tests, builds, or Oracle work occurred.
+
+### Correction: linked contribution needs profile-to-execution paths, not coordinate identity (2026-10-03)
+
+A conformance review found that the previous gate wording was too strict when
+it asked for executing `Observe` marks literally at the original slot's
+`p_d⁻` and `p_d⁺`. Typed-boundary §6 `Path` starts at an original profile
+position and follows matching typed-flow edges **toward** a current executing
+position with an `Observe` mark and matching receipt; it does not require
+coordinate identity. Direct original-coordinate execution remains one valid
+presentation, but a transported current call position is also allowed when
+its correspondence is independently source-admitted.
+
+The corrected minimal source-admission lemma for one event `q` is:
+
+```text
+Flow*(β.p_d⁻, V_force.p_force)
+Observe(q, V_force, p_force, o_force)
+matching receipt correspondence from the original callback slot to V_force
+
+Flow*(β.p_d⁺, V_call.p_call)
+Observe(q, V_call, p_call, o_call)
+matching receipt correspondence from the original callback slot to V_call
+```
+
+The flow direction is original profile → executing position on both signed
+paths. The actual argument-force view must execute inside the complete-call
+view at `q` emission, so both observations name the same event, operation
+instance, family constraints, and shared `ν,K,D`. Core entry/bind supplies the
+negative-input to positive-complete-invocation contribution as a relational
+dependency. No `Flow` edge from `p_d⁻` to `p_d⁺` is warranted. The callback
+value receipt `Receive(r, callback_slot, V_cb, χ_cb)` and invoked function's
+argument receipt `Receive(u, argument, V_arg, χ_arg)` remain distinct; neither
+substitutes for the source correspondence/receipt evidence that `Path` needs
+for each executing view.
+
+Given these source-generated flows, observations, nested scopes, and matching
+receipts, the existing §6 rules derive `Path` and current `Inc_C`. Existing
+FunctionView identity adaptation preserves the execution schedule but does
+not instantiate these premises. The selected linked lift fixes the abstract
+contribution but does not choose literal versus transported coordinates. The
+source-admission lemma is still open, as are complete checked-domain and joint
+observation inclusions.
+
+The compiler-referee review confirmed that literal p+ coordinates are
+unnecessary and emphasized the required flow direction. The spec-auditor
+raised a major conformance finding on the earlier exact-coordinate wording;
+this correction accepts and closes that finding. Neither review certifies a
+complete raw-source model or inequality. No new semantic/API choice, carrier,
+implementation, tests, builds, or Oracle work resulted.
