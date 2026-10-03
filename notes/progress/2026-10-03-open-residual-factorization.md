@@ -1339,3 +1339,53 @@ already decidable class. If that fails, retain the existing partial
 semidecisions and return to a concrete regular-witness or resource-bounded
 source-envelope argument; do not claim the general result from the TACT
 encoding alone.
+
+### Classical recursive subtype satisfiability: import boundary (2026-10-04)
+
+An Astra audit checked whether classical recursive structural subtype
+satisfiability can close the mixed ranked `P/P` and mandatory-Record-width
+case. Niehren–Priesnitz–Su decide existential conjunctions of flat constraints
+`x=f(x₁,…,xₖ)` and `x≤y` over possibly infinite trees; their recursive
+structural satisfiability result is DEXPTIME-complete over the stated standard
+signature/poset setup. Descriptor sharing and recursion are therefore within
+the general form of the theorem. Its structural order relates trees only when
+their shapes agree, however, and its uniform-signature route additionally
+requires common arity and variance. [Primary paper, §§2, 4–5](https://www.cs.ucdavis.edu/~su/publications/poset.pdf).
+
+The direct import fails on the source-valid width comparison `{f:Int} <: {}`.
+In the sorted Record view this is `Present(Int) <: Absent`, where comparison
+stops at the absent upper field. The two cases do not have one ranked shape;
+making them nullary base constants also loses their field payload. The mixed
+probe `q=C(x,r), x<:q`, where `r={f:Int}` and `C` has variance `(+,-)`, needs
+this width comparison together with a ranked `P/P` child. Thus the classical
+theorem does not itself give the missing kernel.
+
+Adding unrestricted global extrema is not a solution-preserving encoding:
+target bottom admits `X <: Int` and `X <: Bool`, and target top admits
+`Int <: X` and `Bool <: X`, although both pairs are inconsistent for distinct
+identity atoms in the source fragment. These are failures on the original
+constraints; they do not depend on composing comparison successes. A valid
+translation needs source-image validity at every subtree, or a retraction
+that maps every target witness to one shared source-valid assignment.
+
+Jim–Palsberg’s closure framework gives a proof template only after its
+solution-preserving closure, finite state/transition, compatible head
+selection, and monotonicity conditions are established. Their conditions do
+not already establish Record-width stopping or the joint ranked `P/P`
+boundary. [Primary manuscript, Definition 8, Theorems 9–10, §5](https://web.cs.ucla.edu/~palsberg/draft/jim-palsberg99.pdf).
+
+Conditional import lemma: a target decision procedure would decide this pure
+structural package if the translation preserves the exact descriptor
+equations and every original direct comparison, and every satisfying target
+assignment decodes to one shared source-valid assignment. Internal target
+transitivity would then be justified inside that proved mathematical
+translation; it would not create a Yulang replay obligation or authorize
+composition of local concrete compatibility successes.
+
+Next bounded proof task: construct or refute a sorted Record-width reduction
+to a decided recursive subtype system, using the mixed probe and both
+global-extremum counterexamples as discriminators. Until source-image
+reflection is proved, the mixed `P/P` and arbitrary-tree-to-regular-witness
+gates remain open. This result does not change the separate Function source-
+derivation gate, nor cover optional Records, casts/adapters, permissions,
+effects, or the coupled Function interface.
