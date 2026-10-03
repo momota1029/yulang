@@ -1597,6 +1597,19 @@ outside the clause. Its success criterion is that the slot descriptor reaches
 literal elaboration before body synthesis without moving any runtime force or
 discarding the source profile.
 
+The conditional crosswalk reuses existing evidence at two levels. The known
+formal callback slot identifies a static signature template `β∈B` and its
+original profile `Slots(β)`. The source contextualization rule links the
+literal derivation to `β` before body elaboration; it does not identify a
+runtime receiver activation. When the callback is received at execution, the
+source callback-boundary rule instantiates the dynamic boundary
+`b=(receiver activation, callback slot, typed contract)` from that template.
+Typed receipt and `Flow`/`Observe`, `Path`, `Inc_C`, and shared `K,D` then
+record value/event transport and current eligibility at the dynamic instance.
+The source rule connecting the literal to `β` is conditional, but the static
+template/dynamic instance distinction requires no second boundary,
+attachment, or provenance carrier.
+
 One overlap remains explicit: a Function-annotated literal can also occur in
 a callback position. Both inputs select handler role, but this source audit
 does not establish whether the annotation boundary is checked against, nested

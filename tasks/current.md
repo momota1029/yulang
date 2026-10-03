@@ -323,6 +323,13 @@ interface checks as ordinary `A <: B` tasks. Limit this slice to known
 Function-valued value formals such as `ref.update`; unknown callees,
 computation formals, annotated-literal overlap, effect-port construction and
 complete `CallView` inclusion stay later.
+The existing static signature template `β∈B` and `Slots(β)` record the
+formal/profile; the missing source rule must link the lambda derivation to
+`β` before its body is elaborated. At runtime, a callback-boundary source
+step instantiates `b=(receiver activation, callback slot, typed contract)`
+from `β`. Do not identify this dynamic `b` before a receiver activation
+exists. Existing evidence suffices across both levels; no new boundary or
+provenance carrier is currently justified.
 
 Charter §24 now records the clarification as superseding §16's universal
 "every function is a handler" receiver-role statement. §16's invocation and

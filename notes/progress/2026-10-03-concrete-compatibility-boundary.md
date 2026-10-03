@@ -1857,3 +1857,20 @@ role/interface schema remains primary-derived and unreviewed. The correction
 and conditional annotation-overlap crosswalk received a bounded clean
 compiler-referee review. No code or tests changed; no Oracle inspection or
 measurements. `git diff --check` is the record-slice check.
+
+### Static callback template versus runtime boundary (2026-10-03)
+
+A spec-auditor delta review found that the first no-new-carrier crosswalk
+confused a compile-time callback formal with the activation-indexed runtime
+boundary `b`. I repaired the crosswalk: the known formal identifies a static
+signature template `β∈B` and original `Slots(β)`; a still-conditional source
+contextualization rule links the literal derivation to `β` before body
+synthesis. Only callback receipt at execution instantiates
+`b=(receiver activation, callback slot, typed contract)` from that template.
+Runtime transport and eligibility remain in existing `Flow`/`Observe`,
+`Path`, `Inc_C`, and shared `K,D` evidence. The independent spec-auditor
+delta review reports the major finding closed and no remaining findings in
+scope. This closes only the static/dynamic carrier crosswalk: the source
+contextualization theorem and broader role/interface schema remain open. No
+new carrier is justified by this delta. No code, tests, Oracle inspection or
+measurements; `git diff --check` is the record-slice check.
