@@ -117,6 +117,19 @@ descriptor sharing remain coupled obligations, so the regular-witness gate is
 still open.
 Details are in `notes/progress/2026-10-03-open-residual-factorization.md`.
 
+A further bounded Astra construction proposes a regular-witness theorem for a
+stratified mixed fragment: exact ranked descriptor pairs close finitely, and
+their `P/P` boundaries are solved jointly by §7.4.3's Record-domain/head
+machinery. Unknown-ranked/known-ranked `P/K` feedback is excluded; a concrete
+package shows why unsigned domain inclusion and equality unification cannot
+simply remove that restriction. The proof candidate is recorded in the same
+progress note. Independent compiler-referee review found and then closed a
+missing reachable ranked-head/arity clash rejection; the fresh delta review
+found no further blocking/major issue. Spec-auditor review found no scope
+conformance issue. Exact forced-head/presence recognition was not reviewed.
+The candidate does not close general regularization, decide the structural
+fragment, or alter the immediate Function/source-derivation gate.
+
 ## Current work
 
 ### One endpoint-dependent inequality solver (2026-10-03)

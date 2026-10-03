@@ -1035,3 +1035,82 @@ the reverse exactness argument; the candidate now states the two-completion
 proof and finite path-depth induction. Primary inspection closed that local
 proof-exposition repair. The spec auditor found no scope-conformance issue.
 The candidate remains unapproved for use as a terminating inference gate.
+
+### Stratified fixed-head and Record-boundary regularization candidate
+
+A bounded Astra construction proposes an exact regular-witness result for a
+mixed fragment, without claiming a result for unknown ranked-head feedback.
+Partition the fixed descriptor quotient into `K`, containing exact Function
+and other ranked-constructor nodes (cycles allowed), and `P`, containing
+atoms, mandatory Records, and descriptor-free roots. Record children remain
+in `P`. Require every ranked descent from an original inequality to reach
+only `K/K` or `P/P` endpoint pairs; a `K/P` pair is outside the fragment.
+Retain the existing finite alphabet, unguarded setting, and primitive-atom
+premise of §7.4.3.
+
+For each original bound, explore finite states `(b,kL,kR,σ)` over `K`,
+retaining endpoint order, original-bound identity, and orientation. Matching
+ranked heads generate mandatory child states; covariance preserves
+orientation, contravariance flips it, and invariance generates both
+orientations. Reject the package immediately if any reachable `K/K` pair has
+incompatible ranked heads or arity, as required by the existing structural
+failure rule; only a successful ranked exploration proceeds. Stop at each
+`P/P` state and retain its ordered boundary
+inequality and the regular language of ranked trace prefixes reaching it.
+Solve all boundary inequalities jointly with §7.4.3's Record-domain NFA and
+head pushdown saturation, then attach the resulting regular `P` witnesses to
+the unchanged finite `K` graph. The finite ranked exploration has at most
+`2|B||K|²` states, plus finitely many boundary states; it keeps original
+inequalities separate and never composes successful concrete comparisons.
+
+The proposed existence proof is by direct decomposition: every solution of
+an original bound satisfies its collected boundary comparisons; conversely,
+a joint `P` solution extends through the exact `K` descriptors after the
+ranked exploration has passed its local head/arity checks, with the finite
+ranked relation and direct boundary simulations witnessing each original
+comparison. Thus arbitrary satisfiability would imply a regular witness in
+this stratified fragment. A boundary state's descendant trace
+language is `L_b,z · D_upper(z)`, where `L_b,z` is its ranked entrance
+language and the upper `P` domain is selected by orientation. Finite union
+would give regular trace languages. Exact forced-head/presence recognition
+is an additional strengthening: its proposed correspondence with finite Horn
+derivations over §7.4.3's NFA and head rules remains to be independently
+checked.
+
+The construction must not be generalized by simply removing the `K/P`
+restriction. The package
+
+```text
+e = {}
+r = {f:Int}
+x = Function(e,y)
+q = Function(r,x)
+b : x <: q
+```
+
+has the regular solution `x=y=Function({},self)`. Its contravariant argument
+comparison is `r <: e` and stops at the empty upper Record. Unsigned upper
+domain inclusion would incorrectly demand `f` in `e`; rational-equality
+unification would merge `e` and `r` and reject their distinct masks. Result
+descent then reaches the unsupported `y <: x` `P/K` feedback. This is a
+positive counterexample to those shortcuts, not an impossibility result for
+stronger acceleration.
+
+This remains a theorem candidate, not an approved inference gate. Bounded
+compiler-referee review checked the existence/regular-witness argument,
+converse extension, and orientation-sensitive trace formula, subject to the
+ranked-head repair recorded below. Spec-auditor review checked the exact
+boundary against §7.4.3. No full fragment termination, decidability,
+source-semantic change, or implementation authorization follows from this
+candidate.
+
+Review record: the first compiler-referee pass found one major omission: the
+finite ranked exploration needed to reject reachable `K/K` head/arity clashes
+before concluding that boundary satisfiability extends to the original
+inequalities. The clause above was repaired; a fresh compiler-referee delta
+review closed that finding, including mismatches below matching ancestors.
+The reviewer found no new blocking/major issue in the repair. The spec auditor
+found no scope-conformance issue and confirmed that §7.4.3 is confined to the
+joint `P/P` boundary problem. Exact forced-head/presence recognition remains
+outside that review and unchecked. The regular-witness candidate remains
+unapproved as an inference gate.
