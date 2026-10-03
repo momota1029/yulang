@@ -311,6 +311,20 @@ Charter §24 now records the clarification as superseding §16's universal
 ordinary value entry still forces and rebinds within the invocation for a
 pure-role function. Receiver role stays separate from parameter entry.
 
+The role-selection schema has one overlap to cover: a Function-annotated
+literal can also occupy a callback slot. Both choose handler role, but the
+source relationship between the annotation boundary and expected slot
+boundary is not derived. Account for both original descriptors and establish
+how their interface check enters the same `A <: B` solver; do not flatten or
+merge profiles. The existing core's `Value(Fun(P, Result(I_b)))` supplies
+only the result-constructor skeleton, not the role-indexed effect ports.
+The current narrow HIR also leaves these source inputs to later elaboration:
+`ResolvedExpr::Lambda` carries parameter/body but no type annotation, while
+the chain HIR keeps annotation syntax as a generic value node. Recovering the
+annotation occurrence and expected callback slot is a downstream producer
+obligation after the source rule is settled; compiler implementation remains
+unauthorized.
+
 The callback-slot profile projection is downstream of that gate. Once the
 handler callback interface has been derived, show how the expected callback
 contract creates its `CallView`, typed receipt and identity `Flow`; then show

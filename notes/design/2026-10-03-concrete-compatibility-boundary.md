@@ -1535,6 +1535,35 @@ changing an existing value's executable entry or decorated behavior. In every
 row, receiver role and `Value`/`Computation` parameter entry remain independent
 source decisions, not one inferred from the other's ports.
 
+The role-selection part can be stated without yet inventing an interface or
+solver carrier:
+
+```text
+select-role(lambda, no Function annotation, no expected callback boundary)
+  = Pure
+select-role(lambda, explicit Function annotation F_ann)
+  = Handler(boundary from F_ann)
+select-role(lambda, expected callback contract F_cb)
+  = Handler(boundary from that callback slot)
+```
+
+After this selection, the source derivation must elaborate the body and
+complete Function interface under that role and its original boundary
+profile. Charter §21 independently supplies parameter entry. The existing
+core's `Value(Fun(P, Result(I_b)))` is only the constructor/result skeleton;
+it does not define the role-indexed effect ports and cannot replace this next
+elaboration step.
+
+One overlap remains explicit: a Function-annotated literal can also occur in
+a callback position. Both inputs select handler role, but this source audit
+does not establish whether the annotation boundary is checked against, nested
+inside, or otherwise related to the expected callback-slot boundary. The
+elaboration theorem must account for both original boundary descriptors and
+show how their concrete interface check uses the single `A <: B` solver; do
+not merge their profiles or infer a profile from the solved effect row.
+Resolving their source path relationship is part of the Function
+annotation/context elaboration theorem.
+
 The stable-core callback gives one concrete instance of row three. Its public
 signature is
 `ref('a & 'b, 'c) -> ('c -> ['b] 'c) -> ['b, 'a] ()`, and the source calls

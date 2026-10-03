@@ -1780,3 +1780,32 @@ inference rule or implementation decision. Effect-port elaboration and the
 intended coupled Function inequality remain unproved. No code, tests, builds,
 or Oracle work; `git diff --check` is the record integrity check, and no
 measurement budget was used.
+
+### Role-selection rule skeleton and overlap audit (2026-10-03)
+
+Using the user's selected cases and core §6, I separated the derivable
+role-selection clauses from the still-undefined interface constructor:
+an unannotated lambda without expected callback boundary selects `Pure`;
+an explicit Function annotation selects `Handler` at that annotation
+boundary; callback-position elaboration selects `Handler` at the expected
+callback slot. Then parameter entry comes independently from §21. Core
+`Value(Fun(P, Result(I_b)))` supplies only the value/function/result
+constructor skeleton; it does not interpret role-indexed effect ports. The
+design note now records this as a proof schema, not a new solver carrier.
+
+The overlap case is unresolved: a Function-annotated lambda may also be in a
+callback slot. The two role decisions agree, but available source evidence
+does not say whether the annotation boundary is compared to, nested within, or
+otherwise related to the expected callback boundary. The elaboration proof
+must preserve both original descriptors and explain their interface check
+through the one `A <: B` solver, without merging profiles.
+
+I also inspected current HIR ownership: `ResolvedExpr::Lambda` stores only
+parameter, body, occurrence and range, while the narrow chain HIR retains
+annotations only as generic `Value` syntax nodes. This is downstream evidence
+that a future source elaborator/HIR must recover annotation and expected-slot
+context before it can generate role-directed interfaces; it does not change
+the immediate proof gate or authorize compiler edits. The exact-role schema
+and overlap are primary-derived, not independently reviewed. No code or tests
+changed; no Oracle inspection or measurements. `git diff --check` is the
+record-slice check.
