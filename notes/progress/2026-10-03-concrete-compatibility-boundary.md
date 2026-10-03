@@ -401,8 +401,11 @@ not ID equality.
 The initial review found that a general expression may contain both a block
 root and tail materialized comparison. The subgate was narrowed to a literal
 leaf so the one-comparison premise is explicit; extending it to blocks must
-preserve both identities and boundary relations. The lemma remains a target
-to prove or refute. Frozen coverage suppression, multi-consumer aggregation,
-Record realization and source-wide replay policy remain open. See §8.1 of
-`notes/design/2026-10-03-finite-bound-replay-closure.md`. No tests or builds
-were run.
+preserve both identities and boundary relations. The frozen missing-cast test
+asserts `int -> bool`, `OneSidedReplayPair`, an `ApplicationArgument` owner,
+and the `42`/`f` source sites; this closes one fixed inference-side witness.
+The positive specialization/emission bridge for that same source shape remains
+open, as does the general lemma. Frozen coverage suppression, multi-consumer
+aggregation, Record realization and source-wide replay policy remain open.
+See §8.1 of `notes/design/2026-10-03-finite-bound-replay-closure.md`. No tests
+or builds were run.

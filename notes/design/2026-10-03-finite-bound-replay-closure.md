@@ -491,6 +491,15 @@ my f(x: bool): bool = x
 f(42)
 ```
 
+The frozen test contract already establishes one inference-side witness:
+without a cast it reports `int -> bool` as `OneSidedReplayPair`, owned by the
+`f(42)` application boundary, with related source sites `42` and `f`; the
+provenance test classifies the one replay parent as the required upper. Adding
+one cast removes the error, while two candidates produce an ambiguity. This
+is exact fixture evidence for that error/eligibility path, not a general
+source-conservation theorem and not evidence that the successful cast is
+emitted for this same fixture.
+
 The source lowerer allocates an application-argument boundary, relates the
 callee to a Function demand carrying the argument value variable, and derives
 an argument comparison through Function decomposition. Inference stores the
@@ -508,9 +517,11 @@ closed constructor or fixed Record endpoints, empty weights, one consumer,
 and no schemes, aliases, cycles, or row reduction. This makes the initial
 materialized path contain only the application's argument comparison; a
 later extension to block arguments must retain the separate root and tail
-comparisons and their boundary correspondence. Define the source obligation
-from that application and parameter
-contract. Then prove or refute both directions between it and the
+comparisons and their boundary correspondence. The test closes one fixed
+inference-side witness; the remaining source bridge must still establish the
+positive specialization/emission path for the same source shape. Define the
+source obligation from that application and parameter contract. Then prove
+or refute both directions between it and the
 Function-derived argument task plus any mandatory same-pivot replay: ordered
 endpoints must agree, the consumer must remain the application boundary, and
 no extra rejecting inequality may be introduced. Separately relate the one

@@ -141,6 +141,11 @@ ordered endpoints rather than identity equality; see §8.1 of
 `notes/design/2026-10-03-finite-bound-replay-closure.md`. Covered-row and
 multi-consumer conservation remain outside this subgate.
 
+The frozen inference fixture already asserts the `int -> bool`
+`OneSidedReplayPair`, its `ApplicationArgument` owner and the `42`/`f` source
+sites; this closes one fixed inference-side witness. The positive
+specialization/emission bridge for that same application shape is still open.
+
 ## Checking normalization checkpoint
 
 Typed-computation-core §7 now separates source introduction/consumption,
