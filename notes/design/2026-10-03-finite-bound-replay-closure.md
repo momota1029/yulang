@@ -547,11 +547,20 @@ path is direct under the one-consumer, literal-leaf assumptions:
    `int`, consumer `bool`, and submits that materialized inequality.
 3. `apply_type` also submits a callee comparison. For this closed
    non-Record signature, `callee_arg_shape_from_actual` keeps the expected
-   argument `bool`. That establishes equality only for the Function argument
-   component; the whole callee Function pair also depends on both effect and
-   return components. Its reflexivity and immediate discharge remain
-   unverified, so the bounded argument-lane trace does not claim the callee
-   query is irrelevant to acceptance.
+   argument `bool`. Inference represents an ordinary annotated parameter's
+   argument effect as `Neg::Bot`, which specialization materializes as
+   `Never`; the pure apply path replaces that component on the consumer side
+   with `EffectRow([])`. Thus `is_pure_effect` equality does not make the
+   whole Function query reflexive. The source-derived expected predicate
+   materializes to `Fun(bool, Never, Never, bool)` (or to empty-row effect
+   fields under runtime materialization). If the actual callee type reaching
+   `apply_type` is the inference-materialized form with no Thunk wrappers,
+   Function decomposition creates the child `EffectRow([]) <: Never`; current
+   `TypeGraph` accepts that child through its non-fixed-head fallback. The
+   callee query is then nonrejecting but not omitted as reflexive. The exact
+   exported scheme and absence of extra bounds/wrappers have not been
+   established, so this discharge result is conditional, not yet a theorem
+   about the whole fixture.
 4. `finish` resolves the literal's actual/consumer pair. Emission of the
    application argument wraps the literal at that consumer boundary.
 5. With exactly one `int -> bool` rule in the arena,
@@ -565,6 +574,14 @@ emitter; their link is the ordered `int <: bool` endpoints and the same
 application argument boundary. The code evidence does not prove universal
 replay conservation or the successor's cast policy.
 
+The exact callee-scheme premise above remains unverified: the fixture checks
+diagnostics rather than the stored `poly::Def.scheme`, and the complete SCC
+generalization/simplification of its internal skeleton slots has not been
+traced. The zero-cast fixture is rejected during inference, so it is not an
+executed successful specialization witness. Treat the unique-cast emission
+path as a conditional source-path derivation until the stored scheme and
+successful specialization entry are established.
+
 A useful bounded lemma would fix one monomorphic closed Function signature,
 one monomorphic callee scheme instantiation with no quantified variables, one
 ordinary argument that is a literal leaf (with no block/tail subexpressions),
@@ -574,9 +591,11 @@ lane: `consume_expr_value` materializes the literal's actual/expected
 comparison, while `apply_type` separately submits a callee Function check.
 Record endpoints are excluded because `callee_arg_shape_from_actual` can
 change the callee consumer to the actual Record shape; a later Record subgate
-must retain that additional comparison. Even in this non-Record case, the
-callee query's return/effect components and its effect on acceptance must be
-accounted for before claiming whole-application conservation.
+must retain that additional comparison. The exact fixture's exported scheme
+must still be established to prove that its callee query has the conditional
+shape above and cannot add a rejection. Until then, argument-lane locality is
+established operationally, while whole-application conservation remains
+open.
 A later extension to block arguments must likewise retain the separate root
 and tail comparisons and their boundary correspondence. The remaining lemma
 is a two-direction result for this source shape. Define the source obligation

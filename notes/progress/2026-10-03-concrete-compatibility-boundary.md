@@ -386,7 +386,7 @@ choice; no implementation or source rejection is selected.
 
 ## Bounded application-consumption subgate (2026-10-03)
 
-A frozen-source trace now identifies a concrete first subgate for the open
+A frozen-source trace now identifies a candidate first subgate for the open
 source-to-replay conservation proof: the argument lane of one ordinary
 application with a literal leaf, non-Record constructor endpoints, one
 monomorphic closed Function signature and one callee
@@ -406,10 +406,16 @@ flow to cast selection, so the subgate uses endpoint/boundary correspondence,
 not ID equality.
 
 A bounded compiler-referee delta review found no blocking or major issue in
-the corrected scope. It confirmed that whole-pair reflexivity cannot be
-inferred from a closed Function shape alone: runtime-shape normalization and
-callee emission ordering remain relevant to the later whole-application
-proof. No tests ran.
+the corrected scope. A subsequent source audit found that ordinary annotated
+parameter effects materialize from `Neg::Bot` to `Never`, while pure
+application construction uses `EffectRow([])`. Therefore the callee Function
+query is not reflexive in the literal representation: under the candidate
+closed shape, Function decomposition creates `EffectRow([]) <: Never`, which
+the current solver accepts through its non-fixed-head fallback. This is a
+conditional non-rejection argument only; the fixture's complete exported
+scheme and absence of extra bounds/wrappers remain unproved. The next bounded
+step is to establish that scheme, then prove the conditional acceptance path.
+No tests or builds ran.
 
 The initial review found that a general expression may contain both a block
 root and tail materialized comparison. The subgate was narrowed to a literal
@@ -431,3 +437,11 @@ Frozen coverage suppression, multi-consumer aggregation, Record realization
 and source-wide replay policy remain open.
 See §8.1 of `notes/design/2026-10-03-finite-bound-replay-closure.md`. No tests
 or builds were run.
+
+The fixture's stored `poly::Def.scheme` and SCC simplification of its skeleton
+slots have not been established. Accordingly, the specialization and unique-
+cast path above are conditional source-path evidence, not a verified
+successful end-to-end instance. The next bounded evidence target is the
+stored scheme (including quantifiers, role predicates, stack quantifiers and
+recursive bounds), followed by the callee-query non-rejection trace under
+that exact materialized signature.
