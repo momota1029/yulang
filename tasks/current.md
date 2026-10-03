@@ -206,6 +206,15 @@ that finite profile quotient; the package already has a regular witness, and
 stronger finite equivalences remain possible. A repair needs proved successor
 coherence and preservation of shifted descriptor sharing.
 
+A follow-up paired-state attempt did not find that repair. Its exact missing
+lemma is finite simultaneous representative selection: choose finitely many
+jointly interpreted endpoint states and deterministic child transitions so
+each bound's paired relation remains post-fixed, all shared descriptor-root
+occurrences retain one tree, and every shifted descriptor equation holds.
+Finite paired head/orientation labels supply local comparison transitions,
+but do not prove that cycle choices satisfy descriptor transport at the same
+time. No new counterexample or regular-model result emerged.
+
 Immediate gate (ordered by the user's 2026-10-03 clarification): realize the
 selected source-level function-introduction and contextual-elaboration path
 before port interpretation:

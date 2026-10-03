@@ -521,3 +521,19 @@ obstruction to regular-model existence. A repair must withdraw this
 congruence claim or define a stronger finite equivalence and prove both
 successor coherence and shifted descriptor sharing. No such repair emerged;
 no source semantics or implementation claim follows.
+
+### Paired-state representative-selection follow-up (2026-10-03)
+
+Sol tried to replace the failed node-profile quotient with finite paired
+comparison states. Finite head/orientation labels give the local comparison
+transitions, but no proof was found that their cycle choices can be made
+consistent with the descriptor equations. The exact remaining lemma is
+**finite simultaneous representative selection**: from an arbitrary-tree
+solution, select finitely many jointly interpreted endpoint states and
+deterministic child transitions so that every original bound's paired
+relation remains post-fixed under Record width and variance; every occurrence
+of a shared descriptor root selects one tree; and shifted descriptor transport
+`(q,iw)=(child(q,i),w)` holds at every present suffix. The selection must
+close these obligations together, not separately. No positive regularization
+theorem or new counterexample resulted. This remains within pure structural
+existence; no source-semantic or implementation decision follows.
