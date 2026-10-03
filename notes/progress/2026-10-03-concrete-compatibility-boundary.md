@@ -1484,3 +1484,43 @@ effect interpretation from source execution such as `Force(D) >>= B`. No
 implementation, solver carrier, Oracle inspection, test, build or measurement
 was authorized or performed. This remains a draft research route with the
 existing BLOCKING domain and major closure findings open.
+
+### Step-indexed open-world audit (2026-10-03)
+
+A bounded compiler-referee audit found proof-only step indexing to be a
+plausible guarded definition, already anticipated as an open option in the
+coupled-interface draft. It changes neither concrete inequality nor solver
+carriers. The candidate approximants must hold one actual callable, `ν`,
+source environment and identity-preserving heap graph fixed. A recursive
+reference to the rigid hole is usable only at a smaller index after a concrete
+machine step; index exhaustion cannot establish membership. The same index
+must decrease for re-entry through aliases and alternate receiver contexts.
+
+The review retained one BLOCKING and three major proof gaps:
+
+1. Define the exact initial context/import domain independently of the
+comparison. Closed-program reachability narrows the selected contextual
+domain; arbitrary graph imports may enlarge it. Ordinary imports must have
+query-independent validity, while hole-dependent values use the guarded
+obligation. Do not use independent `heap_n` witnesses at each index.
+2. Prove strict decrease and downward closure with all lower-index contexts,
+arguments, responses and resumptions. A shared-cell callback that recursively
+calls the tested function `N` times and then emits a forbidden request must
+be rejected at some finite index.
+3. Prove live-world transition laws for allocation, read/write, handler exit
+and raw resumption. A saved heap snapshot can miss mutation before resume;
+expired handler authority cannot be restored. Preserve `ν,K,D`, original
+profiles, `Flow`/`Observe`, incidence and activation identity.
+4. Prove finite-prefix adequacy for the whole complete-interface relation:
+challenge admission, typed receipt, full observations, returned latent
+interfaces, future calls and raw resumption. A support-only check is weaker.
+
+No counterexample to the conditional proof route or carrier insufficiency was
+found, but these premises remain unresolved and no finite principal
+presentation follows. Next: define fixed-heap indexed imports/worlds; prove
+exact domain preservation and guarded substitution/transition closure; prove
+all complete-interface failures have finite witnesses; then construct both
+interface inclusions. Continue to derive the intended pure-to-handler lift
+only after this role-first gate. No code, tests, builds, Oracle inspection,
+measurements or solver changes were performed. `git diff --check` is the
+focused integrity check.

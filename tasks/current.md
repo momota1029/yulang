@@ -296,16 +296,22 @@ acceptance or a nonempty-fiber theorem.
 
 A conditional proof route now uses proof-only rigid holes in open source
 derivations, one identity-preserving heap graph, and positive structural
-closure. It must keep containing closures/cells open-derived, and must not
-turn `H:T_checked` into actual semantic membership. This does not establish
-`EnvStore` validity: source-generated initial states/imports plus
-substitution/history closure through aliases, mutation, calls, responses and
-resumption remain blocking. Preserve the coupled contract's semantic
-free-variable environments; do not narrow to closed-program-reachable heaps
-without authority. Finite graph identity machinery supplies transport from
-given states, not source generation, complete finite comparison, or
-principality. See design §8 for the candidate and its limits. No carrier
-change is justified.
+closure. A compiler-referee audit finds proof-only step indexing plausible for
+recursive aliases, but leaves exact context-domain and observation-adequacy
+theorems open. Candidate approximants must share the same actual heap, and
+every recursive use of `H:T_checked` must decrease the index after a concrete
+source transition. Index exhaustion cannot certify membership. This does not
+establish `EnvStore` validity: define semantic free-variable imports exactly,
+distinguish ordinary imports from hole-dependent values, and prove guarded
+substitution/history closure through alias calls, mutation, handler exit,
+responses and live-state resumption. Preserve worlds and alias identities
+across indices; do not narrow to closed-program-reachable heaps or enlarge to
+arbitrary graph-shaped imports. Prove finite-witness adequacy for the complete
+interface (domain, receipt, observations, latent returns, future calls and
+resumption), not support alone. Finite graph identity machinery supplies
+transport from given states, not source generation, complete finite
+comparison, or principality. See design §8 for the candidate and its limits.
+No carrier change is justified.
 
 Any hypothetical annotation-coverage rule must be a universal obligation over
 the supplied complete comparison, not deletion of uncovered observations.

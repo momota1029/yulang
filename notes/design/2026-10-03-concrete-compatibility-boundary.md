@@ -1321,8 +1321,51 @@ imports recover that domain remains unproved. Finite identity-preserving graph
 machinery transports supplied relations but proves neither source generation
 nor finite effective comparison or principality. Thus this route adds proof
 judgments and closure lemmas, not a solver carrier, runtime provenance, or a
-contextual-preorder interpretation of concrete inequality. Before it can
-close the gate, derive admissible initial open states, prove plugging and
-transition closure over the intended domain, and then establish the two
-complete-interface inclusions. Only after that may the joint `[b,d]` lift be
-derived from role-directed Function elaboration and `Force(D) >>= B`.
+contextual-preorder interpretation of concrete inequality.
+
+#### Step-indexed open-world candidate and proof gates
+
+A compiler-referee audit of the proof-only route found step indexing to be a
+plausible guard for recursive aliases, consistent with the already-recorded
+logical-relation option in the coupled-interface draft. This remains a
+candidate, not a defined relation. Its minimum shape is a family of bounded
+approximants over one fixed actual callable, assignment `ν`, source
+environment, and identity-preserving heap graph. The hole assumption is
+available only at a strictly smaller index after a concrete source-machine
+transition. At each index, quantify over all admissible lower-index caller
+configurations, arguments, responses, and resumptions, preserving the actual
+receiver entry and decorations. Full extensional validity would require all
+finite indices; index exhaustion is never evidence of membership.
+
+The same source heap must be fixed across the approximants: `∀n.∃heap_n` is
+insufficient because independent witnesses can hide an inconsistent alias
+state. The context domain must be exact: closed-program reachability would
+exclude some of the selected semantic free-variable environments, while an
+unrestricted graph-shaped import domain could admit impossible states. Open
+derivations for closures containing the hole do not alone solve this domain
+problem. Distinguish ordinary imports, whose semantic validity is independent
+of the query, from hole-dependent values, whose behavior invokes the bounded
+query recursively.
+
+The indexed transition proof must catch a callback that calls the tested
+function through a shared cell `N` times and then emits a forbidden request:
+some finite index must reach the request and reject. Resetting fuel at receipt,
+accepting on exhaustion, or carrying checked membership as a premise would
+break this property. Worlds must follow the live heap through allocation,
+read/write, handler exit, and raw resumption; a saved heap snapshot misses a
+write before resume, and a saved handler grant must not survive expiry. The
+closure theorem must retain `ν,K,D`, original profiles, typed `Flow`/`Observe`,
+incidence, and current activation identity.
+
+Finally, finite-prefix adequacy must cover the whole complete-interface
+contract, including challenge-domain admission, typed receipt, observations,
+returned latent interfaces, later calls, and raw resumptions. A support-row
+projection alone is insufficient. Prove that each failed domain or
+observation inclusion has a finite witness in the indexed relation before
+using the all-indices characterization. These premises remain open; the
+audit found no solver-carrier insufficiency and establishes neither a finite
+principal presentation nor an implementation path. The next proof work is to
+define exact indexed imports/worlds, prove domain preservation and guarded
+substitution/transition laws, then prove complete-interface adequacy. Only
+after those steps may the joint `[b,d]` lift be derived from role-directed
+Function elaboration and `Force(D) >>= B`.
