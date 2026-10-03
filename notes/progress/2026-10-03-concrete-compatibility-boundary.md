@@ -2414,3 +2414,35 @@ justified. This is a missing source-semantic proposition, not an API/phase
 problem, and the callback-context contract does not decide it. The proposed
 bounded rule has been presented for user decision; no new semantics or
 implementation authority is selected here.
+
+### Sol derivation and compiler-referee audit: component projection remains open (2026-10-03)
+
+Sol's bounded source derivation confirms the bind-inversion result: for an
+already constructed Pure callback with §21 `Value(A)` entry, requests in the
+identity-transport invocation arise during argument force or during body
+execution at a reached post-force state. This yields a conditional request-
+support containment under one supplied joint fiber. It does not identify
+either phase's occurrences with the checked input and output positions of
+`[b,d]`.
+
+The compiler-referee audit found no blocking or major defect in that bounded
+conclusion and confirmed that the gap is real. Core §9 already gives the
+complete relational `J_call` as the image of `ExecuteCallable`; therefore the
+missing result is not generic sequencing or all component denotation. It is
+the role-specific complete Function description and its projection onto the
+checked profile positions, sufficient to prove the two joint inclusion
+clauses in one `Rel_C`/`ν` fiber. Charter §24 leaves effect-port elaboration
+and the inequality open, while callback-context delivery §4–§5 and §8 require
+the checked occurrence/profile projection before `[b,d]` is justified.
+
+The divergent-argument discriminator rejects equality with all body support
+unconditionally, but does not reject a conservative union upper bound after
+component premises are independently proved. Likewise, flat support cannot
+replace the complete challenge domain or preserve response/state correlation
+by itself. Existing `View`/`Observe`, `Rel_C`, occurrence/incidence, `K,D`,
+`Flow`, and subtraction evidence remain the proposed machinery; no new carrier
+is justified. The next gate is the closed identity witness's checked complete
+`CallView` and exact profile-position map. If existing source clauses cannot
+derive that map, isolate the missing semantic premise for user decision. No
+Oracle inspection, code, tests, API/phase selection, or implementation
+authority resulted from this investigation.

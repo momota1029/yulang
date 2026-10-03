@@ -241,6 +241,24 @@ unconditional row union or four independent general-Type port checks. Treat
 must follow from role-specific elaboration, not as an axiom deriving `never`
 semantics.
 
+Sol's bounded source derivation, independently reviewed by a compiler
+referee, confirms that ordinary bind yields a request-occurrence partition
+(argument force or body at a reached post-force state) and only a conditional
+support containment under one supplied fiber. Core §9 already defines the
+complete relational `J_call`; the missing proposition is narrower: derive the
+role-specific complete Function description and its checked-position
+projection into `[b,d]`, then establish both joint inclusions in the same
+`Rel_C`/`ν` fiber. Existing source clauses do not yet identify force/body
+occurrences with the checked input/output positions. A divergent argument
+refutes unconditional equality with all body support, not a conservative
+union upper bound whose component premises have been established. Request
+support alone also cannot replace the complete challenge domain or prove
+response/state-preserving observation inclusion. No carrier gap, new rule,
+API/phase choice, or implementation authority is established. Next gate:
+derive the checked complete `CallView` and exact profile-position map for the
+closed identity witness; if the map is not derivable from current source
+clauses, present that precise missing semantic premise for user decision.
+
 For the §8 closed identity witness, the source call reduces to
 `Force(D_req) >>= Return`. The state-threaded bind right-unit law preserves
 its request prefix, response/resumption behavior, state transitions, and
