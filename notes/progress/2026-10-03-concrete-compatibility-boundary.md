@@ -1704,3 +1704,36 @@ fact, so I added no solver/evidence carrier. This derivation is primary-authored
 and remains unreviewed; it is research only with no implementation authority.
 No code, tests, builds, Oracle inspection or measurements were run;
 `git diff --check` is the focused record check.
+
+### Existing CallView evidence crosswalk (2026-10-03)
+
+A focused reread of the typed-boundary evidence definitions sharpened the
+conditional bridge. Existing records already distinguish callback boundary
+identity `b=(receiver, slot, signature profile, endpoints)`, received typed
+views and `Receive`, value-path transport `Flow`, event observation `Observe`,
+profile/dependency transport `χ,K,D`, typed `Path`, and current activation
+incidence `Inc_C`. The complete source `CallView` encloses argument conversion,
+call, result conversion and demanded force. These structures jointly provide
+the evidence vocabulary needed to preserve an actual pure-role closure under
+an expected handler-capable callback slot; they do not require a parallel
+attachment/provenance carrier.
+
+For identity argument/result transport and a value-entry callable, the
+conditional event path is: expected slot supplies its source-decorated view;
+callee is obtained; the argument is inertly reified; actual receipt occurs;
+`Force(D) >>= B` runs inside the call; and each request receives its
+`Observe` witness at the currently executing `CallView` ports. Its `Flow` /
+`Path` reaches the source contract profile, while `Inc_C` separately checks
+that the relevant receiver/handler is still active and eligible. `K,D`
+incidence remains on each event at the same `ν`.
+
+The exact missing lemma is now the **source-generated slot-profile
+projection**: derive from expected callback context that the slot creates this
+boundary/profile; derive the typed receipt and identity value path for the
+actual callback; and show that argument-force and body events both reach the
+intended complete invocation effect port under one `Rel_C` fiber. A flattened
+row containing both family names is not a proof of these path witnesses. This
+remains conditional and unreviewed; non-identity conversions and the full
+actual/checked challenge inclusion remain open. No solver/evidence carrier,
+code, or tests were added. `git diff --check` is the record integrity check;
+no builds, Oracle inspection, or measurements were run.

@@ -293,6 +293,14 @@ that view and its target effect port under the actual/checked domain relation.
 The old FunctionMap equation does not prove this placement and cannot be
 assumed for non-identity conversions.
 
+Current proof target: source-generated slot-profile projection. Derive the
+expected callback boundary/profile, typed receipt and identity `Flow`; then
+show that `Force(D)` and body requests have separate `Observe` witnesses whose
+typed paths reach the same complete invocation effect port under one
+`Rel_C`/`ν` fiber. `Inc_C` still checks current activation/eligibility, and
+`K,D` remain attached per event. Do not treat a flat row containing both
+families as evidence for those path witnesses.
+
 The immediate bounded theorem is the three source-elaboration clauses and
 their use at an actual callback literal: synthesized unannotated literal,
 explicitly Function-annotated literal, and callback-context literal. Keep the

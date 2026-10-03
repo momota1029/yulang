@@ -1622,3 +1622,35 @@ adds no new adapter, regional, attachment, or provenance carrier. The next
 source proof is the callback-slot elaboration/receipt diagram and its identity
 adaptation instance, followed by a witness that the effect-port projection
 contains both contributions under one `Rel_C` fiber.
+
+#### Existing evidence crosswalk for that proof
+
+The typed-boundary draft already gives the relevant evidence vocabulary; the
+candidate derivation need not duplicate it:
+
+| Source fact | Existing evidence | Exact use in the callback proof |
+|---|---|---|
+| Expected callback contract belongs to receiver `r`, slot `a`, profile `Γ`, and endpoints | Callback-boundary identity `b=(r,a,Γ,endpoints)` | Source elaboration must construct this `b` at callback-slot introduction/use; do not infer `Γ` from a solved row |
+| A received callback value is viewed at a particular signature position | Typed view `(v,t,e)` and `Receive(u,slot,view,typed correspondence)` | Preserve the actual value and its pure-role introduction while checking the slot view |
+| Argument, result, and latent typed paths correspond across a view | `Flow` and path-indexed profile/dependency transport `χ,K,D` | Carry original typed-family dependencies through identity or admitted conversion |
+| A request is exposed by the executing callback invocation | `Observe(q,v,p₀)` from the source computation relation | Locate both Force-exposed argument requests and body requests at the complete `CallView` ports |
+| A request has typed route to a concrete handler contract | Existing `Path` then current-configuration `Inc_C` | Keep profile/path evidence separate from current receiver/handler activation and ordered search |
+| Effects of argument conversion, call, result conversion, and demanded force | One complete source `CallView` | Preserve receipt order and include all demanded stages without a site-specific callback row rule |
+
+For the identity-adaptation case, the source proof should show the callback
+value reaches the slot view without executable argument/result conversion.
+The actual invocation still forces the argument only at its §21 value-entry
+point. The single `CallView` then exposes events from that force and from the
+body. The target effect port may cover both only if its source-derived profile
+and typed paths witness both `Observe` edges under shared `ν,K,D`; merely
+seeing their family names in a flattened row is insufficient. This is the
+precise port-projection lemma left to prove.
+
+The candidate source rule is therefore small and testable: an expected
+handler-capable callback slot supplies one source-decorated view; calls through
+the slot retain the callee's actual entry and compose through the existing
+complete `CallView`. It is not yet an adopted general checking rule for every
+pre-existing function value. Its derivation must establish the callback
+boundary profile, typed receipt, identity transport and both event paths from
+source typing. The whole-source challenge-domain and finite-presentation
+theorems remain later gates.
