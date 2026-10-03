@@ -987,3 +987,24 @@ them from annotations, defines no annotation acceptance rule, and establishes
 no handler subtraction or general Function comparison. `Filterφ` is not used,
 and deleting uncovered behavior cannot establish coverage of the original
 actual relation. No tests or builds ran.
+
+### Successor source-to-solver ownership check (2026-10-03)
+
+I checked the current Yulang3 crate boundary after deriving the conditional
+receiver-comparison corollary. `yu-syntax` exposes `EffectRowType` and
+`BracketRow` as direct-item CSTs, with syntax authority explicitly excluding
+row interpretation and lowering. `yu-hir` is still an HIR-adjacent operator
+association/module-name-resolution slice: `HirExpr::Value` retains syntax
+kind, range, and children, and the crate has no `BracketRow`, `EffectRowType`,
+or effect-row lowering symbols. `yu-types`' indexed Function node contains
+value argument/result children only. Separately, `yu-solver::Term` can build
+four-port Function nodes and validates the effect ports as `ComponentKind::Effect`
+with negative argument and positive result polarity.
+
+This is an implementation-boundary map, not semantic authority. It confirms
+that the component-to-complete-interface rule has no current HIR owner or
+source-lowering implementation, while solver-side four-port and effect-row
+infrastructure already exists as internal machinery. It does not show that
+the solver representation has the required annotation denotation, same-`ν`
+fiber preservation, component classification, or universal coverage rule.
+No code changed and no tests/builds ran.

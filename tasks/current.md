@@ -175,6 +175,15 @@ boundary on both sides, and treat `Allowed` as supplied rather than rebuilt
 from projected family points. The source gate must construct `D`, `P`, and
 `Allowed` from components before this corollary can help either Function case.
 
+Current-code ownership check: `yu-hir` has no effect-row or Function-type
+annotation lowering; its current HIR slice preserves syntax values for operator
+association and resolves module names. `yu-types`' indexed Function nodes
+contain value argument/result only, while `yu-solver::Term` already offers
+four-port Function nodes with effect-kind/polarity validation. Treat this as
+an implementation map only: existing solver terms do not fill the missing
+source denotation or authorize adding parallel evidence machinery. Keep the
+semantic gate ahead of any HIR/type-inference wiring.
+
 For that elaboration, map components to existing complete-interface and
 subtraction evidence. `g(o)` owns an argument of a typed request occurrence,
 not an arbitrary abstract component; one abstract component may denote a
