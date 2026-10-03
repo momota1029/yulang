@@ -1089,12 +1089,16 @@ graphs before label erasure, while erasure under the finite input alphabet
 collapses this example. Its compiler-referee delta review is clean. The
 erasure argument is limited to unguarded pure structural existence and does
 not establish arbitrary guard/`Phi` preservation or complete fiber
-representation. §7.4.2 now gives the input-bounded existence method only for a
-single-label unary Record input, and §7.4.3 now covers exactly two Record
-labels. Continue with three-or-more-label inputs and input clauses retaining
-Function/other constructor heads; retain exact full-fiber and joint predicate
-solving as separate obligations. No compiler authority or implementation
-follows.
+representation. §7.4.2 gives the input-bounded existence method for a
+single-label unary Record input. The earlier §7.4.3 proposal covered two Record
+labels; Sol's bounded derivation finds no use of the binary alphabet: the
+§7.4.3 path-domain and head-propagation construction generalizes to any finite
+input alphabet `Λ`, subject to its existing atom/mandatory-Record input shape.
+The generalized proof is recorded in the design draft and passed independent
+M3 compiler-referee and spec-auditor review after one minor wording repair in
+this task record. Input clauses retaining Function/other constructor heads, exact
+full-fiber and joint-predicate solving remain separate obligations. No
+compiler authority or implementation follows.
 
 §7.4.1 decides unguarded structural existence for `Λ=∅`: finite-label erasure
 makes Records nullary, after which structural subtyping equals rational-tree
@@ -1104,12 +1108,13 @@ single-label unary mandatory-Record/atom input fragment. It reduces full
 regular assignments to unary chains, classifies each free root by terminal
 category and depth, then solves shared inequalities with finite difference
 constraints; a reviewed computable witness bound follows. §7.4.3 extends the
-existence method to two Record labels using saturated path domains and regular
-head propagation through a finite pushdown system. All three procedures check
+existence method to arbitrary finite input Record alphabets using saturated
+path domains and regular head propagation through a finite pushdown system;
+`{f,g}` is now just one instance. All three procedures check
 original directed inequalities directly and leave the full fiber represented
 by the original constraints. Independent compiler-referee/spec-auditor
-reviews found no blocking or major findings; two minor §7.4.3 wording issues
-were repaired by the primary. Three-or-more-label inputs, input clauses with
+reviews found no blocking or major findings on the earlier fragments and the
+finite-alphabet extension. Input clauses with
 Function/other known constructors, guards, permissions, `Phi/K,D`, full-fiber
 decision and source acceptance remain open.
 

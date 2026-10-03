@@ -150,30 +150,30 @@ scope/permission preservation, joint `Phi/K,D`, source acceptance and
 implementation remain open. `git diff --check` passed;
 no tests, builds, or measurements ran.
 
-### Bounded two-label Record existence
+### Finite-alphabet Record existence extension (candidate; M3 review clean)
 
-§7.4.3 proposes an existence procedure for input Record descriptors with
-labels in `{f,g}` and arbitrary shared recursive inequalities. It represents
-each type by regular path domains plus mutually exclusive Record/atom head
-languages. Direct subtyping is path-domain inclusion with head agreement on
-every upper path. A finite epsilon saturation computes least path domains
-without extending fixed descriptors; a finite pushdown reachability system
-propagates required heads with regular domain guards. Any forced head clash
-rejects; otherwise unforced present paths become Records, yielding one regular
-witness. This preserves original inequalities and does not compose successful
-concrete comparisons.
+Sol's bounded proof audit found that §7.4.3 uses no property specific to two
+labels. The path-domain/head-propagation argument extends to every finite input
+Record alphabet `Λ`: field saturation ranges over `Λ`; Record-head seeds use
+the regular union of right quotients for all `l ∈ Λ`; and domain guards compile
+using finite transition-function annotations for the finite domain automata.
+Every propagated head remains on a present path. Shared paths receive equal
+heads, including childless Records; lower-only paths still impose no head
+condition on the upper endpoint. The existing effective witness bound remains
+finite, with alphabet size reflected in the constructed automata and
+transition tables.
 
-An independent compiler-referee review found no blocking or major issue and
-two minor wording issues: the finite atom alphabet omitted the representative,
-and the reverse head-propagation prose narrowed a rule that was displayed for
-all heads. I added the representative to the alphabet and made the reverse
-rule explicitly require head agreement at every shared path. Primary diff
-inspection and `git diff --check` close these minor points. The separate
-spec-auditor review found no conformance issue. The pushdown encoding remains
-a proof construction without mechanical checking; this fragment still omits
-guards, permissions, effects, `Phi/K,D`, Function/other input constructor
-clauses, and exact full-fiber representation. No tests, builds, or measurements
-ran.
+The draft now states arbitrary finite `Λ`; `{f,g}` is an instance. The
+extension is restricted to the existing unguarded structural existence
+fragment with fixed atoms and mandatory Record input descriptors. Known
+Function/other constructor descriptors, guards, permissions, effects,
+`Phi/K,D`, source acceptance and exact full-fiber representation remain
+outside it. The independent compiler_referee review found no findings on
+domain/head completeness, finite pushdown compilation, witness construction,
+or the effective bound. The spec_auditor found one minor task-record wording
+inconsistency, repaired above, and no other scope issue. This remains a proof
+candidate, not mechanically checked and not implementation authority. No
+tests, builds, or measurements ran.
 
 The separate finite supplied-template context-closure candidate has now
 received clean compiler-referee and spec-auditor delta reviews after its

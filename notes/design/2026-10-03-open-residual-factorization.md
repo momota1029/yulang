@@ -3,7 +3,7 @@
 Status: Reviewed
 Date: 2026-10-03
 Scope: candidate factorization theorem for open structural bounds after scoped rational equality quotienting
-Reviewed-by: compiler_referee and spec_auditor (M3, 2026-10-03); initial structural-outcome repairs, conditional factorization-lemma review, and operation-instance context delta found no remaining findings in reviewed scopes; bounded compiler_referee delta review of §7.1's one-class atomic-Record fiber found no findings; bounded compiler_referee and spec_auditor review of §7.2's closed-regular-endpoint shape-and-field fiber found no findings; bounded compiler_referee and spec_auditor review of §7.3's closed structural interval inhabitation found no blocking/major findings, and its minor Record-arity wording ambiguity was repaired by primary inspection; §7.4's recursive-witness-size repair and §7.4.1's empty-input-label existence reduction received clean compiler_referee and spec_auditor reviews; §7.4.2's one-label Record existence reduction received clean compiler_referee and spec_auditor delta reviews; §7.4.3's two-label path-saturation proposal received a clean spec_auditor review and a compiler_referee review with two minor wording repairs closed by primary inspection
+Reviewed-by: compiler_referee and spec_auditor (M3, 2026-10-03); initial structural-outcome repairs, conditional factorization-lemma review, and operation-instance context delta found no remaining findings in reviewed scopes; bounded compiler_referee delta review of §7.1's one-class atomic-Record fiber found no findings; bounded compiler_referee and spec_auditor review of §7.2's closed-regular-endpoint shape-and-field fiber found no findings; bounded compiler_referee and spec_auditor review of §7.3's closed structural interval inhabitation found no blocking/major findings, and its minor Record-arity wording ambiguity was repaired by primary inspection; §7.4's recursive-witness-size repair and §7.4.1's empty-input-label existence reduction received clean compiler_referee and spec_auditor reviews; §7.4.2's one-label Record existence reduction received clean compiler_referee and spec_auditor delta reviews; the earlier two-label §7.4.3 received clean spec/compiler review; Sol derived the finite-Λ §7.4.3 extension, which received clean M3 compiler_referee and spec_auditor review after one minor task-record wording repair
 Implementation authority: none
 Supersedes: none
 
@@ -560,13 +560,14 @@ and full-fiber variation. After erasing `g` under `Λ = {f}`, every `Tₙ`
 collapses to `μZ. Record{f:Z}`; these examples therefore do not refute bounded
 existence witnesses. Nor does erasure preserve
 arbitrary scope-guard or `Phi/K,D` predicates; they remain outside this
-structural-existence reduction. The next proof obligation is an effective
-input-bounded regular-witness theorem, which remains open, or another complete
-decision method for recursive open structural packages after finite-label
-reduction. A
-separate exact symbolic-fiber theorem must retain unbounded recursive shape
-variation, arbitrary finite Record extensions, and the original shared
-constraints. Neither follows from §7.3's fixed-endpoint interval automaton.
+structural-existence reduction. The remaining existence gap after
+finite-label reduction is the broader input fragment with Function or other
+known constructor descriptors, or additional joint predicates; the narrower
+atom/mandatory-Record fragment is developed in §§7.4.1–7.4.3 below. A separate
+exact symbolic-fiber theorem must retain unbounded recursive shape variation,
+arbitrary finite Record extensions, and the original shared constraints.
+Neither follows from §7.3's fixed-endpoint interval automaton or from the
+existence procedures below.
 
 #### 7.4.1 Empty input Record alphabet: a bounded existence subfragment (candidate)
 
@@ -705,12 +706,12 @@ selected resource limit. The complete fiber, width choices for `Lambda` with
 more labels, guard/permission preservation, and joint predicate solving
 remain open.
 
-#### 7.4.3 Two-label Record existence by regular path saturation (candidate)
+#### 7.4.3 Finite-alphabet Record existence by regular path saturation (candidate)
 
 This existence-only extension uses the same unguarded structural setting as
 §7.4.2, with input descriptors restricted to fixed atoms and mandatory
-Records whose label sets are subsets of `{f,g}`. A field either occurs
-mandatorily at that node or is absent; this does not add optional-field
+Records whose labels belong to the finite input alphabet `Λ`. A field either
+occurs mandatorily at that node or is absent; this does not add optional-field
 semantics. Finite directed inequalities share quotient roots and may have
 recursive descriptor feedback. Assignments range over the full finite
 contractive regular structural grammar of §2. Other Record labels are erased;
@@ -721,7 +722,7 @@ structural existence; permissions, guards, effects, casts, adapters and
 
 Let `A` be the input atom identities together with the one fixed primitive
 representative used by the existence reduction. Represent a type rooted at
-quotient node `q` by its present-path language `D_q ⊆ {f,g}*` and disjoint
+quotient node `q` by its present-path language `D_q ⊆ Λ*` and disjoint
 head languages `H_q^R` and `H_q^a` for Record and each `a ∈ A`. They partition
 `D_q`; every present proper prefix is a Record path. A Record's fields are
 exactly the labels whose one-step child paths are present. For two such
@@ -739,8 +740,8 @@ of endpoint comparisons.
 
 **Least present-path languages.** Build an NFA with quotient nodes as states,
 all states accepting, and one labelled edge `q -l-> c` for each fixed Record
-descriptor field `q.l=c`. Add an epsilon edge `s -> t` for each original
-inequality `s <: t`. Saturate the finite rule
+descriptor field `q.l=c`, where `l ∈ Λ`. Add an epsilon edge `s -> t` for
+each original inequality `s <: t`. Saturate the finite rule
 
 ```text
 q is a fixed Record descriptor with field l:c
@@ -770,9 +771,9 @@ prefix-closed by construction.
 **Required-head propagation.** Compute which heads are forced on each
 `(q,w)` path using configurations with quotient node `q` in finite control and
 the path `w` on a stack, first label at the top. Seed the known head at each
-fixed descriptor root, and seed Record at `(q,w)` whenever `wf` or `wg` is in
-`D_q`; a node with a present child must be a Record. Propagate facts by the
-finite rules:
+fixed descriptor root, and seed Record at `(q,w)` whenever `wl ∈ D_q` for
+some `l ∈ Λ`; a node with a present child must be a Record. Propagate facts by
+the finite rules:
 
 ```text
 fixed descriptor field q.l=c:  (c,w) ↔ (q,lw)
@@ -788,12 +789,13 @@ Lower-only paths impose no head condition on the upper endpoint. All
 descriptor and inequality facts are therefore necessary in every assignment
 on the least domains.
 
-The rules are push/pop transitions over `{f,g}` plus regular stack tests
-against the finite domain automata. Compile each regular test by annotating
-stack suffixes with the finite transition functions of those automata; push
-updates the annotation and pop restores it. The resulting finite pushdown
-system has an effective regular reachable-configuration set by automaton
-saturation. Project its stack languages to obtain regular head languages.
+The rules are push/pop transitions over the finite alphabet `Λ` plus regular
+stack tests against the finite domain automata. Determinize those automata if
+needed, then annotate stack suffixes with the finite transition functions;
+push updates the annotation and pop restores it. The resulting finite
+pushdown system has an effective regular reachable-configuration set by
+automaton saturation. Project its stack languages to obtain regular head
+languages. No step depends on `|Λ| = 2`.
 Reject if, at any `(q,w)`, Record overlaps an atom head or two different atom
 heads overlap.
 
