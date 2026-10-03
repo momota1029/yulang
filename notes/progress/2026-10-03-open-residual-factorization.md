@@ -1240,3 +1240,16 @@ The sufficiency direction must exhibit one post-fixed comparison relation per
 original bound on that graph. No regular-witness theorem or terminating
 procedure follows until both directions are proved and independently
 reviewed; this proposal has not received that review.
+
+Primary scope audit exposed another uncovered transition. A ranked descriptor
+node in `K` may have a child that is a descriptor-free root in `P`. For
+`q=C(x)` and the single bound `x <: q`, with covariant unary `C`, the first
+matched-head descent produces a comparison between the selected child of the
+flexible value `x` and the free root `x`; both are `P`, but they may have
+ranked heads. The regular witness `x=C^ω` satisfies the bound, yet the
+resulting `P/P` ranked obligation is outside §7.4.3's Records/atoms procedure.
+Thus the profile transfer above is undefined at this edge unless it retains a
+joint flexible/flexible comparison state or supplies another reviewed solver
+for ranked `P/P` exits. The current candidate must not be read as covering
+these cases; this scope gap is manually identified and independently
+unreviewed.

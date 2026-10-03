@@ -154,6 +154,10 @@ orientation)` contexts, transferred jointly through ranked children and
 passed to shared §7.4.3 `P/P` boundary solving at Records. Its state count is
 finite, but the arbitrary-solution quotient and descriptor-anchor/boundary-
 fiber preservation proofs remain open; the proposal is unreviewed.
+Scope audit additionally finds that ranked K children can be descriptor-free
+P roots: `q=C(x), x<:q` descends to a ranked P/P comparison. §7.4.3 does not
+solve that case. A joint flexible/flexible comparison state or other reviewed
+closure is required before the proposal covers the full structural fragment.
 
 ## Current work
 
