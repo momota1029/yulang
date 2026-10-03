@@ -3373,3 +3373,15 @@ these hold, and §21/typed-core §§6,9 plus adequacy §§2–4 supply identity
 execution preservation for admitted decorated inputs. The inspected clauses
 construct none of these four premises. No contradiction or new semantic
 ambiguity was found; the gate remains a missing source-adequacy theorem.
+
+An independent architect audit checked the governing Authoritative sources
+against the candidate map. The endpoint-to-complete-interface map is absent
+from current authority: callback-context §2 leaves complete Function
+interface formation as an obligation, §4 fixes the retained slot view, and
+§7 states the two containment clauses without constructing their domains or
+bounds. Typed-core §9 gives the sufficient containment law and executable
+invocation relation, while explicitly leaving finite symbolic complete-call
+presentation open. The result confirms a missing source theorem, not a
+contradiction or a reason to revise the selected source rules. The next
+semantic work must construct this bridge as a Draft candidate and keep its
+admission and complete-bound premises independent of inequality success.

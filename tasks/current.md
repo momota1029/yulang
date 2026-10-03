@@ -1914,7 +1914,13 @@ for every legal callback history, and the source meaning of linked `[b,d]`
 under the original signed occurrences. Core §9 supplies containment only
 after those premises; current clauses do not derive them. This remains an
 unclosed source-adequacy theorem, with no demonstrated contradiction or
-semantic ambiguity.
+semantic ambiguity. A bounded architect audit of the governing sources
+confirmed that no Authoritative endpoint-to-complete-interface map exists:
+callback-context §2 leaves interface formation open and §7 states the
+containment clauses without constructing their domains/bounds; typed-core §9
+supplies only the conditional law. Next derive a Draft source bridge under
+the existing source roles and call relation, preserving admission and bounds
+as independent of comparison success.
 Astra and compiler-referee audits refine the former
 `ArgEventToCallMember` gate into shared support membership, dynamic event
 preservation, and positive typed-incidence claims. A bounded compiler-referee
