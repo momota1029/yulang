@@ -1871,17 +1871,18 @@ the approved slot invocation view and explicit linked-lifting intent do.
 Still open are source derivation that the known role-indexed `F_cb/profile`
 actually contains those original signed occurrences, generation and
 admissibility of the application/force maps and executing views alongside
-`T_P <: F_cb`, shared-fiber well-formedness, evidence admissibility, and both
-universal clauses: checked challenge-domain inclusion and complete observation
-inclusion. A bounded finite-generation schema now constructs the unresolved
-query with candidate receipts, correspondences and views when the finite
-source/profile graph supplies those original occurrence facts. This does not
-prove that raw source constructs the profile or that the generated paths are
-admissible. Immediate next gate: derive the source path from the designated
-positive `d` member to the complete-call observation view and its admissibility
-beside unresolved `T_P <: F_cb`; establish the bounded identity witness's
-open source fiber without assuming `Q`; then test candidate-evidence
-admissibility. Keep universal domain and observation inclusion separate.
+`T_P <: F_cb`, shared-fiber well-formedness, and both universal clauses:
+checked challenge-domain inclusion and complete observation inclusion. A
+bounded finite-generation schema now constructs the unresolved query with
+candidate receipts, correspondences and views when the finite source/profile
+graph supplies those original occurrence facts. This does not prove that raw
+source constructs the profile or that the generated paths are admissible.
+Immediate next gate: determine whether existing source rules derive one
+comparison-independent decorated application witness (including the joint
+fiber and candidate map admissions) while leaving `Q = T_P <: F_cb` unresolved.
+If they do, display that derivation for the bounded identity/request witness;
+if they do not, isolate the exact missing admission rule before considering
+any user decision. Keep universal domain and observation inclusion separate.
 Astra and compiler-referee audits refine the former
 `ArgEventToCallMember` gate into shared support membership, dynamic event
 preservation, and positive typed-incidence claims. A bounded compiler-referee
@@ -1970,6 +1971,22 @@ composition and execution preservation are closed conditionally; raw-source
 profile generation, open-fiber nonemptiness, candidate evidence admission,
 and the universal checked-domain and complete-observation clauses remain
 open. No new carrier, API, phase, or implementation decision follows.
+
+A subsequent bounded Astra audit found no current source rule that introduces
+the required comparison-independent decorated witness. The identity callback
+and `op : Unit -> [E] Int` argument carrier supply an operational execution
+skeleton, including the declaration-derived result consumer and a legal
+response requirement; they do not establish a nonempty jointly well-formed
+`ν,K,D` fiber or admit `M_slot`, `M_arg`, and `M_call` while `Q` is unresolved.
+The existing transport and linking results are conditional on those typed
+derivations/maps, and callback §8 calls its examples proof witnesses rather
+than accepted programs. This is a non-entailment result, not an executable
+counterexample and not evidence that the intended lift is impossible. The
+narrow remaining lemma is a bounded source-context introduction with the
+shared assignment, original signed profile, three correspondence admissions,
+and one legal request/response execution, without using `Q`; do not count
+operational execution or support membership alone as its proof. No Oracle
+behavior or new carrier is implicated.
 
 ## Main records
 
