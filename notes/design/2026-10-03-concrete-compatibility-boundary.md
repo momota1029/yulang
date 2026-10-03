@@ -4,7 +4,7 @@ Status: Reviewed; records the user's 2026-10-03 semantic decision; operational r
 Date: 2026-10-03
 Scope: separate transitive variable-bound propagation from local concrete compatibility and adaptation resolution
 Approved-by: user for the relation distinction and Oracle observations recorded in §1 only
-Reviewed-by: compiler_referee and spec_auditor §§1–5, 2026-10-03; architect pre-write audit plus fresh compiler_referee/spec_auditor review of §5; architect pre-write audit plus compiler_referee/spec_auditor review of §§2/6 boundary-conservation and bound-replay clarifications; architect pre-write audit plus compiler_referee/spec_auditor review of §5.1 shared-dispatcher candidate; architect pre-write audit plus compiler_referee/spec_auditor review of §2 replay-admission refinement and §6 ordinary-pair scope, all clean within bounded scopes after factual qualification
+Reviewed-by: compiler_referee and spec_auditor §§1–5, 2026-10-03; architect pre-write audit plus fresh compiler_referee/spec_auditor review of §5; architect pre-write audit plus compiler_referee/spec_auditor review of §§2/6 boundary-conservation and bound-replay clarifications; architect pre-write audit plus compiler_referee/spec_auditor review of §5.1 shared-dispatcher candidate; architect pre-write audit plus compiler_referee/spec_auditor review of §2 replay-admission refinement and §6 ordinary-pair scope; compiler_referee §2/6 live-coverage suppression delta, all clean within bounded scopes after factual qualification
 Implementation authority: none
 Supersedes: none; narrows source applicability of structural relation candidates without invalidating their fragment theorems
 
@@ -113,8 +113,11 @@ further child bounds must come from the selected compatibility derivation and
 retain this replay as their parent. This separates bound transitivity from
 compatibility-result composition, but is only a candidate factoring of the
 judgments: source typing, replay admission, guard/weight combination,
-principality and runtime conversion placement are unproved. In particular,
-the conditional `X={}` counterexample applies only when the original
+proof-coverage discharge, principality and runtime conversion placement are
+unproved. Frozen proof coverage is not by itself the language criterion for
+omitting a replay; the source account must establish whether the obligation is
+unnecessary or is preserved by an independently justified proof. In
+particular, the conditional `X={}` counterexample applies only when the original
 obligations are interpreted as independent local `Compat` checks, rather than
 these stronger bound payloads plus an independently justified replay-admission
 rule.

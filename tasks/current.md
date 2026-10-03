@@ -115,12 +115,19 @@ fixed-endpoint fragment. This refines the candidate, not source authority. The
 next gate is bound-replay conservation: define replay admission independently
 of proof-store/queue policy, preserve original guarded boundaries, and prove
 exactly which ordinary pair queries arise with their parent IDs, contexts,
-weights, and eligibility evidence.
+weights, and eligibility evidence. Where frozen proof coverage suppresses a
+pair, establish whether no source query is required or how the required
+obligation remains represented; do not infer discharge from equal endpoints
+or composed successful `Compat` checks.
 
 The documentary `ReplayAdmissible` refinement received clean bounded
 architect/compiler-referee/spec-auditor review. This certifies the candidate's
 scope and finite abstraction only; the source meaning of eligibility,
 context/weight composition and two-direction conservation remain unproved.
+The follow-up frozen coverage ledger received a clean bounded compiler-referee
+review. Proof-coverage suppression must map to absent source obligations or
+identified independent discharge evidence; CPK coverage itself is not
+successor authority.
 
 A separate M3 draft now proves finite least closure for a fixed finite graph,
 payload set and context carrier. Independent semantic and conformance reviews

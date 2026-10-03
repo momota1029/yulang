@@ -4,7 +4,7 @@ Status: Reviewed
 Date: 2026-10-03
 Scope: least closure of a fixed finite variable-bound graph with finite replay contexts
 Approved-by: none; the user's approved relation distinction is recorded in §1 of `2026-10-03-concrete-compatibility-boundary.md`
-Reviewed-by: architect pre-write audit; compiler_referee and spec_auditor review §§1–6 clean after primary closure of minor findings; fresh compiler_referee and spec_auditor review of §7 hypothesis; compiler_referee source-bridge and revised check-only contract-boundary deltas clean after major-finding repair; compiler_referee review of §8 clean after primary closure of one minor materialization-phase finding; architect pre-write audit plus compiler_referee/spec_auditor review of the §2/3/3.1/6 replay-admission refinement, no findings
+Reviewed-by: architect pre-write audit; compiler_referee and spec_auditor review §§1–6 clean after primary closure of minor findings; fresh compiler_referee and spec_auditor review of §7 hypothesis; compiler_referee source-bridge and revised check-only contract-boundary deltas clean after major-finding repair; compiler_referee review of §8 clean after primary closure of one minor materialization-phase finding; architect pre-write audit plus compiler_referee/spec_auditor review of the §2/3/3.1/6 replay-admission refinement, no findings; compiler_referee §6 live-coverage suppression delta, no findings
 Implementation authority: none
 Supersedes: none
 
@@ -240,6 +240,17 @@ At frozen commit `a58eefc31e22141574b6f20c6a5748151c6d79f1`:
   `ReplayAdmissible` premise; its proof-store admission policy is not itself
   successor language semantics. Incremental row residuals are outside the
   fixed-endpoint closure fragment above.
+- `proof/mod.rs::compose_prepared_replay_route` further filters ordinary-pair
+  parents using live coverage by each upper claim root. With a concrete lower
+  endpoint and no incremental row route, no upper parents or any uncovered
+  upper parent requires generic replay; when all existing upper parents are
+  covered, the generic pair is suppressed. With a variable lower endpoint,
+  covered parents remain in the pair unless a selected incremental route
+  handles their representative claim. This is frozen proof-routing policy,
+  not an approved source rule. A successor conservation proof must establish
+  either why no source replay obligation is required or where any required
+  obligation remains represented; it cannot count endpoint equality or
+  successful local `Compat` composition as that evidence.
 - `crates/infer/src/constraints/tests/case_01.rs::var_bound_addition_replays_against_opposite_bounds_with_union_weights`
   asserts a composed-weight lower/upper endpoint constraint. The neighboring
   `var_var_replay_materializes_transitive_edges` case asserts propagation of

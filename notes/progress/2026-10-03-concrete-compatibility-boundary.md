@@ -263,6 +263,24 @@ records; they did not certify its source meaning or the excluded incremental
 row routes. No tests or builds were run, and implementation remains
 unauthorized.
 
+A follow-up read of `compose_prepared_replay_route` exposed another
+conservation condition: live coverage by upper-claim roots can suppress an
+ordinary pair for a concrete lower endpoint when all upper parents are
+covered; uncovered parents or no upper parents select generic replay.
+Variable lower endpoints retain covered parents unless an incremental route
+handles them. This is CPK route policy, not a successor type rule. A
+suppressed pair needs an independent explanation: either the source has no
+such replay obligation, or its obligation remains discharged by identified
+evidence. Endpoint equality and previously successful local compatibility
+results alone cannot show that. The current fixed-endpoint theorem records
+this discharge question.
+
+An independent compiler-referee delta audit confirmed the frozen coverage
+conditions and found no issue in the conservation wording. It verified the
+concrete-lower suppression case, variable-lower parent retention, and the
+separate incremental route behavior. This review does not establish the
+successor source meaning of coverage or discharge.
+
 ## Next gate
 
 Prove bound-replay conservation for a fixed finite source elaboration and
