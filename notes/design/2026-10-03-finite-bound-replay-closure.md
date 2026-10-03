@@ -1,189 +1,177 @@
-# Finite guarded closure for variable bound replay
+# Finite guarded closure for endpoint-dependent inequality solving
 
-Status: Reviewed
+Status: Draft; reframed after the user's 2026-10-03 clarification of one inequality judgment
 Date: 2026-10-03
-Scope: least closure of a fixed finite variable-bound graph with finite replay contexts
-Approved-by: none; the user's approved relation distinction is recorded in §1 of `2026-10-03-concrete-compatibility-boundary.md`
-Reviewed-by: architect pre-write audit; compiler_referee and spec_auditor review §§1–6 clean after primary closure of minor findings; fresh compiler_referee and spec_auditor review of §7 hypothesis; compiler_referee source-bridge and revised check-only contract-boundary deltas clean after major-finding repair; compiler_referee review of §8 clean after primary closure of one minor materialization-phase finding; architect pre-write audit plus compiler_referee/spec_auditor review of the §2/3/3.1/6 replay-admission refinement, no findings; compiler_referee §6 live-coverage suppression delta, no findings; architect/compiler_referee/spec_auditor bounded review of the same-owner and cross-source covered-row characterization, candidate only; compiler_referee review of the alpha/beta routed-path delta, no findings; compiler_referee proof/refutation audit of the conditional eligible-edge spine, followed by spec_auditor delta review, no findings after closure of the normalization-premise finding
+Scope: finite closure of internal solver states for a fixed finite endpoint-dependent inequality transition system
+Approved-by: no solver semantics or implementation approved; the user's single-inequality direction is recorded in §1 of `2026-10-03-concrete-compatibility-boundary.md`
+Reviewed-by: prior bounded reviews cover frozen-source facts and earlier abstract closures only; current reformulation awaits review
 Implementation authority: none
 Supersedes: none
 
 ## 1. Purpose and limits
 
 The [concrete compatibility boundary note](2026-10-03-concrete-compatibility-boundary.md)
-records the user's distinction between transitive type-variable bound
-propagation and local concrete compatibility. Its frozen-source audit found
-that Oracle replays eligible lower/upper bound pairs stored at one variable,
-retaining the pivot and both bound-record identities. This note isolates the
-smallest finite closure theorem suggested by that route.
+records the user's direction: Yulang has one inequality query `A <: B`, whose
+solver dispatches by endpoint form. Variable-edge propagation may be
+transitive; concrete resolution is local and may yield cast/adapter evidence,
+whose success cannot be composed into a third concrete inequality.
 
-The theorem is about a fixed finite graph and fixed finite endpoint terms. It
-proves termination, leastness and derivation preservation for the candidate
-rules below. It does **not** prove that those rules are the successor source
-typing judgment, that they preserve Oracle's complete source acceptance, that
-the resulting constraints are principal, or that a generated conversion has
-an executable source location. Those are separate open gates. The rules remain
-candidates; no compiler change or new language behavior is authorized.
+This note records a finite closure theorem for a fixed finite **solver
+transition system** suggested by frozen lower/upper replay. Its `VarEdge`,
+`LowerPayload`, `UpperPayload`, replay-route, and comparison-task records are
+internal algorithmic states for the same inequality solver, not separate
+semantic judgments. A selected replay creates another `A <: B` work item and
+does not rely on successful concrete-resolution outcomes as premises.
 
-## 2. Fixed input and candidate closure rules
+The theorem proves termination, leastness and finite derivation provenance for
+the stated state transitions only. It does **not** prove that replay is
+source-mandated, that the transition system preserves source acceptance, that
+its resulting constraints are principal, or that generated resolution
+evidence has an executable source location. Those remain open. No compiler
+change or new language behavior is authorized.
+
+## 2. Fixed input and candidate solver-state transitions
 
 Fix:
 
-- a finite variable set `V` and a finite directed `Bound` graph `E`;
-- finite lower and upper payload identities `I_L` and `I_U`;
+- a finite variable set `V` and a finite set of internal directed variable
+  edge records `E`;
+- finite lower- and upper-payload identities `I_L` and `I_U`;
 - for each lower payload `i`, a fixed endpoint term `A_i`; for each upper
   payload `u`, a fixed endpoint term `B_u`;
-- a finite context carrier `C` that retains source identity, lexical binder
-  identity, scope guard information and every finite weight/route coordinate
-  that can affect movement or replay admission; and
-- finite context relations `Move_L`, `Move_U`, and `ReplayCtx`.
+- a finite context carrier `C` retaining source identity, lexical binder
+  identity, scope-guard information and every finite route coordinate that
+  can affect movement or replay admission;
+- finite transition relations `Move_L`, `Move_U`, `ReplayCtx`, and
+  `ReplayRouteAdmitted`; and
+- a finite endpoint-term graph. Transitions in this theorem do not unfold
+  terms or allocate new endpoint terms.
 
-Every graph fact uses contexts from `C`; in particular,
-`E ⊆ V × V × C`. The finite context relations have domains and codomains in
-`C`.
+A comparison task is still an inequality query `A <: B` with its originating
+context and consumer identity. `LowerPayload(i,X,A,c)` and
+`UpperPayload(u,X,B,c)` are internal indexes of unresolved comparison tasks
+at a variable endpoint; they are not propositions that concrete comparisons
+succeeded. `VarEdge(X,Y,e)` indexes a variable-to-variable inequality and its
+propagation context. Original source tasks and replay-generated tasks retain
+distinct identities and derivation links.
 
-An input lower state has shape `Lower(i, X, A_i, c)` and an input upper state
-has shape `Upper(u, X, B_u, c)`, where `X ∈ V` and `c ∈ C`. A graph edge is
-`Bound(X, Y, e)` with its own finite context `e`. The endpoint terms are nodes
-in a fixed finite graph; the rules do not unfold them or allocate new endpoint
-terms.
+`Move_L(c,e,c')` and `Move_U(c,e,c')` indicate that the corresponding
+payload record may move across an internal variable edge with resulting
+context `c'`. `ReplayCtx(c_L,c_U,X,c_R)` and
+`ReplayRouteAdmitted(i,u,X,c_L,c_U,c_R)` are finite guards on a solver
+transition. They are not source relations: their validity and completeness
+must be derived from the source inequality-generation and replay rules.
+Endpoint, weight or context values that can affect the transition must occur
+in the finite state key or in these finite relations. This abstraction does
+not assert that frozen `ConstraintWeights` or the full route machinery are
+finite in this model.
 
-`Move_L(c,e,c')` and `Move_U(c,e,c')` say that the respective payload may
-cross the edge under the resulting context. `ReplayCtx(c_L,c_U,X,c_R)` says
-that the two contexts at one pivot admit a replay context. These relations are
-explicit parameters of the theorem, not chosen guard-combination policies.
-`ReplayAdmissible(i,u,X,c_L,c_U,c_R)` further selects which pair of bound
-identities may generate replay under those contexts. It is a fixed finite
-background relation over `I_L × I_U × V × C³`; endpoint or weight data that can
-change route eligibility must be represented in the corresponding finite
-payload/context key. This abstraction does not assert that frozen
-`ConstraintWeights` or their full route machinery are finite in this model.
-The soundness and source definition of all four relations remain open.
-
-The candidate monotone rules are:
+The monotone candidate state transitions are:
 
 ```text
-Bound(X,Y,e) ∧ Lower(i,X,A,c) ∧ Move_L(c,e,c')
-    ⇒ Lower(i,Y,A,c')
+VarEdge(X,Y,e) + LowerPayload(i,X,A,c) + Move_L(c,e,c')
+    -> LowerPayload(i,Y,A,c')
 
-Bound(X,Y,e) ∧ Upper(u,Y,B,c) ∧ Move_U(c,e,c')
-    ⇒ Upper(u,X,B,c')
+VarEdge(X,Y,e) + UpperPayload(u,Y,B,c) + Move_U(c,e,c')
+    -> UpperPayload(u,X,B,c')
 
-Lower(i,X,A,c_L) ∧ Upper(u,X,B,c_U)
-    ∧ ReplayCtx(c_L,c_U,X,c_R)
-    ∧ ReplayAdmissible(i,u,X,c_L,c_U,c_R)
-    ⇒ Replay(i,u,X,A,B,c_R)
+LowerPayload(i,X,A,c_L) + UpperPayload(u,X,B,c_U)
+    + ReplayCtx(c_L,c_U,X,c_R)
+    + ReplayRouteAdmitted(i,u,X,c_L,c_U,c_R)
+    -> ComparisonTask(A <: B, c_R; parents i,u,X)
 ```
 
-The third rule represents ordinary selected-pair replay only. It does not
-model the frozen incremental row-reduction route, which can use a residual
-endpoint and needs its own finite carrier and preservation rule. An admitted
-logical route also need not allocate new worklist work: trivial, duplicate or
-evidence-only handling may retain its derivation without a new semantic
-constraint. Its `Replay` conclusion creates a fresh `Compat` query. When both
-endpoint terms are concrete, that query is resolved locally and may select
-check/cast/adaptation evidence. If either endpoint is unresolved, the query
-remains suspended for a later solving rule; this theorem specifies no such
-rule. A successful local `Compat` result is not a premise to any of these rules
-and is never entered into variable reachability. If a selected
-compatibility derivation emits structural child obligations, those require a
-separate finite closure argument with the replay query retained as their
-parent; child generation is excluded from this theorem.
-
-Original source boundaries are stored separately from these lower/upper
-payloads. This package does not equate an original boundary with a lower or
-upper payload, and does not decide whether a source boundary can supply either
-kind of payload.
+The final task enters the same endpoint-dependent inequality solver as any
+source task. The rule does not claim that every lower/upper pair must replay;
+that is what `ReplayRouteAdmitted` stands for in this fixed transition model,
+and its source meaning remains unproved. The transition does not consume or
+compose success evidence from earlier concrete comparison tasks. Structural
+child tasks, adapter realization, and incremental row-residual routes are
+outside this fixed-payload closure theorem and need their own finite transition
+and source-preservation proofs.
 
 ## 3. Finite least-closure theorem
 
-Let `S_0` be any finite set of input lower and upper states. Let `R_Γ` be the
-closure operator that adds every conclusion of the three rules in §2 using
-fixed background facts `Γ` until no new state can be added. Context
-transitions may be nondeterministic, but each relation, including
-`ReplayAdmissible`, is finite.
+Let `S_0` be any finite set of input internal states. Let `R_Gamma` be the
+closure operator that adds every conclusion of the three transitions in §2
+using fixed finite background transition facts `Gamma` until no new state can
+be added. Context transitions may be nondeterministic, but each relation,
+including `ReplayRouteAdmitted`, is finite.
 
-**Theorem (finite fixed-graph closure).** The closure process terminates after
-finitely many state insertions and produces a unique least rule-closed state
-set containing `S_0`. Every produced lower, upper or replay state has a finite
-derivation from `S_0` and `Γ` (the fixed `Bound`, `Move_L`, `Move_U`,
-`ReplayCtx`, and `ReplayAdmissible` facts). Conversely, every state with such
-a finite derivation is present in the result. Any fair worklist schedule
-reaches the same least closed set.
+**Theorem (finite fixed-graph solver closure).** The closure process terminates
+after finitely many state insertions and produces a unique least transition-
+closed state set containing `S_0`. Every produced payload or comparison task
+has a finite derivation from `S_0` and `Gamma` (the fixed `VarEdge`, `Move_L`,
+`Move_U`, `ReplayCtx`, and `ReplayRouteAdmitted` facts). Conversely, every
+state with such a finite derivation is present in the result. Any fair
+worklist schedule reaches the same least closed set.
 
-**Proof.** The universe of possible states is finite. If `n_L = |I_L|`,
+**Proof.** The state universe is finite. If `n_E = |E|`, `n_L = |I_L|`,
 `n_U = |I_U|`, `n_V = |V|` and `n_C = |C|`, then there are at most
 
 ```text
-n_V² n_C
+n_E
 + n_V (n_L + n_U) n_C
 + n_V n_L n_U n_C
 ```
 
-canonical bound-edge, propagated-payload and replay states, respectively.
-Endpoint terms are fixed by payload identity. A replay state's semantic key
-contains its single result context; its lower and upper parent contexts are
-premises in the finite provenance graph, not additional key coordinates.
+canonical variable-edge, propagated-payload and replay-task states,
+respectively. Endpoint terms are fixed by payload identity. A replay task's
+key contains its single result context; its lower and upper parent contexts
+are premises in the finite provenance graph, not additional key coordinates.
 This quotient is sound only if `c_R` retains all behaviorally relevant guard,
-weight and resolution context; if distinct admission witnesses with the same
-key can resolve differently, the key must retain another coordinate. The
-rules only add states, so each insertion strictly
-increases a finite set and saturation terminates. Induction on insertion
-round proves every inserted state has a finite derivation. Induction on the
-height of a finite rule derivation proves completeness. The result is the
-least fixed point of the monotone consequence operator, independent of fair
-worklist order. A cyclic variable graph can produce alternate derivations but
-cannot create infinitely many states when canonical keys and contexts remain
-inside the fixed finite universe. ∎
+weight and resolution context; if distinct route witnesses with the same key
+can generate different future tasks, the key must retain another coordinate.
+The transitions only add states, so each insertion strictly increases a finite
+set and saturation terminates. Induction on insertion round proves every
+inserted state has a finite derivation. Induction on the height of a finite
+transition derivation proves completeness. The result is the least fixed point
+of the monotone consequence operator, independent of fair worklist order. A
+cyclic variable graph can produce alternate derivations but cannot create
+infinitely many states when canonical keys and contexts remain inside the
+fixed finite universe. ∎
 
 This state bound does not count derivation paths. Keep a finite provenance
-graph keyed by canonical states and immediate rule premises; do not allocate a
-fresh semantic identity for every traversal of a cycle. If the system needs
+graph keyed by canonical states and immediate transition premises; do not
+allocate a fresh identity for every traversal of a cycle. If the system needs
 path-specific guard behavior, that behavior must be represented in `C` and
 proved equivalent for states sharing a key.
 
-### 3.1 Conditional semantic conservation
+### 3.1 Source-preservation bridge remains open
 
-The finite closure theorem alone says nothing about source meaning. Let `Γ` be
-the fixed `Bound`, `Move_L`, `Move_U`, `ReplayCtx`, and `ReplayAdmissible`
-background facts, and let
-`Models_Γ(S)` be the assignments satisfying `Γ` and state set `S` under a
-separately defined bound judgment. If every candidate rule is sound for that
-judgment—each conclusion is entailed by its premises under the same assignment
-and `Γ`—then
+Finite closure proves neither soundness nor completeness for source typing.
+For each solver transition, a separate proof must show that it preserves the
+source-generated inequality problem under one shared assignment, in both
+directions where needed. In particular, the proof must establish which replay
+tasks are mandatory, prove no source-required task is lost when a route is
+suppressed, and show no extra rejecting task is introduced. Defining source
+acceptance to require every generated replay task would assume the result to
+be proved rather than establish the bridge.
 
-```text
-Models_Γ(S_0) = Models_Γ(R_Γ(S_0))
-```
+## 4. No transitive composition of concrete resolution outcomes
 
-because closure only adds consequences and retains all original states. This
-corollary is conditional. Defining `Models` to require every generated replay
-query would make the equation immediate but would not prove that the source
-typing judgment has that meaning. The successor/source bridge must establish
-the premise independently.
-
-## 4. Separation from concrete compatibility transitivity
-
-The replay rule is a consequence rule over `Lower` and `Upper` payloads at a
-shared pivot. It is not the rule
+A concrete comparison task `A <: B` is resolved locally by the endpoint-
+dependent solver and may yield check, cast, adapter-selection, or realization
+evidence. The finite transition theorem does not turn those outcomes into
+variable edges or premises for later comparisons. In particular, it has no
+rule
 
 ```text
-Compat(A,B) ∧ Compat(B,C) ⇒ Compat(A,C)
+success(A <: B) + success(B <: C) -> success(A <: C)
 ```
 
-The user's optional-Record observations refute that latter rule. Under the
-separate bound judgment, a replay-generated `Compat(A,C)` is an additional
-local query with lower/upper provenance; it must be resolved independently.
-Its selected cast/check evidence stays on that replay identity and does not
-become a general subtype edge. Runtime execution location and adapter
-composition remain outside this theorem.
+The user's optional-Record observations refute that rule: both
+`{foo?: string} <: {}` and `{}` `<:` `{foo?: int}` resolve successfully,
+while `{foo?: string} <: {foo?: int}` resolves unsuccessfully. If the solver's
+internal replay route creates the latter comparison task from lower/upper
+records, it is a fresh inequality query with its own parents and context; its
+source justification is independent of the two earlier resolution successes.
 
-The suspended-obligation counterexample in the boundary note remains useful:
-if a source meaning says that `Compat(A,X)` and `Compat(X,B)` are the entire
-constraints, their success at `X={}` does not imply `Compat(A,B)`. Therefore
-the semantic conservation premise cannot silently identify those independent
-checks with `Lower(A,X)` and `Upper(X,B)`; the source must justify the stronger
-bound judgment.
+The suspended-obligation example remains a warning against treating `A <: X`
+and `X <: B` as independent concrete checks and assuming that their success
+justifies a new `A <: B` task. It does not prohibit variable-edge propagation
+or rule out source-justified replay. It requires replay admission and task
+conservation to be proved without appealing to concrete-result transitivity.
 
 ## 5. Why the finiteness premises matter
 
@@ -191,9 +179,9 @@ Fixed finite state keys are essential. If the context records an unbounded
 edge history, even a one-node cycle can generate infinitely many contexts:
 
 ```text
-Bound(X,X,e), Lower(i,X,A,c)
-    ⇒ Lower(i,X,A,append(c,e))
-    ⇒ Lower(i,X,A,append(append(c,e),e))
+VarEdge(X,X,e), LowerPayload(i,X,A,c)
+    -> LowerPayload(i,X,A,append(c,e))
+    -> LowerPayload(i,X,A,append(append(c,e),e))
     ⇒ …
 ```
 
@@ -250,7 +238,7 @@ At frozen commit `a58eefc31e22141574b6f20c6a5748151c6d79f1`:
   not an approved source rule. A successor conservation proof must establish
   either why no source replay obligation is required or where any required
   obligation remains represented; it cannot count endpoint equality or
-  successful local `Compat` composition as that evidence.
+  successful concrete-resolution composition as that evidence.
 - A semantically new lower insertion that reaches row routing at the same
   variable owner runs `row_effect.rs::unweighted_row_reduction_routes_for_new_lower`
   before ordinary replay preparation (`machine/bounds.rs::add_lower_bound`).
@@ -259,7 +247,7 @@ At frozen commit `a58eefc31e22141574b6f20c6a5748151c6d79f1`:
   an unmatched/ineligible lower routes against the current reduced upper.
   Incremental application retains the lower weights. This is operational
   evidence for a possible per-lower row derivation replacing the generic pair,
-  not evidence of successful local compatibility. `processed_lower_records`
+  not evidence that an inequality has been successfully resolved. `processed_lower_records`
   records visitation; it is not a success certificate, and the composer does
   not consult it. Guards, context and conversion-use correspondence remain
   unproved.
@@ -320,7 +308,7 @@ At frozen commit `a58eefc31e22141574b6f20c6a5748151c6d79f1`:
   variable edges and a concrete lower bound along the chain.
 
 These are source and test-contract evidence for the frozen operational route,
-not proof that the candidate `Lower`/`Upper` or `ReplayAdmissible` judgments
+not proof that candidate lower/upper payload records or replay-route admission
 are successor semantics.
 The frozen machinery additionally has constraint weights, route admission,
 extrusion, incomplete/evidence-only replay and detailed provenance rules that
@@ -329,16 +317,19 @@ the finite theorem abstracts away. No tests were executed for this note.
 Before extending structural residual factorization, close the following
 successor obligations:
 
-1. Define the meaning of `Bound`, `Lower`, and `Upper` independently of local
-   `Compat` success, or show why the candidate factoring is wrong.
-2. Prove each transport and replay rule sound for that source judgment under
-   one shared assignment.
-3. Define context/guard combination and prove equal canonical keys have equal
+1. Prove which internal endpoint transitions preserve the source-generated
+   inequality ledger in both directions, including which replay tasks are
+   required and which can be represented by row/residual routes.
+2. Preserve each task's context, guard and shared witness/evidence references
+   through aliases, structural children, replay and variable-edge propagation.
+3. Show that a failed generated replay cannot reject a source problem unless
+   it is a proved consequence of the original inequalities.
+4. Define context/guard combination and prove equal canonical keys have equal
    guard and conversion-selection behavior.
-4. Bridge original source boundaries and replay derivations to specialization
+5. Bridge original source boundaries and replay derivations to specialization
    queries without losing either logical provenance or the eventual execution
    site for a selected conversion.
-5. Extend the finite carrier through recursive structural children, symbolic
+6. Extend the finite carrier through recursive structural children, symbolic
    effects, generalization, freshening and SCC intrusion.
 
 The restricted eligible-edge spine is supported for normalized constructor
@@ -348,7 +339,8 @@ a graph-wide conservation theorem: each suppressed source-required
 lower/upper interaction must have an identified row derivation or transported
 obligation. Distinguish route creation, row children, residual queries,
 worklist completion and consumer conversion; neither local row-state
-visitation nor concrete `Compat` transitivity can stand in for those links.
+visitation nor transitivity of concrete resolution outcomes can stand in for
+those links.
 
 No source syntax, acceptance behavior, cast-selection policy, runtime adapter
 rule, resource limit, or implementation representation is selected here.
@@ -360,24 +352,26 @@ source-preservation proof. Suppose a lower and upper payload were interpreted
 only as two independent suspended local checks:
 
 ```text
-Lower(A, X) means Compat(A, X)
-Upper(X, B) means Compat(X, B)
+The unresolved inequality A <: X is stored with lower payload A at X.
+The unresolved inequality X <: B is stored with upper payload B at X.
 ```
 
 For `A = {foo?: string}`, `X = {}`, and `B = {foo?: int}`, both suspended
-checks pass under the user's Oracle observations, but replay's `Compat(A, B)`
-fails. Thus those two independent checks do not entail a replay query. This
-does not contradict the frozen Oracle route; it rules out using independent
-local-check satisfaction as its source justification.
+inequalities resolve at the chosen `X = {}` endpoints under the user's Oracle
+observations, but a direct `A <: B` query fails. Thus those two independent
+resolutions do not entail creation or success of a replay query. This does not
+contradict the frozen Oracle route; it rules out using comparison-result
+composition as its source justification.
 
 One conditional explanation is to treat an inference variable as a
 transparent interface port between producers and consumers. A lower payload
 would retain a producer contract and its typed view at the port; an upper
 payload would retain a consumer demand. Variable-bound transport would move
 those contracts without inserting a conversion. If the port is transparent,
-each admitted producer must safely reach each admitted consumer, so the
-lower/upper replay becomes a separately resolved local compatibility query.
-This can explain replay without composing successful conversions.
+each admitted producer must safely reach each admitted consumer, so a
+source-justified lower/upper replay may create a new `A <: B` task. That task
+is resolved afresh by the same endpoint-dependent inequality solver. This can
+explain replay without composing successful resolution evidence.
 
 An actual source compatibility boundary might break transparent transport by
 establishing a new consumer-facing contract, but need not emit a data
@@ -385,8 +379,8 @@ conversion. For example, a shape check could seal the exposed view to `{}`
 while runtime preserves the original Record with its extra fields. Conversely,
 a selected and emitted adapter could materialize a target-facing value. These
 are separate questions: whether the source boundary starts a new typed
-contract, and whether its runtime realization changes the value. A successful
-`Compat` check at an arbitrary comparison does not by itself establish such a
+contract, and whether its runtime realization changes the value. Successful
+resolution of an arbitrary inequality does not by itself establish such a
 contract boundary; nor does an emitted adapter by itself explain which source
 obligations are discharged. In schematic form:
 
@@ -398,10 +392,11 @@ producer A → source boundary exposing {} → producer-view {} → consumer B
     keeps the two boundary queries separate; realization may retain or adapt data
 ```
 
-The common local resolver under consideration can resolve each justified
-query, retaining Record-check, nominal-cast and adapter evidence as distinct
-derivations. Its result must distinguish a successful check from selected
-conversion evidence and from an adapter actually emitted. Source elaboration
+The common inequality entry under consideration can dispatch each justified
+query to Record checks, nominal-cast resolution or adapter resolution while
+retaining their evidence as distinct derivations. Its result must distinguish
+a successful check from selected conversion evidence and from an adapter
+actually emitted. Source elaboration
 must also say whether a particular check establishes a new consumer-facing
 contract. The resolver cannot decide by itself whether a variable path is
 transparent or whether a source operation created such a boundary. Execution

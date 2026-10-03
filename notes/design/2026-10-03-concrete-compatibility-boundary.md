@@ -1,21 +1,36 @@
-# Concrete compatibility boundaries and variable bound propagation
+# One inequality judgment with endpoint-dependent resolution
 
-Status: Reviewed; records the user's 2026-10-03 semantic decision; operational rules and implementation authority remain open
+Status: Draft; records the user's 2026-10-03 single-inequality direction and Oracle observations; operational rules and implementation authority remain open
 Date: 2026-10-03
-Scope: separate transitive variable-bound propagation from local concrete compatibility and adaptation resolution
-Approved-by: user for the relation distinction and Oracle observations recorded in §1 only
-Reviewed-by: compiler_referee and spec_auditor §§1–5, 2026-10-03; architect pre-write audit plus fresh compiler_referee/spec_auditor review of §5; architect pre-write audit plus compiler_referee/spec_auditor review of §§2/6 boundary-conservation and bound-replay clarifications; architect pre-write audit plus compiler_referee/spec_auditor review of §5.1 shared-dispatcher candidate; architect pre-write audit plus compiler_referee/spec_auditor review of §2 replay-admission refinement and §6 ordinary-pair scope; compiler_referee §2/6 live-coverage suppression delta, all clean within bounded scopes after factual qualification
+Scope: one inequality judgment with endpoint-dependent solving and local concrete cast/adaptation resolution
+Approved-by: user for the single inequality judgment, endpoint-dependent resolution direction, non-composition rule, and Oracle observations in §1; replay eligibility and implementation remain open
+Reviewed-by: prior compiler_referee/spec_auditor reviews cover frozen-source facts and earlier Record/replay candidates; current one-judgment reformulation awaits bounded review
 Implementation authority: none
 Supersedes: none; narrows source applicability of structural relation candidates without invalidating their fragment theorems
 
 ## 1. Governing semantic decision
 
-The user's 2026-10-03 decision distinguishes two operations:
+The user clarified on 2026-10-03 that Yulang has one basic inequality query,
+`A <: B`. Its solver dispatches by endpoint form; this is not a semantic split
+into a `Bound` relation followed by a `Compat` relation and a separate cast
+relation:
 
-1. Bound propagation among type variables may use transitivity.
-2. A comparison whose endpoints are concrete types is a local compatibility
-   judgment. It may resolve a cast or adapter at that boundary. Its success is
-   not an edge in a single transitive concrete subtype relation.
+1. `X <: Y` may be stored as a variable edge and propagated transitively.
+2. `A <: X` or `X <: B` may be stored as oriented lower/upper payloads of the
+   same inequality and propagated or replayed as needed.
+3. Concrete `A <: B` is resolved locally. Endpoint-directed resolution may
+   structurally decompose it, check optional Record fields, resolve a
+   registered cast, or select an adapter. A selected cast or adapter is
+   evidence/realization produced while resolving this inequality, not a
+   separate semantic relation.
+
+Internal variable edges, lower/upper records, replay routes, phases, and
+evidence structures are compatible with this direction. They are solver
+machinery for the one inequality judgment, not independent source judgments.
+The overall solver is not a transitive concrete subtyping relation: variable
+edge propagation may use transitivity, while success of one concrete
+resolution cannot be composed with another concrete success to establish a
+third inequality.
 
 Optional Record comparisons are the discriminator. Oracle accepts each of
 
@@ -37,117 +52,94 @@ while rejecting the direct comparison
 {foo?: string} <: {foo?: int}
 ```
 
-Therefore local concrete compatibility is not closed under transitivity. In
-particular, optional Record comparison must not be added to ordinary
-structural subtyping and then transitively saturated.
+Therefore the endpoint-dependent inequality solver cannot transitively
+compose concrete resolution successes. Optional Record checking is a local
+rule for resolving a concrete inequality; it must not be added to a global
+structural relation and transitively saturated.
 
 The examples are user-supplied Oracle observations, not new successor source
-fixtures or a complete operational account of the conversions. They do not
+fixtures or a complete operational account of the evidence. They do not
 yet determine which fields are materialized, dropped, defaulted, or converted;
 whether a concrete adapter is required at each site; or how ambiguous
 adaptation is selected.
 
-## 2. Candidate responsibility split
+## 2. Candidate endpoint-dependent solver organization
 
-Keep these obligations distinct in any successor presentation:
-
-```text
-Eq(A, B)                         regular constructor equality
-Bound(X, Y)                      variable-to-variable bound edge
-Compat_j(A, B)                   local concrete compatibility query
-Resolve(Compat_j(A, B))          selected conversion evidence / adapter
-```
-
-`Eq` identifies regular constructor unfoldings and retains its original
-endpoints. Compatibility does not merge equality classes.
-
-The bound graph may propagate relations between type variables transitively.
-That permission alone does not establish which queries an arbitrary path with
-concrete endpoints must generate; the source meaning of concrete-to-variable
-bounds and suspended checks must first be specified. The frozen Oracle does,
-however, contain a specific lower/upper replay rule: when bounds share a pivot
-variable, adding a lower bound prepares routes against existing uppers, and
-adding an upper bound prepares the symmetric routes. The stored orientation is
-`A <: X` as a lower payload on `X`, `X <: B` as an upper payload on `X`, and
-`X <: Y` as a lower payload on `Y` plus an upper payload on `X`. The replay
-builders select eligible prepared pair routes, retain pivot and both bound
-record identities, and compose inherited weights in lower-to-upper order;
-they do not enqueue every raw same-pivot pair. Lower insertion can also use an
-incremental row-residual route, outside the fixed-endpoint candidate below.
-This is evidence for an explicit replay-admission premise, not for making the
-frozen proof-store policy the successor language rule. An admitted ordinary
-pair still needs its own local check and conversion resolution. This does not
-compose two previously successful `Compat` results.
-
-Keep original source-boundary obligations and generated replay obligations
-separately identified. An unresolved source boundary can remain suspended
-with its context and later be checked on its substituted endpoints. A replay
-query needs its own derivation from the relevant lower/upper bound records,
-pivot, and inherited guards; variable reachability alone cannot invent one.
-The replay rule's source preservation and conversion placement remain to be
-proved for the successor.
-
-One candidate separation for a successor constraint judgment is:
+Use one comparison entry with its source context, endpoint pair, and the
+consumer/source identity to which evidence will attach:
 
 ```text
-Bound(X, Y, e) ∧ Lower_i(A, X, c) ∧ Move_L(c,e,c')
-  ⇒ Lower_i(A, Y, c')
-Bound(X, Y, e) ∧ Upper_u(Y, B, c) ∧ Move_U(c,e,c')
-  ⇒ Upper_u(X, B, c')
-Lower_i(A, X, c_L) ∧ Upper_u(X, B, c_U)
-  ∧ ReplayCtx(c_L,c_U,X,c_R)
-  ∧ ReplayAdmissible(i,u,X,c_L,c_U,c_R)
-    ⇒ Replay(i,u,X,A,B,c_R)
-Replay(i,u,X,A,B,c_R) ⇒ Compat_ρ(i,u,X)(A, B)
+Gamma; j |- A <: B  ==>  unresolved | success(evidence) | failure
 ```
 
-Here `Lower` and `Upper` are variable-bound payloads, not assertions that the
-two endpoints already passed a source-local `Compat`. `ReplayAdmissible` is an
-explicit candidate premise keyed by both bound identities, their shared pivot,
-and inherited context, guard and weight/route evidence. It must select which
-pair is an admissible replay; same-pivot coexistence alone does not establish
-that every raw pair is mandatory. The replay context `ρ` retains the admitted
-pair, pivot and both applicable scope guards. A generated `Compat` result is local to
-that replay; its success does not become a concrete reachability edge. Any
-further child bounds must come from the selected compatibility derivation and
-retain this replay as their parent. This separates bound transitivity from
-compatibility-result composition, but is only a candidate factoring of the
-judgments: source typing, replay admission, guard/weight combination,
-proof-coverage discharge, principality and runtime conversion placement are
-unproved. Frozen proof coverage is not by itself the language criterion for
-omitting a replay; the source account must establish whether the obligation is
-unnecessary or is preserved by an independently justified proof. In
-particular, the conditional `X={}` counterexample applies only when the original
-obligations are interpreted as independent local `Compat` checks, rather than
-these stronger bound payloads plus an independently justified replay-admission
-rule.
+`j` retains the originating source boundary, lexical openings, shared
+declaration/request witnesses, typed evidence and joint symbolic coordinates.
+The result records whether resolution only checked the endpoints, selected a
+cast/adapter, or constructed executable realization. These are outcomes of
+solving `A <: B`, not additional input relations.
 
-For example, if two suspended obligations are interpreted as nothing more
-than `Compat_j({foo?: string}, X)` and `Compat_k(X, {foo?: int})`, then both
-pass for `X = {}` while direct `Compat_l({foo?: string}, {foo?: int})` fails.
-This conditional counterexample shows that independent local compatibility
-checks alone do not justify or account for the frozen lower/upper replay rule;
-it does not refute a distinct variable-bound judgment that explicitly
-generates that replay query.
+The endpoint-directed transitions below are an unapproved solver candidate:
 
-Successful compatibility and its conversion evidence stay attached to their
-own source or generated boundary query; they are not inserted into variable
-reachability as concrete edges. In particular, successful
-`Compat_j(A, B)` and `Compat_k(B, C)` do not discharge `Compat_l(A, C)`.
-Any concrete query generated by bound replay needs the replay derivation and a
-separate operational-validity argument for its conversion evidence.
+| Endpoints | Internal solver work |
+|---|---|
+| `X <: Y` | retain an oriented variable-edge record and propagate variable-bound information transitively, carrying source and guard context |
+| `A <: X` | retain a lower-payload record for the unresolved inequality at `X`; move it along admitted variable edges |
+| `X <: B` | retain an upper-payload record for the unresolved inequality at `X`; move it along admitted variable edges |
+| concrete `A <: B` | resolve locally by structural decomposition, optional Record checks, registered cast resolution, or adapter resolution; attach child results/evidence to this query |
+
+The frozen Oracle maps those endpoint forms to the listed lower/upper
+orientations. When payloads share a pivot, the frozen machine can prepare a
+replay query; its builders select eligible routes, retain the pivot and both
+record identities, and compose inherited weights. They do not enqueue every
+raw same-pivot pair. Lower insertion can also use an incremental row-residual
+route. This is characterization of internal solving machinery, not a
+successor semantic rule.
+
+If source preservation admits a replay, it creates another inequality task
+`A <: B` with the two payload records, shared pivot and inherited guards
+attached as derivation data. The same endpoint dispatcher resolves it. The
+exact source condition for creating that task remains open: same-pivot
+coexistence and two independently successful endpoint resolutions do not by
+themselves authorize it. Until the source bridge proves a replay mandatory,
+failure of a candidate replay does not prove that the original source
+constraints are unsatisfiable.
+
+Keep original source comparison tasks and generated replay tasks separately
+identified. An unresolved task can be suspended and resumed under the same
+context after endpoint substitution. Variable reachability alone cannot
+invent a new comparison task. Every original or replay-derived task re-enters
+the selected generation-time scope guard before committing specialization.
+The source-preservation and conversion-placement rules remain open.
+
+Successful concrete resolution and its cast/adapter evidence stay attached to
+their own source or generated task. They do not become variable edges or
+premises for a third concrete comparison. In particular, success of `A <: B`
+and `B <: C` does not discharge `A <: C`; the latter query must be resolved
+directly if it is a source obligation. A replay query, if independently
+justified, is likewise resolved afresh. Optional Record behavior supplies the
+concrete witness to this non-composition requirement:
+
+```text
+{foo?: string} <: {}          succeeds
+{} <: {foo?: int}             succeeds
+{foo?: string} <: {foo?: int} fails
+```
+
+The `X = {}` example also shows why lower/upper storage must not be
+misinterpreted as two successful concrete checks whose results compose. It
+does not settle whether a source-preserving solver requires replay for any
+specific pair; that is a separate proof obligation.
 
 The index `j` stands for the originating source boundary, lexical opening,
-retained typed evidence and applicable scope context. Every derived query
-still passes the selected generation-time scope guard before resolution.
-This notation is a candidate separation, not a chosen data structure or a
-proof that all source sites generate finitely many contexts.
+retained typed evidence and applicable scope context. Every derived task still
+passes the selected generation-time scope guard before resolution. This is a
+candidate algorithmic organization, not a chosen data structure or a proof
+that all source sites generate finitely many contexts.
 
-For unresolved or variable endpoints, the solver may need to retain a
-suspended compatibility obligation. Its endpoints, context and eventual
-conversion evidence must remain correlated through aliases, replay,
-generalization and SCC intrusion. The candidate mechanism and its finiteness
-are open.
+For unresolved or variable endpoints, the solver may suspend the same
+inequality task. Its endpoints, context and eventual resolution evidence must
+remain correlated through aliases, replay, generalization and SCC intrusion.
+The candidate mechanism and its finiteness are open.
 
 ## 3. Relation to reviewed structural results
 
@@ -247,9 +239,10 @@ duplicate or evidence-only and be prefiltered from new worklist execution.
 Thus Oracle has a bound-derived concrete comparison route in addition to
 direct source-derived boundaries. This is narrower than closing all
 successful concrete comparisons transitively, but the successor proof must
-establish why each replay is part of its variable-bound judgment. The frozen
-derivation records logical bound parents; it does not by itself locate the
-runtime expression boundary where a resulting conversion should execute.
+establish why each replay task follows from the originating inequalities.
+The frozen derivation records lower/upper payload parents; it does not by
+itself locate the runtime expression boundary where a resulting conversion
+should execute.
 
 Runtime realization is also split across paths. In the frozen
 `crates/mono/src/boundary.rs`, Record boundary support checks required-field
@@ -275,10 +268,9 @@ Explicit Record literals can instead consume a field under its expected type
 and materialize a direct nominal cast there; spreads and width changes remain
 on the whole-Record boundary path. The frozen system therefore has reusable
 local structural adapters and registered nominal casts, but not one shared
-runtime resolution mechanism. A common successor compatibility dispatcher is
-plausible as a local query interface; its result must distinguish a supported
-shape check from selected conversion evidence and from an adapter actually
-emitted. In particular, source acceptance, identity preservation versus
+runtime resolution mechanism. A common successor inequality solver is a plausible entrypoint whose
+concrete endpoint branch distinguishes a supported shape check from selected
+conversion evidence and from an adapter actually emitted. In particular, source acceptance, identity preservation versus
 projection, missing-field behavior and nested registered-cast realization
 remain path- and stage-dependent questions.
 
@@ -320,27 +312,27 @@ but concrete specialization still checks matching field types. That skip is
 not a permanent success. For the user-supplied discriminator, empty-to-optional
 uses permitted absence, optional-to-empty has no upper fields to inspect, and
 optional-string-to-optional-int reaches the incompatible child comparison.
-This matches the stated pairwise outcomes without adding optional Records to
-the transitive structural relation.
+This matches the stated pairwise outcomes as endpoint-specific inequality
+resolution without adding optional Records to a transitive structural relation.
 
 A candidate local derivation is:
 
 ```text
-RecordCheck_j(L, R)
+ResolveRecordInequality_j(L, R)
   = required-upper-name checks
-    + one child Compat_(j, label)(L.label, R.label) for each shared label
+    + one child inequality L.label <: R.label for each shared label
 ```
 
 Its evidence retains the original boundary, label correspondence, permitted
 absence, ignored extra fields, deferred child obligations and every child
-compatibility/conversion result. A compatibility dispatcher could return
-distinct tagged derivations for Record checks, ordinary structural checks and
-exact-path nominal cast resolution while preserving one boundary context.
-At a shared Record field it can ask the same local child resolver, allowing a
-registered conversion only when that child pair independently resolves. This
-is a candidate API shape; it does not identify checking evidence with an
-executable whole-Record adapter, nor show that Oracle routes optional Record
-comparisons through its nominal cast table.
+compatibility/conversion result. The inequality solver's concrete endpoint branch could return distinct tagged
+derivations for Record checks, ordinary structural checks and exact-path
+nominal cast resolution while preserving one boundary context. At a shared
+Record field it creates a child inequality task under the same solver entry,
+allowing a registered conversion only when that child pair independently
+resolves. This is a candidate rule shape; it does not identify checking
+evidence with an executable whole-Record adapter, nor show that Oracle routes
+optional Record comparisons through its nominal cast table.
 
 Executable Record realization remains a separate gate. In particular, evidence
 is still missing for how omitted fields, extra fields and optional-to-required
@@ -348,17 +340,19 @@ fields behave at runtime, and whether a selected field adapter can be embedded
 in an aggregate adapter. No composition law may be inferred from successful
 boundary checks.
 
-### 5.1 Candidate shared local-query boundary
+### 5.1 Candidate concrete endpoint branch of the inequality solver
 
-The user's requested direction can be explored as one dispatcher for local
-concrete queries, with distinct tagged derivations and realization evidence.
-This unifies where checks and adaptation resolution are requested; it does not
-claim that optional Records use the registered nominal-cast table, or that the
-frozen routes already share an implementation. This is a documentary candidate
-only.
+The user's requested direction is one inequality solver whose concrete
+endpoint branch dispatches to structural checks, Record rules, registered cast
+resolution or adapter resolution, with tagged derivations and realization
+evidence. These are solver steps and outcomes for `A <: B`, not separate
+semantic judgments or an adapter relation chained after compatibility. This
+does not claim that optional Records use the registered nominal-cast table, or
+that the frozen routes already share an implementation. This is a documentary
+candidate only.
 
 ```text
-LocalQuery_j = {
+InequalityTask_j = {
   boundary_or_replay_id,
   actual,
   expected,
@@ -366,18 +360,19 @@ LocalQuery_j = {
   retained_typed_context
 }
 
-LocalOutcome_j =
+InequalityOutcome_j =
     Suspended { dependencies }
-  | Rejected { reason, check_derivation }
+  | Rejected { reason, resolution_evidence }
   | Accepted {
-      check_derivation,
+      resolution_evidence,
       realization_evidence
     }
 
-check_derivation =
+resolution_evidence =
     StructuralCheck
-  | RecordCheck { presence, shared_field_queries, ignored_extras }
-  | NominalCastCheck { candidate_resolution }
+  | RecordCheck { presence, shared_field_inequality_tasks, ignored_extras }
+  | RegisteredCastResolution { candidate_resolution }
+  | AdapterResolution { plan }
 
 realization_evidence =
     Unresolved
@@ -395,62 +390,57 @@ operation. Different boundary contexts sharing the same endpoint pair must
 remain distinguishable, while variable-bound replay remains the only source
 of generated replay queries.
 
-At a Record boundary, the outer `RecordCheck` records presence/extra-field
-facts and issues a distinct local child query for each shared field. A child
+For a Record inequality, the outer `RecordCheck` records presence/extra-field
+facts and issues a child inequality task for each shared field. A child
 nominal cast may supply child selection evidence, but an aggregate adapter
 cannot be constructed from those successes until runtime composition is
 specified and proved. Likewise, two accepted local queries never entail a
 third query: check evidence stays attached to its own boundary or replay id
 and never becomes a concrete reachability edge.
 
-This shape gives one local place to request structural checking, Record
-adaptation planning, and nominal cast resolution, while keeping check success,
-candidate selection, adapter planning, and execution separate. It does not
+This shape gives one inequality-solving entry where endpoint rules can invoke
+structural checking, Record adaptation planning, and nominal cast resolution,
+while keeping check success, candidate selection, adapter planning, and
+execution as evidence stages of that same query. It does not
 settle optional-to-required acceptance or presence guarantees, omitted/extra
 field realization, cast ambiguity or selection timing, nested casts, effects,
 or the location where replay evidence executes. The existing gate remains
 bound-replay conservation first, followed by selection/conversion preservation
 and executable realization; this dispatcher cannot shortcut those proofs.
 
-## 6. Next theorem gate: bound-replay conservation
+## 6. Next theorem gate: inequality-task conservation
 
-Do not extend structural residual normalization yet. First specify the source
-meaning of concrete-to-variable bounds and suspended compatibility obligations.
-Then prove a bound-replay conservation claim for a fixed finite source
-elaboration. Each original source comparison has an identity, ordered
-endpoints, scope context and symbolic coordinates. Each admissible replay has
-its pivot and lower/upper premise identities. Under an admissible shared
-assignment, propagation, alias substitution and specialization must preserve
-all original guarded boundaries and generate exactly the concrete checks
-required by the source bound judgment: no original obligation is lost, no
-mandatory replay is omitted, and no extra rejecting query is introduced.
-Each replay query is locally checked with its derived guard/context, and its
-conversion evidence remains attached to that replay derivation. Successful
-local compatibilities do not create replay premises. This is a target
-statement, not an established theorem.
+Do not extend structural residual normalization yet. The source judgment is one
+inequality `A <: B` with endpoint-dependent solver rules. First prove that the
+internal solver transitions preserve the source comparison ledger in both
+directions for a fixed finite source elaboration. Each original inequality
+task retains its identity, ordered endpoints, scope context, symbolic
+coordinates and consumer. Each replay-generated inequality task retains its
+pivot, lower/upper record identities and inherited guard/context.
+
+Under one admissible shared assignment, variable-edge propagation may use
+transitivity. Lower/upper records are internal indexes of unresolved inequality
+tasks. A selected replay is another inequality task; its source derivation must show
+why that task is required.
+The conservation proof must show that no original guarded task is lost, every
+mandatory replay is generated or represented by an identified row/residual
+route, and no extra rejecting task is introduced. Each task re-enters the same
+endpoint-dependent solver. Concrete resolution outcomes and cast/adapter
+evidence remain attached to their task and are never premises for a third
+concrete comparison. This is a target statement, not an established theorem.
 
 The first proof fragment can fix closed Record shapes and treat nominal cast
-resolution as an uninterpreted tagged result. It should prove both directions
-between the source-bound and replay ledger and the propagated representation,
-preserve different contexts for equal endpoint pairs, and recheck scope guards
-on generated comparisons and replay. A replay is admissible only when its
-bound premises and pivot derive it; arbitrary paths of successful local
-compatibilities cannot substitute. It must also explain how logical replay
-parents connect to executable conversion boundaries. Finite semantic
-provenance and source-wide context closure remain premises to prove, not
-implementation details to assume.
+resolution as a tagged solver outcome. It should preserve distinct contexts
+for equal endpoint pairs, recheck scope guards on generated tasks, and connect
+replay parents to the actual consumer boundary for any emitted conversion.
+Same-pivot presence alone does not prove replay admission. Frozen proof
+coverage and queue policy are characterization evidence, not source criteria.
+Finite provenance and source-wide context closure remain premises to prove.
 
-The initial closed-Record fragment should model only ordinary fixed-endpoint
-pair replay. `ReplayAdmissible` remains an explicit finite background relation
-until its source meaning is proved; it must retain both bound identities and
-any guard/weight coordinates that affect the generated check. The frozen
-incremental row-residual route needs a separate endpoint carrier and
-preservation proof before it can be included.
-
-After boundary conservation, prove that compatibility normalization retains
-selected check/cast outcomes and conversion evidence without composing
-independent successes. Only then extend residual factorization to preserve
-equality, original bound provenance and joint symbolic coordinates under one
+After task conservation, prove that concrete endpoint resolution retains
+selected check/cast outcomes and realization evidence without composing
+independent successes. Then extend residual factorization to preserve equality,
+original inequality provenance and joint symbolic coordinates under one
 assignment. Effectful interfaces, unknown Record shapes, lifecycle, and
 implementation remain open. No optional-Record grammar, acceptance surface,
 conversion-selection policy, resource limit, or implementation representation

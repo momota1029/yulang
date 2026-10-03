@@ -1,5 +1,9 @@
 # Concrete compatibility boundary audit
 
+Chronological record. The final section records the user's later clarification
+to one inequality judgment; that clarification supersedes the earlier
+candidate `Bound`/`Compat` terminology below.
+
 Date: 2026-10-03
 Branch: `research/simple-sub-intrusion`
 Mode: M3 semantic/source-authority clarification
@@ -342,14 +346,40 @@ normalization premise was added.
 
 ## Next gate
 
-Prove graph-wide bound-replay conservation for a fixed finite source
-elaboration and closed Record shapes. Define concrete-to-variable bound
-meaning and admissible same-pivot replay; account for covered row uppers both
-at their owning variable and through inherited coverage on other variables.
-Preserve original guarded obligations and required replay queries with their
-identities, without deriving queries from successful `Compat` compositions.
-Prove finite replay provenance/context closure before extending residual
-normalization. Then establish where replay conversion evidence executes,
-specify Record adapter behavior and prove evidence-preserving normalization
-and residual factorization. Source-wide context finiteness, unknown Record
-shapes, effectful interfaces, lifecycle and implementation remain open.
+Prove graph-wide conservation between source inequalities and endpoint-dependent
+solver transitions for a fixed finite source elaboration. Account for covered
+row uppers both at their owning variable and through inherited coverage on
+other variables. Preserve original guarded inequality tasks and required replay
+queries with their identities, without deriving a new query from successful
+concrete-resolution outcomes. Prove finite replay provenance/context closure
+before extending residual normalization. Then establish where replay evidence
+executes, specify Record adapter behavior and prove evidence-preserving
+normalization and residual factorization. Source-wide context finiteness,
+unknown Record shapes, effectful interfaces, lifecycle and implementation
+remain open.
+
+## User clarification: one endpoint-dependent inequality judgment (2026-10-03)
+
+The user clarified that Yulang has one basic type inequality `A <: B`; its
+solver dispatches on endpoint form. Do not model `Bound` and `Compat` as
+separate semantic judgments followed by a cast-resolution relation. Variable
+edges, lower/upper payload records and replay routes are internal solver state
+for the same inequality. Concrete structural checking, optional Record rules,
+registered cast resolution and adapter resolution are endpoint-specific ways
+to solve it; cast/adapter results are evidence or realization attached to that
+query.
+
+The non-composition constraint remains: variable-edge propagation may use
+transitivity, while concrete resolution successes do not compose into a third
+concrete inequality. A replay is a newly generated inequality task and needs a
+source-preserving route; same-pivot coexistence and earlier concrete successes
+alone do not authorize it. The optional Record example remains the direct
+counterexample. A failed replay is a candidate solver failure until proof
+establishes that source rules require the replay.
+
+The boundary design note now records this single-judgment direction. The
+finite replay note is reframed as a closure theorem about internal solver
+transitions, not separate semantic `Bound`/`Compat` relations. Its source-ledger
+conservation, concrete evidence placement and source-wide context gates remain
+open. Architect audit found this reformulation viable without a new user
+choice; no implementation or source rejection is selected.

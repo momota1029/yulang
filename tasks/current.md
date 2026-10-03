@@ -84,428 +84,50 @@ spurious rejections are disclosed, not approved.
 
 ## Current work
 
-### Concrete compatibility boundary (2026-10-03)
+### One endpoint-dependent inequality solver (2026-10-03)
 
-The user's latest semantic decision separates transitive bound propagation
-among type variables from local concrete compatibility, which may resolve a
-cast or adapter and is not a transitive subtype relation. Optional Record
-examples require that `{foo?: string} <: {}` and `{}` `<:` `{foo?: int}` do not
-compose into `{foo?: string} <: {foo?: int}`. The candidate separation and
-its bounded source map are recorded in
-`notes/design/2026-10-03-concrete-compatibility-boundary.md`.
+The user clarified that Yulang has one basic query `A <: B`, resolved by
+endpoint-dependent solver rules. Do not introduce separate semantic `Bound`
+and `Compat` judgments followed by `Resolve`. Variable edges, lower/upper
+payload records, replay routes and phase-specific worklists are valid internal
+representations of that one inequality. For concrete endpoints, structural
+checking, optional Record rules, registered cast lookup and adapter planning
+are resolution paths whose evidence/realization attaches to the same query.
 
-This narrows the source applicability of the mandatory-Record structural
-theorems without refuting their fragment proofs. A reviewed candidate
-Record-local table separates field presence from child comparisons and
-distinguishes inference propagation from concrete validation. An architect
-audit found that variable transitivity alone cannot justify a concrete
-lower/upper endpoint cross-product when endpoint checks are treated as
-independent local compatibilities. A follow-up source trace found that frozen
-Oracle has an explicit same-variable lower/upper replay rule, retaining the
-pivot and both bound-record identities. This can justify a bound-derived
-concrete query as its own local check; it does not compose prior `Compat`
-successes. A candidate rule shape now propagates `Lower`/`Upper` bound payloads
-along admitted variable edges and derives a fresh local `Compat` from a
-same-pivot lower/upper pair only under an explicit `ReplayAdmissible` premise.
-Frozen source maps `A <: X` to a lower on `X`, `X <: B` to an upper on `X`,
-and `X <: Y` to lower `X` on `Y` plus upper `Y` on `X`; the replay builders
-select prepared pair routes, compose lower/upper weights, and can prefilter
-actions. Lower insertion also has incremental row-residual routes, outside the
-fixed-endpoint fragment. This refines the candidate, not source authority. The
-next gate is first to prove or refute the conditional per-hop spine lemma,
-then graph-wide bound-replay conservation: define replay admission
-independently of proof-store/queue policy, preserve original guarded
-boundaries, and prove exactly which ordinary pair queries arise with their
-parent IDs, contexts, weights and eligibility evidence. For covered row
-uppers, account for both same-owner row routes and inherited coverage across
-variable edges, including the `alpha`/`beta` case. Do not infer discharge
-from endpoint equality, a processed-lower marker, or composed successful
-`Compat` checks. Keep concrete conversion tied to its source consumer.
+The non-composition rule remains: variable-edge propagation may use
+transitivity, but success of concrete `A <: B` and `B <: C` cannot establish
+`A <: C`. Oracle's optional Record observations provide the discriminator:
+`{foo?: string} <: {}` and `{}` `<:` `{foo?: int}` succeed, while the direct
+optional-string to optional-int comparison fails. A generated replay is a new
+inequality task and needs its own source-preserving derivation; two earlier
+resolution successes do not authorize it.
 
-The documentary `ReplayAdmissible` refinement received clean bounded
-architect/compiler-referee/spec-auditor review. This certifies the candidate's
-scope and finite abstraction only; the source meaning of eligibility,
-context/weight composition and two-direction conservation remain unproved.
-The follow-up frozen coverage ledger received a clean bounded compiler-referee
-review. Proof-coverage suppression must map to absent source obligations or
-identified independent discharge evidence; CPK coverage itself is not
-successor authority.
+Frozen Oracle stores `A <: X`, `X <: B`, and `X <: Y` in lower/upper/edge
+oriented records and may prepare same-pivot replay routes. This supports the
+endpoint-dependent solver model but does not prove that all same-pivot pairs
+must replay. A failed candidate replay rejects the originating constraints
+only if the source bridge proves that replay mandatory. Coverage, incremental
+row routes and the alpha/beta fixture remain operational evidence, not source
+meaning. The bounded eligible-edge spine is characterized for normalized
+constructor payloads; graph-wide source obligation conservation remains open.
 
-A fresh bounded trace narrows one possible suppression explanation. When a
-semantically new same-owner lower reaches row routing, it visits each
-unprocessed unweighted row state before ordinary-pair composition. Matched
-lowers create child row-item obligations and a route to the original upper;
-unmatched lowers retain a route to the current residual. This is delegated
-row work, not a
-successful concrete `Compat`, and the processed-lower ledger is only a
-visitation marker. It is not a universal explanation: the frozen
-`unweighted_row_upper_cross_source_replay_inherits_covered_lineage` contract
-shows `beta` inheriting a covered upper from `alpha` without owning a row
-state, then suppressing a later concrete-lower pair without residual
-contamination. The successor theorem must account for graph-wide transport to
-the owning row state and preserve guards, weights, provenance and consumer
-conversion; current evidence does not establish those links.
+The design note
+`notes/design/2026-10-03-concrete-compatibility-boundary.md` records the
+one-judgment direction and current replay/conversion gates.
+`notes/design/2026-10-03-finite-bound-replay-closure.md` is reframed as an
+internal solver-state closure theorem; its earlier separate-judgment factoring
+is withdrawn. `notes/design/2026-10-03-source-context-finite-closure.md`
+records a conditional finite-context theorem for supplied templates, not the
+source-wide template-generation proof.
 
-In that fixture, a bounded source-call trace reconstructs the preserved path:
-the lower on `beta` replays against its separate upper `alpha`, then reaches
-`alpha`'s row reducer; the inherited covered `beta` residual suppresses its
-own generic pair. The test directly asserts suppression and no residual `f`,
-but not the later alpha replay/row derivation. Its constructor heads have no
-arguments, so it does not exercise child-argument obligations. This trace
-supports only this bounded route, not the general conservation theorem.
-
-The restricted spine proof/refutation gate is closed at the frozen operational
-level. Exact transport requires an already-normalized concrete endpoint whose
-outer head is not `Bot`, `Var`, `Stack`, `NonSubtract` or `Union`, a fresh lower
-at every hop (or independent evidence that the exact obligation was processed),
-an empty or uncovered-root mirrored upper at replay preparation, empty weights,
-identity-preserving extrusion and successful worklist processing. The
-source-generated `var_var_replay_materializes_transitive_edges` fixture
-supports the `int` constructor case. Covered-only bridges, mixed-root full
-lineage, cycles, guards/contexts, consumer conversion and graph-wide
-conservation remain open; this is not successor semantics. See the exact
-frozen-source argument and counterexamples in
-`notes/design/2026-10-03-finite-bound-replay-closure.md` §6.
-
-A separate M3 draft now proves finite least closure for a fixed finite graph,
-payload set and context carrier. Independent semantic and conformance reviews
-found only minor formal gaps; the primary closed them by making the finite
-context domains explicit, aligning canonical replay keys with their count,
-conditioning model conservation on the fixed background facts, and stating
-that unresolved replay endpoints remain suspended. This mathematical lemma
-does not close source-level bound-replay conservation or authorize
-implementation. See
-`notes/design/2026-10-03-finite-bound-replay-closure.md`.
-
-A bounded semantic audit established a necessary replay condition: independent
-local checks `Compat(A,X)` and `Compat(X,B)` cannot alone justify adding
-`Compat(A,B)`; optional Records provide a counterexample at `X={}`. The
-reviewed note records a transparent producer/consumer port as one conditional
-explanation for stronger lower/upper bound meaning. It remains unverified:
-source elaboration must distinguish transparent variable transport from an
-actual concrete compatibility/adaptation boundary, and conversion must stay
-at its proper consumer. Fresh semantic and conformance reviews found no
-findings in this hypothesis. Frozen-source inspection now grounds
-producer-to-local-to-consumer flow through open value slots and locates
-registered argument casts at expression-consumption boundaries. A local type
-annotation only constrains its existing value slot; it does not establish a
-conversion boundary. This refines but does not prove the port hypothesis for
-the successor, especially for Record adapters. A bounded frozen-source ledger
-now traces literal bounds, application demands, local slots, inference replay,
-specialization replay and nominal cast emission in §8 of the closure note.
-It found that inference and specialization use different provenance IDs. Each
-specialization consumption submits its endpoint comparison, but equal endpoints
-may be elided and equal semantic keys may share merged graph/provenance records.
-Repeated consumers of one expression are aggregated by intersection for
-solved emission, so the emitter receives one solved endpoint pair, not a
-selected member check or replay identity. Emitted cast selection is endpoint/
-rule based rather than keyed by the binary replay identity. Independent
-semantic review found one minor overstatement: materialized arguments may
-still have open endpoints, so their comparison is an obligation rather than
-an already-resolved concrete check. That distinction is corrected in the
-reviewed note. The next gate is to prove replay admission and bound-obligation
-conservation first. The execution part of that proof must then connect each
-admitted replay to the particular consumer checks and conversions that
-discharge it, including repeated consumers and aggregate solved views; do not
-use an annotated local as a proxy for an inserted adapter.
-
-The user's requested common local compatibility/adaptation boundary is now
-recorded as a documentary candidate in §5.1 of the compatibility note. It
-dispatches tagged local check derivations for structural, Record and nominal
-cast routes, while keeping conversion selection and executable realization
-separate. This preserves the nontransitive concrete relation and does not
-claim that optional Records use the nominal cast table. Bound-replay
-conservation remains the first proof gate; cast ambiguity, check-only
-identity, Record runtime behavior and conversion placement remain undecided.
-
-One semantic review caught an overclaim that a producer-view boundary must
-emit a runtime conversion. The repaired draft separates a source check that may
-seal a typed view from runtime adaptation: identity realization could preserve
-the original value while later checks use the sealed view. This remains a
-candidate interpretation; check-only Record sealing has no established source
-rule here.
-
-Frozen specialization rechecks materialized concrete boundaries, while the
-Evidence VM has a recursive Record adapter distinct from generic `Coerce`
-aliasing and registered nominal cast resolution. No one shared runtime
-resolver exists in that evidence, so a successor common local dispatcher
-remains a candidate with separate check, cast-resolution and adapter-plan
-evidence. Record runtime realization still needs identity-preserving versus
-projecting behavior, absence, extras and optional-to-required cases. Current
-successor terms lack Record and adapter constructors; cast declarations are
-outside successor HIR. Optional Record Oracle observations are not implemented
-syntax/contracts in this branch. No compiler change is authorized; the
-complete replacement goal remains active.
-
-The M3 clarification received clean bounded compiler-referee and spec-auditor
-reviews after architect pre-write review. Its evidence, exact limitations and
-next gate are recorded in
-`notes/progress/2026-10-03-concrete-compatibility-boundary.md`.
-
-The milestone-1 candidate is `notes/design/2026-10-02-ordinary-computation-semantics-package.md`. It defines one state-threaded `Run` relation, concrete closure-frame re-entry under the current caller store/activations, latent `Force`, per-event origins and symbolic `K,D`, event-relevant ordered visibility, and shallow handler images. The user selected preservation of existing callback incidence while its receiver is active, ordinary current-handler search after escape, and concrete typed-boundary visibility for both direct and Force-exposed requests. `Force` exposes latent computation but creates no authority; origin and `K,D` remain event-specific.
-
-The ordinary-computation package received a bundled architect/compiler-referee/spec-auditor review and a focused closure delta review. It repaired event-specific callback relevance, ordinary receiver-body handling, actual post-application `C_h` and current-boundary checks, closure re-entry, and the suspended invocation wrapper across handler unwind. The user selected concrete typed-boundary visibility for direct and Force-exposed requests; its delta review found no major issue. The exact semantic embedding has been package-reviewed: initial `R`, primitive source-rule images, latent future-use, and typed resumptions are covered; finite-resumption bind lifting was separately reviewed. Milestone 2 is closed for the candidate machine, not for the current Yulang typing relation.
-
-For Milestone 3, the earlier conditional finite guarded-saturation theorem
-and exact-acceptance route remain valid. On that route, invented selected
-arms cannot be counted as actual source obligations. The new conservative
-certificate package instead declares its abstract derivation judgment and
-proves its principal interface. It supplies a generic finite heap construction,
-not yet the complete source refinement or a selected successor acceptance
-policy. Package review repaired the safety theorem's error-reflection
-quantifiers; independent delta review is clean.
-
-The source-realization package now constructs the predicate basis from a
-finite monomorphic ownership/descriptor graph, with all query-schema endpoint
-products retained symbolically. Its operational kernel gives conditional
-heap simulation; explicit selected-pair observations give universal
-selected-incompatibility reflection. Independent semantic and conformance
-package reviews are clean within that conditional envelope. This does not
-construct elaboration from raw source. The source gaps at that checkpoint were
-inductive callback-boundary relevance/visibility and effective checking/conversion
-descriptors; neither may be hidden in an oracle primitive. The typed-boundary
-package now constructs at most `|T|²` recursive adapter descriptors for fixed
-resolved Function/Thunk graphs, with operational simulation and a finite
-symbolic label-equality variant. General source equivalence, admitted
-conversions and assignment-dependent outer shapes remain open. Independent
-reviews found no blocking/major issue; a minor formula-equality clarification
-uses truth tables, not syntactic convergence.
-
-The user resolved both source scope choices: typed-value transport preserves
-callback boundary/protection through captured environments/store and through
-corresponding latent result paths after CallView completion while the receiver
-remains active. Outer annotations must not be copied to unrelated nested
-positions. Charter §13 records this decision. Typed-boundary draft §6 gives
-the common relational image, receiving-owner incidence, local grant/protection
-query, composition/expiry laws and conditional concrete realization. Package
-review repaired exact-handler expiry and retention of both actual result-view
-evidence and matching callee-result evidence. A further delta review required
-the typed correspondence domain to include all typed dependency paths while
-restricting boundary profiles to effect paths; it also made route invariance
-hold for the same tagged inputs, assignment, receipt, candidate and current
-configuration. The resulting conditional theorem is clean. Persistent source
-profiles are not cached handler grants. Raw-source profiles, path
-correspondences and exact resumption owner mapping remain source-realization
-obligations; no implementation approval has been inferred.
-
-The user's latest instruction reaffirmed this shared transport rule. The
-source theorem now states capture incidence through `Inc_C`, so its `Path`
-witness includes receipt of the same typed view by the candidate owner as well
-as matching `Flow` and event-specific `Observe`. This closes a wording gap
-that had tied an event too narrowly to the original complete CallView. A
-later latent request instead uses its own observation of the returned view
-and a profile transported only along the signature's corresponding result
-path; the original CallView is not kept executing. The same result follows by
-relational-image composition as environment/store transport. Semantic and
-conformance delta reviews found no remaining finding in this conditional
-theorem. The subsequent decorated-context construction below addresses
-routing and view suspension/re-entry; raw-source ownership, finite identity
-correlation and source typing/acceptance remain open.
-
-The fixed-shape adapter graph does not itself identify complete-`CallView`
-execution positions. `Flow` transports value paths; `Observe` relates an
-event to a currently executing view, including a force whose output is Unit.
-A milestone-level control attack refuted the attempted definition by outward
-request exposure. A live receiver's saved continuation can be resumed inside
-its callback and install a receiver-owned handler there. The owner-span rule
-borrows the still-live receiver, so receipt ownership does not imply that the
-callback's outward boundary precedes that handler. Waiting for outward
-exposure loses the callback protection needed for the first dispatch. The
-counterexample is in the decorated candidate machine; raw-source acceptance
-is not claimed. Architect and independent semantic searches agree on this
-failure. It is not a non-finiteness result.
-
-Typed-boundary §4 now proposes one correction: project every request emission
-onto the marked current positions of its executing typed view context before
-handler filtering. Outward support remains the handler image's separate
-projection. Saved contexts retain exactly the view delimiters crossed at the
-shallow capture boundary; raw resume plugs those into the resumer's current
-context, with fresh execution occurrences and unchanged boundary evidence.
-Executable owner borrowing does not erase the ambient callback view. A
-package theorem derives this observation relation by a finite linked-frame
-walk and proves control/visibility preservation for the decorated kernel.
-Independent semantic/conformance package review and semantic repair closure
-are clean. Review found that admission must retain the original annotation
-position: `Admit_b,p,o` uses finite `Slots(b)`, preserving independently
-symbolic call and returned-latent contracts under one `ν`. The original
-owner-fragment proof was also scoped to include the new `View` constructor.
-Routing needs no additional symbolic predicate once those positions and
-profile slots are supplied. Arbitrary
-source elaboration of these positions, abstract identity correlation,
-uniform clients and the source typing/acceptance bridge remain open. Do not
-equate the constructor-only adapter graph with those executable decorations.
-
-The next Milestone-3 package is raw-source construction of those finite
-executable typed views and original profile slots. The reviewed
-`2026-10-02-source-computation-role-elaboration.md` now establishes two
-obstacles to shortcuts: executing an outer computation cannot be replaced by
-value adaptation to its result type when that result is itself latent; and
-`Adapt(Unit,α)` can construct arbitrarily nested target positions absent from
-the initial source producer inventory. Neither is a source non-finiteness
-result. The common `Execute(Comp(E,A)) = Force` theorem preserves an arbitrary
-result `A` without adding descendant demand; admitted result conversion is
-a separate composition. It does not yet derive the role from raw syntax.
-
-The user's source-reference clarification now supplies one invocation:
-receive a computation, execute entry code, then the body. A value parameter
-expands to force/rebind inside that same activation after boundary/receipt
-entry. A computation parameter remains retained. Ordinary-computation §3 and
-source-computation-role §10 give the expansion law, including the pending
-rebind/body/return suffix on shallow resumption, typed result transport and
-expiry. Operation function values use the same entry to obtain their declared
-payload, then an internal constructor returns the latent request. The common
-boundary invents no arms or capture grants. The prior §8 pre-call value-force
-candidate is historical, not current source authority.
-Semantic/conformance package review covered this user-premise delta; a missing
-operation payload-acquisition clause was repaired in one documentary pass and
-closed by an independent semantic reviewer. The exact-interface image table
-now includes the same entry/body suffix. Full raw-source inference remains
-outside that expansion theorem.
-
-The frozen scheduling map is corrected to the public `specialize2` path;
-older `solve/expr_solver` and `lib_support` locators describe alternate
-machinery. Strict local `Let` executes when its containing block executes;
-production can delay that whole block, including the prelude. Pure-expression
-lifting can delay its code, whereas an already equivalent operation carrier
-retains its operand evaluation before construction. A pure divergent producer
-refutes universally moving construction inside a delay. This is a kernel
-counterexample and exact emitted-code characterization, not certified source
-acceptance or non-finiteness. The inference `evaluation` field records value
-restriction, not an extra effect phase. Independent reviews checked the key
-corrected production paths. No runtime `Ready/Susp` mechanism is adopted.
-
-The immediate gate is source producer/annotation elaboration and its
-scheduling-preserving representation **under this common invocation**.
-The user closed `2026-10-02-source-call-scheduling-choice.md` with A and
-clarified its first-class-data basis: computation introduction is inert,
-execution requires explicit receiver elimination. The former scheduling
-blocker is resolved; this is the originally intended source semantics, not
-a choice inferred from frozen code. The kernel divergence discriminator
-still rules out blanket prefix hoisting; complete frozen source acceptance
-of the discriminator remains unverified.
-
-Source-computation-role §12 now gives the conditional introduction/elimination
-and common-call realization package: initial related computation values,
-primitive forward steps, future use and raw resumption preserve current
-state, typed boundary references and joint symbolic `K,D`. It adds no
-automatic computation-name or result-carrier force. The exact-interface
-image includes inert introduction; argument/code consumer derivation remains
-a premise, not a completed raw-source theorem. The next construction must
-derive explicit consumer positions and known-interface demand compositionally
-from source typing, together with the existing annotation/path correspondence.
-M3 semantic and conformance delta reviews found no findings in this package.
-Only design/progress records changed; no compiler tests, builds or performance
-experiments were run, and the measurement budget was zero.
-
-The subsequent constructive package is
-`2026-10-02-typed-computation-core-elaboration.md`. A concrete source-port
-attack found that copying native operation producer code into an argument
-delay returns a request carrier to a known `Int` parameter instead of `Int`.
-The completed callable execution view now consumes the explicitly designated
-operation interface after native return, inside the delayed argument and
-its current complete view. No force comes from result shape or ordinary data
-lookup. A finite declarative Value/Comp derivation now generates all core
-code, including callee/argument execution, closure/operation entry, bindings,
-handler guard/arm subcode and explicit consumers. Its whole-core simulation
-carries initial relatedness, current state, typed paths and symbolic `K,D`
-through future use and raw resumption. Static templates are `O(n+m)` in the
-supplied derivation/profile size; this is not solved-type/query finiteness.
-M3 semantic/conformance reviews found no major issue; the semantic review's
-minor handler-subcode clarification was incorporated. The next source gate
-is a coherent derivation of these ports from raw syntax/annotations/inference,
-including recursive role overlap and admitted conversions. No arbitrary
-executable `ArgumentCode` premise remains for the displayed core, but the
-input declarative port derivation is still an explicit assumption.
-
-The result-synthesis choice in
-`2026-10-02-source-result-synthesis-choice.md` is closed by the user's explicit
-A decision. Frozen evidence shows
-parameter outer annotations select effect-slot policy before solving:
-omitted/value annotations have pure slots; outer effectful annotations retain
-their computation slot. This is evidence for source parameter derivation,
-not authority to adopt Oracle routing. The user now specifies that the exact
-forwarding form `h(x:[handled; 'e]'a)=x` preserves its known computation
-interface. Ordinary value results get `Comp(empty,A)`; already computational
-results retain `Comp(E,A)`. No implicit pure layer or generalized result
-interpretation is introduced. Construction, lookup, transport and synthesis
-remain inert; only explicit known-interface consumption executes code.
-
-Typed-computation-core §6 now constructs `(I,d,n)` for ordinary source forms:
-the known source interface, inert data and the derivation for explicit
-consumption of `Result(I)`. Names forward their interface; functions apply
-`Result` to their bodies; calls, ordinary local bindings and shallow handlers
-build reified computations; explicit introduction alone adds a data layer.
-Unknown callee endpoints generate Function/boundary constraints, not guessed
-entry modes. The same source-tag normalization commutes with endpoint
-substitution preserving declaration/path premises, including latent/recursive
-value shapes and empty effect rows. The core simulation therefore applies
-to these source-generated result/consumer skeletons. Independent M3 semantic
-and conformance reviews found no findings in this package. General checking,
-annotation resolution, adapters and principal symbolic solving remain open;
-finite code generation is not their proof. No new compiler implementation is
-authorized by closing the source-result choice.
-
-The independent non-collapse argument shows why an empty effect row cannot
-turn a retained pure diverging computation into entry force; similarly,
-recursive solved equality cannot choose between data return and an explicit
-consumer. Original paths preserve a chosen derivation but alone do not prove
-the raw selection. M3 semantic/conformance decision review found no major
-issue; both requested the same minor normalization of ordinary value results
-to `Comp(empty,A)`, now explicit in the candidate rule. No compiler changes,
-tests, builds or measurements; zero measurement budget.
-Frozen force-before-call placement requires a receiver/receipt/view
-preservation proof; it is not automatically authority or an established bug.
-Nested effectful annotation coverage, admitted adapters and inferred roles
-remain open. Then establish a solution-complete regular normalization or
-finite parametric adapter/query presentation, abstract identity correlation,
-uniform clients and the acceptance bridge before lifecycle/implementation.
-Finite syntax templates and the earlier fixed-role skeleton prove none of
-those gates. Keep latent results and symbolic family incidence intact; do not
-restart callback micro-cases without a concrete blocker.
-
-`notes/design/2026-10-02-typed-source-owner-realization.md` now has a fresh
-semantic delta review. It repaired owner-span completion so a child return
-continues its captured parent suffix and only the root returns to the current
-resumer. The review found no blocking/major finding in this repair or the
-conditional outside-image selector relation. Two minor findings were fixed:
-the E/P discriminator now supplies compatible Int answer types and identity
-value arms; and the prior coupled-core text saying guard effects run in the
-outer context is recorded as candidate evidence, not authority. Earlier
-reviewer thread-limit errors are closed for this slice; the current gate has
-M3 semantic review coverage.
-
-The user selected **outside** selector extent on 2026-10-02; charter §14
-records the decision. Pattern/default/guard evaluation, matching completion
-and selected arms run outside the candidate, after the original request's
-eligibility test. This discharges the reviewed outside-image control proof's
-extent premise. New matching/arm events have their own current-context
-dispatch; completing the original match neither reactivates its expired
-candidate nor transfers authority. No selector source choice remains open.
-
-The user's follow-up made shallow handling primitive and deep handling an
-explicit derived expansion (charter §15). Ordinary-computation §5 now gives
-that recursive expansion and its finite-prefix/future-use law. Reapplication
-surrounds execution of the raw suffix, not its already evaluated return value;
-continuation uses in guards, arms and retained closures use the same wrapper.
-Source owners, typed contracts and fresh handler occurrences come from the
-expansion, with no inherited grant or primitive deep mode. Independent M3
-semantic/conformance review is clean. The law is definitional execution
-equivalence, not recursive typing/principality or implementation approval.
-
-The further interaction gap is uniformity: a finite presentation for every
-separately linked finite client does not establish one component presentation for all
-admissible future clients. Close those source and modular definitions before
-the source typing/acceptance bridge and lifecycle theorem.
-
-Finite presentation need not be uniformly small; resource overflow may be a
-distinct deterministic inference-complexity failure. Full-source class 1/2
-remain unproved, and no class-3 counterexample is established. The old rule
-making `UnknownOrigin` independently block a drop is superseded: origin
-uncertainty alone cannot veto a concrete capture contract when complete
-`CallView`, exact operation coverage, and active receiver-local handling are
-established. Do not begin lifecycle proof against an undefined representation.
-
-Implementation feasibility evidence is recorded in `notes/progress/2026-10-02-successor-implementation-feasibility.md`: resolved HIR lacks calls/handlers/`Force`, effect views cannot carry nonempty symbolic payloads, and runtime execution surfaces are absent. Do not prototype before the semantic carrier and required compiler surfaces are established. Use Rust for any later executable characterization; do not use Python.
+Immediate gate: prove or refute two-direction conservation between the
+source-generated inequality ledger and endpoint-dependent solver transitions.
+For each endpoint branch and selected replay, retain source origin, shared
+witnesses, guards, row/residual alternatives, and eventual consumer evidence.
+Keep source template/context closure, residual satisfiability, generalization,
+freshening and SCC lifecycle as separate remaining gates. No source rejection,
+cast-selection policy, implementation representation, or compiler change is
+authorized by this record. No tests/builds ran for this documentary gate.
 
 ## Checking normalization checkpoint
 
