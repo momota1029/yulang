@@ -76,42 +76,52 @@ components and does not replace general abstract components or equate
 original terms. Co-occurrence consolidation remains distinct from witness
 equality.
 
-Contravariant handling is not a total subtraction algebra. It is a partial
-inverse of covariant effect accumulation (“reverse addition”). A reverse step
-is justified only when evidence identifies the corresponding concrete
-contribution and its attachment in the accumulated effect. Merely exposing a
-concrete head does not make it subtractable, and no operation is assumed for
-an arbitrary component. If the contribution or attachment cannot be
-established, the candidate rule provides no reverse-addition step.
+Contravariant handling is not a total subtraction algebra. “Reverse addition”
+is currently only a possible conceptual reading of existing subtraction
+evidence, not a new operation or evidence system. A reverse step is justified
+only where existing evidence identifies the concrete contribution and its
+attachment in the accumulated effect. The frozen directed-stack-weight spec
+already carries scoped subtraction identities, ordered push/pop history,
+family budgets, residual weights, and the row-split provenance needed by its
+own subtraction rule. Do not add parallel attachment/provenance records under
+new names. The successor must first show how a proposed reverse step is a
+projection/reformulation of that existing evidence, or identify a concrete
+missing fact that the existing evidence cannot express. Without that proof,
+no reverse step is licensed.
 
-For a concrete Function inequality, compare these descriptors jointly inside
-the same inequality resolution. The candidate evidence shape is:
-
-```text
-W = (θ, N⁻, N⁺, M, S, R, Ψ)
-
-θ  shared correspondence of abstract terms/components across both ports
-N⁻ abstract-only meet or concrete-bearing attachment descriptor, with its normalization evidence
-N⁺ covariant flat normalization and its transport map
-M  admitted concrete matching with dependent type constraints
-S  witnessed forward accumulation, concrete contribution/attachment, and transport needed for partial reversal
-R  correlated residual comparisons and contributions
-Ψ  original terms, aliases, family constraints, K,D, and witnesses
-```
-
-`M`, `S`, and `R` are resolver evidence, not a second semantic relation.
-Concrete matching preserves dependent type constraints; reverse addition is
-allowed only for a source-supported covariant accumulation whose concrete
-contribution and attachment are identified and transported; this evidence
-does not define a total cancellation operation. Unmatched contributions
-remain connected through `R`. `θ` retains shared abstract
-correspondence across both Function positions. `N⁺` transports the covariant
-flat form through constraints/evidence, while `N⁻` retains only the required
-contravariant structure. Neither normalization may silently identify
+For a concrete Function inequality, compare both descriptors jointly inside
+the same inequality resolution. Do not introduce a new tuple of abstract
+correspondence, family ownership, attachment, residual, and provenance
+fields: the existing coupled interface candidate already carries the shared
+assignment, source-owned family identities/incidence, `K,D`, and their
+transport. Existing subtraction evidence remains the source for its scoped
+push/pop and residual facts. The only additional local evidence needed here
+is proof that the polarity-specific row views normalize/transport correctly
+and that concrete matching preserves its dependent constraints. Any partial
+reverse step must be entailed by the source-supported accumulation and
+attachment represented in the existing carriers. If they do not entail that
+fact, record the exact missing source fact before adding any representation.
+Unmatched contributions remain in their existing correlated
+relation/residual context. Neither normalization may silently identify
 distinct original terms or detach a concrete component from its context.
 No effect port is decomposed as an unrelated `Type` inequality, and the
 result of one concrete Function comparison cannot be composed with another
 concrete success to establish a third inequality.
+
+The existing directed-stack-weight/effect-subtraction specification is prior
+art, not successor authority: its exact `StackWeight`, `SubtractId`, `take(F)`,
+`Common(L)`, `K ∩ Common(L)`, `L - J`, W-Mix, replay, and residual-hash-cons
+rules must not be imported as successor semantics without the declarative
+source proof already required by the effect-design gate. They do show that
+regional eligibility, attachment to a subtraction identity, residual
+transport, and provenance are not new concepts here. The genuinely new
+questions in this boundary are whether one endpoint-dependent `A <: B` solver
+can consume the established source meaning of those facts; how its Function
+rule jointly relates contravariant abstract/concrete descriptors to
+covariant canonical-flat rows; and whether the existing coupled relation and
+transport preserve their correlations after flattening. No new total
+cancellation algebra, shared-correspondence map, family-ownership ledger, or
+parallel regional/attachment/provenance calculus is proposed.
 
 The intended coupled cases remain:
 

@@ -166,17 +166,24 @@ variables and concrete effect records
 are examples, not an exhaustive classification. Components may be mixed in
 one row; no privileged body/tail separator is required. Common-variable
 collection is only an auxiliary view of the abstract component structure.
-Resolve both ports jointly in the same `A <: B` query using correspondence
-between abstract components, concrete matching, witnessed partial
-reverse-addition, and correlated residual comparison. No Never/Any/empty-row
-lattice account is part of this rule. The current design records the joint
-witness and intended `d`/`e` shared-port cases. Still open: classification and
-source meaning of abstract/concrete components; whether co-occurrence
-justifies consolidation without equating original terms; transport of
-correlations through covariant flattening; exact attachment descriptor
-construction; which accumulation steps have known attachments and can be
-reversed; descriptor elaboration; `[b,d]` combination; and preservation of
-family `K,D`.
+Resolve both ports jointly in the same `A <: B` query using the existing
+coupled-interface assignment, family ownership/incidence, and transport,
+plus concrete matching and correlated residual comparison. Do not introduce a
+second shared-correspondence map or attachment/provenance ledger for
+“reverse addition”: first determine whether the existing directed-stack-weight
+and effect-subtraction evidence (scoped identity, ordered history, family
+budget, split, residual and invariant-payload constraints) can express the
+source-supported partial reversal. That frozen specification is prior art,
+not successor semantics; its transformations need independent source
+justification. The genuinely new questions are abstract/concrete component
+classification and correlation, canonical-flat covariant normalization,
+polarity-specific descriptor elaboration, and joint Function resolution of
+the intended `[b,d]` / shared-`e` cases. No Never/Any/empty-row lattice account
+is part of this rule. Still open: whether co-occurrence justifies
+consolidation without equating original terms; transport of correlations
+through covariant flattening; any specifically identified evidence gap the
+old machinery cannot express; descriptor elaboration; `[b,d]` combination;
+and preservation of family `K,D`.
 The exact scheme and bounded two-lane operational crosswalk are source-traced,
 while the inference fixture lacks a direct stored-scheme assertion. Record
 shapes need their own lane accounting.

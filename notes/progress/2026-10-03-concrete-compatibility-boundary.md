@@ -739,6 +739,54 @@ The fixed reviewed crosswalk supports endpoint and consumer correspondence,
 but does not prove the nonreflexive descriptor checks' local exactness or
 expose the stored scheme.
 
+### Existing subtraction machinery versus “reverse addition” (2026-10-03)
+
+At the user's direction, I reread frozen `main:spec/2026-05-31-effect-variable-subtractable.md`
+(§§ Directed weight, Weight composition, Variance, Row upper bound, Filter,
+Protect, Family arguments, Bound replay, Compact/finalize, and Runtime), plus
+the Yulang3 Astra-era design interpretation in
+`notes/design/2026-09-29-scc-intrusion-redesign-charter.md` §8 and
+`notes/design/2026-09-29-intrude-effect-hygiene.md` §§1, 3, 10–11, and the
+existing coupled-interface candidate in
+`notes/design/2026-10-01-coupled-effect-interface-core-draft.md` (formulation
+comparison and one denotational row relation). The frozen spec defines a
+directed operational constraint calculus: per-identity ordered push/pop
+histories; active-family intersection; a row split at
+`J = K ∩ Common(L)`; a residual with `L - J`, hash-consed by
+`(source, J, L - J)`; invariant payload constraints when family heads meet;
+and replay/variance transport. The Yulang3 interpretation explicitly treats
+the old data structures as prior art only and requires a declarative source
+meaning and preservation proof before retaining any of their transformations.
+
+The overlap is substantial. The old calculus already has edge-local directed
+weights, scoped subtraction identities, ordered eligibility budgets, row
+splits, residual transport, and invariant argument checks. The coupled
+interface candidate already has the source-owned identity/incidence,
+shared-assignment, and relational transport account. Calling those facts
+“reverse addition” does not make them new and does not warrant another
+descriptor/provenance ledger. But the old operational weight evidence does
+not by itself prove which source accumulation a concrete component belongs
+to, and neither document yet proves that its proposed carrier fully supplies
+the attachment needed by the user's partial inverse. That bridge is a real
+open proof obligation, not permission to clone the carriers. The frozen spec
+is not successor authority: it does not prove that Oracle-directed rules
+preserve the successor's source denotation, and its `StackWeight` rules must
+not be copied as meaning.
+
+The genuinely new questions are narrower: (1) the source proof linking an
+accumulated concrete contribution to the old subtraction evidence, if the
+existing relational transport does not already entail it; (2) how
+abstract/concrete component classes are derived from source terms and
+correlated without changing their identity; (3) how canonical-flat covariant
+rows and the polarity-specific contravariant view are elaborated while
+preserving those correlations; and (4) how one concrete Function inequality
+jointly resolves both ports, including the intended linked `[b,d]` /
+shared-`e` cases. A new evidence field is justified only by naming a concrete
+source fact that the old weighted constraints and existing relational
+carrier cannot recover. Until such a gap is demonstrated, partial “reverse
+addition” is terminology for a possible reformulation, not new machinery.
+No Oracle `Never`/`Any`/empty-row behavior was promoted into the account.
+
 The first generalization obstacle remains replay admission: same-pivot records
 alone do not justify a replay, and optional Records refute unconditional
 concrete transitivity. Guard inheritance, row/residual alternatives and
