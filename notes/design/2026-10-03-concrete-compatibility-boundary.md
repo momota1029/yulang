@@ -5,7 +5,7 @@ Date: 2026-10-03
 Scope: one inequality judgment with endpoint-dependent solving and local concrete cast/adaptation resolution
 Approved-by: user for the single inequality judgment, endpoint-dependent resolution direction, concrete-success non-composition, polarity-indexed Function effect descriptors, mixed abstract/concrete type components, canonical-flat covariant rows, abstract-only contravariant meet normalization, and concrete-bearing attachment descriptors for witnessed partial reverse-addition; component classification, co-occurrence consolidation, the component-to-existing-carrier bridge, proof that existing evidence licenses a particular reversal, replay eligibility, and implementation remain open
 Reviewed-by: prior compiler_referee/spec_auditor reviews cover frozen-source facts and earlier Record/replay candidates; 2026-10-03 compiler-referee delta reviews of the Function descriptor and mixed-row candidate found no blocking/major issues, with minor wording repairs closed; general-component, polarity-specific reverse-addition, and abstract-only contra-meet wording delta reviews found no blocking/major/minor issue; the conditional support-obligation corollary received bounded spec-auditor and compiler_referee review with all findings closed and no remaining finding; the intended-Function necessary-condition subsection received a bounded compiler_referee review with no findings; the conditional Act-family coverage candidate received a bounded compiler-referee review, its minor ownership clarification and major nonempty-fiber premise were repaired, and the delta review closed with no residual finding; the singleton `TypedRow` to candidate Function-support crosswalk received a bounded compiler_referee review with no findings; the abstract-component same-fiber candidate had a major joint-fiber/union-premise finding repaired and its bounded delta review closed with no residual finding; the full witness calculus remains unreviewed
-Role-first §8 review: architect pre-write audit; compiler_referee reported one BLOCKING complete-domain-construction gap and major decorated-behavior, entry-role separation, and support-only lifting gaps; spec_auditor found the selected direction conformant and confirmed these obligations remain open. Rigid-hole schema delta: compiler_referee accepted its conditional non-vacuity/actual-preservation claims, while retaining BLOCKING `EnvStore`/`JointWF` construction and a major operational-context-closure obligation. A later bounded Astra theorem audit and Sol architect delta support only the conditional open-graph research candidate below; both retain the domain/construction and closure gaps. No carrier insufficiency found.
+Role-first §8 review: architect pre-write audit; compiler_referee reported one BLOCKING complete-domain-construction gap and major decorated-behavior, entry-role separation, and support-only lifting gaps; spec_auditor found the selected direction conformant and confirmed these obligations remain open. Rigid-hole schema delta: compiler_referee accepted its conditional non-vacuity/actual-preservation claims, while retaining BLOCKING `EnvStore`/`JointWF` construction and a major operational-context-closure obligation. A later bounded Astra theorem audit and Sol architect delta support only the conditional open-graph research candidate below; both retain the domain/construction and closure gaps. The step-index candidate has a bounded compiler-referee audit; the subsequent source-state `spec_auditor` audit requires heap examples to remain conditional until source realization. No carrier insufficiency found.
 Implementation authority: none
 Supersedes: none; narrows source applicability of structural relation candidates without invalidating their fragment theorems
 
@@ -1256,15 +1256,17 @@ for execution. Do not invoke type preservation for the plugged program at
 those challenges, followed by the independent observation inclusion.
 
 This still has one BLOCKING hole: removing `f` from the named environment does
-not remove aliases reachable through `f`'s captured store. For example, its
-closure can capture cell `ℓ`, whose value is `f` or a callback capturing `f`,
-while another context variable aliases `ℓ`. Requiring that entire graph to
-satisfy checked membership reintroduces the comparison being proved; excluding
-the aliases loses legitimate shared source states. `EnvStore` / `JointWF`
-therefore need a well-founded or guarded joint construction for contexts,
-captured values and shared cells that preserves alias identity and never
-chooses independent store witnesses. No existing source clause currently
-provides that construction.
+not by itself define which source values or state reachable from `f`'s capture
+are admissible in the context. A generic schema is a captured cell `ℓ` whose
+value is `f` or a callback capturing `f`, with another context variable
+aliasing `ℓ`; this is not yet established as a Yulang source execution.
+Requiring that entire source state to satisfy checked membership reintroduces
+the comparison being proved; excluding legitimate source aliases would narrow
+the domain. `EnvStore` / `JointWF` therefore need a well-founded or guarded
+construction over source-defined values, references, state transitions and
+continuations, preserving the identities the source semantics actually
+provides. Do not assume a primitive shared heap cell. No existing source
+clause currently provides that construction.
 
 The conditional immediate-application lemma is narrower and sound: if the
 rigid-hole context and joint source-state premises hold for a runtime callable
@@ -1291,28 +1293,29 @@ evidence. It is a research candidate only; it does not discharge the
 BLOCKING `EnvStore`/`JointWF` construction or transition-closure findings.
 
 Use one proof-only rigid hole `H:T_checked` in open source derivations for the
-context, containing closures, cells, and saved suffixes. The hypothetical
-typing assumption for `H` must never imply semantic membership of the actual
-callable at `T_checked`. Build one joint heap graph for context roots, actual
-captures, and the argument carrier, retaining shared locations. Any cyclic
-structural admissibility relation must be a displayed monotone positive
-operator over constructor/code descriptors and existing decorations; the
-hole clause checks only the designated hypothetical hole. Every containing
-closure or cell remains justified by its open derivation rather than by
-closed target membership. Plugging is identity-preserving graph substitution,
-not a fresh or independently selected heap.
+context, containing closures, and saved suffixes. The hypothetical typing
+assumption for `H` must never imply semantic membership of the actual callable
+at `T_checked`. Build one joint source-identity graph for context roots,
+captures, argument carriers and continuations; include shared locations only
+where a source operation gives them that identity. Any cyclic structural
+admissibility relation must be a displayed monotone positive operator over
+source descriptors and existing decorations; the hole clause checks only the
+designated hypothetical hole. Every containing closure remains justified by
+its open derivation rather than by closed target membership. Plugging is
+source-preserving substitution over the same identity graph, not a fresh or
+independently selected state.
 
 This structural relation alone does not establish a semantically valid
 `EnvStore`. The new obligation is an open decorated source-typing and history
 construction, with substitution and transition closure for each finite
 source step. In particular, open dependence must be transported through
-mutation, alias reads/calls, closure capture, returns, requests and responses,
-handler exit, and raw resumption; it cannot be approximated by a static
-“contains `H`” tag. Behavior after plugging retains the actual receiver role
-and §21 entry, original profiles, shared `ν,K,D`, event-specific
-`Flow`/`Observe`/incidence, and activation expiry. A naive semantic greatest
-fixed point is not justified because Function inputs are negative and
-mutable cells couple reads with writes.
+source-defined reference/state operations, alias calls, closure capture,
+returns, requests and responses, handler exit, and raw resumption; it cannot
+be approximated by a static “contains `H`” tag. Behavior after plugging
+retains the actual receiver role and §21 entry, original profiles, shared
+`ν,K,D`, event-specific `Flow`/`Observe`/incidence, and activation expiry. A
+naive semantic greatest fixed point is not justified because Function inputs
+are negative and mutable cells couple reads with writes.
 
 The candidate's initial-state domain must not silently shrink to heaps
 reachable from closed programs. The coupled contextual contract permits
@@ -1337,7 +1340,7 @@ configurations, arguments, responses, and resumptions, preserving the actual
 receiver entry and decorations. Full extensional validity would require all
 finite indices; index exhaustion is never evidence of membership.
 
-The same source heap must be fixed across the approximants: `∀n.∃heap_n` is
+The same source state must be fixed across the approximants: `∀n.∃state_n` is
 insufficient because independent witnesses can hide an inconsistent alias
 state. The context domain must be exact: closed-program reachability would
 exclude some of the selected semantic free-variable environments, while an
@@ -1351,11 +1354,10 @@ The indexed transition proof must catch a callback that calls the tested
 function through a shared cell `N` times and then emits a forbidden request:
 some finite index must reach the request and reject. Resetting fuel at receipt,
 accepting on exhaustion, or carrying checked membership as a premise would
-break this property. Worlds must follow the live heap through allocation,
-read/write, handler exit, and raw resumption; a saved heap snapshot misses a
-write before resume, and a saved handler grant must not survive expiry. The
-closure theorem must retain `ν,K,D`, original profiles, typed `Flow`/`Observe`,
-incidence, and current activation identity.
+break this property. The world must follow the live source configuration and
+state through handler exit and raw resumption, while a saved handler grant
+must not survive expiry. The closure theorem must retain `ν,K,D`, original
+profiles, typed `Flow`/`Observe`, incidence, and current activation identity.
 
 Finally, finite-prefix adequacy must cover the whole complete-interface
 contract, including challenge-domain admission, typed receipt, observations,
@@ -1369,3 +1371,31 @@ define exact indexed imports/worlds, prove domain preservation and guarded
 substitution/transition laws, then prove complete-interface adequacy. Only
 after those steps may the joint `[b,d]` lift be derived from role-directed
 Function elaboration and `Force(D) >>= B`.
+
+#### Source-state realization boundary
+
+A subsequent spec audit found that the generic heap wording above cannot be
+read as a Yulang source transition rule. The authoritative Yulang3 architecture
+§6.9 distinguishes compile-time `StateSlotId` from runtime address, cell,
+activation, or multi-shot-branch identity; §8.3 states that `&a = value` is
+implemented as a pure continuation restart, not primitive in-place heap
+mutation. The frozen `RefSet` characterization routes updates through
+`update_effect` and its source handler; it does not establish the shared-cell
+machine witness as a typed source execution.
+
+Accordingly, captured-cell and write-before-resume examples remain
+abstract-machine schemas until each operation is realized through source
+State/reference behavior. The source-state world for any indexed proof must be
+derived from the selected source transition relation: lexical reference
+transport, State-slot ownership where visible, effect-mediated update, active
+handler identity, and raw continuation re-entry. It must not introduce
+primitive heap allocation/write steps or identify `StateSlotId` with runtime
+cell identity. Conversely, do not exclude first-class reference values from
+the Function challenge domain: architecture §6.9 keeps general refs such as
+`std::io::file::text` separate and does not decide their coverage. Their
+operations need their own source bridge if admitted by the interface.
+
+This source refinement leaves the existing EnvStore/context-domain blocker
+open. The next gate is to derive the exact state carried by source contexts
+and imports, connect local State and general-reference operations to that
+state, then formulate step-indexed closure over those actual transitions.

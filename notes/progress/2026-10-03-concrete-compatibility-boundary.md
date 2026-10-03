@@ -1524,3 +1524,42 @@ interface inclusions. Continue to derive the intended pure-to-handler lift
 only after this role-first gate. No code, tests, builds, Oracle inspection,
 measurements or solver changes were performed. `git diff --check` is the
 focused integrity check.
+
+### Source-state realization boundary (2026-10-03)
+
+A read-only repository map and a bounded `spec_auditor` review refined the
+heap-oriented step-index candidate against the approved source/architecture
+rules. Yulang does have mutable references and reassignment: the stable-core
+`example_refs` fixture reads with `$x` and writes with `&x = value`; the
+`ref_update_local_buffer_public` fixture captures `$buffer` in `get` and
+`update_effect` callbacks. These establish user-visible mutation and captured
+state access, not primitive mutable heap cells.
+
+The authoritative `docs/yulang3-architecture.md` §6.9 fixes local mutable
+bindings as compiler-generated `StateSlotId`s. The identity is a compile-time
+origin, explicitly not a runtime address, activation cell or multi-shot branch
+identity. §8.3 says `&a = value` lowers to pure continuation restart. The
+frozen `RefSet` characterization forwards through the `ref_update.update`
+effect and handler; it does not make `RefSet` a primitive heap write. General
+first-class refs such as `std::io::file::text` remain a distinct scope and
+must not be excluded from Function contexts solely by the local StateSlot
+decision.
+
+The recursive shared-cell and write-before-resume examples in the current
+Function gate therefore remain **abstract-machine schemas**, not established
+typed Yulang executions. Keep them as stress cases only after deriving their
+source State/reference realization. The exact source-state world for an
+indexed contextual proof must come from the source transition relation:
+lexical reference transport, visible State-slot ownership, effect-mediated
+updates, active handler identity and raw continuation re-entry. Do not posit
+primitive allocation/write steps or treat static `StateSlotId` as runtime
+cell identity.
+
+This audit does not close the environment/context-domain blocker. Next derive
+the state represented by admissible free-variable imports and connect both
+local State and general-reference operations to that state; then define the
+step-indexed relation and prove transition/domain adequacy. The source
+refinement keeps the role-first Function order and leaves all first-class refs
+within the contextual challenge domain when admitted by their interface. No
+compiler changes or tests/builds were made; `git diff --check` remains the
+focused integrity check.

@@ -294,24 +294,34 @@ under joint source-state premises: the inert carrier reaches actual receipt
 before force, even when its computation diverges. This is not annotation
 acceptance or a nonempty-fiber theorem.
 
-A conditional proof route now uses proof-only rigid holes in open source
-derivations, one identity-preserving heap graph, and positive structural
-closure. A compiler-referee audit finds proof-only step indexing plausible for
-recursive aliases, but leaves exact context-domain and observation-adequacy
-theorems open. Candidate approximants must share the same actual heap, and
-every recursive use of `H:T_checked` must decrease the index after a concrete
-source transition. Index exhaustion cannot certify membership. This does not
-establish `EnvStore` validity: define semantic free-variable imports exactly,
-distinguish ordinary imports from hole-dependent values, and prove guarded
-substitution/history closure through alias calls, mutation, handler exit,
-responses and live-state resumption. Preserve worlds and alias identities
-across indices; do not narrow to closed-program-reachable heaps or enlarge to
-arbitrary graph-shaped imports. Prove finite-witness adequacy for the complete
+A conditional proof route uses proof-only rigid holes in open source
+derivations; graph identity is available only where the source construction
+supplies it. A compiler-referee audit finds proof-only step indexing plausible
+for recursive aliases, but leaves exact context-domain and observation-
+adequacy theorems open. Approximants must share the same source configuration
+and state; every recursive use of `H:T_checked` must decrease the index after
+a concrete source transition. Index exhaustion cannot certify membership.
+
+The source-state bridge is also open. Authoritative `docs/yulang3-architecture.md`
+§6.9 distinguishes compile-time `StateSlotId` from runtime cell/activation
+identity; §8.3 models `&a = value` as pure continuation restart. Frozen
+`RefSet` routes updates through `update_effect` and handlers, not primitive
+heap writes. Thus generic shared-cell and write-before-resume examples remain
+abstract-machine schemas until realized through source State/reference
+operations. Do not erase first-class refs from the Function challenge domain;
+their source bridge remains separate.
+
+Next: define semantic free-variable imports and source-state transitions
+exactly; distinguish query-independent imports from hole-dependent values;
+prove guarded substitution/history closure through effect-mediated updates,
+handler exit, responses and live-state resumption. Preserve the intended
+context domain without restricting to closed-program heaps or enlarging it to
+arbitrary graph imports. Prove finite-witness adequacy for the complete
 interface (domain, receipt, observations, latent returns, future calls and
-resumption), not support alone. Finite graph identity machinery supplies
-transport from given states, not source generation, complete finite
-comparison, or principality. See design §8 for the candidate and its limits.
-No carrier change is justified.
+resumption), not support alone. Existing graph identity transports supplied
+states but supplies neither source generation, complete finite comparison,
+nor principality. See design §8 for the candidate and its limits. No carrier
+change is justified.
 
 Any hypothetical annotation-coverage rule must be a universal obligation over
 the supplied complete comparison, not deletion of uncovered observations.
