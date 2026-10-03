@@ -1773,6 +1773,37 @@ the role-derived admission lemma from already-authorized clauses or leave this
 subgate open; do not infer domain or observation inclusion from
 `Force(D) >>= Return`.
 
+### Role-indexed Function interface audit (2026-10-04)
+
+Sol's source derivation and an independent architect delta audit establish the
+exact first-stage result. For ordinary unannotated, explicit Function-
+annotated, and known callback-position unannotated literals, respectively,
+the selected receiver roles are Pure, Handler at the original annotation
+boundary, and Handler at the expected `(F_cb,β,Slots(β))` boundary. In all
+three cases §21 independently supplies parameter entry and core §6 supplies
+the common `Value(Fun(P,Result(I_b)))` body/result skeleton, with §18 result
+forwarding. Value entry still runs `Force(D) >>= B`; retained computation
+entry retains the carrier.
+
+That skeleton is not the complete role-indexed interface. Charter §24 and the
+Authoritative callback-context contract explicitly leave complete interface
+and effect-port elaboration open. `F_cb` remains a checking contract; its
+ports cannot be copied into the callback literal's interface. Pure role also
+does not imply empty invocation support, because Value entry can expose
+argument behavior before a pure body. The stable-core `r.update` literal
+selects Handler despite pure concatenation, but the workspace lacks the
+`std.control.var` implementation and so does not fix the complete transition.
+
+The precise next semantic gate is a source rule constructing the complete
+callable interface and its source admission domain, executable typed positions
+and effect-port correspondences from selected role, original boundary/profile,
+§21 entry and body/result derivation under shared `Rel_C`, `K,D`, and `ν`.
+For callback literals it must then emit ordinary `A <: F_cb` obligations
+without assuming their success. No API/phase or new carrier is implicated.
+Until this rule is derived, the callback domain and observation proofs remain
+open; the separate same-activation Pure-value declared-use correspondence
+also remains pending its user decision.
+
 ## Main records
 
 - `notes/design/2026-10-03-scoped-constraint-solving.md` — scoped regular equality quotient and finite closed structural subtype saturation; the following reviewed candidate addresses open residual factorization.

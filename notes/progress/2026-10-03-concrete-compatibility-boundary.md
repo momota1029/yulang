@@ -2907,3 +2907,38 @@ therefore a new bounded rule awaiting user decision, not a consequence of the
 approved callback-literal delivery contract. API/phase, typed-interface
 ownership, and evidence carriers remain unselected. No implementation or
 tests were performed.
+
+### Role-indexed Function interface audit (2026-10-04)
+
+Sol derived the approved introduction cases against charter §§18, 21, 24,
+typed-computation-core §6, and the bounded callback-context contract. An
+architect delta audit confirmed the result and its authority boundary.
+
+| Introduction case | Selected receiver role/boundary | Facts currently derivable |
+|---|---|---|
+| Ordinary unannotated literal | Pure, selected by ordinary introduction | §21 selects parameter entry; core §6 synthesizes `Value(Fun(P,Result(I_b)))`; §18 forwards the body result interface. |
+| Explicit Function annotation | Handler at the original annotation boundary | Same parameter and body/result skeleton, conditional on admitted annotation checking and typed paths. |
+| Unannotated literal in known callback slot | Handler at expected `(F_cb,β,Slots(β))`, delivered before body constraints | Same parameter and body/result skeleton; `F_cb` remains a checking contract and is not copied into the literal's interface. |
+
+In each case, ordinary `Value(A)` entry still receives the whole inert
+carrier and executes `Force(D) >>= B` inside the receiver activation;
+explicit computation entry retains its carrier. These source facts determine
+the role, entry, and common body/result skeleton. They do **not** construct a
+complete role-indexed Function interface, source admission domain, executing
+typed positions, or effect-port views. A Pure receiver's ports cannot be set
+to empty by default because Value entry may expose argument requests or
+divergence before a pure body.
+
+For callback context, step 6 of the Authoritative contract remains an explicit
+obligation to form the literal's complete interface and compare it with
+`F_cb` using `A <: F_cb`; neither role selection nor §6's value/function
+constructor identifies the two interfaces. The `r.update (\old -> old +
+"!")` fixture selects Handler despite its pure body, but the stable-core
+workspace does not include the `std.control.var` implementation, so it does
+not determine the complete callback transition. The narrow remaining semantic
+gate is to construct the whole callable interface and its source admission
+domain, typed execution positions, and effect-port correspondences from the
+selected role, original boundary/profile, §21 entry, and body/result under
+shared `Rel_C`, `K,D`, and `ν`. This is independent of API/phase choice and
+does not authorize a new carrier. The existing-Pure same-activation
+declared-use projection remains separately pending user decision.
