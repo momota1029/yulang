@@ -92,6 +92,15 @@ was refuted without yielding a package counterexample. Details and scope are
 in `notes/progress/2026-10-03-open-residual-factorization.md`. This does not
 change the immediate Function source-derivation gate below.
 
+A follow-up least-closure characterization now shows that arbitrary-tree
+solutions in that fragment exist exactly when the least forced-head,
+Record-presence, and per-inequality comparison closure is clash-free. The
+compiler-referee review found no blocking/major issue after making exact
+descriptor Record presence positive seeds explicit. The closure can be
+infinite, so this is not an effective decision or regularization result. The
+next structural theorem is regularity of its forced-head/presence languages;
+the Function/source-derivation work remains an independent active lane.
+
 ## Current work
 
 ### One endpoint-dependent inequality solver (2026-10-03)

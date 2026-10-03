@@ -592,3 +592,65 @@ shortcut's local substitution requires `q(12)=b(1)=B`. This rejects that
 encoding only; the package has a finite regular solution. No source semantics,
 solver rule, implementation, or source-envelope conclusion follows. The
 arbitrary-tree-to-regular implication remains open.
+
+### Least forced completion for arbitrary solutions (2026-10-04)
+
+A separate bounded Astra attack reframed arbitrary-tree satisfiability as a
+least positive closure, rather than trying to quotient an arbitrary supplied
+solution. The primary checked the proposed completion argument, and an
+independent compiler-referee audit found no blocking or major defect for this
+exact fragment. The result below is an existence characterization only.
+
+After finite-label erasure, form active Type addresses `(q,w)` for every
+descriptor/free-root track and suffix `w`, quotiented by the exact descriptor
+equations `(q,iw) ~ (q_i,w)`. The quotient is right-congruent: appending the
+same child coordinate preserves each equation. Use compressed Record payload
+edges labelled by field `ℓ`; at a Type address, field `ℓ` is either absent or
+present with a Type payload address. Maintain positive facts `Live(u)`,
+`Head_C(u)` (including atom identity and Record), `Present_ℓ(u)`, and an
+independent ordered comparison relation `A_b(u,v)` for each original
+inequality `b`.
+
+Seed all free/input roots as live and each inequality's own ordered root pair.
+Seed the exact head and every present field, including its payload equation,
+for every exact descriptor Record state; exact absent fields and fields
+outside its mask are forbidden. Descriptor constructor heads and child
+equations are also seeded at every exact descriptor state. Close under:
+
+1. Each active pair makes both endpoints live and transports a known type
+   head across the pair in both directions.
+2. A known ranked head makes its exact Type children live. A pair with that
+   shared head generates child pairs within that same `A_b`, following the
+   declared covariance, contravariance, or both directions for invariance.
+3. A forced present field forces a Record head and a live payload.
+4. If `A_b(u,v)` and upper `v` has field `ℓ` present, lower `u` must have `ℓ`
+   present and `A_b` gains the covariant payload pair. If the upper field is
+   absent, that branch terminates successfully without inspecting the lower
+   payload.
+5. All facts respect exact descriptor-address equality and active Type/Field
+   shape; no rule activates an absent/padded child or composes distinct
+   inequality roots.
+
+Then an arbitrary-tree solution exists exactly when this least closure is
+clash-free. Necessity follows because each seed/rule is required by every
+solution, while a solution forbids conflicting forced heads and fields that
+violate an exact descriptor mask. For sufficiency, assign each live address
+its forced head, or `Record{}` if no head is forced, and include exactly the
+forced Record fields. Every active pair either has one shared forced head at
+both ends or defaults to `Record{} <: Record{}`. Ranked child comparisons and
+all required upper-present Record payload comparisons are in that pair's own
+closure relation. These relations are direct post-fixed witnesses for the
+original inequalities; exact descriptor equations hold by the address
+quotient. The resulting type assignment may be nonregular.
+
+The referee highlighted the crucial positive descriptor seeding: recording
+only forbidden fields is insufficient. For example, exact `r={f:Int}` and
+`{} <: r` must force presence of `f` at `r` and expose the missing lower
+field. With the compressed payload convention, absence is simply omission;
+an explicit Field sort would instead need its own equations and descent rules.
+The closure characterization supplies no algorithm deciding whether it is
+clash-free: its fact set may be infinite. Regularity of the forced head and
+presence languages remains the next mathematical question. A regular-model
+construction would yield a regular solution, but neither that construction
+nor a nonregular-only counterexample was obtained. No source semantics,
+solver rule, implementation, or source-envelope conclusion follows.
