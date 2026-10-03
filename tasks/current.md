@@ -231,6 +231,19 @@ construction for those jointly activated obligations, a finite
 nonregular-only counterexample, or another terminating regular-satisfiability
 route. This does not authorize source-semantic changes or implementation.
 
+A conditional regularization lemma now handles the case where some satisfying
+assignment has bounded strict Record width along every original direct
+comparison tree: beyond that finite depth, active endpoints are equal by
+coinduction, so finite exact prefixes plus frontier equalities give a regular
+model while retaining all descriptor equations. Independent compiler-referee
+review found no blocking or major issue. This condition is not necessary for
+regular witnesses (`x={f:x,g:I}`, `y={f:y}`, `x<:y` is a regular model with
+strict width at every `fⁿ`), so infinitely recurring strict width remains the
+exact open case. See
+`notes/progress/2026-10-03-open-residual-factorization.md`. This is an
+independent Milestone-3 theorem result; it does not change the active
+role-first Function source gate or authorize implementation.
+
 The next Sol attempt tested a finite profile containing head/present fields,
 descriptor-root subtree membership, and per-bound active endpoint/orientation
 membership. A compiler-referee confirmed the profile is not a child congruence:
