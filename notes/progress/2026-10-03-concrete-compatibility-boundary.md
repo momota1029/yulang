@@ -1590,3 +1590,38 @@ or a shared-reference update across a multi-shot branch. Thus keep generic
 shared-cell examples conditional. Preserve first-class refs whenever the
 interface admits them; do not identify static `StateSlotId` with runtime
 identity. No code, tests, builds, Oracle inspection or measurements occurred.
+
+### Role-first immediate-gate refinement (2026-10-03)
+
+The user's clarification changes the order within the Function gate. First
+derive a bounded source-elaboration path for ordinary unannotated literals,
+explicitly Function-annotated literals, and callback-position literals. In
+each case derive receiver role, keep it independent of §21 parameter-entry
+role, and only then elaborate the Function interface and its effect-port
+views. The stable-core `ref_update_local_buffer_public` callback plus its
+public signature is a concrete expected-context anchor; it does not establish
+the missing library implementation or complete callback transition.
+
+The next derivation target is the pure-value-function to
+handler-capable-callback lift through source application/elimination. For a
+value-entry callback, `Force(D) >>= B` motivates joint accounting for
+argument computation `d` and body behavior `b` at reachable post-force states
+under one existing `Rel_C`/`ν` fiber. This remains a derivation target, not a
+four-port structural rule, an interpretation of effect-position `never`, or
+an unconditional row-union law. The broad complete-domain `EnvStore`/`JointWF`
+construction, state/alias closure and finite-witness adequacy remain later
+gates rather than prerequisites for deriving the three introduction clauses.
+
+I reread the frozen effect-subtraction specification and Astra-era
+interpretation before this reordering. Existing ordered push/pop histories,
+scoped subtraction identities, family budgets, row split/residual transport
+and invariant payload checks substantially overlap the proposed “reverse
+addition” vocabulary. No missing source fact has yet been demonstrated, so
+this clarification adds no solver carrier, attachment ledger or provenance
+structure. The exact remaining bridge is to show how the role-elaborated
+source invocation and its concrete contributions are already witnessed by
+those carriers; only a concrete counterexample to that representability can
+motivate an additional proof object.
+
+No code or tests changed. No tests, builds, Oracle inspection or measurements
+were run in this refinement; measurement budget consumed: 0.

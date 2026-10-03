@@ -1181,9 +1181,13 @@ The compiler-referee review found no evidence that `Rel_C`, shared `ν`, `K,D`,
 `Flow`, `Observe`, incidence or existing subtraction cannot represent a
 required fact. The blocker is missing source derivation/domain construction,
 not a demonstrated carrier insufficiency. Keep implementation authority
-closed. The next theorem should establish role-directed introduction and
-contextual checking with the above independent parameter-entry and decorated-
-behavior obligations; only then attempt the joint `[b,d]` lift.
+closed. First derive the bounded source-elaboration clauses for the three
+literal cases, using the callback fixture as the expected-context anchor.
+Then derive the role-specific operational contribution behind `[b,d]` without
+claiming full complete-domain comparison. The independent parameter-entry and
+decorated-behavior obligations, `EnvStore`/`JointWF` construction, and
+context-transition closure remain prerequisites for the later complete
+inequality proof.
 
 ### Follow-up audit: contextual domains are not yet constructed
 
@@ -1366,11 +1370,12 @@ projection alone is insufficient. Prove that each failed domain or
 observation inclusion has a finite witness in the indexed relation before
 using the all-indices characterization. These premises remain open; the
 audit found no solver-carrier insufficiency and establishes neither a finite
-principal presentation nor an implementation path. The next proof work is to
+principal presentation nor an implementation path. The later proof work is to
 define exact indexed imports/worlds, prove domain preservation and guarded
-substitution/transition laws, then prove complete-interface adequacy. Only
-after those steps may the joint `[b,d]` lift be derived from role-directed
-Function elaboration and `Force(D) >>= B`.
+substitution/transition laws, then prove complete-interface adequacy. Those
+are prerequisites for the full joint `[b,d]` inequality. A bounded source
+derivation of literal roles and its operational motivation can proceed first,
+without treating support accounting as that full inequality proof.
 
 #### Source-state realization boundary
 
@@ -1430,3 +1435,75 @@ branches or recursive storage of the tested callable. Keep those as open
 source cases. No `StateSlotId` may be treated as a runtime cell/activation
 identity, and first-class references remain in the domain whenever admitted by
 their interface.
+
+#### Concrete callback-context anchor
+
+The stable-core `ref_update_local_buffer_public` fixture gives a concrete
+role-first source anchor. It constructs a reference record whose `get` and
+`update_effect` closures capture `$buffer`, then calls:
+
+```yulang
+r.update (\old -> old + "!")
+```
+
+The public signature contract for `std.control.var.ref.update` gives the
+callback parameter shape `('c -> ['b] 'c)`. Under the user's source rule, this
+unannotated literal receives handler receiver role from that callback expected
+context before its Function interface is elaborated. Its body is pure string
+concatenation; that fact does not select pure receiver role. This is a direct
+application of the approved contextual-role rule, not a new Function subtype
+rule or an Oracle-derived generalization.
+
+The same fixture's `update_effect` closes over the local State value and
+performs `&buffer = ref_update::update $buffer`. The authoritative
+StateSlot/continuation decisions identify the local slot and its effect
+evidence; the general-ref contract exposes the callback path. This connects
+the two source-realization lanes at one concrete API use. The underlying
+`std.control.var` implementation is not present in this workspace, so this
+fixture does not establish the complete handler transition, `Rel_C` challenge
+domain, multi-shot behavior, or the `[b,d]` lifting proof. Those remain
+separate obligations.
+
+#### Immediate gate refinement after the role-first clarification
+
+The first task is now a finite source-elaboration derivation, not construction
+of the complete contextual challenge domain. State the source clauses for the
+three introduction cases independently of effect-row component syntax:
+
+1. an unannotated function literal introduced without a handler expected
+   context selects the pure receiver role;
+2. a function literal with an explicit Function annotation selects the
+   annotation's handler boundary;
+3. a function literal supplied in callback position inherits handler receiver
+   role from that expected callback context.
+
+For each case, derive the resulting Function interface and keep its receiver
+role separate from its §21 parameter-entry role. Only then derive how its
+effect ports describe the source invocation. In particular, the displayed
+`Fun(a, never, b, c)` is an inequality example whose port interpretation is
+still to be derived from those source clauses; `never` itself contributes no
+effect-position rule. Do not first assign every component a receiver or
+computation denotation.
+
+The `ref_update_local_buffer_public` callback is the bounded contextual
+anchor for case 3. Use it to derive expected-context propagation and the
+callback's handler interface. Then use the actual call/elimination rules,
+including `Force(D) >>= B` for value entry, to explain the pure-function to
+handler-capable callback lift jointly: `d` accounts for the forced argument
+computation and `b` for body behavior at reached post-force states, under the
+same existing `Rel_C` fiber and `ν`. This is a source derivation target, not
+yet a complete inequality proof or unconditional row-union law. The
+`std.control.var` implementation is unavailable here, so the fixture grounds
+the contextual literal, not the library's whole operational path.
+
+Keep the larger `EnvStore`/`JointWF`, alias/store transition closure, and
+finite-witness adequacy proof as later gates. They are still required before
+claiming complete-domain Function comparison, but they need not block this
+source-introduction derivation. At each step, reuse existing `Rel_C`, `K,D`,
+occurrence/incidence, `Flow`/`Observe`, and directed-weight/subtraction
+evidence. The reread recorded in the progress audit found substantial prior
+art in the old ordered push/pop histories, family budgets, common-row split,
+residual transport and invariant payload checks. “Reverse addition” names no
+new machinery. First show which source fact the existing evidence already
+represents; propose an added proof object only if a specific required fact is
+shown to be absent.

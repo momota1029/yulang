@@ -165,14 +165,38 @@ its effect ports. `never` remains a value bottom, distinct from an empty
 effect row and polarized solver sentinels; it has no independent pure/empty
 effect meaning.
 
-Then derive the intended pure-to-handler callback effect lift from source
-entry/elimination semantics. `Force(D) >>= B` gives the operational reason
-that a handler-capable callback boundary can account jointly for argument
-computation `d` and body effect `b`, including the displayed `[b,d]` relation.
-It does not by itself prove a four-port inequality until the actual and
-checked complete domains and effect-port views are derived by the
-role-specific elaboration. Do not compare Function effect ports as four
-independent general-Type subtyping obligations.
+Immediate bounded subgate: derive source elaboration for the three cases
+(ordinary unannotated literal, explicitly Function-annotated literal, and
+callback-position literal) before constructing a general contextual challenge
+domain. The existing `ref_update_local_buffer_public` call
+`r.update (\old -> old + "!")`, together with the public callback signature,
+is a concrete expected-context anchor. For each case, record the selected
+receiver role, the independently syntax-directed §21 parameter-entry role,
+and the resulting Function interface. Then derive the effect-port view from
+that interface. Do not give effect-row components uniform receiver semantics;
+`never` remains value bottom and gets no effect-position interpretation.
+
+Next derive the pure-function-value to handler-capable callback lift from
+source application/elimination. `Force(D) >>= B` explains why a value-entry
+handler callback's complete invocation can include both argument computation
+`d` and body behavior `b` at reached post-force states. Establish their joint
+accounting under the same existing `Rel_C` fiber and `ν`; this does not assume
+unconditional row union or four independent general-Type port checks. Treat
+`Fun(a, never, b, c) <: Fun(a, d, [b,d], c)` as the target whose port views
+must follow from role-specific elaboration, not as an axiom deriving `never`
+semantics.
+
+Keep complete `EnvStore`/`JointWF` construction, source alias/store transition
+closure, and finite-witness adequacy as later proof gates. They remain needed
+for a complete-domain Function comparison but do not block the bounded
+source-introduction derivation. Reuse `Rel_C`, `K,D`, occurrence/incidence,
+`Flow`/`Observe`, and existing directed-weight/subtraction evidence. The
+2026-10-03 reread recorded in the progress audit found old ordered
+push/pop histories, family budgets, row split/residual transport and invariant
+payload checks already cover the proposed partial reversal vocabulary.
+“Reverse addition” is a conceptual reading of that evidence, not a second
+carrier. Add no solver carrier or provenance structure absent a concrete
+source fact shown unrepresentable by the existing evidence.
 
 Reuse the existing complete `Rel_C` fiber, shared `ν`, `K,D`, occurrence /
 incidence, directed-weight and subtraction evidence. “Reverse addition” is
