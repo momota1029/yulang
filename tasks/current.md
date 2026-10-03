@@ -1871,8 +1871,19 @@ source/profile graph supplies those original occurrence facts. This does not
 prove that raw source constructs the profile or that the generated paths are
 admissible. Immediate next gate: prove source construction of those inputs and
 typed admissibility for the existing bounded identity callback witness, then
-keep universal domain and observation inclusion separate. No new carrier or
-implementation authority follows.
+keep universal domain and observation inclusion separate. An independent Astra
+audit and the follow-up Sol derivation split that gate into two independent
+premises: `SourceLink_β` must derive from source elaboration the typed
+contribution predicates linking the original negative `d` occurrence to
+`J_arg`/the actual `Force(D)`, and the original positive `d` member of `[b,d]`
+to `J_call`; `BackgroundWitness` must construct a nonempty shared
+`Rel_C`/`ν,K,D` source fiber without assuming `Q = T_P <: F_cb`. The two
+receipts and executing views generate candidate edges only when `SourceLink_β`
+is supplied, and do not establish fiber nonemptiness. After these premises,
+candidate evidence admissibility and the two universal inclusions remain
+separate. Astra found no concrete fact unavailable in existing
+`Flow`/`Observe`/`Path`/`Inc_C`, `K,D`, or subtraction evidence. No new carrier
+or implementation authority follows.
 
 ## Main records
 
