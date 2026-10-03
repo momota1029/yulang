@@ -281,3 +281,33 @@ Even if validated, the rule covers only formal-slot obligations. It does not
 admit a preconstructed Pure actual, establish the nonempty checked/actual
 challenge domains, or prove either universal clause of the complete
 inequality. Those still require the separate `Q` theorem.
+
+## Conditional flat-row transport lemma
+
+One part of candidate clause 4 can be isolated without deciding the component
+denotation. Fix one assignment `ν` and one nonempty `Rel_C` fiber, with the
+original component occurrences already mapped to their complete views by
+existing source-owned typed paths. Let `Flat(R)` recursively concatenate
+nested covariant row constructors while retaining every original leaf
+occurrence and its existing owner/dependency references. Assume row
+combination is interpreted by joining those component views in the same
+assignment, and all shared `K,D` conditions are conjoined before projecting
+support. Then reassociation/flattening preserves:
+
+- the component occurrence references and their typed paths;
+- the shared assignment and nonempty joint fiber;
+- each original owner and its incidence/dependency constraints;
+- the resulting complete support projection.
+
+The proof is structural on row constructors: a nested row contributes the
+same leaf occurrences before and after concatenation, up to a canonical
+permutation that carries their references. Since owners, paths, `K,D`, and
+`ν` are unchanged, the joint relation before support projection is identical.
+Only then does the derived support projection coincide. This is not a proof
+that the premises hold for Yulang source rows:
+component-to-view construction, row-combination semantics, and normalization
+that preserves source identities remain to be established. In particular,
+co-occurrence cannot silently quotient distinct terms; if a canonicalizer
+consolidates them, its existing evidence must retain the original incidence
+and every shared constraint. No row tree, separate marginal product, or new
+provenance carrier is part of this conditional lemma.

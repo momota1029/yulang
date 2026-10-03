@@ -2246,6 +2246,17 @@ interpretation, positive `d⁺` contribution, and normalization/fiber
 preservation remain explicit unproved obligations. No implementation or new
 carrier is authorized.
 
+A conditional canonical-flat transport lemma now isolates the normalization
+piece: given pre-mapped component views in one nonempty `Rel_C` fiber, shared
+`K,D`, and row combination by same-assignment view joining, reassociation and
+flattening preserve the joint relation and its support projection when all
+original occurrence references travel with any canonical permutation. A
+compiler-referee review confirmed the conditional claim; this does not prove
+that source components are mapped, that Yulang's future normalizer meets the
+premises, or that co-occurrence permits identifying terms. The active bridge
+is now chiefly source component-to-port interpretation and its linked
+contribution law, followed by actual/checked domain inclusion.
+
 ## Main records
 
 - `notes/design/2026-10-03-scoped-constraint-solving.md` — scoped regular equality quotient and finite closed structural subtype saturation; the following reviewed candidate addresses open residual factorization.
