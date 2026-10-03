@@ -2022,8 +2022,8 @@ resolver evidence. It does not construct an admitted `Rel_C` fiber, validate
 the maps, or prove either complete-inclusion clause. In particular,
 `K,D` must remain the source-generated operation and continuation incidences;
 monomorphic operation types remove polymorphic argument equations but do not
-make those incidences disappear. The next semantic step is to prove the
-candidate evidence valid as the result of this local inequality query, rather
+make those incidences disappear. An eventual comparison proof must validate
+the candidate evidence as the result of this local inequality query, rather
 than require an accepted source binding as its premise.
 
 A fresh compiler-referee audit of that step rejects shrinking the
