@@ -342,7 +342,16 @@ runtime simulation is not itself the static domain proof. Next proof gate:
 construct the identity receipt/decorations diagram from the original slot
 profile, prove request and pure-divergence challenge admission, then derive
 the matching `Observe`/`Receive`/`Flow`/`Path`/`Inc_C` evidence under one
-nonempty well-formed fiber. No API/phase choice, new carrier, implementation
+nonempty well-formed fiber. Sol has now closed the operational receipt and
+execution diagram for the supplied live boundary, but not the source
+decorations or static domain inclusion. The remaining proof obligations are
+(1) derive admissible `View`s at the original profile's exact `p_d⁻` and
+`p_d⁺`, with typed correspondence and distinct callback-value/argument
+receipts, and (2) show the role-derived Value-entry interface denotes the
+entire checked challenge domain in that fiber, including requests, pure
+divergence, responses, stores, future uses, and resumptions. Existing core
+Function denotation does not provide the source context/Env domain lifting.
+No semantic reapproval, API/phase choice, new carrier, implementation
 authority, or complete inequality proof follows yet.
 
 For the §8 closed identity witness, the source call reduces to

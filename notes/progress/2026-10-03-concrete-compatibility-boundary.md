@@ -2526,3 +2526,53 @@ domain check. No implementation, compiler API/phase, new carrier, tests, builds,
 or Oracle work resulted from this proof candidate. Review scopes were bounded
 to the identity witness and named source contracts; general Function cases,
 escaped callbacks, and the Milestone-3 residual theorem remain outside.
+
+### Sol identity receipt/execution diagram and remaining adequacy lemmas (2026-10-03)
+
+Sol completed the bounded operational diagram for the already approved
+callback-context delivery contract. Let `β, Γβ` be the original known slot
+profile and `B` its live boundary. The flow is:
+
+```text
+Receive(r, slot, V_cb, χ_cb)
+  -> inertly construct Delay(D_req)
+  -> invoke existing Pure identity at §21 Value(Int) entry
+  -> Receive(u, arg, V_arg, χ_arg)
+  -> Force(D_req) >>= Return
+  -> Observe/Path/Inc_C only after admissible source Views are supplied
+```
+
+The callback-value receipt and argument receipt are distinct. The argument is
+not forced before invocation or receipt, and the actual identity invocation is
+not reclassified as a Handler. Bind right-unit preserves the identity call's
+request/response histories, state, pending continuation suffixes, repeated
+resumptions, and divergence prefixes for the same live `CallView`.
+
+Under the user's already selected linked-lifting semantics, the same Force
+event is the intended negative `p_d⁻` contribution and positive `p_d⁺`
+contribution. The positive complete-consumer mark is a source-decoration
+obligation prescribed by that semantics; it is not derivable merely from
+`Observe`, support membership, or the eventual success of `A <: B`. The
+operation contract transfers compatible operation events but does not map
+the executing argument position into the original slot profile.
+
+Two lemmas remain distinct. First, a role-indexed invocation-position
+adequacy lemma must derive the exact source-generated `View`s at the original
+profile's `p_d⁻` and `p_d⁺`, with typed correspondence, live boundary, and
+separate receipts. Second, a Value-entry domain-lifting adequacy lemma must
+show that the role-derived actual interface admits the whole checked
+challenge domain in a common well-formed `ν` fiber; operational identity
+simulation for `A = Int` alone does not establish either universal inclusion.
+The current core Function denotation quantifies over `x ∈ ⟦A⟧` and a candidate
+`CallCfg`; its source context/Env denotation remains open. Thus it does not
+prove inclusion of every admissible computation carrier and history.
+
+The closure check must include request-carrier admission and pure divergence
+(the body is unreachable there), response-dependent suffixes, mutable store
+admission/transition closure, and repeated resumption/context closure. Empty
+request support cannot stand in for divergence admission; compatible request
+heads alone do not establish dependent response/history admission. Existing
+`Rel_C`, `K,D`, occurrence/incidence, `View`/`Observe`, `Receive`, `Flow`,
+`Path`/`Inc_C`, and subtraction evidence remain sufficient candidates; no
+unrepresentable fact or need for a new carrier was found. No semantic choice,
+API/phase ownership, implementation, tests, builds, or Oracle work was added.
