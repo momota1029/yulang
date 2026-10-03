@@ -469,3 +469,39 @@ concrete successes compose. The zero-cast fixture still fails before
 specialization, so this does not establish an executed successful instance.
 The next gate is two-direction conservation for the complete application
 ledger and materialized consumer/evidence. No tests or builds ran.
+
+### Follow-up: reviewed two-lane application crosswalk (2026-10-03)
+
+The fixed application ledger now places the Function-derived `X <: bool`
+bound and literal bounds `int <: X`, `X <: int` beside the materialized
+consumer query `int <: bool`. The nontrivial selected replay and the
+specialization query share ordered endpoints and the `ApplicationArgument`
+consumer boundary; `int <: int` is reflexive. The separate callee Function
+query has one non-reflexive effect child, `EffectRow([]) <: Never`, which the
+current non-fixed-head fallback accepts. A bounded compiler-referee delta
+review found no issue in this two-lane crosswalk and confirmed that it uses no
+concrete-success composition or replay-ID identity.
+
+The review also pointed out a resolver-local check omitted from the
+application-owned lanes: `constrain_direct_cast` instantiates each registered
+cast scheme and submits it against `Fun(int, bool)`, and emission subsequently
+solves the selected cast body at that signature. These are witness/instance
+checks within resolution of the same concrete inequality, not another cast
+relation. Source tracing of the fixture's sole cast now derives a
+nonrejecting candidate Function check and equal bool/Function endpoints for
+the selected body instance. An independent delta review is pending for this
+extension. No tests or builds ran.
+
+### Semantic correction: endpoint kinds and polarity (2026-10-03)
+
+The user clarified that `never` is value/data bottom and `Any` is value/data
+top; neither is an alias for empty effect or an effect-universal endpoint.
+Polarized solver bottom/top are also distinct internal sentinels. The prior
+description of the Function fixture as effect lifting with two empty rows was
+too strong: frozen `Neg::Bot`/`Neg::Top` materialization and
+`is_pure_effect` are representation behavior, not semantic authority. The
+exact user-stated coupled Function case remains the target, but its
+position-sensitive interpretation and combination algebra are open. The
+frozen `EffectRow([]) <: Never` fallback and source-traced candidate cast
+check are characterization only. The current task is to derive the coupled
+rule with kinds and polarity retained; no tests or builds ran.

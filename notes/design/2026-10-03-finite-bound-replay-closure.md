@@ -549,22 +549,22 @@ path is direct under the one-consumer, literal-leaf assumptions:
    non-Record signature, `callee_arg_shape_from_actual` keeps the expected
    argument `bool`. Inference represents an ordinary annotated parameter's
    argument effect as `Neg::Bot`, which specialization materializes as
-   `Never`; the pure apply path replaces that component on the consumer side
-   with `EffectRow([])`. Thus `is_pure_effect` equality does not make the
-   whole Function query reflexive. A source trace through annotation
-   connection, SCC compaction and scheme publication derives the stored
-   scheme with no quantifiers, role predicates, recursive bounds or stack
-   quantifiers and predicate `Fun(bool, Never, Never, bool)`. The diagnostic
-   fixture does not directly assert this scheme. In the actual TaskSolver
-   variable path, principal inference materialization preserves the negative
-   argument effect as `Never` but materializes positive bottom return effect
-   as `EffectRow([])`. Thus the callee type is
-   `Fun(bool, Never, EffectRow([]), bool)`. Pure application construction
-   replaces its argument effect with `EffectRow([])`, while copying the return
-   effect. The Function query is non-reflexive only in the argument-effect
-   child `EffectRow([]) <: Never`; current `TypeGraph` accepts that child
-   through its non-fixed-head fallback. It is not omitted as reflexive, and
-   this derivation does not compose successful concrete comparisons.
+   `Never`; the pure apply path sets the target argument effect to
+   `EffectRow([])`. A source trace through annotation connection, SCC
+   compaction and scheme publication derives the stored scheme with no
+   quantifiers, role predicates, recursive bounds or stack quantifiers and
+   predicate `Fun(bool, Never, Never, bool)`. The diagnostic fixture does not
+   directly assert this scheme. In the actual TaskSolver variable path,
+   principal inference materialization preserves the negative argument
+   effect as `Never` but materializes positive bottom return effect as
+   `EffectRow([])`. Thus the callee type is
+   `Fun(bool, Never, EffectRow([]), bool)`. The intended query must be
+   re-derived from the user's coupled Function inequality while keeping value
+   `Never`, empty effect row, and polarized solver bottom distinct. Frozen
+   specialization currently reaches success by
+   independent Function decomposition and a non-fixed-head fallback for
+   `EffectRow([]) <: Never`; this is characterization of the old
+   implementation, not the semantic justification for the intended rule.
    The scheme derivation follows frozen commit
    `a58eefc31e22141574b6f20c6a5748151c6d79f1`: builtin annotations add both
    bounds (`infer/src/annotation/constraints.rs:124–137,303–308`); ordinary
@@ -586,6 +586,39 @@ path is direct under the one-consumer, literal-leaf assumptions:
 5. With exactly one `int -> bool` rule in the arena,
    `boundary_expr_with_argument_contract` obtains that rule through
    `direct_cast_rule` and emits `Apply(InstanceRef(cast), argument)`.
+
+The bounded two-lane ledger for this fixture is now explicit:
+
+| Source/inference task | Specialization task/evidence | Relation in this fixture |
+|---|---|---|
+| The application stores the callee Function demand with argument slot `X`; the known callee Function lower view and that demand prepare `Fun(bool, ...) <: Fun(X, ...)`. | TaskSolver submits the callee-value-to-callee-consumer Function inequality. | Its intended success still needs kind- and polarity-sensitive derivation from the coupled Function inequality. The frozen separate-child/fallback behavior is historical characterization only. |
+| Function decomposition gives the argument bound `X <: bool`; the literal contributes `int <: X` and `X <: int`. | `consume_expr_value(argument, bool)` submits the consumer inequality `int <: bool`. | The application boundary and ordered concrete endpoints agree. At inference, `int <: int` is reflexive; the selected nontrivial lower/upper replay is `int <: bool`. |
+| The selected replay is owned by the `ApplicationArgument` source boundary and reports the literal/callee sites. | The argument actual/consumer pair carries the expression occurrence and application argument contract. A unique cast lookup emits the cast application around the literal. | This is endpoint/boundary correspondence, not replay-ID identity. The conversion is evidence/realization of the local concrete inequality; neither earlier bound comparison's success is composed to establish it. |
+| The application source obligation is still `int <: bool`; the registered cast declaration separately supplies the candidate evidence. | `TypeGraph::constrain_direct_cast` instantiates the single `int -> bool` cast scheme and submits it against `Fun(int, bool)`. The source-derived cast predicate is `Fun(int, Never, Never, bool)`; principal materialization gives `Fun(int, Never, EffectRow([]), bool)`, while the expected signature is `Fun(int, EffectRow([]), EffectRow([]), bool)`. Its intended derivation must preserve value/effect kinds and polarized endpoints; this source trace does not establish that derivation. Frozen independent-child/fallback behavior is historical characterization only. Emission creates the cast instance at `Fun(int, EffectRow([]), EffectRow([]), bool)`; `solve_def_body` specializes the lambda with that signature, making body/definition checks reflexive for this fixture. | These are resolver-local witness and instance checks attached to resolving the concrete query, not a separate cast relation. Under the one-candidate scheme, they add no rejection in the frozen implementation. They do not compose prior concrete successes to establish `int <: bool`; that query is still resolved directly. |
+
+For this fixed fixture, source-to-specialization direction has a concrete
+inference replay witness and a separately traced materialized query with the
+same ordered endpoints and consumer boundary. In the reverse direction, the
+application's nominal argument query is that same `int <: bool` pair; the
+separate callee query is an intended instance of the coupled effect-lifting
+rule whose kind/polarity derivation remains open. Cast-candidate
+signature and body checks remain resolver-local subqueries attached to
+resolution evidence; their fixed-fixture source trace does not establish the
+intended effect-lifting derivation. The
+operational crosswalk still does not prove a general source obligation
+theorem, guard/witness conservation, general replay completeness, or runtime
+execution.
+
+The resolver-local path is `TypeGraph::constrain_direct_cast`, followed by
+`Specializer::cast_boundary_instance` / `ensure_def_instance`, then
+`drain_pending_instances` calling `TaskSolver::solve_def_body`. The selected
+cast lambda is specialized with its pure `Fun(int, bool)` signature; its
+literal `false` body and matching definition boundary produce equal bool and
+Function endpoints, which the weighted-subtype interner omits reflexively.
+The candidate signature check is still a fresh inequality under the same
+endpoint-dependent solver. Its intended explanation is effect lifting, not
+independent Function-field decomposition; the latter and its
+`EffectRow([]) <: Never` fallback remain frozen characterization.
 
 This is a source-code path derivation, not an executed end-to-end witness. The
 lowering fixture separately asserts that one cast candidate avoids the
@@ -609,11 +642,12 @@ lane: `consume_expr_value` materializes the literal's actual/expected
 comparison, while `apply_type` separately submits a callee Function check.
 Record endpoints are excluded because `callee_arg_shape_from_actual` can
 change the callee consumer to the actual Record shape; a later Record subgate
-must retain that additional comparison. The exact fixture's exported scheme
-must still be established to prove that its callee query has the conditional
-shape above and cannot add a rejection. Until then, argument-lane locality is
-established operationally, while whole-application conservation remains
-open.
+must retain that additional comparison. The source-derived scheme and
+coupled effect-lifting rule account for the fixed non-Record fixture's
+additional comparison. The fixture has no direct stored-scheme assertion and
+no executed successful specialization witness; whole-application
+conservation remains open until both inequality lanes and their evidence are
+related in both directions.
 A later extension to block arguments must likewise retain the separate root
 and tail comparisons and their boundary correspondence. The remaining lemma
 is a two-direction result for this source shape. Define the source obligation

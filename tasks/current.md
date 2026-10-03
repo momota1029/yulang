@@ -144,12 +144,15 @@ annotated argument effect, inference materializes `Never`, while pure
 application construction uses `EffectRow([])`. TaskSolver's principal
 inference materialization also turns the positive bottom return effect into
 `EffectRow([])`, while preserving the negative argument effect as `Never`.
-The callee Function comparison therefore decomposes to the non-reflexive child
-`EffectRow([]) <: Never`, which the current non-fixed-head fallback accepts.
-It is not omitted as reflexive. The exact-scheme trace is documented in §8.1;
-the inference-fixture contract still lacks a direct stored-scheme assertion.
-The next source gate is two-direction conservation between the full
-application ledger and materialized consumer/evidence. Record shapes need
+Frozen specialization decomposes the callee Function into the non-reflexive
+child `EffectRow([]) <: Never`, which the current non-fixed-head fallback
+accepts. This is historical characterization only. Successor semantics must
+distinguish value `never`, value `Any`, empty effect, any effect-universal
+effect (if the language has one), and polarized solver bottom/top; `Any` must not be assumed to mean an
+effect-universal endpoint. Re-derive the coupled Function effect-lifting rule
+with endpoint kind and polarity preserved before closing this gate. The exact
+scheme and bounded two-lane operational crosswalk are source-traced, while the
+inference fixture lacks a direct stored-scheme assertion. Record shapes need
 their own lane accounting.
 It does not preserve one replay identity across those stages. Prove or refute
 the two-direction correspondence directly, using the application boundary and

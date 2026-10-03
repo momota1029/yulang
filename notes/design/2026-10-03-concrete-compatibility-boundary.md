@@ -32,6 +32,79 @@ edge propagation may use transitivity, while success of one concrete
 resolution cannot be composed with another concrete success to establish a
 third inequality.
 
+### User-directed Function effect lifting
+
+The later clarification separates endpoint kinds that the frozen
+representation can collapse:
+
+| Meaning | Successor semantic kind | Frozen representation evidence |
+|---|---|---|
+| Value/data bottom `never` | value type | `Type::Never` |
+| Value/data top `Any` | value type | `Type::Any` |
+| Empty/pure effect `ε` | effect row | `EffectRow([])` |
+| Effect-universal/top, if the language has one | effect kind; not yet established | must not be inferred from `Any` |
+| Polarized solver bottom/top | internal bound sentinels with polarity and endpoint context | `Pos::Bot`, `Neg::Bot`, `Pos::Top`, `Neg::Top` |
+
+These are not global aliases. In particular, neither `never = ε` nor
+`Any = effect-universal` is a premise. The frozen materializer maps
+`Neg::Bot` to `Type::Never` even in an effect context, while tracked empty
+positive effect bounds can become `EffectRow([])`; frozen `is_pure_effect`
+also treats both `Never` and an empty effect row as pure. Frozen top
+materialization can similarly collapse polarized top to `Any` in some
+contexts. These are historical representation behaviors, not successor
+semantic rules. Each polarized sentinel must be interpreted from its sign,
+endpoint kind, and owning constraint rule.
+
+The user further clarified that Function effects are coupled in one
+Function-inequality resolution. The intended case is:
+
+```text
+Fun(a, never, b, c) <: Fun(a, d, [b,d], c)
+```
+
+Do not resolve this case by independently subtyping the four `Fun` fields.
+The displayed `never` is the user's intended endpoint and remains part of the
+target case. Since value bottom and empty effect are distinct, it cannot be
+silently rewritten to `ε`; the solver must explain how the endpoint is
+interpreted in this Function position. Target argument effect `d` is carried
+into the target return effect alongside source return effect `b`. The same
+`d` witness must occur in
+both target positions, and the endpoint witnesses `a` and `c` remain
+correlated across the Function comparison. In particular, the rule does not
+impose an independent `d <: never` obligation.
+
+This is an endpoint-dependent resolution rule of the single query
+`A <: B`; it is not a second effect relation and its successful result cannot
+be transitively composed with another concrete Function comparison. Variable
+endpoints may retain the same inequality and dispatch through this rule when
+the Function shape is known. The bracket operation `[b,d]`, its normalization
+and identity laws, the position-sensitive interpretation of polarized
+bottom/top endpoints (including `Any`), the rule's context/Stack preservation, and any
+generalization beyond the displayed shape remain proof obligations. The
+displayed rule is the user's intended case; no broader four-field
+subtyping rule is approved here.
+
+Frozen-source characterization supports the coupling but does not define its
+successor meaning. `infer/.../propagate.rs` detects a negative `Neg::Bot`
+argument effect and routes both the target argument effect and source return
+effect to the target return effect. The frozen specialization `TypeGraph`
+instead decomposes independent Function components; for pure callee/cast
+fixtures it reaches `EffectRow([]) <: Never`, which current code happens to
+accept through a fallback. That fallback is not authority for the intended
+rule and must not be used as its semantic explanation.
+
+The frozen inference branch is specifically: when the lower Function's
+argument-effect endpoint is `Neg::Bot`, enqueue the upper argument effect
+below the upper return effect (after stripping target-return Stack wrappers)
+and enqueue the lower return effect below that same upper return effect. This
+is evidence for coupled effect flow. It does not yet prove that the source
+algorithm implements the exact user rule for arbitrary `b,d`, because the
+source code constrains two contributions into a target effect endpoint while
+the rule writes their combination as `[b,d]`. Their equivalence, join/row
+normalization, shared-witness transport, and Stack behavior remain explicit
+proof obligations. The frozen specialization's four-child decomposition is
+not a valid successor rule for this branch.
+
 Optional Record comparisons are the discriminator. Oracle accepts each of
 
 ```text
