@@ -184,8 +184,10 @@ specialization path is traced from the source-derived scheme: it submits the
 same `int <: bool` pair and wraps the argument with the unique cast. The
 fixture does not directly assert the stored scheme, and no executed end-to-end
 runtime witness or general two-direction conservation proof is established.
-Compiler-referee delta review confirmed the literal-leaf scope, callee-pivot
-transition and unique-cast endpoint path; it did not review or certify broader
+Compiler-referee delta reviews confirmed the literal-leaf scope, callee-pivot
+transition, unique-cast endpoint path, and the fixed candidate/body-instance
+checks inside local cast resolution. A minor overstatement about enumerating
+all registered casts was corrected. These reviews do not certify broader
 replay conservation.
 
 ## Checking normalization checkpoint

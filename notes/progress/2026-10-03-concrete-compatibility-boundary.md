@@ -483,14 +483,21 @@ review found no issue in this two-lane crosswalk and confirmed that it uses no
 concrete-success composition or replay-ID identity.
 
 The review also pointed out a resolver-local check omitted from the
-application-owned lanes: `constrain_direct_cast` instantiates each registered
-cast scheme and submits it against `Fun(int, bool)`, and emission subsequently
-solves the selected cast body at that signature. These are witness/instance
-checks within resolution of the same concrete inequality, not another cast
-relation. Source tracing of the fixture's sole cast now derives a
-nonrejecting candidate Function check and equal bool/Function endpoints for
-the selected body instance. An independent delta review is pending for this
-extension. No tests or builds ran.
+application-owned lanes: `constrain_direct_cast` filters candidates to value
+casts with matching ordered source/target paths, then submits each matching
+candidate scheme against `Fun(int, bool)`. Emission subsequently solves the
+selected cast body at that signature. These are witness/instance checks within
+resolution of the same concrete inequality, not another cast relation. Source
+tracing of the fixture's sole cast derives a nonrejecting candidate Function
+check and equal bool/Function endpoints for the selected body instance.
+
+A follow-up compiler-referee review found no blocking or major issue. It found
+one minor overstatement, now repaired above: unrelated registered casts are
+not instantiated. The review confirmed the ordered candidate Function check,
+selected body signature and equal body/definition endpoints, while limiting
+its conclusion to the fixed fixture. It does not establish executed runtime
+success, general candidate behavior, successor cast policy, or the unstored
+scheme. No tests or builds ran.
 
 ### Semantic correction: endpoint kinds and polarity (2026-10-03)
 
