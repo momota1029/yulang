@@ -919,3 +919,37 @@ longer says that the assignment itself admits every source root. Primary
 inspection and `git diff --check` closed both wording repairs. The review did
 not certify local exactness, Function descriptor elaboration, or replay
 admission. No tests or builds ran.
+
+### Conditional annotation coverage review (2026-10-03)
+
+Sol adjudicated the pre-write conformance findings for a possible coverage
+interpretation of resolved Act-family items and abstract components. No
+source-derived annotation rule is available yet. Existing operation rules
+construct a complete `OpInst`, emit a typed request at source-demanded force,
+and check an already existing occurrence with `OpCompat`; none maps an
+annotation component to that occurrence or selects a coverage meaning.
+
+The narrow candidate is conditional: concrete and abstract component views
+must first be jointly defined at one admissible `ν`, with shared predicates,
+occurrence incidence, and nonempty fibers retained. A coverage predicate may
+then restrict complete observations. Such restriction can remove observations
+and whole assignment fibers; it is not request-coordinate `Filterφ`, which
+preserves the valuation domain. Neither operation alone validates an
+annotation: every accepted fiber must satisfy coverage for all represented
+behavior under the admissible challenges. Independently projected component
+fibers cannot be unioned into a joint view. Family projection remains weaker
+than complete `OpCompat`, including operation-local binders, payload/response,
+profile, and handler conditions.
+
+This narrows the research candidate but selects no annotation semantics and
+adds no carrier. Existing coupled-interface evidence supplies the joint
+assignment, `K,D`, restriction/filter distinction, and complete handler image
+once their source premises exist. Existing directed-weight/subtraction
+evidence supplies scoped boundary and residual-routing facts but cannot
+establish this coverage meaning or prove outward family absence; continuation
+re-emission still requires the complete handler image. The next derivation
+must establish universal coverage within the complete receiver contract before
+using the clause to derive either intended Function inequality. Compiler-
+referee/spec-auditor review is required before any later semantic selection;
+no user decision is needed merely to continue this conditional derivation.
+No tests or builds ran.

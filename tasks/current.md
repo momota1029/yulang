@@ -154,6 +154,16 @@ after a source-derived counterexample to uniform interpretation. Keep
 value-bottom `never`, empty effect row, and polarized internal bottom
 distinct. Do not use port-wise general-Type checks.
 
+A conditional coverage hypothesis may restrict complete observations only
+after concrete and abstract component views are jointly defined under the same
+admissible `ν`, preserving `K,D` and nonempty fibers. Keep this distinct from
+request-coordinate filtering, which preserves the valuation domain. Neither
+operation alone defines annotation acceptance: accepted fibers must satisfy
+coverage universally over represented behavior and admissible challenges.
+Family coverage also does not discharge full `OpCompat` or handler checks.
+These are proof constraints on the next derivation, not a selected annotation
+meaning or a new carrier.
+
 For that elaboration, map components to existing complete-interface and
 subtraction evidence. `g(o)` owns an argument of a typed request occurrence,
 not an arbitrary abstract component; one abstract component may denote a
