@@ -1575,6 +1575,16 @@ its role or executable entry. It is not yet a source theorem: the annotation
 introduction/elimination clause must show that this is the source ordering,
 and the callback `CallView` still needs its typed profile projection.
 
+Current syntax authority cannot close that premise. `syntax-v0` specifies
+`as Type` as a generic `TypeAnnotationTail` on an `OperatorChain` and
+explicitly excludes type meaning and checking
+(`syntax-reference/en/src/expressions/operator-chain.md` §1; its associated
+Hir only preserves the generic annotation node). Thus the candidate ordering
+comes from applying the user's Function-specific boundary clarification plus
+the general annotation checking rule, but the latter is not currently a
+source-authorized rule in this successor package. Do not present syntax
+ownership as proof of annotation-checking order.
+
 The stable-core callback gives one concrete instance of row three. Its public
 signature is
 `ref('a & 'b, 'c) -> ('c -> ['b] 'c) -> ['b, 'a] ()`, and the source calls

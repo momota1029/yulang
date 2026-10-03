@@ -1808,6 +1808,12 @@ slot as a separate use-site view. It is conditional on a source annotation
 introduction/checking clause that establishes this ordering; no type
 annotation rule or callback `CallView` projection has been claimed.
 
+The syntax-v0 operator-chain spec confirms only that `as Type` is a generic
+annotation tail and explicitly excludes type meaning/checking. The current
+HIR likewise preserves that tail generically. Neither supplies the missing
+annotation-introduction/checking order, so the candidate remains conditional
+on the Function-specific source rule rather than following from syntax.
+
 I also inspected current HIR ownership: `ResolvedExpr::Lambda` stores only
 parameter, body, occurrence and range, while the narrow chain HIR retains
 annotations only as generic `Value` syntax nodes. This is downstream evidence
