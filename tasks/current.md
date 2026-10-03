@@ -130,11 +130,12 @@ cast-selection policy, implementation representation, or compiler change is
 authorized by this record. No tests/builds ran for this documentary gate.
 
 The first bounded subgate is one ordinary application with a literal-leaf
-argument, known closed Function signature, one consumer, empty weights and no
-schemes, aliases, cycles or row reduction. Frozen source connects the
-application origin to a Function-derived argument task and selected replay,
-then independently reconstructs the materialized consumer check and
-endpoint-based cast emission.
+argument, one monomorphic closed Function signature and callee scheme
+instantiation with no quantified variables, one consumer, empty weights, no
+aliases or cycles, and no row reduction. Frozen source connects the
+application origin through a callee-pivot Function comparison to an
+argument-derived task and selected replay, then independently reconstructs
+the materialized consumer check and endpoint-based cast emission.
 It does not preserve one replay identity across those stages. Prove or refute
 the two-direction correspondence directly, using the application boundary and
 ordered endpoints rather than identity equality; see §8.1 of
@@ -145,6 +146,9 @@ The frozen inference fixture already asserts the `int -> bool`
 `OneSidedReplayPair`, its `ApplicationArgument` owner and the `42`/`f` source
 sites; this closes one fixed inference-side witness. The positive
 specialization/emission bridge for that same application shape is still open.
+An independent compiler-referee delta review confirmed the repaired literal-
+leaf scope and callee-pivot transition; it did not review or certify the
+broader replay-conservation claim.
 
 ## Checking normalization checkpoint
 

@@ -4,7 +4,7 @@ Status: Draft; reframed after the user's 2026-10-03 clarification of one inequal
 Date: 2026-10-03
 Scope: finite closure of internal solver states for a fixed finite endpoint-dependent inequality transition system
 Approved-by: no solver semantics or implementation approved; the user's single-inequality direction is recorded in §1 of `2026-10-03-concrete-compatibility-boundary.md`
-Reviewed-by: prior bounded reviews cover frozen-source facts and earlier abstract closures only; compiler_referee reviewed §8.1 (minor expression-scope finding repaired); the broader reformulation remains unreviewed
+Reviewed-by: prior bounded reviews cover frozen-source facts and earlier abstract closures only; compiler_referee reviewed the §8.1 subgate and confirmed its literal-leaf scope and callee-pivot replay repair; the broader reformulation remains unreviewed
 Implementation authority: none
 Supersedes: none
 
@@ -511,23 +511,48 @@ wraps the argument expression. The replay identity is not passed to cast
 selection. This is a pair of connected source paths, not proof of a conserved
 replay identity.
 
-A useful bounded lemma would fix one known closed Function signature, one
+For this fixed shape, one monomorphic callee scheme instantiation gives the
+callee slot `C` its known Function lower view. The argument/replay endpoint
+trace is:
+
+```text
+callee slot C:         Fun(bool, ..., result) <: C
+application demand:   C <: Fun(X, ..., result)
+callee-pivot replay:  Fun(bool, ..., result) <: Fun(X, ..., result)
+Function argument:    X <: bool                 (contravariant child)
+literal value slot X: int <: X, X <: int
+argument replay:      int <: bool               (lower int, upper bool at X)
+```
+
+The existing missing-cast expectation and provenance assertion identify that
+`int <: bool` replay with the `ApplicationArgument` boundary and the `42`/`f`
+source sites. This gives one concrete witness that the replay task is generated
+from the bound records and is surfaced at the consuming call. It does not
+compose the successes of `int <: X` and `X <: bool`: the endpoints remain
+variable-bound payloads until a fresh `int <: bool` task is resolved. In
+specialization, `apply_type` obtains the known parameter `bool`,
+`consume_expr_value` obtains literal actual `int` and submits that ordered pair,
+and the emitter looks up the cast from the solved actual/consumer pair at the
+argument expression. This establishes endpoint correspondence in this fixed
+source shape by source-path inspection, but not equality of inference and
+specialization derivation identities or a runtime result.
+
+A useful bounded lemma would fix one monomorphic closed Function signature,
+one monomorphic callee scheme instantiation with no quantified variables, one
 ordinary argument that is a literal leaf (with no block/tail subexpressions),
-closed constructor or fixed Record endpoints, empty weights, one consumer,
-and no schemes, aliases, cycles, or row reduction. This makes the initial
-materialized path contain only the application's argument comparison; a
-later extension to block arguments must retain the separate root and tail
-comparisons and their boundary correspondence. The test closes one fixed
-inference-side witness; the remaining source bridge must still establish the
-positive specialization/emission path for the same source shape. Define the
-source obligation from that application and parameter contract. Then prove
-or refute both directions between it and the
-Function-derived argument task plus any mandatory same-pivot replay: ordered
-endpoints must agree, the consumer must remain the application boundary, and
-no extra rejecting inequality may be introduced. Separately relate the one
-materialized specialization comparison to the emitter's one actual/consumer
-pair. Treat nominal cast resolution only as a tagged outcome; this lemma
-chooses no successor cast-selection policy.
+closed constructor or fixed Record endpoints, empty weights, one consumer, no
+aliases or cycles, and no row reduction. This makes the initial materialized
+path contain only the application's argument comparison; a later extension
+to block arguments must retain the separate root and tail comparisons and
+their boundary correspondence. The remaining lemma is a two-direction result
+for this source shape. Define the source obligation from that application and
+parameter contract. Then prove or refute that it
+corresponds exactly to the Function-derived argument task plus any mandatory
+same-pivot replay: ordered endpoints must agree, the consumer must remain the
+application boundary, and no extra rejecting inequality may be introduced.
+Relate the one materialized specialization comparison to the emitter's one
+actual/consumer pair. Treat nominal cast resolution only as a tagged outcome;
+this lemma chooses no successor cast-selection policy.
 
 This subgate deliberately does not require a single provenance ID to survive
 all stages. Frozen Function-child specialization constraints can have empty

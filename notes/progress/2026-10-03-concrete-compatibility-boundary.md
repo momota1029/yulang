@@ -388,11 +388,13 @@ choice; no implementation or source rejection is selected.
 
 A frozen-source trace now identifies a concrete first subgate for the open
 source-to-replay conservation proof: one ordinary application with a literal
-leaf argument, one known closed Function signature, one consumer, empty
-weights, and no schemes, aliases, cycles or row reduction. The application
-lowerer creates an `ApplicationArgument` boundary and Function demand;
-Function decomposition derives an argument comparison, and literal lower and
-upper payloads can produce a selected same-pivot replay. Specialization
+leaf argument, one monomorphic closed Function signature and one callee
+scheme instantiation with no quantified variables, one consumer, empty
+weights, and no aliases, cycles or row reduction. The application lowerer
+creates an `ApplicationArgument` boundary and Function demand; a callee-pivot
+replay exposes the Function comparison, Function decomposition derives an
+argument comparison, and literal lower and upper payloads can produce a
+selected same-pivot replay. Specialization
 independently materializes the argument check, while emission chooses a cast
 from solved actual/consumer endpoints. The inference replay identity does not
 flow to cast selection, so the subgate uses endpoint/boundary correspondence,
@@ -401,7 +403,10 @@ not ID equality.
 The initial review found that a general expression may contain both a block
 root and tail materialized comparison. The subgate was narrowed to a literal
 leaf so the one-comparison premise is explicit; extending it to blocks must
-preserve both identities and boundary relations. The frozen missing-cast test
+preserve both identities and boundary relations. Review also caught an
+omitted callee-pivot replay and the need to allow one monomorphic callee
+instantiation; both are now explicit, and the focused delta review found no
+remaining issue. The frozen missing-cast test
 asserts `int -> bool`, `OneSidedReplayPair`, an `ApplicationArgument` owner,
 and the `42`/`f` source sites; this closes one fixed inference-side witness.
 The positive specialization/emission bridge for that same source shape remains
