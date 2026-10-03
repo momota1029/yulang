@@ -1998,11 +1998,12 @@ obligation graph, not yet admitted typed paths or proof of the complete
 comparison. Astra confirms that the supplied same-`d` occurrences and
 `ν(d)=[E]` substitution do not alone prove the port maps, checked-domain
 inclusion, body/result uniform bound, or `[b,d]` complete-observation
-inclusion. The next proof should validate the candidate evidence directly in
-the local `A <: B` resolution, with the bounded identity/request case first;
-retain divergence, all legal responses, same-fiber `K,D`, and later body/
-result/future-use cases as explicit domain obligations. No source admission
-rule, new carrier, API, or phase is selected by this graph construction.
+inclusion. The candidate evidence remains to be validated inside the local
+`A <: B` resolution. The identity/request path can test event correspondence
+only; it cannot narrow the universal clauses, which continue to cover
+divergence, all legal responses, same-fiber `K,D`, and later body, result and
+future-use histories. No source admission rule, new carrier, API, or phase is
+selected by this graph construction.
 
 The bounded candidate graph can be made concrete without claiming source
 acceptance. Take a receiver with supplied formal `(β,F_cb,Slots(β))` whose
