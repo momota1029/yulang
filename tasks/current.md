@@ -1922,9 +1922,10 @@ links its actual argument port to the producer's Value-entry path. Reuse that
 simulation rather than reproving trace preservation. It still assumes the
 source link graph and typed port maps; it does not generate the map from the
 original negative `d` occurrence through the shared contribution to the
-positive `d` member, nor does it establish a nonempty `Rel_C` fiber. The next
-construction is that bounded profile-to-call link graph, followed by its
-independent open-source fiber witness.
+positive `d` member, nor does it establish a nonempty `Rel_C` fiber. The
+refined support proof below no longer requires such an event-incidence map for
+abstract membership, but the source-owned denotation and port projections are
+still missing. `BackgroundWitness` remains an independent obligation.
 Independently,
 `BackgroundWitness` must construct a nonempty shared `Rel_C`/`ν,K,D` source
 fiber without assuming `Q = T_P <: F_cb`. The two receipts and executing views
@@ -1946,6 +1947,23 @@ inspected rules also do not map abstract effect component `d` to this
 operation-argument binder `g`; treating them as shared would be an unproved
 crosswalk. This narrows the conditional support lemma but does not establish
 its source premises or justify a new carrier.
+
+A compiler-referee delta found a cleaner conditional proof split for abstract
+support membership. If both signed occurrences are independently assigned the
+same semantic component denotation `Den(d,ν)` at one joint fiber, and the
+negative source contract proves `typed(q) ∈ Support(Den(d,ν))`, membership in
+the designated positive `d` occurrence follows by identity; a
+negative-to-positive event-incidence edge is unnecessary for that set
+membership step. Bind separately preserves the actual event, origin and
+`K,D`, while a live positive `Path`/`Inc_C` still requires its own typed
+profile/view derivation. This reading is faithful to the selected “same `d`
+contribution” intent but remains conditional: the source records say a shared
+term/assignment, not that both port occurrences use an occurrence-independent
+support projection of one denotation. A common denotation with different port
+projections, or support identity alone offered as capture evidence, is
+insufficient. The next narrow proof is therefore to derive the shared abstract
+denotation and both port projections from the role-indexed source profile at a
+nonempty joint fiber; complete event-domain inclusion remains separate.
 
 ## Main records
 
