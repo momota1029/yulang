@@ -320,26 +320,30 @@ the open graph-wide gate for this example only. No test was executed.
 An independent compiler-referee delta review found no issue in the reconstructed
 path or in the separation between test assertions and call-path evidence.
 
-A further source audit found a conditional upstream-spine mechanism. Each
-ordinary source-generated `Var(vᵢ) <: Var(vᵢ₋₁)` stores both the lower edge on
-`vᵢ₋₁` and the mirrored upper edge on `vᵢ`. A concrete lower can replay along
-that upper when it is unclaimed or has an uncovered coverage root. Iterating
-this requires a semantically new lower at each hop or a separate proof that a
-previous duplicate already preserved its next obligation. Fully covered
-connecting uppers can stop concrete replay; mixed roots retain the endpoint
-pair only with uncovered roots. The frozen raw multi-hop test directly inserts
-lower bounds and therefore does not test this mirrored-edge path. A bounded
-compiler-referee audit found this a tractable operational induction under
-empty weights, stable variables and successful processing, while cycles,
-filters, extrusion, contexts and consumer conversion stay open. This remains
-characterization, not successor semantics.
+A bounded proof/refutation audit refined the upstream-spine candidate. Source
+`Var(vᵢ) <: Var(vᵢ₋₁)` installs the mirrored upper on `vᵢ`; a fresh normalized
+concrete lower replays to `vᵢ₋₁` if the prepared upper entries are empty or
+include an uncovered root. Exact endpoint transport additionally requires
+that the payload outer head has already passed `step_subtype` normalization:
+`Bot` exits and `Union` splits before variable-upper propagation, while
+`Stack`/`NonSubtract` rewrite. The pair must be admitted and processed without
+terminal failure. Each subsequent hop needs a new lower insertion and an
+eligible mirrored upper at replay time, or independent evidence that the
+corresponding obligation was already processed. Equivalent insertion skips
+replay; duplicate canonical replay merges evidence without enqueueing. Empty
+weights and identity-preserving extrusion remain premises. The source-generated
+`var_var_replay_materializes_transitive_edges` test supports the `int`
+constructor instance; the raw multi-hop bound test does not install mirrored
+uppers. Cycles, covered-only bridges, mixed-root provenance beyond retained
+uncovered roots, filters, contexts, and consumer conversion remain open. This
+is a frozen operational characterization, not successor semantics. An
+independent spec-auditor delta review found no further findings after the
+normalization premise was added.
 
 ## Next gate
 
-First prove or refute the restricted eligible-edge spine lemma, including
-freshness or prior-processing evidence at every hop. Then prove graph-wide
-bound-replay conservation for a fixed finite source elaboration and closed
-Record shapes. Define concrete-to-variable bound
+Prove graph-wide bound-replay conservation for a fixed finite source
+elaboration and closed Record shapes. Define concrete-to-variable bound
 meaning and admissible same-pivot replay; account for covered row uppers both
 at their owning variable and through inherited coverage on other variables.
 Preserve original guarded obligations and required replay queries with their

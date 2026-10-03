@@ -154,15 +154,18 @@ but not the later alpha replay/row derivation. Its constructor heads have no
 arguments, so it does not exercise child-argument obligations. This trace
 supports only this bounded route, not the general conservation theorem.
 
-The next proof slice is an ordinary variable-edge spine: source-generated
-`vᵢ <: vᵢ₋₁` constraints install the mirrored upper needed to send a concrete
-lower back upstream. The operational argument is conditional on an eligible
-upper at every hop (unclaimed or at least one uncovered root), a semantically
-new lower at each hop or prior-processing evidence, empty weights, stable
-variable identities and successful worklist processing. Fully covered bridge
-uppers, duplicate lower/replay records, mixed-root provenance and cycles remain
-outside it. The raw multi-hop bound test bypasses source generation and does
-not install mirrored uppers, so it is not evidence for this lemma.
+The restricted spine proof/refutation gate is closed at the frozen operational
+level. Exact transport requires an already-normalized concrete endpoint whose
+outer head is not `Bot`, `Var`, `Stack`, `NonSubtract` or `Union`, a fresh lower
+at every hop (or independent evidence that the exact obligation was processed),
+an empty or uncovered-root mirrored upper at replay preparation, empty weights,
+identity-preserving extrusion and successful worklist processing. The
+source-generated `var_var_replay_materializes_transitive_edges` fixture
+supports the `int` constructor case. Covered-only bridges, mixed-root full
+lineage, cycles, guards/contexts, consumer conversion and graph-wide
+conservation remain open; this is not successor semantics. See the exact
+frozen-source argument and counterexamples in
+`notes/design/2026-10-03-finite-bound-replay-closure.md` §6.
 
 A separate M3 draft now proves finite least closure for a fixed finite graph,
 payload set and context carrier. Independent semantic and conformance reviews
