@@ -809,6 +809,16 @@ Until a concrete evidence gap is demonstrated, partial “reverse addition” is
 only a possible reformulation of existing subtraction evidence. No Oracle
 `Never`/`Any`/empty-row behavior was promoted into the account.
 
+The `W_j` tuple in §8.2 of `2026-10-03-finite-bound-replay-closure.md` is
+proof notation only: its coordinates are views and obligations over existing
+inequality, coupled-interface, and subtraction evidence, not a stored witness
+bundle or new attachment/provenance mechanism. In particular, an `S` reversal
+must be derived from the old scoped history and source accumulation; failure
+to derive it leaves a localized proof gap and does not itself authorize a new
+field. The design note now says this explicitly, and `tasks/current.md` keeps
+the fixed application-lane gate as the next action. No code or semantic rule
+changed.
+
 ### Source-call adequacy for the four-port Function cases (2026-10-03)
 
 Sol derived the source call accounting from the selected ordinary-computation

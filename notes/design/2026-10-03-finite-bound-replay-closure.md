@@ -714,7 +714,13 @@ independently established equal endpoints, such as the fixed selected-body
 checks, may be discharged by reflexivity.
 
 Each nonreflexive Function task requires a joint descriptor witness of the
-form:
+form below. This is metatheoretic proof notation for views into already
+existing inequality, coupled-interface, and directed-weight/subtraction
+evidence. It is not a proposed solver record, separately allocated witness
+bundle, or second correspondence/attachment/provenance mechanism. Each item
+must be derived from the existing evidence for this comparison; if a required
+fact cannot be derived, identify that exact gap before proposing any new
+representation.
 
 ```text
 W_j = (
@@ -723,19 +729,22 @@ W_j = (
   contravariant meet or attachment-descriptor normalization N⁻,
   covariant flat normalization and transport N⁺,
   concrete matches and dependent type constraints M,
-  witnessed partial reverse-addition steps S,
+  witnessed partial reverse-addition steps S (a proof projection of existing
+    subtraction history, not new state),
   correlated residual obligations R,
   original terms, context, symbolic constraints and consumer ownership Ψ
 )
 ```
 
 `N⁻` distinguishes an abstract-only row normalized to its meet `[]` from a
-concrete-bearing attachment descriptor. `S` records a source-supported
-forward accumulation, its identified concrete contribution/attachment, and
-the transport for reversing that contribution. It is not a total subtraction
-operation. `N⁺` carries shared identities and correlations through canonical
-flat normalization in evidence. `Never`, `Any`, polarized sentinels, and the
-frozen `EffectRow([]) <: Never` fallback provide no descriptor elaboration.
+concrete-bearing attachment descriptor. `S` states the proof obligation that
+an existing source-supported accumulation and its existing subtraction
+evidence identify a contribution and justify reversing it. It is not a total
+subtraction operation and does not introduce attachment state. `N⁺` states
+the preservation obligation for shared identities and correlations through
+canonical flat normalization; those identities remain in existing
+constraints/evidence. `Never`, `Any`, polarized sentinels, and the frozen
+`EffectRow([]) <: Never` fallback provide no descriptor elaboration.
 Any effect-position spelling that does not yet have an admitted descriptor
 interpretation remains an explicit open premise.
 

@@ -268,7 +268,9 @@ justify the joint descriptor witnesses/local-exactness premises in §8.2 for
 the separate nonreflexive callee Function check and matching cast-candidate
 Function check, rooted in the application contract and admitted candidate
 branch respectively. Neither check is reflexive or justified by
-concrete-success composition. Then prove the conditional fixed-lane
+concrete-success composition. The §8.2 `W_j` is proof notation for views into
+existing carriers, not a proposed solver record or separately allocated
+attachment/provenance bundle. Then prove the conditional fixed-lane
 boundary/task conservation in §8.2 of
 `notes/design/2026-10-03-finite-bound-replay-closure.md`. Broader replay
 admission, guards, row/residual alternatives, multi-consumer ownership,
