@@ -96,21 +96,19 @@ A follow-up least-closure characterization now shows that arbitrary-tree
 solutions in that fragment exist exactly when the least forced-head,
 Record-presence, and per-inequality comparison closure is clash-free. The
 compiler-referee review found no blocking/major issue after making exact
-descriptor Record presence positive seeds explicit. The closure can be
-infinite, so this is not an effective decision or regularization result. The
-next structural theorem is regularity of its forced-head/presence languages;
-two conditional regularity-preserving operators and a primary trace/unary
-construction have been reviewed. Their exact correspondence remains open on
-the clash-free branch; on inconsistent branches they preserve a finite clash
-witness, without claiming to enumerate all positive consequences after it.
-An attempted extension that continued through every forced head after a clash
-was rejected: it could activate an absent coordinate below exact descriptors
-of different arity. The correspondence candidate is now limited to
-clash-free closure, which is sufficient for satisfiability characterization.
-Exact descriptor Record presences must be seeded, while upper absence is not a
-negative fact. Separate right-appending `Live` closure remains outside the
-operator construction. The Function/source-derivation work remains an
-independent active lane.
+descriptor Record presence positive seeds explicit. The closure can be infinite,
+so this is not an effective decision or regularization result. A
+compiler-referee-reviewed conditional trace/unary
+correspondence now shows that, for a clash-free finite unguarded ranked
+package, the quotient closure is the least `F/G` alternation and every finite
+stage is regular. The proof preserves descriptor aliases, orientations,
+upper-to-lower Record presence, and valid child shape. If a clash appears, its
+finite derivation rejects the package; exact positive consequences below it
+are not enumerated. The attempted all-head continuation after a clash was
+rejected because it could activate an absent coordinate. Regularity/effective
+recognition of the omega-union and the canonical default-`Record{}` solution
+remain open; separate right-appending `Live` closure only constructs output
+shape. The Function/source-derivation work remains an independent active lane.
 
 ## Current work
 
