@@ -1090,9 +1090,11 @@ collapses this example. Its compiler-referee delta review is clean. The
 erasure argument is limited to unguarded pure structural existence and does
 not establish arbitrary guard/`Phi` preservation or complete fiber
 representation. §7.4.2 now gives the input-bounded existence method only for a
-single-label unary Record input. Continue with two-or-more-label recursive
-width/feedback; retain exact full-fiber and joint predicate solving as separate
-obligations. No compiler authority or implementation follows.
+single-label unary Record input, and §7.4.3 now covers exactly two Record
+labels. Continue with three-or-more-label inputs and input clauses retaining
+Function/other constructor heads; retain exact full-fiber and joint predicate
+solving as separate obligations. No compiler authority or implementation
+follows.
 
 §7.4.1 decides unguarded structural existence for `Λ=∅`: finite-label erasure
 makes Records nullary, after which structural subtyping equals rational-tree
@@ -1101,12 +1103,15 @@ satisfiability with an `N+1`-node witness. §7.4.2 extends existence to the
 single-label unary mandatory-Record/atom input fragment. It reduces full
 regular assignments to unary chains, classifies each free root by terminal
 category and depth, then solves shared inequalities with finite difference
-constraints; a reviewed computable witness bound follows. Both procedures
-check original directed inequalities directly and leave the full fiber intact
-in the principal presentation. Independent compiler-referee/spec-auditor
-reviews found no findings. Two-or-more-label recursive width/feedback remains
-open, as do guards, permissions, `Phi/K,D`, full-fiber decision and source
-acceptance.
+constraints; a reviewed computable witness bound follows. §7.4.3 extends the
+existence method to two Record labels using saturated path domains and regular
+head propagation through a finite pushdown system. All three procedures check
+original directed inequalities directly and leave the full fiber represented
+by the original constraints. Independent compiler-referee/spec-auditor
+reviews found no blocking or major findings; two minor §7.4.3 wording issues
+were repaired by the primary. Three-or-more-label inputs, input clauses with
+Function/other known constructors, guards, permissions, `Phi/K,D`, full-fiber
+decision and source acceptance remain open.
 
 ## Main records
 

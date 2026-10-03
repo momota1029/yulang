@@ -3,7 +3,7 @@
 Status: Reviewed
 Date: 2026-10-03
 Scope: candidate factorization theorem for open structural bounds after scoped rational equality quotienting
-Reviewed-by: compiler_referee and spec_auditor (M3, 2026-10-03); initial structural-outcome repairs, conditional factorization-lemma review, and operation-instance context delta found no remaining findings in reviewed scopes; bounded compiler_referee delta review of §7.1's one-class atomic-Record fiber found no findings; bounded compiler_referee and spec_auditor review of §7.2's closed-regular-endpoint shape-and-field fiber found no findings; bounded compiler_referee and spec_auditor review of §7.3's closed structural interval inhabitation found no blocking/major findings, and its minor Record-arity wording ambiguity was repaired by primary inspection; §7.4's recursive-witness-size repair and §7.4.1's empty-input-label existence reduction received clean compiler_referee and spec_auditor reviews; §7.4.2's one-label Record existence reduction received clean compiler_referee and spec_auditor delta reviews
+Reviewed-by: compiler_referee and spec_auditor (M3, 2026-10-03); initial structural-outcome repairs, conditional factorization-lemma review, and operation-instance context delta found no remaining findings in reviewed scopes; bounded compiler_referee delta review of §7.1's one-class atomic-Record fiber found no findings; bounded compiler_referee and spec_auditor review of §7.2's closed-regular-endpoint shape-and-field fiber found no findings; bounded compiler_referee and spec_auditor review of §7.3's closed structural interval inhabitation found no blocking/major findings, and its minor Record-arity wording ambiguity was repaired by primary inspection; §7.4's recursive-witness-size repair and §7.4.1's empty-input-label existence reduction received clean compiler_referee and spec_auditor reviews; §7.4.2's one-label Record existence reduction received clean compiler_referee and spec_auditor delta reviews; §7.4.3's two-label path-saturation proposal received a clean spec_auditor review and a compiler_referee review with two minor wording repairs closed by primary inspection
 Implementation authority: none
 Supersedes: none
 
@@ -704,6 +704,128 @@ if they are not already counted. This is a computable witness bound, not a
 selected resource limit. The complete fiber, width choices for `Lambda` with
 more labels, guard/permission preservation, and joint predicate solving
 remain open.
+
+#### 7.4.3 Two-label Record existence by regular path saturation (candidate)
+
+This existence-only extension uses the same unguarded structural setting as
+§7.4.2, with input descriptors restricted to fixed atoms and mandatory
+Records whose label sets are subsets of `{f,g}`. A field either occurs
+mandatorily at that node or is absent; this does not add optional-field
+semantics. Finite directed inequalities share quotient roots and may have
+recursive descriptor feedback. Assignments range over the full finite
+contractive regular structural grammar of §2. Other Record labels are erased;
+matching non-Record constructor subtrees map to `{}`, and non-input atom
+identities map to one fixed primitive atom as in §7.4.2. The claim is only
+structural existence; permissions, guards, effects, casts, adapters and
+`Phi/K,D` remain outside it.
+
+Let `A` be the input atom identities together with the one fixed primitive
+representative used by the existence reduction. Represent a type rooted at
+quotient node `q` by its present-path language `D_q ⊆ {f,g}*` and disjoint
+head languages `H_q^R` and `H_q^a` for Record and each `a ∈ A`. They partition
+`D_q`; every present proper prefix is a Record path. A Record's fields are
+exactly the labels whose one-step child paths are present. For two such
+regular trees, direct structural subtyping is
+equivalent to
+
+```text
+s <: t  iff  D_t ⊆ D_s
+             and every path in D_t has the same head in s and t.
+```
+
+The head agreement includes the exact atom identity. This is a direct
+characterization of Record width/depth and atom comparison, not a composition
+of endpoint comparisons.
+
+**Least present-path languages.** Build an NFA with quotient nodes as states,
+all states accepting, and one labelled edge `q -l-> c` for each fixed Record
+descriptor field `q.l=c`. Add an epsilon edge `s -> t` for each original
+inequality `s <: t`. Saturate the finite rule
+
+```text
+q is a fixed Record descriptor with field l:c
+q -epsilon* l epsilon*-> r
+    implies add c -epsilon-> r.
+```
+
+At most quadratically many epsilon edges can be added. Reject if a fixed atom
+state accepts any nonempty word, or a fixed Record descriptor accepts a word
+whose first label is not one of its declared fields. These checks keep
+descriptor nodes fixed while still allowing free roots to acquire required
+fields. For every fixed Record descriptor, saturation and the original field
+edges give its exact equation
+
+```text
+D_q = {epsilon} ∪ ⋃_{l in labels(q)} l D_child(q,l).
+```
+
+Every NFA edge expresses a necessary path inclusion in any solution. Each
+saturation step follows from this exact descriptor equation, so every
+solution's domains contain the saturated languages. Conversely, trimming any
+solution to these least domains keeps all paths required by original upper
+endpoints and preserves the original endpoint heads on retained paths. Thus
+the least domains lose no existence witness. They are regular and
+prefix-closed by construction.
+
+**Required-head propagation.** Compute which heads are forced on each
+`(q,w)` path using configurations with quotient node `q` in finite control and
+the path `w` on a stack, first label at the top. Seed the known head at each
+fixed descriptor root, and seed Record at `(q,w)` whenever `wf` or `wg` is in
+`D_q`; a node with a present child must be a Record. Propagate facts by the
+finite rules:
+
+```text
+fixed descriptor field q.l=c:  (c,w) ↔ (q,lw)
+original inequality s <: t:    (t,w) -> (s,w)
+                              (s,w) -> (t,w), guarded by w ∈ D_t
+```
+
+The first inequality rule transfers every known upper head to its lower
+endpoint. The guarded reverse rule transfers every known lower head only where
+the upper endpoint has that path. Both are necessary: all shared present paths
+must have matching heads, even when a Record has no children at that path.
+Lower-only paths impose no head condition on the upper endpoint. All
+descriptor and inequality facts are therefore necessary in every assignment
+on the least domains.
+
+The rules are push/pop transitions over `{f,g}` plus regular stack tests
+against the finite domain automata. Compile each regular test by annotating
+stack suffixes with the finite transition functions of those automata; push
+updates the annotation and pop restores it. The resulting finite pushdown
+system has an effective regular reachable-configuration set by automaton
+saturation. Project its stack languages to obtain regular head languages.
+Reject if, at any `(q,w)`, Record overlaps an atom head or two different atom
+heads overlap.
+
+If no conflict exists, assign each forced atom its identity and make every
+other present path a Record. The child-path seeds ensure an atom has no
+descendants. Fixed descriptors are preserved by their exact domain equations
+and seeded heads. For each original inequality, an upper head forces the same
+lower head and each lower head forces the same upper head at paths in the upper
+domain. Every remaining shared path defaults to Record on both sides. Hence
+domain inclusion and head agreement hold for each original directed
+inequality. Conversely, every actual assignment
+contains all saturated paths and all propagated head facts, so any detected
+head overlap excludes every assignment. This proves existence exactly when
+the construction does not reject.
+
+The domain NFAs, pushdown saturation, and output product automata are finite,
+so the procedure terminates and constructs a regular witness. One computable
+coarse graph-size bound is
+
+```text
+N + Σ_q 2^(N + Σ_h s_(q,h))
+```
+
+where `N` counts quotient nodes and `s_(q,h)` is the number of states in the
+reachable-head NFA for root `q` and head `h`; these automata are constructed by
+the procedure, so the bound is effective. This is not a practical resource
+policy. The method decides only existence and selects least domains/default
+heads; valid larger Record assignments remain represented by the original
+residual inequalities. Input clauses with Function reversal or other known
+constructors, permissions, guards, joint predicates, and full-fiber
+representation remain open. The pushdown saturation encoding is a proof
+construction and has not been mechanically checked.
 
 ## 8. Verification direction
 

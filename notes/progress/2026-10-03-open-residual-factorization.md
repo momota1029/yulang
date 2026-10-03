@@ -102,11 +102,12 @@ existence; by itself it proves neither an input-bounded witness theorem nor
 preservation of arbitrary guards/`Phi`, nor an exact full-fiber quotient.
 
 An independent compiler-referee delta review found no remaining issue in the
-repaired §7.4 claims. General input-bounded existence for multiple Record
-labels and exact symbolic full-fiber representation remain open, as do joint
+repaired §7.4 claims. General input-bounded existence beyond the one-/two-label
+fragments and exact symbolic full-fiber representation remain open, as do joint
 permission, guard, and `Phi/K,D` solving. No tests, builds, or measurements
-ran. Continue with the multi-label width/feedback case, then return to the
-full joint fiber; the full goal remains active.
+ran. Continue with larger Record alphabets and input clauses retaining
+Function/other constructor heads, then return to the full joint fiber; the
+full goal remains active.
 
 ### Bounded empty-Record-alphabet existence subfragment
 
@@ -144,10 +145,35 @@ constraints; shared roots get one category/depth and descriptor cycles map to
 Independent M3 compiler-referee and spec-auditor delta reviews found no
 blocking, major, or minor findings. The theorem decides only this one-label
 unguarded structural existence fragment. It retains original directed
-inequalities and does not represent the full fiber. Multiple labels with
-recursive width/feedback, scope/permission preservation, joint `Phi/K,D`,
-source acceptance and implementation remain open. `git diff --check` passed;
+inequalities and does not represent the full fiber. Three-or-more labels,
+scope/permission preservation, joint `Phi/K,D`, source acceptance and
+implementation remain open. `git diff --check` passed;
 no tests, builds, or measurements ran.
+
+### Bounded two-label Record existence
+
+§7.4.3 proposes an existence procedure for input Record descriptors with
+labels in `{f,g}` and arbitrary shared recursive inequalities. It represents
+each type by regular path domains plus mutually exclusive Record/atom head
+languages. Direct subtyping is path-domain inclusion with head agreement on
+every upper path. A finite epsilon saturation computes least path domains
+without extending fixed descriptors; a finite pushdown reachability system
+propagates required heads with regular domain guards. Any forced head clash
+rejects; otherwise unforced present paths become Records, yielding one regular
+witness. This preserves original inequalities and does not compose successful
+concrete comparisons.
+
+An independent compiler-referee review found no blocking or major issue and
+two minor wording issues: the finite atom alphabet omitted the representative,
+and the reverse head-propagation prose narrowed a rule that was displayed for
+all heads. I added the representative to the alphabet and made the reverse
+rule explicitly require head agreement at every shared path. Primary diff
+inspection and `git diff --check` close these minor points. The separate
+spec-auditor review found no conformance issue. The pushdown encoding remains
+a proof construction without mechanical checking; this fragment still omits
+guards, permissions, effects, `Phi/K,D`, Function/other input constructor
+clauses, and exact full-fiber representation. No tests, builds, or measurements
+ran.
 
 The separate finite supplied-template context-closure candidate has now
 received clean compiler-referee and spec-auditor delta reviews after its
