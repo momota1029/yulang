@@ -99,7 +99,10 @@ compiler-referee review found no blocking/major issue after making exact
 descriptor Record presence positive seeds explicit. The closure can be
 infinite, so this is not an effective decision or regularization result. The
 next structural theorem is regularity of its forced-head/presence languages;
-the Function/source-derivation work remains an independent active lane.
+two conditional regularity-preserving operators have been identified, but the
+exact trace/unary correspondence (including clash retention and the separate
+right-appending `Live` closure) is not proved. The Function/source-derivation
+work remains an independent active lane.
 
 ## Current work
 

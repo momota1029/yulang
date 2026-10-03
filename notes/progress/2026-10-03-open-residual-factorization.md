@@ -654,3 +654,51 @@ presence languages remains the next mathematical question. A regular-model
 construction would yield a regular solution, but neither that construction
 nor a nonregular-only counterexample was obtained. No source semantics,
 solver rule, implementation, or source-envelope conclusion follows.
+
+#### Two regularity-preserving closure operators (bounded follow-up)
+
+A second bounded Astra attack did not prove the missing regularity theorem.
+It decomposed it into two conditional operators; an independent
+compiler-referee review found these component claims usable only with the
+representation qualifications below. It did not close the equivalence
+between the operators and the quotient Horn closure.
+
+Let `A_b^σ` be the active comparison traces for original inequality `b` and
+orientation `σ`, recorded over the common descendant word from that
+inequality's original root tracks. Let `U` be the forced-head and
+Record-presence predicates. For fixed **regular** activation languages,
+descriptor prefix rewrites `(q,iw) ↔ (q_i,w)` and same-word transfers of
+forced heads/presence form a finite pushdown system with regular stack tests;
+the stack top must represent the first address symbol. This gives regular
+unary consequences under that fixed activation input. Ranked-head child
+liveness and present-payload liveness append coordinates at the right end and
+are not automatically part of this prefix-oriented pushdown construction;
+they need separate `Live` closure accounting and may not be used to infer new
+head/presence facts.
+
+Conversely, for fixed **regular** unary head/presence languages, a product word
+automaton plus finite per-bound orientation flags recognizes the next active
+comparison traces. Covariance preserves direction, contravariance reverses
+it, invariance activates both, and an upper-absent Record field simply has no
+presence-enabled child transition. It must not be recorded as an irreversible
+negative fact. These two conditional constructions imply every finite
+alternation stage is regular. Since the Horn rules have finite premises, the
+joint least closure is the union of those finite stages; that union need not
+be regular merely because every stage is regular (abstractly,
+`X ↦ X ∪ aXb` from `{ε}` has `{aⁿbⁿ}` as its least fixed point).
+
+The reviewer required the activation representation to retain each original
+bound's root trace and resolve descriptor aliases through unary prefix
+transport; an arbitrary alias-expanded binary address relation must not be
+assumed synchronously regular. It must retain incompatible activated pairs
+so they still expose clashes such as `Int <: Bool`, and it must expose forced
+lower presence failure such as `{}` `<:` `{f:Int}`. A rule-by-rule equivalence
+between these trace/unary operators and the quotient closure is not yet
+proved. This is the precise remaining bridge before even using the operator
+alternation to study regularity of the actual least closure.
+
+Thus no regularity theorem, effective procedure, or nonregular-only package
+result follows. The sharpened target remains an effective regular recognizer
+for the joint forced-head/presence closure (or another proof that the
+canonical default-`Record{}` completion is regular), with exact trace and
+clash preservation established first.
