@@ -1654,3 +1654,45 @@ pre-existing function value. Its derivation must establish the callback
 boundary profile, typed receipt, identity transport and both event paths from
 source typing. The whole-source challenge-domain and finite-presentation
 theorems remain later gates.
+
+#### Immediate gate revised: receiver-role elaboration precedes slot projection
+
+The current immediate gate is the source-level judgment that chooses receiver
+role and elaborates a Function boundary. The intended ordering is:
+
+```text
+function introduction + expected context
+  -> receiver role (pure / handler)
+  -> Function interface elaboration
+  -> effect-port interpretation
+```
+
+The three required cases are an ordinary unannotated function literal (pure),
+an explicitly Function-annotated literal (its annotated boundary is a handler
+boundary), and a callback-position literal (handler role selected by expected
+context). Keep this receiver role independent of §21's syntax-directed
+`Value`/`Computation` parameter entry. The source-computation-role package
+records fixed-role skeleton inputs and original annotation slots, but does not
+derive this role-selection judgment or its interface/effect-port clauses.
+Thus the immediate missing source fact is the role-directed introduction and
+contextual-elaboration rule, not a uniform map from one effect-row component
+to a complete receiver/computation interface.
+
+Effect ports acquire their interpretation only after that source elaboration;
+they are views of the resulting Function interface, not independent
+receiver-semantics inputs. In particular, the intended
+`Fun(a, never, b, c) <: Fun(a, d, [b,d], c)` remains a later consequence to
+derive from the pure-to-handler callback adaptation and its source call
+semantics. No effect-position meaning is assigned to `never`.
+
+The previously identified callback-slot profile projection is downstream of
+this gate: once the handler-capable Function interface is source-derived,
+derive its expected callback boundary, typed receipt and identity `Flow`, and
+the separate `Observe` paths for `Force(D)` and body requests into the same
+invocation port under one `Rel_C`/`ν` fiber. This reordering does not change
+the existing evidence vocabulary (`Rel_C`, `K,D`, occurrence/incidence,
+`Flow`/`Observe`, `Path`, `Inc_C`, and directed-weight/subtraction evidence)
+and establishes no need for a new carrier. The already-constructed
+pure-role-value comparison and complete actual/checked challenge inclusion
+remain later obligations. This is a proof-only gate refinement, not
+implementation authority.

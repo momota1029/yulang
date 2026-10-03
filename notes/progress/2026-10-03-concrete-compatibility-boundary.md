@@ -1737,3 +1737,28 @@ remains conditional and unreviewed; non-identity conversions and the full
 actual/checked challenge inclusion remain open. No solver/evidence carrier,
 code, or tests were added. `git diff --check` is the record integrity check;
 no builds, Oracle inspection, or measurements were run.
+
+### Role-first gate reset from source clarification (2026-10-03)
+
+The immediate gate is revised: before slot-profile projection, derive the
+source judgment `introduction + expected context -> receiver role -> Function
+interface -> effect-port view` for ordinary unannotated literals, explicitly
+Function-annotated literals, and callback-position literals. The source role
+is independent of §21 parameter entry. Existing role-elaboration notes treat
+roles as fixed skeleton inputs and retain annotation slots; they do not state
+the newly clarified selection/elaboration clauses. The immediate gap is
+therefore source-role elaboration, not a uniform effect-component-to-interface
+map.
+
+The slot-profile/`CallView` projection, separate `Observe` paths for
+`Force(D)` and body requests, pure-role existing-value adaptation, and complete
+actual/checked challenge inclusion move downstream. Existing `Rel_C`, `K,D`,
+occurrence/incidence, `Flow`/`Observe`, `Path`, `Inc_C`, and subtraction
+evidence remain the candidate vocabulary; no specific unrepresentable source
+fact or need for a new carrier is established. The intended joint
+`Fun(a, never, b, c) <: Fun(a, d, [b,d], c)` remains to be derived after role
+and interface elaboration, with no effect-position semantics assigned to
+`never`. This is a primary-authored proof-gate correction, unreviewed and
+without implementation authority. No code or tests changed; only `git
+diff --check` is planned for this record slice, with no builds, Oracle work,
+or measurements.

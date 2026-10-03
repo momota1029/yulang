@@ -293,13 +293,28 @@ that view and its target effect port under the actual/checked domain relation.
 The old FunctionMap equation does not prove this placement and cannot be
 assumed for non-identity conversions.
 
-Current proof target: source-generated slot-profile projection. Derive the
-expected callback boundary/profile, typed receipt and identity `Flow`; then
-show that `Force(D)` and body requests have separate `Observe` witnesses whose
+The immediate proof target is now the role-directed source elaboration
+judgment, not slot-profile projection. State how function introduction and
+expected context select pure versus handler receiver role, then how that role
+elaborates the Function interface and only then interprets its effect ports.
+Derive the three source cases (ordinary unannotated literal, explicitly
+Function-annotated literal, callback-position literal), while keeping §21's
+`Value`/`Computation` parameter entry independent. Source records currently
+give a control skeleton with fixed roles and annotation slots; they do not yet
+derive this role-selection judgment or its interface/effect-port clauses.
+Do not infer role from port spelling or give effect-position `never` an
+independent meaning.
+
+The callback-slot profile projection is downstream of that gate. Once the
+handler callback interface has been derived, show how the expected callback
+contract creates its `CallView`, typed receipt and identity `Flow`; then show
+that `Force(D)` and body requests have separate `Observe` witnesses whose
 typed paths reach the same complete invocation effect port under one
 `Rel_C`/`ν` fiber. `Inc_C` still checks current activation/eligibility, and
 `K,D` remain attached per event. Do not treat a flat row containing both
-families as evidence for those path witnesses.
+families as evidence for those path witnesses. The already-constructed
+pure-role Function value comparison and complete actual/checked challenge
+inclusion remain later gates.
 
 The immediate bounded theorem is the three source-elaboration clauses and
 their use at an actual callback literal: synthesized unannotated literal,
