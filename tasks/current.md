@@ -2257,6 +2257,16 @@ premises, or that co-occurrence permits identifying terms. The active bridge
 is now chiefly source component-to-port interpretation and its linked
 contribution law, followed by actual/checked domain inclusion.
 
+An Astra audit confirms that the currently stated source rules do not entail
+the row-occurrence-to-profile-position map: execution and `Observe` are
+derivable conditional on supplied typed-profile entries, but the link from
+original `d⁻`/`d⁺` occurrences to argument and complete-call positions is not
+constructed. Next define the bounded role-indexed complete Function-interface
+elaboration judgment before inequality resolution, then derive those mappings
+through existing evidence. This is a missing source derivation, not a
+counterexample or new-carrier result; the selected linked-lifting intent is
+unchanged.
+
 ## Main records
 
 - `notes/design/2026-10-03-scoped-constraint-solving.md` — scoped regular equality quotient and finite closed structural subtype saturation; the following reviewed candidate addresses open residual factorization.

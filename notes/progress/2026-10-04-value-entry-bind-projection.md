@@ -311,3 +311,20 @@ co-occurrence cannot silently quotient distinct terms; if a canonicalizer
 consolidates them, its existing evidence must retain the original incidence
 and every shared constraint. No row tree, separate marginal product, or new
 provenance carrier is part of this conditional lemma.
+
+## Astra audit: source occurrence-to-profile entailment
+
+An Astra audit of the exact source entailment gap confirms that the existing
+role, entry, application, Force, complete-`CallView`, and observation rules do
+not construct the missing occurrence interpretation. They can derive the
+negative path conditional on `d⁻` already denoting the argument computation
+position, and they can observe Force-emitted events at the complete slot view.
+They do not establish that an original positive `d⁺` row occurrence denotes
+the linked argument-origin contribution at that call position. Core §9
+explicitly assumes supplied typed-profile/path entries, while callback-context
+delivery §2 leaves complete interface formation as an obligation. This is a
+non-entailment from the displayed rules, not a counterexample to the selected
+linked lift or a proposal to reinterpret effects. The next source proof must
+define role-indexed complete Function-interface elaboration before inequality
+resolution and derive the `d⁻`/`d⁺` occurrence mapping using existing profile,
+path, flow, incidence and shared-fiber evidence. No new carrier is indicated.
