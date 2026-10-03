@@ -182,15 +182,27 @@ An alternative theorem route is now recorded in
 structural package as an existential tuple-automaton-with-component-tests
 emptiness query, keeping every source variable as a track (so no projection is
 needed for satisfiability). The cited literature does not decide the required
-restricted emptiness problem. Next define that exact automaton fragment and
-check whether its emptiness has a decision procedure. A separate classical
-recursive subtype satisfiability result decides a narrower same-shape
-structural system; it does not directly cover mandatory Record-width stopping.
-Next try a source-reflecting sorted Record-width reduction, with the mixed
-ranked `P/P` probe and the two global-extremum counterexamples as discriminators.
-Neither route covers optional Records, casts/adapters, permissions, effects,
-or Function's coupled effect interface. The exact assumptions and conditional
-import lemma are recorded in
+restricted emptiness problem. A bounded Astra audit established an exact
+many-sorted encoding of mandatory Record width using one local greatest slot
+element per field label, but found that this is not a direct instance of the
+classical recursive subtype theorem, which has same-shape structural order or
+global nonstructural extrema. A compiler-referee review ruled out copying the
+lattice closure criterion sortwise: head choice must be shared through
+recursively demanded payloads, and a finite-state fold must preserve all joint
+bounds and descriptor aliases. Astra rejected the simple `Root` wrapper plus
+global-`Top` encoding because `Top` can still occupy a recursive Value payload
+and manufacture a missing common upper bound. The immediate theorem task is a
+joint finite-state head/payload selector or another source-reflecting
+reduction; retain the tuple-automaton route as an alternative. Use the mixed
+ranked `P/P` probe, non-lattice fan-in examples, recursive payload case, and
+global-extremum counterexamples as discriminators. A further bounded Astra
+check found no regular-model construction or nonregular-only counterexample;
+finite original-root profiles do not yet close newly introduced child
+positions and exact descriptor aliases. Feature-tree weak-subsumption results
+do not directly apply because their information bottom and partially labelled
+trees do not enforce exact ranked descriptors. These routes do not cover
+optional Records, casts/adapters, permissions, effects, or Function's coupled
+interface. Exact assumptions and the sorted encoding are recorded in
 `notes/progress/2026-10-03-open-residual-factorization.md`.
 
 ## Current work

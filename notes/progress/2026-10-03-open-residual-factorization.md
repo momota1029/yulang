@@ -1389,3 +1389,130 @@ reflection is proved, the mixed `P/P` and arbitrary-tree-to-regular-witness
 gates remain open. This result does not change the separate Function source-
 derivation gate, nor cover optional Records, casts/adapters, permissions,
 effects, or the coupled Function interface.
+
+### Sorted mandatory-Record encoding candidate (2026-10-04; bounded Astra audit)
+
+The exact subproblem can be represented by a finite many-sorted recursive type
+algebra. For a finite label universe `Λ={ℓ₁,…,ℓₘ}`, use a `Value` sort with
+identity atoms and the admitted fixed-rank constructors, plus
+`Record : Slot₁ × … × Slotₘ → Value`. Each label has a distinct slot sort with
+constructors:
+
+```text
+Absentᵢ              : Slotᵢ
+Presentᵢ              : Value → Slotᵢ
+```
+
+`Presentᵢ` is covariant, and `Absentᵢ` is the greatest element only in
+`Slotᵢ`. Thus `Presentᵢ(A) ≤ Absentᵢ`, while
+`Presentᵢ(A) ≤ Presentᵢ(B)` exactly when `A ≤ B`; absence on the lower side
+cannot satisfy a present upper slot. For each direct comparison, the Record
+rule compares corresponding slots, so an absent upper slot stops locally and
+a present upper slot requires recursive comparison of its payload. Each
+original descriptor expands to one Record root and its exact absent/present
+slots, with one shared variable for each original payload. This is an exact
+encoding of the mandatory-Record width fragment, not a rule for optional
+Records or cast/adaptation compatibility.
+
+An Astra audit found that this is not a direct instance of
+Niehren–Priesnitz–Su: their structural signature requires matching shape, and
+their nonstructural variant adds global extrema. They do not state the needed
+many-sorted system with a greatest element local to each slot sort. The
+encoding itself preserves arbitrary and regular solutions in both directions:
+decode by removing absent slots and unwrapping present ones; coinductively,
+each direct inequality is preserved and reflected. One source variable remains
+one target variable, so descriptor sharing is retained. A sort-indexed
+retraction for the corresponding unsorted custom relation can map malformed
+Value roots to the empty Record and malformed `Slotᵢ` roots to `Absentᵢ`; the
+retraction is monotone for the stated local rules and preserves regularity.
+This does not establish a reduction to the classical theorem.
+
+The open theorem is now narrower: prove or refute decidability of this finite
+sorted recursive subtype constraint system, or give a solution-reflecting
+reduction to a decided class. A plausible route is to adapt the recursive
+subtype closure/contractive-equation proof to finitely many sorts, with
+sort-specific constructors, variances, and local top elements. That extension
+has not been proved. An independent compiler-referee review found that
+copying a lattice-based consistency criterion sortwise is insufficient. For
+the discrete identity-atom order, `Int ≤ x ∧ Bool ≤ x` has no `Value` witness,
+although the lattice criterion's weak-unifiability/ground-consistency checks
+would not detect the missing join. The arbitrary-poset DEXPTIME result is not
+refuted; it uses a different decision argument and does not state this sorted
+extension. A fixed root head is not sufficient either:
+`C(Int) ≤ x ∧ C(Bool) ≤ x` forces the `C` head but leaves an impossible shared
+payload upper bound. Conversely,
+`Presentᵢ(Int) ≤ s ∧ Presentᵢ(Bool) ≤ s` is satisfiable by `s=Absentᵢ`, while
+adding `s ≤ Presentᵢ(y)` forces both payload constraints against `y`.
+
+The finite-state proof must therefore select one compatible root head and
+shared payload for every demanded witness position, including positions
+introduced recursively. A candidate folding key must preserve the whole joint
+bound context and descriptor aliases; finite original input and a finite
+constructor alphabet do not alone prove closure. Regularity is a separate
+exit obligation: arbitrary satisfiability must yield a terminating finite
+state construction and one shared regular assignment. Invariant coordinates
+must produce both directed child obligations. The sorted relation's own
+transitivity can be proved by cases (in particular, an intermediate absent
+slot can only be below an absent upper slot), but this mathematical fact does
+not authorize replaying or composing successes of Yulang's wider concrete
+compatibility queries. The two bounded reviews found no counterexample to
+decidability, and neither supplied the missing construction. No
+implementation or semantic change follows.
+
+### Root-wrapper/global-Top reduction attempt rejected (2026-10-04)
+
+A bounded Astra attempt tested whether a global target `Top` could stand for
+slot absence if every source `Value` variable is wrapped in a structural
+`Root`. It cannot. For
+
+```text
+E(Int)  = Root(Int)
+E(Bool) = Root(Bool)
+```
+
+the inconsistent source constraints `Int ≤ x` and `Bool ≤ x` translate to
+constraints satisfied by `x = Root(Top)`. The leak remains one level down
+even when the source fixes a covariant constructor head: `x=C(y)` and
+`C(Int) ≤ x`, `C(Bool) ≤ x` are met in the target by choosing the encoded
+payload of `y` to be `Top`. Every term in these counterexamples is finite.
+There is no source-preserving retraction fixing `Int` and `Bool`, because the
+image of `Root(Top)` would have to be a common source upper bound. This rejects
+the Root-plus-global-Top translation as stated; it does not prove the sorted
+system undecidable.
+
+The source-valid image condition must exclude target `Top` recursively at
+every `Value` position while retaining it at slot positions:
+
+```text
+Value ::= atom | C(Value, …, Value) | Record(Slot₁, …, Slotₘ)
+Slotᵢ ::= Top | Presentᵢ(Value)
+```
+
+A regular tree grammar describes this image, but neither the NPS decision
+result nor this audit shows how to express or decide that restriction within
+their subtype constraint language. NPS's stated theorem covers the standard
+structural and nonstructural signatures; its nonstructural system includes
+both global extrema. Its intermediate one-constructor system supports
+arbitrary arity and variance, but does not by itself supply local tops, and
+uniform signatures require shared arity/variance. The consulted top-only
+partial-type result is also narrower than the required combination of
+arbitrary poset atoms, arbitrary ranked constructors, and recursive sorts.
+[NPS, §§2 and 5](https://web.cs.ucdavis.edu/~su/publications/poset.pdf),
+[Su thesis, §2.3](https://cs.stanford.edu/~aiken/publications/theses/su.pdf).
+
+The required extension remains open: decide the sorted local-top system
+directly, or find a reduction that enforces this recursive image condition
+and reflects all descriptor equations and original direct inequalities.
+
+A final bounded Astra check established neither regular-model existence nor a
+nonregular-only counterexample. Finitely many profiles against original roots
+are insufficient by themselves: once a flexible witness gains a ranked head,
+its child positions need not be original roots, while exact descriptor aliases
+and all original comparisons must remain jointly preserved. The construction
+must give one compatible head/mask per state and deterministic child states
+for every active coordinate, then prove that some finite quotient exists for
+every arbitrary-tree solution. Feature-tree weak-subsumption results do not
+close this gap: their information bottom and partially labelled trees do not
+directly enforce exact ranked descriptors. The least-closure characterization
+still does not imply regularity of its union. See [feature-tree constraint
+paper, §§1 and 6](https://www.ps.uni-saarland.de/Publications/documents/ftsub-constraints-99.pdf).
