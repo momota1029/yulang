@@ -1,11 +1,11 @@
 # Callback expected-context delivery before literal-body elaboration
 
-Status: Reviewed
+Status: Authoritative
 Date: 2026-10-03
 Scope: bounded source elaboration for one unannotated Function literal passed to a known Function-valued callback formal
-Approved-by: none; user approval pending
+Approved-by: user, 2026-10-03 (bounded source contract only)
 Drafted-by: primary
-Reviewed-by: architect, compiler_referee, and spec_auditor (2026-10-03, including §4 delta); no unresolved findings
+Reviewed-by: architect, compiler_referee, and spec_auditor (2026-10-03, including §4 and §8 deltas); no unresolved findings
 Supersedes: none
 
 ## 1. Purpose and authority boundary
@@ -204,3 +204,58 @@ occurrence/incidence, `Flow`/`Observe`, and existing subtraction evidence.
 Only an exact source fact not representable there can justify additional
 evidence structure. This proof-only work does not select a compiler API or
 authorize implementation.
+
+## 8. Smallest discriminating source witness for the Pure-value lift
+
+The smallest useful source-shaped witness keeps the callback value separate
+from its introduction context:
+
+```text
+f = \x -> x                  // introduced Pure; §21 gives Value(A) entry
+pass_existing_callback(f)    // witness specializes its shared A to Int
+```
+
+Use an already constructed `f`, not an inline callback literal. The
+higher-order receiver receives `f` at its callback slot and invokes it during
+that same receiver activation, while the slot's handler-capable boundary is
+still live. Invoke the callback view with an inert argument carrier `D_req`
+that emits one declared request, resumes with an `Int`, then returns. Under
+the source call schedule, the candidate order is:
+
+```text
+activate the callback-slot receiver boundary
+receive existing Pure value f through the typed callback slot
+inertly construct D_req and establish f's actual invocation
+receive D_req at f's Value(A) entry inside that invocation
+Force(D_req) >>= (n => execute f's actual body with n)
+```
+
+The source proof must distinguish the slot's receipt of `f` from `f`'s
+invocation receipt of `D_req`. It must establish that the handler-capable
+boundary is active throughout the actual invocation and before
+`Force(D_req)`, the request has a typed path to the target's complete
+observation view, receipt does not change `f`'s actual entry, and resumption
+continues the same rebind/body suffix. This witness does not cover a callback
+that escapes the receiver and is invoked after its boundary ends; that case
+needs its own live `CallView` derivation. The corresponding checked challenge
+and its actual execution must share one nonempty, jointly well-formed `ν`,
+`K,D` assignment, with `A = Int`. For this witness the body is identity; this
+does not remove the general obligation to cover body effects `b` at every
+post-force state.
+
+Pair it with a pure-diverging argument carrier of the same result endpoint.
+This second challenge has empty request support but never reaches the body. It
+distinguishes Value-entry execution and challenge admission from an argument
+row that records only requests. Empty support therefore cannot stand in for
+the complete domain or receipt/entry proof.
+
+These are proof witnesses, not asserted accepted programs or test fixtures.
+The checked-to-actual domain inclusion must establish both challenges as
+admissible; the actual-to-checked observation inclusion must preserve the
+request, response dependency, current state, and pending suffix. If the
+slot-view rule cannot admit the request carrier without changing the Pure
+value's entry or boundary authority, this candidate lift fails. If it can,
+the request path must be projected through existing `Receive`, `Flow`,
+`Observe`, occurrence/incidence, and subtraction evidence before the target
+flat output view `[b,d]` can be justified. No claim here interprets `never`,
+proves either complete-domain clause, or derives the intended inequality.

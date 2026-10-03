@@ -179,13 +179,23 @@ view. The roles are already selected; the interface derivation remains open.
 Do not make a uniform effect-row-component-to-complete-interface mapping
 foundational. `never` and `Any` get no effect-position interpretation.
 
-The bounded callback-context delivery contract is now independently reviewed
+The bounded callback-context delivery contract is now user-approved and
+Authoritative within its stated source scope
 in `notes/design/2026-10-03-callback-context-delivery.md`; it assumes a known,
 already instantiated `Value(F_cb)` formal and requires that context to reach an
-unannotated literal before its body constraints. User approval is pending.
-Implementation and durable API/phase selection remain unauthorized. The next
-proof-only gate distinguishes contextual introduction from existing-value
-adaptation. The `ref.update` anchor supports the former only; the pure-value
+unannotated literal before its body constraints.
+The callback literal is introduced as Handler; passing an already constructed
+Pure Function value remains a separate concrete `A <: B` adaptation path.
+Typed-interface ownership, transient-context versus separate elaboration
+product, and compiler API/phase remain unselected. Implementation and durable
+API/phase selection remain unauthorized. A
+reviewed §8 proof witness now distinguishes contextual introduction from
+existing-value adaptation: an already constructed Pure identity callback is
+received at a callback slot, then invoked while that receiver boundary is
+live, with separate receipt of `f` and of its `D_req` argument. Its §21
+`Value(A)` endpoint is specialized to `Int` only in the witness. This is a
+conditional challenge, not a source rule or accepted-program claim. The
+`ref.update` anchor supports contextual introduction only; the pure-value
 lift must preserve its actual role and §21 entry, then satisfy
 `D_checked ⊆ D_actual` and `P_actual(d) ⊆ P_checked(d)` through one complete
 `CallView` and shared `Rel_C` fiber. Support union alone does not prove the

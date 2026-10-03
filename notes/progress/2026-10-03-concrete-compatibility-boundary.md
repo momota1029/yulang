@@ -2091,3 +2091,36 @@ conditional Value-entry support premise; support union alone does not establish
 the effect ports. A spec-auditor and compiler-referee delta review found no
 findings. `git diff --check` is the only check; no code, tests, builds, Oracle
 inspection, or measurements.
+
+The user approved the bounded source contract on 2026-10-03: an unannotated
+callback-position literal receives its expected callback boundary before
+body elaboration and is introduced as Handler; an already constructed Pure
+Function value follows a separate concrete `A <: B` adaptation path. The
+design note is now Authoritative only for that bounded source contract.
+Typed-interface ownership, transient context versus a separate elaboration
+product, and compiler API/phase remain undecided; no implementation is
+authorized by this approval.
+
+### Discriminating source witness for existing Pure-value adaptation (2026-10-03)
+
+The next proof-only slice adds §8 to
+`notes/design/2026-10-03-callback-context-delivery.md`. It uses an already
+constructed Pure identity function with §21 `Value(A)` entry, specializing
+`A = Int` only for the witness. The higher-order receiver receives `f` at its
+callback slot and invokes it while that receiver's handler-capable boundary
+is live; the schedule distinguishes receipt of `f` from receipt of `D_req` at
+the actual invocation, then forces/rebinds before the body. A paired pure-
+diverging argument carrier has the same result endpoint but no request
+support, exposing why request-row support alone cannot stand for complete
+challenge admission or observation.
+
+Compiler-referee and spec-auditor independently found the initial witness
+schedule conflated those two receipts and overstated §21's endpoint; the
+revised delta separates them and uses `Value(A)` with witness specialization
+`A = Int`. Both reviewers then closed those findings with no residual issue.
+The witness remains conditional: it requires a live enclosing boundary,
+complete `CallView`, both full inclusion clauses, and projection through
+existing `Rel_C`/`K,D`, occurrence/incidence, `Flow`/`Observe`, and subtraction
+evidence. Escaped callbacks and the intended inequalities remain open. No
+Oracle investigation, tests, builds, or measurements were performed.
+`git diff --check` passed for this documentation-only delta.
