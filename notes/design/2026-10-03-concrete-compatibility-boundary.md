@@ -1821,6 +1821,18 @@ Handler from that expected callback context, and §21 independently determines
 its parameter-entry role. Interface comparisons remain tasks of the one
 `A <: B` solver. This clause does not yet define any effect-port relation.
 
+This contextualization candidate has a preceding input-availability premise:
+the source checker must receive the callee's declared formal contract and its
+original callback-slot identity. Current Yulang3 cannot provide that premise:
+`HirParameter` has no annotation/interface, `HirItem` has no callable-interface
+declaration, `HirModule` has no imported-scheme table, and
+`ConstraintBatch::collect` accepts only an `Arc<HirModule>`. Its local scheme
+indexes identify definition roots and do not supply declared callback
+contracts. Therefore the source proof may stipulate a supplied known `F_cb`,
+but exercising a real declaration first needs a source-interface availability
+gate. The bounded `ref.update` fixture additionally depends on member/interface
+lookup, whose implementation is outside this candidate.
+
 Current Yulang3 has no existing owner with this input and timing. `ResolvedExpr`
 does not represent applications, and `lower_simple_chain` resolves only
 literal/name atoms; the syntax association layer retains CallTail and operator
@@ -1845,4 +1857,5 @@ candidate adds no runtime boundary, evidence, attachment or provenance
 carrier. Unknown callees, computation formals, annotated-literal overlap,
 role-indexed ports, callback `CallView` and complete Function inequality stay
 outside this subgate. Status: unapproved architecture candidate; no
-implementation authority.
+implementation authority. The immutable location for declared source
+interfaces and the member/import lookup path remain unresolved.

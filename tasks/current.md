@@ -355,6 +355,12 @@ scheme-instantiation owner remain undecided. The candidate and its scope are
 recorded at the end of §8 in
 `notes/design/2026-10-03-concrete-compatibility-boundary.md`; it has no
 implementation authority.
+The formal itself is also unavailable in the current HIR/collector input:
+there is no callable-interface declaration or imported-scheme table, and
+`ConstraintBatch::collect` receives only HIR. Treat supplied `F_cb` as a
+source-proof premise for now; before an implementation can exercise this path,
+close source-interface availability and member lookup (including the
+`ref.update` contract path).
 
 Charter §24 now records the clarification as superseding §16's universal
 "every function is a handler" receiver-role statement. §16's invocation and
