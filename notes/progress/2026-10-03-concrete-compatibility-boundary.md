@@ -1814,23 +1814,46 @@ HIR likewise preserves that tail generically. Neither supplies the missing
 annotation-introduction/checking order, so the candidate remains conditional
 on the Function-specific source rule rather than following from syntax.
 
-For the unannotated callback fixture, I derived the expected-context path
-from the typed-core application rule and its public signature: `r.update`
-declares a Function-valued callback slot; the argument lambda is checked
-against that slot; that expected callback boundary selects Handler before its
-body is elaborated; and §21 separately assigns `Value` entry to the lambda's
-unannotated `old` parameter. This closes the callback-expected-context to
-receiver-role propagation for this fixture, not the role-indexed interface,
-effect-port projection, or already-constructed pure-value inequality.
-Argument reification/receipt/entry remain operationally separate from this
-typing derivation.
+The unannotated callback fixture has the matching source shape: `r.update`
+declares a Function-valued callback slot; the user's callback-role rule
+selects Handler for a literal in that position; and §21 independently
+assigns `Value` entry to the lambda's unannotated `old` parameter. I had
+overstated core §6 as deriving that the formal slot is passed into lambda
+introduction before body elaboration. The architect audit found §6 only
+synthesizes the argument and constrains its whole computation interface
+against the formal; it does not state this contextualization route. The role
+choice is user-selected, but propagation from the application slot before
+body elaboration remains a conditional schema needing proof. The minimum
+missing lemma is a source application/lambda elaboration rule that supplies
+the declared callback interface before body synthesis, while leaving inert
+whole-argument construction and receipt/entry order unchanged. Interface
+ports, `CallView` projection and the pure-value inequality remain later.
+
+I narrowed that obligation to a known callee with a declared ordinary
+`Value(F_cb)` Function formal: the source application/lambda rule must feed
+that original slot/profile into literal elaboration before body synthesis,
+while §21 separately supplies the literal's own parameter entry; all
+interface checks remain ordinary inequality tasks. A bounded independent
+compiler-referee delta review found no findings and confirmed the candidate
+does not claim core §6 proves this propagation. The unknown-callee,
+computation-formal, annotation-overlap, role-port and full-CallView cases are
+explicitly deferred. This review validates the bounded candidate only; the
+source rule itself remains a proof target.
+
+A bounded independent compiler-referee review found no remaining finding in
+this correction. It confirmed the selected role versus unproved slot
+propagation distinction, the runtime receipt-before-force condition, and that
+annotation-first checking remains conditional. This closes review of the
+correction only; the contextualization lemma, source annotation order and
+role-indexed Function-port derivation remain open.
 
 I also inspected current HIR ownership: `ResolvedExpr::Lambda` stores only
 parameter, body, occurrence and range, while the narrow chain HIR retains
 annotations only as generic `Value` syntax nodes. This is downstream evidence
 that a future source elaborator/HIR must recover annotation and expected-slot
 context before it can generate role-directed interfaces; it does not change
-the immediate proof gate or authorize compiler edits. The exact-role schema
-and overlap are primary-derived, not independently reviewed. No code or tests
-changed; no Oracle inspection or measurements. `git diff --check` is the
-record-slice check.
+the immediate proof gate or authorize compiler edits. The general
+role/interface schema remains primary-derived and unreviewed. The correction
+and conditional annotation-overlap crosswalk received a bounded clean
+compiler-referee review. No code or tests changed; no Oracle inspection or
+measurements. `git diff --check` is the record-slice check.

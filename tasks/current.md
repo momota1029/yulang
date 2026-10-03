@@ -305,13 +305,24 @@ derive this role-selection judgment or its interface/effect-port clauses.
 Do not infer role from port spelling or give effect-position `never` an
 independent meaning.
 
-For the unannotated callback literal, the application path is now grounded:
-the callee declaration supplies the callback-value slot, argument checking
-uses that expected Function interface, and its callback context selects
-Handler before body elaboration. In the stable-core `r.update` case, the
-literal's own `old` parameter still receives §21's ordinary Value entry.
-This closes expected-context-to-role for that fixture only; it neither
-defines the role-indexed Function ports nor proves the pure-value inequality.
+For the unannotated callback literal, the user's callback-position rule
+selects Handler and §21 gives `old` ordinary Value entry. The stable-core
+`r.update` fixture has a Function-valued callback formal, but core §6 only
+synthesizes the argument and constrains its whole computation interface
+against the formal; it does not prove the expected interface reaches lambda
+introduction before body elaboration. The next lemma must derive that
+application/lambda contextualization and preserve inert construction and
+receipt/entry order. Treat the prior expected-context path as conditional,
+not closed. Function ports and the pure-value inequality remain later.
+
+Bounded target for that lemma: when a resolved callee has a declared
+`Value(F_cb)` callback parameter and the argument is a Function literal, pass
+that formal's source boundary/profile into lambda elaboration before body
+synthesis, then generate the literal's own parameter entries by §21. Record
+interface checks as ordinary `A <: B` tasks. Limit this slice to known
+Function-valued value formals such as `ref.update`; unknown callees,
+computation formals, annotated-literal overlap, effect-port construction and
+complete `CallView` inclusion stay later.
 
 Charter §24 now records the clarification as superseding §16's universal
 "every function is a handler" receiver-role statement. §16's invocation and
