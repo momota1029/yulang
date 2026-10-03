@@ -1039,3 +1039,28 @@ infrastructure already exists as internal machinery. It does not show that
 the solver representation has the required annotation denotation, same-`ν`
 fiber preservation, component classification, or universal coverage rule.
 No code changed and no tests/builds ran.
+
+### Intended Function-case necessary conditions (2026-10-03)
+
+Before extending effect resolution, I reread the directed-stack-weight and
+effect-subtraction specifications and the Astra-era interpretation. Their
+existing scoped identities, ordered push/pop history, family budgets, row
+split/residual evidence, and invariant payload constraints are candidate
+evidence for the user's partial reverse-addition description. “Reverse
+addition” does not itself require new regional, attachment, or provenance
+machinery. The draft now marks the genuinely open work as source component
+classification/correlation, canonical-flat covariant transport,
+polarity-specific descriptor elaboration, joint `[b,d]` and shared-`e`
+resolution, and a source proof that existing evidence licenses each reversal.
+
+Sol's derivation of necessary conditions from both intended Function cases was
+recorded with the explicit restriction that it uses the sufficient complete
+comparison law in §9; it is not a claim that every adaptation follows that
+proof route. It excludes request-free-only admission for the actual negative
+endpoint only when an admitted checked challenge has a nonempty typed request
+observation. It gives a conditional support upper bound for `Force(D) >>= B`,
+not an exact union law, and requires linked ports to retain one joint `ν,K,D`
+fiber. A fresh bounded `compiler_referee` review found no blocking, major, or
+minor findings. This adds no component denotation, `never` interpretation,
+normalization, reversal rule, or complete inequality proof. `git diff --check`
+passed; no tests, builds, or measurements ran. Measurement budget consumed: 0.

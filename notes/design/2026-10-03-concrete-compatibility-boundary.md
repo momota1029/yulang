@@ -4,7 +4,7 @@ Status: Draft; records user-directed single-inequality, Function effect-descript
 Date: 2026-10-03
 Scope: one inequality judgment with endpoint-dependent solving and local concrete cast/adaptation resolution
 Approved-by: user for the single inequality judgment, endpoint-dependent resolution direction, concrete-success non-composition, polarity-indexed Function effect descriptors, mixed abstract/concrete type components, canonical-flat covariant rows, abstract-only contravariant meet normalization, and concrete-bearing attachment descriptors for witnessed partial reverse-addition; component classification, co-occurrence consolidation, the component-to-existing-carrier bridge, proof that existing evidence licenses a particular reversal, replay eligibility, and implementation remain open
-Reviewed-by: prior compiler_referee/spec_auditor reviews cover frozen-source facts and earlier Record/replay candidates; 2026-10-03 compiler-referee delta reviews of the Function descriptor and mixed-row candidate found no blocking/major issues, with minor wording repairs closed; general-component, polarity-specific reverse-addition, and abstract-only contra-meet wording delta reviews found no blocking/major/minor issue; the conditional support-obligation corollary received bounded spec-auditor and compiler_referee review with all findings closed and no remaining finding; the full witness calculus remains unreviewed
+Reviewed-by: prior compiler_referee/spec_auditor reviews cover frozen-source facts and earlier Record/replay candidates; 2026-10-03 compiler-referee delta reviews of the Function descriptor and mixed-row candidate found no blocking/major issues, with minor wording repairs closed; general-component, polarity-specific reverse-addition, and abstract-only contra-meet wording delta reviews found no blocking/major/minor issue; the conditional support-obligation corollary received bounded spec-auditor and compiler_referee review with all findings closed and no remaining finding; the intended-Function necessary-condition subsection received a bounded compiler_referee review with no findings; the full witness calculus remains unreviewed
 Implementation authority: none
 Supersedes: none; narrows source applicability of structural relation candidates without invalidating their fragment theorems
 
@@ -422,6 +422,74 @@ deletion, subtraction, accumulation law, or concrete-success composition.
 Neither intended Function inequality follows. The first still needs the
 negative-port interpretation and the meanings of `d` and `[b,d]`; the second
 also needs the meanings of both effect-position `never` occurrences.
+
+#### Necessary conditions from the intended Function cases
+
+The following are constraints on a derivation that uses the sufficient §9
+complete-comparison law; the approved inequalities do not prove that every
+successful adaptation must use this particular proof route. Any alternative
+source realization needs its own preservation argument.
+
+For
+
+```text
+Fun(a, never, b, c) <: Fun(a, d, [b,d], c)
+```
+
+assume a checked challenge `h` is admitted by `d` and carries a nonempty typed
+request observation at the designated argument boundary. If the actual
+negative `never` endpoint were interpreted as permitting only request-free
+incoming carriers, that same `h` would be absent from `D_actual`, contrary to
+`D_checked ⊆ D_actual`. The discriminator requires an actual admitted
+challenge: a nonempty upper-bound descriptor `d` alone does not establish one.
+A request prefix emitted before divergence still witnesses the challenge;
+divergence before any request does not. This excludes a pure-only admission
+reading of the actual negative `never` endpoint in this case. It does not
+equate `never` with an empty row or internal bottom, nor does it select the
+endpoint's successor meaning.
+
+For each admitted checked challenge, the output interpretation of `[b,d]`
+must contain the actual complete observations admitted by §9's comparison.
+For value entry `Force(D) >>= B`, request support has the conditional upper
+bound
+
+```text
+supp(Call(f,D)) ⊆ supp(D)
+  ∪ ⋃ { supp(B(v,C₁)) | (v,C₁) is reachable after Force(D) }.
+```
+
+Thus if `d` bounds the argument and `b` uniformly bounds the body at every
+reachable post-force state, a candidate `[b,d]` must cover those actual
+requests and keep their shared constraints. This is an upper bound, not an
+exact row-union equation. An argument may diverge before the body runs;
+retained computation parameters may be ignored; shallow handlers may consume
+requests or forward/re-emit them through the raw continuation; and designated
+result consumption can expose a returned carrier. The complete image decides
+which observations remain. Support inclusion alone does not cover returned
+values, latent interfaces, stores, or resumption histories.
+
+For
+
+```text
+Fun(a, never, never, b) <: Fun(a, e, e, b)
+```
+
+both target ports refer to the same term in one assignment `ν`. Any family,
+value, request, continuation, or residual constraints incident to that term
+must remain in the shared `K,D` fiber while constructing challenge and
+observation views. Independent port marginals could choose incompatible
+assignments to `e` and pass separate projected checks without a joint
+comparison witness. Sharing the term does not equate events or require exact
+input/output support equality; the complete source image determines how entry,
+handling, and resumption relate them. Neither occurrence of effect-position
+`never` receives a meaning from this argument.
+
+These conditions narrow the next component-denotation rule: it must establish
+challenge admission for an effectful checked carrier, preserve the actual
+argument prefix and body/result observations in one joint output view, and
+retain the shared assignment for linked ports. They establish no `[b,d]`
+normalization, component classification, concrete reversal, or complete
+Function inequality. No new evidence carrier or effect algebra follows.
 
 Frozen-source characterization supports the coupling but does not define its
 successor meaning. `infer/.../propagate.rs` detects a negative `Neg::Bot`

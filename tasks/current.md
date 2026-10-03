@@ -208,6 +208,18 @@ that same solution fiber. The two intended inequalities remain constraints;
 their exact source elaboration is open. Do not promote Oracle
 `Never`/`Any`/empty-row artifacts.
 
+The Astra-era interpretation and directed-stack-weight/effect-subtraction
+specifications have been reread as prior art before proposing more machinery.
+“Reverse addition” can describe the already witnessed partial subtraction
+steps; it does not justify another region, attachment, or provenance ledger.
+The genuinely new proof obligations are source classification and
+correlation of abstract/concrete row components, covariant flattening
+transport, polarity-specific descriptor elaboration, joint resolution of
+`[b,d]` and shared-`e`, and a proof that existing evidence justifies each
+source-supported reversal. A bounded referee review found no issue in the
+conditional §9 consequences recorded for the two intended Function cases;
+these do not choose a `never` meaning or a component denotation.
+
 After that crosswalk, return to the distinct fixed application-lane gate:
 justify the joint descriptor witnesses/local-exactness premises in §8.2 for
 the separate nonreflexive callee Function check and matching cast-candidate
