@@ -1342,9 +1342,9 @@ component-first/binary-choice question is superseded. It found no existing
 clause that constructs pure/handler Function descriptions from the literal,
 annotation or expected callback context.
 
-The candidate immediate theorem is role-directed Function introduction and
-contextual checking that constructs the complete invocation while preserving
-actual entry and decorated behavior. A M3 compiler-referee review found:
+The then-candidate immediate theorem combined role-directed Function
+introduction with complete contextual checking. A M3 compiler-referee review
+found the following blockers for that **full comparison theorem**:
 
 1. **BLOCKING:** actual/checked complete challenge domains and `P` relations
    are not constructed. They must range over source-admissible contexts,
@@ -1367,14 +1367,17 @@ that role alone creates neither a capture grant nor a changed existing
 callable entry. Both reviewers found no concrete insufficiency in `Rel_C`,
 shared `ν`, `K,D`, `Flow`, `Observe`, incidence or existing subtraction. The
 defect is missing source derivation/domain construction, not storage. The
-design §8 and `tasks/current.md` now record these as open closure obligations;
-the intended lift and implementation gate remain open.
+design §8 and `tasks/current.md` record these as open closure obligations;
+the intended lift and implementation gate remain open. The later user
+clarification split the gate: bounded literal-role/interface elaboration and
+callback invocation accounting come first; these domain/decorated-behavior
+findings remain prerequisites only for the later complete inequality proof.
 
 No compiler code, Oracle, tests, builds or measurements were inspected. The
 working change is records only; `git diff --check` is the focused integrity
-check. Next: construct the source-admissible challenge/interface relation for
-the three literal cases, parameterized by §21 entry, and prove the
-decorated-behavior transport case before deriving the inequality.
+check. The bounded literal-role derivation below is now next; the
+source-admissible challenge/interface relation and decorated-behavior
+transport remain later prerequisites before deriving the complete inequality.
 
 ### Context-domain follow-up (2026-10-03)
 
@@ -1394,10 +1397,11 @@ challenge because receiver receipt precedes force. A retained receiver can
 ignore `D`, so this distinction is the independent §21 entry mode, not
 receiver role or an effect-row special case.
 
-The smallest missing proof input is decorated source evaluation-context
-typing with callable and argument-code/carrier holes, a well-formed
-environment/store at shared `ν`, source lineage/profiles/`K,D`, and admissible
-future inputs, responses and raw resumptions. The resulting immediate theorem
+For the later complete-comparison gate, the smallest missing proof input is
+decorated source evaluation-context typing with callable and argument-code /
+carrier holes, a well-formed environment/store at shared `ν`, source
+lineage/profiles/`K,D`, and admissible
+future inputs, responses and raw resumptions. The resulting later theorem
 is source-context closure and invocation coverage: role/entry introduction,
 non-vacuous receipt before force, context composition and execution closure,
 then future-use/resumption preservation for existing `Flow`, `Observe`,
@@ -1625,3 +1629,40 @@ motivate an additional proof object.
 
 No code or tests changed. No tests, builds, Oracle inspection or measurements
 were run in this refinement; measurement budget consumed: 0.
+
+### Bounded literal-role derivation (2026-10-03)
+
+I cross-checked the new immediate subgate against core §6, charter §21, the
+callback fixture, and its public signature. The source core already
+constructs a lambda as `Value(Fun(P, Result(I_b)))`; §21 determines `P` and
+its `Value` versus `Computation` entry before body synthesis. It does not
+select the separate pure/handler receiver role. A bounded crosswalk now
+records the three user-directed introduction/check cases and keeps a fourth
+case—checking an already-constructed value—separate, preserving its actual
+entry and decorated behavior.
+
+The fixture signature
+`ref('a & 'b, 'c) -> ('c -> ['b] 'c) -> ['b, 'a] ()` and source call
+`r.update (\old -> old + "!")` give a concrete callback-position literal.
+Its ordinary `old` parameter selects `Value` entry under §21, so the existing
+call semantics receives the whole argument inertly, forces it once, rebinds,
+and then runs the body (`Force(D) >>= B`). This grounds joint invocation
+accounting for argument and reachable body behavior under one `Rel_C`/`ν`
+fiber. It only supports the already conditional support bound; it does not
+derive exact `[b,d]`, a subtraction step, or a complete Function inequality.
+Retained `Computation` entry remains separate and does not force unless the
+body explicitly consumes it.
+
+This crosswalk sharpens the pending source gap: how an already pure-role
+Function value is checked/adapted at a handler-capable callback interface
+while retaining actual behavior. That interface adaptation, actual/checked
+challenge domains, and effect-port views need source derivations. The
+displayed `never` has no effect interpretation here. No specific fact was
+found absent from `Rel_C`, `K,D`, occurrence/incidence, `Flow`/`Observe`, or
+directed-weight/subtraction evidence, so no new carrier or provenance object
+is proposed. The result is a proof-only refinement, not implementation
+authority.
+
+No code changed. No tests, builds, Oracle inspection or measurements were
+run; `git diff --check` is the focused integrity check and measurement budget
+consumed remains zero.

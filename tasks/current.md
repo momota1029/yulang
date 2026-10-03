@@ -269,19 +269,36 @@ choose either component interpretation before deriving how introduction and
 expected context select the role and elaborate the complete interface. No
 new carrier or solver phase is justified by the current evidence.
 
-The next theorem is now scoped as role-directed Function introduction and
-contextual checking, with four distinct cases: synthesized unannotated
-literal; explicitly Function-annotated literal; callback-context literal; and
-an already-constructed value checked against a handler-capable interface.
-Preserve actual entry and decorated behavior for the last case. Cross each
-case independently with §21's value-entry versus retained-computation entry;
-`Force(D) >>= B` applies only to value entry, while retained entry follows
-actual body consumers. Construct complete source-admissible challenge domains
-independently of observed calls or comparison success, with source histories,
-stores, responses, profiles, callback/future-use and resumption. Do not accept
-via an empty joint fiber. Derive the joint `[b,d]` lift only after actual /
-checked domains and complete observations are constructed under shared `ν`
-and `K,D`.
+The bounded source crosswalk now derives the available skeleton: core §6
+constructs a lambda from `Value(Fun(P,Result(I_b)))`; §21 generates `P` and
+its value/computation entry before body synthesis. Receiver role is an
+additional prior choice. For the `ref.update` callback fixture, the ordinary
+callback parameter has `Value` entry, so `Force(D) >>= B` gives conditional
+joint argument/body invocation accounting. The direct remaining bridge is
+how an existing pure-role Function value is checked/adapted at a
+handler-capable callback boundary while preserving actual behavior. Derive
+that source operation and its complete views before port interpretation;
+keep complete-domain/context closure later. No exact `[b,d]` proof or effect
+meaning for `never` follows from this slice.
+
+The immediate bounded theorem is the three source-elaboration clauses and
+their use at an actual callback literal: synthesized unannotated literal,
+explicitly Function-annotated literal, and callback-context literal. Keep the
+already-constructed value case separate; it belongs to the later
+pure-value-to-handler-interface adaptation proof. Cross source receiver role
+independently with §21's value-entry versus retained-computation entry.
+Establish the operational `Force(D) >>= B` account for the concrete
+value-entry callback and identify which existing request/incidence and
+subtraction witnesses track the argument and body contributions. This does
+not yet close the complete inequality.
+
+The later full-comparison theorem still must preserve actual entry and
+decorated behavior; construct complete source-admissible challenge domains
+independently of observed calls or comparison success; retain source histories,
+stores, responses, profiles, callback/future-use and resumption; and avoid
+acceptance via an empty joint fiber. Only there derive the full joint `[b,d]`
+inequality from actual/checked domains and complete observations under shared
+`ν` and `K,D`.
 
 The M3 compiler-referee review found a BLOCKING gap in complete-domain
 construction and major gaps in decorated-behavior preservation, parameter
@@ -297,12 +314,14 @@ Yulang calls pass an inert whole-argument carrier. A pure-diverging carrier
 with empty support distinguishes that challenge from `Delay(Return Unit)` at
 a value-entry receiver, even though both have the same result endpoint.
 Receipt must precede force, so divergence does not remove the challenge; a
-retained receiver may instead ignore it. Immediate next theorem: decorated
-source-context closure and invocation coverage, including independent source
-well-formedness of context environments/stores, source-typed callable/carrier
-holes, context composition, and preservation of roles, §21 entry, profiles,
-`Flow`/`Observe`, `K,D`, future latent use and resumption. Keep its extensional
-semantic domain separate from later finite presentation/principality.
+retained receiver may instead ignore it. Later full-comparison gate:
+decorated source-context closure and invocation coverage, including
+independent source well-formedness of context environments/stores,
+source-typed callable/carrier holes, context composition, and preservation of
+roles, §21 entry, profiles, `Flow`/`Observe`, `K,D`, future latent use and
+resumption. Keep its extensional semantic domain separate from later finite
+presentation/principality. These context findings do not block the immediate
+literal-role and callback-invocation derivation.
 
 A conditional rigid-hole schema types the context against `T_checked` while
 keeping the tested callable out of `Γ`'s semantic environment; the actual
@@ -747,9 +766,10 @@ exposed or bound once jointly. Neither law proves source generalization,
 finite instance generation, effective query solving or principal summaries.
 Abstract runtime addresses must not identify symbolic binder identities.
 
-Immediate next task: generate complete finite source constraint templates
-and prove their instance completeness/query closure for finite linked
-instances. Core §9 supplies complete invocation ports; the template must
+After the role-first Function introduction and callback-lift subgate, generate
+complete finite source constraint templates and prove their instance
+completeness/query closure for finite linked instances. Core §9 supplies
+complete invocation ports; the template must
 include their input-dependent obligations and joint context, not just body
 result rows or an opaque compatibility predicate. Milestone 4 subsequently
 must prove that actual generalization/freshening/SCC use generates the
@@ -1201,9 +1221,10 @@ and lifecycle work, and implementation remain open. No source policy or
 compiler implementation was approved. Static review only; tests, builds and
 measurements remain zero. The conditional finite supplied-template context
 closure now has clean compiler-referee/spec-auditor delta reviews; it does not
-construct carriers from source rules. The immediate gate is the rule-by-rule
-source bridge for finite context/instance carriers, followed by effective
-joint residual/projection solving for open Records and recursive feedback.
+construct carriers from source rules. After the current Function role-first
+subgate, continue with the rule-by-rule source bridge for finite
+context/instance carriers, followed by effective joint residual/projection
+solving for open Records and recursive feedback.
 
 Within that bridge, the representation-preserving annotation-check fragment
 on an already supplied finite typed derivation now has a reviewed root/context

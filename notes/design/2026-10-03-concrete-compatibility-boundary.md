@@ -1223,8 +1223,8 @@ calls, support filtering, arbitrary machine configurations, or success of the
 comparison being defined. This is a proof premise/construction, not a proposed
 solver carrier.
 
-The immediate theorem is therefore **decorated source-context closure and
-invocation coverage**. For the three user-selected literal cases, derive role,
+The later full-comparison theorem is **decorated source-context closure and
+invocation coverage**. For every user-selected literal case, derive role,
 actual §21 entry, boundary occurrences, and lexical evidence. Prove that each
 jointly admissible function/carrier pair has a source application context
 that reaches receiver receipt before argument force; prove source context
@@ -1233,7 +1233,9 @@ shared fiber; and close future latent use and resumption under existing
 `Flow`, `Observe`, incidence and expiry rules. For an existing value check,
 construct actual and checked domains before comparison and retain the value's
 actual entry and decorations. Then attempt the two §9 inclusions. A genuinely
-empty argument fiber cannot establish annotation acceptance.
+empty argument fiber cannot establish annotation acceptance. The bounded
+literal-role and callback-invocation derivation precedes this domain theorem
+and does not claim to prove the complete comparison.
 
 This first theorem may establish an extensional, potentially infinite semantic
 domain. It does not also prove an effective finite presentation, principal
@@ -1401,9 +1403,10 @@ the Function challenge domain: architecture §6.9 keeps general refs such as
 operations need their own source bridge if admitted by the interface.
 
 This source refinement leaves the existing EnvStore/context-domain blocker
-open. The next gate is to derive the exact state carried by source contexts
-and imports, connect local State and general-reference operations to that
-state, then formulate step-indexed closure over those actual transitions.
+open. For the later full-comparison gate, derive the exact state carried by
+source contexts and imports, connect local State and general-reference
+operations to that state, then formulate step-indexed closure over those
+actual transitions. This follows the bounded role/interface derivation.
 
 #### Split source realization without splitting the solver relation
 
@@ -1507,3 +1510,61 @@ residual transport and invariant payload checks. “Reverse addition” names no
 new machinery. First show which source fact the existing evidence already
 represents; propose an added proof object only if a specific required fact is
 shown to be absent.
+
+#### Bounded literal-role derivation (2026-10-03)
+
+The existing finite core supplies a derivation skeleton without supplying the
+new receiver role. For an ordinary literal lambda with parameter interface
+`P` and synthesized body interface `I_b`, core §6 gives
+`Value(Fun(P, Result(I_b)))`. Charter §21 generates `P` before body synthesis:
+ordinary parameters enter as `Value(A)`, while explicit outer computation
+annotations enter as `Computation(E,A)`. The user's receiver-role decision
+adds a separate source choice before interpreting the Function's effect
+ports:
+
+| Introduction/check site | Receiver role selected before port interpretation | Existing construction reused | Effect-port status |
+|---|---|---|---|
+| Unannotated lambda synthesized without handler expected context | Pure | §21 parameter generation; core §6 body and result synthesis | Derive from the pure introduction's complete invocation view |
+| Lambda checked against an explicit Function annotation | Handler boundary | Original annotation occurrence, typed paths and body/result checking | Derive from that annotation-selected boundary |
+| Lambda checked in callback position | Handler from expected callback context | Expected callback interface plus the literal's own §21 parameter role | Derive from the handler callback invocation view |
+| Already-constructed function value checked at a handler interface | Not a new introduction; preserve its actual role | Existing value checking and `Rel_C` comparison evidence | Any boundary/entry-changing adaptation needs source justification |
+
+The first three rows select the receiver role before using any effect-row
+component. The fourth prevents expected-type checking from retroactively
+changing an existing value's executable entry or decorated behavior. In every
+row, receiver role and `Value`/`Computation` parameter entry remain independent
+source decisions, not one inferred from the other's ports.
+
+The stable-core callback gives one concrete instance of row three. Its public
+signature is
+`ref('a & 'b, 'c) -> ('c -> ['b] 'c) -> ['b, 'a] ()`, and the source calls
+`r.update (\old -> old + "!")`. The literal is in the callback's expected
+position, so it receives handler receiver role before body elaboration. Its
+ordinary `old` parameter has value entry under §21: the argument arrives as an
+inert whole-computation carrier, then is forced and rebound once before the
+body. For this entry case the existing operational law has shape
+`Force(D) >>= B`; argument requests and the body's reachable post-force
+behavior therefore belong to one invocation under the same `Rel_C`/`ν` fiber.
+This justifies joint consideration of argument and body contributions, but
+proves only the existing conditional support bound. It does not establish
+exact `[b,d]`, a subtraction step, or a general Function inequality. If §21
+instead selects retained `Computation(E,A)` entry, this force step does not
+apply unless an explicit body consumer forces the carrier.
+
+This derivation leaves a sharper gap than a general component-to-interface
+map: the source clauses assign roles and construct the literal's interface
+skeleton, but no source clause yet shows how an already pure-role Function
+value is checked or adapted at a handler-capable callback boundary while
+preserving its actual behavior. That is the direct bridge needed for the
+pure-to-handler inequality. The actual and checked complete challenge domains,
+effect-port interpretation and local adaptation evidence must be derived
+there. Until then, `Fun(a, never, b, c)` is notation in the intended comparison,
+not a source clause assigning meaning to effect-position `never`.
+
+No existing evidence gap has been shown. Continue with one concrete
+source/application derivation and crosswalk its invocation occurrences to
+existing `Rel_C`, `K,D`, occurrence/incidence, `Flow`/`Observe`, and applicable
+directed-weight/subtraction witnesses. If that derivation identifies a
+specific fact unavailable in those carriers, state the fact and its source
+owner before considering additional evidence. This construction remains
+proof-only and grants no implementation authority.
