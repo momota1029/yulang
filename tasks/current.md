@@ -146,16 +146,17 @@ inference materialization also turns the positive bottom return effect into
 `EffectRow([])`, while preserving the negative argument effect as `Never`.
 Frozen specialization decomposes the callee Function into the non-reflexive
 child `EffectRow([]) <: Never`, which the current non-fixed-head fallback
-accepts. This is historical characterization only. Successor semantics must
-distinguish value `never`, value `Any`, empty effect, a possible effect top,
-and polarized solver bottom/top; `Any` must not be assumed to denote effect
-top. Re-derive the coupled Function effect-lifting rule
-from the source call/entry-force transition, then prove how its `Value(a)` role
-is represented by the Function's negative argument-effect endpoint without
-conflating that endpoint with `never` or an empty effect. The current note has
-a conditional derivation of why the same argument effect `d` must contribute
-to the output bound alongside body bound `b`; `[b,d]`'s exact
-denotation/normalization and typed-family dependency transport remain open.
+accepts. This is historical characterization only. Per the user's latest
+decision, Function effect ports are descriptors, not independent general-Type
+subtyping fields: contravariant descriptors contain effect variables and
+subtractive concrete effect records; covariant descriptors contain effect
+variables and concrete records. Resolve both ports jointly in the same
+`A <: B` query using one effect-variable correspondence, record matching,
+certified subtraction, and correlated residual routing. No Never/Any/empty-row
+lattice account is part of this rule. The current design records this witness
+shape and the intended `d`/`e` shared-port cases; descriptor elaboration,
+subtraction semantics, `[b,d]` combination, and preservation of family `K,D`
+remain open.
 The exact scheme and bounded two-lane operational crosswalk are source-traced,
 while the inference fixture lacks a direct stored-scheme assertion. Record
 shapes need their own lane accounting.

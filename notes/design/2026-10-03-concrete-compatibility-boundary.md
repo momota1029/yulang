@@ -1,10 +1,10 @@
 # One inequality judgment with endpoint-dependent resolution
 
-Status: Draft; records the user's 2026-10-03 single-inequality direction and Oracle observations; operational rules and implementation authority remain open
+Status: Draft; records user-directed single-inequality and Function effect-descriptor rules; complete resolver semantics and implementation authority remain open
 Date: 2026-10-03
 Scope: one inequality judgment with endpoint-dependent solving and local concrete cast/adaptation resolution
-Approved-by: user for the single inequality judgment, endpoint-dependent resolution direction, non-composition rule, and Oracle observations in §1; replay eligibility and implementation remain open
-Reviewed-by: prior compiler_referee/spec_auditor reviews cover frozen-source facts and earlier Record/replay candidates; current one-judgment reformulation awaits bounded review
+Approved-by: user for the single inequality judgment, endpoint-dependent resolution direction, concrete-success non-composition, and polarity-indexed Function effect descriptor split; descriptor elaboration, subtraction semantics, replay eligibility, and implementation remain open
+Reviewed-by: prior compiler_referee/spec_auditor reviews cover frozen-source facts and earlier Record/replay candidates; 2026-10-03 compiler-referee delta review of the Function descriptor note found no blocking/major issue and two minor wording repairs, now closed; the full witness calculus remains unreviewed
 Implementation authority: none
 Supersedes: none; narrows source applicability of structural relation candidates without invalidating their fragment theorems
 
@@ -32,59 +32,71 @@ edge propagation may use transitivity, while success of one concrete
 resolution cannot be composed with another concrete success to establish a
 third inequality.
 
-### User-directed Function effect lifting
+### User-directed Function effect comparison
 
-The later clarification separates endpoint kinds that the frozen
-representation can collapse:
+Function effect ports are not independent general-`Type` subtype checks. The
+user directs the endpoint-dependent `A <: B` solver to represent and resolve
+the two effect polarities through effect descriptors:
 
-| Meaning | Successor semantic kind | Frozen representation evidence |
-|---|---|---|
-| Value/data bottom `never` | value type | `Type::Never` |
-| Value/data top `Any` | value type | `Type::Any` |
-| Empty/pure effect `ε` | effect row | `EffectRow([])` |
-| Effect-universal/top, if the language has one | effect kind; not yet established | must not be inferred from `Any` |
-| Polarized solver bottom/top | internal bound sentinels with polarity and endpoint context | `Pos::Bot`, `Neg::Bot`, `Pos::Top`, `Neg::Top` |
+| Function effect position | Descriptor contents |
+|---|---|
+| Contravariant | effect variables plus subtractive concrete effect records |
+| Covariant | effect variables plus concrete effect records |
 
-These are not global aliases. In particular, neither `never = ε` nor
-`Any = effect-universal` is a premise. The frozen materializer maps
-`Neg::Bot` to `Type::Never` even in an effect context, while tracked empty
-positive effect bounds can become `EffectRow([])`; frozen `is_pure_effect`
-also treats both `Never` and an empty effect row as pure. Frozen top
-materialization can similarly collapse polarized top to `Any` in some
-contexts. These are historical representation behaviors, not successor
-semantic rules. Each polarized sentinel must be interpreted from its sign,
-endpoint kind, and owning constraint rule.
+For a concrete Function inequality, compare these descriptors jointly inside
+the same inequality resolution. The candidate evidence shape is:
 
-The user further clarified that Function effects are coupled in one
-Function-inequality resolution. The intended case is:
+```text
+W = (θ, M, S, R, Ψ)
+
+θ  shared correspondence for effect variables across both ports
+M  concrete-family matches with their type-argument obligations
+S  admitted subtraction steps with their context/ownership evidence
+R  correlated residual routing for contributions not subtracted
+Ψ  retained family equations, K,D dependencies, and request witnesses
+```
+
+`M`, `S`, and `R` are resolver evidence, not a second semantic relation.
+Matching a family preserves its argument constraints; subtraction is allowed
+only with evidence for that concrete record; unmatched contributions remain
+connected through `R`. This must retain the same effect-variable
+correspondence wherever one variable occurs in both Function positions.
+No effect port is decomposed as an unrelated `Type` inequality, and the
+result of one concrete Function comparison cannot be composed with another
+concrete success to establish a third inequality.
+
+The intended coupled cases remain:
 
 ```text
 Fun(a, never, b, c) <: Fun(a, d, [b,d], c)
+Fun(a, never, never, b) <: Fun(a, e, e, b)
 ```
 
-Do not resolve this case by independently subtyping the four `Fun` fields.
-The displayed `never` is the user's intended endpoint and remains part of the
-target case. Since value bottom and empty effect are distinct, it cannot be
-silently rewritten to `ε`; the solver must explain how the endpoint is
-interpreted in this Function position. Target argument effect `d` is carried
-into the target return effect alongside source return effect `b`. The same
-`d` witness must occur in
-both target positions, and the endpoint witnesses `a` and `c` remain
-correlated across the Function comparison. In particular, the rule does not
-impose an independent `d <: never` obligation.
+The same target variable `d` is related across both target ports by `θ`; the
+source contribution `b` remains present in the output descriptor. There is
+no independent `d <: never` obligation. For the second case, the intended
+effect evidence connects target input `e` with target output `e`; whether the
+two source `never` spellings elaborate to descriptors with no concrete
+contributions is not yet defined. More generally, the descriptor elaboration
+of `never` in these examples is open. It must not be obtained from a global
+`Never`, `Any`, empty-row, or polarized-sentinel alias. The value-type
+meanings of `never` and `Any` remain distinct from the effect descriptor
+language; no lattice account is needed for this Function rule. The value
+endpoints `a` and `c` remain part of this same Function resolution and its
+retained family equations.
 
 This is an endpoint-dependent resolution rule of the single query
 `A <: B`; it is not a second effect relation and its successful result cannot
 be transitively composed with another concrete Function comparison. Variable
-endpoints may retain the same inequality and dispatch through this rule when
-the Function shape is known. The bracket operation `[b,d]`, its normalization
-and identity laws, the position-sensitive interpretation of polarized
-bottom/top endpoints (including `Any`), the rule's context/Stack preservation, and any
-generalization beyond the displayed shape remain proof obligations. The
-displayed rule is the user's intended case; no broader four-field
-subtyping rule is approved here.
+endpoints may retain the same inequality and dispatch through this resolver
+when the Function shape is known. The denotation and normalization of
+`[b,d]`, descriptor elaboration, subtraction eligibility, variable
+correspondence, residual routing, context/Stack preservation, typed-family
+transport, and generalization beyond the displayed cases remain proof
+obligations. The displayed rules are the user's intended cases; no broader
+four-field subtyping rule is approved here.
 
-#### Source-semantic derivation candidate
+#### Source-call evidence for the coupling
 
 The coupled shape has a source-level explanation independent of the frozen
 Oracle subtype implementation. Under the selected source rules, an ordinary
@@ -97,31 +109,20 @@ argument computation `D` and body `B`, the source transition has the shape
 `Force(D) >>= (v => B(v))`. Bind preserves the ordered trace prefix from `D`
 and then the trace from `B(v)`; hence the support of the complete call is
 included in `supp(D) ∪ supp(B(v))`. If `d` bounds `supp(D)` and `b`
-uniformly bounds `supp(B(v))` for values admitted by `a`, the call is bounded
-by their may-support combination `[b,d]`. This is why the same `d` appears at
+uniformly bounds `supp(B(v))` for values admitted by `a`, the call has a
+combined support bound; if `[b,d]` soundly presents that combination, it
+bounds the call. This is why the same `d` appears at
 the input and in the output bound: it is one carried computation executed at
 entry, not two independently compared Function fields. The common value
 endpoints `a,c` preserve the argument and result path in this rule.
 
-This derives the effect-lifting *mechanism* from the source call transition,
-conditional on `[b,d]` denoting a sound may-support combination and on the
-body bound being uniform over the values admitted by `a`; the source notes do
-not yet prove those interface obligations. It does not derive the
-still-missing interpretation of the displayed `never` endpoint. The
-source role rule selects `Value(a)` from an outer value-parameter annotation
-or an ordinary inferred parameter; it does not infer that role by equating
-`never` with an empty effect. To finish the intended inequality, the successor
-type/interface interpretation must connect that source role to the negative
-argument-effect endpoint in `Fun(a, never, b, c)`, or replace that endpoint
-with a kind-correct presentation while preserving the user's intended query.
-Neither `Type::Never` nor `Any` may stand in for an effect port by fiat. This
-bridge is an explicit open proof obligation. The derivation also assumes that
-`[b,d]` is the may-support combination induced by sequential call execution;
-typed-family predicates and dependencies must remain correlated when that
-combination is presented. Source-rule references: the ordinary parameter
-role decision in redesign charter §21, call/entry-force transition in the
-ordinary-computation package §3, and complete call-view effect boundary in
-that package §§3–4.
+This source transition explains why an argument effect bound remains
+observable through a value-parameter call and why the intended output bound
+must account for both argument and body execution. It is supporting
+source-semantic evidence for the coupling, not the Function descriptor
+comparison rule and not an explanation of how `never` elaborates. The
+selected source rules for parameter roles and call entry are in redesign
+charter §21 and ordinary-computation package §§3–4.
 
 Frozen-source characterization supports the coupling but does not define its
 successor meaning. `infer/.../propagate.rs` detects a negative `Neg::Bot`

@@ -529,9 +529,73 @@ polarized bottoms/tops to `Never`/`Any`; `is_pure_effect` accepts both
 branch. Those facts characterize the historical artifact risk but are not
 premises in the source-semantic derivation. No tests or builds ran.
 
-A bounded compiler-referee review found no blocking or major issue in this
-source-semantic candidate. It identified one wording overclaim: entry force
-and body execution justify a conservative combined output bound, not that
-both supports must occur on every execution (an argument may diverge before
-the body). The task/progress records now say “bound”; the derivation remains
-conditional on the open interface premises above. No tests or builds ran.
+Luna's follow-up source map adds the concrete row-subtraction path, still only
+as characterization. At the same frozen commit, `Pos::Row(items)` and
+`Neg::Row(items, tail)` are distinct nodes; Function ports carry opposite
+polarities (`poly/src/types.rs:740–762,781–796`). Concrete row matching accepts
+same-path constructor heads or the same variable (`propagate.rs:860–865`),
+and matching constructor payloads adds invariant argument constraints
+(`propagate.rs:923–989`). For weighted upper bounds,
+`row_effect.rs:88–233` filters row items using active stack facts, subtracts
+retained families from the left weight, creates/reuses a residual variable,
+and routes that residual to the original tail. Set/exception transforms are
+implemented at `row_effect.rs:1005–1062,1190–1274`. Signature lowering records
+`Subtractability`/stack facts and wraps weighted endpoints
+(`signature_effect.rs:382–450`; `poly/src/types.rs:147–154,292–309`).
+
+Function propagation itself uses different paths for the negative
+argument-effect `Neg::Bot` case and the general case
+(`propagate.rs:212–270`); variable-to-row transport enters the upper-bound
+path (`propagate.rs:104–138`). The special branch, row matcher, and residual
+transforms describe implementation operations only. They do not determine
+the successor descriptor semantics, define how a `never` spelling enters an
+effect port, or authorize four independent Type subtyping checks. No tests or
+builds ran.
+
+### User-directed descriptor comparison; Sol derivation (2026-10-03)
+
+The user redirected the Function rule away from independent subtyping of
+effect fields as general `Type`s. Contravariant effect descriptors contain
+effect variables plus subtractive concrete effect records; covariant effect
+descriptors contain effect variables plus concrete effect records. Their
+relation is resolved jointly from shared effect-variable correspondence and
+subtraction evidence. A Never/Any/empty-row lattice explanation is outside
+this rule. This supersedes the earlier Value-role-to-negative-`never` bridge
+as the proposed Function comparison explanation; source entry-force semantics
+remain evidence that argument effects are observable through calls.
+
+Sol's bounded derivation proposes one joint resolution witness
+`W=(θ,M,S,R,Ψ)`: shared effect-variable correspondence; concrete-family
+matches with type-argument obligations; admitted subtraction steps with
+context/ownership; correlated residual routing; and retained family
+equations, `K,D`, and request witnesses. For the intended examples the
+witness carries the same target effect variable from argument to result,
+preserves source contribution `b` in `[b,d]`, and generates no independent
+`d <: never` child. The descriptor elaboration of the effect-position
+`never` spellings remains unresolved; they are not silently reinterpreted as
+empty effect, value bottom, or a solver sentinel. `[b,d]` has no derived
+lattice or normalization law yet.
+
+Luna's frozen-source work remains implementation evidence only: row matching
+preserves effect-variable identity, family matches emit invariant argument
+obligations, and weighted residual routing carries subtractability facts and
+context. Sol's report treats those operations as evidence for a candidate
+shared witness, not as the successor semantics. The design note and task map
+now follow this latest direction. No tests or builds ran.
+
+### Review closure for the superseded Value-role candidate
+
+A bounded compiler-referee review found no blocking or major issue in the
+earlier source-semantic candidate. It identified one wording overclaim: entry
+force and body execution justify a conservative combined output bound, not
+that both supports must occur on every execution (an argument may diverge
+before the body). That wording was repaired. This review predates and does not
+cover the later joint descriptor witness or its subtraction obligations. No
+tests or builds ran.
+
+The descriptor-section delta review found no blocking or major authority
+drift. It requested two minor precision repairs: make use of `[b,d]`
+conditional on it soundly presenting the combined source support bound, and
+label the prior review as scoped to the superseded Value-role explanation.
+Both repairs are now reflected above. The full witness calculus and
+subtraction semantics were not certified. No tests or builds ran.
