@@ -2713,3 +2713,22 @@ certificates, exact owner receipt join, and universal challenge/observation
 inclusions remain open. Existing HIR has no application node or typed formal
 input, so the schema is not yet an implementation design; API and phase remain
 unselected. No code, tests, builds, Oracle work, or new carrier resulted.
+
+### Approved bounded callback-context delivery contract (2026-10-03)
+
+The user approved the bounded source contract for callback-position
+elaboration: an unannotated function literal receives the expected callback
+boundary before body elaboration and is introduced with Handler role. An
+already constructed Pure Function value supplied to a callback slot follows a
+separate adaptation path expressed by the same inequality solver's concrete
+query `A <: B`.
+
+This approval settles that source-level distinction only. It does not select
+where the typed interface is owned, whether delivery uses transient context or
+a separate elaboration product, or any compiler API/phase. It also does not
+prove the Pure-value adaptation path's typed source correspondences, receipt
+join, or complete challenge/observation domain inclusions recorded above, and
+does not authorize implementation. The next gate is to state the literal
+context rule's inputs and obligations while leaving API/phase ownership open,
+then continue the independent proof obligations for adapting an existing Pure
+value. No implementation or verification run was authorized or performed.

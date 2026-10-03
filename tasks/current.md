@@ -371,6 +371,19 @@ complete-domain quantifiers still unproved. The current HIR/collector also
 lacks the application/typed-interface input needed to realize it, while the
 API/phase choice remains open.
 
+The user has now approved the bounded callback-context delivery contract:
+an unannotated literal in callback position receives the expected callback
+boundary before body elaboration and is introduced as Handler. Passing an
+already constructed Pure Function value to that slot remains a separate
+`A <: B` adaptation path. This approves the source contract only; ownership of
+the typed interface and the compiler API/phase (including transient context
+versus a separate elaboration product) remain undecided. It does not certify
+the separate existing-value adaptation proof above, whose source paths,
+receipts, and complete-domain inclusions remain open, and does not authorize
+implementation. Next gate: record/derive the literal-context rule's inputs and
+proof obligations without selecting its API/phase, then continue the separate
+existing-value adaptation obligations.
+
 Sol's focused source-clause audit found no existing rule that derives the
 original slot's `p_d⁻`/`p_d⁺` paths to executable decorations for this existing
 Pure-value adaptation. The callback expected-context rule covers a newly
