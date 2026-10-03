@@ -3062,27 +3062,38 @@ and no executable conversion for this candidate, not prior proof of
 `T_P <: F_cb`. Candidate Receive/Flow decorations remain obligations until
 admissibility is shown and cannot grant authority to a rejected use.
 
-This is still conditional rather than raw-source-complete. The full
-`F_cb/profile` must assign `β.p_d⁻` to the `J_arg` input-carrier position and
-`β.p_d⁺` to the complete `J_call` observation position. Binding/application
-correspondence premises and shared-fiber well-formedness must be established.
-Neither checked-domain inclusion nor complete observation inclusion follows
-from the fixed identity witness. Existing `Flow`/`Observe`/`Path`/`Inc_C`
-remains sufficient once those typed maps and views are supplied; this audit
-identifies no need for a new carrier or provenance mechanism.
+This is still conditional rather than raw-source-complete. The selected
+meaning of the original occurrences does not prove that source elaboration of
+the complete role-indexed `F_cb/profile` constructs those coordinates or the
+ordinary binding/application correspondences. Shared-fiber well-formedness
+must also be established. Neither checked-domain inclusion nor complete
+observation inclusion follows from the fixed identity witness. Existing
+`Flow`/`Observe`/`Path`/`Inc_C` remains sufficient once those typed maps and
+views are supplied; this audit identifies no need for a new carrier or
+provenance mechanism.
 
-The exact unsupplied premise is the profile-coordinate assignment itself:
-the complete role-indexed `F_cb/Slots(β)` elaboration must identify
-`β.p_d⁻` with `effect(J_arg)` and `β.p_d⁺` with `effect(J_call)`, preserving
-original occurrence provenance and the shared `ν,K,D` fiber. These symbols
-name required correspondences; they do not propose a new evidence carrier.
-Core §9 derives the signs of `J_arg` and `J_call` but not these embeddings. The
-user-selected linked-lifting intent places `d`
-in both negative input contribution and positive complete-call image; it does
-not construct those coordinates. Even once supplied, candidate map generation,
-map admissibility (including both receipts and typed transports), checked
-challenge-domain inclusion, and complete observation inclusion are distinct
-proof obligations. The next minimal theorem is a bounded source-elaboration
-result deriving `ι⁻_β`, `ι⁺_β` and emitting the candidate maps before resolving
-`T_P <: F_cb`, for the known instantiated slot and identity Pure-value
-invocation. No such derivation is established here.
+An Astra adversarial audit reconsidered whether those semantic locations were
+already selected. Its conclusion agrees with Sol, with an important scope
+qualification: when `β.p_d⁻` and `β.p_d⁺` are the original signed occurrences
+of the same linked `d` at the callback's received-argument and complete-call
+positions, their meanings follow from the user's linked-lifting intent and
+approved through-slot invocation view. The negative occurrence describes
+`d` at `J_arg`, whose actual Value entry reaches `Force(D)`; the positive
+occurrence describes `d`'s contribution at the complete `J_call` position.
+It does not equate `d` with all of `[b,d]` or with the whole challenge-indexed
+`J_call` relation. A body-only, result-latent, or unrelated argument location
+would contradict the selected linked positions. Opposite signs and the name
+`d` alone would not establish this; an unrelated nested callback may contain
+its own occurrences with those signs.
+
+The remaining gap is now specifically source construction and evidence, not
+another semantic choice of port meaning. The complete role-indexed
+`F_cb/Slots(β)` elaboration must establish that the source slot has these
+original occurrences and preserve their provenance and shared `ν,K,D` fiber.
+It must emit the slot receipt, typed application/argument correspondences and
+executing views alongside `T_P <: F_cb`, before solving that query. Existing
+`Flow`/`Observe`/`Path`/`Inc_C` can join them when supplied; raw-source
+generation, shared-fiber well-formedness and admissibility are not yet proved.
+Checked challenge-domain inclusion and complete observation inclusion remain
+separate universal obligations. This audit identifies no need for a new
+carrier, no inequality success, and no concrete-success composition.

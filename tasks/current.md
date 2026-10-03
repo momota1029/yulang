@@ -1766,12 +1766,14 @@ complete `CallView`, same-fiber event/state/suffix correspondence, and positive
 domain inclusion requires the negative `p_d⁻` path and both slot-owner and
 argument receipt correspondence; the positive path is observation-side.
 Generating these declared-use correspondences as admissible source evidence
-would add a bounded rule not covered by the current approval, so that rule is
-pending the user's decision. No API/phase choice, carrier, or implementation
-is selected. Next: keep the literal-context contract fixed, and either derive
-the role-derived admission lemma from already-authorized clauses or leave this
-subgate open; do not infer domain or observation inclusion from
-`Force(D) >>= Return`.
+was not covered by the approval at the time of this audit. The user later
+approved the callback slot as a typed invocation view in §4 of the
+Authoritative callback contract, preserving the underlying role and entry.
+That resolves whether the declared-use view exists, but its source-generated
+receipt/correspondence evidence, role-derived admission lemma, and complete
+domain/observation inclusions remain open. No API/phase choice, carrier, or
+implementation is selected. Do not infer domain or observation inclusion
+from `Force(D) >>= Return`.
 
 ### Role-indexed Function interface audit (2026-10-04)
 
@@ -1851,20 +1853,23 @@ in this candidate; it is not a successful identity-adaptation judgment. The
 candidate decorations remain obligations and cannot authorize a rejected use.
 Once their typed binding/application premises are supplied, existing
 `Flow`/`Observe`/`Path`/`Inc_C` joins the same event under one `ν,K,D` without
-a new carrier. Still open are source derivation of the complete `F_cb/profile`
-coordinate assignments (`β.p_d⁻` as `J_arg`, `β.p_d⁺` as complete `J_call`),
-shared-fiber well-formedness, admissibility of the conditional package, and
-both universal clauses: checked challenge-domain inclusion and complete
-observation inclusion. No API/phase, new carrier, or implementation is
-selected. Immediate next gate: derive the bounded source-elaboration theorem
-for the known instantiated `Value(F_cb)` slot and identity Pure-value call.
-It must derive the original-profile correspondences
-`β.p_d⁻ ↔ effect(J_arg)` and `β.p_d⁺ ↔ effect(J_call)`, and show candidate
-`Receive`/application correspondence obligations are generated with
-`T_P <: F_cb` before solving it. These are proof obligations over existing
-typed views, not a proposed new carrier.
-Then check their admissibility under the shared fiber; keep universal domain
-and observation inclusion as separate later proofs.
+a new carrier. The semantic locations of the intended linked occurrences are
+now resolved from the user's selected meaning: `β.p_d⁻` is the `d` contribution
+at the received-argument computation position `J_arg`, reaching the actual
+Value-entry `Force(D)`; `β.p_d⁺` is that linked `d` contribution at the
+complete-call position `J_call`, not the whole `[b,d]` effect or complete
+relation. Sharing the name `d` and opposite signs alone would not imply this;
+the approved slot invocation view and explicit linked-lifting intent do.
+Still open are source derivation that the known role-indexed `F_cb/profile`
+actually contains those original signed occurrences, generation of the
+`Receive`/application typed correspondences and executing views alongside
+`T_P <: F_cb`, shared-fiber well-formedness, evidence admissibility, and both
+universal clauses: checked challenge-domain inclusion and complete observation
+inclusion. Immediate next gate: prove that bounded source-elaboration theorem
+for the known instantiated `Value(F_cb)` slot and identity Pure-value call,
+then check its generated obligations without treating query success as their
+premise. These are obligations over existing typed views, not a proposed new
+carrier.
 
 ## Main records
 
