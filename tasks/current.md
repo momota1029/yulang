@@ -384,6 +384,20 @@ implementation. Next gate: record/derive the literal-context rule's inputs and
 proof obligations without selecting its API/phase, then continue the separate
 existing-value adaptation obligations.
 
+The literal-context contract is already Authoritative; do not reopen it as
+the immediate gate. A source-rule reread for an existing Pure value closes
+only operational placement: the structural Function view keeps argument
+adaptation, the actual call and result adaptation in one latent application;
+the identity instance inserts no early force; and the active complete callback
+view encloses the actual §21 Value-entry execution. Typed-owner rules keep the
+slot receipt, argument receipt and enclosing call view separate. The missing
+lemma is now the typed-flow/receipt join from the original slot's signed
+profile positions to the executing force and complete-call views, independently
+of inequality success. Derive that from source transport before considering
+new evidence structure; then prove the separate universal challenge-domain
+and observation inclusions. API/phase ownership remains open and no
+implementation is authorized.
+
 Sol's focused source-clause audit found no existing rule that derives the
 original slot's `p_d⁻`/`p_d⁺` paths to executable decorations for this existing
 Pure-value adaptation. The callback expected-context rule covers a newly

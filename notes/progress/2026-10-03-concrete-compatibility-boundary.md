@@ -2732,3 +2732,47 @@ does not authorize implementation. The next gate is to state the literal
 context rule's inputs and obligations while leaving API/phase ownership open,
 then continue the independent proof obligations for adapting an existing Pure
 value. No implementation or verification run was authorized or performed.
+
+### Existing-Pure adaptation stops at a three-view source join (2026-10-03)
+
+Following the approved distinction, I checked whether the existing typed-view
+and owner rules already derive the callback-slot observation path for a
+preconstructed Pure value. They close the runtime placement for the bounded
+same-activation identity witness, but not the typed join needed by `Path`.
+
+The source/adapter facts that do follow are:
+
+1. The value keeps its Pure introduction and §21 `Value(A)` entry. The
+   callback slot is checked by the one concrete query `T_actual <: F_cb`;
+   success does not retroactively introduce the value under Handler.
+2. The structural Function-view equation returns a latent `FunctionView`;
+   on application it sequences argument adaptation, the underlying `Call`,
+   and result adaptation. It creates no receiver, handler, or capture
+   authority. For `FunctionView(Id,Id)`, this is operationally the original
+   `Call(f,D)`, so it inserts no force before the actual Value-entry receiver.
+3. The typed-owner rule keeps three facts separate: the callback-slot owner
+   receives the typed callback value; the actual Pure invocation receives its
+   argument; and the complete callback `CallView` encloses the invocation.
+   Merely using `f` as callee cannot paste its public view onto `f`'s private
+   captured bindings or turn the argument receipt into a slot receipt.
+
+These follow from callback-context §4, typed-boundary §4 and §6, and
+typed-source-owner §2–3. In particular, typed-boundary §6 `Path` requires the
+original slot profile to reach an executing `Observe` through matching typed
+flow and a receipt of that same view by the relevant owner. The slot receipt
+names `V_cb`, the argument receipt names `V_arg`, and neither alone is the
+required correspondence to the enclosing `V_call` / force view. Core §9 gives
+the shared Force event and its input/output directions, but does not create
+typed-flow or owner-receipt edges.
+
+The next proof target is therefore narrower than re-proving the operational
+identity call: derive, from application of the already-adapted callback value
+through its known slot, the existing typed-flow/receipt join from the slot's
+original signed profile positions to the enclosing complete-call and force
+views, before relying on inequality success. Keep the three receipt/view roles
+distinct. If the source transport clauses derive that join, existing
+`Flow`/`Observe`/`Path`/`Inc_C` evidence suffices and no new carrier follows.
+If they do not, identify the precise missing source fact before proposing any
+new evidence structure. The complete challenge-domain and observation
+inclusions remain separate and open. No API/phase choice or implementation
+authority follows from this derivation.
