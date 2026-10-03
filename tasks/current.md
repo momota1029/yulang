@@ -145,6 +145,16 @@ the one minor Record-arity wording ambiguity was repaired and inspected. The
 procedure does not decide the same-witness intersection with permissions,
 guards, or `Phi/K,D`, and picks no complexity cutoff or source rejection rule.
 
+A broader finite structural package with recursive constructor feedback remains
+open. A multi-track PDL encoding sketch in
+`notes/progress/2026-10-03-open-residual-factorization.md` was independently
+reviewed and its decidability claim withdrawn: descriptor equations need
+prefix/inverted modalities, while Pad and comparison propagation need ordinary
+suffix modalities. The cited PDL theorem does not decide their combination.
+The next theorem gate must supply one supported encoding and prove regular
+witness decoding, or use a different structural decision route. This does not
+reopen the closed §7.3 fixed-endpoint interval result.
+
 Immediate gate (ordered by the user's 2026-10-03 clarification): realize the
 selected source-level function-introduction and contextual-elaboration path
 before port interpretation:
