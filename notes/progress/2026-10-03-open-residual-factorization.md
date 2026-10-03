@@ -487,3 +487,37 @@ obligations, or a finite nonregular-only counterexample. No such counterexample
 was found. The Astra request was `gpt-6-astra` at low effort; live runtime
 settings were not independently observable. No files, tests, builds, Oracle
 queries, or measurements changed.
+
+### Active-path finite-profile quotient attempt (2026-10-03)
+
+Sol attempted a finite quotient that preserves local head/presence data,
+descriptor-root subtree membership, and per-bound active endpoint/orientation
+membership. A compiler-referee confirmed a counterexample to this **specific
+set-valued profile equivalence**. Let `R(t)={f:t}`, let `C` be binary with
+variance `(+,-)`, and use
+
+```text
+q = C(x,x)
+r = R(x)
+b : q <: q
+x = R³(Int)
+```
+
+under the full direct structural-comparison closure of `b`. The two interior
+subtrees `u=R²(Int)` and `v=R(Int)` have the same profile: both are Records
+with `{f}`, both occur below each descriptor root, and both occur as endpoints
+of `b` at both orientations. All Record fields are present on both sides, so
+the positive and negative comparison obligations descend through them. But
+`u.f=v` is a Record and `v.f=Int` is an atom. Thus equal profiles do not
+determine a unique `f` successor; this equivalence is not a tree congruence.
+
+The counterexample requires the stated unindexed membership profile. Adding
+exact paths, multiplicities, depths, or successor-refined data changes the
+profile definition and is not refuted here. Likewise, “both orientations” is
+about the full labelled structural obligation closure, not an implementation
+that shortcuts reflexive identity. The supplied `x` is regular and `x=Int`
+also satisfies the package, so this is not a nonregular-only witness or an
+obstruction to regular-model existence. A repair must withdraw this
+congruence claim or define a stronger finite equivalence and prove both
+successor coherence and shifted descriptor sharing. No such repair emerged;
+no source semantics or implementation claim follows.

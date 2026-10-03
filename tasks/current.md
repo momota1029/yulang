@@ -196,6 +196,16 @@ construction for those jointly activated obligations, a finite
 nonregular-only counterexample, or another terminating regular-satisfiability
 route. This does not authorize source-semantic changes or implementation.
 
+The next Sol attempt tested a finite profile containing head/present fields,
+descriptor-root subtree membership, and per-bound active endpoint/orientation
+membership. A compiler-referee confirmed the profile is not a child congruence:
+for `q=C(x,x)`, `r={f:x}`, `C` variance `(+,-)`, bound `q <: q`, and
+`x={f:{f:{f:Int}}}`, subtrees `{f:{f:Int}}` and `{f:Int}` have equal such
+profiles but their `f` children have Record and atom heads. This rejects only
+that finite profile quotient; the package already has a regular witness, and
+stronger finite equivalences remain possible. A repair needs proved successor
+coherence and preservation of shifted descriptor sharing.
+
 Immediate gate (ordered by the user's 2026-10-03 clarification): realize the
 selected source-level function-introduction and contextual-elaboration path
 before port interpretation:
