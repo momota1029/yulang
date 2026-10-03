@@ -165,17 +165,18 @@ its effect ports. `never` remains a value bottom, distinct from an empty
 effect row and polarized solver sentinels; it has no independent pure/empty
 effect meaning. `Any` is also a distinct value type, not an effect sentinel.
 
-Immediate bounded subgate: derive source elaboration for the three cases
-(ordinary unannotated literal, explicitly Function-annotated literal, and
-callback-position literal) before constructing a general contextual challenge
-domain. The existing `ref_update_local_buffer_public` call
+Immediate bounded subgate: operationalize the three already selected role
+cases (ordinary unannotated literal, explicitly Function-annotated literal,
+and callback-position literal) in source elaboration before constructing a
+general contextual challenge domain. The existing
+`ref_update_local_buffer_public` call
 `r.update (\old -> old + "!")`, together with the public callback signature,
-is a concrete expected-context anchor. For each case, record the selected
-receiver role, the independently syntax-directed §21 parameter-entry role,
-and the resulting Function interface. Then derive the effect-port view from
-that interface. Do not make a uniform effect-row-component-to-complete-
-interface mapping foundational. `never` and `Any` get no effect-position
-interpretation.
+is a concrete expected-context anchor. For each case, record the governing
+source boundary/profile and independently syntax-directed §21 parameter-entry
+role, then derive the complete Function interface before its effect-port
+view. The roles are already selected; the interface derivation remains open.
+Do not make a uniform effect-row-component-to-complete-interface mapping
+foundational. `never` and `Any` get no effect-position interpretation.
 
 Next derive the pure-function-value to handler-capable callback lift from
 source application/elimination. `Force(D) >>= B` explains why a value-entry
@@ -294,17 +295,18 @@ that view and its target effect port under the actual/checked domain relation.
 The old FunctionMap equation does not prove this placement and cannot be
 assumed for non-identity conversions.
 
-The immediate proof target is now the role-directed source elaboration
-judgment, not slot-profile projection. State how function introduction and
-expected context select pure versus handler receiver role, then how that role
-elaborates the Function interface and only then interprets its effect ports.
-Derive the three source cases (ordinary unannotated literal, explicitly
-Function-annotated literal, callback-position literal), while keeping §21's
-`Value`/`Computation` parameter entry independent. Source records currently
-give a control skeleton with fixed roles and annotation slots; they do not yet
-derive this role-selection judgment or its interface/effect-port clauses.
-Do not infer role from port spelling or give effect-position `never` an
-independent meaning.
+The immediate proof target is now the source elaboration that receives the
+selected role and its boundary before body constraints, then constructs the
+Function interface. Charter §24 already fixes the projection: ordinary
+unannotated literal without handler expected context is Pure; explicit
+Function annotation is a Handler boundary; callback-position literal is
+Handler from expected context. Core §6 plus §21 already supplies the
+`Value(Fun(P,Result(I_b)))` skeleton and independent parameter-entry choice.
+The remaining bridge is pre-body annotation/expected-context propagation and
+the complete interface each boundary elaborates. In the annotation-plus-
+callback overlap, both select Handler but their two original descriptors and
+the rule relating them remain open. Do not infer role from port spelling or
+give effect-position `never` or `Any` an independent meaning.
 
 For the unannotated callback literal, the user's callback-position rule
 selects Handler and §21 gives `old` ordinary Value entry. The stable-core
@@ -406,16 +408,17 @@ families as evidence for those path witnesses. The already-constructed
 pure-role Function value comparison and complete actual/checked challenge
 inclusion remain later gates.
 
-The immediate bounded theorem is the three source-elaboration clauses and
-their use at an actual callback literal: synthesized unannotated literal,
-explicitly Function-annotated literal, and callback-context literal. Keep the
-already-constructed value case separate; it belongs to the later
-pure-value-to-handler-interface adaptation proof. Cross source receiver role
-independently with §21's value-entry versus retained-computation entry.
-Establish the operational `Force(D) >>= B` account for the concrete
-value-entry callback and identify which existing request/incidence and
-subtraction witnesses track the argument and body contributions. This does
-not yet close the complete inequality.
+The bounded theorem uses the three selected cases at source elaboration:
+synthesized unannotated literal, explicitly Function-annotated literal, and
+callback-context literal. For each, establish which boundary/profile reaches
+body elaboration and preserve its identity; for the callback case with known
+`Value(F_cb)`, pass `β`/`Slots(β)` before body-fact generation. Keep the
+already-constructed pure-role value separate; its adaptation belongs to the
+later pure-value-to-handler-interface proof. Cross receiver role
+independently with §21's value-entry versus retained-computation entry. For
+the concrete value-entry callback, trace `Force(D) >>= B` to existing
+request/incidence and subtraction evidence. This does not yet close the
+complete interface or inequality.
 
 The later full-comparison theorem still must preserve actual entry and
 decorated behavior; construct complete source-admissible challenge domains

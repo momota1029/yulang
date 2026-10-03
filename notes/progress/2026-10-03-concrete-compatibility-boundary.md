@@ -1978,3 +1978,29 @@ provenance structure is justified without a concrete source fact that the
 existing `Rel_C`, `K,D`, occurrence/incidence, and directed-weight/subtraction
 evidence cannot represent. No code, tests, Oracle inspection, builds or
 measurements; record consistency was checked with `git diff --check`.
+
+### Role projection versus source elaboration (2026-10-03)
+
+A bounded architect audit sharpened the immediate gate. Charter §24 already
+selects Pure for an ordinary unannotated literal without handler expected
+context, Handler for an explicitly Function-annotated literal, and Handler
+for a callback-position literal. Charter §21 independently sets parameter
+entry; core §6 supplies only the `Value(Fun(P,Result(I_b)))` body/result
+skeleton. These decisions fix the role projection, but do not construct the
+complete role-indexed Function interface.
+
+For annotation-plus-callback overlap, both role selectors yield Handler while
+the annotation boundary and callback slot remain distinct descriptors. Their
+source relationship is open; annotation introduction followed by checking at
+the expected slot remains a candidate only. The actual next source theorem is
+pre-body annotation/expected-context propagation and complete interface
+construction. For a supplied known `Value(F_cb)`, the bounded target passes
+static `β`/`Slots(β)` before body facts are emitted; current source input/API
+and scheme-instantiation ownership remain open. No effect-port or inequality
+rule follows from this projection alone.
+
+A spec-auditor delta review found no blocking/major issue and one minor table
+formatting issue, which was repaired by converting the non-literal comparison
+case to prose. `git diff --check` is the only verification; no code, tests,
+builds, Oracle inspection or measurements. Implementation authority remains
+none.

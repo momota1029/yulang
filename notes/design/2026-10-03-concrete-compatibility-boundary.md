@@ -6,6 +6,7 @@ Scope: one inequality judgment with endpoint-dependent solving and local concret
 Approved-by: user for the single inequality judgment, endpoint-dependent resolution direction, concrete-success non-composition, polarity-indexed Function effect descriptors, mixed abstract/concrete type components, canonical-flat covariant rows, abstract-only contravariant meet normalization, and concrete-bearing attachment descriptors for witnessed partial reverse-addition; component classification, co-occurrence consolidation, the component-to-existing-carrier bridge, proof that existing evidence licenses a particular reversal, replay eligibility, and implementation remain open
 Reviewed-by: prior compiler_referee/spec_auditor reviews cover frozen-source facts and earlier Record/replay candidates; 2026-10-03 compiler-referee delta reviews of the Function descriptor and mixed-row candidate found no blocking/major issues, with minor wording repairs closed; general-component, polarity-specific reverse-addition, and abstract-only contra-meet wording delta reviews found no blocking/major/minor issue; the conditional support-obligation corollary received bounded spec-auditor and compiler_referee review with all findings closed and no remaining finding; the intended-Function necessary-condition subsection received a bounded compiler_referee review with no findings; the conditional Act-family coverage candidate received a bounded compiler-referee review, its minor ownership clarification and major nonempty-fiber premise were repaired, and the delta review closed with no residual finding; the singleton `TypedRow` to candidate Function-support crosswalk received a bounded compiler_referee review with no findings; the abstract-component same-fiber candidate had a major joint-fiber/union-premise finding repaired and its bounded delta review closed with no residual finding; the full witness calculus remains unreviewed
 Role-first §8 review: architect pre-write audit; compiler_referee reported one BLOCKING complete-domain-construction gap and major decorated-behavior, entry-role separation, and support-only lifting gaps; spec_auditor found the selected direction conformant and confirmed these obligations remain open. Rigid-hole schema delta: compiler_referee accepted its conditional non-vacuity/actual-preservation claims, while retaining BLOCKING `EnvStore`/`JointWF` construction and a major operational-context-closure obligation. A later bounded Astra theorem audit and Sol architect delta support only the conditional open-graph research candidate below; both retain the domain/construction and closure gaps. The step-index candidate has a bounded compiler-referee audit; the subsequent source-state `spec_auditor` audit requires heap examples to remain conditional until source realization. No carrier insufficiency found.
+Role projection/source-elaboration delta: architect audit confirmed §24 selects the role in the three cases, §21/core §6 fix the separate entry/body skeleton, and complete boundary propagation/interface construction remains open; spec_auditor found no blocking/major issue and one table-format minor, which was repaired. No Oracle evidence used.
 Implementation authority: none
 Supersedes: none; narrows source applicability of structural relation candidates without invalidating their fragment theorems
 
@@ -1053,22 +1054,27 @@ function literal + expected context
   -> effect-port interpretation
 ```
 
-The intended source rules are: an ordinary unannotated function literal
-infers as pure; an explicitly annotated Function boundary is a handler
-boundary; a function literal in callback position receives handler role from
-its expected context. The role is selected by source introduction/context,
-not reconstructed from effect-port syntax. This is a distinct axis from
-charter §21's parameter-entry role (`Value` versus `Computation`). Preserve
-§21's entry rules.
+The user-selected role projection is: an ordinary unannotated function literal
+without a handler expected context is Pure; an explicitly Function-annotated
+literal has a Handler boundary; a literal in callback position receives
+Handler from its expected context. These choices come from source
+introduction/context, not effect-port syntax. They fix the role for each
+listed case, but do not yet derive a complete role-indexed Function interface
+or the typing/checking steps that propagate an annotation or expected callback
+boundary before body constraints are emitted. Receiver role is a distinct
+axis from charter §21's syntax-directed parameter-entry role (`Value` versus
+`Computation`); preserve §21's entry rules.
 
-The existing source packages establish every function's computation-receiving
-invocation, inert whole-argument reification, entry force/rebinding for value
-parameters, retained computation parameters, and result forwarding. They do
-not yet derive the new pure/handler literal-role rules, explicit annotation
-boundary elaboration, or expected-context propagation for callback literals.
-That missing source Function annotation/context elaboration is the owner of
-the next derivation gate. It precedes both effect-port interpretation and any
-general component-to-`Rel_C` mapping.
+The existing source packages establish the parameter/body-result skeleton:
+core §6 constructs `Value(Fun(P,Result(I_b)))`, with `P` generated by §21
+before body synthesis. They also establish invocation, inert whole-argument
+reification, value-entry force/rebinding, retained computation parameters,
+and result forwarding. The missing bridge is now narrower than role choice:
+derive how the selected role and its source boundary reach literal
+elaboration—especially expected-context propagation before callback-body
+constraints, and annotation checking at its original boundary. This precedes
+complete interface construction, effect-port interpretation and any general
+component-to-`Rel_C` mapping.
 
 For the intended callback lift
 
@@ -1105,20 +1111,42 @@ complete and grants no implementation authority.
 
 ## 8. Role-directed elaboration proof obligations (2026-10-03)
 
-The bounded source derivation and independent compiler/specification review
-confirm the role-first ordering, while exposing the exact proof boundary.
-Charter §§16–21 and core §§6–9 already supply common invocation, inert
-argument reification, parameter entry, typed result forwarding, and conditional
-complete-domain comparison. They do not construct the receiver-role-indexed
-Function interface or its complete challenge domain from a source literal or
-expected callback context.
+The bounded source audit separates the selected role projection from its
+source elaboration. Charter §24 directly fixes the role in each listed case;
+§21 independently fixes parameter entry, and core §6 supplies the
+`Value(Fun(P,Result(I_b)))` body/result skeleton. Charter §§16–21 and core
+§§6–9 also supply common invocation, inert argument reification, typed result
+forwarding, and conditional complete-domain comparison. None constructs the
+complete receiver-role-indexed Function interface or challenge domain from a
+source literal or expected callback context.
 
 | Source case | Selected receiver role | Required elaboration obligation |
 |---|---|---|
 | Unannotated literal in synthesis | Pure | Synthesize the body/result using §18 and the parameter entry fixed by §21; construct the complete Function view without identifying “pure” with empty call support. |
 | Explicitly Function-annotated literal | Handler boundary | Preserve the original annotation occurrence and construct its source boundary/profile and typed paths before interpreting effect ports; the annotation does not invent operation arms. |
 | Literal checked in callback position | Handler from expected context | Elaborate against the expected callback boundary while retaining its actual source entry and body; expected context cannot infer parameter retention from an effect row. |
-| Already-constructed function value checked at a handler-capable interface | Comparison/adaptation case, not literal introduction | Preserve actual executable entry and original decorated behavior. A changed entry or boundary requires a separately justified executable conversion. |
+
+The annotation/callback overlap has one settled projection: both select
+Handler. It has two source descriptors, the literal's explicit annotation
+boundary and the expected callback slot; the source rule relating those
+descriptors is open. Introducing at the annotation boundary and checking the
+resulting value at the callback slot through the same `A <: B` solver remains
+a candidate, not a derived ordering.
+
+Thus the established facts are role selection and the separate §21/core
+parameter/body skeleton. The outstanding source theorem is not another
+choice of Pure versus Handler; it is pre-body context/annotation propagation
+and the complete interface each selected boundary elaborates. For a known
+callback formal `F_cb`, the bounded target is to pass its static slot template
+`β` and `Slots(β)` into literal checking before body constraints are emitted.
+This is still a source-proof premise until the application/literal checking
+rule is derived, and it does not identify runtime boundary `b` before a
+receiver activation exists.
+
+An already-constructed Function value checked at a handler-capable interface
+is a separate comparison/adaptation case, not literal introduction. Preserve
+its actual executable entry and original decorated behavior; a changed entry
+or boundary requires a separately justified executable conversion.
 
 Receiver role and parameter entry are independent axes. Every case must be
 parameterized by §21's `Value(A)` entry (receive, force once, rebind) or
@@ -1768,8 +1796,10 @@ theorems remain later gates.
 
 #### Immediate gate revised: receiver-role elaboration precedes slot projection
 
-The current immediate gate is the source-level judgment that chooses receiver
-role and elaborates a Function boundary. The intended ordering is:
+The role values themselves are selected by the user decisions above. The
+current immediate gate is to turn that projection into a source elaboration
+rule that receives the annotation or expected callback boundary before body
+constraints, then constructs the Function interface. Its ordering is:
 
 ```text
 function introduction + expected context
@@ -1778,16 +1808,17 @@ function introduction + expected context
   -> effect-port interpretation
 ```
 
-The three required cases are an ordinary unannotated function literal (pure),
-an explicitly Function-annotated literal (its annotated boundary is a handler
-boundary), and a callback-position literal (handler role selected by expected
-context). Keep this receiver role independent of §21's syntax-directed
-`Value`/`Computation` parameter entry. The source-computation-role package
-records fixed-role skeleton inputs and original annotation slots, but does not
-derive this role-selection judgment or its interface/effect-port clauses.
-Thus the immediate missing source fact is the role-directed introduction and
-contextual-elaboration rule, not a uniform map from one effect-row component
-to a complete receiver/computation interface.
+The three cases remain ordinary unannotated literal (Pure), explicitly
+Function-annotated literal (Handler at its annotation boundary), and
+callback-position literal (Handler from expected context). Keep this receiver
+role independent of §21's syntax-directed `Value`/`Computation` parameter
+entry. The source-computation-role package records fixed-role skeleton inputs
+and original annotation slots, but does not derive pre-body annotation or
+expected-context propagation, the overlap rule, or complete interface/effect-
+port clauses. The immediate missing source fact is this boundary propagation
+and interface elaboration, not the already selected role values and not a
+uniform map from one effect-row component to a complete receiver/computation
+interface.
 
 This user clarification supersedes the earlier charter §16 statement that
 every function is a handler, specifically its universal receiver-role claim.
