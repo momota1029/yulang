@@ -226,7 +226,11 @@ semantics.
 For the §8 closed identity witness, the source call reduces to
 `Force(D_req) >>= Return`. The state-threaded bind right-unit law preserves
 its request prefix, response/resumption behavior, state transitions, and
-divergence; the body contributes no request. For any checked challenge with
+divergence; the body contributes no request. An independent compiler-referee
+audit closed this operational lemma for a fixed supplied live `CallView`, the
+same caller state, and the corresponding `Value(Int)` entry, including
+repeated resumptions and divergence prefixes. It does not establish
+equivalence across different `CallView`s. For any checked challenge with
 the same `A = Int` endpoint and Value entry, same source-admissible caller
 state, and same live callback-slot `CallView`, the actual identity closure
 executes that carrier/history unchanged. This gives a runtime-domain

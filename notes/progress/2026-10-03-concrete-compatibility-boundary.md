@@ -2329,5 +2329,10 @@ role-derived complete Function domain denotes these `Value(A)` executions,
 and that the checked view admits only challenges in that source domain. The
 second inclusion `P_actual(h) ⊆ P_checked(h)` still needs the input event's
 `Observe`/`Flow`/incidence route into the checked output component `d` under
-shared `ν,K,D`. This is a primary proof candidate, not an independently
-reviewed result; no implementation or tests changed.
+shared `ν,K,D`. An independent compiler-referee audit found the operational
+lemma clean under its stated fixed-context premises: the state-threaded bind
+right-unit law preserves request identities and continuations, resumed live
+states, store histories and divergence; the `Int` endpoint rules out latent
+result forcing. The reviewer explicitly did not infer either static port
+inclusion or equivalence across different `CallView`s. No implementation or
+tests changed.
