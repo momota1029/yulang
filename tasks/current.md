@@ -266,6 +266,20 @@ selected direction conformant; the semantic proof gaps remain open. No
 carrier insufficiency is shown, and compiler implementation remains
 unauthorized. See design §8 and the current progress entry.
 
+The existing coupled-interface `CallCfg` and typed-core `D_i` are schemas,
+not complete constructions: context typing, other environments/stores and
+execution closure remain open. The prior non-vacuity argument uses value holes;
+Yulang calls pass an inert whole-argument carrier. A pure-diverging carrier
+with empty support distinguishes that challenge from `Delay(Return Unit)` at
+a value-entry receiver, even though both have the same result endpoint.
+Receipt must precede force, so divergence does not remove the challenge; a
+retained receiver may instead ignore it. Immediate next theorem: decorated
+source-context closure and invocation coverage, including independent source
+well-formedness of context environments/stores, source-typed callable/carrier
+holes, context composition, and preservation of roles, §21 entry, profiles,
+`Flow`/`Observe`, `K,D`, future latent use and resumption. Keep its extensional
+semantic domain separate from later finite presentation/principality.
+
 Any hypothetical annotation-coverage rule must be a universal obligation over
 the supplied complete comparison, not deletion of uncovered observations.
 Its support projection applies only after concrete and abstract component

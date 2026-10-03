@@ -1375,3 +1375,37 @@ working change is records only; `git diff --check` is the focused integrity
 check. Next: construct the source-admissible challenge/interface relation for
 the three literal cases, parameterized by §21 entry, and prove the
 decorated-behavior transport case before deriving the inequality.
+
+### Context-domain follow-up (2026-10-03)
+
+Sol's follow-up audit found that the coupled-interface draft's all-context
+`CallCfg` and typed-core §9's `D_i` are the correct semantic schemas, but they
+do not discharge the domain-construction blocker. Context typing, the relation
+for other environments/stores, and evaluation closure remain open. Typed
+holes avoid one direct self-membership circle but do not establish
+well-formedness of aliased environments and shared store/lineage. The earlier
+value-hole non-vacuity argument also does not cover whole-argument reification.
+
+Counterexample to using the old non-vacuity lemma unchanged: a value-entry
+`f x = ()` called with a pure-diverging carrier `D : Comp([],Unit)` never
+reaches its body; `Delay(Return Unit)` does. Both arguments have the same
+result endpoint and empty support. The first is still an admissible carrier
+challenge because receiver receipt precedes force. A retained receiver can
+ignore `D`, so this distinction is the independent §21 entry mode, not
+receiver role or an effect-row special case.
+
+The smallest missing proof input is decorated source evaluation-context
+typing with callable and argument-code/carrier holes, a well-formed
+environment/store at shared `ν`, source lineage/profiles/`K,D`, and admissible
+future inputs, responses and raw resumptions. The resulting immediate theorem
+is source-context closure and invocation coverage: role/entry introduction,
+non-vacuous receipt before force, context composition and execution closure,
+then future-use/resumption preservation for existing `Flow`, `Observe`,
+incidence and expiry. Existing-value checking constructs actual/checked
+domains before comparison and retains actual entry/decorations. This can first
+be extensional and infinite; effective finite representation and principal
+comparison remain separate. No concrete carrier gap was found.
+
+Updated design §8 and `tasks/current.md`. No tests/builds/Oracle/compiler-code
+inspection. Focused verification: `git diff --check`. This remains a draft
+proof obligation, with no implementation authorization.

@@ -1184,3 +1184,54 @@ not a demonstrated carrier insufficiency. Keep implementation authority
 closed. The next theorem should establish role-directed introduction and
 contextual checking with the above independent parameter-entry and decorated-
 behavior obligations; only then attempt the joint `[b,d]` lift.
+
+### Follow-up audit: contextual domains are not yet constructed
+
+The candidate all-well-typed-context `CallCfg` in the coupled-interface draft
+and the `D_i` notation in typed-core §9 give the right semantic shape but do
+not close the BLOCKING gap. The coupled draft explicitly leaves its context
+typing, environment relation, and typing/evaluation closure open. The typed
+core comparison assumes admissible domains; it does not generate them from
+source introductions. The two typed holes avoid requiring the tested callable
+to be in its own denotation, but do not define the well-formedness of the
+context's other environment/store, including recursive aliases and shared
+lineage.
+
+The existing value-hole non-vacuity argument also does not directly cover
+Yulang's selected call rule. A callable and an already evaluated argument
+value are not the same challenge as a callable plus an inert carrier of the
+whole argument computation. For example, with a value-entry receiver
+`f x = ()`, a carrier `D` that diverges purely before returning `Unit` never
+reaches the body, while `Delay(Return Unit)` does; both have the same result
+endpoint and empty effect support. Receipt must still be reached before the
+force, so divergence cannot erase the carrier challenge from the call domain.
+A retained receiver may ignore `D` and return; the receiver role alone does
+not choose between these executions. This distinguishes the needed source
+context rule without defining an effect meaning for `never` or invalidating
+the existing coupled relation.
+
+The missing proof input is a decorated source evaluation-context judgment
+with callable and argument-code/carrier holes, an independently well-formed
+environment and shared store at the same `ν`, and the source-owned lineage,
+profiles, `K,D`, future inputs, responses, and raw resumptions. Context
+admissibility must follow that judgment and source execution, not observed
+calls, support filtering, arbitrary machine configurations, or success of the
+comparison being defined. This is a proof premise/construction, not a proposed
+solver carrier.
+
+The immediate theorem is therefore **decorated source-context closure and
+invocation coverage**. For the three user-selected literal cases, derive role,
+actual §21 entry, boundary occurrences, and lexical evidence. Prove that each
+jointly admissible function/carrier pair has a source application context
+that reaches receiver receipt before argument force; prove source context
+composition and execution preserve role/entry, stores, profiles, and the
+shared fiber; and close future latent use and resumption under existing
+`Flow`, `Observe`, incidence and expiry rules. For an existing value check,
+construct actual and checked domains before comparison and retain the value's
+actual entry and decorations. Then attempt the two §9 inclusions. A genuinely
+empty argument fiber cannot establish annotation acceptance.
+
+This first theorem may establish an extensional, potentially infinite semantic
+domain. It does not also prove an effective finite presentation, principal
+comparison, or a new source acceptance policy. No new carrier is justified;
+the missing facts are source context typing and its closure theorem.
