@@ -175,6 +175,53 @@ inconsistency, repaired above, and no other scope issue. This remains a proof
 candidate, not mechanically checked and not implementation authority. No
 tests, builds, or measurements ran.
 
+### Exact sorted encoding for finite-Λ Records with known constructors
+
+Sol adjudicated Astra's bounded investigation of extending existence to
+Function and other known-constructor input descriptors. The suggested direct
+extension of §7.4.3 is not justified: with variance, lower-only paths must not
+activate comparisons beyond an absent upper Record field, while fixed
+descriptor transport and child descent act on opposite ends of path words.
+The least active-fact closure may therefore need more than ordinary PDS
+saturation. A generic two-ended Horn closure can be nonregular, but no proof
+shows its counterexample is realizable by these structural rules.
+
+Astra supplied an exact finite-`Λ` encoding. Use a sorted signature:
+
+```text
+T ::= input atoms | Rec(F₁,…,Fₖ) | Function(T,T) | declared constructors
+F ::= Absent | Present(T)
+```
+
+`Rec` is covariant in its finite field slots. In field sort `F`, `Present(s)`
+is below `Absent`, two present fields compare by `T`-subtyping, and `Absent` is
+not below any `Present(t)`. Thus upper absence accepts either lower state,
+while upper presence requires a present lower field and compares its payload.
+Encoding and decoding preserve structural comparisons, all original
+constructor variances, regularity, and fixed Record equations, provided every
+slot in each fixed descriptor is encoded—including absent slots. Combined
+with finite-label erasure, this is an exact existence reduction for the
+finite-`Λ` input fragment; it does not represent the unrestricted assignment
+fiber.
+
+The cited Niehren–Priesnitz–Su uniform-poset/PDL result is relevant prior art,
+but its signatures require common arity and common variance and its stated
+reductions do not directly handle this sorted field order. Padding `Absent`
+with an unrestricted global extremum would admit spurious source trees. The
+remaining theorem is effective satisfiability for regular well-sorted trees
+over this finite ranked signature, including exact descriptor equations,
+directed covariance/contravariance/invariance, and the conditional
+`Present(t) <: Absent` branch, plus regular-witness extraction. No
+undecidability or failure of regular completion was shown. Sol recommends
+keeping this as a proof route and the Function-descriptor existence gate open;
+no new effect machinery or language semantics follows. No files in the design
+package changed, and no tests/builds ran.
+
+Primary prior art: [Niehren, Priesnitz, and Su, *Complexity of Subtype
+Satisfiability over Posets*](https://www.cs.ucdavis.edu/~su/publications/poset.pdf),
+especially §§2.4, 4.1, and 5.1–5.3. Their result is not being treated as a
+direct proof for the sorted Record encoding.
+
 The separate finite supplied-template context-closure candidate has now
 received clean compiler-referee and spec-auditor delta reviews after its
 finite-label-carrier repair. This proves only conditional finiteness for its
