@@ -1877,12 +1877,11 @@ bounded finite-generation schema now constructs the unresolved query with
 candidate receipts, correspondences and views when the finite source/profile
 graph supplies those original occurrence facts. This does not prove that raw
 source constructs the profile or that the generated paths are admissible.
-Immediate next gate: determine whether existing source rules derive one
-comparison-independent decorated application witness (including the joint
-fiber and candidate map admissions) while leaving `Q = T_P <: F_cb` unresolved.
-If they do, display that derivation for the bounded identity/request witness;
-if they do not, isolate the exact missing admission rule before considering
-any user decision. Keep universal domain and observation inclusion separate.
+Immediate next gate: construct the finite candidate obligation graph with
+`Q = T_P <: F_cb` unresolved, then validate its proposed slot/argument/call
+evidence as the local resolution of that same inequality. Keep candidate-graph
+nonemptiness distinct from a nonempty admitted semantic fiber, and prove the
+universal checked-domain and complete-observation clauses separately.
 Astra and compiler-referee audits refine the former
 `ArgEventToCallMember` gate into shared support membership, dynamic event
 preservation, and positive typed-incidence claims. A bounded compiler-referee
@@ -1972,21 +1971,89 @@ profile generation, open-fiber nonemptiness, candidate evidence admission,
 and the universal checked-domain and complete-observation clauses remain
 open. No new carrier, API, phase, or implementation decision follows.
 
-A subsequent bounded Astra audit found no current source rule that introduces
-the required comparison-independent decorated witness. The identity callback
-and `op : Unit -> [E] Int` argument carrier supply an operational execution
-skeleton, including the declaration-derived result consumer and a legal
-response requirement; they do not establish a nonempty jointly well-formed
-`ν,K,D` fiber or admit `M_slot`, `M_arg`, and `M_call` while `Q` is unresolved.
-The existing transport and linking results are conditional on those typed
-derivations/maps, and callback §8 calls its examples proof witnesses rather
-than accepted programs. This is a non-entailment result, not an executable
-counterexample and not evidence that the intended lift is impossible. The
-narrow remaining lemma is a bounded source-context introduction with the
-shared assignment, original signed profile, three correspondence admissions,
-and one legal request/response execution, without using `Q`; do not count
-operational execution or support membership alone as its proof. No Oracle
-behavior or new carrier is implicated.
+A bounded compiler-referee review and Astra follow-up distinguish three
+objects. First, for a supplied known formal/profile, finite source constraint
+generation can place unresolved `Q`, the retained slot profile, and candidate
+`M_slot`, `M_arg`, and `M_call` edges in one graph; this does not assert `Q`.
+Second, a candidate graph with `ν(d)=[E]`, pure `b`, monomorphic
+`op : Unit -> [E] Int`, and a legal `Int` response is syntactically
+nonempty. This is not a nonempty `Rel_C` or admitted typed-evidence fiber:
+typed `Receive`/`Flow`/`Path` evidence and joint `K,D` satisfaction are not
+obtained merely by drawing candidate edges or choosing a substitution.
+Third, those candidate edges can be the evidence proposed by the local
+resolution of `Q`; their semantic validity must be proved as part of resolving
+that one inequality, rather than treated as an already accepted binding.
+
+The operational skeleton is concrete: `D_op` is inertly constructed from the
+monomorphic operation call, whose declaration-derived result consumer emits a
+request with a legal `Int` response; unchanged Pure `Value(Int)` entry forces
+it once before the identity body, and bind preserves the request and suffix.
+The selected callback view supplies the target profile and invocation
+context. This yields candidate correspondence endpoints and a Q-unresolved
+obligation graph, not yet admitted typed paths or proof of the complete
+comparison. Astra confirms that the supplied same-`d` occurrences and
+`ν(d)=[E]` substitution do not alone prove the port maps, checked-domain
+inclusion, body/result uniform bound, or `[b,d]` complete-observation
+inclusion. The next proof should validate the candidate evidence directly in
+the local `A <: B` resolution, with the bounded identity/request case first;
+retain divergence, all legal responses, same-fiber `K,D`, and later body/
+result/future-use cases as explicit domain obligations. No source admission
+rule, new carrier, API, or phase is selected by this graph construction.
+
+The bounded candidate graph can be made concrete without claiming source
+acceptance. Take a receiver with supplied formal `(β,F_cb,Slots(β))` whose
+body directly calls that formal on `op()`, and pass an already constructed
+Pure identity value `f`. Constraint generation records `Q=T_P <: F_cb` and
+the receiver's call-site descriptors together, leaving `Q` unresolved. Set
+`A=C=Int`, choose pure `b`, and instantiate the shared abstract component
+`d` to the singleton row `[E]` for the monomorphic operation family `E`.
+The inert argument carrier is the source call to `op : Unit -> [E] Int`; its
+declaration-derived result consumer emits a request, and a surrounding `E`
+handler can provide the legal `Int` response. Its candidate
+profile edges are `d⁻ -> J_arg -> Force(D_op)` and the designated
+`d⁺ -> J_call` through the same callback slot view. `M_slot` retains the
+formal profile. This constructs a finite, nonempty **candidate obligation
+graph** without evaluating `Q`; the substitutions and edges remain proposed
+resolver evidence. It does not construct an admitted `Rel_C` fiber, validate
+the maps, or prove either complete-inclusion clause. In particular,
+`K,D` must remain the source-generated operation and continuation incidences;
+monomorphic operation types remove polymorphic argument equations but do not
+make those incidences disappear. The next semantic step is to prove the
+candidate evidence valid as the result of this local inequality query, rather
+than require an accepted source binding as its premise.
+
+A fresh compiler-referee audit of that step rejects shrinking the
+`T_P <: F_cb` comparison to the receiver body's single observed `op()` call.
+The source index fixes the slot/profile/assignment context, but the selected
+complete-interface comparison still ranges over every challenge and future
+history admitted by `F_cb`; reached-call-only domains are explicitly rejected
+by the coupled-interface candidate. The bounded receiver establishes one
+candidate event path and can test non-vacuity after the maps are admitted. It
+does not prove `D_checked ⊆ D_actual` or complete observation inclusion for
+the whole slot contract. The next proof must construct those complete domains
+for the actual Pure value and retained callback view, then apply the joint
+containment law with all legal responses, state, alias/future-use paths and
+the same `K,D` fiber. No singleton-context restriction is authorized.
+
+A bounded Astra proof audit of the universal clauses confirms that the
+approved rules give only conditional execution preservation, not admission or
+complete-interface inclusion. With an already supplied admissible decorated
+view, the identity's `Force(D) >>= Return` preserves request continuations,
+state, suffix and divergence prefixes uniformly. But core §9's `P_i` denotes
+an interface observation bound, not necessarily the exact executions; equal
+identity executions do not show `P_actual ⊆ P_checked` if the actual bound
+admits additional observations. The complete checked and actual admission
+predicates, and the adequacy relation between them, remain undefined. The
+minimal missing result is a source-derived contextual adequacy theorem for an
+existing Pure invocation through the retained slot, using independently
+defined admission clauses and deriving (rather than assuming from `Q`) typed
+receipts/correspondences, same-fiber well-formedness, domain inclusion and
+complete observation-bound inclusion over all legal histories. A request or
+divergence carrier alone does not establish non-vacuity or a counterexample;
+the earlier hypothetical empty-effect-only Pure completion is not authorized
+by the selected linked lift. This is a missing derivation, not a formal
+independence theorem or executable counterexample. No implementation/API/phase
+or new evidence carrier follows.
 
 ## Main records
 

@@ -3178,3 +3178,41 @@ same well-formed fiber. Checked-domain inclusion
 remain separate obligations. Current `ResolvedExpr` lacks application
 structure and `ConstraintBatch::collect` takes HIR only, so this result proves
 no current compiler implementation path or API/phase choice.
+
+### Universal callback clauses: contextual adequacy still missing (2026-10-04)
+
+A bounded Astra proof audit separately checked the complete-domain and
+complete-observation clauses for the already-constructed Pure identity through
+the retained Handler callback view. Under one already supplied admissible
+decorated view/configuration, the unchanged `Value(Int)` entry runs
+`Force(D) >>= Return`; bind right-unit preserves request continuations,
+resumed state, pending suffix, and divergence prefixes uniformly over supplied
+carriers. This is conditional execution preservation only. The complete
+checked-slot and actual-Pure admission predicates, and the relation between
+them, remain undefined, so this does not prove `D_checked ⊆ D_actual`.
+
+The observation clause is independent. Core §9's `P_i` is an interface bound,
+not necessarily the exact identity executions. Even when the concrete
+executions match, the actual bound may admit observations absent from the
+checked bound; therefore right-unit simulation does not prove
+`P_actual ⊆ P_checked`. The approved same-`d` contribution remains intact but
+does not supply contextual admission, response/state correlation, or
+containment between complete bounds. No source counterexample was found: a
+request or divergence carrier still needs source admission premises, and the
+earlier hypothetical empty-effect-only Pure completion is not authorized by
+the selected lift. This is a missing derivation, not a formal independence
+theorem or executable rejection case.
+
+The minimal next theorem is contextual adequacy for invocation of an existing
+Pure value through its retained slot: define independent source admission
+clauses for both descriptions, then derive typed receipts/correspondences,
+same-fiber well-formedness, universal checked-to-actual admission, and
+complete actual-to-checked observation containment over legal responses,
+state, alias/future-use paths, repeated resumptions and finite divergence
+prefixes. Existing execution preservation can discharge the operational part
+once those premises are available. No API, phase, carrier, implementation,
+or new source admission rule is chosen by this audit.
+
+The requested model was `gpt-6-astra` at low effort; live runtime settings
+were not independently observable. No source edits, Oracle inspection, tests,
+builds, or measurements were performed.
