@@ -840,6 +840,37 @@ minor wording findings (quantifying all post-force outcomes; treating the
 request-free `never` reading as sufficient only). No implementation or test
 work was authorized or run.
 
+Follow-up source check: typed-computation-core §9 already gives a sufficient
+joint receiver-comparison law, `D_checked ⊆ D_actual` and
+`P_actual(d) ⊆ P_checked(d)` for every checked challenge at the same `ν`.
+That law is reusable as the adequacy target, but it does not build the
+challenge/observation descriptions from arbitrary effect-row components or
+the four Function ports. It explicitly leaves finite construction of the
+complete `ExecuteCallable` image and higher-order/store challenge relations
+open. The source docs therefore do not yet define a uniform component
+interpretation; this is a missing definition, not a counterexample to one.
+
+`Force(D) >>= B` supports only a conditional support upper bound over all
+reachable post-force `(v,C₁)` outcomes. It does not prove an unconditional
+row union: retained receivers can ignore their carrier, and state-dependent
+continuations and handler transitions remain in the complete image. The next
+gate is to construct a candidate uniform component interpretation, derive
+its joint `D` and `P` views, then test both intended inequalities against
+effectful/diverging value-entry arguments, ignored retained arguments,
+dependent `K,D`, continuation re-emission, and operation callables whose
+native body returns a carrier consumed later by the declared result
+interface. Parameter roles, source call scheduling, result forwarding, and
+the intended inequalities remain selected; no uniform
+component-to-interface interpretation or general four-port Function
+comparison rule is selected. A separate port rule requires a source
+counterexample to the uniform approach first. Sol's architect investigation,
+spec-auditor pre-write review, and compiler-referee delta review found no
+basis to add a carrier or promote Oracle behavior. The compiler-referee
+review also identified operation callables whose native body returns a
+carrier for later consumption by the declared result interface as a useful
+additional adequacy case; that case was added to the next-gate record. No
+tests/builds ran.
+
 The first generalization obstacle remains replay admission: same-pivot records
 alone do not justify a replay, and optional Records refute unconditional
 concrete transitivity. Guard inheritance, row/residual alternatives and

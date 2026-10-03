@@ -120,16 +120,26 @@ is withdrawn. `notes/design/2026-10-03-source-context-finite-closure.md`
 records a conditional finite-context theorem for supplied templates, not the
 source-wide template-generation proof.
 
-Immediate gate: settle the source elaboration from the role-sensitive Function
-receiver interface to its four effect/value ports, using the user's two
-intended inequalities and the derived `Force(D) >>= B` call accounting. The
-source transition conditionally supports an argument-plus-body bound, but
-does not say how the negative port denotes argument execution or a
-boundary/consumption capability, or how effect-position `never` elaborates.
-Derive how the positive port realizes the already approved combined `[b,d]`
-case while preserving `ν`, symbolic family constraints and occurrence
-incidence; keep value-bottom `never`, empty effect row, and polarized internal
-bottom distinct. Do not use port-wise general-Type checks.
+Immediate gate: derive a candidate uniform source interpretation from an
+admitted effect-row component to the complete receiver/computation interface
+at one `ν`, preserving literal component identity. Typed-computation-core §9
+already supplies the conditional comparison target
+`D_checked ⊆ D_actual` and `P_actual(d) ⊆ P_checked(d)` for every checked
+challenge, but does not build those descriptions from arbitrary components
+or Function ports. Use `Force(D) >>= B` only for its conditional support upper
+bound over all reachable post-force outcomes; do not assume unconditional
+row union. Derive both intended inequalities jointly from the candidate
+interpretation, including effectful/diverging value-entry inputs, ignored
+retained carriers, dependent `K,D`, continuation re-emission, and operation
+callables whose native body returns a carrier consumed later by the declared
+result interface. The source documents do not yet define that uniform
+interpretation, but do not refute one. Parameter roles, call scheduling,
+result forwarding, and the two target
+inequalities remain selected; no general four-port Function comparison rule
+is selected. Only consider an additional port rule after a source-derived
+counterexample to uniform interpretation. Keep value-bottom `never`, empty
+effect row, and polarized internal bottom distinct. Do not use port-wise
+general-Type checks.
 
 For that elaboration, map components to existing complete-interface and
 subtraction evidence. `g(o)` owns an argument of a typed request occurrence,

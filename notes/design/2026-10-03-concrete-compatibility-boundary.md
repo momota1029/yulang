@@ -259,6 +259,43 @@ no returned values does not imply that a computation typed with result
 `Never` has no request prefixes. The source distinction between
 `Value(A)` and `Computation(E,A)` must remain visible in any uniform mapping.
 
+#### Existing joint receiver-comparison law
+
+Typed-computation-core §9 already states a sufficient source comparison law
+for two descriptions of the same actual callable. At one assignment `ν`, let
+`D_i` be the complete admissible challenge domain, including initial
+carrier/configuration and future input histories, and let `P_i(d)` describe
+the complete joint observations under challenge `d`. Then:
+
+```text
+D_checked ⊆ D_actual
+∀ d ∈ D_checked: P_actual(d) ⊆ P_checked(d)
+```
+
+This law preserves the dependency between argument admission, entry,
+continuations, result, and symbolic family observations. It is useful for
+testing a proposed Function interpretation, but it does not interpret an
+arbitrary row component `τ`, construct either `D_i` or `P_i` from the four
+Function ports, or establish either intended inequality. The same section
+explicitly leaves finite construction of the complete `ExecuteCallable`
+image and higher-order/store challenge relations open. Parameter roles and
+source execution rules are already selected; the open point is their mapping
+from effect-row components to these complete descriptions.
+
+The existing call equation yields only the support upper bound over all
+reachable post-force outcomes. It does not justify an unconditional row-union
+equation: a retained receiver can ignore its carrier, while state-dependent
+continuations and handler transitions affect the complete image. Accordingly,
+the next proof must construct a candidate uniform component interpretation,
+derive both `D` and `P` views jointly at the same `ν`, and then check both
+intended inequalities against the source entry cases. It must preserve
+effectful/diverging value-entry arguments, ignored retained arguments,
+dependent `K,D`, continuation re-emission, and operation callables whose
+native body returns a carrier consumed later by the declared result interface.
+If no uniform interpretation
+works, identify a source counterexample before proposing a separate port rule.
+No such interpretation or rule is selected by this note.
+
 The compact signature `'a ['b, write int] -> ['b] int` places `'a` in the
 value-input position and shares effect variable `'b` between input and result
 descriptors. `write int` is subtractive in the contravariant descriptor;
