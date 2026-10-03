@@ -7,6 +7,7 @@ Approved-by: user for the single inequality judgment, endpoint-dependent resolut
 Reviewed-by: prior compiler_referee/spec_auditor reviews cover frozen-source facts and earlier Record/replay candidates; 2026-10-03 compiler-referee delta reviews of the Function descriptor and mixed-row candidate found no blocking/major issues, with minor wording repairs closed; general-component, polarity-specific reverse-addition, and abstract-only contra-meet wording delta reviews found no blocking/major/minor issue; the conditional support-obligation corollary received bounded spec-auditor and compiler_referee review with all findings closed and no remaining finding; the intended-Function necessary-condition subsection received a bounded compiler_referee review with no findings; the conditional Act-family coverage candidate received a bounded compiler-referee review, its minor ownership clarification and major nonempty-fiber premise were repaired, and the delta review closed with no residual finding; the singleton `TypedRow` to candidate Function-support crosswalk received a bounded compiler_referee review with no findings; the abstract-component same-fiber candidate had a major joint-fiber/union-premise finding repaired and its bounded delta review closed with no residual finding; the full witness calculus remains unreviewed
 Role-first §8 review: architect pre-write audit; compiler_referee reported one BLOCKING complete-domain-construction gap and major decorated-behavior, entry-role separation, and support-only lifting gaps; spec_auditor found the selected direction conformant and confirmed these obligations remain open. Rigid-hole schema delta: compiler_referee accepted its conditional non-vacuity/actual-preservation claims, while retaining BLOCKING `EnvStore`/`JointWF` construction and a major operational-context-closure obligation. A later bounded Astra theorem audit and Sol architect delta support only the conditional open-graph research candidate below; both retain the domain/construction and closure gaps. The step-index candidate has a bounded compiler-referee audit; the subsequent source-state `spec_auditor` audit requires heap examples to remain conditional until source realization. No carrier insufficiency found.
 Role projection/source-elaboration delta: architect audit confirmed §24 selects the role in the three cases, §21/core §6 fix the separate entry/body skeleton, and complete boundary propagation/interface construction remains open; spec_auditor found no blocking/major issue and one table-format minor, which was repaired. No Oracle evidence used.
+Role-first correction of earlier support/necessary-condition prose: compiler_referee delta found no blocking/major/minor issue. Challenge admission is now stated over role-derived complete views; no effect-port meaning is attributed to `never` or `Any`, and neither inequality is claimed proved.
 Implementation authority: none
 Supersedes: none; narrows source applicability of structural relation candidates without invalidating their fragment theorems
 
@@ -202,31 +203,23 @@ assignment `ν`, collecting over all reachable post-force outcomes gives
 `supp(Call(f,D)) ⊆ supp(D) ∪ ⋃_{(v,C₁)∈Force(D)} supp(B(v,C₁))`, where `C₁`
 is the live configuration after forcing. If `d` bounds `supp(D)` and `b`
 uniformly bounds `supp(B(v,C₁))` over those outcomes for values admitted by
-`a`, the call has a combined support bound. If the four-port elaboration maps input descriptor
-`d` to that argument bound and maps output descriptor `[b,d]` to the
-corresponding combined bound, the first intended inequality has a support-level
-justification. This explains why the same contribution may occur in both
-positions: it is one carried computation executed at entry, not necessarily
-two independent Function fields. The existing source call equation does not
-itself prove that `d` has this descriptor meaning. The common value endpoints
-`a,c` preserve the argument and result path in this rule.
+`a`, the call has a combined support bound. This source call equation alone
+does not interpret input descriptor `d`, output descriptor `[b,d]`, or any
+effect-row component; it does not map a component to a receiver interface.
+The role-first source elaboration and complete `CallView` must establish which
+view is compared. The common value endpoints `a,c` preserve the argument and
+result path in this rule.
 
-This source transition explains why an argument effect bound remains
-observable through a value-parameter call and why an intended output bound
-may need to account for both argument and body execution. It is supporting
-source-semantic evidence for the coupling, not the Function descriptor
-comparison rule and not an explanation of the input-port meaning or how
-effect-position `never` elaborates. The selected source rules for parameter
-roles and call entry are in redesign charter §21 and ordinary-computation
-package §§3–4.
+This source transition explains why a value-entry callback invocation may
+need to account jointly for argument and body execution. It is supporting
+source-semantic evidence, not a Function comparison rule. It does not assign
+effect-position meanings to `never` or `Any`, or interpret an input port from
+its endpoint spelling. Parameter roles and call entry remain governed by
+redesign charter §21 and ordinary-computation package §§3–4. The newer
+role-first gate supersedes earlier proposals to explain the second intended
+inequality by assigning standalone request contributions to either `never`
+occurrence.
 
-At the same support-level abstraction, one sufficient explanation of the
-second intended inequality would assume that its two effect-position
-occurrences of `never` contribute no requests under their respective source
-port interpretations, so both target ports may be bounded by the same `e`.
-This is a sufficient candidate premise, not a necessary condition on the
-approved inequality; another source elaboration could justify it differently.
-Value-bottom meaning alone does not establish this premise.
 `Result(Value(A)) = Comp(empty,A)` and
 `Result(Computation(E,A)) = Comp(E,A)` govern result forwarding; they do not
 erase argument or body requests already executed. Both displayed inequalities
@@ -534,9 +527,11 @@ meaning. `OpCompat` continues to retain operation-local binders,
 payload/response, profiles and continuation obligations. This argument uses
 neither `Filterφ` nor the row residual `L - J`; it entails no observation
 deletion, subtraction, accumulation law, or concrete-success composition.
-Neither intended Function inequality follows. The first still needs the
-negative-port interpretation and the meanings of `d` and `[b,d]`; the second
-also needs the meanings of both effect-position `never` occurrences.
+Neither intended Function inequality follows. The first still needs
+role-specific complete views that admit the same effectful checked challenges
+and jointly account for `d` and `[b,d]`; the second still needs a complete
+comparison retaining the shared `e` constraints. Neither proof assigns a
+standalone effect meaning to `never`.
 
 #### Necessary conditions from the intended Function cases
 
@@ -551,17 +546,16 @@ For
 Fun(a, never, b, c) <: Fun(a, d, [b,d], c)
 ```
 
-assume a checked challenge `h` is admitted by `d` and carries a nonempty typed
-request observation at the designated argument boundary. If the actual
-negative `never` endpoint were interpreted as permitting only request-free
-incoming carriers, that same `h` would be absent from `D_actual`, contrary to
-`D_checked ⊆ D_actual`. The discriminator requires an actual admitted
-challenge: a nonempty upper-bound descriptor `d` alone does not establish one.
-A request prefix emitted before divergence still witnesses the challenge;
-divergence before any request does not. This excludes a pure-only admission
-reading of the actual negative `never` endpoint in this case. It does not
-equate `never` with an empty row or internal bottom, nor does it select the
-endpoint's successor meaning.
+assume a checked challenge `h` is admitted by the checked complete callback
+view and carries a nonempty typed request observation at the designated
+argument boundary. The joint comparison requires that this same challenge be
+admitted by the actual callable's complete view (`D_checked ⊆ D_actual`),
+including its actual §21 entry and receipt-before-force sequence. A request
+prefix emitted before divergence remains part of that actual invocation; a
+retained computation entry instead follows its explicit body consumers. This
+is a requirement on role-derived complete views, not an interpretation of
+the actual type's effect-position `never`. A nonempty endpoint descriptor
+alone does not establish an admitted challenge.
 
 For each admitted checked challenge, the output interpretation of `[b,d]`
 must contain the actual complete observations admitted by §9's comparison.
@@ -591,18 +585,18 @@ Fun(a, never, never, b) <: Fun(a, e, e, b)
 
 both target ports refer to the same term in one assignment `ν`. Any family,
 value, request, continuation, or residual constraints incident to that term
-must remain in the shared `K,D` fiber while constructing challenge and
-observation views. Independent port marginals could choose incompatible
-assignments to `e` and pass separate projected checks without a joint
-comparison witness. Sharing the term does not equate events or require exact
-input/output support equality; the complete source image determines how entry,
-handling, and resumption relate them. Neither occurrence of effect-position
-`never` receives a meaning from this argument.
+must remain in the shared `K,D` fiber while constructing the role-derived
+challenge and observation views. Independent port marginals could choose
+incompatible assignments to `e` and pass separate projected checks without a
+joint comparison witness. Sharing the term does not equate events or require
+exact input/output support equality; the complete source image determines how
+entry, handling, and resumption relate them. This correlation condition does
+not assign effect-position meaning to either `never` occurrence.
 
-These conditions narrow the next component-denotation rule: it must establish
-challenge admission for an effectful checked carrier, preserve the actual
-argument prefix and body/result observations in one joint output view, and
-retain the shared assignment for linked ports. They establish no `[b,d]`
+These conditions constrain the later complete Function comparison: it must
+establish challenge admission for an effectful checked carrier, preserve the
+actual argument prefix and body/result observations in one joint output view,
+and retain the shared assignment for linked ports. They establish no `[b,d]`
 normalization, component classification, concrete reversal, or complete
 Function inequality. No new evidence carrier or effect algebra follows.
 

@@ -2004,3 +2004,20 @@ formatting issue, which was repaired by converting the non-literal comparison
 case to prose. `git diff --check` is the only verification; no code, tests,
 builds, Oracle inspection or measurements. Implementation authority remains
 none.
+
+### Remove residual effect-position `never` premises (2026-10-03)
+
+A reread of the necessary-condition section found older prose that still
+explained effectful challenge admission by interpreting the actual negative
+`never` endpoint, despite the newer role-first gate. I replaced that premise
+with the actual source obligation: the same checked challenge must belong to
+the role-derived actual callable view, respecting receipt and §21 entry. The
+`Force(D) >>= B` support bound remains conditional source-call evidence only;
+it assigns no row-component denotation. The second inequality keeps shared
+`e`/`K,D` correlation without a `never` rule.
+
+An independent compiler-referee delta review found no findings. Neither
+inequality is proved; complete role-indexed views and challenge-domain
+construction remain open. `git diff --check` is the only verification. No
+code, tests, builds, Oracle inspection or measurements; implementation
+authority remains none.
