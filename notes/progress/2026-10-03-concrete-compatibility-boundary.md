@@ -2336,3 +2336,60 @@ states, store histories and divergence; the `Int` endpoint rules out latent
 result forcing. The reviewer explicitly did not infer either static port
 inclusion or equivalence across different `CallView`s. No implementation or
 tests changed.
+
+### Force/body source partition for the callback effect-lift witness (2026-10-03)
+
+Sol's next proof slice separates an operational fact from the still-open
+typed-port map. For a supplied ordinary application with a value-entry
+callback, and identity value-level argument/result transport, retain the
+actual call equation from ordinary semantics:
+
+```text
+receipt(D);
+Force(D) >>= λ(v,C').
+  RebindResultPath(D,v,C');
+  Run(B,v,C')
+```
+
+Label a request transition by the source phase that emitted it: the demanded
+argument force, or a reached body execution after that force returned. By
+inversion of the state-threaded bind rules, each request in a finite complete
+call prefix is emitted by one of those two phases. A left-side request keeps
+the typed rebind/body suffix in its continuation; each actual raw resumption
+continues that suffix in its resumed state. A right-side request is emitted
+only in a body state reached after such a force result. Repeated or multi-shot
+resumptions can create further event occurrences, but do not create a third
+source phase. The event's operation instance and its original `K,D` incidence
+remain attached to that transition. This gives an occurrence-preserving
+source partition, not a union equation for solved effect rows. Any separately
+executing non-identity conversion would need its own source-phase case and is
+outside this witness.
+
+Consequently, if one supplied assignment `ν` and one complete relational
+fiber establish phase-specific admission sets `E_force` and `E_body`, then
+the call's support projection is contained in `E_force ∪ E_body`. To identify
+that union with support of the canonical flat row `[b,d]` requires a separate
+source-derived component-combination premise in the same fiber. Admission by
+`d` for force requests and by `b` for body requests, on its own, does not
+establish that row interpretation. The identity witness `B=Return` has no
+body-phase requests; the general body case keeps its reached post-force state
+dependence. This support corollary does not select a meaning for `never`,
+does not independently subtype the four Function ports, and does not turn the
+argument/body relation into a Cartesian product.
+
+There are two limits. First, event partition plus support containment does
+not prove complete-observation inclusion `P_actual(h) ⊆ P_checked(h)`: that
+still requires checked-view continuation/state coverage for the same
+`Rel_C` fiber. Second, the phase label alone does not produce `Observe` at the
+checked positive member `p_d⁺`. If the row comparison is justified only by
+component support, that may be enough for the extensional support obligation;
+it is not yet the typed `CallView`/boundary derivation required by the
+existing `Observe` contract. No port-to-port `Flow` edge is inferred.
+
+This is a Sol-authored proof candidate, not a selected successor rule. It
+isolates the source fact available from bind and leaves the exact residual
+question open: derive a component-combination rule connecting these
+phase-specific supports to `[b,d]` while the complete joint continuation
+relation stays in the same fiber. The canonical flat form is selected; its
+source denotation and combination rule are not. No compiler code, tests or
+builds changed.

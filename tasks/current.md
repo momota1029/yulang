@@ -263,6 +263,14 @@ and resumption suffix. Reuse existing directed-weight/subtraction evidence
 for any witnessed partial reversal. No carrier gap, inequality proof, or
 accepted-program claim is established.
 
+A reviewed bind-inversion slice partitions requests in the identity
+value-transport call into demanded-argument-force and reached-body phases,
+preserving event occurrences, state and `K,D` through raw resumptions. Under
+one supplied `ν`/complete fiber it bounds support by the union of the two
+phase-specific admission sets. Mapping that union to canonical `[b,d]` still
+requires a source-derived component-combination premise; no exact `p_d⁺`
+`Observe` or complete-observation inclusion follows.
+
 Keep complete `EnvStore`/`JointWF` construction, source alias/store transition
 closure, and finite-witness adequacy as later proof gates. They remain needed
 for a complete-domain Function comparison but do not block the bounded
