@@ -164,6 +164,12 @@ equality captures this self-shift. The gap matters when the same package also
 has nonempty Record descriptors, so the `Λ=∅` reduction no longer applies.
 Probe the transition with such a Record obligation still present; the isolated
 unary case does not show a failure of the accelerator within its stated scope.
+Minimal mixed probe: for an abstract binary constructor `C` with declared
+variance `(+,-)`, let `e={}`, `r={f:Int}`, `q=C(x,e)`, and require `x <: q`.
+The regular assignment `x=C(x,r)` satisfies the bound directly: its children
+give `x <: x` and `e <: r`. This forces a ranked P/P self-comparison and a
+nontrivial Record-width comparison in one package. It is a closure probe, not a
+counterexample or a general regular-witness argument.
 
 ## Current work
 

@@ -1261,3 +1261,14 @@ transition is its coexistence with nonempty Record descriptors elsewhere in
 the same finite package, where that reduction does not apply. Any counterexample
 or state construction for this gap must keep such a Record obligation active;
 the isolated unary example does not refute the accelerator within its scope.
+
+Minimal mixed-record probe for the remaining P/P transition: use an abstract
+binary constructor `C` with declared variance `(+,-)`, exact Records
+`e={}` and `r={f:Int}`, descriptor `q=C(x,e)`, and the one bound `x <: q`.
+The regular assignment `x=C(x,r)` satisfies that original inequality by direct
+decomposition: the covariant child is `x <: x`, while the contravariant child
+is `e <: r`, valid by mandatory-Record width. This places a ranked P/P
+self-comparison and a nontrivial Record-width comparison in one package. It is
+a minimal closure probe only; it neither refutes a candidate nor proves a
+general regular-witness result, and `C` here is not a proposal to decompose
+Yulang Function's coupled effect interface as an arbitrary ranked product.
