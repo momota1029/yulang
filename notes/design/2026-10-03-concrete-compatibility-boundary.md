@@ -4,7 +4,7 @@ Status: Draft; records user-directed single-inequality, Function effect-descript
 Date: 2026-10-03
 Scope: one inequality judgment with endpoint-dependent solving and local concrete cast/adaptation resolution
 Approved-by: user for the single inequality judgment, endpoint-dependent resolution direction, concrete-success non-composition, polarity-indexed Function effect descriptors, mixed abstract/concrete type components, canonical-flat covariant rows, abstract-only contravariant meet normalization, and concrete-bearing attachment descriptors for witnessed partial reverse-addition; component classification, co-occurrence consolidation, the component-to-existing-carrier bridge, proof that existing evidence licenses a particular reversal, replay eligibility, and implementation remain open
-Reviewed-by: prior compiler_referee/spec_auditor reviews cover frozen-source facts and earlier Record/replay candidates; 2026-10-03 compiler-referee delta reviews of the Function descriptor and mixed-row candidate found no blocking/major issues, with minor wording repairs closed; general-component, polarity-specific reverse-addition, and abstract-only contra-meet wording delta reviews found no blocking/major/minor issue; the full witness calculus remains unreviewed
+Reviewed-by: prior compiler_referee/spec_auditor reviews cover frozen-source facts and earlier Record/replay candidates; 2026-10-03 compiler-referee delta reviews of the Function descriptor and mixed-row candidate found no blocking/major issues, with minor wording repairs closed; general-component, polarity-specific reverse-addition, and abstract-only contra-meet wording delta reviews found no blocking/major/minor issue; the conditional support-obligation corollary received bounded spec-auditor and compiler_referee review with all findings closed and no remaining finding; the full witness calculus remains unreviewed
 Implementation authority: none
 Supersedes: none; narrows source applicability of structural relation candidates without invalidating their fragment theorems
 
@@ -359,6 +359,69 @@ removing it requires concrete-family match evidence and its type-argument
 equations, while the shared `'b` survives in the result descriptor. This
 fixes the intended notation, not the equality semantics of co-occurrence
 merging or a complete subtraction algorithm.
+
+#### Conditional support obligation inside complete comparison
+
+This is a conditional corollary, not an annotation meaning or acceptance rule.
+Fix a jointly satisfiable assignment `ν`, retained shared `K,D`, compatible
+complete challenge/observation carriers, a checked challenge `h`, and one
+supplied request-support projection `Qν` at the same source-defined boundary
+on both sides. Assume:
+
+```text
+D_checked(ν) ⊆ D_actual(ν)
+
+∀h ∈ D_checked(ν):
+    P_actual(ν,h) ⊆ P_checked(ν,h)
+```
+
+If independently supplied component denotations define
+`Allowed(ν,h,O,q)`, and every checked observation satisfies that predicate
+for each request in its support,
+
+```text
+∀h ∈ D_checked(ν), ∀O ∈ P_checked(ν,h), ∀q ∈ Qν(O):
+    Allowed(ν,h,O,q),
+```
+
+then the same support obligation holds for every actual observation at each
+checked challenge:
+
+```text
+∀h ∈ D_checked(ν), ∀O ∈ P_actual(ν,h), ∀q ∈ Qν(O):
+    Allowed(ν,h,O,q).
+```
+
+The proof is only set inclusion: each actual observation belongs to the
+checked observation set. Actual execution coverage additionally assumes the
+actual behavior is represented in `P_actual`. The domain premise makes
+checked challenges admissible; it gives no conclusion for actual-only
+challenges. Empty challenge/observation sets make the formulas vacuous and do
+not establish nonempty typed-row fibers.
+
+This corollary requires `Allowed` and each component view to be supplied
+independently of the observations being checked, under the same `ν` and joint
+`K,D`; otherwise it can become tautological or combine incompatible fibers.
+For a concrete family item, coverage must be a supplied predicate over
+already established typed requests, using the full family tuple and source
+family relation. It constructs no request or operation instance. An abstract
+component's correlated view and any challenge/observation dependence of
+`Allowed` must likewise be supplied. `Qν` must observe the same complete
+source boundary on both sides, including the relevant finite prefixes,
+designated result consumption, and future/resumption behavior represented by
+the supplied challenges and observations.
+
+Support inclusion is only a necessary projection inside the complete §9
+comparison. It cannot reconstruct `P_checked`, prove challenge-domain
+inclusion, validate annotation acceptance, discharge `OpCompat` or handler
+eligibility, or establish that the supplied component denotations are source
+meaning. `OpCompat` continues to retain operation-local binders,
+payload/response, profiles and continuation obligations. This argument uses
+neither `Filterφ` nor the row residual `L - J`; it entails no observation
+deletion, subtraction, accumulation law, or concrete-success composition.
+Neither intended Function inequality follows. The first still needs the
+negative-port interpretation and the meanings of `d` and `[b,d]`; the second
+also needs the meanings of both effect-position `never` occurrences.
 
 Frozen-source characterization supports the coupling but does not define its
 successor meaning. `infer/.../propagate.rs` detects a negative `Neg::Bot`

@@ -154,26 +154,34 @@ after a source-derived counterexample to uniform interpretation. Keep
 value-bottom `never`, empty effect row, and polarized internal bottom
 distinct. Do not use port-wise general-Type checks.
 
-A conditional coverage hypothesis may restrict complete observations only
-after concrete and abstract component views are jointly defined under the same
-admissible `ν`, preserving `K,D` and nonempty fibers. Keep this distinct from
-request-coordinate filtering, which preserves the valuation domain. Neither
-operation alone defines annotation acceptance: accepted fibers must satisfy
-coverage universally over represented behavior and admissible challenges.
-Family coverage also does not discharge full `OpCompat` or handler checks.
-These are proof constraints on the next derivation, not a selected annotation
-meaning or a new carrier.
+Any hypothetical annotation-coverage rule must be a universal obligation over
+the supplied complete comparison, not deletion of uncovered observations.
+Its support projection applies only after concrete and abstract component
+views are jointly defined under the same admissible `ν`, preserving `K,D` and
+nonempty fibers. Keep this distinct from request-coordinate filtering, which
+preserves the valuation domain. The conditional support consequence below
+quantifies only over checked challenges `D_checked`; coverage over actual-only
+challenges would be an additional contract condition. Neither support
+inclusion nor full-observation restriction alone defines annotation
+acceptance. Family coverage also does not discharge full `OpCompat` or handler
+checks. These are proof constraints on the next derivation, not a selected
+annotation meaning or a new carrier.
 
 Typed-computation-core §9 yields only a conditional support corollary: at a
 fixed shared `ν` and each `d ∈ D_checked(ν)`, inclusion of complete
 observations implies inclusion after the same supplied request-support
-projection `Q`. If checked observations are all within a supplied
-`Allowedν(h)`, actual observations are too. This says nothing about actual-only
-challenges and is vacuous for empty checked domains/observation sets; it does
-not establish nonempty typed-row fibers. Keep the same complete observation
-boundary on both sides, and treat `Allowed` as supplied rather than rebuilt
-from projected family points. The source gate must construct `D`, `P`, and
-`Allowed` from components before this corollary can help either Function case.
+projection `Q`. A precise hypothesis supplies `Allowed(ν,h,O,q)` independently
+and requires it for all `h ∈ D_checked(ν)`, all checked observations `O`, and
+all `q ∈ Q(O)`; complete-observation inclusion then gives the same predicate
+for actual observations at those checked challenges. This says nothing about
+actual-only challenges and is vacuous for empty checked domains/observation
+sets; it does not establish nonempty typed-row fibers. Keep the same complete
+observation boundary on both sides. The concrete family predicate must range
+over already established typed requests, while abstract component views and
+`Allowed` must preserve the shared fiber. The source gate must construct `D`,
+`P`, and `Allowed` from components before this corollary can help either
+Function case; it is only a necessary support condition, not complete
+annotation acceptance.
 
 Current-code ownership check: `yu-hir` has no effect-row or Function-type
 annotation lowering; its current HIR slice preserves syntax values for operator

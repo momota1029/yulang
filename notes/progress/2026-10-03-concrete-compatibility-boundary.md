@@ -988,6 +988,37 @@ no handler subtraction or general Function comparison. `Filterφ` is not used,
 and deleting uncovered behavior cannot establish coverage of the original
 actual relation. No tests or builds ran.
 
+### Restricted component-support candidate (2026-10-03)
+
+Sol derived a conditional support obligation for a proposed annotation view
+containing a resolved concrete family application and an abstract component.
+Under the existing complete §9 comparison, suppose component denotations
+independently supply `Allowed(ν,h,O,q)` inside the same jointly satisfiable
+fiber and retained `K,D`. Require that predicate for every request in every
+checked observation at each `h ∈ D_checked(ν)`. Since
+`P_actual(ν,h) ⊆ P_checked(ν,h)`, the same support condition holds for actual
+observations at those checked challenges. The domain premise
+`D_checked(ν) ⊆ D_actual(ν)` supplies no condition for actual-only challenges.
+
+This remains only a necessary support projection inside complete comparison.
+The family predicate ranges over already established typed requests and the
+full family tuple; it constructs no request or operation instance. Abstract
+views, the source family relation, `Allowed`, and the fixed `Q` boundary must
+be supplied independently and jointly under the same `ν,K,D`. Complete
+`D/P` inclusion and `OpCompat`/handler obligations remain separate. The rule
+uses no `Filterφ`, observation deletion, `L - J`, accumulation law, or concrete
+success composition, and derives neither intended Function inequality.
+
+The initial independent spec and semantic audits accepted this only as a
+conditional hypothesis and identified scope/tautology risks. Sol repaired the
+quantifier and independent-denotation premises; a fresh compiler-referee delta
+review then found no remaining issue in the written corollary. The review was
+limited to that subsection and its direct source dependencies. It did not
+review or select a row-component meaning. Still missing are the source rules
+that construct component views and `D/P/Allowed`, negative-port challenge
+admission, the meaning of `d` and `[b,d]`, and both effect-position `never`
+contributions. No compiler changes, builds, or tests ran.
+
 ### Successor source-to-solver ownership check (2026-10-03)
 
 I checked the current Yulang3 crate boundary after deriving the conditional
