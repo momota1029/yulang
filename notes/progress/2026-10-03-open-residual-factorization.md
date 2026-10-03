@@ -978,3 +978,60 @@ self-shift while preserving joint unary/trace guards and descriptor-prefix
 transport, then prove termination for the full finite-label fragment. A
 reviewed general accelerator is still required before treating the fragment
 as a terminating inference gate.
+
+#### Finite exact closure accelerator when `Λ = ∅` (candidate)
+
+A follow-up Astra construction uses the existing §7.4.1 empty-input-Record
+reduction to accelerate the exact head/trace closure for its bounded
+subfragment. Retain the finite descriptor quotient and each original
+inequality. In a separate finite workspace, add a temporary rational equality
+between the two roots of each original inequality and perform finite
+constructor unification, preserving contractive cycles and rejecting head
+clashes. Do not replace the original directed constraints in the source
+problem.
+
+Keep the workspace as a **partial** rational graph: exact descriptor and
+unification-forced constructor heads remain labelled; descriptor-free MGU
+classes remain unlabelled. Each original root pair has been unified in the
+workspace, so for that bound the active comparison trace can be recognized by
+a finite product over its graph node and orientation bit. Follow a ranked
+child only when the class is labelled; update orientation by that coordinate's
+declared variance. Keep bounds separate, seeding each automaton only from its
+own original root. This recognizes the `G`-active trace language without
+waiting for finite alternation to stabilize. For `q=C(x), x<:q`, unification
+creates one labelled `C` node with an `a` self-loop.
+
+The partial labels also recognize the exact least forced-head closure of the
+clash-free `F/G` system in this fragment. Any head forced by closure must be
+present in the workspace graph because every `Λ=∅` erased solution makes each
+original inequality an equality, hence a solution of the temporary equations.
+For the converse, form two completions of the least closure: fill every
+unforced live address with `{}` in one and `Int` in the other. Every original
+comparison remains satisfied: paired endpoints either carry the same forced
+head or receive the same nullary default, and the recursive child obligations
+are handled by the same closure. Both completions therefore satisfy all
+temporary root equations. Any labelled MGU path/head must occur in both
+equality solutions. An unforced proper prefix could not support that path
+under both nullary defaults, and an unforced endpoint would differ between
+`{}` and `Int`; thus each labelled path/head is forced by the closure. Every
+queried path has finite length. Induction over its prefixes uses the root
+seed, exact descriptor rewrites and the active comparison child rule to give
+a finite Horn derivation for each labelled head, even when the MGU graph has
+cycles. Conversely, an unlabelled class can be completed with a nullary head
+and carries no forced head. This distinguishes “no forced head” from an
+output default: only after closure recognition may the canonical completion
+fill all unlabelled classes with `Record{}`.
+
+This is an existence/closure accelerator, not a full-fiber or principal
+residual representation. The temporary equations are safe here only because
+`Λ=∅` reduces structural subtyping to equality; Records with arbitrary
+pre-erasure field extensions remain in the original fiber. It does not
+accelerate nonempty Record-width choices, permissions, guards, effects,
+casts, adapters, or `Phi/K,D`, and it does not validate combining successful
+concrete comparisons in the general solver. Exactness and the boundary of
+this candidate received a bounded M3 compiler-referee and spec-auditor review.
+The compiler referee found no blocking or major issue and one minor gap in
+the reverse exactness argument; the candidate now states the two-completion
+proof and finite path-depth induction. Primary inspection closed that local
+proof-exposition repair. The spec auditor found no scope-conformance issue.
+The candidate remains unapproved for use as a terminating inference gate.

@@ -255,6 +255,18 @@ Next derive an accelerator for this self-shift that preserves guarded trace
 expansion and descriptor-prefix transport, or prove a stronger finite
 regularization route. The complete regular-model gate remains open.
 
+A candidate finite exact-closure accelerator now covers the existing
+`Λ=∅` structural subfragment. It uses a separate temporary rational-equality
+workspace (justified by equality/subtyping coincidence after empty-Record
+erasure), retains the directed roots/orientation per original bound, and keeps
+unlabelled MGU classes distinct from canonical output defaults. A bounded
+compiler-referee review found no blocking/major issue and one minor reverse-
+exactness exposition gap; a two-completion proof and finite path-depth
+induction were added and inspected. A spec-auditor review found no scope issue.
+This is a new candidate theorem beyond §7.4.1's existence reduction; no user
+approval or implementation authority follows. It does not cover nonempty
+Record width choices or establish the full-fragment regular-model property.
+
 A separate attempt to derive a nonregular-only package from aperiodic Wang
 tilings has not produced a reduction. For fixed pointwise decoders from
 regular finite-track trees, decoded `aⁱbʲ` grids are eventually periodic in
