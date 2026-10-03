@@ -1242,3 +1242,42 @@ permission distinctions, and the stated edge cases. The draft, index, task
 navigation and this progress record were synchronized. `git diff --check`
 passed; no tests, builds, or measurements ran. General residual acceptance,
 projection with feedback, source-generation closure and lifecycle remain open.
+
+### Uniform component interpretation derivation (Sol)
+
+The current task directs uniform interpretation as the first research route;
+the restricted-fragment and Function-only routes are not primary alternatives
+unless later evidence defeats the uniform route. A follow-up Sol derivation
+therefore tried the uniform mapping first. The strongest no-new-carrier schema
+is a proof view of the existing complete fiber at one typed effect path,
+assignment `ν`, and shared `K,D`. It must preserve literal component identity,
+lexical ownership, full challenges and observations, and combine components
+before projecting support. This schema is not yet a denotation: existing
+source clauses do not map general `TypeExpression` components to it.
+
+For a resolved family component `F(ᾱ)`, `FamilyAllowed` is only a conditional
+support projection after an owned occurrence and nonempty argument fiber have
+been supplied. For an abstract component, the same-fiber `View_α` is likewise
+conditional on a source port mapping and a joint nonempty fiber. `TypedRow`
+presupposes these occurrences; neither it nor `Rel_C` creates their mapping.
+Reading components through value inhabitants would require a new embedding
+from value denotations to request/interface descriptions, which current rules
+do not supply.
+
+One necessary consequence is fixed by the intended first inequality: a
+request-free incoming interpretation of the negative `never` port would
+exclude an admitted effectful challenge. Conversely, value-bottom does not
+exclude request prefixes from a computation that diverges or returns no value.
+`Any` likewise cannot be read as unrestricted effects merely because it admits
+all values; `EffectRow([])` remains a distinct pure computation row. Mixed
+components must retain one admissible `Rel_C` fiber. Support union follows
+only from a source combination rule and is not a definition of complete
+combination.
+
+The remaining semantic choice is whether a uniform component denotes a bound
+on the complete challenge/observation view at its port, or an additional
+contribution composed by the source invocation/handler rules. Existing source
+rules do not select between them. The latter is a possible direction only; its
+source boundary and combination law are not yet defined. No carrier, solver
+phase, or implementation change is justified. A user decision is pending
+before writing either rule; preserve the current uniform-first research order.

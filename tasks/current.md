@@ -197,6 +197,15 @@ after a source-derived counterexample to uniform interpretation. Keep
 value-bottom `never`, empty effect row, and polarized internal bottom
 distinct. Do not use port-wise general-Type checks.
 
+Sol's uniform-first audit confirms the source rules do not derive the component
+mapping. The current evidence supports only the transport schema
+`Interpret(Γ,ν,p,τ)` as a view into existing `Rel_C`, not a denotation. The
+remaining user decision is whether a component bounds the complete
+challenge/observation view at its typed port or denotes an additional
+contribution composed by source invocation/handler rules. Neither option may
+collapse `Never`, `Any`, or `EffectRow([])`; no new carrier or solver phase is
+justified. Annotation-rule drafting waits on this distinction.
+
 Any hypothetical annotation-coverage rule must be a universal obligation over
 the supplied complete comparison, not deletion of uncovered observations.
 Its support projection applies only after concrete and abstract component
