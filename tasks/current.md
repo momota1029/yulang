@@ -106,10 +106,21 @@ pivot and both bound-record identities. This can justify a bound-derived
 concrete query as its own local check; it does not compose prior `Compat`
 successes. A candidate rule shape now propagates `Lower`/`Upper` bound payloads
 along admitted variable edges and derives a fresh local `Compat` from a
-same-pivot lower/upper pair. It is not approved source semantics. The next
-gate is bound-replay conservation: define the source meaning of those bound
-judgments, preserve original guarded boundaries, and prove exactly which
-replay queries arise with their parent evidence and guards.
+same-pivot lower/upper pair only under an explicit `ReplayAdmissible` premise.
+Frozen source maps `A <: X` to a lower on `X`, `X <: B` to an upper on `X`,
+and `X <: Y` to lower `X` on `Y` plus upper `Y` on `X`; the replay builders
+select prepared pair routes, compose lower/upper weights, and can prefilter
+actions. Lower insertion also has incremental row-residual routes, outside the
+fixed-endpoint fragment. This refines the candidate, not source authority. The
+next gate is bound-replay conservation: define replay admission independently
+of proof-store/queue policy, preserve original guarded boundaries, and prove
+exactly which ordinary pair queries arise with their parent IDs, contexts,
+weights, and eligibility evidence.
+
+The documentary `ReplayAdmissible` refinement received clean bounded
+architect/compiler-referee/spec-auditor review. This certifies the candidate's
+scope and finite abstraction only; the source meaning of eligibility,
+context/weight composition and two-direction conservation remain unproved.
 
 A separate M3 draft now proves finite least closure for a fixed finite graph,
 payload set and context carrier. Independent semantic and conformance reviews
@@ -147,11 +158,11 @@ rule based rather than keyed by the binary replay identity. Independent
 semantic review found one minor overstatement: materialized arguments may
 still have open endpoints, so their comparison is an obligation rather than
 an already-resolved concrete check. That distinction is corrected in the
-reviewed note. The next gate is to prove
-a cross-stage correspondence from each replay obligation to the particular
-consumer checks and conversions that discharge it, including repeated
-consumers and aggregate solved views; do not use an annotated local as a proxy
-for an inserted adapter.
+reviewed note. The next gate is to prove replay admission and bound-obligation
+conservation first. The execution part of that proof must then connect each
+admitted replay to the particular consumer checks and conversions that
+discharge it, including repeated consumers and aggregate solved views; do not
+use an annotated local as a proxy for an inserted adapter.
 
 The user's requested common local compatibility/adaptation boundary is now
 recorded as a documentary candidate in §5.1 of the compatibility note. It

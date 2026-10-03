@@ -240,6 +240,29 @@ and conversion placement remain undecided. The candidate does not change the
 theorem order: establish bound-replay conservation before selection and
 runtime realization. No implementation or tests were authorized or run.
 
+A further frozen-source pass sharpened the admission gate. `step_subtype`
+stores `A <: X` as a lower bound on `X`, `X <: B` as an upper bound on `X`,
+and `X <: Y` as lower `X` on `Y` plus upper `Y` on `X`. The lower/upper
+builders do not enqueue every raw same-pivot pair: they require prepared
+`pair_replay` evidence, preserve both bound record IDs and pivot, and compose
+weights in lower-to-upper order. Lower insertion can use incremental row
+residual routes; ordinary actions can also be trivial, duplicate or
+evidence-only. An architect audit recommends representing ordinary pair
+selection with a separate abstract `ReplayAdmissible` premise and keeping
+admission distinct from worklist materialization. Its source meaning remains
+unproved, and residual row routes are outside the current fixed-endpoint
+closure fragment. The candidate equation now has a separate
+`ReplayAdmissible` premise, and the theorem gate covers only ordinary
+fixed-endpoint pairs until a residual-route carrier is proved. This does not
+adopt frozen proof-store policy as language semantics.
+
+An architect pre-write audit and independent bounded compiler-referee and
+spec-auditor reviews found no issues in this refinement. Their scope was the
+new admission premise, ordinary fixed-endpoint closure claims and synchronized
+records; they did not certify its source meaning or the excluded incremental
+row routes. No tests or builds were run, and implementation remains
+unauthorized.
+
 ## Next gate
 
 Prove bound-replay conservation for a fixed finite source elaboration and

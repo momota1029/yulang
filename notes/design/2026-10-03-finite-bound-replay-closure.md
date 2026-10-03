@@ -4,7 +4,7 @@ Status: Reviewed
 Date: 2026-10-03
 Scope: least closure of a fixed finite variable-bound graph with finite replay contexts
 Approved-by: none; the user's approved relation distinction is recorded in §1 of `2026-10-03-concrete-compatibility-boundary.md`
-Reviewed-by: architect pre-write audit; compiler_referee and spec_auditor review §§1–6 clean after primary closure of minor findings; fresh compiler_referee and spec_auditor review of §7 hypothesis; compiler_referee source-bridge and revised check-only contract-boundary deltas clean after major-finding repair; compiler_referee review of §8 clean after primary closure of one minor materialization-phase finding
+Reviewed-by: architect pre-write audit; compiler_referee and spec_auditor review §§1–6 clean after primary closure of minor findings; fresh compiler_referee and spec_auditor review of §7 hypothesis; compiler_referee source-bridge and revised check-only contract-boundary deltas clean after major-finding repair; compiler_referee review of §8 clean after primary closure of one minor materialization-phase finding; architect pre-write audit plus compiler_referee/spec_auditor review of the §2/3/3.1/6 replay-admission refinement, no findings
 Implementation authority: none
 Supersedes: none
 
@@ -34,7 +34,8 @@ Fix:
 - for each lower payload `i`, a fixed endpoint term `A_i`; for each upper
   payload `u`, a fixed endpoint term `B_u`;
 - a finite context carrier `C` that retains source identity, lexical binder
-  identity and scope guard information; and
+  identity, scope guard information and every finite weight/route coordinate
+  that can affect movement or replay admission; and
 - finite context relations `Move_L`, `Move_U`, and `ReplayCtx`.
 
 Every graph fact uses contexts from `C`; in particular,
@@ -51,7 +52,13 @@ terms.
 cross the edge under the resulting context. `ReplayCtx(c_L,c_U,X,c_R)` says
 that the two contexts at one pivot admit a replay context. These relations are
 explicit parameters of the theorem, not chosen guard-combination policies.
-Their soundness and source definition remain open.
+`ReplayAdmissible(i,u,X,c_L,c_U,c_R)` further selects which pair of bound
+identities may generate replay under those contexts. It is a fixed finite
+background relation over `I_L × I_U × V × C³`; endpoint or weight data that can
+change route eligibility must be represented in the corresponding finite
+payload/context key. This abstraction does not assert that frozen
+`ConstraintWeights` or their full route machinery are finite in this model.
+The soundness and source definition of all four relations remain open.
 
 The candidate monotone rules are:
 
@@ -64,15 +71,21 @@ Bound(X,Y,e) ∧ Upper(u,Y,B,c) ∧ Move_U(c,e,c')
 
 Lower(i,X,A,c_L) ∧ Upper(u,X,B,c_U)
     ∧ ReplayCtx(c_L,c_U,X,c_R)
+    ∧ ReplayAdmissible(i,u,X,c_L,c_U,c_R)
     ⇒ Replay(i,u,X,A,B,c_R)
 ```
 
-The third rule creates a fresh `Compat` query after a bound-replay derivation.
-When both endpoint terms are concrete, that query is resolved locally and may
-select check/cast/adaptation evidence. If either endpoint is unresolved, the
-query remains suspended for a later solving rule; this theorem specifies no
-such rule. A successful local `Compat` result is not a premise to any of
-these rules and is never entered into variable reachability. If a selected
+The third rule represents ordinary selected-pair replay only. It does not
+model the frozen incremental row-reduction route, which can use a residual
+endpoint and needs its own finite carrier and preservation rule. An admitted
+logical route also need not allocate new worklist work: trivial, duplicate or
+evidence-only handling may retain its derivation without a new semantic
+constraint. Its `Replay` conclusion creates a fresh `Compat` query. When both
+endpoint terms are concrete, that query is resolved locally and may select
+check/cast/adaptation evidence. If either endpoint is unresolved, the query
+remains suspended for a later solving rule; this theorem specifies no such
+rule. A successful local `Compat` result is not a premise to any of these rules
+and is never entered into variable reachability. If a selected
 compatibility derivation emits structural child obligations, those require a
 separate finite closure argument with the replay query retained as their
 parent; child generation is excluded from this theorem.
@@ -87,15 +100,16 @@ kind of payload.
 Let `S_0` be any finite set of input lower and upper states. Let `R_Γ` be the
 closure operator that adds every conclusion of the three rules in §2 using
 fixed background facts `Γ` until no new state can be added. Context
-transitions may be nondeterministic, but each relation is finite.
+transitions may be nondeterministic, but each relation, including
+`ReplayAdmissible`, is finite.
 
 **Theorem (finite fixed-graph closure).** The closure process terminates after
 finitely many state insertions and produces a unique least rule-closed state
 set containing `S_0`. Every produced lower, upper or replay state has a finite
-derivation from `S_0` and `Γ` (the fixed `Bound`, `Move_L`, `Move_U`, and
-`ReplayCtx` facts). Conversely, every state with such a finite derivation is
-present in the result. Any fair worklist schedule reaches the same least
-closed set.
+derivation from `S_0` and `Γ` (the fixed `Bound`, `Move_L`, `Move_U`,
+`ReplayCtx`, and `ReplayAdmissible` facts). Conversely, every state with such
+a finite derivation is present in the result. Any fair worklist schedule
+reaches the same least closed set.
 
 **Proof.** The universe of possible states is finite. If `n_L = |I_L|`,
 `n_U = |I_U|`, `n_V = |V|` and `n_C = |C|`, then there are at most
@@ -109,7 +123,10 @@ n_V² n_C
 canonical bound-edge, propagated-payload and replay states, respectively.
 Endpoint terms are fixed by payload identity. A replay state's semantic key
 contains its single result context; its lower and upper parent contexts are
-premises in the finite provenance graph, not additional key coordinates. The
+premises in the finite provenance graph, not additional key coordinates.
+This quotient is sound only if `c_R` retains all behaviorally relevant guard,
+weight and resolution context; if distinct admission witnesses with the same
+key can resolve differently, the key must retain another coordinate. The
 rules only add states, so each insertion strictly
 increases a finite set and saturation terminates. Induction on insertion
 round proves every inserted state has a finite derivation. Induction on the
@@ -128,7 +145,8 @@ proved equivalent for states sharing a key.
 ### 3.1 Conditional semantic conservation
 
 The finite closure theorem alone says nothing about source meaning. Let `Γ` be
-the fixed `Bound`, `Move_L`, `Move_U`, and `ReplayCtx` background facts, and let
+the fixed `Bound`, `Move_L`, `Move_U`, `ReplayCtx`, and `ReplayAdmissible`
+background facts, and let
 `Models_Γ(S)` be the assignments satisfying `Γ` and state set `S` under a
 separately defined bound judgment. If every candidate rule is sound for that
 judgment—each conclusion is entailed by its premises under the same assignment
@@ -194,21 +212,42 @@ its own. The full type-inference replacement objective remains active.
 
 At frozen commit `a58eefc31e22141574b6f20c6a5748151c6d79f1`:
 
-- `crates/infer/src/constraints/machine/propagate.rs::step_subtype` turns a
-  variable-to-variable comparison into a lower bound on the target and an
-  upper bound on the source, with the source constraint as derivation.
+- `crates/infer/src/constraints/machine/propagate.rs::step_subtype` maps the
+  already-normalized comparison orientations as follows:
+
+  | Input comparison | Stored bound |
+  |---|---|
+  | `A <: X` | lower payload `A` owned by `X` |
+  | `X <: B` | upper payload `B` owned by `X` |
+  | `X <: Y`, `X != Y` | lower payload `X` owned by `Y`, and upper payload `Y` owned by `X` |
+
+  Each ordinary insertion retains the source constraint and its weights as
+  derivation data. Earlier bottom/top, stack, union and intersection handling
+  can normalize or split a comparison before this variable dispatch; identical
+  variables return without adding bounds. Effect-row upper bounds use a
+  specialized route.
 - `crates/infer/src/constraints/machine/bounds.rs::cpk_lower_bound_replay_actions`
   prepares routes from a new lower bound to existing uppers;
   `cpk_upper_bound_replay_actions` does the symmetric work. Eligible replay
   actions retain `BinaryReplayDerivation { pivot, lower, upper, rule }` and
   replay claim parents; routing can enqueue, deduplicate, or prefilter a route.
+- These builders do not unconditionally enqueue every stored same-pivot pair.
+  They require a prepared `pair_replay` route; lower insertion can instead use
+  an incremental row-reduction route. The ordinary pair's weights compose in
+  lower-to-upper order in either insertion order. The selected action can
+  still be classified as ordinary, trivial, duplicate or evidence-only before
+  worklist application. This source route motivates an explicit
+  `ReplayAdmissible` premise; its proof-store admission policy is not itself
+  successor language semantics. Incremental row residuals are outside the
+  fixed-endpoint closure fragment above.
 - `crates/infer/src/constraints/tests/case_01.rs::var_bound_addition_replays_against_opposite_bounds_with_union_weights`
   asserts a composed-weight lower/upper endpoint constraint. The neighboring
   `var_var_replay_materializes_transitive_edges` case asserts propagation of
   variable edges and a concrete lower bound along the chain.
 
 These are source and test-contract evidence for the frozen operational route,
-not proof that the candidate `Lower`/`Upper` judgment is successor semantics.
+not proof that the candidate `Lower`/`Upper` or `ReplayAdmissible` judgments
+are successor semantics.
 The frozen machinery additionally has constraint weights, route admission,
 extrusion, incomplete/evidence-only replay and detailed provenance rules that
 the finite theorem abstracts away. No tests were executed for this note.

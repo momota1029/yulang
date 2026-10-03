@@ -4,7 +4,7 @@ Status: Reviewed; records the user's 2026-10-03 semantic decision; operational r
 Date: 2026-10-03
 Scope: separate transitive variable-bound propagation from local concrete compatibility and adaptation resolution
 Approved-by: user for the relation distinction and Oracle observations recorded in §1 only
-Reviewed-by: compiler_referee and spec_auditor §§1–5, 2026-10-03; architect pre-write audit plus fresh compiler_referee/spec_auditor review of §5; architect pre-write audit plus compiler_referee/spec_auditor review of §§2/6 boundary-conservation and bound-replay clarifications; architect pre-write audit plus compiler_referee/spec_auditor review of §5.1 shared-dispatcher candidate, all clean within bounded scopes after factual qualification
+Reviewed-by: compiler_referee and spec_auditor §§1–5, 2026-10-03; architect pre-write audit plus fresh compiler_referee/spec_auditor review of §5; architect pre-write audit plus compiler_referee/spec_auditor review of §§2/6 boundary-conservation and bound-replay clarifications; architect pre-write audit plus compiler_referee/spec_auditor review of §5.1 shared-dispatcher candidate; architect pre-write audit plus compiler_referee/spec_auditor review of §2 replay-admission refinement and §6 ordinary-pair scope, all clean within bounded scopes after factual qualification
 Implementation authority: none
 Supersedes: none; narrows source applicability of structural relation candidates without invalidating their fragment theorems
 
@@ -67,12 +67,17 @@ concrete endpoints must generate; the source meaning of concrete-to-variable
 bounds and suspended checks must first be specified. The frozen Oracle does,
 however, contain a specific lower/upper replay rule: when bounds share a pivot
 variable, adding a lower bound prepares routes against existing uppers, and
-adding an upper bound prepares the symmetric routes. Eligible pair replays
-carry the pivot and both bound-record identities in the replay plan; routing
-may enqueue, deduplicate or prefilter them. This is candidate evidence for an
-admissible bound-propagation derivation that generates a new concrete query;
-the resulting pair still needs its own local check and conversion resolution.
-It does not compose two previously successful `Compat` results.
+adding an upper bound prepares the symmetric routes. The stored orientation is
+`A <: X` as a lower payload on `X`, `X <: B` as an upper payload on `X`, and
+`X <: Y` as a lower payload on `Y` plus an upper payload on `X`. The replay
+builders select eligible prepared pair routes, retain pivot and both bound
+record identities, and compose inherited weights in lower-to-upper order;
+they do not enqueue every raw same-pivot pair. Lower insertion can also use an
+incremental row-residual route, outside the fixed-endpoint candidate below.
+This is evidence for an explicit replay-admission premise, not for making the
+frozen proof-store policy the successor language rule. An admitted ordinary
+pair still needs its own local check and conversion resolution. This does not
+compose two previously successful `Compat` results.
 
 Keep original source-boundary obligations and generated replay obligations
 separately identified. An unresolved source boundary can remain suspended
@@ -85,23 +90,34 @@ proved for the successor.
 One candidate separation for a successor constraint judgment is:
 
 ```text
-Bound(X, Y) ∧ Lower_j(A, X)       ⇒ Lower_j(A, Y)
-Bound(X, Y) ∧ Upper_k(Y, B)       ⇒ Upper_k(X, B)
-Lower_j(A, X) ∧ Upper_k(X, B)    ⇒ Compat_ρ(j,k,X)(A, B)
+Bound(X, Y, e) ∧ Lower_i(A, X, c) ∧ Move_L(c,e,c')
+  ⇒ Lower_i(A, Y, c')
+Bound(X, Y, e) ∧ Upper_u(Y, B, c) ∧ Move_U(c,e,c')
+  ⇒ Upper_u(X, B, c')
+Lower_i(A, X, c_L) ∧ Upper_u(X, B, c_U)
+  ∧ ReplayCtx(c_L,c_U,X,c_R)
+  ∧ ReplayAdmissible(i,u,X,c_L,c_U,c_R)
+    ⇒ Replay(i,u,X,A,B,c_R)
+Replay(i,u,X,A,B,c_R) ⇒ Compat_ρ(i,u,X)(A, B)
 ```
 
 Here `Lower` and `Upper` are variable-bound payloads, not assertions that the
-two endpoints already passed a source-local `Compat`. The replay context `ρ`
-retains both parent-bound identities, the pivot and both applicable scope
-guards. The generated `Compat` result is local to that replay; its success
-does not become a concrete reachability edge. Any further child bounds must
-come from the selected compatibility derivation and retain this replay as
-their parent. This separates bound transitivity from compatibility-result
-composition, but is only a candidate factoring of the judgments: source
-typing, guard combination, principality and runtime conversion placement are
-unproved. In particular, the conditional `X={}` counterexample applies only
-when the original obligations are interpreted as independent local `Compat`
-checks, rather than these stronger bound payloads plus the replay rule.
+two endpoints already passed a source-local `Compat`. `ReplayAdmissible` is an
+explicit candidate premise keyed by both bound identities, their shared pivot,
+and inherited context, guard and weight/route evidence. It must select which
+pair is an admissible replay; same-pivot coexistence alone does not establish
+that every raw pair is mandatory. The replay context `ρ` retains the admitted
+pair, pivot and both applicable scope guards. A generated `Compat` result is local to
+that replay; its success does not become a concrete reachability edge. Any
+further child bounds must come from the selected compatibility derivation and
+retain this replay as their parent. This separates bound transitivity from
+compatibility-result composition, but is only a candidate factoring of the
+judgments: source typing, replay admission, guard/weight combination,
+principality and runtime conversion placement are unproved. In particular,
+the conditional `X={}` counterexample applies only when the original
+obligations are interpreted as independent local `Compat` checks, rather than
+these stronger bound payloads plus an independently justified replay-admission
+rule.
 
 For example, if two suspended obligations are interpreted as nothing more
 than `Compat_j({foo?: string}, X)` and `Compat_k(X, {foo?: int})`, then both
@@ -222,13 +238,15 @@ stored on one variable. In `crates/infer/src/constraints/machine/bounds.rs`,
 upper records; `cpk_upper_bound_replay_actions` performs the symmetric
 pairing. Eligible pair replay actions carry the endpoint comparison,
 `BinaryReplayDerivation { pivot, lower, upper, rule }`, and replay claim
-parents. Replay routing may enqueue or classify a route as trivial, duplicate,
-or evidence-only and prefilter it. Thus Oracle has a bound-derived concrete
-comparison route in addition to direct source-derived boundaries. This is narrower than closing
-all successful concrete comparisons transitively, but the successor proof
-must establish why each replay is part of its variable-bound judgment. The
-frozen derivation records logical bound parents; it does not by itself locate
-the runtime expression boundary where a resulting conversion should execute.
+parents. Prepared route evidence selects the ordinary pair; lower insertion
+may instead use a row-residual route. A selected action can be trivial,
+duplicate or evidence-only and be prefiltered from new worklist execution.
+Thus Oracle has a bound-derived concrete comparison route in addition to
+direct source-derived boundaries. This is narrower than closing all
+successful concrete comparisons transitively, but the successor proof must
+establish why each replay is part of its variable-bound judgment. The frozen
+derivation records logical bound parents; it does not by itself locate the
+runtime expression boundary where a resulting conversion should execute.
 
 Runtime realization is also split across paths. In the frozen
 `crates/mono/src/boundary.rs`, Record boundary support checks required-field
@@ -418,6 +436,13 @@ compatibilities cannot substitute. It must also explain how logical replay
 parents connect to executable conversion boundaries. Finite semantic
 provenance and source-wide context closure remain premises to prove, not
 implementation details to assume.
+
+The initial closed-Record fragment should model only ordinary fixed-endpoint
+pair replay. `ReplayAdmissible` remains an explicit finite background relation
+until its source meaning is proved; it must retain both bound identities and
+any guard/weight coordinates that affect the generated check. The frozen
+incremental row-residual route needs a separate endpoint carrier and
+preservation proof before it can be included.
 
 After boundary conservation, prove that compatibility normalization retains
 selected check/cast outcomes and conversion evidence without composing
