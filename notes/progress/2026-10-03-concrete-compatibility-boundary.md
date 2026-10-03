@@ -1563,3 +1563,30 @@ refinement keeps the role-first Function order and leaves all first-class refs
 within the contextual challenge domain when admitted by their interface. No
 compiler changes or tests/builds were made; `git diff --check` remains the
 focused integrity check.
+
+### Local StateSlot and general-ref proof lanes (2026-10-03)
+
+A bounded Sol architect derivation split the source-state bridge into two
+proof lanes while retaining the single `Rel_C` substrate. This is a schema,
+not an approved additional relation or carrier.
+
+| Source path | Existing authority/evidence | Needed next derivation |
+|---|---|---|
+| Visible local StateSlot | `HirModule`-owned static `StateSlotId`; `ConstraintStore` slot/read/write occurrences; shared payload and `StateEffect`; visible aliases/captures/escapes preserve origin; lexical discharge | Source configurations at declaration/read/update; continuation restart with replacement value; captures and resumption; distinct runtime activations for one static slot |
+| General first-class ref | `ref_update_local_buffer_public` uses a `ref` with captured `get` and `update_effect`, then calls `update`/`get` | Callback and update request/response behavior; opaque reference import/transport; alias, capture/escape and resumed access |
+
+The open challenge remains a checked role-directed context with rigid
+callable/argument holes, independent semantic imports, hole-dependent open
+captures, and one admissible source configuration/history under shared
+`ν,K,D`, occurrence and activation evidence. It reaches actual receipt before
+force. Receiver role and §21 entry stay independent; existing values keep
+their actual role, entry and decorations.
+
+The existing `Rel_C`, occurrence/incidence, `Flow`/`Observe`, and
+activation/continuation evidence are candidate carriers, with source closure
+unproved. Current fixtures establish local state update, captured callbacks,
+and recursion; they do not realize recursive storage of the tested callable
+or a shared-reference update across a multi-shot branch. Thus keep generic
+shared-cell examples conditional. Preserve first-class refs whenever the
+interface admits them; do not identify static `StateSlotId` with runtime
+identity. No code, tests, builds, Oracle inspection or measurements occurred.

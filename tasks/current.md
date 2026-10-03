@@ -311,17 +311,20 @@ abstract-machine schemas until realized through source State/reference
 operations. Do not erase first-class refs from the Function challenge domain;
 their source bridge remains separate.
 
-Next: define semantic free-variable imports and source-state transitions
-exactly; distinguish query-independent imports from hole-dependent values;
-prove guarded substitution/history closure through effect-mediated updates,
-handler exit, responses and live-state resumption. Preserve the intended
-context domain without restricting to closed-program heaps or enlarging it to
-arbitrary graph imports. Prove finite-witness adequacy for the complete
-interface (domain, receipt, observations, latent returns, future calls and
-resumption), not support alone. Existing graph identity transports supplied
-states but supplies neither source generation, complete finite comparison,
-nor principality. See design §8 for the candidate and its limits. No carrier
-change is justified.
+Next: derive two source paths over the same `Rel_C`: (1) visible local
+StateSlot operations using existing `StateSlotId`, read/write occurrence and
+`StateEffect` facts; (2) general first-class refs via their captured
+`get`/`update_effect` callbacks. Define semantic free-variable imports and
+source-state transitions exactly; distinguish query-independent imports from
+hole-dependent values; prove guarded substitution/history closure through
+effect-mediated updates, handler exit, responses and live-state resumption.
+Preserve the intended context domain without restricting to closed-program
+heaps or enlarging it to arbitrary graph imports. Prove finite-witness
+adequacy for the complete interface (domain, receipt, observations, latent
+returns, future calls and resumption), not support alone. Existing graph
+identity transports supplied states but supplies neither source generation,
+complete finite comparison, nor principality. See design §8 for the candidate
+and its limits. No carrier change is justified.
 
 Any hypothetical annotation-coverage rule must be a universal obligation over
 the supplied complete comparison, not deletion of uncovered observations.

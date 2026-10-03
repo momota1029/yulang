@@ -1399,3 +1399,34 @@ This source refinement leaves the existing EnvStore/context-domain blocker
 open. The next gate is to derive the exact state carried by source contexts
 and imports, connect local State and general-reference operations to that
 state, then formulate step-indexed closure over those actual transitions.
+
+#### Split source realization without splitting the solver relation
+
+A bounded Sol architect derivation gives the next proof schema. Keep one
+complete `Rel_C` and split only the source-realization proof into two paths:
+
+| Source path | Existing facts | Missing source derivation |
+|---|---|---|
+| Visible local StateSlot | `HirModule` owns `StateSlotId`; `ConstraintStore` owns slot/read/write occurrences; one payload component and `StateEffect` atom are shared; visible alias/capture/escape preserves declaration origin; lexical exit discharges a nonescaping local atom | Define source configuration at declaration, read and update; prove update's continuation restart with replacement data; derive capture/resumption behavior; distinguish runtime activations of one static slot |
+| General first-class reference | A stable-core fixture constructs a `ref` with captured `get` and `update_effect` callbacks, then calls `update` and `get` | Derive callback invocation, update request/response and handler behavior; define opaque reference transport, alias/capture/escape and resumed access for admitted imports |
+
+The contextual challenge schema remains proof-only: a role-directed checked
+context with rigid callable/argument holes, query-independent semantic
+imports, hole-dependent open values/captures, and one jointly admissible
+source configuration/history under shared `ν,K,D` and source-owned
+occurrence/activation evidence. It must reach the actual callable's receipt
+before force. Receiver role and §21 entry remain independent; existing values
+retain their actual role, entry, profiles and decorations.
+
+`Rel_C`, source occurrence/incidence, `Flow`/`Observe`, and existing
+activation/continuation evidence are candidate representation for these
+facts. The split does not propose new solver/runtime carriers and does not
+prove they suffice: each path still needs guarded substitution/transition
+closure and finite-witness adequacy for domain admission, receipt, complete
+observations, latent returns and future invocation. In particular, the
+fixtures establish local updates, captured reference callbacks and ordinary
+recursion; they do not establish shared-reference state across multi-shot
+branches or recursive storage of the tested callable. Keep those as open
+source cases. No `StateSlotId` may be treated as a runtime cell/activation
+identity, and first-class references remain in the domain whenever admitted by
+their interface.
