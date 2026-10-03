@@ -1281,3 +1281,53 @@ rules do not select between them. The latter is a possible direction only; its
 source boundary and combination law are not yet defined. No carrier, solver
 phase, or implementation change is justified. A user decision is pending
 before writing either rule; preserve the current uniform-first research order.
+
+### Role-first Function elaboration clarification (2026-10-03)
+
+The user then clarified that source introduction and expected context choose
+the Function receiver role before Function interface and effect-port
+elaboration:
+
+```text
+function literal + expected context
+  -> receiver role (pure / handler)
+  -> Function interface elaboration
+  -> effect-port interpretation
+```
+
+The intended cases are an unannotated ordinary function literal inferred as
+pure, an explicitly annotated Function boundary acting as a handler boundary,
+and a callback-position literal receiving handler role from expected context.
+This is not charter §21's separate `Value`/`Computation` parameter-entry
+choice. No special effect meaning is assigned to `never`; value bottom, empty
+effect row, and polarized internal bottom/top remain distinct. This user
+clarification supersedes the preceding paragraph's immediate binary choice and
+uniform-first research order; that component question may remain downstream if
+role-specific elaboration still requires it.
+
+Sol's bounded source audit found that existing clauses establish every
+function's computation-receiving invocation, inert whole-argument reification,
+parameter entry/retention, result forwarding, and the conditional complete
+interface path through `J_arg`, `J_body`, `J_call`, typed `Flow`/`Observe`,
+incidence, and `Rel_C`. They do not yet derive the requested literal role
+selection, annotation-to-boundary elaboration, or expected-context propagation
+for callback literals. Therefore source Function annotation/context
+elaboration now precedes any general component-to-interface mapping. Existing
+`Rel_C`, shared `ν`, `K,D`, occurrence/incidence and subtraction evidence stay
+the candidate proof substrate; no new carrier or provenance follows absent a
+specific demonstrated representational gap.
+
+For `Fun(a, never, b, c) <: Fun(a, d, [b,d], c)`, `Force(D) >>= B` gives a
+conditional operational motivation: a request exposed by argument entry
+remains in the complete invocation, and the body runs in each reached
+post-force state. This can motivate joint accounting by `d` and `b`, but does
+not prove the subtype until elaboration derives actual/checked domains, typed
+paths, port views, and `[b,d]` under one fiber and assignment. The gate must
+not decompose four ports as independent general-Type inequalities. Existing
+Astra-era/directed-weight subtraction interpretation is reusable only as
+already witnessed partial subtraction; it must not be duplicated as new
+reverse-addition evidence.
+
+Updated: design §7, task immediate gate, and design index. No implementation,
+tests, builds, measurements or Oracle inspection were done. Literal
+elaboration and the intended lifting derivation remain open.

@@ -145,10 +145,47 @@ the one minor Record-arity wording ambiguity was repaired and inspected. The
 procedure does not decide the same-witness intersection with permissions,
 guards, or `Phi/K,D`, and picks no complexity cutoff or source rejection rule.
 
-Immediate gate: locate or derive the source clause that maps a literal
-effect-row component `τ` to its contribution to an existing complete
-receiver/computation view at one `ν`, preserving literal component identity
-and the source-owned assignment fiber. A diagnostic lift
+Immediate gate (reordered by the user's 2026-10-03 clarification): derive the
+source-level function-introduction and contextual-elaboration path first:
+
+```text
+function literal + expected context
+  -> receiver role (pure / handler)
+  -> Function interface elaboration
+  -> effect-port interpretation
+```
+
+Ordinary unannotated function literals infer as pure; an explicit function
+annotation selects a handler boundary; callback-position literals receive
+handler role from expected context. This pure/handler receiver role is
+distinct from charter §21's syntax-directed `Value` versus `Computation`
+parameter-entry role. Do not infer the former from Function-port spelling.
+The source clauses must establish the interface before assigning meaning to
+its effect ports. `never` remains a value bottom, distinct from an empty
+effect row and polarized solver sentinels; it has no independent pure/empty
+effect meaning.
+
+Then derive the intended pure-to-handler callback effect lift from source
+entry/elimination semantics. `Force(D) >>= B` gives the operational reason
+that a handler-capable callback boundary can account jointly for argument
+computation `d` and body effect `b`, including the displayed `[b,d]` relation.
+It does not by itself prove a four-port inequality until the actual and
+checked complete domains and effect-port views are derived by the
+role-specific elaboration. Do not compare Function effect ports as four
+independent general-Type subtyping obligations.
+
+Reuse the existing complete `Rel_C` fiber, shared `ν`, `K,D`, occurrence /
+incidence, directed-weight and subtraction evidence. “Reverse addition” is
+only a possible conceptual restatement of existing witnessed subtraction;
+re-read the Astra-era interpretation and directed-stack-weight/effect-
+subtraction specifications at the exact bridge where needed. Do not add a
+solver carrier, attachment map or provenance structure unless a concrete
+source fact needed by this derivation is unrepresentable by those carriers.
+After this role-first derivation, identify whether any component-to-carrier
+mapping remains genuinely necessary and derive it only for the source-owned
+ports and scope.
+
+A diagnostic lift
 `⋃{Rel_c | Γ ⊢ c : Comp(E,τ)}` was considered, conditionally transported to
 one common challenge/interface carrier, then rejected as effect-component
 semantics: it interprets `τ` only as a result-type constraint and supplies no
@@ -160,12 +197,13 @@ those descriptions from arbitrary components or Function ports. Use
 `Force(D) >>= B` only for its conditional support upper bound over all
 reachable post-force outcomes; do not assume unconditional row union.
 
-The source derivation audit found no existing clause that maps an abstract
+The earlier source derivation audit found no clause mapping an abstract
 effect component to a contribution in the complete receiver/computation view.
-The owning gap is source annotation/typed-interface elaboration, not a new
-solver carrier. Before deriving the intended inequalities, settle that source
-contribution and its admitted scope; keep the existing `Rel_C` fiber and
-`K,D` incidence as the candidate transport. The stable-core `[tick 'a; 'e]`
+The user's role-first clarification changes the research order: first derive
+source annotation/context selection and Function interface elaboration, then
+reassess whether such a component bridge is still needed. The owning gap is
+source annotation/typed-interface elaboration, not a new solver carrier. The
+stable-core `[tick 'a; 'e]`
 signature is a motivating example only: its expected signature and
 `deny_contains` constraints record surface/signature behavior, while
 authoritative BracketRow and standalone EffectRowType syntax scopes leave
@@ -185,26 +223,27 @@ source-derived occurrence-union rule; that source rule remains unproved.
 Frozen Oracle annotation lowering is recorded as characterization only: its
 `items; tail` split and constructor-head subtraction filter do not define the
 successor component rule.
-Then derive both intended inequalities jointly from
-the resulting complete views, including effectful/diverging value-entry
+Then derive the intended inequalities jointly from the role-specific
+complete views, including effectful/diverging value-entry
 inputs, ignored retained carriers, dependent
 `K,D`, continuation re-emission, and operation callables whose native body
 returns a carrier consumed later by the declared result interface. Parameter
 roles, call scheduling, result forwarding, and the two target inequalities
-remain selected; no uniform component interpretation or general four-port
-Function comparison rule is selected. Only consider an additional port rule
-after a source-derived counterexample to uniform interpretation. Keep
+remain selected. The role-first introduction/context path is now the immediate
+gate; no general four-port Function comparison rule or uniform component
+interpretation is selected. Keep
 value-bottom `never`, empty effect row, and polarized internal bottom
 distinct. Do not use port-wise general-Type checks.
 
-Sol's uniform-first audit confirms the source rules do not derive the component
-mapping. The current evidence supports only the transport schema
+Sol's earlier uniform-first audit confirms the source rules do not derive the
+component mapping. Under the newer role-first order, the current evidence
+supports only the transport schema
 `Interpret(Γ,ν,p,τ)` as a view into existing `Rel_C`, not a denotation. The
-remaining user decision is whether a component bounds the complete
-challenge/observation view at its typed port or denotes an additional
-contribution composed by source invocation/handler rules. Neither option may
-collapse `Never`, `Any`, or `EffectRow([])`; no new carrier or solver phase is
-justified. Annotation-rule drafting waits on this distinction.
+earlier binary question about complete-view bounds versus additional
+contributions is superseded by the user's role-first clarification. Do not
+choose either component interpretation before deriving how introduction and
+expected context select the role and elaborate the complete interface. No
+new carrier or solver phase is justified by the current evidence.
 
 Any hypothetical annotation-coverage rule must be a universal obligation over
 the supplied complete comparison, not deletion of uncovered observations.

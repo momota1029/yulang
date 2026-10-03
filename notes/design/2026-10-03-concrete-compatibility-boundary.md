@@ -1033,3 +1033,66 @@ assignment. Effectful interfaces, unknown Record shapes, lifecycle, and
 implementation remain open. No optional-Record grammar, acceptance surface,
 conversion-selection policy, resource limit, or implementation representation
 is approved here.
+
+## 7. User clarification: role-first Function elaboration (2026-10-03)
+
+The user reordered the immediate source-semantic gate. Do not begin from a
+uniform map from an effect-row component `τ` to a complete receiver/computation
+interface. First derive:
+
+```text
+function literal + expected context
+  -> receiver role (pure / handler)
+  -> Function interface elaboration
+  -> effect-port interpretation
+```
+
+The intended source rules are: an ordinary unannotated function literal
+infers as pure; an explicitly annotated Function boundary is a handler
+boundary; a function literal in callback position receives handler role from
+its expected context. The role is selected by source introduction/context,
+not reconstructed from effect-port syntax. This is a distinct axis from
+charter §21's parameter-entry role (`Value` versus `Computation`). Preserve
+§21's entry rules.
+
+The existing source packages establish every function's computation-receiving
+invocation, inert whole-argument reification, entry force/rebinding for value
+parameters, retained computation parameters, and result forwarding. They do
+not yet derive the new pure/handler literal-role rules, explicit annotation
+boundary elaboration, or expected-context propagation for callback literals.
+That missing source Function annotation/context elaboration is the owner of
+the next derivation gate. It precedes both effect-port interpretation and any
+general component-to-`Rel_C` mapping.
+
+For the intended callback lift
+
+```text
+Fun(a, never, b, c) <: Fun(a, d, [b,d], c)
+```
+
+the source operational motivation is the handler-capable callback's actual
+entry sequence `Force(D) >>= B`: a request exposed while forcing the argument
+remains in the complete invocation, and the body executes in each reached
+post-force state. Thus a joint output interface may need to account for both
+argument computation `d` and body effect `b`. This is conditional motivation,
+not yet a derivation of the inequality: the source elaboration must define the
+actual and checked complete domains, typed paths, effect-port views, and the
+joint `[b,d]` composition under the same `Rel_C` fiber and `ν`. Do not derive
+it using four independent general-Type port comparisons.
+
+Keep value `never`, empty effect row, and polarized solver bottom/top
+distinct. No effect-position special meaning for `never` follows. Existing
+`Rel_C`, occurrence/incidence, shared `K,D`, directed-weight and subtraction
+evidence remain the candidate proof substrate. “Reverse addition” remains a
+possible conceptual reformulation of already witnessed partial subtraction;
+do not duplicate regional, attachment, or provenance machinery. Add a
+representation only if a concrete source fact required by role-first
+elaboration is shown to be inexpressible by the existing evidence.
+
+Consequently, earlier notes that made a uniform component interpretation the
+first gate or left a user choice between “complete-view bound” and “additional
+contribution” are superseded as research order. Those questions may remain
+downstream, but only after role-specific Function interface elaboration shows
+that a component bridge is still needed. This addendum records the user's
+direction; it does not claim the missing elaboration or inequality proof is
+complete and grants no implementation authority.
