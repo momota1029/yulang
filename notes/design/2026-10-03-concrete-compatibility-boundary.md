@@ -1823,15 +1823,23 @@ its parameter-entry role. Interface comparisons remain tasks of the one
 
 This contextualization candidate has a preceding input-availability premise:
 the source checker must receive the callee's declared formal contract and its
-original callback-slot identity. Current Yulang3 cannot provide that premise:
-`HirParameter` has no annotation/interface, `HirItem` has no callable-interface
-declaration, `HirModule` has no imported-scheme table, and
-`ConstraintBatch::collect` accepts only an `Arc<HirModule>`. Its local scheme
-indexes identify definition roots and do not supply declared callback
-contracts. Therefore the source proof may stipulate a supplied known `F_cb`,
-but exercising a real declaration first needs a source-interface availability
-gate. The bounded `ref.update` fixture additionally depends on member/interface
-lookup, whose implementation is outside this candidate.
+original callback-slot identity. Source syntax for binding/pattern type
+annotations, expression annotations, and import routes does exist. The gap is
+the source-to-resolved typed interface: current binding lowering rejects
+annotated binding headers, `HirParameter` has no annotation/interface,
+`HirItem` has no callable-interface declaration, `HirModule` has no imported
+typed-interface table, and `SemanticImports` is empty. `yu-types` can represent
+closed Function schemes, but the current root-indexed `SolvedModule` table is
+private output; public root queries project Function schemes to `Unknown`.
+`ConstraintBatch::collect` accepts only an `Arc<HirModule>` and adds no
+declared formal input; the collector's local scheme indexes identify
+definition roots instead. Therefore the source proof may stipulate a supplied
+known `F_cb`, but implementation first needs source annotation/import
+elaboration plus an immutable typed-interface input available to source
+checking. The bounded
+`ref.update` fixture additionally depends on member/interface lookup, whose
+implementation is outside this candidate. These facts do not select whether
+the typed input lives in `yu-types` or another immutable compilation product.
 
 Current Yulang3 has no existing owner with this input and timing. `ResolvedExpr`
 does not represent applications, and `lower_simple_chain` resolves only
@@ -1858,4 +1866,5 @@ carrier. Unknown callees, computation formals, annotated-literal overlap,
 role-indexed ports, callback `CallView` and complete Function inequality stay
 outside this subgate. Status: unapproved architecture candidate; no
 implementation authority. The immutable location for declared source
-interfaces and the member/import lookup path remain unresolved.
+interfaces, source annotation elaboration, and the member/import lookup path
+remain unresolved.

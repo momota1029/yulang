@@ -1878,20 +1878,25 @@ measurements; `git diff --check` is the record-slice check.
 ### Declared callback-formal availability audit (2026-10-03)
 
 A narrow follow-up architecture audit found an earlier input dependency than
-application/lambda traversal: current Yulang3 has no source declaration or
-imported-scheme table from which the collector can obtain `F_cb`. `HirParameter`
-has no annotation/interface, `HirItem` has no callable-interface declaration,
-`HirModule` stores no imported schemes, and `ConstraintBatch::collect` takes
-only `Arc<HirModule>`; its local scheme positions name definition roots.
-Therefore the contextualization theorem can be stated over a supplied known
-`F_cb`, but an implementation needs a preceding immutable source-interface
-availability gate. Exercising the real `ref.update` anchor additionally needs
-member/interface lookup. These are current-prototype limits, not semantic
-reasons to reconstruct context from solver bounds or introduce a provenance
-carrier. The exact interface owner and lookup API remain undecided. No code,
-tests, builds, Oracle inspection or measurements. A bounded spec-auditor delta
-review found no issue: `SemanticImports` is empty, HIR has no interface
-declaration slot, and the batch's scheme indexes refer only to local roots.
+application/lambda traversal. Syntax already represents binding/pattern type
+annotations, expression annotations and import routes; however, current
+lowering does not produce typed callable interfaces. Annotated binding
+headers are rejected, `HirParameter` carries no interface, `HirItem` has no
+callable declaration, `HirModule` has no imported typed-interface table, and
+`SemanticImports` is empty. `yu-types` can represent closed Function schemes,
+but root-indexed `SolvedModule` schemes are private solved output, while its
+public root query projects Function schemes to `Unknown`. `ConstraintBatch::collect`
+accepts only `Arc<HirModule>` and its scheme positions name local definition
+roots. So the source contextualization theorem may stipulate supplied `F_cb`,
+but implementation also needs source annotation/import elaboration and an
+immutable typed-interface input. The actual `ref.update` example further
+needs member/interface lookup. These are current-prototype limits, not
+semantic reasons to reconstruct context from solver bounds or add provenance.
+The exact input owner/lookup API remains undecided. The initial spec-auditor
+delta review found a minor ownership ambiguity between the HIR collection
+input and the collector's root indexes; I qualified it, and the follow-up
+review closed that finding with no new issue. No code, tests, builds, Oracle
+inspection or measurements.
 
 ### Current HIR boundary for callback contextualization (2026-10-03)
 
