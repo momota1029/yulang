@@ -1865,11 +1865,14 @@ actually contains those original signed occurrences, generation of the
 `Receive`/application typed correspondences and executing views alongside
 `T_P <: F_cb`, shared-fiber well-formedness, evidence admissibility, and both
 universal clauses: checked challenge-domain inclusion and complete observation
-inclusion. Immediate next gate: prove that bounded source-elaboration theorem
-for the known instantiated `Value(F_cb)` slot and identity Pure-value call,
-then check its generated obligations without treating query success as their
-premise. These are obligations over existing typed views, not a proposed new
-carrier.
+inclusion. A bounded finite-generation schema now constructs the unresolved
+query with candidate receipts, correspondences and views when the finite
+source/profile graph supplies those original occurrence facts. This does not
+prove that raw source constructs the profile or that the generated paths are
+admissible. Immediate next gate: prove source construction of those inputs and
+typed admissibility for the existing bounded identity callback witness, then
+keep universal domain and observation inclusion separate. No new carrier or
+implementation authority follows.
 
 ## Main records
 

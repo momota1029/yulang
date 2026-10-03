@@ -3097,3 +3097,84 @@ generation, shared-fiber well-formedness and admissibility are not yet proved.
 Checked challenge-domain inclusion and complete observation inclusion remain
 separate universal obligations. This audit identifies no need for a new
 carrier, no inequality success, and no concrete-success composition.
+
+### Finite callback candidate generation before solving (2026-10-04)
+
+Sol derived a bounded pre-solver construction for the supplied-profile slice;
+a compiler-referee independently reviewed it. The result is finite generation
+of an **unresolved candidate skeleton**, not a theorem that arbitrary raw
+source generates admissible evidence.
+
+Premises are one finite resolved source graph for the same-activation use
+`cb D`; a known outer formal `cb:Value(F_cb)` and its already instantiated
+finite original `Slots(β)`; an already constructed Pure identity value `f:T_P`
+whose own §21 entry is `Value(Int)`; `Result(I_D)=Comp(E_D,Int)`; a shared
+symbolic `ν,K,D` ledger; and stipulated identity argument/result endpoint
+transport for this candidate. The supplied profile facts locate the original
+linked occurrences as `p_d⁻` at the received-argument `J_arg` effect position
+and `p_d⁺` as the `d` member contribution at the complete-call `J_call` effect
+position. These are existing typed occurrence/path premises, not a new
+carrier. Profile construction from broader raw syntax remains open.
+
+Before resolving `Q = T_P <: F_cb`, candidate generation proceeds as follows:
+
+1. Emit the single source inequality `Q`, with no success certificate.
+2. The outer receiver's ordinary `Value(F_cb)` entry receives an inert
+   `Delay(Return(f))`, forces it and rebinds `cb`. At this binding, attach the
+   already known slot profile to the typed view using identity transport on
+   unchanged paths; generate the outer
+   `Receive(r,callback_slot,V_slot,M_slot)`. The receiver activation creates
+   its source boundary; `Receive` records ownership of this use and does not
+   create another boundary. Keep `f`'s original Pure role and provenance.
+3. The source call `cb D` constructs its argument carrier inertly. Record the
+   callback slot's `J_arg` input correspondence and the separate inner
+   `Receive(u_f,arg,V_D,M_D)` for `f` receiving `D`. Since `f` retains its
+   actual §21 `Value(Int)` entry, execution of that same carrier occurs inside
+   the call as `Force(D)`. The negative original `d` occurrence gives a
+   candidate path to the corresponding force view.
+4. Construct the complete slot `CallView` around the actual producer's full
+   `ExecuteCallable(f,D)` image. The positive original occurrence reaches the
+   `d` contribution at its complete-call effect position; it does not denote
+   all of `[b,d]` or the entire `J_call` relation. Preserve the distinct outer
+   callback-value receipt and inner argument receipt.
+
+The resulting path obligations reuse the named views and original positions:
+
+```text
+M_slot: β.profile -> V_slot.profile
+M_arg : β.p_d⁻ -> V_force.p_force
+M_call: β.p_d⁺ -> V_call.p_call
+```
+
+Together with the two `Receive` records above, these are candidates supplied
+to existing `Flow`/`Observe`/`Path`/`Inc_C`, not newly validated relations.
+
+`FunctionView(Id,Id)` in this candidate means proposed conversion-free
+argument/result value transport only. It is not the full-type identity case
+from typed-boundary §3, does not equate the different effect descriptions, and
+does not prove `Q`. The candidate `M_arg`, `M_call`, receipts and `View`
+attachments are obligation records, not validated `Flow`/`Observe`/`Path`
+evidence. A request from `Force(D)` can be related to both positions under the
+supplied typed paths and existing observer rules, but row membership alone
+does not establish that every actual observation is admitted by the slot.
+
+For a finite regular source/profile graph, generation creates one inequality,
+two receipt records, the bounded outer/call/force view descriptors, and
+correspondences only for the supplied profile and application paths. Recursive
+references share the supplied graph; no history or assignment enumeration
+occurs. Erasing these *candidate proof decorations* and identity
+argument/result transport recovers the ordinary source schedule: inert
+carrier construction, outer receipt/entry, then `cb D` with the actual
+Value-entry force. This is an erasure check on the candidate construction, not
+permission to erase evidence from an accepted program's semantics.
+
+The independent review found no blocker within this conditional finite
+generation claim and required four scope clarifications recorded above. The
+remaining proof gate is raw-source/profile construction for the original
+occurrences and typed admissibility of each generated correspondence in the
+same well-formed fiber. Checked-domain inclusion
+`D_checked ⊆ D_actual`, complete observation inclusion
+`P_actual(d) ⊆ P_checked(d)`, exact `[b,d]` denotation, and inequality success
+remain separate obligations. Current `ResolvedExpr` lacks application
+structure and `ConstraintBatch::collect` takes HIR only, so this result proves
+no current compiler implementation path or API/phase choice.
