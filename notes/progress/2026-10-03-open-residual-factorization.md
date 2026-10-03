@@ -522,6 +522,18 @@ congruence claim or define a stronger finite equivalence and prove both
 successor coherence and shifted descriptor sharing. No such repair emerged;
 no source semantics or implementation claim follows.
 
+### Literature boundary check (2026-10-03)
+
+A primary paper check does not supply the missing regular-model theorem.
+Su et al., *The First-Order Theory of Subtyping Constraints* (POPL 2002),
+prove the automata-theoretic decision result for unary constructor symbols and
+explicitly leave the full first-order theory of structural subtyping open.
+The result does not directly cover this finite ranked fragment with binary
+variance-bearing constructors, mandatory Record width, and shared descriptor
+equations; no translation preserving those constraints was established here.
+This is a limit on importing that result, not an undecidability claim for the
+Yulang fragment. [Primary paper](https://www.cs.ucdavis.edu/~su/publications/popl02.pdf).
+
 ### Paired-state representative-selection follow-up (2026-10-03)
 
 Sol tried to replace the failed node-profile quotient with finite paired
