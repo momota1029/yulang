@@ -137,6 +137,14 @@ successes through `X`, and applies only after fixed equality quotienting with
 no unresolved flexible class in the endpoints. It does not close source
 generation, general residual satisfiability, or any effect/component gate.
 
+§7.3 adds a finite greatest-fixed-point inhabitation test and regular witness
+for one closed pure-structural interval of lower/upper endpoint sets, which
+decides the unguarded structural nonemptiness of each required field fiber in
+§7.2. Compiler-referee and spec-auditor review found no blocking/major issue;
+the one minor Record-arity wording ambiguity was repaired and inspected. The
+procedure does not decide the same-witness intersection with permissions,
+guards, or `Phi/K,D`, and picks no complexity cutoff or source rejection rule.
+
 Immediate gate: locate or derive the source clause that maps a literal
 effect-row component `τ` to its contribution to an existing complete
 receiver/computation view at one `ν`, preserving literal component identity

@@ -68,6 +68,26 @@ field-fiber nonemptiness effectively, handle flexible endpoints/cross-field
 constraints, or establish source-generation applicability. `git diff --check`
 passed; no tests, builds, or measurements ran.
 
+## Follow-up: closed structural interval inhabitation
+
+§7.3 now gives an effective finite test for the unguarded structural
+nonemptiness of a field interval whose lower and upper endpoints are fixed
+closed regular graphs. States are finite pairs of endpoint-node sets. The
+greatest-fixed-point transition follows Function variance, declared variance,
+invariant two-way obligations, and Record width/depth; surviving states
+construct finite regular witnesses. Its proof decomposes each endpoint
+comparison directly against one witness and never composes successful
+concrete endpoint checks through that witness.
+
+The compiler-referee review found no blocking/major issue and one minor
+ambiguity that equal arity might include Record label count. The wording now
+limits arity equality to Functions and fixed-arity constructors and leaves
+Record width to its own transition. Spec-auditor review found no conformance
+issue. This decides only unguarded structural nonemptiness and extracts one
+witness; it does not decide full `Perm_Q ∧ Guards ∧ Phi_q`, preserve every
+field candidate under those predicates, or establish source applicability.
+`git diff --check` passed; no tests/builds/measurements ran.
+
 Next establish the source-wide context transition system while separating
 immutable lexical identity from mutable dependency certification. Then
 construct an effective joint representation for residual satisfiability plus

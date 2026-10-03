@@ -3,7 +3,7 @@
 Status: Reviewed
 Date: 2026-10-03
 Scope: candidate factorization theorem for open structural bounds after scoped rational equality quotienting
-Reviewed-by: compiler_referee and spec_auditor (M3, 2026-10-03); initial structural-outcome repairs, conditional factorization-lemma review, and operation-instance context delta found no remaining findings in reviewed scopes; bounded compiler_referee delta review of §7.1's one-class atomic-Record fiber found no findings; bounded compiler_referee and spec_auditor review of §7.2's closed-regular-endpoint shape-and-field fiber found no findings
+Reviewed-by: compiler_referee and spec_auditor (M3, 2026-10-03); initial structural-outcome repairs, conditional factorization-lemma review, and operation-instance context delta found no remaining findings in reviewed scopes; bounded compiler_referee delta review of §7.1's one-class atomic-Record fiber found no findings; bounded compiler_referee and spec_auditor review of §7.2's closed-regular-endpoint shape-and-field fiber found no findings; bounded compiler_referee and spec_auditor review of §7.3's closed structural interval inhabitation found no blocking/major findings, and its minor Record-arity wording ambiguity was repaired by primary inspection
 Implementation authority: none
 Supersedes: none
 
@@ -428,6 +428,88 @@ decide those field obligations, eliminate the joint predicates, imply that
 source-generated packages meet its closed-endpoint premise, or authorize a
 source-level rejection. Empty required cells remain structural obstructions
 only after their original guards admit the comparisons.
+
+### 7.3 Finite inhabitation of a closed structural interval (candidate)
+
+This subsection gives an effective test for the **unguarded structural
+nonemptiness** of a field fiber `F_f` from §7.2. It does not decide the full
+intersection with permissions, guards, or `Phi`; a structural witness that
+fails one of those predicates cannot establish that the full intersection is
+empty. Work in the pure regular structural grammar of
+`scoped-structural-projection.md` §§2 and 6. Endpoints are finite, closed,
+contractive regular graphs after the fixed equality quotient, and the
+underlying structural relation compares atoms by identity. There are no
+flexible endpoints, optional Records, effects, casts, adapters, identity-
+sensitive graph constraints, `Top`/`Bottom`, unions, or intersections.
+
+Let `V` be the finite set of endpoint graph nodes, including all reachable
+constructor children. A state is a pair of subsets:
+
+```text
+S = (L,U),       L ⊆ V, U ⊆ V
+Meaning(S) = { t ∈ Reg | a <= t for every a∈L, and t <= b for every b∈U }
+```
+
+There are at most `4^|V|` states. For each state, either its local head
+condition fails or it has a finite set of required child states:
+
+| State endpoints | Local condition and successor states |
+|---|---|
+| `L=U=∅` | Choose `{}`; no successors. |
+| Nonempty endpoints with different root heads | Fail. |
+| Atom endpoints | Every endpoint is the same atom; no successors. |
+| Function endpoints | Argument `(U.arg,L.arg)`; result `(L.result,U.result)`. |
+| Constructor `C`, `+` child | `(L.child,U.child)`. |
+| Constructor `C`, `-` child | `(U.child,L.child)`. |
+| Constructor `C`, `=` child | `(L.child∪U.child,L.child∪U.child)`. |
+| Record endpoints | Choose labels `D=⋃_{b∈U} labels(b)`. If `L` is nonempty, require `D⊆⋂_{a∈L}labels(a)`. For each `f∈D`, require `({a(f):a∈L},{b(f):b∈U, f∈labels(b)})`. |
+
+Every nonempty endpoint set must have the same root head. Functions and
+fixed-arity declared constructors must also have the same arity, after which
+the table applies coordinate-wise. Record label counts may differ; their
+width conditions are handled by the Record row. Invariant coordinates
+deliberately put every incident endpoint child on both sides. At a Record
+state, lower width requires each chosen label in every lower record, while
+upper width requires every upper label in the candidate. Choosing their union
+is sufficient for structural existence: extra candidate fields add lower
+obligations and satisfy no new upper obligation. This minimal-shape choice
+does not claim that extra fields are absent from the complete fiber in §7.2.
+
+Build the finite state graph reachable from the initial interval. Let
+`Good(S)` be the greatest fixed point of local validity and survival of every
+required child state:
+
+```text
+Good(S) = locally_valid(S) ∧ ∀ child S'. Good(S')
+```
+
+It can be computed by removing locally invalid states and propagating removal
+to predecessors. For every surviving state, construct one witness node with
+its prescribed head and edges to its surviving child states. Every cycle
+passes through a Function, Record field, or constructor edge, so the result
+is a finite contractive regular graph.
+
+**Exactness.** For soundness, place `(a,w_S)` for `a∈L(S)` and `(w_S,b)` for
+`b∈U(S)` in one simultaneous structural simulation. Each table row expands
+these pairs to exactly its required child pairs; invariant coordinates add
+both directions. Thus a surviving state has a witness in `Meaning(S)`. For
+completeness, any witness `t∈Meaning(S)` validates the local head condition.
+At a Record state, its required fields witness every union-label successor;
+at Functions and declared constructors its children witness the listed
+successors. The set of inhabited states is therefore post-fixed and is
+contained in the greatest fixed point. No proof step compares an element of
+`L` directly with an element of `U` by composing their separate successful
+comparisons through the candidate `t`.
+
+Consequently, for §7.2 the unguarded structural fiber is nonempty exactly
+when every required Record label has an inhabited interval state and the
+Record shape inclusions hold. This decides structural existence and produces
+one structural witness. It does not preserve the entire candidate-field
+fiber after external `Phi`, guard, or permission predicates are conjoined;
+another structural witness may satisfy those predicates. Keep the complete
+fiber and the same-assignment joint condition when checking them. Any resource
+cutoff for the exponential state space needs a separate approved boundary;
+this theorem chooses no limit or rejection behavior.
 
 ## 8. Verification direction
 
