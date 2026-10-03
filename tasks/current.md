@@ -1913,7 +1913,18 @@ does not yet construct `κ` or the positive member's denotation from an actual
 source profile; defining that denotation as the desired image would be
 circular. The remaining source elaboration must generate both independently
 of `Q`, then establish the base-case fiber. Existing typed paths and
-occurrence/incidence can carry the result without a new carrier.
+occurrence/incidence can carry the result without a new carrier. The reviewed
+finite linked-execution theorem in
+`notes/design/2026-10-02-parametric-component-linking.md` §7 already supplies
+the dynamic part of `κ` for a finite resolved link graph: request packets,
+current-state resumption and pending suffixes are preserved, and the call
+links its actual argument port to the producer's Value-entry path. Reuse that
+simulation rather than reproving trace preservation. It still assumes the
+source link graph and typed port maps; it does not generate the map from the
+original negative `d` occurrence through the shared contribution to the
+positive `d` member, nor does it establish a nonempty `Rel_C` fiber. The next
+construction is that bounded profile-to-call link graph, followed by its
+independent open-source fiber witness.
 Independently,
 `BackgroundWitness` must construct a nonempty shared `Rel_C`/`ν,K,D` source
 fiber without assuming `Q = T_P <: F_cb`. The two receipts and executing views
