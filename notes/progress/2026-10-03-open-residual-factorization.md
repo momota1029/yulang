@@ -906,3 +906,41 @@ The remaining case is infinitely recurring strict-width comparisons: equality
 frontiers are then unsound, while finitely selecting unequal frontier pairs
 returns to simultaneous representative selection. No regular-model theorem,
 decision procedure, or source inference result follows.
+
+### Aperiodic-tiling reduction audit (bounded negative result)
+
+A further Astra attempt tested whether finite descriptors and direct
+comparisons can encode an aperiodic Wang tiling, which would give an
+arbitrary-tree solution without a regular one. No reduction was established.
+Three scoped facts sharpen that route:
+
+1. Under a fixed, coordinate-independent pointwise decoder from finitely many
+   regular track labels at addresses `aⁱbʲ`, the decoded grid is periodic in
+   both coordinates beyond finite thresholds. This follows because each
+   child transition is a function on the product's finite graph states, so
+   its powers eventually repeat uniformly over all starting states. If the
+   decoded grid obeys Wang adjacency on that northeast tail, repeating one
+   periodic rectangle gives a doubly periodic plane tiling. Thus a tile set
+   with no periodic plane tiling rules out this particular decoder, not all
+   conceivable encodings.
+2. The least-forced-completion argument blocks a standard finite tile-choice
+   encoding only when the package requires **every arbitrary-tree solution**
+   to choose from a finite palette at a fixed live address. A finite palette
+   of atom heads then forces one atom; an antichain of Record masks likewise
+   forces one mask. This argument includes finitely many auxiliary variables,
+   but does not apply to a restriction on regular solutions alone, nor to
+   labels decoded from several positions or predicates.
+3. A root descriptor diamond does not supply arbitrary-prefix commutation.
+   For binary `C` and distinct atoms `I,B`, let `s=C(I,I)`, `t=C(B,B)`,
+   `u=C(s,t)`, `v=C(t,s)`, and `q=C(u,v)`. Then `q.ab=q.ba=t`, hence
+   `q(abw)=q(baw)` for every suffix `w`; yet `q.aab=I` and `q.aba=B`.
+   Additional package equations may impose broader commutation, but this
+   diamond alone does not.
+
+An independent compiler-referee review confirmed the periodicity and diamond
+claims and required the arbitrary-tree quantifier for the finite-choice
+claim. This audit yields neither a nonregular-only package nor an
+impossibility result. A successful reduction still needs finite constraints
+that force valid tile labels and both adjacency directions without relying on
+unsupported free finite-choice encodings or arbitrary-prefix transport of a
+root equation.

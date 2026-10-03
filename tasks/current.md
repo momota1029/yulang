@@ -244,6 +244,17 @@ exact open case. See
 independent Milestone-3 theorem result; it does not change the active
 role-first Function source gate or authorize implementation.
 
+A separate attempt to derive a nonregular-only package from aperiodic Wang
+tilings has not produced a reduction. For fixed pointwise decoders from
+regular finite-track trees, decoded `aⁱbʲ` grids are eventually periodic in
+both coordinates; the standard finite palette choice is also unavailable
+when the package must force every arbitrary-tree solution into that palette.
+These are limits on the attempted encoding only. A root descriptor diamond
+does not provide arbitrary-prefix commutation, as a small binary-constructor
+counterexample shows. Independent compiler-referee review confirmed these
+scoped claims. No regular-model obstruction or theorem follows; details are
+in `notes/progress/2026-10-03-open-residual-factorization.md`.
+
 The next Sol attempt tested a finite profile containing head/present fields,
 descriptor-root subtree membership, and per-bound active endpoint/orientation
 membership. A compiler-referee confirmed the profile is not a child congruence:
