@@ -2858,3 +2858,52 @@ application and Value-entry rules discharge those map/receipt premises for
 the bounded identity witness. Do not generalize this conditional package to
 non-identity function conversions, escaped callbacks, unknown callback
 formals, or arbitrary Function comparison.
+
+### Complete-domain audit for the bounded Pure callback (2026-10-04)
+
+Sol's independent proof-only audit checked the other open clause separately
+from source-position admission. Existing §21 and typed-computation-core §9
+establish the actual `Value(Int)` invocation on a supplied admissible carrier:
+`Force(D) >>= Return`. The right-unit simulation preserves the carrier's
+request prefix, responses/resumptions, state, pending suffix, and divergence.
+This says what happens after a challenge is admitted; it does not determine
+which challenges the role-derived Pure interface admits.
+
+For a fixed nonempty, jointly well-formed `Rel_C(ν,K,D)` fiber, the missing
+quantifier is over every checked challenge: its initial configuration and
+whole `Int`-result carrier, receipt/alias/store/dependency state, and every
+admissible finite history of caller responses, future calls/forces, stored
+values and repeated resumptions, including all finite prefixes of divergence.
+The required domain clause is
+
+```text
+∀d. JointWF_checked(d,ν,K,D) ⇒ JointWF_actual(d,ν,K,D)
+```
+
+with the same carrier, histories, current state, owners and dependency
+identities. In particular both the request-emitting `D_req` and the
+pure-diverging `D_∞` must be admitted on the actual side. The bounded source
+contract does not define either complete admission predicate or a lifting
+between them. One completion can restrict the Pure description to empty-effect
+carriers while another admits all source-well-formed `Value(Int)` carriers;
+both are consistent with the currently supplied operational rules. This is
+underdetermination, not a counterexample to a selected rule. No `never` or
+empty-row identification can fill the gap.
+
+Observation inclusion remains separate:
+
+```text
+∀d∈D_checked. P_actual(d) ⊆ P_checked(d)
+```
+
+It covers the complete joint trace/result relation, request origins and
+instances, response dependence, state and pending suffix, and later finite
+resumptions/future uses. It requires the checked complete `CallView` and same
+`ν,K,D` evidence. The negative `p_d⁻` path and slot/argument receipt
+correspondences are needed to construct domain inclusion through typed
+profiles; the positive `p_d⁺` path is observation-side. Current rules do not
+derive either source-coordinate map. The proposed declared-use projection is
+therefore a new bounded rule awaiting user decision, not a consequence of the
+approved callback-literal delivery contract. API/phase, typed-interface
+ownership, and evidence carriers remain unselected. No implementation or
+tests were performed.

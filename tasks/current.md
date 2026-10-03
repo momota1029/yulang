@@ -1,6 +1,6 @@
 # Current task: prove and implement SCC-intrusion Function inference
 
-Updated: 2026-10-03. Branch: `research/simple-sub-intrusion`.
+Updated: 2026-10-04. Branch: `research/simple-sub-intrusion`.
 
 Execution state: source work resumed after the user's explicit A decision in
 `2026-10-02-source-result-synthesis-choice.md`. The former result-synthesis
@@ -1738,6 +1738,40 @@ reviews found no blocking or major findings on the earlier fragments and the
 finite-alphabet extension. Input clauses with
 Function/other known constructors, guards, permissions, `Phi/K,D`, full-fiber
 decision and source acceptance remain open.
+
+### Callback bounded proof audit (2026-10-04)
+
+The approved callback-context delivery contract remains limited to an
+unannotated callback-position literal receiving the expected boundary before
+body elaboration and entering as Handler. The existing-Pure-value route remains
+a distinct `A <: B` adaptation. The compiler API/phase and typed-interface
+ownership remain undecided.
+
+A Sol derivation audit finds that the current source rules do not establish the
+universal complete-domain inclusion for the bounded existing-Pure identity
+callback, independently of comparison success. Core §9 and §21 establish the
+actual `Value(Int)` execution `Force(D) >>= Return` for an already admissible
+carrier, including requests, resumptions, state and divergence. They do not
+define or relate the complete checked-slot and Pure-call admission predicates.
+The missing premise is a role-derived source admission/transport lemma showing
+that every checked challenge, with the same initial configuration, owner and
+dependency identities and all compatible future histories, is admissible at
+the actual Pure Value-entry call. The request carrier and pure-diverging
+carrier remain distinguishing challenges. This is underdetermination, not a
+counterexample to an approved semantic rule.
+
+Observation inclusion remains a separate obligation: it needs the checked
+complete `CallView`, same-fiber event/state/suffix correspondence, and positive
+`p_d⁺` observation path. If built through existing typed-profile evidence,
+domain inclusion requires the negative `p_d⁻` path and both slot-owner and
+argument receipt correspondence; the positive path is observation-side.
+Generating these declared-use correspondences as admissible source evidence
+would add a bounded rule not covered by the current approval, so that rule is
+pending the user's decision. No API/phase choice, carrier, or implementation
+is selected. Next: keep the literal-context contract fixed, and either derive
+the role-derived admission lemma from already-authorized clauses or leave this
+subgate open; do not infer domain or observation inclusion from
+`Force(D) >>= Return`.
 
 ## Main records
 
