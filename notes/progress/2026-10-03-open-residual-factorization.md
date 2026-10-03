@@ -1286,3 +1286,56 @@ opposing exact `K` partner, while this child is P/P; the review confirms that
 the current state proposal is undefined here. It reviewed the mixed witness and
 this omission discriminator only, not a general flex/flex construction or
 regular-witness theorem.
+
+### Existential tuple-automaton alternative (2026-10-04; unreviewed mapping)
+
+The reviewed mixed probe still leaves arbitrary ranked P/P closure undefined.
+A separate candidate representation is to view a fixed finite structural
+constraint package as one existential satisfiability question over a tuple of
+type trees:
+
+```text
+∃ X₁ … Xₙ . (descriptor equations ∧ each original direct inequality)
+```
+
+For a ranked descriptor equation `X=C(Y₁,…,Yₖ)`, a tuple automaton can check
+the root head and component-wise equality between each child of the `X` track
+and the whole corresponding `Yᵢ` track. Each original inequality can retain
+its own direct comparison state, with declared variance and the existing
+Record-width stopping rule. Combining these checks would produce one language
+of jointly satisfying tuples; it would not compose successful inequalities or
+eliminate any type variable by projection. This is a candidate encoding, not a
+completed translation or procedure.
+
+Su et al. describe tree automata on tuples with component-wise tests (TACT) for
+exactly the non-regular cross-track descriptor relation `X=C(Y,Z)`. They note
+TACT is not closed under projection, but can represent existential/universal
+fragments, and reduce non-structural subtype entailment to emptiness for a
+restricted TACT class; they present this as a promising direction rather than
+a solved emptiness procedure. The paper's unary-constructor decidability
+result and TACT discussion therefore do not close the present ranked
+structural satisfiability problem. [Primary paper, §5.3](https://web.cs.ucdavis.edu/~su/publications/popl02.pdf).
+
+The potentially useful distinction is that this task is existential
+satisfiability of a fixed finite package, so projection closure is not needed
+if all source variables remain tracks through the emptiness query. The
+unresolved work is whether the resulting *restricted structural TACT class*
+has decidable emptiness and an adequate witness result. This is an inference
+from the paper's encoding discussion, not a theorem established by it. The
+paper's concrete automata development is for finite trees (with a separate
+unary/infinite-word result); a Yulang argument over regular or arbitrary
+infinite trees needs its own run and acceptance semantics. Even a finite-tree
+emptiness result would not establish regular witnesses for all arbitrary-tree
+solutions. This route also covers only ordinary structural decomposition:
+optional Record
+compatibility, concrete cast/adapter resolution, source evidence, and Yulang's
+coupled Function/effect interface cannot be silently represented as a
+transitive structural relation. No semantic rule, support boundary, regular
+model property, or implementation authority follows.
+
+Next proof question: give the exact automaton/run syntax for the structural
+fragment and determine whether its emptiness can be decided or reduced to an
+already decidable class. If that fails, retain the existing partial
+semidecisions and return to a concrete regular-witness or resource-bounded
+source-envelope argument; do not claim the general result from the TACT
+encoding alone.

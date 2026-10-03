@@ -177,6 +177,14 @@ why the generated P/P obligation cannot simply be omitted: choosing
 `x=C(Int,e)` leaves the Record child valid but requires `Int <: x`, which
 fails. The existing exact-K-partner context atom still cannot encode this
 generic P/P edge; no general flex/flex transition has been reviewed.
+An alternative theorem route is now recorded in
+`notes/progress/2026-10-03-open-residual-factorization.md`: encode one finite
+structural package as an existential tuple-automaton-with-component-tests
+emptiness query, keeping every source variable as a track (so no projection is
+needed for satisfiability). The cited literature does not decide the required
+restricted emptiness problem. Next define that exact automaton fragment and
+check whether its emptiness has a decision procedure; this route does not cover
+optional Records, casts/adapters, or Function's coupled effect interface.
 
 ## Current work
 
