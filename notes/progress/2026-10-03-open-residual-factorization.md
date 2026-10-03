@@ -549,3 +549,46 @@ of a shared descriptor root selects one tree; and shifted descriptor transport
 close these obligations together, not separately. No positive regularization
 theorem or new counterexample resulted. This remains within pure structural
 existence; no source-semantic or implementation decision follows.
+
+### Commuting-action certificates for regular solutions (2026-10-04)
+
+A bounded Astra attack on the exact regular-model gap did not establish that
+every arbitrary-tree solution has a regular solution, and did not produce a
+nonregular-only counterexample. It did identify an exact finite-certificate
+characterization of **regular** solutions for the existing finite-`Λ`,
+unguarded ranked structural package.
+
+A certificate consists of a finite state set `S`, initial state `e`, suffix
+actions `R_i : S → S`, and prefix actions `L_i : S → S`, satisfying
+`L_i(e)=R_i(e)` and `L_i R_j=R_j L_i`. Per-state labels retain every
+descriptor/free-root track's full head and Record-presence data, plus each
+original inequality's active orientation. Exact descriptor root labels,
+well-shapedness, absent-field padding discipline, and active Type/Field
+endpoints are checked. For each descriptor edge `q.i=q'`, require
+`h_q(L_i(s))=h_q'(s)` at every state. Each original inequality has its own
+root-positive bit and direct local post-fixed comparison relation; variance
+acts within that relation, and upper-Record absence terminates that branch.
+No successful comparison is composed with another.
+
+Decode address `w` by applying suffix actions from `e`. Commutation gives
+`L_i(s_w)=s_{iw}`, so every track unfolds as a regular tree and descriptor
+sharing is exact. The local labels and per-bound relations then witness each
+original inequality directly. Conversely, a regular solution's finite graph
+and active-orientation automata yield a finite certificate through the finite
+transition monoid: for graph transitions `δ_i`, take `L_i(f)=f∘δ_i` and
+`R_i(f)=δ_i∘f`; these actions commute and agree at the identity. Finite-label
+erasure supplies the required finite output-label set. An independent bounded
+compiler-referee review found no blocking or major issue and confirmed both
+directions, including the need for root-positive flags, full Record masks,
+well-shapedness/Pad rules, active endpoints, and the `L_i R_j` orientation.
+
+This is a finite witness format equivalent to regular-solution existence,
+and therefore another positive semidecision by certificate-size enumeration.
+It is not a decision procedure and does not imply arbitrary-solution to
+regular-solution. A proposed local-convolution shortcut was also refuted: with
+binary `C`, distinct atoms `I,B`, descriptors `q=C(a,b)`, `a=C(I,I)`,
+`b=C(B,B)`, and no inequalities, exact sharing makes `q(12)=I`, while the
+shortcut's local substitution requires `q(12)=b(1)=B`. This rejects that
+encoding only; the package has a finite regular solution. No source semantics,
+solver rule, implementation, or source-envelope conclusion follows. The
+arbitrary-tree-to-regular implication remains open.

@@ -82,6 +82,16 @@ with minimal joint observations. Its source refinement, finite symbolic basis,
 modular future-use coverage, and acceptance bridge remain open. Possible
 spurious rejections are disclosed, not approved.
 
+Milestone-3 structural-search update (2026-10-04): a bounded Astra attempt and
+independent compiler-referee review established an exact finite commuting-action
+certificate characterization for regular solutions in the finite-`Λ`,
+unguarded ranked structural fragment. This gives another positive
+semidecision only. It neither proves arbitrary-tree solutions have regular
+solutions nor decides the fragment; a proposed local-convolution encoding
+was refuted without yielding a package counterexample. Details and scope are
+in `notes/progress/2026-10-03-open-residual-factorization.md`. This does not
+change the immediate Function source-derivation gate below.
+
 ## Current work
 
 ### One endpoint-dependent inequality solver (2026-10-03)
