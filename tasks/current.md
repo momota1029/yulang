@@ -112,13 +112,14 @@ and `X <: Y` to lower `X` on `Y` plus upper `Y` on `X`; the replay builders
 select prepared pair routes, compose lower/upper weights, and can prefilter
 actions. Lower insertion also has incremental row-residual routes, outside the
 fixed-endpoint fragment. This refines the candidate, not source authority. The
-next gate is bound-replay conservation: define replay admission independently
-of proof-store/queue policy, preserve original guarded boundaries, and prove
-exactly which ordinary pair queries arise with their parent IDs, contexts,
-weights, and eligibility evidence. Where frozen proof coverage suppresses a
-pair, establish whether no source query is required or how the required
-obligation remains represented; do not infer discharge from equal endpoints
-or composed successful `Compat` checks.
+next gate is graph-wide bound-replay conservation: define replay admission
+independently of proof-store/queue policy, preserve original guarded
+boundaries, and prove exactly which ordinary pair queries arise with their
+parent IDs, contexts, weights and eligibility evidence. For covered row
+uppers, account for both same-owner row routes and inherited coverage across
+variable edges, including the `alpha`/`beta` case. Do not infer discharge
+from endpoint equality, a processed-lower marker, or composed successful
+`Compat` checks. Keep concrete conversion tied to its source consumer.
 
 The documentary `ReplayAdmissible` refinement received clean bounded
 architect/compiler-referee/spec-auditor review. This certifies the candidate's
@@ -128,6 +129,21 @@ The follow-up frozen coverage ledger received a clean bounded compiler-referee
 review. Proof-coverage suppression must map to absent source obligations or
 identified independent discharge evidence; CPK coverage itself is not
 successor authority.
+
+A fresh bounded trace narrows one possible suppression explanation. When a
+semantically new same-owner lower reaches row routing, it visits each
+unprocessed unweighted row state before ordinary-pair composition. Matched
+lowers create child row-item obligations and a route to the original upper;
+unmatched lowers retain a route to the current residual. This is delegated
+row work, not a
+successful concrete `Compat`, and the processed-lower ledger is only a
+visitation marker. It is not a universal explanation: the frozen
+`unweighted_row_upper_cross_source_replay_inherits_covered_lineage` contract
+shows `beta` inheriting a covered upper from `alpha` without owning a row
+state, then suppressing a later concrete-lower pair without residual
+contamination. The successor theorem must account for graph-wide transport to
+the owning row state and preserve guards, weights, provenance and consumer
+conversion; current evidence does not establish those links.
 
 A separate M3 draft now proves finite least closure for a fixed finite graph,
 payload set and context carrier. Independent semantic and conformance reviews

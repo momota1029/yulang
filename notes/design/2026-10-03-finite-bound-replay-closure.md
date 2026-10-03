@@ -4,7 +4,7 @@ Status: Reviewed
 Date: 2026-10-03
 Scope: least closure of a fixed finite variable-bound graph with finite replay contexts
 Approved-by: none; the user's approved relation distinction is recorded in §1 of `2026-10-03-concrete-compatibility-boundary.md`
-Reviewed-by: architect pre-write audit; compiler_referee and spec_auditor review §§1–6 clean after primary closure of minor findings; fresh compiler_referee and spec_auditor review of §7 hypothesis; compiler_referee source-bridge and revised check-only contract-boundary deltas clean after major-finding repair; compiler_referee review of §8 clean after primary closure of one minor materialization-phase finding; architect pre-write audit plus compiler_referee/spec_auditor review of the §2/3/3.1/6 replay-admission refinement, no findings; compiler_referee §6 live-coverage suppression delta, no findings
+Reviewed-by: architect pre-write audit; compiler_referee and spec_auditor review §§1–6 clean after primary closure of minor findings; fresh compiler_referee and spec_auditor review of §7 hypothesis; compiler_referee source-bridge and revised check-only contract-boundary deltas clean after major-finding repair; compiler_referee review of §8 clean after primary closure of one minor materialization-phase finding; architect pre-write audit plus compiler_referee/spec_auditor review of the §2/3/3.1/6 replay-admission refinement, no findings; compiler_referee §6 live-coverage suppression delta, no findings; architect/compiler_referee/spec_auditor bounded review of the same-owner and cross-source covered-row characterization, candidate only
 Implementation authority: none
 Supersedes: none
 
@@ -251,6 +251,29 @@ At frozen commit `a58eefc31e22141574b6f20c6a5748151c6d79f1`:
   either why no source replay obligation is required or where any required
   obligation remains represented; it cannot count endpoint equality or
   successful local `Compat` composition as that evidence.
+- A semantically new lower insertion that reaches row routing at the same
+  variable owner runs `row_effect.rs::unweighted_row_reduction_routes_for_new_lower`
+  before ordinary replay preparation (`machine/bounds.rs::add_lower_bound`).
+  Each unprocessed row state emits a route: a match generates child row-item
+  constraints, advances its residual and routes against the original upper;
+  an unmatched/ineligible lower routes against the current reduced upper.
+  Incremental application retains the lower weights. This is operational
+  evidence for a possible per-lower row derivation replacing the generic pair,
+  not evidence of successful local compatibility. `processed_lower_records`
+  records visitation; it is not a success certificate, and the composer does
+  not consult it. Guards, context and conversion-use correspondence remain
+  unproved.
+- That owner-local explanation is not universal. Frozen
+  `constraints/tests/case_02.rs::unweighted_row_upper_cross_source_replay_inherits_covered_lineage`
+  creates a covered row claim on `alpha`, derives a covered upper on `beta`
+  through Function return-effect replay, and asserts that `beta` owns no row
+  reduction state. A later concrete lower on `beta` gets no generic replay
+  against that inherited covered upper and does not contaminate the residual.
+  The case demonstrates cross-source inherited coverage without a local beta
+  row router; it does not by itself prove the lower is transported to alpha
+  and discharged there. Exact conservation therefore has to span variable
+  edges, inherited claim lineage and row-state ownership, not just the local
+  insertion call.
 - `crates/infer/src/constraints/tests/case_01.rs::var_bound_addition_replays_against_opposite_bounds_with_union_weights`
   asserts a composed-weight lower/upper endpoint constraint. The neighboring
   `var_var_replay_materializes_transitive_edges` case asserts propagation of
@@ -277,6 +300,14 @@ successor obligations:
    site for a selected conversion.
 5. Extend the finite carrier through recursive structural children, symbolic
    effects, generalization, freshening and SCC intrusion.
+
+The next bounded source gate is a graph-wide conservation theorem for covered
+row uppers: each suppressed source-required lower/upper interaction must have
+an identified row derivation or transported obligation, including inherited
+coverage across variable edges. The theorem must distinguish route creation,
+row children, residual queries, worklist completion and consumer conversion;
+neither local row-state visitation nor concrete `Compat` transitivity can
+stand in for those links.
 
 No source syntax, acceptance behavior, cast-selection policy, runtime adapter
 rule, resource limit, or implementation representation is selected here.

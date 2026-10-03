@@ -281,15 +281,42 @@ concrete-lower suppression case, variable-lower parent retention, and the
 separate incremental route behavior. This review does not establish the
 successor source meaning of coverage or discharge.
 
+A bounded follow-up traced the owner path behind that predicate. When a
+semantically new lower insertion reaches row routing at the same source
+variable, it invokes each unprocessed local unweighted row state before
+ordinary replay composition. A matched lower
+creates row-item child obligations, advances the residual, and routes against
+the original upper; an unmatched or ineligible lower routes against the
+current reduced upper; when selected, the corresponding incremental replay
+applies the lower weights unchanged. This supports a
+candidate reading of row coverage as delegated processing, not as a successful
+local compatibility check. The processed-lower set records visitation and
+does not itself prove a check succeeded.
+
+The local explanation fails as a universal account. Frozen
+`unweighted_row_upper_cross_source_replay_inherits_covered_lineage` creates a
+covered upper on `alpha`, derives a covered upper on `beta` through a Function
+return-effect edge, and asserts `beta` has no row-reduction state. A later
+concrete lower on `beta` receives no generic replay against that inherited
+upper, while the test also asserts no residual contamination. The contract
+shows inherited coverage can suppress a pair without a row router at that
+owner; it does not prove where the interaction is represented. The remaining
+gate is graph-wide conservation through variable-edge transport to the
+originating row state, including guards, weights, provenance and eventual
+consumer conversion. Independent compiler-referee and spec-auditor reviews
+confirmed the local-route bounds and the cross-source counterexample; they did
+not certify successor semantics. No tests or builds were run.
+
 ## Next gate
 
-Prove bound-replay conservation for a fixed finite source elaboration and
-closed Record shapes. Define concrete-to-variable bound meaning and admissible
-same-pivot replay; prove original guarded obligations and required replay
-queries are preserved with their identities, without deriving queries from
-successful `Compat` compositions. Prove finite replay provenance/context
-closure before extending residual normalization. Then establish where replay
-conversion evidence executes, specify Record adapter behavior and prove
-evidence-preserving normalization and residual factorization. Source-wide
-context finiteness, unknown Record shapes, effectful interfaces, lifecycle and
-implementation remain open.
+Prove graph-wide bound-replay conservation for a fixed finite source
+elaboration and closed Record shapes. Define concrete-to-variable bound
+meaning and admissible same-pivot replay; account for covered row uppers both
+at their owning variable and through inherited coverage on other variables.
+Preserve original guarded obligations and required replay queries with their
+identities, without deriving queries from successful `Compat` compositions.
+Prove finite replay provenance/context closure before extending residual
+normalization. Then establish where replay conversion evidence executes,
+specify Record adapter behavior and prove evidence-preserving normalization
+and residual factorization. Source-wide context finiteness, unknown Record
+shapes, effectful interfaces, lifecycle and implementation remain open.
