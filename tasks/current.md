@@ -1877,16 +1877,18 @@ bounded finite-generation schema now constructs the unresolved query with
 candidate receipts, correspondences and views when the finite source/profile
 graph supplies those original occurrence facts. This does not prove that raw
 source constructs the profile or that the generated paths are admissible.
-Immediate next gate: close the identity-specific source-to-complete-interface
-adequacy bridge. Under the supplied slot view, source rules can construct
-`M_slot`, whole-carrier `M_arg`, complete `J_call`, and event-specific
-`Observe`; typed-core execution derives a checked challenge into `D_core`
-without `Q`. Still to derive is the admission map proving
-`D_checked ⊆ D_actual` for the actual complete interface, plus the source
-abstraction that yields `P_actual` and embeds its whole bound in the checked
-`[b,d]` relation under the same `ν,K,D`. Preserve all legal histories. The
-candidate graph is an execution/path witness only; it is not itself an
-admitted interface or proof of either remaining clause.
+Immediate next gate: instantiate the identity-specific source-to-interface
+composition under one `ν,K,D`. A compiler-referee attack on the stronger
+`D: Comp(d,Int)` candidate confirms that source execution preservation can
+yield `Exec_actual ⊆ P_checked` only after the whole `d` relation is embedded
+in the checked `[b,d]` relation; that still does not imply
+`P_actual ⊆ P_checked` because each `P` is a potentially wider interface
+bound. Derive separately the admission rule sending every checked typed
+carrier/history to an admitted actual `Value(Int)` receipt/force under the
+original contract, and the whole-bound composition
+`P_actual ⊆ Liftβ(Den(d), identity-result) ⊆ P_checked`. Preserve all legal
+histories and do not assume `Q`. Candidate source paths remain execution
+witnesses until these contract and bound rules are proved.
 Astra and compiler-referee audits refine the former
 `ArgEventToCallMember` gate into shared support membership, dynamic event
 preservation, and positive typed-incidence claims. A bounded compiler-referee

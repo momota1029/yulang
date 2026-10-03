@@ -3244,3 +3244,37 @@ an independence result. No compiler/API phase or new carrier was selected;
 no source changes, Oracle inspection, tests, builds, or measurements were
 performed. The primary used the existing `compiler_referee` and `architect`
 reports; this is a theorem/proof gate rather than an implementation gate.
+
+### Identity composition attack: execution inclusion is not bound inclusion (2026-10-04)
+
+A further compiler-referee attack considered the stronger bounded premise
+`β ⊢ D : Comp(d,Int)` and composed source adequacy with the unchanged Pure
+identity entry. This supports a useful execution-containment chain, if the
+source adequacy theorem covers complete joint histories and the linked `d`
+component has a complete relational embedding:
+
+```text
+Exec(D,h) ⊆ Den(d,h)
+Exec(identity-through-slot(D),h) ≅ Exec(D,h)
+Den(d,h) ⊆ P_checked(h)
+────────────────────────────────────────
+Exec(identity-through-slot(D),h) ⊆ P_checked(h)
+```
+
+That chain does not prove either semantic inclusion required by concrete
+compatibility. `D:Comp(d,Int)` under the slot still needs a source rule deriving
+the actual Pure identity's argument receipt/force as admitted by its original
+complete input contract. Separately, core §9's `P_actual` is a whole-interface
+bound, not the execution image. One-way adequacy of actual executions into
+`P_actual`, combined with execution containment in `P_checked`, cannot imply
+`P_actual ⊆ P_checked`.
+
+The precise remaining premises are therefore (1) an identity-specific
+admission-transport rule from every checked slot challenge/history to the
+actual `Value(Int)` entry contract and (2) a whole-bound factorization such as
+`P_actual(h) ⊆ Liftβ(Den(d,h), identity-result) ⊆ P_checked(h)`, or another
+direct whole-bound containment proof. The linked-`d` semantic intent supplies
+its designated correspondence, not these complete admission and bound
+theorems. No counterexample or additional semantic choice was established;
+the proof remains open. No API, phase, carrier, compiler code, tests, builds,
+Oracle inspection, or measurements were involved.
