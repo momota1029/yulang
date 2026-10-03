@@ -1,10 +1,10 @@
 # One inequality judgment with endpoint-dependent resolution
 
-Status: Draft; records user-directed single-inequality and Function effect-descriptor rules; complete resolver semantics and implementation authority remain open
+Status: Draft; records user-directed single-inequality, Function effect-descriptor, and mixed-row directions; merge semantics, complete resolver semantics, and implementation authority remain open
 Date: 2026-10-03
 Scope: one inequality judgment with endpoint-dependent solving and local concrete cast/adaptation resolution
-Approved-by: user for the single inequality judgment, endpoint-dependent resolution direction, concrete-success non-composition, and polarity-indexed Function effect descriptor split; descriptor elaboration, subtraction semantics, replay eligibility, and implementation remain open
-Reviewed-by: prior compiler_referee/spec_auditor reviews cover frozen-source facts and earlier Record/replay candidates; 2026-10-03 compiler-referee delta review of the Function descriptor note found no blocking/major issue and two minor wording repairs, now closed; the full witness calculus remains unreviewed
+Approved-by: user for the single inequality judgment, endpoint-dependent resolution direction, concrete-success non-composition, polarity-indexed Function effect descriptors, mixed variable/record row elements, and safe component-preserving flattening; effect-variable merge semantics, descriptor elaboration, subtraction semantics, replay eligibility, and implementation remain open
+Reviewed-by: prior compiler_referee/spec_auditor reviews cover frozen-source facts and earlier Record/replay candidates; 2026-10-03 compiler-referee delta reviews of the Function descriptor and mixed-row candidate found no blocking/major issues, with minor wording repairs closed; the full witness calculus remains unreviewed
 Implementation authority: none
 Supersedes: none; narrows source applicability of structural relation candidates without invalidating their fragment theorems
 
@@ -43,16 +43,38 @@ the two effect polarities through effect descriptors:
 | Contravariant | effect variables plus subtractive concrete effect records |
 | Covariant | effect variables plus concrete effect records |
 
+Effect expressions need no privileged `body ; tail` syntax. A candidate
+grammar is:
+
+```text
+E ::= effect-variable α
+    | concrete-effect-record ρ
+    | row[E₁, …, Eₙ]
+```
+
+Variables and concrete records may occur as elements of one row. A nested row
+may flatten only when doing so preserves its co-occurrence component,
+variable correspondence, record attachment, and scope/ownership evidence. For
+example, a safe same-component flattening may turn
+`[['a, write], read]` into `['a, write, read]`, while
+`['a, ['b, write], read]` must retain the nested component when `'b` belongs
+to a distinct co-occurrence class. Normalization removes redundant variables
+and nesting only after proving those distinctions are preserved. Original
+variable-witness merging is not yet specified: co-occurrence classes may
+either identify their members or denote an aggregate component while keeping
+their source witnesses distinct.
+
 For a concrete Function inequality, compare these descriptors jointly inside
 the same inequality resolution. The candidate evidence shape is:
 
 ```text
-W = (θ, M, S, R, Ψ)
+W = (θ, Π, M, S, R, Ψ)
 
 θ  shared correspondence for effect variables across both ports
+Π  co-occurrence components and permitted component merges
 M  concrete-family matches with their type-argument obligations
-S  admitted subtraction steps with their context/ownership evidence
-R  correlated residual routing for contributions not subtracted
+S  admitted subtraction steps, attached to their component and context
+R  correlated residual routing retaining component/witness identity
 Ψ  retained family equations, K,D dependencies, and request witnesses
 ```
 
@@ -61,6 +83,9 @@ Matching a family preserves its argument constraints; subtraction is allowed
 only with evidence for that concrete record; unmatched contributions remain
 connected through `R`. This must retain the same effect-variable
 correspondence wherever one variable occurs in both Function positions.
+`Π` controls normalization and correspondence together: flattening or
+merging carries the same `W` and `Ψ`, so normalization cannot silently
+identify distinct original witnesses or detach a record from its component.
 No effect port is decomposed as an unrelated `Type` inequality, and the
 result of one concrete Function comparison cannot be composed with another
 concrete success to establish a third inequality.
@@ -123,6 +148,14 @@ source-semantic evidence for the coupling, not the Function descriptor
 comparison rule and not an explanation of how `never` elaborates. The
 selected source rules for parameter roles and call entry are in redesign
 charter §21 and ordinary-computation package §§3–4.
+
+The compact signature `'a ['b, write int] -> ['b] int` places `'a` in the
+value-input position and shares effect variable `'b` between input and result
+descriptors. `write int` is subtractive in the contravariant descriptor;
+removing it requires concrete-family match evidence and its type-argument
+equations, while the shared `'b` survives in the result descriptor. This
+fixes the intended notation, not the equality semantics of co-occurrence
+merging or a complete subtraction algorithm.
 
 Frozen-source characterization supports the coupling but does not define its
 successor meaning. `infer/.../propagate.rs` detects a negative `Neg::Bot`

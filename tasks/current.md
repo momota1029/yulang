@@ -150,13 +150,17 @@ accepts. This is historical characterization only. Per the user's latest
 decision, Function effect ports are descriptors, not independent general-Type
 subtyping fields: contravariant descriptors contain effect variables and
 subtractive concrete effect records; covariant descriptors contain effect
-variables and concrete records. Resolve both ports jointly in the same
-`A <: B` query using one effect-variable correspondence, record matching,
-certified subtraction, and correlated residual routing. No Never/Any/empty-row
-lattice account is part of this rule. The current design records this witness
-shape and the intended `d`/`e` shared-port cases; descriptor elaboration,
-subtraction semantics, `[b,d]` combination, and preservation of family `K,D`
-remain open.
+records. Effect variables and records may be mixed as row elements; no
+privileged body/tail separator is required. Nested rows may flatten only
+when co-occurrence components, variable correspondence, record attachment,
+and ownership remain intact. Resolve both ports jointly in the same `A <: B`
+query using one effect-variable correspondence, record matching, certified
+subtraction, and correlated residual routing. No Never/Any/empty-row lattice
+account is part of this rule. The current design records this witness shape
+and the intended `d`/`e` shared-port cases. Still open: whether co-occurrence
+merging identifies original effect witnesses or creates an aggregate component
+while retaining those witnesses; descriptor elaboration, subtraction
+semantics, `[b,d]` combination, and preservation of family `K,D`.
 The exact scheme and bounded two-lane operational crosswalk are source-traced,
 while the inference fixture lacks a direct stored-scheme assertion. Record
 shapes need their own lane accounting.

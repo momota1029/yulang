@@ -593,9 +593,36 @@ before the body). That wording was repaired. This review predates and does not
 cover the later joint descriptor witness or its subtraction obligations. No
 tests or builds ran.
 
+### Mixed-row and nested-component refinement (2026-10-03)
+
+The user clarified that a body/tail syntax split is not fundamental. Effect
+variables and concrete records may be interleaved as elements of one row;
+simple nested rows may flatten, while nesting must remain when it preserves a
+separate co-occurrence component. Sol's candidate grammar is
+`E ::= α | ρ | row(E₁,…,Eₙ)`. Its normalization invariant retains the
+co-occurrence partition, variable correspondence, record attachment, and
+scope/owner evidence; flattening is admitted only when these are preserved.
+The joint Function witness therefore grows a `Π` component for co-occurrence
+classes and permitted merges, which travels with `θ,M,S,R,Ψ` through
+normalization and subtraction.
+
+One semantic choice remains for user direction: when co-occurrence merges
+`'a` and `'b`, does it identify their original effect witnesses (so all
+outside references share one witness), or does it form one aggregate row
+component while retaining separate original witnesses and their incident
+constraints? The examples distinguish a same-class flattenable row from a
+nested independent component, but do not settle how same-class merging affects
+outside references. No tests or builds ran.
+
 The descriptor-section delta review found no blocking or major authority
 drift. It requested two minor precision repairs: make use of `[b,d]`
 conditional on it soundly presenting the combined source support bound, and
 label the prior review as scoped to the superseded Value-role explanation.
 Both repairs are now reflected above. The full witness calculus and
 subtraction semantics were not certified. No tests or builds ran.
+
+The mixed-row delta review found no blocking, major, or minor issue. It
+confirmed that flattening is conditional on preserving the recorded component
+structure and that the open choice about original-witness identity remains
+explicit in the records. The full normalization and subtraction calculus was
+not certified. No tests or builds ran.
