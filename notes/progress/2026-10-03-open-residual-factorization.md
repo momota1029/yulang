@@ -944,3 +944,37 @@ impossibility result. A successful reduction still needs finite constraints
 that force valid tile labels and both adjacency directions without relying on
 unsupported free finite-choice encodings or arbitrary-prefix transport of a
 root equation.
+
+### Exact package with nonstabilizing alternation and regular completion
+
+A bounded Astra audit found a concrete package showing that the reviewed
+finite alternation may grow at every stage even when its least completion is
+regular. Take one covariant unary constructor `C` with child coordinate `a`,
+one free root `x`, an exact descriptor `q = C(x)`, and the single original
+inequality `b: x <: q`. There are no Record fields or width branches.
+
+Let `A_n` be the comparison-trace family after `n` rounds, starting with the
+original root trace, and let `U_{n+1}=F(A_n)`, `A_{n+1}=G(U_{n+1})` be the
+reviewed clash-free alternation. Then
+
+```text
+A_n = { a^k | 0 ≤ k ≤ n }.
+```
+
+For active traces through depth `n`, unary head transfer plus the descriptor
+rewrite `(q, aw) ≡ (x, w)` forces `Head_C(x,a^k)` for `k≤n` and
+`Head_C(q,a^k)` for `k≤n+1`. Since the compared heads agree, `G` appends the
+next covariant child trace `a^(n+1)`, but it cannot append one more before the
+next unary saturation forces the head at that new `x` address. Thus every
+finite stage strictly grows; iteration until finite-stage equality is not a
+terminating saturation algorithm for this fragment.
+
+The least closure is nevertheless clash-free and its canonical completion
+is regular: both `x` and `q` unfold to `C^ω`, represented by one graph node
+with a `C` self-loop. So this example refutes only plain finite-stage
+stabilization as an algorithm. It proves neither nonregularity nor failure of
+effective acceleration. The next structural gate is to accelerate this exact
+self-shift while preserving joint unary/trace guards and descriptor-prefix
+transport, then prove termination for the full finite-label fragment. A
+reviewed general accelerator is still required before treating the fragment
+as a terminating inference gate.

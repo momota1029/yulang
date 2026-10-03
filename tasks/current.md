@@ -244,6 +244,17 @@ exact open case. See
 independent Milestone-3 theorem result; it does not change the active
 role-first Function source gate or authorize implementation.
 
+A bounded Astra attempt has now supplied a concrete nonstabilizing example
+for the exact clash-free `F/G` alternation: unary covariant `C`, exact
+`q=C(x)`, and the single inequality `x <: q` force one additional active
+comparison depth per round, although the least completion is the regular
+`C^ω` graph. An independent compiler-referee review confirmed the recurrence
+and its scope. This rules out finite-stage equality as a terminating
+saturation algorithm, but it is not a nonregularity or undecidability result.
+Next derive an accelerator for this self-shift that preserves guarded trace
+expansion and descriptor-prefix transport, or prove a stronger finite
+regularization route. The complete regular-model gate remains open.
+
 A separate attempt to derive a nonregular-only package from aperiodic Wang
 tilings has not produced a reduction. For fixed pointwise decoders from
 regular finite-track trees, decoded `aⁱbʲ` grids are eventually periodic in
