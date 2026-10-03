@@ -1440,3 +1440,47 @@ carrier is justified by the report.
 Updated design §8, `tasks/current.md`, and the design index. `git diff --check`
 is the only check; no tests/builds/code/Oracle inspection. Immediate theorem
 remains open and extensional; finite presentation/principality are later gates.
+
+### Conditional open-graph route (2026-10-03)
+
+A bounded Astra theorem audit, then an independent Sol architect audit,
+examined whether the rigid-hole alias gap can use existing graph/evidence
+structures. The audits support recording a conditional proof candidate, not a
+closed theorem or a carrier redesign.
+
+The candidate keeps `H:T_checked` as a proof-only hole in open source
+derivations, builds one joint graph retaining context/capture/carrier location
+identity, and uses a monotone positive structural relation only for code,
+constructor and decoration checks. Containing closures/cells stay open-derived;
+the actual callable never acquires checked semantic membership from the hole
+assumption. Plugging is identity-preserving graph substitution. This can avoid
+the direct recursive-membership circle if no downstream premise asks for
+closed checked membership of a containing value.
+
+That graph argument does not establish semantic `EnvStore`/`JointWF` validity.
+The genuinely new obligation is an open decorated source construction and its
+substitution/history theorem: preserve hole dependence and shared locations
+through mutation, alias reads/calls, capture, returns, requests/responses,
+handler exit and raw resumption, with actual role/entry, original profiles,
+shared `ν,K,D`, event-specific `Flow`/`Observe`/incidence and expiry. A static
+“contains H” marker is insufficient because mutation changes aliases. A
+semantic greatest fixed point is also unsupported without a monotone positive
+operator; Function inputs are negative and mutable stores couple reads and
+writes.
+
+The Sol delta audit surfaced a domain boundary to preserve: the coupled
+contextual contract permits semantic free-variable environments, including
+ones not constructible by a closed program. Whether open derivations with
+admissible imports generate that domain is unresolved; do not narrow it to
+closed-program-reachable heaps. Existing graph machinery transports supplied
+relations but supplies neither source generation nor finite effective
+comparison/principality. No concrete carrier insufficiency was found.
+
+Next: define admissible initial open states/imports, prove rigid-hole
+substitution and transition closure over the intended context domain, then
+construct the actual/checked complete domains and observations. Keep the
+role-first order: only then derive the pure-to-handler lift and joint `[b,d]`
+effect interpretation from source execution such as `Force(D) >>= B`. No
+implementation, solver carrier, Oracle inspection, test, build or measurement
+was authorized or performed. This remains a draft research route with the
+existing BLOCKING domain and major closure findings open.

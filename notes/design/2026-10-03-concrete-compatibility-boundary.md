@@ -5,7 +5,7 @@ Date: 2026-10-03
 Scope: one inequality judgment with endpoint-dependent solving and local concrete cast/adaptation resolution
 Approved-by: user for the single inequality judgment, endpoint-dependent resolution direction, concrete-success non-composition, polarity-indexed Function effect descriptors, mixed abstract/concrete type components, canonical-flat covariant rows, abstract-only contravariant meet normalization, and concrete-bearing attachment descriptors for witnessed partial reverse-addition; component classification, co-occurrence consolidation, the component-to-existing-carrier bridge, proof that existing evidence licenses a particular reversal, replay eligibility, and implementation remain open
 Reviewed-by: prior compiler_referee/spec_auditor reviews cover frozen-source facts and earlier Record/replay candidates; 2026-10-03 compiler-referee delta reviews of the Function descriptor and mixed-row candidate found no blocking/major issues, with minor wording repairs closed; general-component, polarity-specific reverse-addition, and abstract-only contra-meet wording delta reviews found no blocking/major/minor issue; the conditional support-obligation corollary received bounded spec-auditor and compiler_referee review with all findings closed and no remaining finding; the intended-Function necessary-condition subsection received a bounded compiler_referee review with no findings; the conditional Act-family coverage candidate received a bounded compiler-referee review, its minor ownership clarification and major nonempty-fiber premise were repaired, and the delta review closed with no residual finding; the singleton `TypedRow` to candidate Function-support crosswalk received a bounded compiler_referee review with no findings; the abstract-component same-fiber candidate had a major joint-fiber/union-premise finding repaired and its bounded delta review closed with no residual finding; the full witness calculus remains unreviewed
-Role-first §8 review: architect pre-write audit; compiler_referee reported one BLOCKING complete-domain-construction gap and major decorated-behavior, entry-role separation, and support-only lifting gaps; spec_auditor found the selected direction conformant and confirmed these obligations remain open. Rigid-hole schema delta: compiler_referee accepted its conditional non-vacuity/actual-preservation claims, while retaining BLOCKING `EnvStore`/`JointWF` construction and a major operational-context-closure obligation. No carrier insufficiency found.
+Role-first §8 review: architect pre-write audit; compiler_referee reported one BLOCKING complete-domain-construction gap and major decorated-behavior, entry-role separation, and support-only lifting gaps; spec_auditor found the selected direction conformant and confirmed these obligations remain open. Rigid-hole schema delta: compiler_referee accepted its conditional non-vacuity/actual-preservation claims, while retaining BLOCKING `EnvStore`/`JointWF` construction and a major operational-context-closure obligation. A later bounded Astra theorem audit and Sol architect delta support only the conditional open-graph research candidate below; both retain the domain/construction and closure gaps. No carrier insufficiency found.
 Implementation authority: none
 Supersedes: none; narrows source applicability of structural relation candidates without invalidating their fragment theorems
 
@@ -1282,3 +1282,47 @@ closure, calling through aliases, handler exit, mutation, and raw resumption
 must preserve role/entry, profiles, `Flow`/`Observe`, incidence and expiry in
 one shared fiber. These are source-judgment/closure obligations, not evidence
 for another carrier. Do not call §8's invocation-coverage theorem closed.
+
+### Conditional open-graph route for the remaining EnvStore gap
+
+A bounded Astra theorem audit, followed by a Sol architect delta audit,
+identified a candidate proof route using existing graph identity and interface
+evidence. It is a research candidate only; it does not discharge the
+BLOCKING `EnvStore`/`JointWF` construction or transition-closure findings.
+
+Use one proof-only rigid hole `H:T_checked` in open source derivations for the
+context, containing closures, cells, and saved suffixes. The hypothetical
+typing assumption for `H` must never imply semantic membership of the actual
+callable at `T_checked`. Build one joint heap graph for context roots, actual
+captures, and the argument carrier, retaining shared locations. Any cyclic
+structural admissibility relation must be a displayed monotone positive
+operator over constructor/code descriptors and existing decorations; the
+hole clause checks only the designated hypothetical hole. Every containing
+closure or cell remains justified by its open derivation rather than by
+closed target membership. Plugging is identity-preserving graph substitution,
+not a fresh or independently selected heap.
+
+This structural relation alone does not establish a semantically valid
+`EnvStore`. The new obligation is an open decorated source-typing and history
+construction, with substitution and transition closure for each finite
+source step. In particular, open dependence must be transported through
+mutation, alias reads/calls, closure capture, returns, requests and responses,
+handler exit, and raw resumption; it cannot be approximated by a static
+“contains `H`” tag. Behavior after plugging retains the actual receiver role
+and §21 entry, original profiles, shared `ν,K,D`, event-specific
+`Flow`/`Observe`/incidence, and activation expiry. A naive semantic greatest
+fixed point is not justified because Function inputs are negative and
+mutable cells couple reads with writes.
+
+The candidate's initial-state domain must not silently shrink to heaps
+reachable from closed programs. The coupled contextual contract permits
+semantic free-variable environments; whether open derivations with admissible
+imports recover that domain remains unproved. Finite identity-preserving graph
+machinery transports supplied relations but proves neither source generation
+nor finite effective comparison or principality. Thus this route adds proof
+judgments and closure lemmas, not a solver carrier, runtime provenance, or a
+contextual-preorder interpretation of concrete inequality. Before it can
+close the gate, derive admissible initial open states, prove plugging and
+transition closure over the intended domain, and then establish the two
+complete-interface inclusions. Only after that may the joint `[b,d]` lift be
+derived from role-directed Function elaboration and `Force(D) >>= B`.

@@ -294,6 +294,19 @@ under joint source-state premises: the inert carrier reaches actual receipt
 before force, even when its computation diverges. This is not annotation
 acceptance or a nonempty-fiber theorem.
 
+A conditional proof route now uses proof-only rigid holes in open source
+derivations, one identity-preserving heap graph, and positive structural
+closure. It must keep containing closures/cells open-derived, and must not
+turn `H:T_checked` into actual semantic membership. This does not establish
+`EnvStore` validity: source-generated initial states/imports plus
+substitution/history closure through aliases, mutation, calls, responses and
+resumption remain blocking. Preserve the coupled contract's semantic
+free-variable environments; do not narrow to closed-program-reachable heaps
+without authority. Finite graph identity machinery supplies transport from
+given states, not source generation, complete finite comparison, or
+principality. See design §8 for the candidate and its limits. No carrier
+change is justified.
+
 Any hypothetical annotation-coverage rule must be a universal obligation over
 the supplied complete comparison, not deletion of uncovered observations.
 Its support projection applies only after concrete and abstract component
