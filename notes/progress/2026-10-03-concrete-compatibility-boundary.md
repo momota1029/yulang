@@ -773,19 +773,26 @@ is not successor authority: it does not prove that Oracle-directed rules
 preserve the successor's source denotation, and its `StackWeight` rules must
 not be copied as meaning.
 
-The genuinely new questions are narrower: (1) the source proof linking an
-accumulated concrete contribution to the old subtraction evidence, if the
-existing relational transport does not already entail it; (2) how
-abstract/concrete component classes are derived from source terms and
-correlated without changing their identity; (3) how canonical-flat covariant
-rows and the polarity-specific contravariant view are elaborated while
-preserving those correlations; and (4) how one concrete Function inequality
-jointly resolves both ports, including the intended linked `[b,d]` /
-shared-`e` cases. A new evidence field is justified only by naming a concrete
-source fact that the old weighted constraints and existing relational
-carrier cannot recover. Until such a gap is demonstrated, partial “reverse
-addition” is terminology for a possible reformulation, not new machinery.
-No Oracle `Never`/`Any`/empty-row behavior was promoted into the account.
+The precise new obligation is the bridge from Function effect-row components
+to existing carriers: map a component to source-owned family occurrence(s),
+their shared assignment/incidence `g(o), ν, K,D`, and the directed-weight
+path/row split that can consume it. The candidate must prove the old split
+denotes the source-supported partial reversal for that component. The old
+weight spec alone does not prove this mapping, while the existing coupled
+relation already has the family ownership, incidence and transport vocabulary;
+do not copy those into another ledger. If this bridge is derivable, no new
+attachment/provenance field is needed. If it is not, isolate the exact
+lost source fact before proposing one.
+
+Other genuinely new obligations are deriving the source classification and
+correlation of abstract/concrete type components, proving canonical-flat
+covariant normalization and polarity-specific contravariant descriptor
+elaboration preserve the existing solution fiber, and jointly resolving both
+ports for the linked `[b,d]` / shared-`e` cases. These are integration and
+preservation proofs, not justification for another subtraction algebra.
+Until a concrete evidence gap is demonstrated, partial “reverse addition” is
+only a possible reformulation of existing subtraction evidence. No Oracle
+`Never`/`Any`/empty-row behavior was promoted into the account.
 
 The first generalization obstacle remains replay admission: same-pivot records
 alone do not justify a replay, and optional Records refute unconditional

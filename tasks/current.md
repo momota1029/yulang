@@ -120,15 +120,25 @@ is withdrawn. `notes/design/2026-10-03-source-context-finite-closure.md`
 records a conditional finite-context theorem for supplied templates, not the
 source-wide template-generation proof.
 
-Immediate gate: instantiate and justify the candidate joint descriptor
-witnesses/local-exactness premises in §8.2 for the application's separate
-nonreflexive callee Function check and matching cast-candidate Function
-check. Keep them rooted in the application contract and the admitted
-candidate branch respectively; neither is reflexive, and neither is justified
-by concrete-success composition. The effect-position `never` spelling has no
-successor elaboration yet, so retain that as an open premise rather than
-importing a frozen materialization artifact. Once those local witnesses are
-justified, prove the conditional fixed-lane boundary/task conservation in §8.2 of
+Immediate gate: build the source-to-carrier crosswalk for Function effect
+components before elaborating new descriptor machinery. Show whether component
+occurrences map to the existing `g(o)`, shared `ν`, incidence `D`, family
+predicate `K`, and directed-weight path/row-split evidence. Prove that the
+existing subtraction evidence entails each allowed partial reversal, or name
+the exact source fact it cannot express; do not add a duplicate attachment or
+provenance field in advance. Then prove the normalization/transport of the
+canonical-flat covariant view and polarity-specific contravariant view over
+those same carriers. This mapping must account for the intended linked
+`[b,d]` and shared-`e` Function cases without promoting Oracle
+`Never`/`Any`/empty-row artifacts.
+
+After that crosswalk, return to the distinct fixed application-lane gate:
+justify the joint descriptor witnesses/local-exactness premises in §8.2 for
+the separate nonreflexive callee Function check and matching cast-candidate
+Function check, rooted in the application contract and admitted candidate
+branch respectively. Neither check is reflexive or justified by
+concrete-success composition. Then prove the conditional fixed-lane
+boundary/task conservation in §8.2 of
 `notes/design/2026-10-03-finite-bound-replay-closure.md`. Broader replay
 admission, guards, row/residual alternatives, multi-consumer ownership,
 source-template/context closure, residual satisfiability, generalization,

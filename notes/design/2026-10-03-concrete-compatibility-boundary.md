@@ -3,7 +3,7 @@
 Status: Draft; records user-directed single-inequality, Function effect-descriptor, and mixed-row directions; merge semantics, complete resolver semantics, and implementation authority remain open
 Date: 2026-10-03
 Scope: one inequality judgment with endpoint-dependent solving and local concrete cast/adaptation resolution
-Approved-by: user for the single inequality judgment, endpoint-dependent resolution direction, concrete-success non-composition, polarity-indexed Function effect descriptors, mixed abstract/concrete type components, canonical-flat covariant rows, abstract-only contravariant meet normalization, and concrete-bearing attachment descriptors for witnessed partial reverse-addition; component classification, co-occurrence consolidation, exact accumulation/attachment evidence, replay eligibility, and implementation remain open
+Approved-by: user for the single inequality judgment, endpoint-dependent resolution direction, concrete-success non-composition, polarity-indexed Function effect descriptors, mixed abstract/concrete type components, canonical-flat covariant rows, abstract-only contravariant meet normalization, and concrete-bearing attachment descriptors for witnessed partial reverse-addition; component classification, co-occurrence consolidation, the component-to-existing-carrier bridge, proof that existing evidence licenses a particular reversal, replay eligibility, and implementation remain open
 Reviewed-by: prior compiler_referee/spec_auditor reviews cover frozen-source facts and earlier Record/replay candidates; 2026-10-03 compiler-referee delta reviews of the Function descriptor and mixed-row candidate found no blocking/major issues, with minor wording repairs closed; general-component, polarity-specific reverse-addition, and abstract-only contra-meet wording delta reviews found no blocking/major/minor issue; the full witness calculus remains unreviewed
 Implementation authority: none
 Supersedes: none; narrows source applicability of structural relation candidates without invalidating their fragment theorems
@@ -51,6 +51,10 @@ E⁺ ::= flat-row{abstract-type-component Aᵢ, concrete-type-component Cⱼ}
 E⁻ ::= AbstractMeet{Aᵢ, …, Aₙ}
      | AttachedDescriptor{abstract components, concrete components, attachments}
 ```
+
+Here `attachments` means references/views into the existing occurrence,
+ownership, and directed-weight evidence. It does not prescribe a second
+attachment table or independently allocated provenance identity.
 
 Effect variables are a typical abstract component, and concrete effect
 records are typical concrete components; neither example exhausts its class.
@@ -112,14 +116,25 @@ The existing directed-stack-weight/effect-subtraction specification is prior
 art, not successor authority: its exact `StackWeight`, `SubtractId`, `take(F)`,
 `Common(L)`, `K ∩ Common(L)`, `L - J`, W-Mix, replay, and residual-hash-cons
 rules must not be imported as successor semantics without the declarative
-source proof already required by the effect-design gate. They do show that
-regional eligibility, attachment to a subtraction identity, residual
-transport, and provenance are not new concepts here. The genuinely new
-questions in this boundary are whether one endpoint-dependent `A <: B` solver
-can consume the established source meaning of those facts; how its Function
-rule jointly relates contravariant abstract/concrete descriptors to
-covariant canonical-flat rows; and whether the existing coupled relation and
-transport preserve their correlations after flattening. No new total
+source proof already required by the effect-design gate. The reuse boundary is:
+
+| Needed fact in a Function inequality | Existing carrier to reuse | Remaining proof question |
+|---|---|---|
+| Which handler boundary may consume a concrete contribution | Directed left-weight path and scoped `SubtractId` in the old calculus; source handler/activation relation in the coupled-interface candidate | Derive the successor eligibility condition and show the edge/path witness denotes it |
+| What was consumed and what remains | Old row head split `J = K ∩ Common(L)` and residual `L - J`; relational handler image and residual support projection | Prove the mapping from typed concrete row components to `J`, preserving dependent arguments and shared assignment |
+| Which symbolic family arguments remain coupled | Existing source-owned `g(o)`, occurrence incidence, shared `ν`, and symbolic `K,D` in the coupled relation | Show a Function effect component occurrence maps to those existing owners; do not add a duplicate ownership map |
+| How constraints survive transformation | Existing replay / variance transport and relational reindexing laws | Prove covariant flat normalization and contravariant descriptor construction preserve the same solution fiber |
+
+The genuinely new obligation is the bridge between the Function effect-row
+syntax/components and those existing carriers: the component-to-occurrence
+mapping, plus a proof that the old subtraction evidence denotes precisely the
+source-supported partial reversal when used by the single `A <: B` resolver.
+The directed-weight specification alone does not supply that source theorem.
+If the bridge can be derived from existing occurrence/incidence and weight
+facts, no extra attachment/provenance datum is needed. If it cannot, identify
+the exact lost source fact before proposing a field. The covariant flat-row
+normalization and the joint two-port Function rule are also new integration
+proofs, but neither licenses a parallel row-subtraction algebra. No new total
 cancellation algebra, shared-correspondence map, family-ownership ledger, or
 parallel regional/attachment/provenance calculus is proposed.
 
@@ -130,8 +145,9 @@ Fun(a, never, b, c) <: Fun(a, d, [b,d], c)
 Fun(a, never, never, b) <: Fun(a, e, e, b)
 ```
 
-The same target variable `d` is related across both target ports by `θ`; the
-source contribution `b` remains present in the output descriptor. There is
+The same target variable `d` remains one shared term across both target ports
+under the existing assignment and ownership relation; the source contribution
+`b` remains present in the output descriptor. There is
 no independent `d <: never` obligation. For the second case, the intended
 effect evidence connects target input `e` with target output `e`; whether the
 two source `never` spellings elaborate to descriptors with no concrete
