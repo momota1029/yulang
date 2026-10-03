@@ -1762,3 +1762,21 @@ and interface elaboration, with no effect-position semantics assigned to
 without implementation authority. No code or tests changed; only `git
 diff --check` is planned for this record slice, with no builds, Oracle work,
 or measurements.
+
+### Charter conflict resolved by explicit role supersession (2026-10-03)
+
+The source audit exposed a direct conflict: charter §16 says every function
+is a handler, while the user's newer §7 clarification assigns pure receiver
+role to ordinary unannotated function literals and handler role to annotated
+and callback-context literals. Added charter §24 to supersede only §16's
+universal receiver-role claim, while retaining its invocation/entry mechanics
+under the role and interface selected by source elaboration. In particular,
+§21 value entry still forces and rebinds within a pure-role function
+invocation. Updated the design crosswalk, index and task record to name this
+boundary.
+
+This is a direct record of the user's semantic clarification, not a new
+inference rule or implementation decision. Effect-port elaboration and the
+intended coupled Function inequality remain unproved. No code, tests, builds,
+or Oracle work; `git diff --check` is the record integrity check, and no
+measurement budget was used.

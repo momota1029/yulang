@@ -643,3 +643,28 @@ algorithm. Existing existential packet correspondence, uniform arm checking
 and the generation-time guard on every derived comparison remain obligations.
 Exact variable/extrusion coverage, preservation, principal inference and
 lifecycle still require proof before implementation approval.
+
+## 24. User clarification: receiver role precedes Function effect ports (2026-10-03)
+
+This clarification supersedes §16's universal classification of every
+function as a handler. Function introduction and expected context first select
+the receiver role: an ordinary unannotated function literal is pure; an
+explicitly Function-annotated literal has a handler boundary; and a literal
+in callback position receives handler role from its expected context. The
+selected role then determines Function-interface elaboration, after which
+effect-port interpretation is derived. Effect-port spelling does not select
+the role.
+
+The invocation and argument-entry mechanics in §16 remain applicable under
+the role and interface selected by this elaboration. In particular, §21's
+ordinary `Value(A)` parameter still forces and rebinds its argument inside the
+invocation even when the function's receiver role is pure. Thus §16's common
+invocation/entry mechanics do not imply a universal handler receiver role.
+This role decision is distinct from §21's `Value` versus `Computation`
+parameter-entry decision.
+
+This clarification assigns no standalone effect meaning to `never`, empty
+effect rows, or polarized solver extrema. It also does not establish the
+effect-port elaboration rules, the pure-to-handler Function inequality, a
+complete source comparison, or implementation authority; those remain proof
+gates.

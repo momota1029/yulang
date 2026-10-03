@@ -305,6 +305,12 @@ derive this role-selection judgment or its interface/effect-port clauses.
 Do not infer role from port spelling or give effect-position `never` an
 independent meaning.
 
+Charter §24 now records the clarification as superseding §16's universal
+"every function is a handler" receiver-role statement. §16's invocation and
+§21 entry mechanics remain conditional on the role/interface selected by §24;
+ordinary value entry still forces and rebinds within the invocation for a
+pure-role function. Receiver role stays separate from parameter entry.
+
 The callback-slot profile projection is downstream of that gate. Once the
 handler callback interface has been derived, show how the expected callback
 contract creates its `CallView`, typed receipt and identity `Flow`; then show

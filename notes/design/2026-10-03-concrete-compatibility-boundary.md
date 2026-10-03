@@ -1678,6 +1678,13 @@ Thus the immediate missing source fact is the role-directed introduction and
 contextual-elaboration rule, not a uniform map from one effect-row component
 to a complete receiver/computation interface.
 
+This user clarification supersedes the earlier charter §16 statement that
+every function is a handler, specifically its universal receiver-role claim.
+Its common invocation and argument-entry mechanics remain applicable under
+the role selected here; §21 value entry still forces and rebinds within the
+invocation for a pure-role function. The charter records this narrow
+supersession in §24.
+
 Effect ports acquire their interpretation only after that source elaboration;
 they are views of the resulting Function interface, not independent
 receiver-semantics inputs. In particular, the intended
