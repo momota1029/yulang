@@ -2220,6 +2220,20 @@ those decorations before resolving `Q`, using existing `Path`, `Flow`,
 `Inc_C`, and subtraction evidence. This is a missing derivation, not a
 counterexample or new-carrier result.
 
+A focused compiler-referee derivation separates what formal-slot application
+does establish. Identity lookup retains the slot view; application relates
+the inert whole argument to the formal parameter; distinct receipt and §21
+Value entry reach the same Force event; enclosing-context membership gives
+`Observe` at the complete slot `CallView`. This yields the negative path if
+`p_d⁻` already denotes that argument computation position. It does not show
+that a row-component occurrence denotes that position, nor map the positive
+`d⁺` row member to the complete-call observation. The latter requires a
+source interpretation of linked `[b,d]` preserved by flat normalization and
+proved in the same nonempty `Rel_C` fiber. These can use existing path/flow,
+incidence, observation and subtraction evidence; no carrier gap is shown.
+Formal-slot use also does not prove admission of the existing Pure actual or
+the universal `Q` challenge clauses.
+
 ## Main records
 
 - `notes/design/2026-10-03-scoped-constraint-solving.md` — scoped regular equality quotient and finite closed structural subtype saturation; the following reviewed candidate addresses open residual factorization.
