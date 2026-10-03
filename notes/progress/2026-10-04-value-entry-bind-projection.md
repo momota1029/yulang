@@ -147,3 +147,60 @@ the already approved slot invocation view and source-owned `Rel_C`, `K,D`,
 `Flow`/`Observe`, `Path`, and incidence. Then derive the checked challenge
 domain and actual Pure endpoint correspondence over the same complete
 histories. No comparison success may be a premise for admission.
+
+## Source-path derivation attempt
+
+The user-selected facts fix the intended path endpoints and operational
+middle for the bounded identity callback, but whether they entail the typed
+maps remains open. Let `β` be the original callback-slot profile, with the
+linked component `d` at its signed argument position and positive complete-
+call contribution. The slot is a typed invocation view, so a call through it
+uses `β` for the whole call. Under §21 Value entry, the callback invocation
+receives the inert whole carrier `D` at `J_arg` and then executes
+`Force(D) >>= B` inside its complete view. A request occurrence `o` emitted
+by `Force(D)` retains its operation identity, payload, response dependency and
+`K,D` through bind. Under the same concrete callback contract, while the
+corresponding receiver boundary is active and before dispatch, the selected
+visibility rule makes that Force-exposed request eligible like a direct
+callback request. A live slot alone does not establish admission; an escaped
+later call needs its own transported view and active-owner proof.
+
+The intended correspondence is the following candidate obligation diagram,
+not yet a constructed `Path`:
+
+```text
+β.p_d⁻ --typed slot-to-argument map--> J_arg
+  --separate argument Receive / Value entry--> Force(D)
+  --same event at active CallView / event-specific Observe--> β.p_d⁺ in J_call
+```
+
+The outer receiver separately obtains the callback value through
+`Receive(r, callback_slot, V_slot, M_slot)`. The inner
+`Receive(u, arg, V_arg, ...)` is the callback invocation's receipt of `D`;
+it cannot stand in for the slot owner's receipt of `f`. The user's linked-
+lifting decision fixes the intended relation between the negative argument
+contribution and positive `d` contribution. The slot-view decision supplies
+the preserved profile. The operational rules supply the receipt/Force order
+and event preservation. The source derivation must still construct both
+receipts, the typed slot-to-argument map, the whole-call executing view, and
+the component projection into the linked positive output contribution.
+
+`Observe` needs no new event-routing rule: once source elaboration establishes
+the correct complete `View(V_slot,p_call,...)`, the existing emission-context
+definition makes the Force-emitted event observable in that executing view.
+That fact does not itself prove annotation satisfaction or membership in the
+linked `[b,d]` output component. The source maps and component projection must
+still be recorded with existing `Path`, `Flow`/`Observe`, `Inc_C`, and
+directed-weight/subtraction evidence before resolving `Q = T_P <: F_cb`.
+The output `[b,d]` still requires the selected linked profile rule, not
+independent port subtyping or row-set union.
+
+This remains a derivation attempt, not a proved result. The exact question is
+whether “typed invocation view” plus the selected linked lift entails the
+displayed source-path correspondence, or merely fixes its endpoints while a
+more explicit source application rule is needed. The diagram does not settle
+callback argument admission, actual endpoint adequacy, universal
+domain/observation inclusion, or evidence generation in the solver. Review
+must check the unresolved `Q`, distinct slot-value and argument receipts,
+same live receiver before dispatch, complete `CallView`, and linked-component
+projection; success of `Q` must not create any edge in the diagram.

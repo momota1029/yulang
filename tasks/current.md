@@ -2209,6 +2209,17 @@ maps and combination from the approved slot invocation view and existing
 source evidence, then prove complete domain/observation inclusion without
 assuming comparison success.
 
+A bounded Astra reread sharpens the immediate gap: no new `Observe` routing
+rule is needed. Once source elaboration constructs the correct complete
+`View(V_slot,p_call,...)`, the existing emission-context definition makes a
+Force-emitted event observable there. Still missing are the source-generated
+typed slot-to-argument map, the complete executing view, and projection from
+the positive call position into linked `d`/`[b,d]`; `Observe` alone proves
+neither annotation satisfaction nor linked-component membership. Derive
+those decorations before resolving `Q`, using existing `Path`, `Flow`,
+`Inc_C`, and subtraction evidence. This is a missing derivation, not a
+counterexample or new-carrier result.
+
 ## Main records
 
 - `notes/design/2026-10-03-scoped-constraint-solving.md` — scoped regular equality quotient and finite closed structural subtype saturation; the following reviewed candidate addresses open residual factorization.
