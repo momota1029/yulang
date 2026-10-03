@@ -2194,6 +2194,21 @@ by the selected linked lift. This is a missing derivation, not a formal
 independence theorem or executable counterexample. No implementation/API/phase
 or new evidence carrier follows.
 
+A proof-only stateful-bind lemma now factors each immediate Value-entry call
+request by its actual source origin (argument execution or body/result
+consumer), under one query, `ν,K,D`, and all compatible changed-state
+resumption histories. Its first referee review found that this origin result
+alone does not transport events to the complete output profile; a repair made
+the required event-specific `Flow`/`Observe` maps and linked `[b,d]`
+combination explicit premises. A focused compiler-referee delta closed that
+finding. Therefore only source-origin factorization is established; the maps,
+combination rule, complete checked domain, endpoint adequacy, and full
+Function inequality remain open. See
+`notes/progress/2026-10-04-value-entry-bind-projection.md`. Next derive the
+maps and combination from the approved slot invocation view and existing
+source evidence, then prove complete domain/observation inclusion without
+assuming comparison success.
+
 ## Main records
 
 - `notes/design/2026-10-03-scoped-constraint-solving.md` — scoped regular equality quotient and finite closed structural subtype saturation; the following reviewed candidate addresses open residual factorization.
