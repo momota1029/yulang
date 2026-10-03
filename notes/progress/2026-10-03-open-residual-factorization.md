@@ -1184,3 +1184,17 @@ context. This is a diagnostic for a stronger state key carrying the joint
 cross-bound partner vector and endpoint order; it is not a general finite
 quotient theorem. Any such proposal still has to preserve descriptor aliases,
 child coherence, and all jointly imposed local head/Record constraints.
+
+The local transition table is:
+
+| flexible node | direct Function contexts | argument Record constraints | result-child context |
+|---|---|---|---|
+| `z` | `b1: z <: k`; `b2: z <: l`; `b3: l <: z` | `r <: A`, `e <: A`, `A <: e`, satisfied by `A=e` | `b1: z₂ <: k`; `b2: z₂ <: k`; `b3: k <: z₂` |
+| `z₂` | `b1: z₂ <: k`; `b2: z₂ <: k`; `b3: k <: z₂` | `r <: A₂`, `r <: A₂`, `A₂ <: r`, satisfied by `A₂=r` | same three contexts at `z₃` |
+
+Thus this package's joint context automaton has a transient root state and a
+stationary result state; realizing the latter as `k` gives the witness
+`z=Function(e,k)=l`. This is a finite calculation for the example only. A
+general construction still needs to show that finite joint contexts can be
+formed without losing shared descriptor anchors or correlations with `P/P`
+boundary solutions.

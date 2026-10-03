@@ -142,7 +142,12 @@ A primary follow-up observes that this package's full joint comparison context
 does distinguish the free root from its result child and then stabilizes at
 the child. That suggests a concrete discriminant for a stronger state key,
 but does not prove a general finite quotient; descriptor sharing and
-child-coherence obligations remain open.
+child-coherence obligations remain open. The package now has an explicit
+two-state context transition calculation (root transient, result state
+stationary); the next mathematical question is whether a finite joint-context
+automaton with descriptor anchors and jointly solved `P/P` exits preserves
+arbitrary satisfiability in the whole unguarded fragment. This remains a
+candidate, not a reviewed construction.
 
 ## Current work
 
