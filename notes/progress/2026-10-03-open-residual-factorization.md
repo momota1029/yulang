@@ -1114,3 +1114,61 @@ found no scope-conformance issue and confirmed that §7.4.3 is confined to the
 joint `P/P` boundary problem. Exact forced-head/presence recognition remains
 outside that review and unchecked. The regular-witness candidate remains
 unapproved as an inference gate.
+
+### P/K witness folding counterexample (unreviewed candidate)
+
+A bounded Astra attempt examined one proposed shortcut for accelerating
+descriptor-free/ranked (`P/K`) feedback: key a generated comparison witness by
+`(free-root, original-bound, opposing-fixed-ranked-node, orientation)`, and
+identify its flexible-side nodes whenever this key repeats, even when the
+flexible-side address differs. A finite package shows that this particular
+identification is not sound as a witness construction. It does not refute
+memoizing comparison obligations while retaining distinct witness positions,
+nor any richer regular-witness construction.
+
+Use the mandatory empty-Record/nonempty-Record types `e = {}` and
+`r = {f:Int}`, exact descriptors `k = Function(r,k)` and `l = Function(e,k)`,
+free roots `z,x,y`, and
+
+```text
+x = Function(e,y)
+q = Function(r,x)
+b0: x <: q
+b1: z <: k
+b2: z <: l
+b3: l <: z
+```
+
+The original package has a regular solution: let `t = Function(e,t)` and set
+`x=y=t`, `z=l`, leaving `q`, `k`, and `l` at their exact descriptors. Direct
+decomposition checks each bound. `b0` gives `r <: e` and `t <: t`; `b1`
+becomes `l <: k`, giving `r <: e` and `k <: k`; `b2` and `b3` are `l <: l`.
+The Record comparison `r <: e` stops at the empty upper Record. No successful
+concrete comparisons are composed.
+
+Under the proposed fold, expanding `b1` against `k = Function(r,k)` gives a
+Function head at `z`, argument witness `A`, and result descendant `z₂`. The
+result child is again compared with `k` under the same original bound and
+orientation. Folding that repeated key identifies `z₂` with `z`, imposing
+`z = Function(A,z)`. But `b2` then requires `e <: A`. In this fragment the
+only compatible shape is a mandatory Record, and the empty lower Record
+forces its field set to be empty, so `A=e`. From `b3`, result descent requires
+`k <: z`; its contravariant argument obligation is then `A <: r`, which fails
+because `r` requires `f`. Thus the fold rejects a package with the explicit
+regular solution above. This identifies loss of flexible-side position
+constraints from other original bounds as the cause.
+
+The same pattern extends to `l₀=k`, `lₙ₊₁=Function(e,lₙ)` and bounds
+`z <: k`, `z <: lₙ`, `lₙ <: z`: `z=lₙ` is a regular solution for each `n`,
+while the same fold identifies `z` with its first result descendant and
+conflicts for every `n≥1`. This is evidence against only the stated fold key,
+not a lower bound on other finite states or a nonregularity/undecidability
+result. Assumptions are unguarded mandatory Records, exact descriptor sharing,
+ordinary Function variance, exact atom identity, and coinductive direct
+structural comparisons; optional fields, guards, permissions, and joint
+symbolic predicates are absent.
+
+This candidate has not received an independent compiler-referee review. The
+primary checked the displayed finite witness and the two Record obligations;
+the general acceleration gate remains open. No solver algorithm or source
+semantics follows from this counterexample.

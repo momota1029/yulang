@@ -130,6 +130,15 @@ conformance issue. Exact forced-head/presence recognition was not reviewed.
 The candidate does not close general regularization, decide the structural
 fragment, or alter the immediate Function/source-derivation gate.
 
+A subsequent bounded Astra attempt found a finite package refuting only the
+shortcut that folds flexible witness nodes when
+`(free-root,bound,fixed-ranked-partner,orientation)` repeats, discarding the
+flexible-side path. The package has an explicit regular solution; the fold
+forces one flexible argument both empty and nonempty through other original
+bounds. The exact derivation and limits are recorded as an unreviewed
+candidate in the progress note. It does not refute memoized obligations that
+preserve witness positions, nor settle the general P/K acceleration gate.
+
 ## Current work
 
 ### One endpoint-dependent inequality solver (2026-10-03)
