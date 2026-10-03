@@ -1069,6 +1069,17 @@ map, retained typed evidence)` but selects no implementation representation.
 It finds no class-3 impossibility proof; full-source finiteness remains
 unclassified.
 
+The current §7.4 recursive-bound candidate separates full-fiber graph
+variation from existence-witness size: the `Tₙ` family has unbounded explicit
+graphs before label erasure, while erasure under the finite input alphabet
+collapses this example. Its compiler-referee delta review is clean. The
+erasure argument is limited to unguarded pure structural existence and does
+not establish an input-bounded witness theorem, arbitrary guard/`Phi`
+preservation, or complete fiber representation. Continue with a proof or
+alternative terminating method for recursive open structural satisfiability;
+retain exact full-fiber and joint predicate solving as separate obligations.
+No compiler authority or implementation follows.
+
 ## Main records
 
 - `notes/design/2026-10-03-scoped-constraint-solving.md` — scoped regular equality quotient and finite closed structural subtype saturation; the following reviewed candidate addresses open residual factorization.

@@ -88,6 +88,26 @@ witness; it does not decide full `Perm_Q ∧ Guards ∧ Phi_q`, preserve every
 field candidate under those predicates, or establish source applicability.
 `git diff --check` passed; no tests/builds/measurements ran.
 
+## Follow-up: recursive open bounds and witness size
+
+§7.4 separates unbounded explicit graphs in the full solution fiber from
+existence-witness size after finite-label erasure. For `X <= Record{f:X}`,
+the regular assignments `Tₙ` place a `g` field at arbitrarily deep positions,
+so the pre-erasure fiber has no uniform finite explicit graph bound. But with
+input labels `Λ={f}`, erasure collapses every `Tₙ` to
+`μZ.Record{f:Z}`. This family therefore does not refute bounded existence
+witnesses after erasure, finite residual constraints, or regular tree
+grammars. The finite-label lemma is limited to unguarded pure structural
+existence; it proves neither an input-bounded witness theorem nor preservation
+of arbitrary guards/`Phi`, nor an exact full-fiber quotient.
+
+An independent compiler-referee delta review found no remaining issue in the
+repaired §7.4 claims. The input-bounded regular-witness/termination theorem
+and exact symbolic full-fiber representation remain open, as do joint
+permission, guard, and `Phi/K,D` solving. No tests, builds, or measurements
+ran. Next prove or replace the structural existence theorem, then return to
+the full joint fiber; the full goal remains active.
+
 Next establish the source-wide context transition system while separating
 immutable lexical identity from mutable dependency certification. Then
 construct an effective joint representation for residual satisfiability plus

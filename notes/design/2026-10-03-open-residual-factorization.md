@@ -511,6 +511,63 @@ fiber and the same-assignment joint condition when checking them. Any resource
 cutoff for the exponential state space needs a separate approved boundary;
 this theorem chooses no limit or rejection behavior.
 
+### 7.4 Recursive open bounds: witness size versus the full fiber (candidate)
+
+A finite input does not bound the size of every regular assignment in its
+solution fiber. For one recursive Record bound,
+
+```text
+X <= Record{f:X}
+```
+
+define
+
+```text
+T₀   = μZ. Record{f:Z, g:Int}
+Tₙ₊₁ = Record{f:Tₙ}
+```
+
+Every `Tₙ` satisfies the bound. For `n=0`, the required child comparison is
+`T₀ <= T₀`. For `n>0`, the required child is `Tₙ₋₁ <= Tₙ`; its base case
+`T₀ <= T₁` asks for `T₀ <= T₀` at the sole required field, and each later
+case follows from the preceding child comparison. Along the `f` path, the
+first `g` field occurs at depth `n`. Thus `Tₙ` has at least `n+1`
+bisimulation-distinct Record subtrees. No uniform finite node bound can
+represent the entire fiber by explicitly listing candidate graphs. This does
+**not** refute finite
+residual constraints, finite regular tree grammars, or a terminating
+satisfiability procedure: the original single bound is itself a finite exact
+description of all these assignments.
+
+There is a separate finite-label reduction for **unguarded pure structural
+existence**. Let `Λ` be the set of Record labels appearing anywhere in a
+finite structural input graph. For an assignment by regular type graphs,
+erase every Record field whose label is outside `Λ`, simultaneously
+throughout every assigned graph, and recursively apply the erasure to the
+remaining children. Atoms and constructor heads are unchanged. The erased
+assignment remains regular. Every original structural comparison still
+holds: atom and head cases are unchanged; Function and declared-variance
+children are the erased images of their original child comparisons; and for
+Records, intersecting both label sets with `Λ` preserves upper-label
+inclusion, while each retained field comparison is an erased original child
+comparison. Equality constraints are preserved by the same congruent map.
+Therefore, when such a package has a structural solution, it has one whose
+Record labels all lie in the finite input alphabet `Λ`.
+
+The erasure lemma establishes neither a node-count bound nor a full-fiber
+quotient. Before erasure, the `Tₙ` family has unbounded explicit graph size
+and full-fiber variation. After erasing `g` under `Λ = {f}`, every `Tₙ`
+collapses to `μZ. Record{f:Z}`; these examples therefore do not refute bounded
+existence witnesses. Nor does erasure preserve
+arbitrary scope-guard or `Phi/K,D` predicates; they remain outside this
+structural-existence reduction. The next proof obligation is an effective
+input-bounded regular-witness theorem, which remains open, or another complete
+decision method for recursive open structural packages after finite-label
+reduction. A
+separate exact symbolic-fiber theorem must retain unbounded recursive shape
+variation, arbitrary finite Record extensions, and the original shared
+constraints. Neither follows from §7.3's fixed-endpoint interval automaton.
+
 ## 8. Verification direction
 
 After the full theorem package is repaired and reviewed, a finite exhaustive
