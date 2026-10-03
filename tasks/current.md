@@ -1877,18 +1877,22 @@ bounded finite-generation schema now constructs the unresolved query with
 candidate receipts, correspondences and views when the finite source/profile
 graph supplies those original occurrence facts. This does not prove that raw
 source constructs the profile or that the generated paths are admissible.
-Immediate next gate: instantiate the identity-specific source-to-interface
-composition under one `ν,K,D`. A compiler-referee attack on the stronger
-`D: Comp(d,Int)` candidate confirms that source execution preservation can
-yield `Exec_actual ⊆ P_checked` only after the whole `d` relation is embedded
-in the checked `[b,d]` relation; that still does not imply
-`P_actual ⊆ P_checked` because each `P` is a potentially wider interface
-bound. Derive separately the admission rule sending every checked typed
-carrier/history to an admitted actual `Value(Int)` receipt/force under the
-original contract, and the whole-bound composition
-`P_actual ⊆ Liftβ(Den(d), identity-result) ⊆ P_checked`. Preserve all legal
-histories and do not assume `Q`. Candidate source paths remain execution
-witnesses until these contract and bound rules are proved.
+Immediate next gate: derive the identity-specific endpoint-to-description
+adequacy under one `ν,K,D`. A Sol compiler-referee review and a subsequent
+bounded Astra theorem audit agree that choosing the exact source interface
+`Eν,σ(C)` proves behavior of the concrete identity only; no current clause
+identifies that relation with the actual Function endpoint `T_P`. Likewise,
+source execution containment and linked `d` incidence do not imply containment
+of a potentially wider `P_actual` bound, and the core §8 fixed-domain theorem
+requires matching finite complete descriptors and weakens only genuine
+support fields. Derive without `Q`: (1) the source admission transport from
+every checked typed challenge/history to the actual `Value(Int)` entry
+contract; (2) the denotation/admission map from `T_P` to the actual identity
+description; and (3) whole-bound inclusion from `P_actual` to the checked
+`[b,d]` relation using existing CallView, `Rel_C`, `K,D`, `Flow`/`Observe`,
+and incidence evidence. Preserve all legal histories and add no parallel
+carrier or provenance structure. The issue remains an unproved theorem, not
+a demonstrated semantic ambiguity.
 Astra and compiler-referee audits refine the former
 `ArgEventToCallMember` gate into shared support membership, dynamic event
 preservation, and positive typed-incidence claims. A bounded compiler-referee

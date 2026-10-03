@@ -3272,9 +3272,43 @@ bound, not the execution image. One-way adequacy of actual executions into
 The precise remaining premises are therefore (1) an identity-specific
 admission-transport rule from every checked slot challenge/history to the
 actual `Value(Int)` entry contract and (2) a whole-bound factorization such as
-`P_actual(h) ⊆ Liftβ(Den(d,h), identity-result) ⊆ P_checked(h)`, or another
-direct whole-bound containment proof. The linked-`d` semantic intent supplies
-its designated correspondence, not these complete admission and bound
-theorems. No counterexample or additional semantic choice was established;
-the proof remains open. No API, phase, carrier, compiler code, tests, builds,
-Oracle inspection, or measurements were involved.
+`P_actual(h) ⊆ P_checked(h)` derived directly through the existing source
+CallView, `Rel_C`, `K,D`, and `Flow`/`Observe` evidence for the same `d`
+computation and identity result. The linked-`d` semantic intent supplies its
+designated correspondence, not these complete admission and bound theorems.
+No parallel carrier or provenance structure is proposed. No counterexample
+or additional semantic choice was established; the proof remains open. No
+API, phase, compiler code, tests, builds, Oracle inspection, or measurements
+were involved.
+
+### Exact semantic interface does not identify the queried Function endpoint (2026-10-04)
+
+An architect review and one bounded Astra theorem audit tested whether the
+exact source interface could close the identity comparison. The exact
+`Eν,σ(C)` from the source-interface adequacy theorem is a valid semantic
+description of the concrete identity and includes its complete future
+interactions. For a supplied independently admissible decorated challenge,
+the selected source rules still derive the exact contextual execution
+`Force(D) >>= Return`, preserving the slot view and all request/resumption,
+state, suffix, and divergence behavior.
+
+That exact instantiation does not prove that the endpoint in the existing
+query, `T_P`, denotes this source interface. The adequacy theorem permits any
+presentation whose denotation covers source behavior; it does not equate the
+presentation with `Eν,σ(C)`. The core §8 certificate-weakening theorem also
+cannot fill the gap: it requires an original certificate and matching finite
+complete descriptors, fixes the challenge domain and routing/shared fields,
+and weakens only genuine support upper bounds. It does not derive the original
+certificate, endpoint correspondence, or complete relational guarantee
+membership from support evidence.
+
+The open derivation is now localized to three links: checked slot admission
+must generate actual `Value(Int)` entry admission; `T_P` must be connected to
+the actual source identity's complete admission/observation description; and
+the whole `P_actual` bound must embed in the checked `[b,d]` relation through
+existing CallView and `Rel_C`/`K,D`/Flow/Observe/incidence evidence. The
+review found no counterexample or alternate approved semantic completion, so
+this is an unproved endpoint-adequacy theorem rather than a demonstrated user
+decision. The requested Astra assignment was read-only at high effort; live
+runtime settings were not independently observable. No code, tests, builds,
+Oracle inspection, API, phase, or new evidence carrier was involved.
