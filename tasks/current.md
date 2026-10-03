@@ -548,6 +548,14 @@ abstract-machine schemas until realized through source State/reference
 operations. Do not erase first-class refs from the Function challenge domain;
 their source bridge remains separate.
 
+The bounded implementation audit found no successor State equations or
+implementation: `ResolvedExpr` currently has only Lambda/Integer/Name/Error,
+and no StateSlot/StateEffect Rust symbols exist under `crates`. The minimum
+next proof is local State-step preservation for a supplied typed visible-slot
+derivation, including declaration/read/update restart, capture, lexical exit,
+later invocation and raw resumption while separating static origin from
+runtime activation identity.
+
 Next: derive two source paths over the same `Rel_C`: (1) visible local
 StateSlot operations using existing `StateSlotId`, read/write occurrence and
 `StateEffect` facts; (2) general first-class refs via their captured

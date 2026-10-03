@@ -1595,6 +1595,34 @@ shared-cell examples conditional. Preserve first-class refs whenever the
 interface admits them; do not identify static `StateSlotId` with runtime
 identity. No code, tests, builds, Oracle inspection or measurements occurred.
 
+#### Visible State source-step audit (2026-10-03)
+
+A bounded read-only implementation/source audit confirms the authority gap.
+Architecture §6.9 fixes declaration-origin identity, shared payload/effect
+components, read/write occurrence ownership, lexical discharge and
+escaping-closure retention. Architecture §8.3 selects pure continuation
+restart for `&a = value`. The typed-source-owner and typed-boundary drafts can
+preserve an already supplied store/view, source origin, `K,D,ν`, and live
+resumption state. These facts support identity-preserving transport once the
+source transition is given.
+
+They do not define executable source equations for declaration, read, update
+response/restart, or re-entry after capture/resumption. This workspace has no
+separate successor State semantics specification, and current
+`crates/yu-hir/src/module.rs:426` exposes only `Lambda`, `Integer`, `Name`, and
+`Error` resolved expressions; no StateSlot/StateEffect Rust symbols exist under
+`crates`. The architecture contract is not implementation evidence.
+
+The smallest source lemma is local State-step preservation for one supplied
+typed visible-slot derivation: establish declaration/read/update transitions
+using continuation restart rather than primitive heap writes; preserve static
+`StateSlotId` while distinguishing dynamic activations; then show visible
+alias/capture, lexical exit, later invocation and raw resumption preserve the
+same typed views and shared `Rel_C`/`K,D,ν`, with expired handler authority
+absent. This supplies a source-state premise to the `EnvStore`/`JointWF` proof,
+not source-wide context generation, general first-class refs, multi-shot
+shared-state adequacy, or the Function inequality.
+
 ### Role-first immediate-gate refinement (2026-10-03)
 
 The user's clarification changes the order within the Function gate. First
