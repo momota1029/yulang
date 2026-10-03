@@ -1900,7 +1900,14 @@ equations do not entail it. Its two-member completions are a formal
 non-entailment witness for the evidence specification, not an executable
 source counterexample; a request may also be admitted by both `b` and `d`, so
 the proof needs an original `d` contribution witness rather than exclusive
-family attribution. Once source elaboration supplies that projection, the
+family attribution. Sol's non-circular formulation is a source-context image
+containment: an independently generated `κ` maps the argument `d` contribution
+through this actual `Force(D)` call into the designated positive `d` member.
+The architect audit confirms that this faithfully states the already selected
+linked contribution intent and requires no new user decision. It is not yet a
+proof: `κ` must be generated independently of `Q`, and the positive member's
+source denotation must be established independently rather than defined as
+the desired image. Once source elaboration supplies that projection, the
 existing occurrence relation can carry it without a new carrier.
 Independently,
 `BackgroundWitness` must construct a nonempty shared `Rel_C`/`ν,K,D` source
