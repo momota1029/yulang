@@ -1874,3 +1874,20 @@ scope. This closes only the static/dynamic carrier crosswalk: the source
 contextualization theorem and broader role/interface schema remain open. No
 new carrier is justified by this delta. No code, tests, Oracle inspection or
 measurements; `git diff --check` is the record-slice check.
+
+### Current HIR boundary for callback contextualization (2026-10-03)
+
+The source package audit confirms the known-callee pre-body contextualization
+rule remains only a candidate: core §6 synthesizes a whole argument and
+constrains it against the formal, while source-computation-role §4/§11 leaves
+producer/consumer checking rules unfinished. Current implementation evidence
+locates the owner boundary more precisely. `yu-hir::ResolvedExpr` currently
+has only Lambda, Integer, Name and Error; `lower_simple_chain` resolves only
+an atom, while CallTail/MlArgument and TypeAnnotationTail remain in structural
+syntax/HIR association. Thus there is no current typed application form that
+can carry a known callback formal into lambda elaboration before body
+synthesis. This does not justify recovering the expected context from solver
+bounds or adding solver provenance. The next implementation architecture gate
+belongs at successor source application/lambda elaboration, after its source
+rule is fixed. No code, tests, Oracle inspection or measurements; no
+implementation authority inferred.

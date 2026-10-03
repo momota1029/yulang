@@ -331,6 +331,15 @@ from `β`. Do not identify this dynamic `b` before a receiver activation
 exists. Existing evidence suffices across both levels; no new boundary or
 provenance carrier is currently justified.
 
+Current implementation evidence confirms this is a source-elaboration
+boundary, not a solver replay gap: `yu-hir::ResolvedExpr` currently carries
+only Lambda, Integer, Name and Error, and `lower_simple_chain` resolves only
+an atom. Application/CallTail and TypeAnnotationTail remain structural CST/HIR
+input; there is no typed application node that can pass a callback formal to a
+literal before body elaboration. Keep the next gate on defining the successor
+source application/lambda contextualization owner. Do not patch `yu-solver`
+to reconstruct that context from endpoint bounds.
+
 Charter §24 now records the clarification as superseding §16's universal
 "every function is a handler" receiver-role statement. §16's invocation and
 §21 entry mechanics remain conditional on the role/interface selected by §24;
