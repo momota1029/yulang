@@ -1809,3 +1809,40 @@ and establishes no need for a new carrier. The already-constructed
 pure-role-value comparison and complete actual/checked challenge inclusion
 remain later obligations. This is a proof-only gate refinement, not
 implementation authority.
+
+#### Candidate source owner for callback contextualization
+
+A read-only architecture audit locates the needed rule at source application
+checking, before lambda-body elaboration. The owner must see both the resolved
+callee's declared Function-valued formal and the literal argument while the
+literal's body constraints have not yet been generated. For the bounded case,
+the formal supplies static template `β` and `Slots(β)`; the literal selects
+Handler from that expected callback context, and §21 independently determines
+its parameter-entry role. Interface comparisons remain tasks of the one
+`A <: B` solver. This clause does not yet define any effect-port relation.
+
+Current Yulang3 has no existing owner with this input and timing. `ResolvedExpr`
+does not represent applications, and `lower_simple_chain` resolves only
+literal/name atoms; the syntax association layer retains CallTail and operator
+structure but has no declaration/type knowledge. Lambda binding lowering
+currently lowers body syntax before wrapping it as `ResolvedExpr::Lambda`,
+while `yu-solver` emits lambda/body facts later during `ConstraintBatch`
+collection. This timing does not rule out contextual checking over a resolved
+application/lambda tree: that collection walk could receive the expected
+callback context and visit the literal before emitting its body constraints.
+An application node alone, without that ordered contextual traversal, is
+insufficient. The immutable HIR boundary rules out storing solved types in
+HIR; a transient expected-context input to source constraint
+collection/elaboration remains a candidate, not an approved phase/API
+decision.
+
+The architecture audit favors this source-check owner over `yu-solver` bound
+reconstruction: the latter runs after source roles and boundaries must already
+be chosen. The audit does not establish which source representation should
+carry the unresolved application structure or where scheme instantiation
+occurs. Static `β` remains distinct from runtime callback boundary `b`; this
+candidate adds no runtime boundary, evidence, attachment or provenance
+carrier. Unknown callees, computation formals, annotated-literal overlap,
+role-indexed ports, callback `CallView` and complete Function inequality stay
+outside this subgate. Status: unapproved architecture candidate; no
+implementation authority.

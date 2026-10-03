@@ -1908,3 +1908,28 @@ rule nor supplies its source semantics. It confirms that the successor needs
 an explicit source-level expected-context route instead of inheriting this
 historical order or recovering context from solver bounds. No code, tests,
 builds or measurements; no Oracle behavior promoted to successor authority.
+
+### Source owner and HIR/collector timing audit (2026-10-03)
+
+An architect audit compared the current source pipeline owners. The missing
+known-callee `Value(F_cb)` contextualization belongs at source application /
+literal checking before lambda-body constraints are emitted. The current
+`ResolvedExpr` lacks applications; syntax association has call/operator
+structure but no declaration typing; the collector emits lambda facts later.
+The audit therefore leaves two possible placements open: retain enough
+application/literal structure for an ordered contextual collector walk, or
+perform an earlier source-check traversal. A resolved application/lambda tree
+could suffice; adding an application node alone does not supply the required
+context threading. No concrete representation, phase or scheme-instantiation
+API is selected, and `yu-solver` must not reconstruct the context from bounds.
+
+The first draft overstated HIR body wrapping as though it were semantic
+elaboration and said an application node after HIR lowering would be too late.
+Independent compiler-referee and spec-auditor reviews both found this major
+timing error: body syntax is lowered into `ResolvedExpr`, but
+`ConstraintBatch` emits lambda/body facts later. I corrected the candidate to
+place the ordering condition at body-fact generation; both delta reviewers
+then reported the major finding closed and no new findings. The remaining
+source contextualization theorem, exact owner/API, role-indexed ports and
+complete inequality are open. No code, tests, Oracle inspection or
+measurements; `git diff --check` is the record-slice check.

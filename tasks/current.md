@@ -346,6 +346,15 @@ records that constraint as `ExpressionExpected` provenance. Its lambda entry
 has no expected-callback parameter. This historical order does not establish
 the successor callback-context rule and must not be promoted into it; the
 successor source elaborator needs an explicit pre-body expected-context path.
+Architecture audit locates that path in source application/literal checking,
+before lambda body constraints are generated. A typed application node alone
+is insufficient if collection has already emitted the lambda/body facts; a
+resolved application/lambda tree could suffice when collection passes the
+expected context before generating those facts. The precise carrier/phase and
+scheme-instantiation owner remain undecided. The candidate and its scope are
+recorded at the end of §8 in
+`notes/design/2026-10-03-concrete-compatibility-boundary.md`; it has no
+implementation authority.
 
 Charter §24 now records the clarification as superseding §16's universal
 "every function is a handler" receiver-role statement. §16's invocation and
