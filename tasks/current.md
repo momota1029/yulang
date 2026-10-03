@@ -158,6 +158,12 @@ Scope audit additionally finds that ranked K children can be descriptor-free
 P roots: `q=C(x), x<:q` descends to a ranked P/P comparison. §7.4.3 does not
 solve that case. A joint flexible/flexible comparison state or other reviewed
 closure is required before the proposal covers the full structural fragment.
+Scope precision: the isolated `Λ=∅` instance `q=C(x), x<:q` is already handled
+by the separate finite exact-closure accelerator below; its temporary rational
+equality captures this self-shift. The gap matters when the same package also
+has nonempty Record descriptors, so the `Λ=∅` reduction no longer applies.
+Probe the transition with such a Record obligation still present; the isolated
+unary case does not show a failure of the accelerator within its stated scope.
 
 ## Current work
 

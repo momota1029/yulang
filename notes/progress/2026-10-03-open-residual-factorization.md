@@ -1253,3 +1253,11 @@ joint flexible/flexible comparison state or supplies another reviewed solver
 for ranked `P/P` exits. The current candidate must not be read as covering
 these cases; this scope gap is manually identified and independently
 unreviewed.
+
+Scope precision: the isolated `Λ=∅` package `q=C(x), x<:q` is covered by the
+separate finite exact-closure accelerator in §7.4.1's subfragment: temporary
+rational equality turns this self-shift into one labelled `C` cycle. The open
+transition is its coexistence with nonempty Record descriptors elsewhere in
+the same finite package, where that reduction does not apply. Any counterexample
+or state construction for this gap must keep such a Record obligation active;
+the isolated unary example does not refute the accelerator within its scope.
