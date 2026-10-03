@@ -1039,9 +1039,12 @@ Effective satisfiability, finite joint projection over unknown Record labels
 and feedback, source realization/uniform scoped typing, later effect/family
 and lifecycle work, and implementation remain open. No source policy or
 compiler implementation was approved. Static review only; tests, builds and
-measurements remain zero. The immediate gate is to establish source-wide
-guard/evidence-context construction and then construct the effective joint
-residual/projection representation; full goal remains active.
+measurements remain zero. The conditional finite supplied-template context
+closure now has clean compiler-referee/spec-auditor delta reviews; it does not
+construct carriers from source rules. The immediate gate is the rule-by-rule
+source bridge for finite context/instance carriers, followed by effective
+joint residual/projection solving for open Records and recursive feedback.
+Full goal remains active.
 
 The candidate now includes a two-direction normalization-equivalence proof:
 the forward direction follows finite discovery paths through the greatest
@@ -1079,6 +1082,16 @@ preservation, or complete fiber representation. Continue with a proof or
 alternative terminating method for recursive open structural satisfiability;
 retain exact full-fiber and joint predicate solving as separate obligations.
 No compiler authority or implementation follows.
+
+§7.4.1 adds a reviewed existence-only subfragment for `Λ=∅`: finite-label
+erasure makes Records nullary, after which structural subtyping equals
+rational-tree bisimulation and a finite equality quotient plus one primitive
+atom decides satisfiability with an `N+1`-node witness. The equalities are a
+decision reduction only; the principal relation retains original directed
+inequalities and arbitrary Record extensions in its full fiber. Independent
+compiler-referee/spec-auditor reviews found no findings. The nonempty-label
+width/feedback lemma remains open, as do guards, permissions, `Phi/K,D`, full
+fiber, and source acceptance.
 
 ## Main records
 

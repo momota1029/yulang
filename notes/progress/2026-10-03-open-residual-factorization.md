@@ -108,10 +108,37 @@ permission, guard, and `Phi/K,D` solving. No tests, builds, or measurements
 ran. Next prove or replace the structural existence theorem, then return to
 the full joint fiber; the full goal remains active.
 
-Next establish the source-wide context transition system while separating
-immutable lexical identity from mutable dependency certification. Then
-construct an effective joint representation for residual satisfiability plus
-projection when unknown Record labels and recursive feedback vary. Uniform
-scoped typing, effect/family compatibility, lifecycle, full acceptance,
-termination/resource bounds and implementation remain open. The full goal is
-active.
+### Bounded empty-Record-alphabet existence subfragment
+
+§7.4.1 now proves a terminating existence test when the finite structural
+input contains no nonempty Record descriptor (`Λ=∅`), while assignments may
+still contain arbitrary Records. Finite-label erasure reduces any solution
+to the grammar where Records are nullary. There, structural subtyping is
+regular-tree bisimulation even with Function reversal and invariant declared
+variance, so temporary rational equations decide existence. A consistent
+quotient plus one shared available atom yields an `N+1`-node regular witness.
+These equations are only an existence decision aid; original inequalities
+remain in the principal relation, and the full fiber still includes arbitrary
+Record extensions.
+
+Independent bounded compiler-referee and spec-auditor reviews found no
+findings in the proof and boundary. For nonempty input label alphabets, width
+choices and recursive feedback remain unresolved; no full finite-witness
+theorem or counterexample is known. Guards, permissions, effects, casts,
+adapters, and joint `Phi/K,D` remain outside this result. No implementation,
+tests, builds, or measurements followed.
+
+The separate finite supplied-template context-closure candidate has now
+received clean compiler-referee and spec-auditor delta reviews after its
+finite-label-carrier repair. This proves only conditional finiteness for its
+explicit input carriers; source rules still must construct meaning-preserving
+finite carriers, close use-site instances/replay, and establish semantic
+preservation. The immediate source gate is that rule-by-rule bridge.
+
+Next close the rule-by-rule source bridge that constructs the finite context
+and instance carriers while separating immutable lexical identity from
+mutable dependency certification. Then prove an effective joint
+representation for residual satisfiability plus projection when nonempty
+Record alphabets and recursive feedback vary. Uniform scoped typing,
+effect/family compatibility, lifecycle, full acceptance, termination/resource
+bounds and implementation remain open. The full goal is active.

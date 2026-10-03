@@ -65,3 +65,16 @@ feedback. No source support boundary or implementation authority is selected.
 
 No code changed; no tests, builds or measurements ran. The full replacement
 objective remains active.
+
+## Conditional supplied-template context closure review
+
+The separate draft
+`notes/design/2026-10-03-source-context-finite-closure.md` now has a repaired
+finite-label carrier and clean bounded compiler-referee/spec-auditor delta
+reviews. Its product bound is valid for an explicitly supplied finite linked
+template graph, finite context/label carriers, bounded hyperedge arity, and
+terminating finite dependency updates. The reviews confirm it does not
+construct those carriers from source rules or establish source-wide closure.
+The source bridge above therefore remains the immediate open gate: derive
+meaning-preserving finite context and instance carriers rule by rule,
+including freshening, replay, sealed transport, and invalidation.

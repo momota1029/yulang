@@ -3,7 +3,7 @@
 Status: Reviewed
 Date: 2026-10-03
 Scope: candidate factorization theorem for open structural bounds after scoped rational equality quotienting
-Reviewed-by: compiler_referee and spec_auditor (M3, 2026-10-03); initial structural-outcome repairs, conditional factorization-lemma review, and operation-instance context delta found no remaining findings in reviewed scopes; bounded compiler_referee delta review of §7.1's one-class atomic-Record fiber found no findings; bounded compiler_referee and spec_auditor review of §7.2's closed-regular-endpoint shape-and-field fiber found no findings; bounded compiler_referee and spec_auditor review of §7.3's closed structural interval inhabitation found no blocking/major findings, and its minor Record-arity wording ambiguity was repaired by primary inspection
+Reviewed-by: compiler_referee and spec_auditor (M3, 2026-10-03); initial structural-outcome repairs, conditional factorization-lemma review, and operation-instance context delta found no remaining findings in reviewed scopes; bounded compiler_referee delta review of §7.1's one-class atomic-Record fiber found no findings; bounded compiler_referee and spec_auditor review of §7.2's closed-regular-endpoint shape-and-field fiber found no findings; bounded compiler_referee and spec_auditor review of §7.3's closed structural interval inhabitation found no blocking/major findings, and its minor Record-arity wording ambiguity was repaired by primary inspection; §7.4's recursive-witness-size repair and §7.4.1's empty-input-label existence reduction received clean compiler_referee delta and spec_auditor reviews
 Implementation authority: none
 Supersedes: none
 
@@ -567,6 +567,55 @@ reduction. A
 separate exact symbolic-fiber theorem must retain unbounded recursive shape
 variation, arbitrary finite Record extensions, and the original shared
 constraints. Neither follows from §7.3's fixed-endpoint interval automaton.
+
+#### 7.4.1 Empty input Record alphabet: a bounded existence subfragment (candidate)
+
+There is a decidable subfragment when the finite structural input contains no
+nonempty Record descriptor, so its Record-label alphabet is `Λ = ∅`. This
+allows assignments to contain arbitrary Records initially; it does not
+restrict the assignment language. Work after the fixed rational equality
+quotient, with unguarded pure structural constraints only: mandatory Records,
+Functions, atoms and finite fixed-arity declared constructors of variance
+`+`, `-`, or `=`. Require at least one available primitive atom, such as
+`Int`. Omit lexical permissions, guards, effects, casts, adapters, and
+`Phi/K,D` predicates.
+
+For existence alone, apply the finite-label erasure of §7.4 to every
+structural solution. Since `Λ = ∅`, every Record in the erased assignment is
+the nullary head `{}`. In this erased grammar, structural subtyping coincides
+with regular-tree bisimulation. To see the nontrivial direction, take any
+coinductive structural simulation `S` and form `S ∪ S⁻¹`. Matching heads are
+mandatory; every covariant, contravariant, and invariant child obligation
+places the corresponding child pair in this symmetric relation. Thus it is a
+constructor bisimulation. Conversely, a constructor bisimulation and its
+converse satisfy each declared variance obligation, so their union is a
+structural simulation.
+
+Consequently, an existence decision may add a rational equality equation
+for each original directed inequality, then run the finite rational
+constructor quotient. A head or atom clash rejects. Otherwise assign every
+remaining descriptor-free class the same `Int` node. If `N` counts input
+quotient and descriptor nodes, this witness has at most `N + 1` nodes.
+
+Completeness follows because any original solution erases to an equality
+solution in the empty-Record grammar; therefore a quotient clash excludes
+every original solution. Soundness follows because the constructed equality
+witness satisfies each original directed inequality directly. This is a
+decision reduction for existence, not a derivation of one concrete success
+from two others. Termination follows from finite rational quotienting and
+one final atom node; no resource limit is selected here.
+
+The temporary equality equations are only a decision aid. Do not replace the
+original inequalities by equalities in a principal residual presentation or
+claim that the full fiber is represented by the quotient: `X <: {}` still
+admits Records with arbitrary finite extensions before erasure. For nonempty
+`Λ`, Record width choices survive erasure. The remaining open lemma is a
+computable finite construction (or another terminating decision method) that
+preserves shared unknown roots, descriptor equations, width choices,
+recursive feedback, Function reversal, and invariant comparisons together.
+§7.3's closed-endpoint interval states do not establish that amalgamation
+step. No counterexample to the full finite-witness theorem is known, and no
+Astra escalation follows from this precise remaining proof obligation.
 
 ## 8. Verification direction
 
