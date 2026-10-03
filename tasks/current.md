@@ -120,14 +120,21 @@ is withdrawn. `notes/design/2026-10-03-source-context-finite-closure.md`
 records a conditional finite-context theorem for supplied templates, not the
 source-wide template-generation proof.
 
-Immediate gate: prove or refute two-direction conservation between the
-source-generated inequality ledger and endpoint-dependent solver transitions.
-For each endpoint branch and selected replay, retain source origin, shared
-witnesses, guards, row/residual alternatives, and eventual consumer evidence.
-Keep source template/context closure, residual satisfiability, generalization,
-freshening and SCC lifecycle as separate remaining gates. No source rejection,
-cast-selection policy, implementation representation, or compiler change is
-authorized by this record. No tests/builds ran for this documentary gate.
+Immediate gate: instantiate and justify the candidate joint descriptor
+witnesses/local-exactness premises in §8.2 for the application's separate
+nonreflexive callee Function check and matching cast-candidate Function
+check. Keep them rooted in the application contract and the admitted
+candidate branch respectively; neither is reflexive, and neither is justified
+by concrete-success composition. The effect-position `never` spelling has no
+successor elaboration yet, so retain that as an open premise rather than
+importing a frozen materialization artifact. Once those local witnesses are
+justified, prove the conditional fixed-lane boundary/task conservation in §8.2 of
+`notes/design/2026-10-03-finite-bound-replay-closure.md`. Broader replay
+admission, guards, row/residual alternatives, multi-consumer ownership,
+source-template/context closure, residual satisfiability, generalization,
+freshening and SCC lifecycle remain separate gates. No implementation
+representation or compiler change is authorized by this record. No
+tests/builds ran for this documentary gate.
 
 The bounded subgate is the argument lane of one ordinary application with a
 literal-leaf argument, non-Record constructor endpoints, one monomorphic
@@ -150,10 +157,12 @@ accepts. This is historical characterization only. Per the user's latest
 decision, Function effect ports are descriptors, not independent general-Type
 subtyping fields: both polarities may contain abstract and concrete type
 components. Covariant rows use canonical flat form, with correlations carried
-by constraints/evidence. Contravariant structure is retained only as needed;
-its handling is partial reverse addition, justified only when a concrete
-contribution and its attachment in the accumulated effect are known. It is
-not a total subtraction algebra. Effect variables and concrete effect records
+by constraints/evidence. Contravariant rows containing only abstract
+components may normalize to their meet `[]`. A row with a concrete component
+is instead an attachment-preserving descriptor for partial reverse addition,
+justified only when the concrete contribution and its attachment in the
+accumulated effect are known. It is not a total subtraction algebra. Effect
+variables and concrete effect records
 are examples, not an exhaustive classification. Components may be mixed in
 one row; no privileged body/tail separator is required. Common-variable
 collection is only an auxiliary view of the abstract component structure.
@@ -164,8 +173,8 @@ lattice account is part of this rule. The current design records the joint
 witness and intended `d`/`e` shared-port cases. Still open: classification and
 source meaning of abstract/concrete components; whether co-occurrence
 justifies consolidation without equating original terms; transport of
-correlations through covariant flattening; when contra structure is
-necessary; which accumulation steps have known attachments and can be
+correlations through covariant flattening; exact attachment descriptor
+construction; which accumulation steps have known attachments and can be
 reversed; descriptor elaboration; `[b,d]` combination; and preservation of
 family `K,D`.
 The exact scheme and bounded two-lane operational crosswalk are source-traced,

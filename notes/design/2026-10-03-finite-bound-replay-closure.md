@@ -4,7 +4,7 @@ Status: Draft; reframed after the user's 2026-10-03 clarification of one inequal
 Date: 2026-10-03
 Scope: finite closure of internal solver states for a fixed finite endpoint-dependent inequality transition system
 Approved-by: no solver semantics or implementation approved; the user's single-inequality direction is recorded in §1 of `2026-10-03-concrete-compatibility-boundary.md`
-Reviewed-by: prior bounded reviews cover frozen-source facts and earlier abstract closures only; compiler_referee reviewed the §8.1 trace including the positive unique-cast path; no runtime execution was verified, and the broader reformulation remains unreviewed
+Reviewed-by: prior bounded reviews cover frozen-source facts and earlier abstract closures only; compiler_referee reviewed the §8.1 trace including the positive unique-cast path; architect pre-write and bounded compiler_referee review covered the §8.2 conditional template, with two minor branch/assignment-qualification repairs closed by primary inspection; no runtime execution was verified, and the local-exactness/descriptor premises remain unproved
 Implementation authority: none
 Supersedes: none
 
@@ -669,3 +669,115 @@ This fragment can establish neither covered-row conservation nor full source
 comparison completeness. A successor may choose a different topology, but it
 must prove the same logical and execution correspondence before using replay
 to justify a local resolver result.
+
+### 8.2 Conditional boundary/witness conservation template
+
+This is a candidate proof obligation for the fixed one-consumer `f(42)` lane,
+not an established theorem or a source cast policy. It relates source roots
+and solver work by their obligations and contexts, not by equality of
+inference and specialization IDs. Write an original source task as
+
+```text
+j = (origin, ordered endpoints A <: B, lexical/symbolic context Γ, consumer u)
+```
+
+A correspondence `ρ` maps each solver task to an original source task, or to
+a subtask of a particular source-resolution branch. It must preserve the
+ordered endpoints, context, symbolic coordinates, consumer and branch
+ownership. Endpoint equality alone does not establish `ρ`.
+
+The application contributes distinct source roots. In the fixed fixture they
+include:
+
+```text
+j_arg       int <: bool                  application argument boundary
+j_callee    Fun(bool, Ncal, Pcal, bool)
+              <: Fun(bool, Ndemand, Pdemand, bool)
+```
+
+The admitted resolution branch for `j_arg` then has these branch-specific
+subtasks:
+
+```text
+j_candidate(k) Fun(int, Ncast, Pcast, bool)
+                 <: Fun(int, Nrequired, Prequired, bool)
+j_body(k)   selected candidate-k body-instance checks within that branch
+```
+
+`j_callee` is nonreflexive and is rooted in the application contract; it is
+not a child of nominal `int <: bool` absent a source derivation. `j_arg` is
+owned by the application argument boundary. `j_candidate(k)` and `j_body(k)`
+belong to an admitted cast-resolution branch. The fixed fixture's
+single-matching-candidate condition can use one branch; it does not require
+conjoining failed or unselected candidates in a general resolver. Only
+independently established equal endpoints, such as the fixed selected-body
+checks, may be discharged by reflexivity.
+
+Each nonreflexive Function task requires a joint descriptor witness of the
+form:
+
+```text
+W_j = (
+  value-endpoint evidence,
+  shared abstract-component correspondence θ,
+  contravariant meet or attachment-descriptor normalization N⁻,
+  covariant flat normalization and transport N⁺,
+  concrete matches and dependent type constraints M,
+  witnessed partial reverse-addition steps S,
+  correlated residual obligations R,
+  original terms, context, symbolic constraints and consumer ownership Ψ
+)
+```
+
+`N⁻` distinguishes an abstract-only row normalized to its meet `[]` from a
+concrete-bearing attachment descriptor. `S` records a source-supported
+forward accumulation, its identified concrete contribution/attachment, and
+the transport for reversing that contribution. It is not a total subtraction
+operation. `N⁺` carries shared identities and correlations through canonical
+flat normalization in evidence. `Never`, `Any`, polarized sentinels, and the
+frozen `EffectRow([]) <: Never` fallback provide no descriptor elaboration.
+Any effect-position spelling that does not yet have an admitted descriptor
+interpretation remains an explicit open premise.
+
+For a source resolution rule `r`, the required **local exactness** premise is
+independent of which transitions an implementation happens to generate:
+
+```text
+root evidence for j is admitted under η
+  iff
+there is a source-admitted alternative b such that
+  the permitted child obligations Child(r,j,b) are admitted under η,
+  and the rule's constraints/context/ownership transport holds under η
+```
+
+For a fixed candidate branch, its candidate signature and selected-instance
+checks form that branch's child family. For general cast resolution, the
+source-defined alternatives and selection policy must be supplied; a failed
+unselected branch cannot reject the root by default. The current documents
+do not prove local exactness for the application rule, literal-slot
+transport, either nonreflexive Function descriptor check, candidate checking,
+or selected-instance checking.
+
+**Conditional fixed-lane result.** If (i) every source root and required
+child task is covered by `ρ`, (ii) each used rule satisfies local exactness,
+(iii) one shared assignment `η` satisfies the shared source-root context
+constraints and every selected/active branch's transported constraints,
+while constraints from unselected alternatives remain guarded rather than
+conjoined, (iv) all
+source-admitted alternatives and their branch ownership are represented,
+and (v) processing is finite and fair, then source-root resolution and solver
+resolution coincide up to the stage-local representation recorded by `ρ`.
+Forward completeness expands each admitted source witness using local
+exactness. Reverse soundness reconstructs a source witness through the reverse
+implication of local exactness. This does not require replay-ID identity or
+allow concrete-success composition. It remains a conditional template until
+the premises, especially the two Function witnesses' kinded descriptor
+elaboration and local exactness, are proved.
+
+This lane does not justify general same-pivot replay. The first broader gate
+is an independent source-admission rule for each replay; optional Record
+successes on either side of `{}` do not authorize their composite comparison.
+Guard inheritance, row/residual alternatives, schemes, aliases, and
+occurrence-specific multiple-consumer ownership need corresponding
+source-preserving context and branch mappings. This template narrows those
+proof obligations without closing them.

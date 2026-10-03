@@ -3,8 +3,8 @@
 Status: Draft; records user-directed single-inequality, Function effect-descriptor, and mixed-row directions; merge semantics, complete resolver semantics, and implementation authority remain open
 Date: 2026-10-03
 Scope: one inequality judgment with endpoint-dependent solving and local concrete cast/adaptation resolution
-Approved-by: user for the single inequality judgment, endpoint-dependent resolution direction, concrete-success non-composition, polarity-indexed Function effect descriptors, mixed abstract/concrete type components, canonical-flat covariant rows, and contravariant witnessed partial reverse-addition; component classification, co-occurrence consolidation, exact accumulation/attachment evidence, replay eligibility, and implementation remain open
-Reviewed-by: prior compiler_referee/spec_auditor reviews cover frozen-source facts and earlier Record/replay candidates; 2026-10-03 compiler-referee delta reviews of the Function descriptor and mixed-row candidate found no blocking/major issues, with minor wording repairs closed; general-component and polarity-specific reverse-addition wording delta reviews found no blocking/major/minor issue; the full witness calculus remains unreviewed
+Approved-by: user for the single inequality judgment, endpoint-dependent resolution direction, concrete-success non-composition, polarity-indexed Function effect descriptors, mixed abstract/concrete type components, canonical-flat covariant rows, abstract-only contravariant meet normalization, and concrete-bearing attachment descriptors for witnessed partial reverse-addition; component classification, co-occurrence consolidation, exact accumulation/attachment evidence, replay eligibility, and implementation remain open
+Reviewed-by: prior compiler_referee/spec_auditor reviews cover frozen-source facts and earlier Record/replay candidates; 2026-10-03 compiler-referee delta reviews of the Function descriptor and mixed-row candidate found no blocking/major issues, with minor wording repairs closed; general-component, polarity-specific reverse-addition, and abstract-only contra-meet wording delta reviews found no blocking/major/minor issue; the full witness calculus remains unreviewed
 Implementation authority: none
 Supersedes: none; narrows source applicability of structural relation candidates without invalidating their fragment theorems
 
@@ -48,9 +48,8 @@ representation is polarity-indexed:
 
 ```text
 E⁺ ::= flat-row{abstract-type-component Aᵢ, concrete-type-component Cⱼ}
-E⁻ ::= abstract-type-component A
-     | concrete-type-component C
-     | nested-row[E₁, …, Eₙ]
+E⁻ ::= AbstractMeet{Aᵢ, …, Aₙ}
+     | AttachedDescriptor{abstract components, concrete components, attachments}
 ```
 
 Effect variables are a typical abstract component, and concrete effect
@@ -64,14 +63,18 @@ flattening lives in constraints/evidence, not in a covariant row tree. Thus
 abstract component in a source nested row does not preserve that tree on the
 covariant side.
 
-Contravariant rows alone may retain nested structure, and only where needed
-for subtraction or to keep abstract-component relationships interpretable.
-For example, `['a, ['b, write], read]` may keep the inner grouping when it
-identifies the component to which subtraction applies; the correlation and
-source witnesses remain explicitly represented in evidence. A row component
-may collect its common variables as an auxiliary analysis, but this does not
-replace general abstract components or equate original terms. Co-occurrence
-consolidation remains distinct from witness equality.
+When a contravariant row contains only abstract components, it may normalize
+to their meet, written `[]` (the abstract-component meet, not an empty-effect
+value). A row containing any concrete component is not
+that meet: it is an attachment-preserving descriptor for reverse addition.
+Its structure is retained only as needed to identify how concrete
+contributions attach to the abstract components and to one another. For
+example, `['a, ['b, write], read]` may keep grouping needed to identify the
+attachment to reverse; the correlation and source witnesses remain explicit
+in evidence. Collecting common variables is an auxiliary view of abstract
+components and does not replace general abstract components or equate
+original terms. Co-occurrence consolidation remains distinct from witness
+equality.
 
 Contravariant handling is not a total subtraction algebra. It is a partial
 inverse of covariant effect accumulation (“reverse addition”). A reverse step
@@ -88,7 +91,7 @@ the same inequality resolution. The candidate evidence shape is:
 W = (θ, N⁻, N⁺, M, S, R, Ψ)
 
 θ  shared correspondence of abstract terms/components across both ports
-N⁻ necessary contravariant structure, co-occurrence, and consolidation evidence
+N⁻ abstract-only meet or concrete-bearing attachment descriptor, with its normalization evidence
 N⁺ covariant flat normalization and its transport map
 M  admitted concrete matching with dependent type constraints
 S  witnessed forward accumulation, concrete contribution/attachment, and transport needed for partial reversal

@@ -691,3 +691,66 @@ normalization rules, attachment provenance and ambiguity handling, eligible
 reverse steps, and preservation of shared abstract components and dependent
 constraints. The concrete matching/subtraction forms and the resulting
 principality/soundness proof remain open. No tests or builds ran.
+
+### Abstract-only contra meet and source-ledger conservation candidate (2026-10-03)
+
+The user further clarified the contravariant normal form: a row containing
+only abstract components may normalize to their meet `[]`; a row with any
+concrete component is instead an attachment-preserving descriptor for
+reverse addition, not itself a meet. The design, task map, and index now record
+this distinction.
+
+Sol proposes stating the fixed application-lane result as conservation of
+source boundaries and proof obligations, without requiring inference and
+specialization replay IDs to match. A source task is
+`j=(origin, A <: B, Γ, consumer)`. A correspondence `ρ` maps solver tasks
+either to an original task with ordered endpoints/context/consumer preserved,
+or to a justified sub-obligation of that task's resolution witness.
+
+The architect audit found that coverage under one shared assignment and
+source-justified rejection obligations alone do not prove reverse completeness.
+Each resolution rule needs an independent local-exactness premise: a root
+witness is admitted iff one source-admitted alternative has an admitted family
+of child obligations and its constraint/context/ownership transport holds.
+Otherwise state soundness and reverse completeness separately. The fixed
+unique-candidate fixture permits one conjunctive candidate branch; general
+candidate checking must preserve alternatives and cannot reject the root
+because an unselected candidate fails.
+
+The callee Function check is nonreflexive and must relate to the independently
+elaborated application contract; it cannot be called a sub-obligation of
+nominal `int <: bool` without a derivation. The matching candidate's Function
+check also needs the joint kinded descriptor rule. Only actually equal
+administrative and selected-body endpoints use reflexivity. Those descriptor
+checks must distinguish abstract-only contravariant components, which may
+normalize to meet `[]`, from concrete-bearing attachment descriptors that
+enable only witnessed reverse addition. The meet is not an empty-effect or
+`Never` identity.
+
+With local exactness as a stated premise, the fixed fixture yields a
+conditional source-ledger conservation theorem: every source task and required
+child obligation is covered under one shared assignment; constraints of
+selected branches hold under it, while unselected alternatives remain guarded
+and are not conjoined. Endpoints, context, consumer ownership and admitted
+alternatives are preserved; stage-local solver IDs may differ. Forward
+completeness expands each source witness via local exactness; reverse
+soundness reconstructs each source witness from the admitted child family.
+The fixed reviewed crosswalk supports endpoint and consumer correspondence,
+but does not prove the nonreflexive descriptor checks' local exactness or
+expose the stored scheme.
+
+The first generalization obstacle remains replay admission: same-pivot records
+alone do not justify a replay, and optional Records refute unconditional
+concrete transitivity. Guard inheritance, row/residual alternatives and
+occurrence-specific multi-consumer ownership add further obligations. This
+remains a candidate theorem template, not a completed theorem or
+implementation authorization. No tests or builds ran.
+
+The bounded compiler-referee review of §8.2 found no blocking or major issue
+and two minor premise-qualification ambiguities. The theorem now requires one
+shared assignment to satisfy shared root-context constraints and the selected
+branch constraints, while keeping unselected alternatives guarded; it no
+longer says that the assignment itself admits every source root. Primary
+inspection and `git diff --check` closed both wording repairs. The review did
+not certify local exactness, Function descriptor elaboration, or replay
+admission. No tests or builds ran.
