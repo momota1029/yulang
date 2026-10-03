@@ -552,10 +552,11 @@ the successor descriptor semantics, define how a `never` spelling enters an
 effect port, or authorize four independent Type subtyping checks. No tests or
 builds ran.
 
-### User-directed descriptor comparison; Sol derivation (2026-10-03)
+### Initial descriptor comparison candidate; superseded by later user direction (2026-10-03)
 
-The user redirected the Function rule away from independent subtyping of
-effect fields as general `Type`s. Contravariant effect descriptors contain
+The user first redirected the Function rule away from independent subtyping
+of effect fields as general `Type`s. The initial candidate said
+contravariant descriptors contain
 effect variables plus subtractive concrete effect records; covariant effect
 descriptors contain effect variables plus concrete effect records. Their
 relation is resolved jointly from shared effect-variable correspondence and
@@ -626,3 +627,33 @@ confirmed that flattening is conditional on preserving the recorded component
 structure and that the open choice about original-witness identity remains
 explicit in the records. The full normalization and subtraction calculus was
 not certified. No tests or builds ran.
+
+### General component clarification and Sol derivation (2026-10-03)
+
+The user clarified that “effect variables + concrete effect records” is too
+narrow. Contravariant effects use abstract type components and concrete type
+components generally; effect variables and effect records are examples.
+Eligible concrete components may be subtracted in contravariant position, and
+nested rows may be retained to preserve abstract components. Covariant
+descriptors likewise admit both abstract and concrete type components.
+
+Sol revised the candidate grammar to
+`E ::= Abstract(A) | Concrete(C) | Row(E₁,…,Eₙ)`, with `A` and `C` retaining
+their original terms, identities, scope and ownership. These are semantic
+classes under an admitted endpoint interpretation, not a proposal for new
+source constructors. The witness `θ` now tracks shared abstract terms and
+components; `Π` tracks nesting, co-occurrence, and justified consolidation;
+`M` handles admitted concrete matches and dependent constraints; `S` records
+eligible subtraction; `R` retains correlated residual comparisons; and `Ψ`
+retains original terms and dependent evidence. Collecting common variables is
+an auxiliary view of the abstract components, not their complete
+representation. Normalization must preserve the joint solution set through
+an original-term map; the earlier structural equality theorem does not
+automatically establish this broader factorization.
+
+Still unresolved are the source meaning and classification of abstract versus
+concrete components, when classification can change during solving, eligible
+subtraction, co-occurrence consolidation versus equality, safe general-row
+flattening, and the full Function resolution/factorization proof. The
+intended coupled examples remain obligations. These corrections update the
+design note, task map, and index. No tests or builds ran.

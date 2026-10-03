@@ -3,8 +3,8 @@
 Status: Draft; records user-directed single-inequality, Function effect-descriptor, and mixed-row directions; merge semantics, complete resolver semantics, and implementation authority remain open
 Date: 2026-10-03
 Scope: one inequality judgment with endpoint-dependent solving and local concrete cast/adaptation resolution
-Approved-by: user for the single inequality judgment, endpoint-dependent resolution direction, concrete-success non-composition, polarity-indexed Function effect descriptors, mixed variable/record row elements, and safe component-preserving flattening; effect-variable merge semantics, descriptor elaboration, subtraction semantics, replay eligibility, and implementation remain open
-Reviewed-by: prior compiler_referee/spec_auditor reviews cover frozen-source facts and earlier Record/replay candidates; 2026-10-03 compiler-referee delta reviews of the Function descriptor and mixed-row candidate found no blocking/major issues, with minor wording repairs closed; the full witness calculus remains unreviewed
+Approved-by: user for the single inequality judgment, endpoint-dependent resolution direction, concrete-success non-composition, polarity-indexed Function effect descriptors, mixed abstract/concrete type components, and safe component-preserving flattening; component classification, co-occurrence consolidation, descriptor elaboration, subtraction semantics, replay eligibility, and implementation remain open
+Reviewed-by: prior compiler_referee/spec_auditor reviews cover frozen-source facts and earlier Record/replay candidates; 2026-10-03 compiler-referee delta reviews of the Function descriptor and mixed-row candidate found no blocking/major issues, with minor wording repairs closed; a general-component wording delta review found no blocking/major/minor issue; the full witness calculus remains unreviewed
 Implementation authority: none
 Supersedes: none; narrows source applicability of structural relation candidates without invalidating their fragment theorems
 
@@ -40,29 +40,34 @@ the two effect polarities through effect descriptors:
 
 | Function effect position | Descriptor contents |
 |---|---|
-| Contravariant | effect variables plus subtractive concrete effect records |
-| Covariant | effect variables plus concrete effect records |
+| Contravariant | abstract type components plus concrete type components; eligible concrete components may be subtracted |
+| Covariant | abstract type components plus concrete type components |
 
 Effect expressions need no privileged `body ; tail` syntax. A candidate
 grammar is:
 
 ```text
-E ::= effect-variable α
-    | concrete-effect-record ρ
+E ::= abstract-type-component A
+    | concrete-type-component C
     | row[E₁, …, Eₙ]
 ```
 
-Variables and concrete records may occur as elements of one row. A nested row
-may flatten only when doing so preserves its co-occurrence component,
-variable correspondence, record attachment, and scope/ownership evidence. For
-example, a safe same-component flattening may turn
+Effect variables are a typical abstract component, and concrete effect
+records are typical concrete components; neither example exhausts its class.
+The admitted interpretation determines the classification, which is not yet
+defined as a new source type constructor. Abstract and concrete components may
+occur together in one row. A nested row may flatten only when doing so
+preserves its component structure, co-occurrence evidence, correspondence,
+original terms, and scope/ownership. For example, a safe same-component
+flattening may turn
 `[['a, write], read]` into `['a, write, read]`, while
 `['a, ['b, write], read]` must retain the nested component when `'b` belongs
 to a distinct co-occurrence class. Normalization removes redundant variables
 and nesting only after proving those distinctions are preserved. Original
-variable-witness merging is not yet specified: co-occurrence classes may
-either identify their members or denote an aggregate component while keeping
-their source witnesses distinct.
+component consolidation is not yet specified: co-occurrence may justify
+merging representations without proving equality between original terms.
+Collecting common variables is an auxiliary view of abstract components and
+does not replace the full abstract component structure.
 
 For a concrete Function inequality, compare these descriptors jointly inside
 the same inequality resolution. The candidate evidence shape is:
@@ -70,22 +75,22 @@ the same inequality resolution. The candidate evidence shape is:
 ```text
 W = (θ, Π, M, S, R, Ψ)
 
-θ  shared correspondence for effect variables across both ports
-Π  co-occurrence components and permitted component merges
-M  concrete-family matches with their type-argument obligations
-S  admitted subtraction steps, attached to their component and context
-R  correlated residual routing retaining component/witness identity
-Ψ  retained family equations, K,D dependencies, and request witnesses
+θ  shared correspondence of abstract terms/components across both ports
+Π  nesting, co-occurrence, and justified consolidation evidence
+M  admitted concrete matching with dependent type constraints
+S  eligible subtraction with scope/context/ownership evidence
+R  correlated residual comparisons and contributions
+Ψ  original terms, aliases, family constraints, K,D, and witnesses
 ```
 
 `M`, `S`, and `R` are resolver evidence, not a second semantic relation.
-Matching a family preserves its argument constraints; subtraction is allowed
-only with evidence for that concrete record; unmatched contributions remain
-connected through `R`. This must retain the same effect-variable
-correspondence wherever one variable occurs in both Function positions.
-`Π` controls normalization and correspondence together: flattening or
-merging carries the same `W` and `Ψ`, so normalization cannot silently
-identify distinct original witnesses or detach a record from its component.
+Concrete matching preserves dependent type constraints; subtraction is
+allowed only for an eligible concrete component with evidence; unmatched
+contributions remain connected through `R`. `θ` retains shared abstract
+correspondence across both Function positions. `Π` controls normalization
+and correspondence together: flattening or consolidation carries the same
+`W` and `Ψ`, so normalization cannot silently identify distinct original
+terms or detach a concrete component from its context.
 No effect port is decomposed as an unrelated `Type` inequality, and the
 result of one concrete Function comparison cannot be composed with another
 concrete success to establish a third inequality.
