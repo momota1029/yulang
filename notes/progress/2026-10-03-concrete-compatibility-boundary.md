@@ -1814,6 +1814,17 @@ HIR likewise preserves that tail generically. Neither supplies the missing
 annotation-introduction/checking order, so the candidate remains conditional
 on the Function-specific source rule rather than following from syntax.
 
+For the unannotated callback fixture, I derived the expected-context path
+from the typed-core application rule and its public signature: `r.update`
+declares a Function-valued callback slot; the argument lambda is checked
+against that slot; that expected callback boundary selects Handler before its
+body is elaborated; and §21 separately assigns `Value` entry to the lambda's
+unannotated `old` parameter. This closes the callback-expected-context to
+receiver-role propagation for this fixture, not the role-indexed interface,
+effect-port projection, or already-constructed pure-value inequality.
+Argument reification/receipt/entry remain operationally separate from this
+typing derivation.
+
 I also inspected current HIR ownership: `ResolvedExpr::Lambda` stores only
 parameter, body, occurrence and range, while the narrow chain HIR retains
 annotations only as generic `Value` syntax nodes. This is downstream evidence

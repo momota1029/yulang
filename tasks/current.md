@@ -305,6 +305,14 @@ derive this role-selection judgment or its interface/effect-port clauses.
 Do not infer role from port spelling or give effect-position `never` an
 independent meaning.
 
+For the unannotated callback literal, the application path is now grounded:
+the callee declaration supplies the callback-value slot, argument checking
+uses that expected Function interface, and its callback context selects
+Handler before body elaboration. In the stable-core `r.update` case, the
+literal's own `old` parameter still receives §21's ordinary Value entry.
+This closes expected-context-to-role for that fixture only; it neither
+defines the role-indexed Function ports nor proves the pure-value inequality.
+
 Charter §24 now records the clarification as superseding §16's universal
 "every function is a handler" receiver-role statement. §16's invocation and
 §21 entry mechanics remain conditional on the role/interface selected by §24;

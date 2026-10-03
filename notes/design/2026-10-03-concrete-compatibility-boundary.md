@@ -1554,6 +1554,25 @@ core's `Value(Fun(P, Result(I_b)))` is only the constructor/result skeleton;
 it does not define the role-indexed effect ports and cannot replace this next
 elaboration step.
 
+For the concrete callback case, the contextual propagation path is:
+
+```text
+application source rule
+  -> callee's declared callback-value slot
+  -> check the literal argument against that expected Function interface
+  -> select Handler(callback-slot boundary) before elaborating its body
+  -> generate the literal's own parameter entry by §21
+```
+
+The stable-core `r.update (\old -> old + "!")` fixture witnesses exactly
+this role-selection path: `update` has a declared callback-value parameter,
+and `old` has ordinary value entry. Inert whole-argument construction and
+runtime receipt/entry order are separate source facts; expected typing
+propagation does not move the `Force(D)` before receipt. This closes the
+bounded expected-context-to-role link for that literal. The interface
+elaboration and effect ports still need derivation, and neither this typing
+path nor the fixture proves the pure-value-to-handler inequality.
+
 One overlap remains explicit: a Function-annotated literal can also occur in
 a callback position. Both inputs select handler role, but this source audit
 does not establish whether the annotation boundary is checked against, nested
