@@ -183,11 +183,15 @@ The bounded callback-context delivery contract is now independently reviewed
 in `notes/design/2026-10-03-callback-context-delivery.md`; it assumes a known,
 already instantiated `Value(F_cb)` formal and requires that context to reach an
 unannotated literal before its body constraints. User approval is pending.
-Implementation and durable API/phase selection remain unauthorized. If
-approved, the next proof gate derives the complete role-indexed Function
-interface for that supplied-context case, then projects its effect views into
-existing evidence. Application representation, declaration/member/import
-resolution, scheme instantiation, and annotation/callback overlap remain open.
+Implementation and durable API/phase selection remain unauthorized. The next
+proof-only gate distinguishes contextual introduction from existing-value
+adaptation. The `ref.update` anchor supports the former only; the pure-value
+lift must preserve its actual role and §21 entry, then satisfy
+`D_checked ⊆ D_actual` and `P_actual(d) ⊆ P_checked(d)` through one complete
+`CallView` and shared `Rel_C` fiber. Support union alone does not prove the
+ports or either inequality. Application representation, declaration/member/
+import resolution, scheme instantiation, and annotation/callback overlap
+remain open.
 
 Next derive the pure-function-value to handler-capable callback lift from
 source application/elimination. `Force(D) >>= B` explains why a value-entry

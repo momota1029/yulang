@@ -5,7 +5,7 @@ Date: 2026-10-03
 Scope: bounded source elaboration for one unannotated Function literal passed to a known Function-valued callback formal
 Approved-by: none; user approval pending
 Drafted-by: primary
-Reviewed-by: architect, compiler_referee, and spec_auditor (2026-10-03); no unresolved findings
+Reviewed-by: architect, compiler_referee, and spec_auditor (2026-10-03, including §4 delta); no unresolved findings
 Supersedes: none
 
 ## 1. Purpose and authority boundary
@@ -98,7 +98,41 @@ receiver boundary `b` is created only when the receiver activation occurs.
 This proposal preserves that distinction and does not mint a runtime boundary
 while elaborating the literal.
 
-## 4. Consequences and non-consequences
+## 4. Contextual introduction and existing-value adaptation are distinct
+
+The callback-position literal rule and the intended pure-function lift concern
+different source paths:
+
+| Source path | Source role | Required semantic check |
+|---|---|---|
+| An unannotated literal appears directly in a known callback slot | Handler from the expected context, before body constraints | Elaborate that literal under the supplied callback boundary; do not first construct it as Pure and repair it afterward. |
+| An already constructed Pure function value is supplied to a handler-capable callback slot | Preserve the value's actual Pure introduction and its §21 entry | Resolve the concrete inequality between the actual value interface and the checked callback interface; any adapter is evidence/realization from that one query. |
+
+The first path selects how a new literal is introduced. It does not prove the
+second path's concrete inequality. Conversely, success of that concrete
+inequality cannot be composed with another successful concrete comparison to
+establish a third one. Both paths use the same endpoint-dependent `A <: B`
+solver, but their source derivations have different premises and obligations.
+
+The stable-core fixture anchors the first path: the public signature for
+`std.control.var.ref.update` declares callback shape `('c -> ['b] 'c)`, and
+`r.update (\old -> old + "!")` places an unannotated literal in that callback
+slot. The expected context selects Handler even though the literal body is
+pure string concatenation. The public implementation is not present here, so
+this fixture does not derive the complete callback transition, source
+challenge domain, or the pure-value adaptation.
+
+For the second path, §21's actual entry and the original decorated behavior
+must remain executable under the handler-capable slot view. For a Value-entry
+call, `receipt; Force(D) >>= B` conditionally places requests from both the
+forced argument and reached body states in the common invocation. Relating
+those events to the target profile still requires typed receipt/`Flow`,
+event-specific `Observe`, occurrence/incidence, and both complete-domain
+clauses under one `Rel_C` fiber and `ν`. This source support does not establish
+that either port can be interpreted independently, that a row union is
+unconditional, or that the intended inequality is proved.
+
+## 5. Consequences and non-consequences
 
 This proposal makes the callback role available before body constraints, which
 is necessary to derive the handler-specific interface and its ports. It does
@@ -126,7 +160,7 @@ for a Value-entry callback over reachable post-force outcomes. It does not
 license unconditional row union, independent port subtyping, or a new
 subtraction/provenance calculus.
 
-## 5. Candidate implementation seam, not selected API
+## 6. Candidate implementation seam, not selected API
 
 Current HIR does not expose the required source inputs: `ResolvedExpr` has no
 application node; `HirParameter` and `HirItem` carry no typed interface;
@@ -154,15 +188,19 @@ literal to fall back to Pure. Lookup failure, unsupported source structure, and
 later interface incompatibility are distinct outcomes; this draft selects no
 new diagnostic or recovery behavior.
 
-## 6. Required review and next gate
+## 7. Required review and next gate
 
 Review this bounded contract for preservation of §21 entry/runtime order and
 conformance with the single `A <: B` solver and charter §24. The proposal can
 advance only if reviewers find no blocking or major defect. User approval is
 required before any compiler implementation or durable API decision.
 
-After approval, the next proof gate is to derive the complete role-indexed
-Function interface for this supplied-context case and show where its two effect
-views project into the existing `Rel_C`/`ν`, `K,D`, occurrence/incidence,
-`Flow`/`Observe`, and subtraction evidence. Only an exact source fact not
-representable there can justify additional evidence structure.
+The next proof gate for the intended pure-to-handler inequality must use an
+already constructed Pure value as its source premise, not the Handler-role
+literal in §2. Derive one complete callback `CallView` and show
+`D_checked(ν) ⊆ D_actual(ν)` and `P_actual(d) ⊆ P_checked(d)` under one
+`Rel_C`/`ν` fiber, then project its effect views through `K,D`,
+occurrence/incidence, `Flow`/`Observe`, and existing subtraction evidence.
+Only an exact source fact not representable there can justify additional
+evidence structure. This proof-only work does not select a compiler API or
+authorize implementation.

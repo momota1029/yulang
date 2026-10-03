@@ -2069,3 +2069,25 @@ minor header-status inconsistency; the header now records `Reviewed` while
 keeping user approval pending and API/phase unresolved. `git diff --check` is
 the only check; no tests, builds, Oracle inspection, or measurements. The draft
 is ready for user approval before implementation or durable API selection.
+
+### Separate contextual literal introduction from Pure-value adaptation (2026-10-03)
+
+A reviewed §4 delta in `notes/design/2026-10-03-callback-context-delivery.md`
+separates two paths that share the callback context but require different
+proofs. A new unannotated literal in a known callback slot selects Handler
+before body constraints. An existing Pure function value retains its actual
+introduction role and §21 entry, then reaches a handler-capable slot through
+one concrete `A <: B` resolution whose evidence may realize an adapter. The
+first path does not prove the intended pure-to-handler inequality, and
+concrete successes remain non-composable.
+
+The stable-core `ref.update` public signature and literal call substantiate
+only the contextual-introduction path. The library implementation is absent;
+this fixture does not prove its challenge domain or existing-value adaptation.
+The next source proof must construct one complete `CallView` and establish
+`D_checked(ν) ⊆ D_actual(ν)` plus `P_actual(d) ⊆ P_checked(d)` for every checked
+challenge under the same `Rel_C` fiber. `Force(D) >>= B` provides only the
+conditional Value-entry support premise; support union alone does not establish
+the effect ports. A spec-auditor and compiler-referee delta review found no
+findings. `git diff --check` is the only check; no code, tests, builds, Oracle
+inspection, or measurements.
