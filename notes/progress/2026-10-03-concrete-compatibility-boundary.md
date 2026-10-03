@@ -3385,3 +3385,44 @@ presentation open. The result confirms a missing source theorem, not a
 contradiction or a reason to revise the selected source rules. The next
 semantic work must construct this bridge as a Draft candidate and keep its
 admission and complete-bound premises independent of inequality success.
+
+### Query-local adequacy audit (2026-10-04)
+
+The preceding gate wording was too strong where it required domains and bounds
+to be independent of the queried inequality. They must be independent of the
+query's **success**, while retaining its endpoints, source use, slot/profile,
+and original typed evidence. This distinction follows the approved single
+`A <: B` solver: concrete resolution is local, and successful concrete
+queries do not become composable subtype edges.
+
+For one original task `q=(Γ;j;A <: B)` and common fiber `ω`, use proof-only
+query-indexed domains `D_actual^q(ω)`, `D_checked^q(ω)` and complete
+observation bounds `P_actual^q(ω,h)`, `P_checked^q(ω,h)`. The challenge `h`
+retains the whole inert `J_arg`, shared configuration, legal future inputs,
+responses and resumptions. Soundness may establish
+`D_checked^q ⊆ D_actual^q` and either (a) whole-bound inclusion
+`P_actual^q ⊆ P_checked^q`, or (b) directly that this actual invocation's
+complete behavior lies within `P_checked^q`. The latter proves local
+execution safety for `q`, but does not prove the stronger bound inclusion
+needed for the algebraic `[b,d]` claim.
+
+An Astra theorem audit and independent compiler-referee review found this
+one-way, query-local soundness schema coherent, conditional on real source-use
+and view parameters. Merely adding a query index to global endpoint
+denotations does not prevent transitivity: if the middle endpoint's checked
+bound in one query is canonically identified with its actual bound in another,
+ordinary inclusions compose. Therefore the schema is not an iff
+characterization of concrete solver success and supplies no middle-endpoint
+identification or comparison-composition rule. Sequential existing adapters
+may be sound as an explicit program without proving a direct endpoint query.
+
+For the callback lift, the source derivation must describe `T_P` for this
+query, preserve the underlying Pure role and §21 entry, and evaluate through
+the callback slot's typed invocation view. It must admit every whole-carrier
+challenge (including pure divergence) and preserve the full `J_call` relation.
+If proving bound-to-bound inclusion, it must also derive `[b,d]` through the
+original signed occurrences and positive typed incidence under one shared
+fiber, including `Flow`, `Observe`, `Path`/`Inc_C`, and existing linked
+component evidence. The source-state `EnvStore`/`JointWF`, alias and
+transition-closure construction remains unproved. No semantic contradiction,
+new evidence carrier, or API/phase decision follows.

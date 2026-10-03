@@ -1905,22 +1905,38 @@ challenge `d`. Derive its source context over the existing whole-carrier
 complete-bound composition, and the mapping of that source-generated endpoint
 to `T_P` under the retained slot view. This is a refinement of the candidate
 `CallCfg`/`Beh` denotation, not a new solver carrier or API phase.
-The context domain, semantic environment/store closure, admission predicate,
-and complete joint bound must be defined independently of `f ∈ ⟦T⟧` and of
-the queried inequality; otherwise the schema is only conditionally
-noncircular. The lift proof must separately establish checked-to-actual
-admission, a uniform complete interpretation of `T_P`, whole-bound inclusion
-for every legal callback history, and the source meaning of linked `[b,d]`
-under the original signed occurrences. Core §9 supplies containment only
-after those premises; current clauses do not derive them. This remains an
-unclosed source-adequacy theorem, with no demonstrated contradiction or
-semantic ambiguity. A bounded architect audit of the governing sources
-confirmed that no Authoritative endpoint-to-complete-interface map exists:
-callback-context §2 leaves interface formation open and §7 states the
-containment clauses without constructing their domains/bounds; typed-core §9
-supplies only the conditional law. Next derive a Draft source bridge under
-the existing source roles and call relation, preserving admission and bounds
-as independent of comparison success.
+The query's context, endpoints, slot/profile, admissible domain, and joint
+bound remain inputs to its local soundness proof. Construct them independently
+of **comparison success** and the target membership under test; do not require
+them to be independent of the query itself. Nor may local soundness be defined
+as a global `⟦A⟧ ⊆ ⟦B⟧` subtyping relation. The valid form is one-way:
+resolver success for `q` implies complete source adequacy for that `q`; it is
+not an iff characterization or a rule for composing successful concrete
+queries. Merely adding a query subscript to global denotations would not
+prevent transitive composition if the middle endpoint's meanings were
+canonically identified across queries.
+
+For the Pure-to-Handler callback lift, derive endpoint/source correspondence
+for this query and prove checked-to-actual challenge admission plus complete
+checked behavior coverage under each common fiber. If using typed-core §9's
+bound-to-bound route, `P_actual^q ⊆ P_checked^q` remains its own obligation;
+direct inclusion of actual behavior in the checked bound can establish local
+execution safety but does not establish that stronger bound inclusion or the
+source meaning of linked `[b,d]`. The latter still needs original signed
+occurrences and typed incidence under one `Rel_C/ν/K,D` fiber.
+
+The source map is absent from current Authoritative designs: callback-context
+§2 leaves interface formation open and §7 states containment without
+constructing its query domains/bounds; typed-core §9 supplies only a
+conditional law. A bounded architect audit confirmed this gap. A bounded
+Astra derivation plus independent compiler-referee review found the
+query-indexed one-way soundness schema coherent, while retaining the
+`EnvStore`/`JointWF`, alias/transition closure, whole-carrier admission,
+complete endpoint correspondence, and linked `[b,d]` incidence obligations.
+The callback Function gate remains open, with no demonstrated contradiction
+or semantic ambiguity. Next construct the query-local source domain from
+source derivations and preserved invocation views without assuming resolver
+success or introducing a global concrete subtype semantics.
 Astra and compiler-referee audits refine the former
 `ArgEventToCallMember` gate into shared support membership, dynamic event
 preservation, and positive typed-incidence claims. A bounded compiler-referee
