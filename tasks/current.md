@@ -2234,6 +2234,18 @@ incidence, observation and subtraction evidence; no carrier gap is shown.
 Formal-slot use also does not prove admission of the existing Pure actual or
 the universal `Q` challenge clauses.
 
+A candidate bounded formal-slot profile derivation is recorded in the same
+progress note. It uses the full argument expression interface `I_e` and
+inertly constructs its carrier, so effectful computations such as `op()` are
+included. It separately premises the actual value's Pure introduction and
+syntax-directed Value entry; neither is inferred from the slot. Pre-dispatch
+`Observe` is included even when a nested handler later consumes the event.
+Compiler-referee review caught and closed both initial exclusions. The rule
+only derives the execution/observation skeleton; `d⁻`'s row-component
+interpretation, positive `d⁺` contribution, and normalization/fiber
+preservation remain explicit unproved obligations. No implementation or new
+carrier is authorized.
+
 ## Main records
 
 - `notes/design/2026-10-03-scoped-constraint-solving.md` — scoped regular equality quotient and finite closed structural subtype saturation; the following reviewed candidate addresses open residual factorization.

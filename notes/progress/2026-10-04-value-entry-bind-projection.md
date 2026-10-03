@@ -214,3 +214,70 @@ the solver. The unresolved `Q`, distinct slot-value and argument receipts,
 same live receiver before dispatch, complete `CallView`, and linked-component
 projection remain separate obligations; success of `Q` must not create any
 edge in the diagram.
+
+## Candidate formal-slot profile rule
+
+The smallest candidate that could close the positive projection is scoped to
+an application of a known formal callback slot. Let `x` be that formal,
+`β` its preserved profile, and `d⁻` / `d⁺` the original linked component
+occurrences in the slot's already elaborated interface. Lookup through the
+slot view, ordinary application, inert argument construction, actual §21
+Value entry, and the complete call view give this structural skeleton:
+
+```text
+Γ ⊢ x : CallbackView(β, F_cb)
+Γ ⊢ e : I_e                       D = Delay(X[e])
+----------------------------------------------------
+CallView(β, Receive(u, arg, D), Force(D) >>= B >>= result-consumer)
+```
+
+`I_e` is the argument expression's full synthesized interface. It may be
+computation-producing or effectful; the application still constructs the
+whole carrier inertly, and Value entry performs the force after receipt.
+This candidate traces an actual callable whose introduction role is Pure and
+whose own parameter syntax selects Value entry. Those facts come from that
+callable's source derivation, not from the slot view; a retained-entry value
+uses a different execution path. Plugging this candidate actual into the
+formal slot leaves `Q` unresolved and makes no claim that the source program
+has already passed its type check.
+
+Its candidate evidence obligations, all generated independently of
+`Q = T_P <: F_cb`, are:
+
+1. The `d⁻` occurrence is interpreted at the formal's whole-argument
+   computation position. Its typed path reaches `J_arg`; the inner argument
+   receipt is distinct from the outer slot-value receipt.
+2. For each request event emitted during `Force(D)` while the complete call
+   view is active under the same concrete slot contract, the same event
+   occurrence is observed at `p_call` by the existing pre-dispatch
+   emission-context rule. This does not require the event to survive a nested
+   handler image; that image may consume it after `Observe` is determined,
+   and its arms may emit separate events. Source bind/handler-image evidence
+   must retain event origins and response/resumption dependencies under
+   shared `ν,K,D`. An escaped later invocation needs its own transported view
+   and active-owner evidence.
+3. The original positive occurrence `d⁺` denotes that linked
+   argument-origin contribution at `p_call`; `b⁺` denotes body and designated
+   result-consumer contributions over every compatible post-force state,
+   response, and resumption history. The component combination is
+   interpreted in the same nonempty `Rel_C` fiber with shared `ν,K,D`, rather
+   than by taking independent port marginals.
+4. Canonical flat normalization preserves those component occurrences,
+   their co-occurrence/correlation evidence, and their joint solution fiber.
+
+Only the execution edge and whole-call `Observe` skeleton follow from the
+already selected formal-slot, application, and Value-entry rules. The
+`d⁻`-to-argument row-component interpretation, clause (3), and clause (4) are
+the missing bridge, not results of the rule as currently specified. In
+particular, putting clause (3) in the rule as an axiom would restate the
+desired linked lift rather than prove that source elaboration realizes it.
+This candidate adds no carrier and imports no subtraction semantics; it
+proposes a derivation shape to audit. If the clauses cannot be derived from
+the selected linked lift and ordinary source application without a new
+semantic choice, this candidate must remain unapproved and the precise
+missing choice must be returned for approval.
+
+Even if validated, the rule covers only formal-slot obligations. It does not
+admit a preconstructed Pure actual, establish the nonempty checked/actual
+challenge domains, or prove either universal clause of the complete
+inequality. Those still require the separate `Q` theorem.
