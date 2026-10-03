@@ -2776,3 +2776,85 @@ If they do not, identify the precise missing source fact before proposing any
 new evidence structure. The complete challenge-domain and observation
 inclusions remain separate and open. No API/phase choice or implementation
 authority follows from this derivation.
+
+### Conditional source path package for the same-activation callback use (2026-10-03)
+
+Cross-checking the missing join against typed-computation-core §§6 and 9 gives
+a concrete *conditional* derivation for the bounded witness. Take a known
+instantiated callback formal `Value(F_cb)` with slot template `β`, and a
+source body that receives an already constructed Pure callback in that slot
+and invokes it during the same live receiver activation. The invocation passes
+whole argument carrier `D`; the callback's actual ordinary parameter has
+§21 `Value(A)` entry. For the identity value-path witness (`A = Int` and
+identity argument/result transport), the source clauses suggest the following
+shape for a path package generated before the concrete inequality is solved.
+The original-coordinate identifications and owner receipt map below remain
+premises to derive:
+
+```text
+Receive(r, callback_slot, V_cb, χ_cb)
+Receive(u, argument, V_arg, χ_arg)
+
+M_arg:  V_cb.p_arg.effect  ↦ V_force.p_force
+M_call: V_cb.p_call.effect ↦ V_call.p_call
+M_call is rooted at the exact V_cb received by r above
+β.p_d⁻ identifies with V_cb.p_arg.effect
+β.p_d⁺ identifies with V_cb.p_call.effect
+
+Flow*(β.p_d⁻, V_force.p_force)
+Observe(q, V_force, p_force, o_force)
+
+Flow*(β.p_d⁺, V_call.p_call)
+Observe(q, V_call, p_call, o_call)
+
+View(V_call,p_call,
+  View(V_force,p_force,Force(D)) >>= typed rebind >>= Return)
+```
+
+This display is conditional on the supplied typed source graph providing
+`M_arg`, `M_call`, and the matching slot-owner receipt correspondence, and
+identifying the original profile coordinates with the displayed `V_cb`
+positions. The negative map must link the callback input effect position to
+the received carrier's own effect path, which §21 Value entry opens by
+`Force(D)`; a request observes that computation effect position
+(typed-boundary §6). The positive map links the slot's call effect position
+to the complete-call view. These are two distinct same-polarity maps, not an
+effect-to-effect edge from `p_d⁻` to `p_d⁺`. Core §9 derives the interaction
+directions and says entry/bind can place the same request dependency at both
+input and complete-call positions, but its source-generation theorem takes
+typed-profile/path correspondences as inputs. `Receive(u, argument, V_arg,
+χ_arg)` therefore cannot be substituted for the slot owner's
+`Receive(r, callback_slot, V_cb, χ_cb)` plus its mapped view. At event `q`,
+once these two maps are supplied, the nested executable views make the same
+event observable at both current ports.
+
+If the callback descriptor uses one shared abstract component `d` at both
+signed ports, both paths retain the same source component identity and
+assignment `ν`; only the negative path reaches the actual Force, while only
+the positive path reaches the complete-call observation. Existing
+`Observe`/`Path`/`Inc_C` rules can then join the witnesses without a new
+carrier or an effect-row tree. The output-side source premise is conditional
+accounting of `D` at the complete invocation; it does not claim that all body
+effects occur when `D` diverges or that outward support is an unconditional
+row union.
+
+This package is not yet a proof of the general `T_actual <: F_cb` success.
+It relies on the bounded source graph already having the callback slot's
+typed binding/use correspondence and the expected interface's application
+ports. The Authoritative callback contract supplies the known slot/profile
+inputs but deliberately does not choose their compiler owner; the core source
+package is a reviewed candidate and still treats typed-path/owner premises as
+inputs to its adequacy theorem. The concrete resolver must independently
+prove the complete-domain inclusion `D_checked(ν) ⊆ D_actual(ν)` and the
+universal complete-observation inclusion `P_actual(d) ⊆ P_checked(d)`. Its
+success cannot be used to certify the paths that justify that success. An
+independent compiler-referee delta audit found no blocking or major defect in
+the conditional package and confirmed that the operational steps follow for a
+supplied resolved/decorated graph. It emphasized that core §9:988–995
+constructs application links together with supplied typed-profile/path data;
+it does not identify the original `β` coordinates or prove the receipt map.
+The exact remaining source clause must show whether ordinary binding,
+application and Value-entry rules discharge those map/receipt premises for
+the bounded identity witness. Do not generalize this conditional package to
+non-identity function conversions, escaped callbacks, unknown callback
+formals, or arbitrary Function comparison.

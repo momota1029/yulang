@@ -398,6 +398,19 @@ new evidence structure; then prove the separate universal challenge-domain
 and observation inclusions. API/phase ownership remains open and no
 implementation is authorized.
 
+An explicitly conditional path package uses the existing derivation-core
+ports: the application's whole-argument port and §21 Value-entry Force locate
+the negative `d` execution path; the complete invocation locates the positive
+`d` observation path. Nested force/call views expose one `D` event at both
+ports. Its typed maps from `β` coordinates and the callback-slot owner receipt
+remain premises, not conclusions. A focused compiler-referee delta audit
+found no blocking/major issue and confirmed those operational steps for a
+supplied resolved/decorated graph. It emphasized that core §9:988–995 takes
+typed-profile/path data as input; `J_arg` plus §21 force do not prove the
+original-coordinate maps or matching receipt. The next gate is to derive or
+refute those exact maps for the bounded identity callback from ordinary
+binding/application elaboration, independently of inequality success.
+
 Sol's focused source-clause audit found no existing rule that derives the
 original slot's `p_d⁻`/`p_d⁺` paths to executable decorations for this existing
 Pure-value adaptation. The callback expected-context rule covers a newly
