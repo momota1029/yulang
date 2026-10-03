@@ -103,6 +103,10 @@ two conditional regularity-preserving operators and a primary trace/unary
 construction have been reviewed. Their exact correspondence remains open on
 the clash-free branch; on inconsistent branches they preserve a finite clash
 witness, without claiming to enumerate all positive consequences after it.
+An attempted extension that continued through every forced head after a clash
+was rejected: it could activate an absent coordinate below exact descriptors
+of different arity. The correspondence candidate is now limited to
+clash-free closure, which is sufficient for satisfiability characterization.
 Exact descriptor Record presences must be seeded, while upper absence is not a
 negative fact. Separate right-appending `Live` closure remains outside the
 operator construction. The Function/source-derivation work remains an

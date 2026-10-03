@@ -679,23 +679,22 @@ head/presence facts.
 Conversely, for fixed **regular** unary head/presence languages, a product word
 automaton plus finite per-bound orientation flags recognizes the next active
 comparison traces. Covariance preserves direction, contravariance reverses
-it, invariance activates both, and an upper-absent Record field simply has no
-presence-enabled child transition. It must not be recorded as an irreversible
-negative fact. These two conditional constructions imply every finite
-alternation stage is regular. Since the Horn rules have finite premises, the
-joint least closure is the union of those finite stages; that union need not
-be regular merely because every stage is regular (abstractly,
+it, invariance activates both. On a clash-free package, the common forced
+head has the declared shape on both endpoints and contributes its child
+transitions. An upper-present Record field activates its payload pair; an
+upper-absent field does not, and is not an irreversible negative fact. These
+conditional constructions imply every finite clash-free alternation stage is
+regular. Since the Horn rules have finite premises, the clash-free least
+closure is the union of those finite stages; that union need not be regular
+merely because every stage is regular (abstractly,
 `X ↦ X ∪ aXb` from `{ε}` has `{aⁿbⁿ}` as its least fixed point).
 
 The reviewer required the activation representation to retain each original
 bound's root trace and resolve descriptor aliases through unary prefix
 transport; an arbitrary alias-expanded binary address relation must not be
-assumed synchronously regular. It must retain incompatible activated pairs
-so they still expose clashes such as `Int <: Bool`, and it must expose forced
-lower presence failure such as `{}` `<:` `{f:Int}`. A rule-by-rule equivalence
-between these trace/unary operators and the quotient closure is not yet
-proved. This is the precise remaining bridge before even using the operator
-alternation to study regularity of the actual least closure.
+assumed synchronously regular. The remaining bridge is a rule-by-rule
+root-trace/quotient correspondence, stated in the candidate construction
+below.
 
 Thus no regularity theorem, effective procedure, or nonregular-only package
 result follows. The sharpened target remains an effective regular recognizer
@@ -703,17 +702,18 @@ for the joint forced-head/presence closure (or another proof that the
 canonical default-`Record{}` completion is regular), with exact trace and
 clash preservation established first.
 
-#### Primary trace/unary correspondence construction (candidate; pending review)
+#### Primary trace/unary correspondence construction (reviewed candidate; proof open)
 
-The exact bridge can be stated without constructing a synchronized
-automaton for arbitrary pairs of aliased addresses. Keep, for each original
-inequality `b`, a trace language `A_b^σ ⊆ Δ*`: word `w` denotes the ordered
-pair obtained by following the same child-coordinate word from `b`'s two
-original root tracks, with orientation `σ`. Induction on the direct
-comparison rules gives every active pair a common root trace; conversely each
-enabled local child step extends that trace by one coordinate. Descriptor
-equations identify its endpoints as quotient addresses but do not create a
-second comparison root or compose two roots.
+The exact bridge on the satisfiability-relevant clash-free branch can be
+stated without constructing a synchronized automaton for arbitrary pairs of
+aliased addresses. Keep, for each original inequality `b`, a trace language
+`A_b^σ ⊆ Δ*`: word `w` denotes the ordered pair obtained by following the
+same child-coordinate word from `b`'s two original root tracks, with
+orientation `σ`. Induction on the direct comparison rules gives every active
+pair a common root trace; conversely each enabled local child step extends
+that trace by one coordinate. Descriptor equations identify its endpoints
+as quotient addresses but do not create a second comparison root or compose
+two roots.
 
 Keep unary facts over *all* representatives `(q,w)` and close them under the
 finite prefix rewrites `(q,iw) ↔ (q_i,w)`. Do not normalize the left and right
@@ -726,43 +726,45 @@ implements the descriptor prefix rewrites and guarded transfers; regular
 are exactly the unary `F(A)` closure if the rules preserve root-trace
 provenance and retain clashes.
 
-For fixed regular unary facts `U`, build each `G(U)_b` automaton from the
-product of the two endpoint tracks' head/presence automata and a finite
-orientation state. A state is an active trace even when it exposes a head or
-presence clash. On the clash-free branch, matching ranked heads generate the
-declared child directions, upper-present Record fields generate the covariant
-field child, and upper-absent fields generate none. Atoms and empty/default Records terminate. The root is always active.
-This preserves a failed original comparison as a clash witness rather than
-filtering it out of the activation language.
+For a clash-free closure and fixed regular unary facts `U`, build each
+`G(U)_b` automaton from the product of the two endpoint tracks'
+head/presence automata and a finite orientation state. In this branch each
+active pair has either no forced head at either endpoint (so the default is
+`Record{}`), or one shared compatible forced head after head transport.
+Matching ranked heads generate the declared child directions, upper-present
+Record fields generate the covariant field child, and upper-absent fields
+generate none. Atoms and empty/default Records terminate. Exact descriptor Record
+presences are positive seeds; a forbidden descriptor field forced present or
+incompatible exact heads produce a clash and reject the package. Upper
+absence alone is not a negative fact.
 
-On the clash-free branch, if the trace/unary equivalence is proved,
-alternating `F` to saturation and `G` to the next trace stage gives the exact
-quotient Horn closure: every finite rule derivation is represented at a finite
-alternation stage, and each stage adds only consequences of those rules. On
-an inconsistent branch, a finite clash witness is enough to reject the
-package; this construction does not claim to enumerate positive Horn
-consequences below a clash. Exact descriptor Record
-presence is seeded in `U`; a forbidden descriptor field reached by a forced
-lower-presence transfer remains a clash. Liveness is a separate shape
-closure: descriptor roots, active comparison endpoints, known constructor
-children, and present-field payloads are live; liveness alone creates no
-head/presence/comparison facts. In the default completion, output shape is
-then determined by the forced head/presence languages, so separate `Live`
-regularity need not be an input to the tree-output product.
+The relevant equivalence is therefore between the quotient closure and the
+`F/G` iteration on the **clash-free branch**. Every finite derivation of a
+fact before any clash appears at a finite alternation stage, and each stage
+adds only consequences of the quotient rules. If a clash appears, its finite
+derivation already proves that no solution exists; the satisfiability proof
+does not require enumerating positive consequences below it. The remaining
+rule-by-rule proof must establish (i) every quotient active pair on a
+clash-free package has a common original-root trace, (ii) every closure rule
+is realized and no invalid pair is activated, and (iii) pushdown stack tests
+include every descriptor alias. Separate right-appending `Live` closure
+remains for liveness/output shape and creates no head/presence/comparison fact
+by itself.
 
-This is a primary proof candidate, not yet a theorem. Independent review
-validated the common-root-trace induction and the component constructions
-with the qualifications above. Unconditional equality with the positive
-Horn closure is not claimed after a clash: for distinct unary constructors
-`C,D` and atoms `I,B`, `x=C(I)`, `y=D(B)`, and `x <: y`, head transfer yields
-a clash, while the raw positive rules may still derive children under each
-shared forced head. For satisfiability, retaining that finite clash witness
-is sufficient; for an exact closure theorem, the clash-free branch still
-needs rule-by-rule proof that (i) every quotient active pair has a common
-trace representative, (ii) every closure rule is realized and no invalid
-pair is activated, and (iii) pushdown stack tests include every alias
-without losing either clash class. Exact descriptor Record presences must
-be seeded, and a presence clash means a forced field forbidden by an exact
-descriptor mask; an upper absence alone is not a negative fact. Until the
-clash-free audit closes, the finite-stage construction cannot be cited as an
-exact regularity-preserving iteration for the least closure.
+An attempted stronger claim—continue every active pair below clashes by
+branching over every common forced head—does **not** preserve the current
+active-address rules. Exact unary `x=C(I)`, exact binary `y=D(B,B)`, and
+`x <: y` force both heads onto both roots; blindly following shared `D` would
+activate coordinate 2 below `x`, an absent/padded child forbidden by rule 5.
+An exact atom compared with `{f:I}` similarly cannot use the new Record head
+to invent an inactive payload below the atom. To claim exact positive closure
+on inconsistent packages, a different total-address convention and its
+relation to exact descriptor equations would first need authority and proof.
+The present result does not need that stronger claim: finite clash detection
+is sufficient for the arbitrary-tree existence characterization.
+
+On the clash-free branch, if this trace correspondence is validated, each
+finite closure stage is regular under the conditional `F/G` constructions,
+and their union is the least clash-free closure. This still does not prove
+that the union is regular, effectively recognizable, or decidable;
+regularity and the canonical default-`Record{}` solution remain open.
