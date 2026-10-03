@@ -1044,6 +1044,17 @@ closure now has clean compiler-referee/spec-auditor delta reviews; it does not
 construct carriers from source rules. The immediate gate is the rule-by-rule
 source bridge for finite context/instance carriers, followed by effective
 joint residual/projection solving for open Records and recursive feedback.
+
+Within that bridge, the representation-preserving annotation-check fragment
+on an already supplied finite typed derivation now has a reviewed root/context
+corollary in `notes/design/2026-10-03-source-context-finite-closure.md` §4:
+check-site and lexical identity stay fixed through proof erasure, while typed
+path transport retains tagged evidence and shared `K,D,ν`. The result does
+not generate judgments from raw annotations, choose executable conversions,
+freshen schemes, or close derived queries. The next source proof must connect
+raw annotations and conversion syntax to these supplied derivations without
+collapsing checking into executable adaptation.
+
 Full goal remains active.
 
 The candidate now includes a two-direction normalization-equivalence proof:

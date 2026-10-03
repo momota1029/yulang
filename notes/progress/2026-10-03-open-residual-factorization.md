@@ -135,9 +135,18 @@ explicit input carriers; source rules still must construct meaning-preserving
 finite carriers, close use-site instances/replay, and establish semantic
 preservation. The immediate source gate is that rule-by-rule bridge.
 
+For the representation-preserving annotation-check fragment on an already
+supplied finite §6 derivation, §4 of the context-closure candidate now records
+a bounded root/context corollary. Each source check site and lexical context
+stays fixed; typed path transport retains source-tagged evidence and shared
+`K,D,ν`, and proof-label erasure adds no execution boundary or demand.
+Compiler-referee and spec-auditor delta reviews found no issue. Raw annotation
+generation, conversion selection, scheme freshening and derived-query closure
+remain outside the corollary.
+
 Next close the rule-by-rule source bridge that constructs the finite context
-and instance carriers while separating immutable lexical identity from
-mutable dependency certification. Then prove an effective joint
+and instance carriers from raw source while separating immutable lexical
+identity from mutable dependency certification. Then prove an effective joint
 representation for residual satisfiability plus projection when nonempty
 Record alphabets and recursive feedback vary. Uniform scoped typing,
 effect/family compatibility, lifecycle, full acceptance, termination/resource

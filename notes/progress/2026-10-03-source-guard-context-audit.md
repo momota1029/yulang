@@ -78,3 +78,17 @@ construct those carriers from source rules or establish source-wide closure.
 The source bridge above therefore remains the immediate open gate: derive
 meaning-preserving finite context and instance carriers rule by rule,
 including freshening, replay, sealed transport, and invalidation.
+
+## Supplied annotation-check root/context corollary
+
+The source-context draft now includes §4 for proof-only representation-
+preserving `Value`/`Computation` checks inside an already supplied finite
+typed derivation. It retains each original check site and lexical context,
+while typed `Flow` maps paths and preserves tagged source evidence plus the
+same `K,D,ν`; it adds no execution boundary or source demand. Independent
+compiler-referee and spec-auditor reviews found no issue in this bounded
+composition of core-elaboration §7 erasure with typed-boundary §6 transport.
+The result establishes initial root/context finiteness only. Raw annotation
+generation, complete check/conversion selection, scheme freshening, derived
+query closure and adapter placement remain open; no source-wide finiteness
+claim follows.

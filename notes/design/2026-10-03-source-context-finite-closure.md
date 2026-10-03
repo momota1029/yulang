@@ -4,7 +4,7 @@ Status: Draft
 Date: 2026-10-03
 Scope: conditional finiteness of comparison-context closure for a supplied finite linked open-template graph
 Approved-by: none
-Reviewed-by: architect pre-write audit; after repairing the finite-label-carrier gap, bounded compiler_referee and spec_auditor delta reviews of the conditional closure theorem found no remaining findings (2026-10-03)
+Reviewed-by: architect pre-write audit; after repairing the finite-label-carrier gap, bounded compiler_referee/spec_auditor delta reviews of the conditional closure theorem found no remaining findings; bounded compiler_referee/spec_auditor reviews of §4's supplied-derivation root-context corollary found no findings (2026-10-03)
 Implementation authority: none
 Supersedes: none
 
@@ -157,7 +157,48 @@ premises. In particular, putting an infinite source context into a nominally
 finite `J_T` by forgetting distinctions would violate premises 3, 5 or 6
 rather than establish the theorem.
 
-## 4. Why alpha-only instance enumeration is insufficient
+## 4. Supplied derivation roots for representation-preserving checks (candidate)
+
+There is a bounded root-context corollary for the checking fragment of
+`typed-computation-core-elaboration.md` §7. Take a finite §6 derivation graph,
+its original contracts, supplied typed `Flow`/receipt correspondences, one
+shared assignment `ν`, and a finite set of proof-only checks of the forms
+`Check(Value(A),Value(B))` and
+`Check(Computation(E,A),Computation(F,B))`. Do not add source conversions,
+scheme instances, adapters, or new source introduction/consumption sites.
+
+Assign each source check occurrence its existing annotation/check site `b`
+and the generating context already present in the derivation. Keep `b` stable
+through recursive source references; two distinct source occurrences remain
+distinct even if they have equal endpoint terms. Store endpoint paths,
+typed evidence references, source witness correspondence and shared `K,D`
+incidence in the finite supplied ports, under the same `ν`. Typed `Flow`
+transport changes which corresponding paths carry the view; it retains the
+original predicate identity, source evidence tags, and lexical check context.
+For a multi-input transport, retain each indexed source map and its witness
+tag, rather than combining their lexical assumptions into a new check
+environment.
+
+Under those premises, adding or erasing the finite proof labels creates no
+new runtime instruction, receipt, receiver boundary, view introduction, or
+source demand. The included interface constraint and its original annotation
+and evidence references remain. The set of roots is finite because it is
+indexed by the supplied finite source/check graph, and the context carrier is
+finite because every referenced port comes from that graph's finite `P`,
+`L`, `W`, and `E` sets. The executable graph is unchanged. This is the
+composition of the proof-label erasure theorem in core-elaboration §7 with
+typed-boundary §6's path-indexed transport; it does not add a new source rule
+or an independent context identity.
+
+This corollary establishes only **initial root/context retention** for the
+supplied derivation. It does not generate annotation roles or typed paths
+from raw syntax, prove a complete `A <: B` decomposition, close replay or
+aliases, instantiate schemes, admit a value conversion, or establish
+source-wide `J_T` finiteness. In particular, a check inclusion is not an
+executable adapter, and adapter placement cannot be inferred from this
+erasure result. Those remain separate source-bridge premises.
+
+## 5. Why alpha-only instance enumeration is insufficient
 
 Fresh-name equivalence alone cannot make all recursive source instances
 finite. A synthetic port transfer
@@ -178,7 +219,7 @@ parametric-linking evidence treats finite supplied instance graphs only and
 leaves source polymorphic recursion, use-site freshening and shape-dependent
 instance generation open.
 
-## 5. Rule-by-rule source bridge still required
+## 6. Rule-by-rule source bridge still required
 
 Before using this theorem for source-wide finite `J`, establish that every
 source comparison origin and derived rule is represented, including:
