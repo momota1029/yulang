@@ -1102,3 +1102,31 @@ the repaired singleton calculation passed the bounded delta review with no
 residual finding. This proof remains conditional on the missing annotation-to-
 occurrence source clause. `git diff --check` passed; no tests, builds, or
 measurements ran.
+
+The singleton support calculation was then composed with the existing
+coupled-interface draft's candidate Function clause. Under that candidate,
+every immediate request in every complete call observation must belong to
+`TypedRow(E,ν)`. For the stipulated singleton occurrence and nonempty
+argument fiber, this reduces to family-point membership in the resolved
+`F(α)` point. A bounded compiler-referee review found no issue in this
+conditional specialization. It neither selects the candidate Function
+contract nor supplies the annotation-to-occurrence mapping. The next safe
+derivation is the abstract component view and its joint combination with the
+resolved family point, still without implementation authority.
+
+Before adding any effect-resolution structure, I cross-checked the abstract
+component candidate against the frozen directed-weight/effect-subtraction
+rules and the Astra-era interpretation. The old calculus already accounts for
+scoped subtraction identities, ordered push/pop history, family budgets,
+row splitting, residual transport, and invariant payload checks; the coupled
+interface already carries source ownership/incidence, shared assignments,
+and relational dependencies. The proposed support-union equation therefore
+cannot follow from separate component projections: a major review finding
+required a nonempty joint fiber and a source-derived occurrence-union rule.
+The repaired candidate now requires both and keeps both contributions in
+that joint `Rel_C` context. Its bounded delta review closed without residual
+findings. No new regional, attachment, provenance, or subtraction structure
+is introduced. The genuinely open bridge is mapping source Function row
+components into those existing carriers and proving that their existing
+evidence licenses each partial reversal. No code changed; `git diff --check`
+passed, with no tests, builds, or measurements run.

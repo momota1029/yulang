@@ -148,10 +148,14 @@ requests and preserves full request data in the complete relation; it does
 not establish that this is the source annotation meaning. The abstract
 component denotation and component-combination rule remain open. Its
 singleton `TypedRow` calculation is conditional on a nonempty argument fiber
-in `ArgDen_A`; it does not supply the annotation-to-occurrence rule. Then
-derive both intended inequalities jointly from the resulting complete views,
-including
-effectful/diverging value-entry inputs, ignored retained carriers, dependent
+in `ArgDen_A`; it composes conditionally with the existing candidate
+Function-support clause, but it does not supply the annotation-to-occurrence
+rule. A reviewed abstract-view candidate retains the existing `Rel_C`/`K,D`
+fiber and states support union only under a nonempty joint fiber and a
+source-derived occurrence-union rule; that source rule remains unproved.
+Then derive both intended inequalities jointly from
+the resulting complete views, including effectful/diverging value-entry
+inputs, ignored retained carriers, dependent
 `K,D`, continuation re-emission, and operation callables whose native body
 returns a carrier consumed later by the declared result interface. Parameter
 roles, call scheduling, result forwarding, and the two target inequalities

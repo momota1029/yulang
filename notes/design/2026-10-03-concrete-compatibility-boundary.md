@@ -4,7 +4,7 @@ Status: Draft; records user-directed single-inequality, Function effect-descript
 Date: 2026-10-03
 Scope: one inequality judgment with endpoint-dependent solving and local concrete cast/adaptation resolution
 Approved-by: user for the single inequality judgment, endpoint-dependent resolution direction, concrete-success non-composition, polarity-indexed Function effect descriptors, mixed abstract/concrete type components, canonical-flat covariant rows, abstract-only contravariant meet normalization, and concrete-bearing attachment descriptors for witnessed partial reverse-addition; component classification, co-occurrence consolidation, the component-to-existing-carrier bridge, proof that existing evidence licenses a particular reversal, replay eligibility, and implementation remain open
-Reviewed-by: prior compiler_referee/spec_auditor reviews cover frozen-source facts and earlier Record/replay candidates; 2026-10-03 compiler-referee delta reviews of the Function descriptor and mixed-row candidate found no blocking/major issues, with minor wording repairs closed; general-component, polarity-specific reverse-addition, and abstract-only contra-meet wording delta reviews found no blocking/major/minor issue; the conditional support-obligation corollary received bounded spec-auditor and compiler_referee review with all findings closed and no remaining finding; the intended-Function necessary-condition subsection received a bounded compiler_referee review with no findings; the conditional Act-family coverage candidate received a bounded compiler-referee review, its minor ownership clarification and major nonempty-fiber premise were repaired, and the delta review closed with no residual finding; the full witness calculus remains unreviewed
+Reviewed-by: prior compiler_referee/spec_auditor reviews cover frozen-source facts and earlier Record/replay candidates; 2026-10-03 compiler-referee delta reviews of the Function descriptor and mixed-row candidate found no blocking/major issues, with minor wording repairs closed; general-component, polarity-specific reverse-addition, and abstract-only contra-meet wording delta reviews found no blocking/major/minor issue; the conditional support-obligation corollary received bounded spec-auditor and compiler_referee review with all findings closed and no remaining finding; the intended-Function necessary-condition subsection received a bounded compiler_referee review with no findings; the conditional Act-family coverage candidate received a bounded compiler-referee review, its minor ownership clarification and major nonempty-fiber premise were repaired, and the delta review closed with no residual finding; the singleton `TypedRow` to candidate Function-support crosswalk received a bounded compiler_referee review with no findings; the abstract-component same-fiber candidate had a major joint-fiber/union-premise finding repaired and its bounded delta review closed with no residual finding; the full witness calculus remains unreviewed
 Implementation authority: none
 Supersedes: none; narrows source applicability of structural relation candidates without invalidating their fragment theorems
 
@@ -385,6 +385,15 @@ calculation: the premise that an annotation component supplies `oτ` is the
 missing source clause. It does not identify `oτ` with a dynamic request event
 or with the request's operation-local witness.
 
+Under the separate coupled-interface draft's unselected Function-contract
+candidate, every immediate request in every complete call observation must
+belong to `TypedRow(E,ν)`. With the singleton mapping and nonempty-fiber
+premise above, that support obligation reduces to requiring the request's
+family point to equal `(F,(ν(α₁),…,ν(αₙ)))`. This composes the conditional
+point calculation with an existing candidate complete-call rule; it does not
+establish the annotation-to-occurrence mapping, the candidate Function
+contract's authority, or any concrete port comparison.
+
 For an abstract component `α`, the corresponding candidate cannot be a
 family-point predicate. Its contribution must be the existing complete-view
 constraint denoted by `α` under the same `ν`, preserving its source-owned
@@ -410,6 +419,46 @@ annotation component to `FamilyAllowed`, and do not yet give the abstract
 component rule. The fragment-vs-uniform question remains open, as does whether
 the candidate family predicate is the intended source contract. It cannot
 yet be used to derive either intended Function inequality.
+
+#### Candidate abstract component as a same-fiber view
+
+For an abstract component, the only currently supported reuse shape is a
+projection of the existing complete relation `Rel_C(ρ)` to the effect port
+identified by the source typed path. At fixed `ν`, this keeps the component's
+complete view and every dependent root/request/continuation in the same
+`Rel_C` fiber. Its support projection may contain several family points; the
+family support alone is not the component denotation. `K,D` stay in the
+complete relation and are not copied into an abstract-row side table.
+
+The following support equality is proposed only conditionally. Assume that
+source elaboration maps an abstract component `α` to such a port projection
+`View_α(ν)` and derives the family point `pτ(ν)` for a resolved concrete
+component `τ`. Also require a nonempty jointly admissible `Rel_C` fiber at
+`ν`, retaining shared `K,D` and both components' dependencies, and a
+source-derived component-combination rule whose support coordinate is the
+union of its component occurrences. Compute both `Support(View_α(ν))` and
+`pτ(ν)` in that retained joint context. Only under these premises does the
+proposed flat covariant support view satisfy
+
+```text
+Support_E(ν) = Support(View_α(ν)) ∪ {pτ(ν)}.
+```
+
+Separate component mappings alone do not entail this equality. This is only
+the support projection. The accepted complete relation must
+still retain the shared assignment and correlations of `View_α`; independently
+projecting `View_α` and then taking a Cartesian product with the concrete
+point would admit fibers that never existed jointly. Deduplicating equal
+support points likewise does not identify their original component terms or
+discard their separate incidence. The formula therefore predicts no new
+ownership or provenance structure: source identities and dependencies stay
+where the existing `Rel_C` / `K,D` representation keeps them.
+
+No source rule yet maps `α` to that port projection or defines its fiber,
+nonemptiness, component combination, or typed-path transport. Nor is the
+support union a handler-subtraction or contravariant reverse-addition rule.
+This is a reuse-shaped candidate for the abstract component, not its selected
+denotation or a derivation of `[b,d]` / shared-`e`.
 
 The compact signature `'a ['b, write int] -> ['b] int` places `'a` in the
 value-input position and shares effect variable `'b` between input and result
