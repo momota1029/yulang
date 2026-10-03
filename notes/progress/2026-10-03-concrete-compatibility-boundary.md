@@ -1092,3 +1092,13 @@ inspection and `git diff --check` close that wording finding. No tests, builds,
 or measurements ran. The source annotation meaning, candidate selection,
 abstract denotation, component combination, fragment/uniform scope, and full
 Function resolver remain open; implementation authority remains none.
+
+A later conditional derivation of the singleton `TypedRow` projection received
+a compiler-referee delta review. It found that equality of the occurrence's
+family tuple did not imply that the candidate row fiber was inhabited: the
+coupled-interface definition also requires the assigned tuple to lie in
+`ArgDen_A(oτ,ν)`. I added that explicit premise and `J_{ {τ} }(ν) ≠ ∅`;
+the repaired singleton calculation passed the bounded delta review with no
+residual finding. This proof remains conditional on the missing annotation-to-
+occurrence source clause. `git diff --check` passed; no tests, builds, or
+measurements ran.

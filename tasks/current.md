@@ -146,8 +146,11 @@ components; a component/type-shape guess is not authority. A reviewed
 candidate for resolved `F(α)` constrains family support of existing typed
 requests and preserves full request data in the complete relation; it does
 not establish that this is the source annotation meaning. The abstract
-component denotation and component-combination rule remain open. Then derive both
-intended inequalities jointly from the resulting complete views, including
+component denotation and component-combination rule remain open. Its
+singleton `TypedRow` calculation is conditional on a nonempty argument fiber
+in `ArgDen_A`; it does not supply the annotation-to-occurrence rule. Then
+derive both intended inequalities jointly from the resulting complete views,
+including
 effectful/diverging value-entry inputs, ignored retained carriers, dependent
 `K,D`, continuation re-emission, and operation callables whose native body
 returns a carrier consumed later by the declared result interface. Parameter

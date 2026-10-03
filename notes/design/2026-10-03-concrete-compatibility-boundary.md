@@ -4,7 +4,7 @@ Status: Draft; records user-directed single-inequality, Function effect-descript
 Date: 2026-10-03
 Scope: one inequality judgment with endpoint-dependent solving and local concrete cast/adaptation resolution
 Approved-by: user for the single inequality judgment, endpoint-dependent resolution direction, concrete-success non-composition, polarity-indexed Function effect descriptors, mixed abstract/concrete type components, canonical-flat covariant rows, abstract-only contravariant meet normalization, and concrete-bearing attachment descriptors for witnessed partial reverse-addition; component classification, co-occurrence consolidation, the component-to-existing-carrier bridge, proof that existing evidence licenses a particular reversal, replay eligibility, and implementation remain open
-Reviewed-by: prior compiler_referee/spec_auditor reviews cover frozen-source facts and earlier Record/replay candidates; 2026-10-03 compiler-referee delta reviews of the Function descriptor and mixed-row candidate found no blocking/major issues, with minor wording repairs closed; general-component, polarity-specific reverse-addition, and abstract-only contra-meet wording delta reviews found no blocking/major/minor issue; the conditional support-obligation corollary received bounded spec-auditor and compiler_referee review with all findings closed and no remaining finding; the intended-Function necessary-condition subsection received a bounded compiler_referee review with no findings; the conditional Act-family coverage candidate received a bounded compiler_referee review with one minor ownership clarification repaired by primary inspection; the full witness calculus remains unreviewed
+Reviewed-by: prior compiler_referee/spec_auditor reviews cover frozen-source facts and earlier Record/replay candidates; 2026-10-03 compiler-referee delta reviews of the Function descriptor and mixed-row candidate found no blocking/major issues, with minor wording repairs closed; general-component, polarity-specific reverse-addition, and abstract-only contra-meet wording delta reviews found no blocking/major/minor issue; the conditional support-obligation corollary received bounded spec-auditor and compiler_referee review with all findings closed and no remaining finding; the intended-Function necessary-condition subsection received a bounded compiler_referee review with no findings; the conditional Act-family coverage candidate received a bounded compiler-referee review, its minor ownership clarification and major nonempty-fiber premise were repaired, and the delta review closed with no residual finding; the full witness calculus remains unreviewed
 Implementation authority: none
 Supersedes: none; narrows source applicability of structural relation candidates without invalidating their fragment theorems
 
@@ -373,6 +373,17 @@ same family point remain distinct in the complete view even if this support
 predicate treats them alike. This is a candidate coverage rule for resolved
 Act-family items, not a theorem that the source annotation already has this
 meaning.
+
+This candidate has a conditional derivation from the coupled-interface draft's
+`TypedRow` projection. If source elaboration maps the singleton annotation
+component `τ` to one owned occurrence `oτ` with `head(oτ)=F` and
+`ν(g(oτ))=(ν(α₁),…,ν(αₙ))`, and the assigned tuple satisfies
+`ν(g(oτ)) ∈ ArgDen_A(oτ,ν)` (so `J_{ {τ} }(ν) ≠ ∅`), then
+`TypedRow({τ},ν)={(F,(ν(α₁),…,ν(αₙ)))}` and `FamilyAllowed_τ` is precisely
+membership in that support point. This is only a conditional pointwise
+calculation: the premise that an annotation component supplies `oτ` is the
+missing source clause. It does not identify `oτ` with a dynamic request event
+or with the request's operation-local witness.
 
 For an abstract component `α`, the corresponding candidate cannot be a
 family-point predicate. Its contribution must be the existing complete-view
