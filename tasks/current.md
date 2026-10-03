@@ -1877,9 +1877,10 @@ bounded finite-generation schema now constructs the unresolved query with
 candidate receipts, correspondences and views when the finite source/profile
 graph supplies those original occurrence facts. This does not prove that raw
 source constructs the profile or that the generated paths are admissible.
-Immediate next gate: derive the identity-specific endpoint-to-description
-adequacy under one `ν,K,D`. A Sol compiler-referee review and a subsequent
-bounded Astra theorem audit agree that choosing the exact source interface
+Remaining callback-lift obligations include deriving the identity-specific
+endpoint-to-description adequacy under one `ν,K,D`. A Sol compiler-referee
+review and a subsequent bounded Astra theorem audit agree that choosing the
+exact source interface
 `Eν,σ(C)` proves behavior of the concrete identity only; no current clause
 identifies that relation with the actual Function endpoint `T_P`. Likewise,
 source execution containment and linked `d` incidence do not imply containment
@@ -1893,9 +1894,9 @@ description; and (3) whole-bound inclusion from `P_actual` to the checked
 and incidence evidence. Preserve all legal histories and add no parallel
 carrier or provenance structure. The issue remains an unproved theorem, not
 a demonstrated semantic ambiguity.
-Use the existing candidate Function denotation at
+The existing candidate Function denotation at
 `notes/design/2026-10-01-coupled-effect-interface-core-draft.md:930` as the
-next derivation site: its `CallCfg`/`Beh` contract already quantifies over
+possible derivation site: its `CallCfg`/`Beh` contract already quantifies over
 well-typed call contexts and complete observations, but its displayed context
 has a typed **value** argument hole. §21's selected call convention passes a
 whole inert computation carrier and performs `Value(A)` entry force inside
@@ -1949,6 +1950,26 @@ candidate domain to closed-program reachability or arbitrary graph imports.
 The callback transported beyond its original live receiver is a failure
 schema to check, not a confirmed Yulang counterexample. No new carrier,
 source rule, API or phase is approved.
+A bounded high-effort Astra audit, independently checked against typed-core
+§3 and the source request/bind equations, establishes a smaller operational
+factorization for supplied finite typed derivations: application lookup is
+followed by inert whole-carrier construction, actual Value-entry receipt,
+`Force`, rebind, body and return; a request retains that suffix and current
+state through resume. This neither assumes `Q = T_P <: F_cb` succeeds nor
+constructs an admissible source world. A Value-entry constant callable with a
+diverging whole argument confirms that challenge admission cannot depend on
+force completion or observed request support. The lemma does not prove
+`EnvStore`/`JointWF`, endpoint correspondence, complete inclusions, or linked
+`[b,d]` meaning.
+The next actionable source gate is to define one independently admissible
+source State/reference or import interaction, preserving open dependence on
+the tested callable across its transition. Local State and opaque
+first-class-reference imports require distinct premises; neither can stand in
+for the other. Current authority gives compile-time `StateSlotId` and a
+continuation-restart choice, but no full runtime State transition or general
+reference import rule. Do not claim open-world closure, callback domain/bound
+inclusion, or acceptance/principality preservation before those cases are
+supplied and proved.
 Astra and compiler-referee audits refine the former
 `ArgEventToCallMember` gate into shared support membership, dynamic event
 preservation, and positive typed-incidence claims. A bounded compiler-referee

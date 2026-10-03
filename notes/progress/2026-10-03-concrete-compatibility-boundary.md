@@ -3461,3 +3461,53 @@ open-client substitution theorem. Acceptance and principality are unaffected
 only if those worlds are shown to match the intended source scope. No scope
 restriction, new solver carrier, implementation, or API/phase decision is
 approved by this audit.
+
+### Inert-entry factorization and world-construction boundary (2026-10-04)
+
+A high-effort Astra derivation audit was followed by a primary reread of the
+typed-core translation and source adequacy bind clauses. One operational
+factorization is derivable for a supplied finite typed-core derivation without
+assuming the concrete query `Q = T_P <: F_cb` succeeds. Given fixed lexical
+environment `η`, current configuration `C`, assignment `ν`, and the supplied
+typed invocation paths, an application of a looked-up existing callable `h`
+reduces after lookup to:
+
+```text
+Return(lookup_η(h)) >>= λf.
+  let t = Delay(X[argument], lexical references of η) in
+  ExecuteCallable(f,t)
+```
+
+`Delay` runs no argument prefix and retains lexical references rather than a
+store snapshot. If `f` has the supplied actual `Value(A)` entry, invocation
+establishes its receiver/view and receipt before `Force(t)`, typed rebind,
+body, and return. At a request in that force, state-threaded bind appends the
+same entry/body/return suffix to the raw continuation; each admissible
+resumption therefore preserves the supplied request, response, current state,
+`ν,K,D`, and suffix. This is substitution into typed-core §3 plus the existing
+bind/request equations, not a new execution or evidence relation. It also
+shows why carrier admission cannot be defined by successful forcing: a
+Value-entry constant callable paired with a diverging whole carrier receives
+that carrier before divergence, despite empty outward request support.
+
+This lemma only transports supplied derivations and typed paths. It does not
+admit `η` or `C`, construct `EnvStore`/`JointWF`, identify `T_P` with a
+complete endpoint description, prove either complete-domain/observation
+inclusion, or establish the source meaning of linked `[b,d]`. The audit finds
+the world-construction gap is missing authority-level source cases, not a
+demonstrated failure of the existing evidence: callback-context §2 leaves
+imports/interface formation open; typed-core §2 takes these derivations as
+input; ordinary-computation threads a supplied store; and adequacy assumes
+well-typed configurations and admissible responses. Architecture §6.9 makes
+`StateSlotId` a static origin distinct from runtime cell/activation identity,
+while §8.3 selects continuation restart without defining the full State
+transition or general first-class reference import rule.
+
+The next source-semantic gate is therefore one admitted primitive
+State/reference or import interaction, with open dependence on the tested
+callable preserved through its transition. Local State and general
+first-class references need distinct source premises; neither can stand in
+for the other. Until those cases exist, stop short of claiming open-world
+closure, query-domain inclusion, complete-bound inclusion, or preserved
+acceptance/principality. No carrier or implementation/API/phase decision is
+introduced.
