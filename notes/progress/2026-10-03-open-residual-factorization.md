@@ -817,3 +817,49 @@ No regular-model theorem, effective recognizer, decision procedure, or
 nonregular-only counterexample follows. Prove regularity of the least
 clash-free forced-head/presence languages (or another regular solution
 construction) before using this fragment as a terminating inference gate.
+
+### Dual absorbing-tree encoding audit (2026-10-04)
+
+After the preceding residual gate was localized, a bounded Astra attempt
+developed an exact representation of the finite unguarded ranked structural
+fragment. A compiler-referee independently reviewed the supplied encoding
+and found no blocking, major, or minor issue in its stated claims.
+
+Let the finite label order contain distinct incomparable source heads between
+`Bottom` and `Top`, with an order-reversing involution `d` that exchanges the
+extrema and fixes source heads. Encode a source type by positive and negative
+ranked trees related by `E-(T) = d(E+(T))`. At active covariant children,
+preserve polarity; at contravariant children, reverse it; encode invariant
+children in two tagged coordinates, one for each polarity. A present Record
+field preserves polarity. An absent field is an entire constant-`Top` cone in
+positive polarity and constant-`Bottom` cone in negative polarity. Inactive
+coordinates under a head receive constant-head padding.
+
+For this source-valid image, direct structural induction gives
+`T <: U` iff `E+(T)(w) <= E+(U)(w)` at every ranked address `w`. The absorbing
+Record cones preserve width-rule termination: a present lower field beneath
+an absent upper field compares below `Top` at every descendant, while an
+absent lower field beneath a present upper field fails at the field root.
+Variance and invariant comparisons follow from the order-reversing dual and
+the paired tagged coordinates. This remains per original inequality; it does
+not compose successful concrete comparisons. Exact descriptor-child
+equations become shifted whole-subtree equations on the corresponding
+polarity tracks.
+
+The encoding preserves and reflects regularity on its valid image using only
+finite head, polarity, invariant-tag, and padding state. That fact does not
+give regular witnesses from arbitrary solutions. Source validity still
+requires the invariant sibling copies to be pointwise dual and descriptors to
+retain shifted subtree sharing; combining these requirements with pointwise
+inequalities has not yielded a regular-model theorem. Dropping source
+validity is unsound: for covariant unary `C` and distinct atoms `I`, `B`,
+`C(I) <: x` and `C(B) <: x` have no source solution, while a relaxed encoded
+`x` with root `C` and constant-`Top` active child satisfies both pointwise
+inequalities.
+
+This is a reviewed polarity-and-padding reformulation that repairs the earlier
+whole-path signed-domain failure at Record width termination. It is not a
+regularization, decidability, or new source-semantics result. The omega-union
+regularity/regular-witness gate above remains open. Astra attempt: high effort;
+independent review: one compiler referee. No repository code, tests, builds,
+Oracle queries, or measurements changed.

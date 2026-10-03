@@ -109,6 +109,13 @@ rejected because it could activate an absent coordinate. Regularity/effective
 recognition of the omega-union and the canonical default-`Record{}` solution
 remain open; separate right-appending `Live` closure only constructs output
 shape. The Function/source-derivation work remains an independent active lane.
+A bounded Astra attempt, independently reviewed by a compiler referee, added
+an exact dual absorbing-tree encoding for structural comparison, including
+Record-width stopping and variance. The encoding preserves and reflects
+regularity only on its source-valid image; invariant-copy validity and shifted
+descriptor sharing remain coupled obligations, so the regular-witness gate is
+still open.
+Details are in `notes/progress/2026-10-03-open-residual-factorization.md`.
 
 ## Current work
 
