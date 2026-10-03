@@ -149,22 +149,25 @@ child `EffectRow([]) <: Never`, which the current non-fixed-head fallback
 accepts. This is historical characterization only. Per the user's latest
 decision, Function effect ports are descriptors, not independent general-Type
 subtyping fields: both polarities may contain abstract and concrete type
-components; eligible concrete components may be subtracted contravariantly.
-Effect variables and concrete effect records are examples, not an exhaustive
-classification. Components may be mixed in one row; no privileged body/tail
-separator is required. Nested rows may flatten only when component structure,
-abstract correspondence, concrete attachment, and ownership remain intact.
+components. Covariant rows use canonical flat form, with correlations carried
+by constraints/evidence. Contravariant structure is retained only as needed;
+its handling is partial reverse addition, justified only when a concrete
+contribution and its attachment in the accumulated effect are known. It is
+not a total subtraction algebra. Effect variables and concrete effect records
+are examples, not an exhaustive classification. Components may be mixed in
+one row; no privileged body/tail separator is required. Common-variable
+collection is only an auxiliary view of the abstract component structure.
 Resolve both ports jointly in the same `A <: B` query using correspondence
-between abstract components, concrete matching, eligible certified
-subtraction, and correlated residual comparison. Common-variable collection
-is only an auxiliary view of the abstract component structure. No
-Never/Any/empty-row lattice account is part
-of this rule. The current design records the joint witness and intended
-`d`/`e` shared-port cases. Still open: classification and source meaning of
-abstract/concrete components; whether co-occurrence justifies consolidation
-without equating original terms; safe flattening for general abstract
-components; subtraction eligibility; descriptor elaboration; `[b,d]`
-combination; and preservation of family `K,D`.
+between abstract components, concrete matching, witnessed partial
+reverse-addition, and correlated residual comparison. No Never/Any/empty-row
+lattice account is part of this rule. The current design records the joint
+witness and intended `d`/`e` shared-port cases. Still open: classification and
+source meaning of abstract/concrete components; whether co-occurrence
+justifies consolidation without equating original terms; transport of
+correlations through covariant flattening; when contra structure is
+necessary; which accumulation steps have known attachments and can be
+reversed; descriptor elaboration; `[b,d]` combination; and preservation of
+family `K,D`.
 The exact scheme and bounded two-lane operational crosswalk are source-traced,
 while the inference fixture lacks a direct stored-scheme assertion. Record
 shapes need their own lane accounting.

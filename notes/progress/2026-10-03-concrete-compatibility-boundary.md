@@ -657,3 +657,30 @@ subtraction, co-occurrence consolidation versus equality, safe general-row
 flattening, and the full Function resolution/factorization proof. The
 intended coupled examples remain obligations. These corrections update the
 design note, task map, and index. No tests or builds ran.
+
+### Polarity-specific row form and witnessed reverse addition (2026-10-03)
+
+The user fixed the row representation by polarity: covariant rows have a
+canonical flat form, and correlations belong in constraints/evidence rather
+than a row tree. Only contravariant effect handling may retain structure, as
+needed for subtraction. The user further clarified that this is not a total
+subtraction algebra: it is partial reverse addition, justified only when the
+corresponding concrete contribution and its attachment in the accumulated
+effect are known.
+
+Sol recommends representing both polarities through one joint comparison
+witness, with `N⁺` recording covariant flat normalization and its transport
+map, `N⁻` recording only necessary contravariant structure, and `S` recording
+the source-supported forward accumulation, concrete contribution and
+attachment, and transport needed for a particular reverse step. A concrete
+head or successful concrete comparison alone does not establish such a step.
+Ambiguous preimages after normalization/co-occurrence consolidation require
+the original attachment evidence; otherwise the solver retains a residual or
+defers. This is candidate evidence notation inside the single inequality
+solver, not a new semantic relation or a total inverse law.
+
+The remaining semantic work is to define the covariant accumulation and
+normalization rules, attachment provenance and ambiguity handling, eligible
+reverse steps, and preservation of shared abstract components and dependent
+constraints. The concrete matching/subtraction forms and the resulting
+principality/soundness proof remain open. No tests or builds ran.
