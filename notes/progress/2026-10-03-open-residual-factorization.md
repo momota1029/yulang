@@ -98,15 +98,15 @@ input labels `Λ={f}`, erasure collapses every `Tₙ` to
 `μZ.Record{f:Z}`. This family therefore does not refute bounded existence
 witnesses after erasure, finite residual constraints, or regular tree
 grammars. The finite-label lemma is limited to unguarded pure structural
-existence; it proves neither an input-bounded witness theorem nor preservation
-of arbitrary guards/`Phi`, nor an exact full-fiber quotient.
+existence; by itself it proves neither an input-bounded witness theorem nor
+preservation of arbitrary guards/`Phi`, nor an exact full-fiber quotient.
 
 An independent compiler-referee delta review found no remaining issue in the
-repaired §7.4 claims. The input-bounded regular-witness/termination theorem
-and exact symbolic full-fiber representation remain open, as do joint
+repaired §7.4 claims. General input-bounded existence for multiple Record
+labels and exact symbolic full-fiber representation remain open, as do joint
 permission, guard, and `Phi/K,D` solving. No tests, builds, or measurements
-ran. Next prove or replace the structural existence theorem, then return to
-the full joint fiber; the full goal remains active.
+ran. Continue with the multi-label width/feedback case, then return to the
+full joint fiber; the full goal remains active.
 
 ### Bounded empty-Record-alphabet existence subfragment
 
@@ -127,6 +127,27 @@ choices and recursive feedback remain unresolved; no full finite-witness
 theorem or counterexample is known. Guards, permissions, effects, casts,
 adapters, and joint `Phi/K,D` remain outside this result. No implementation,
 tests, builds, or measurements followed.
+
+### Bounded one-label Record existence
+
+§7.4.2 now closes an additional existence-only slice: after fixed rational
+equality quotienting, the input descriptors use only fixed atoms, `{}`, and
+the mandatory unary field `f`, while the finite shared inequalities retain the
+full regular assignment grammar. Erasing other labels and squashing matching
+non-Record constructor heads reduces existence to `{}`, unary `R`, and a finite
+atom set. Every reduced regular assignment is a finite chain ending in `{}` or
+an atom, or the shared infinite chain `Omega`. The direct comparison table
+reduces each original inequality to category compatibility and integer depth
+constraints; shared roots get one category/depth and descriptor cycles map to
+`Omega`. A bounded finite difference-constraint witness follows.
+
+Independent M3 compiler-referee and spec-auditor delta reviews found no
+blocking, major, or minor findings. The theorem decides only this one-label
+unguarded structural existence fragment. It retains original directed
+inequalities and does not represent the full fiber. Multiple labels with
+recursive width/feedback, scope/permission preservation, joint `Phi/K,D`,
+source acceptance and implementation remain open. `git diff --check` passed;
+no tests, builds, or measurements ran.
 
 The separate finite supplied-template context-closure candidate has now
 received clean compiler-referee and spec-auditor delta reviews after its

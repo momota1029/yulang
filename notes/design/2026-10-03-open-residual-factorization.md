@@ -3,7 +3,7 @@
 Status: Reviewed
 Date: 2026-10-03
 Scope: candidate factorization theorem for open structural bounds after scoped rational equality quotienting
-Reviewed-by: compiler_referee and spec_auditor (M3, 2026-10-03); initial structural-outcome repairs, conditional factorization-lemma review, and operation-instance context delta found no remaining findings in reviewed scopes; bounded compiler_referee delta review of §7.1's one-class atomic-Record fiber found no findings; bounded compiler_referee and spec_auditor review of §7.2's closed-regular-endpoint shape-and-field fiber found no findings; bounded compiler_referee and spec_auditor review of §7.3's closed structural interval inhabitation found no blocking/major findings, and its minor Record-arity wording ambiguity was repaired by primary inspection; §7.4's recursive-witness-size repair and §7.4.1's empty-input-label existence reduction received clean compiler_referee delta and spec_auditor reviews
+Reviewed-by: compiler_referee and spec_auditor (M3, 2026-10-03); initial structural-outcome repairs, conditional factorization-lemma review, and operation-instance context delta found no remaining findings in reviewed scopes; bounded compiler_referee delta review of §7.1's one-class atomic-Record fiber found no findings; bounded compiler_referee and spec_auditor review of §7.2's closed-regular-endpoint shape-and-field fiber found no findings; bounded compiler_referee and spec_auditor review of §7.3's closed structural interval inhabitation found no blocking/major findings, and its minor Record-arity wording ambiguity was repaired by primary inspection; §7.4's recursive-witness-size repair and §7.4.1's empty-input-label existence reduction received clean compiler_referee and spec_auditor reviews; §7.4.2's one-label Record existence reduction received clean compiler_referee and spec_auditor delta reviews
 Implementation authority: none
 Supersedes: none
 
@@ -616,6 +616,94 @@ recursive feedback, Function reversal, and invariant comparisons together.
 §7.3's closed-endpoint interval states do not establish that amalgamation
 step. No counterexample to the full finite-witness theorem is known, and no
 Astra escalation follows from this precise remaining proof obligation.
+
+#### 7.4.2 One-label Record existence: finite chain reduction (candidate)
+
+This is an existence-only extension for the unguarded pure structural
+fragment after the fixed rational equality quotient. Its input descriptor
+graph contains only fixed atoms, `{}`, and the mandatory unary Record
+constructor `R(t) = Record{f:t}`. The finite directed inequalities may share
+free roots and descriptor paths may feed back cyclically. Assignments initially
+range over the full finite contractive regular structural grammar of §2, not
+just unary Records. Scope permissions, guards, effects, optional fields,
+adapters, and `Phi/K,D` predicates are outside this subfragment. This states a
+mathematical existence slice; it is not a source-language admission rule and
+does not represent the complete solution fiber.
+
+First erase all Record labels except `f`. Then map every non-Record,
+non-atom constructor subtree to `{}` and every atom identity not occurring in
+the fixed input descriptors to one fixed available primitive atom. Retain
+input atom identities. This map preserves equality. It also preserves each
+successful structural comparison in the admitted grammar: matching Records
+reduce to their retained `f`-child comparison; matching Functions or declared
+constructors both map to `{}`; equal atoms map to the same atom; and distinct
+outer heads cannot have formed a successful comparison. Thus any solution has
+a solution in the grammar consisting only of `{}`, `R`, and finitely many
+atoms (the input atoms plus the representative). The reduction is only for
+existence and need not preserve failed comparisons or the full fiber.
+
+Every regular unfolding in this reduced unary grammar has exactly one form:
+
+```text
+E_n       = R^n({})              n >= 0
+A_(a,n)   = R^n(a)               n >= 0
+Omega     = mu Z. R(Z)
+```
+
+The direct structural comparison table is:
+
+| Lower | Upper | Condition |
+|---|---|---|
+| `E_m` | `E_n` | `m >= n` |
+| `A_(a,m)` | `E_n` | `m > n` |
+| `Omega` | `E_n` | always |
+| `A_(a,m)` | `A_(b,n)` | `a = b` and `m = n` |
+| `Omega` | `Omega` | always |
+| all other pairs | | false |
+
+Follow the required `f` comparisons to derive each entry directly. An upper
+empty Record terminates successfully only while the lower endpoint is still a
+Record; an upper atom requires the same atom at the same depth; an infinite
+upper chain requires an infinite lower chain. This table checks each original
+inequality directly. It does not compose two concrete successes.
+
+For the finite procedure, each quotient endpoint follows a finite descriptor
+prefix to either a free root, a fixed `{}`/atom, or a descriptor cycle. A
+descriptor cycle is `Omega`; each fixed endpoint is a finite category at a
+known depth. Enumerate one category for every free root: `E`, `Omega`, or
+`A_a` for each atom in the finite representative set. A finite category gets
+one natural-number depth per free root, shared by every occurrence of that
+root. Descriptor prefixes add fixed depth offsets. Translate every original
+ordered inequality with the table. Category/atom incompatibilities reject a
+branch; the remaining conditions are integer difference constraints, with
+strict depth comparison represented by offset `1`. A feasible branch can be
+solved by longest-path potentials in the finite difference graph; reject a
+branch exactly when it contains a positive-weight cycle.
+
+This construction respects descriptor equations because every quotient path
+uses the same classified free root and every quotient cycle is interpreted as
+the shared `Omega` graph. Conversely, a feasible branch assigns one shared
+regular chain to each free root and extends it through the original quotient
+descriptors. The comparison table then proves every original directed
+inequality. Completeness follows by reducing any solution as above: its free
+roots choose one enumerated category and their actual finite depths satisfy
+that branch's difference constraints. Thus this decides existence in the
+stated unguarded unary mandatory-Record/atom fragment after fixed rational
+equality quotienting. It retains the original directed inequalities and does
+not represent their full solution fiber.
+
+For an explicit finite witness bound, let `N` count quotient descriptor and
+input atom nodes, `M` the number of free roots, and `K` the maximum absolute
+constant in the difference constraints. Descriptor offsets are at most `N`
+and strictness adds at most one, so `K <= N+1`. Add a zero anchor and the
+nonnegativity constraints for every depth. In a feasible difference graph,
+longest simple paths give anchored depths at most `D = (M+1)K`. Reusing one
+canonical chain per free root yields at most `N + M(D+1) + 3` graph nodes,
+including one shared `Omega` node and the empty/representative atom terminals
+if they are not already counted. This is a computable witness bound, not a
+selected resource limit. The complete fiber, width choices for `Lambda` with
+more labels, guard/permission preservation, and joint predicate solving
+remain open.
 
 ## 8. Verification direction
 

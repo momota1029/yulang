@@ -1088,21 +1088,25 @@ variation from existence-witness size: the `Tₙ` family has unbounded explicit
 graphs before label erasure, while erasure under the finite input alphabet
 collapses this example. Its compiler-referee delta review is clean. The
 erasure argument is limited to unguarded pure structural existence and does
-not establish an input-bounded witness theorem, arbitrary guard/`Phi`
-preservation, or complete fiber representation. Continue with a proof or
-alternative terminating method for recursive open structural satisfiability;
-retain exact full-fiber and joint predicate solving as separate obligations.
-No compiler authority or implementation follows.
+not establish arbitrary guard/`Phi` preservation or complete fiber
+representation. §7.4.2 now gives the input-bounded existence method only for a
+single-label unary Record input. Continue with two-or-more-label recursive
+width/feedback; retain exact full-fiber and joint predicate solving as separate
+obligations. No compiler authority or implementation follows.
 
-§7.4.1 adds a reviewed existence-only subfragment for `Λ=∅`: finite-label
-erasure makes Records nullary, after which structural subtyping equals
-rational-tree bisimulation and a finite equality quotient plus one primitive
-atom decides satisfiability with an `N+1`-node witness. The equalities are a
-decision reduction only; the principal relation retains original directed
-inequalities and arbitrary Record extensions in its full fiber. Independent
-compiler-referee/spec-auditor reviews found no findings. The nonempty-label
-width/feedback lemma remains open, as do guards, permissions, `Phi/K,D`, full
-fiber, and source acceptance.
+§7.4.1 decides unguarded structural existence for `Λ=∅`: finite-label erasure
+makes Records nullary, after which structural subtyping equals rational-tree
+bisimulation and a finite equality quotient plus one primitive atom decides
+satisfiability with an `N+1`-node witness. §7.4.2 extends existence to the
+single-label unary mandatory-Record/atom input fragment. It reduces full
+regular assignments to unary chains, classifies each free root by terminal
+category and depth, then solves shared inequalities with finite difference
+constraints; a reviewed computable witness bound follows. Both procedures
+check original directed inequalities directly and leave the full fiber intact
+in the principal presentation. Independent compiler-referee/spec-auditor
+reviews found no findings. Two-or-more-label recursive width/feedback remains
+open, as do guards, permissions, `Phi/K,D`, full-fiber decision and source
+acceptance.
 
 ## Main records
 
