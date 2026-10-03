@@ -1823,6 +1823,26 @@ positions, the same `Rel_C`/`K,D`/`ν` fiber, and the existing subtraction
 evidence. Exact role-indexed port projection and shared-fiber accounting
 remain open. No API/phase, new carrier, or implementation is selected.
 
+The focused Sol/compiler-referee delta derivation now narrows the fixed
+identity path package. Given the ordinary typed binding of the known callback
+slot and the typed application correspondence for an identity argument/result
+view, the callback slot's selected invocation view is rooted at the slot
+owner's `Receive`; core §9 supplies the `J_arg`/`J_call` directions, and §21
+places the actual `Force(D)` inside the Pure value's unchanged entry. Thus the
+candidate negative path is original `β.p_d⁻` through the same received carrier
+to the actual force view, while the positive path is `β.p_d⁺` to the complete
+call view. The inner `Receive` of `D` by `f` remains separate from the outer
+receiver's `Receive` of `f` at the slot. These source correspondences are
+generated before checking `A <: B`; no successful comparison is used to
+justify them. Their application/binding premises must remain explicit because
+§9 takes typed correspondence data as input. Once the decorated views are
+supplied, existing `Flow`/`Observe`/`Path`/`Inc_C` joins the same event under
+one `ν,K,D` without a new carrier. This closes only a conditional path schema,
+not proof that the bounded raw source generates every premise, complete-domain
+inclusion, observation inclusion, or the intended inequality. Next derive the
+source binding/application correspondences for the bounded identity witness;
+then keep universal domain and observation proofs separate.
+
 ## Main records
 
 - `notes/design/2026-10-03-scoped-constraint-solving.md` — scoped regular equality quotient and finite closed structural subtype saturation; the following reviewed candidate addresses open residual factorization.

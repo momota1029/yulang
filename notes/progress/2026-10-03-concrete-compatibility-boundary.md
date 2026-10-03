@@ -2985,3 +2985,50 @@ not discharge the original-coordinate `Flow`/`Receive`/`Observe` maps or either
 complete-domain clause. Core §9's full `ExecuteCallable` relation is a
 conditional semantic basis for the invocation view, but the core is Draft;
 it does not yet derive role-specific source port projections.
+
+### Conditional slot-view paths for the identity witness (2026-10-04)
+
+Sol's post-clarification derivation, checked by a compiler-referee delta audit,
+gives the following bounded schema before comparison success. Assume one known
+instantiated slot `(β,F_cb,Slots(β))`, the outer receiver's ordinary typed
+binding/receipt of the callback slot view, and a source application through
+that view with identity argument/result value correspondences. Use the same
+live receiver activation and one well-formed `Rel_C(ν,K,D)` fiber. The actual
+function remains the already constructed Pure identity value `f=λx.x` with
+§21 `Value(Int)` entry.
+
+```text
+Receive(r, callback_slot, V_slot, M_slot)
+
+M_slot: β.profile -> V_slot.profile
+
+M_arg : β.p_d⁻ -> V_force.p_force
+M_call: β.p_d⁺ -> V_call.p_call
+
+View(V_call,p_call,
+  View(V_force,p_force,Force(D)) >>= typed rebind >>= Return)
+```
+
+The outer receipt belongs to the callback-slot receiver `r`; the separate
+inner `Receive(f_invocation, argument, V_arg, χ_arg)` records `f` receiving
+`D` at its actual entry. The slot's typed invocation view roots the public
+profile at the through-slot call. The ordinary typed application correspondence
+connects its negative `J_arg` occurrence to the same whole carrier `D` and its
+positive `J_call` occurrence to the complete actual invocation; §21 Value
+entry opens that carrier at `Force(D)` without changing `f`'s introduction
+role. For the identity value conversions, existing typed-boundary identity
+transport preserves the port identities. The two maps have the same polarity
+as their own endpoint roles; there is no edge from the negative port to the
+positive port. Given these typed maps and decorated views, the nested
+`Observe` derivations and existing `Flow`/`Path`/`Inc_C` evidence join the
+same request event at both ports under the shared `ν,K,D`.
+
+This is not unconditional source-generation evidence: §9 constructs its
+application links with typed-profile/path entries supplied, so the raw-source
+binding, identity correspondence and owner receipt premises must still be
+shown for the witness. It also does not prove either universal clause
+`D_checked ⊆ D_actual` or `P_actual(d) ⊆ P_checked(d)`. The slot-view
+decision authorizes the view and preserves actual role/entry; it cannot be
+used as the proof of the maps that certify compatibility. Non-identity
+conversions, escaped callbacks, and arbitrary Function comparisons remain
+outside this schema.
