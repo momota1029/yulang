@@ -318,6 +318,12 @@ boundary is not derived. Account for both original descriptors and establish
 how their interface check enters the same `A <: B` solver; do not flatten or
 merge profiles. The existing core's `Value(Fun(P, Result(I_b)))` supplies
 only the result-constructor skeleton, not the role-indexed effect ports.
+Working candidate: introduce the annotated literal under its annotation's
+handler boundary, then check the resulting Function value at the callback
+slot through the same inequality solver, retaining the actual boundary and
+expected slot as distinct views. This follows role-preserving value checking
+but remains conditional until the source annotation rule establishes that
+ordering and the callback `CallView` projection.
 The current narrow HIR also leaves these source inputs to later elaboration:
 `ResolvedExpr::Lambda` carries parameter/body but no type annotation, while
 the chain HIR keeps annotation syntax as a generic value node. Recovering the

@@ -1800,6 +1800,14 @@ otherwise related to the expected callback boundary. The elaboration proof
 must preserve both original descriptors and explain their interface check
 through the one `A <: B` solver, without merging profiles.
 
+As a no-new-carrier working candidate, I recorded introduction under the
+annotation-selected handler boundary followed by checking the resulting
+Function value against the expected callback slot through the same concrete
+inequality solver. This preserves the actual boundary/entry and leaves the
+slot as a separate use-site view. It is conditional on a source annotation
+introduction/checking clause that establishes this ordering; no type
+annotation rule or callback `CallView` projection has been claimed.
+
 I also inspected current HIR ownership: `ResolvedExpr::Lambda` stores only
 parameter, body, occurrence and range, while the narrow chain HIR retains
 annotations only as generic `Value` syntax nodes. This is downstream evidence

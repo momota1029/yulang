@@ -1564,6 +1564,17 @@ not merge their profiles or infer a profile from the solved effect row.
 Resolving their source path relationship is part of the Function
 annotation/context elaboration theorem.
 
+A no-new-carrier candidate for the overlap follows the established distinction
+between introduction and checking: the annotated literal is introduced with
+the handler role and boundary selected by `F_ann`; the callback slot then
+checks that resulting Function value against `F_cb` through the same concrete
+inequality solver. The actual boundary/profile remains attached to the
+introduced value, and the expected slot remains a separate use-site view.
+This fits the rule that checking an already-constructed value cannot rewrite
+its role or executable entry. It is not yet a source theorem: the annotation
+introduction/elimination clause must show that this is the source ordering,
+and the callback `CallView` still needs its typed profile projection.
+
 The stable-core callback gives one concrete instance of row three. Its public
 signature is
 `ref('a & 'b, 'c) -> ('c -> ['b] 'c) -> ['b, 'a] ()`, and the source calls
