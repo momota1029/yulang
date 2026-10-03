@@ -1952,6 +1952,25 @@ separate. Existing `Flow`/`Observe`/`Path`/`Inc_C`, `K,D`, and subtraction
 evidence show no concrete carrier gap; implementation authority remains
 closed.
 
+A bounded Astra audit sharpened this correspondence gate. When the original
+signed occurrences, typed same-carrier application/force correspondences, and
+admitted slot invocation interpretation are supplied, `M_arg` and `M_call`
+are finite compositions of existing maps; the actual Pure Value-entry schedule
+and finite event/suffix preservation are already covered by charter §21, core
+§§6/9, and linking §7. This matches the compiler-referee's conditional path
+derivations: the slot receipt and retained profile identify the views, while
+each `Path` still needs its own admitted `Flow` correspondence and matching
+`Observe`. These facts do not establish query-independent admissibility of
+those candidate correspondences while `T_P <: F_cb` remains unresolved.
+Likewise, an operational execution such as `f x = x` does not witness the
+nonempty joint open fiber: a separate existential construction must supply a
+background source world, shared assignment/profile interpretation, and
+candidate evidence admissions without assuming `Q`. Thus bounded map
+composition and execution preservation are closed conditionally; raw-source
+profile generation, open-fiber nonemptiness, candidate evidence admission,
+and the universal checked-domain and complete-observation clauses remain
+open. No new carrier, API, phase, or implementation decision follows.
+
 ## Main records
 
 - `notes/design/2026-10-03-scoped-constraint-solving.md` — scoped regular equality quotient and finite closed structural subtype saturation; the following reviewed candidate addresses open residual factorization.
