@@ -390,3 +390,30 @@ identifies its endpoints. This is a candidate operationalization of the
 user-selected linked lift, not a claim that the link follows from existing
 application/Force rules alone; no API/phase, solver relation, or carrier is
 added.
+
+### Astra audit of the bounded port-map candidate
+
+Astra's bounded semantic audit confirms that none of the three arrows is
+entailed by the presently approved premises. Application plus §21 Value entry
+and Force determine execution of the whole inert argument; they imply the
+negative `J_arg` direction only after `d⁻` has already been identified with
+that computation position. Stateful bind and `Observe` locate Force-origin
+events at a supplied complete slot `CallView`, but shared `ν(d)` alone does
+not identify the distinct positive `d⁺` occurrence with that contribution or
+provide its signed path and event incidence. Likewise, body/result execution
+at reached post-force states does not map the original `b⁺` occurrence to
+their complete bound across compatible histories. `Result(I_body)` supplies
+an execution skeleton, not this row-component interpretation.
+
+The exact next gate is a bounded role-indexed complete Function-interface
+elaboration judgment, before resolving `Q`, deriving original occurrence to
+position judgments for the known instantiated callback formal while retaining
+distinct signed paths, receipts, and one joint `Rel_C`/`ν,K,D` fiber. The
+linked contribution law follows that mapping; complete checked/actual domain
+and observation inclusion remains subsequent. A source derivation must stop
+and return for approval if it requires changing the actual Pure value's
+role/entry, deriving paths from comparison success, merging distinct
+receipts, or assuming an unapproved row-contribution premise. This audit found
+no representation obstruction and selects no API or compiler phase. It does
+not establish a counterexample or settle whether the missing elaboration can
+be derived without an additional semantic premise.

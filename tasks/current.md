@@ -2292,6 +2292,18 @@ operationalization for the already approved linked lift; the component maps,
 linked-contribution derivation, complete executing view and domain/observation
 inclusion remain open. No API, phase, solver relation, or carrier is selected.
 
+A bounded Astra audit confirms that none of the three candidate arrows follows
+from current premises: `J_arg` follows only conditional on identifying `d⁻`
+with the whole argument computation; Force-origin observation at `J_call`
+does not identify `d⁺` from shared `ν(d)`; and body/result execution does not
+map `b⁺` to the complete bound over compatible histories. `Result(I_body)`
+provides the execution skeleton only. Next derive the bounded role-indexed
+complete Function-interface elaboration and occurrence-to-position judgments
+before `Q`, then the linked contribution law. This remains a missing
+derivation, with no representation obstruction, counterexample, or API/phase
+choice. Stop for user approval if completing it requires an added row
+contribution premise or changing the actual Pure role/entry.
+
 An Astra audit confirms that the currently stated source rules do not entail
 the row-occurrence-to-profile-position map: execution and `Observe` are
 derivable conditional on supplied typed-profile entries, but the link from
