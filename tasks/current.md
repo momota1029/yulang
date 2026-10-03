@@ -120,24 +120,32 @@ is withdrawn. `notes/design/2026-10-03-source-context-finite-closure.md`
 records a conditional finite-context theorem for supplied templates, not the
 source-wide template-generation proof.
 
-Immediate gate: define the source elaboration from Function effect-row
-components to the existing complete interface before adding descriptor
-machinery. `g(o)` owns an argument of a typed request occurrence, not an
-arbitrary abstract component; one abstract component may denote a whole
-correlated row and one concrete component may contribute multiple requests.
-Specify the component's interface under the same `ν`, then derive its existing
-occurrence incidence `D`, family predicate `K`, and applicable
-directed-weight path/split. A reverse step that claims a family/key disappears
-from outward support must establish output absence through the full handler
-image: old `L - J` evidence alone cannot rule out raw-continuation re-emission.
-Other reverse steps must follow their corresponding source accumulation rule,
-without assuming they are handler subtraction. Prove the existing carriers
-entail each allowed reversal, or identify the exact source fact they cannot
-express; do not add a duplicate attachment/provenance field in advance. Then
-prove canonical-flat covariant and polarity-specific contravariant
-normalization preserve that same solution fiber. Account for the linked
-`[b,d]` and shared-`e` cases without promoting Oracle `Never`/`Any`/empty-row
-artifacts.
+Immediate gate: settle the source elaboration from the role-sensitive Function
+receiver interface to its four effect/value ports, using the user's two
+intended inequalities and the derived `Force(D) >>= B` call accounting. The
+source transition conditionally supports an argument-plus-body bound, but
+does not say how the negative port denotes argument execution or a
+boundary/consumption capability, or how effect-position `never` elaborates.
+Derive how the positive port realizes the already approved combined `[b,d]`
+case while preserving `ν`, symbolic family constraints and occurrence
+incidence; keep value-bottom `never`, empty effect row, and polarized internal
+bottom distinct. Do not use port-wise general-Type checks.
+
+For that elaboration, map components to existing complete-interface and
+subtraction evidence. `g(o)` owns an argument of a typed request occurrence,
+not an arbitrary abstract component; one abstract component may denote a
+whole correlated row and one concrete component may contribute multiple
+requests. Derive its incidence `D`, predicate `K`, and applicable
+directed-weight path/split under the same `ν`. A reverse step that claims a
+family/key disappears from outward support must establish output absence
+through the full handler image: old `L - J` evidence alone cannot rule out
+raw-continuation re-emission. Other reverse steps must follow their own
+source accumulation rule. Prove existing carriers entail each allowed step
+before proposing any new attachment/provenance field. Then prove canonical-
+flat covariant and polarity-specific contravariant normalization preserve
+that same solution fiber. The two intended inequalities remain constraints;
+their exact source elaboration is open. Do not promote Oracle
+`Never`/`Any`/empty-row artifacts.
 
 After that crosswalk, return to the distinct fixed application-lane gate:
 justify the joint descriptor witnesses/local-exactness premises in §8.2 for

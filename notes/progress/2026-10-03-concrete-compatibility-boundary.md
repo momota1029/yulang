@@ -809,6 +809,37 @@ Until a concrete evidence gap is demonstrated, partial “reverse addition” is
 only a possible reformulation of existing subtraction evidence. No Oracle
 `Never`/`Any`/empty-row behavior was promoted into the account.
 
+### Source-call adequacy for the four-port Function cases (2026-10-03)
+
+Sol derived the source call accounting from the selected ordinary-computation
+rules. At fixed `ν`, a `Value(a)` receiver performs
+`Force(D) >>= (v => B(v))`. The complete call's support is bounded by the
+argument support plus the union of body supports over all reachable post-force
+`(v,C₁)` outcomes, provided the body bound is uniform over those outcomes.
+Thus the source machine supports a coupled argument-plus-body effect bound.
+
+This only explains the first intended inequality conditionally: the missing
+four-port elaboration must map input `d` to the argument bound and `[b,d]` to
+the combined call bound. The call rule does not define what the negative
+effect port denotes, or whether the positive port denotes body-only or full
+call effects. A sufficient explanation of the second intended inequality
+would interpret both effect-position `never` occurrences as request-free in
+their respective source ports; this is one conditional explanation, not a
+necessary interpretation of the approved relation. Value-bottom meaning and
+`Result(Value(A)) = Comp(empty,A)` do not establish it.
+
+The genuinely missing source definition is the elaboration from the
+role-sensitive receiver interface to the four-port Function descriptor,
+including port observations, combined-bound presentation, and
+contextual effect-position `never`. It must preserve the same assignment,
+family constraints, and occurrence incidence, then prove both displayed
+comparisons without port-wise general-Type subtyping. Sol's architect review
+found the existing relation/weight carriers reusable but insufficient to
+derive that elaboration; compiler-referee and spec-auditor review closed two
+minor wording findings (quantifying all post-force outcomes; treating the
+request-free `never` reading as sufficient only). No implementation or test
+work was authorized or run.
+
 The first generalization obstacle remains replay admission: same-pivot records
 alone do not justify a replay, and optional Records refute unconditional
 concrete transitivity. Guard inheritance, row/residual alternatives and

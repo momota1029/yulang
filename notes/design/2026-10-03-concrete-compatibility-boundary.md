@@ -196,22 +196,68 @@ sequences argument execution before the body; if forcing diverges the body
 may never run, and if it suspends the body remains its pending suffix. For an
 argument computation `D` and body `B`, the source transition has the shape
 `Force(D) >>= (v => B(v))`. Bind preserves the ordered trace prefix from `D`
-and then the trace from `B(v)`; hence the support of the complete call is
-included in `supp(D) ∪ supp(B(v))`. If `d` bounds `supp(D)` and `b`
-uniformly bounds `supp(B(v))` for values admitted by `a`, the call has a
-combined support bound; if `[b,d]` soundly presents that combination, it
-bounds the call. This is why the same `d` appears at
-the input and in the output bound: it is one carried computation executed at
-entry, not two independently compared Function fields. The common value
-endpoints `a,c` preserve the argument and result path in this rule.
+and then the trace from `B` in the post-force configuration. For a fixed
+assignment `ν`, collecting over all reachable post-force outcomes gives
+`supp(Call(f,D)) ⊆ supp(D) ∪ ⋃_{(v,C₁)∈Force(D)} supp(B(v,C₁))`, where `C₁`
+is the live configuration after forcing. If `d` bounds `supp(D)` and `b`
+uniformly bounds `supp(B(v,C₁))` over those outcomes for values admitted by
+`a`, the call has a combined support bound. If the four-port elaboration maps input descriptor
+`d` to that argument bound and maps output descriptor `[b,d]` to the
+corresponding combined bound, the first intended inequality has a support-level
+justification. This explains why the same contribution may occur in both
+positions: it is one carried computation executed at entry, not necessarily
+two independent Function fields. The existing source call equation does not
+itself prove that `d` has this descriptor meaning. The common value endpoints
+`a,c` preserve the argument and result path in this rule.
 
 This source transition explains why an argument effect bound remains
-observable through a value-parameter call and why the intended output bound
-must account for both argument and body execution. It is supporting
+observable through a value-parameter call and why an intended output bound
+may need to account for both argument and body execution. It is supporting
 source-semantic evidence for the coupling, not the Function descriptor
-comparison rule and not an explanation of how `never` elaborates. The
-selected source rules for parameter roles and call entry are in redesign
-charter §21 and ordinary-computation package §§3–4.
+comparison rule and not an explanation of the input-port meaning or how
+effect-position `never` elaborates. The selected source rules for parameter
+roles and call entry are in redesign charter §21 and ordinary-computation
+package §§3–4.
+
+At the same support-level abstraction, one sufficient explanation of the
+second intended inequality would assume that its two effect-position
+occurrences of `never` contribute no requests under their respective source
+port interpretations, so both target ports may be bounded by the same `e`.
+This is a sufficient candidate premise, not a necessary condition on the
+approved inequality; another source elaboration could justify it differently.
+Value-bottom meaning alone does not establish this premise.
+`Result(Value(A)) = Comp(empty,A)` and
+`Result(Computation(E,A)) = Comp(E,A)` govern result forwarding; they do not
+erase argument or body requests already executed. Both displayed inequalities
+remain intended constraints, while this source-call argument only explains
+the first conditionally and leaves the `never` elaboration open.
+
+#### Open source-elaboration choice for effect-position `never`
+
+The user-approved inequalities remain the target, and `never` must retain its
+value-type identity while `EffectRow([])` and polarized internal bottoms stay
+distinct. The following are non-exhaustive research directions, not exclusive
+choices or approved semantics:
+
+| Direction | Meaning to define | Consequence |
+|---|---|---|
+| Uniform component interpretation | Give one source interpretation to the admitted general effect-row component class, mapping each component to the complete interface under `ν` while preserving its type identity | Could derive port behavior without a `never`-specific rule; no inspected source rule currently defines the mapping. Interpreting value-bottom's value set as an empty request set and using that as contra admission would fail to admit an effectful argument, but a computation returning `never` may still emit request prefixes |
+| Additional Function-port rule | Only if uniform component interpretation cannot express the approved cases, define a source-derived Function-port mapping without changing the component's value-type identity or aliasing it to an empty row/internal bottom | Requires proof of a source-level distinction independent of spelling-specific Oracle behavior; a special case for the spelling alone would violate the theory-economy gate |
+
+The invariant in either direction is that this is a source denotation question,
+not an implementation representation choice. Neither direction authorizes a
+lattice account or imports Oracle `is_pure_effect`/materialization behavior.
+`Any` remains its own value type and must receive the same uniform component
+interpretation unless a separate source distinction is proved.
+
+In the coupled-interface candidate, `ArgDen_A` interprets type-argument tuples
+of already established typed request occurrences; `TypedRow(E,ν)` likewise
+presupposes `occurrences(E,ν)`. Neither defines how an arbitrary effect-row
+component `τ` generates or constrains those occurrences. Thus the component-
+to-interface mapping is a genuine missing source rule. Also, `Never` having
+no returned values does not imply that a computation typed with result
+`Never` has no request prefixes. The source distinction between
+`Value(A)` and `Computation(E,A)` must remain visible in any uniform mapping.
 
 The compact signature `'a ['b, write int] -> ['b] int` places `'a` in the
 value-input position and shares effect variable `'b` between input and result
