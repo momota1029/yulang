@@ -1064,3 +1064,31 @@ fiber. A fresh bounded `compiler_referee` review found no blocking, major, or
 minor findings. This adds no component denotation, `never` interpretation,
 normalization, reversal rule, or complete inequality proof. `git diff --check`
 passed; no tests, builds, or measurements ran. Measurement budget consumed: 0.
+
+### Conditional resolved-family coverage candidate (2026-10-03)
+
+I separated the source order from the missing annotation bridge. Existing rules
+resolve an Act operation into `OpInst`, execute it only under source demand,
+and retain the resulting complete request. They do not derive request events
+from a row annotation. Operation-instance §2 also shows why family support
+cannot stand for a whole request: the family projection forgets operation-
+local binders and may merge requests whose payload, response, or continuation
+interfaces differ.
+
+The design draft now records one explicitly unselected, support-only candidate
+for a resolved `F(α)` item: it checks family identity and the source-prescribed
+invariant family arguments on requests already in the complete view. Full
+operation identity, local witnesses, payload/response, continuation and
+shared `K,D` remain there. The abstract-component side and component
+combination are left as open denotations; §9's inclusion corollary applies
+only if they are independently supplied. This candidate introduces no
+request constructor or parallel attachment/provenance machinery and does not
+derive either Function inequality.
+
+A bounded M3 compiler-referee review found one minor ownership ambiguity about
+which rule retains the live continuation; I repaired it by distinguishing
+`OpInst` data from the continuation constructed by execution. Primary
+inspection and `git diff --check` close that wording finding. No tests, builds,
+or measurements ran. The source annotation meaning, candidate selection,
+abstract denotation, component combination, fragment/uniform scope, and full
+Function resolver remain open; implementation authority remains none.

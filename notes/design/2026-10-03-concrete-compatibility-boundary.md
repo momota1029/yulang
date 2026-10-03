@@ -4,7 +4,7 @@ Status: Draft; records user-directed single-inequality, Function effect-descript
 Date: 2026-10-03
 Scope: one inequality judgment with endpoint-dependent solving and local concrete cast/adaptation resolution
 Approved-by: user for the single inequality judgment, endpoint-dependent resolution direction, concrete-success non-composition, polarity-indexed Function effect descriptors, mixed abstract/concrete type components, canonical-flat covariant rows, abstract-only contravariant meet normalization, and concrete-bearing attachment descriptors for witnessed partial reverse-addition; component classification, co-occurrence consolidation, the component-to-existing-carrier bridge, proof that existing evidence licenses a particular reversal, replay eligibility, and implementation remain open
-Reviewed-by: prior compiler_referee/spec_auditor reviews cover frozen-source facts and earlier Record/replay candidates; 2026-10-03 compiler-referee delta reviews of the Function descriptor and mixed-row candidate found no blocking/major issues, with minor wording repairs closed; general-component, polarity-specific reverse-addition, and abstract-only contra-meet wording delta reviews found no blocking/major/minor issue; the conditional support-obligation corollary received bounded spec-auditor and compiler_referee review with all findings closed and no remaining finding; the intended-Function necessary-condition subsection received a bounded compiler_referee review with no findings; the full witness calculus remains unreviewed
+Reviewed-by: prior compiler_referee/spec_auditor reviews cover frozen-source facts and earlier Record/replay candidates; 2026-10-03 compiler-referee delta reviews of the Function descriptor and mixed-row candidate found no blocking/major issues, with minor wording repairs closed; general-component, polarity-specific reverse-addition, and abstract-only contra-meet wording delta reviews found no blocking/major/minor issue; the conditional support-obligation corollary received bounded spec-auditor and compiler_referee review with all findings closed and no remaining finding; the intended-Function necessary-condition subsection received a bounded compiler_referee review with no findings; the conditional Act-family coverage candidate received a bounded compiler_referee review with one minor ownership clarification repaired by primary inspection; the full witness calculus remains unreviewed
 Implementation authority: none
 Supersedes: none; narrows source applicability of structural relation candidates without invalidating their fragment theorems
 
@@ -351,6 +351,54 @@ for resolved Act applications together with abstract components, then state
 whether the derivation is restricted to that fragment or extends uniformly
 to every admitted component. This is research only; it adds no occurrence,
 ownership, or provenance carrier and does not select a semicolon-tail model.
+
+#### Candidate family coverage clause, with the remaining boundary explicit
+
+The smallest candidate for a resolved concrete family item treats it as a
+coverage predicate on an already established typed request, not as a request
+constructor. For `τ = F(α₁,…,αₙ)`, one possible row-support projection at a
+fixed `ν` is
+
+```text
+FamilyAllowed_τ(ν,q) iff
+  family(q) = F ∧ family_args(q) ≈ (ν(α₁),…,ν(αₙ)).
+```
+
+The comparison uses the source-prescribed invariant family relation. It sees
+only the family projection of `q`: the complete request keeps its operation
+path, operation-local witnesses, payload, response, raw continuation, and
+shared `K,D` associated with its existing `OpInst`; execution constructs the
+live continuation while retaining that instance. Thus two requests with the
+same family point remain distinct in the complete view even if this support
+predicate treats them alike. This is a candidate coverage rule for resolved
+Act-family items, not a theorem that the source annotation already has this
+meaning.
+
+For an abstract component `α`, the corresponding candidate cannot be a
+family-point predicate. Its contribution must be the existing complete-view
+constraint denoted by `α` under the same `ν`, preserving its source-owned
+incidence and shared `K,D`. An abstract component may therefore constrain
+multiple request families and their dependent values jointly. This notation
+does not define the component's denotation, its nonempty-fiber condition, or
+how it combines with a concrete component.
+
+The only conclusion licensed by §9 is conditional: if both component views
+and the complete challenge/observation carrier are supplied independently,
+and every checked observation satisfies their combined allowance, complete
+observation inclusion transports that obligation to actual observations at
+the checked challenges. It does not establish the allowance or its
+combination. The candidate does, however, expose the minimum no-duplication
+shape: preserve the annotation's typed path to its existing complete port,
+project concrete family coverage from existing requests, and leave all
+request-specific data in the existing complete relation. It introduces no
+new region, attachment, occurrence, or provenance ledger.
+
+The current source rules support the order `OpInst` / demanded execution /
+complete request view. They do not support the reverse implication from an
+annotation component to `FamilyAllowed`, and do not yet give the abstract
+component rule. The fragment-vs-uniform question remains open, as does whether
+the candidate family predicate is the intended source contract. It cannot
+yet be used to derive either intended Function inequality.
 
 The compact signature `'a ['b, write int] -> ['b] int` places `'a` in the
 value-input position and shares effect variable `'b` between input and result
