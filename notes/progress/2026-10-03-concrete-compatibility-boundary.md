@@ -3345,3 +3345,31 @@ source-generated interface to endpoint `T_P`. This uses existing source
 relations and evidence; it proposes no parallel carrier, API, phase, or
 accepted-program restriction. The candidate remains Draft and no semantic
 choice is made by this observation.
+
+### Whole-carrier denotation schema audit (2026-10-04)
+
+A bounded Astra theorem audit found a noncircular schema repair for the
+candidate, but no proof of the callback lift. Define `J_arg(T)`, source
+admission `Adm_T`, the complete bound `P_T`, and the typed context/store
+closure independently of membership in `T`. `CallCfg_T(f,t)` can then range
+over admitted contexts with a callable hole of type `T` and a whole inert
+carrier hole of type `J_arg(T)`, plugging `f` and `t` without first requiring
+`f ∈ ⟦T⟧`. Its behavior is the complete `ExecuteCallable(f,t,c)` observation
+through each admitted history. The retained callback view belongs to `c`; it
+does not change the underlying value's role or entry.
+
+This schema avoids circularity only when context typing, environment/store
+closure, admission, and bounds are source-defined independently. To establish
+the Pure identity lift at one nonempty `ν,K,D` fiber, the proof still needs
+four premises: (1) every checked carrier/state/history maps into actual
+admission; (2) `T_P` has a sound complete endpoint interpretation uniformly
+for every callable it represents, not only the selected identity; (3) the
+actual complete bound is included in the checked bound over every callback
+challenge, including pre-dispatch observations, responses, suffixes, live
+store/re-entry and future views; and (4) `P_cb` is the source meaning of the
+linked `[b,d]` incidence under the original signed occurrences, rather than
+separately assembled row marginals. §9 supplies the containment law once
+these hold, and §21/typed-core §§6,9 plus adequacy §§2–4 supply identity
+execution preservation for admitted decorated inputs. The inspected clauses
+construct none of these four premises. No contradiction or new semantic
+ambiguity was found; the gate remains a missing source-adequacy theorem.

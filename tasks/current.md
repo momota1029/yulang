@@ -1905,6 +1905,16 @@ challenge `d`. Derive its source context over the existing whole-carrier
 complete-bound composition, and the mapping of that source-generated endpoint
 to `T_P` under the retained slot view. This is a refinement of the candidate
 `CallCfg`/`Beh` denotation, not a new solver carrier or API phase.
+The context domain, semantic environment/store closure, admission predicate,
+and complete joint bound must be defined independently of `f ∈ ⟦T⟧` and of
+the queried inequality; otherwise the schema is only conditionally
+noncircular. The lift proof must separately establish checked-to-actual
+admission, a uniform complete interpretation of `T_P`, whole-bound inclusion
+for every legal callback history, and the source meaning of linked `[b,d]`
+under the original signed occurrences. Core §9 supplies containment only
+after those premises; current clauses do not derive them. This remains an
+unclosed source-adequacy theorem, with no demonstrated contradiction or
+semantic ambiguity.
 Astra and compiler-referee audits refine the former
 `ArgEventToCallMember` gate into shared support membership, dynamic event
 preservation, and positive typed-incidence claims. A bounded compiler-referee
