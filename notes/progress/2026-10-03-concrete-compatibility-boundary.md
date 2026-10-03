@@ -3511,3 +3511,45 @@ for the other. Until those cases exist, stop short of claiming open-world
 closure, query-domain inclusion, complete-bound inclusion, or preserved
 acceptance/principality. No carrier or implementation/API/phase decision is
 introduced.
+
+### Local State operational-bridge authority audit (2026-10-04)
+
+A bounded M3 architect/compiler-referee audit confirms that the current
+Authoritative sources specify constraints on a local-State source relation,
+but not an independently admissible runtime transition. Architecture §6.9
+settles static declaration origin, the shared payload component, read/write
+constraint ownership, alias/capture propagation of `StateSlotId`, and
+lexical effect discharge. Architecture §8.3 selects pure continuation
+restart for `&a = value`. Neither defines the association of a static origin
+and captured owner with current replacement data, the read/write request and
+response steps, which suffix restarts, or how captured accesses resolve
+after escape and repeated resumption. A primitive `store[s := v]` step would
+add heap mutation; treating `StateSlotId` as the dynamic owner would violate
+§6.9.
+
+The strongest justified local result remains conditional: given an
+independently admitted open configuration/history, one supplied typed visible
+State transition, a jointly valid replacement value, and an
+identity-preserving capture-avoiding restart substitution that preserves the
+current activation evidence, the restarted suffix retains its open typed
+derivation and decorations without assuming the tested callable inhabits
+`F_cb`. It must hold for all admissible responses and finite repeated-resume
+histories. This does not construct the State transition, `EnvStore`/`JointWF`,
+opaque reference imports, or either callback inclusion clause.
+
+The audits identified useful falsification schemas, not verified Yulang
+counterexamples: invoking getters returned by two activations of the same
+static declaration can reveal accidental instance merging; alias-specific
+state bindings can reveal split aliases; repeated resume after intervening
+updates can reveal stale snapshots or suffix loss; escaped callbacks can
+reveal expired-boundary revival or dropped typed views. Existing authority
+requires these cases to be decided by the missing source relation. No new
+State semantics, compiler representation, or solver evidence carrier is
+selected.
+
+The remaining narrow source question is whether a closure created before a
+local State update reads the updated value through the same dynamic State
+instance or retains the earlier value. Current sources do not determine this
+observable distinction. The primary has asked the user to resolve it; the
+local State derivation gate remains open while independent type-inference
+work continues.

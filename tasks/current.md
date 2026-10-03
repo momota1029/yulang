@@ -1970,6 +1970,21 @@ continuation-restart choice, but no full runtime State transition or general
 reference import rule. Do not claim open-world closure, callback domain/bound
 inclusion, or acceptance/principality preservation before those cases are
 supplied and proved.
+A bounded M3 architect/compiler-referee audit found the exact missing
+operational cases: static-origin-to-dynamic-State ownership, current-data
+resolution for reads, write/restart replacement and suffix, and alias/escape/
+repeated-resumption behavior. Neither architecture §6.9's static constraint
+contract nor §8.3's continuation-restart choice supplies those equations.
+The sound conditional lemma requires an independently admitted open
+configuration, a supplied typed State transition and identity-preserving
+restart substitution; it still does not construct the world or prove
+callback inclusion. Same-static-origin activations merging, split aliases,
+stale multi-shot state, suffix loss and expired callback authority are
+falsification schemas only, not established source counterexamples.
+A specific observable decision is pending: whether a closure captured before
+`&a = new_value` reads the replacement value through the same dynamic State
+instance or retains its earlier value. No State rule or implementation may
+assume either until this is resolved from source authority or by user choice.
 Astra and compiler-referee audits refine the former
 `ArgEventToCallMember` gate into shared support membership, dynamic event
 preservation, and positive typed-incidence claims. A bounded compiler-referee
