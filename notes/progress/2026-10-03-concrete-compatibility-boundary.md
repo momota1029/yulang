@@ -2040,3 +2040,32 @@ open; the pure-value inequality is still unproved. A bounded spec-auditor
 review found no findings in this status correction. `git diff --check` is the
 only verification. No code, tests, builds, Frozen Oracle work or measurements;
 implementation authority remains none.
+
+### Bounded callback expected-context delivery proposal (2026-10-03)
+
+Reconsidering the immediate gate against the user's role-first source rule
+confirmed that effect-port mapping remains downstream. I wrote a bounded
+contract in `notes/design/2026-10-03-callback-context-delivery.md`: with a
+known, already instantiated `Value(F_cb)` formal and its original static
+`β`/`Slots(β)` identity supplied, that context reaches an unannotated callback
+literal before any body constraint. Handler selection occurs there; §21 still
+independently determines parameter entry; `Result(I_b)` still supplies result
+forwarding. The contract neither copies callback ports into the literal nor
+proves either intended Function inequality.
+
+The proposal keeps application/member/import lookup, scheme instantiation,
+annotation/callback overlap, the complete role-indexed interface, and effect
+port laws open. It retains static `β` versus dynamic activation boundary `b`,
+leaves runtime receipt/force order unchanged, and adds no solver carrier. The
+current HIR/collector lacks both resolved application structure and typed
+callback input, so this is a reviewed supplied-input contract, not current
+implementation or an API selection.
+
+The architect pre-write audit recommended treating the typed declaration input
+and transient expected context as separate responsibilities, without
+committing to a compiler phase. A compiler-referee and spec-auditor reviewed the
+bounded proposal with no blocking or major findings. The spec audit found one
+minor header-status inconsistency; the header now records `Reviewed` while
+keeping user approval pending and API/phase unresolved. `git diff --check` is
+the only check; no tests, builds, Oracle inspection, or measurements. The draft
+is ready for user approval before implementation or durable API selection.

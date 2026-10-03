@@ -179,6 +179,16 @@ view. The roles are already selected; the interface derivation remains open.
 Do not make a uniform effect-row-component-to-complete-interface mapping
 foundational. `never` and `Any` get no effect-position interpretation.
 
+The bounded callback-context delivery contract is now independently reviewed
+in `notes/design/2026-10-03-callback-context-delivery.md`; it assumes a known,
+already instantiated `Value(F_cb)` formal and requires that context to reach an
+unannotated literal before its body constraints. User approval is pending.
+Implementation and durable API/phase selection remain unauthorized. If
+approved, the next proof gate derives the complete role-indexed Function
+interface for that supplied-context case, then projects its effect views into
+existing evidence. Application representation, declaration/member/import
+resolution, scheme instantiation, and annotation/callback overlap remain open.
+
 Next derive the pure-function-value to handler-capable callback lift from
 source application/elimination. `Force(D) >>= B` explains why a value-entry
 handler callback's complete invocation can include both argument computation
