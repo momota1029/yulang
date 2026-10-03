@@ -213,6 +213,16 @@ unconditional row union or four independent general-Type port checks. Treat
 must follow from role-specific elaboration, not as an axiom deriving `never`
 semantics.
 
+For the §8 identity witness only, the source call reduces to
+`Force(D_req) >>= Return` by §21 Value entry and identity body. The bind
+right-unit law preserves the argument computation's request prefix,
+response/resumption behavior, store/context transitions, and divergence; the
+body contributes no request of its own. This closes only behavior for a shared
+live callback-slot `CallView` after a challenge is admitted. The
+checked-to-actual challenge inclusion and projection of argument observations through the
+target's `[b,d]` view remain open, including membership of the paired
+diverging challenge.
+
 Keep complete `EnvStore`/`JointWF` construction, source alias/store transition
 closure, and finite-witness adequacy as later proof gates. They remain needed
 for a complete-domain Function comparison but do not block the bounded

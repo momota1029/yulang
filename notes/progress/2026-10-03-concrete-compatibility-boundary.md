@@ -2124,3 +2124,18 @@ existing `Rel_C`/`K,D`, occurrence/incidence, `Flow`/`Observe`, and subtraction
 evidence. Escaped callbacks and the intended inequalities remain open. No
 Oracle investigation, tests, builds, or measurements were performed.
 `git diff --check` passed for this documentation-only delta.
+
+The primary's next-step derivation narrows the identity witness's behavioral
+obligation. With an already constructed `f = λx.x` at §21 `Value(A)` entry,
+the invocation body is `Return(x)`, so the selected call equation reduces to
+`Force(D_req) >>= Return`. The state-threaded bind right-unit law preserves
+the forced computation's request prefix, response/resumption behavior, and
+resulting store/context and divergence; the identity body adds no request.
+This gives behavioral equality only after both paths share the same live
+callback-slot `CallView` and the challenge is admitted. It does not show that
+the checked view admits `D_req` or the paired diverging carrier, nor that
+`[b,d]` projects argument observations through the required
+`Flow`/`Observe`/incidence and `K,D` paths. Those remain the immediate proof
+obligations. This conditional
+derivation is primary-authored and not independently reviewed; no source or
+solver implementation changed.
