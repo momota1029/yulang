@@ -2281,6 +2281,17 @@ premises, or that co-occurrence permits identifying terms. The active bridge
 is now chiefly source component-to-port interpretation and its linked
 contribution law, followed by actual/checked domain inclusion.
 
+A minimal bounded port-map candidate has now been compiler-referee reviewed
+and recorded in the same progress note. It assigns distinct `d⁻`, `d⁺`, and
+`b⁺` occurrences to argument-computation, complete-call, and reached
+body/result-consumer views while retaining the common symbolic coordinates.
+It keeps the two signed profile paths and callback-value/inner-argument
+receipts distinct, and requires every map to be constructed before and
+independently of concrete inequality success. This is only a candidate
+operationalization for the already approved linked lift; the component maps,
+linked-contribution derivation, complete executing view and domain/observation
+inclusion remain open. No API, phase, solver relation, or carrier is selected.
+
 An Astra audit confirms that the currently stated source rules do not entail
 the row-occurrence-to-profile-position map: execution and `Observe` are
 derivable conditional on supplied typed-profile entries, but the link from

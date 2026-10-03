@@ -328,3 +328,65 @@ linked lift or a proposal to reinterpret effects. The next source proof must
 define role-indexed complete Function-interface elaboration before inequality
 resolution and derive the `d⁻`/`d⁺` occurrence mapping using existing profile,
 path, flow, incidence and shared-fiber evidence. No new carrier is indicated.
+
+### Minimal bounded port-map candidate
+
+For the approved known callback-slot path, a minimal source clause to review
+is to construct the profile mapping while elaborating the known callback-slot
+Function interface, before resolving the existing value's concrete
+inequality. The known instantiated slot interface supplies expected context
+to an unannotated callback literal before body constraints; the literal then
+forms its own interface under Handler role and compares it to the slot,
+rather than copying the slot interface. This clause does not re-elaborate an
+existing Pure value. Let the checked slot's target occurrences be
+`d⁻`, `b⁺`, and `d⁺` inside flat `[b,d]`. Preserve their separate source
+occurrence identities and their common symbolic coordinates under `ν`.
+Construct only these correspondences:
+
+```text
+d⁻  ↦ (callback formal's whole argument-computation position, J_arg)
+d⁺  ↦ (the same Force-origin event occurrences, observed at J_call)
+b⁺  ↦ (body/result-consumer events at their reached post-force states, J_call)
+```
+
+`J_arg` and `J_call` are the ordinary ports already defined by typed-core §9;
+`J_call` is the single state-threaded invocation `Force(D) >>= B`, not an
+independent body-only row. The identity callback-slot view supplies the
+typed boundary and `CallView` only for invocation through this slot; it does
+not change the existing callable's Pure role or its §21 `Value(A)` entry. The
+required signed profile paths are distinct:
+
+```text
+β.p_d⁻ → V_force.p_force
+β.p_d⁺ → V_call.p_call
+```
+
+These are source-elaboration obligations, not facts created by the concrete
+comparison's success. In particular, they must be constructed independently
+of `Q = T_P <: F_cb`; successful resolution cannot supply a missing path or
+receipt.
+
+For a Force-emitted event `q`, `Observe(q,V_call,p_call)` locates the event at
+the complete call position. `Path` must join the original-profile-to-position
+correspondence, that `Observe`, and the matching `Receive` of the callback
+slot's live owner in the same activation. Typed `Flow` transports value,
+profile, and dependency correspondence; it does not transport an event
+between effect rows. The callback-value receipt and inner argument receipt
+remain distinct. Row flattening preserves the original occurrence
+references; `Rel_C`, `K,D`, and `ν` stay joint until the covariant support
+projection.
+
+The three displayed occurrence arrows are required source correspondences
+awaiting derivation; they are not established by this note. This candidate
+commits to no type-variable-equality shortcut: the two `d` occurrences share
+a symbolic coordinate, but the source derivation must produce a typed
+profile correspondence between their distinct signed paths. It is bounded to
+an existing Pure actual, known instantiated callback contract, identity
+argument/result transport, and §21 `Value(A)` entry. It does not cover a
+retained computation parameter or other adapters, and it does not prove
+`D_checked ⊆ D_actual` or complete observation inclusion. In particular,
+`Force(D)` explains the operational event link only after this profile rule
+identifies its endpoints. This is a candidate operationalization of the
+user-selected linked lift, not a claim that the link follows from existing
+application/Force rules alone; no API/phase, solver relation, or carrier is
+added.
