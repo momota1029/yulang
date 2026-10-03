@@ -3312,3 +3312,36 @@ this is an unproved endpoint-adequacy theorem rather than a demonstrated user
 decision. The requested Astra assignment was read-only at high effort; live
 runtime settings were not independently observable. No code, tests, builds,
 Oracle inspection, API, phase, or new evidence carrier was involved.
+
+The next derivation can use an existing candidate site rather than introducing
+another Function judgment: coupled-effect-interface §930 defines a proposed
+Function denotation through `CallCfg` and `Beh` over source-typed call
+contexts and complete observations. That draft itself says its exact source
+context typing judgment and the source rule generating it are still open, so
+it cannot yet identify `T_P`. Specialize that existing relation to the known
+callback slot and construct its domain/bound transfer from the ordinary
+`ExecuteCallable` relation; keep any unresolved source-typing premise visible.
+This is a locator and proof route, not adoption of that candidate as
+Authoritative semantics.
+
+## Whole-carrier mismatch in the candidate Function denotation
+
+Inspecting that candidate more closely exposes one concrete mismatch with the
+later approved source convention. Coupled-effect-interface §930 defines
+`CallCfg(f,x)` using two typed **value** holes (callable and argument), and its
+`Beh` projects source applications of `f x`. Charter §21 plus typed-core §6
+instead pass the whole argument computation inertly; the actual `Value(A)`
+entry forces and rebinds it inside the receiver. In the callback lift, the
+expected slot's argument effect `d` belongs to that whole carrier and is
+linked to complete `J_call` by the designated contribution. A value-hole
+context alone cannot state this input-domain obligation or the force-to-call
+observation relation.
+
+The next derivation therefore needs to refine that candidate's existing
+`CallCfg`/`Beh` context over the already defined whole-carrier `J_arg`,
+retained callback view, and §9 `ExecuteCallable` relation. It must then prove
+source admission, the complete observation bound, and correspondence of this
+source-generated interface to endpoint `T_P`. This uses existing source
+relations and evidence; it proposes no parallel carrier, API, phase, or
+accepted-program restriction. The candidate remains Draft and no semantic
+choice is made by this observation.

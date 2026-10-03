@@ -1893,6 +1893,18 @@ description; and (3) whole-bound inclusion from `P_actual` to the checked
 and incidence evidence. Preserve all legal histories and add no parallel
 carrier or provenance structure. The issue remains an unproved theorem, not
 a demonstrated semantic ambiguity.
+Use the existing candidate Function denotation at
+`notes/design/2026-10-01-coupled-effect-interface-core-draft.md:930` as the
+next derivation site: its `CallCfg`/`Beh` contract already quantifies over
+well-typed call contexts and complete observations, but its displayed context
+has a typed **value** argument hole. §21's selected call convention passes a
+whole inert computation carrier and performs `Value(A)` entry force inside
+the receiver, so that candidate cannot yet expose the linked argument-effect
+challenge `d`. Derive its source context over the existing whole-carrier
+`J_arg`/`J_call` relation and §6/§9 `ExecuteCallable`; then prove admission,
+complete-bound composition, and the mapping of that source-generated endpoint
+to `T_P` under the retained slot view. This is a refinement of the candidate
+`CallCfg`/`Beh` denotation, not a new solver carrier or API phase.
 Astra and compiler-referee audits refine the former
 `ArgEventToCallMember` gate into shared support membership, dynamic event
 preservation, and positive typed-incidence claims. A bounded compiler-referee
