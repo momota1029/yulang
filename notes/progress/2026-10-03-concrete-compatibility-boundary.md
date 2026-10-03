@@ -2139,3 +2139,21 @@ the checked view admits `D_req` or the paired diverging carrier, nor that
 obligations. This conditional
 derivation is primary-authored and not independently reviewed; no source or
 solver implementation changed.
+
+The identity witness also yields a local **runtime-domain** inclusion lemma.
+Let `Carrier_A(ν)` contain source-admissible invocation challenges whose
+argument computation has exposed value endpoint `A`, with its complete
+source histories. The checked callback slot's equal value endpoint `A`
+places its admitted argument challenges in this carrier. The closed identity
+function's §21 `Value(A)` entry receives and forces any such carrier; it has
+no capture or body-state precondition beyond source admissibility, and its
+identity body returns the forced value. Thus each challenge has a matching
+actual source execution, including request prefixes, state changes, response
+histories and divergence. This does not yet prove the static
+`D_checked(ν) ⊆ D_actual(ν)` clause: the role-derived actual Function view
+must still be shown to denote the `Value(A)` runtime-call domain without
+using effect-position `never` as a sentinel. For observation inclusion, the
+same live `CallView` and typed path must carry argument `Observe` events into
+the checked output's `d` component; `[b,d]` spelling alone does not prove that
+projection. This narrows the witness proof but leaves that interface/evidence
+bridge open. Primary-authored, not independently reviewed.

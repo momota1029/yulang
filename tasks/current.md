@@ -223,6 +223,16 @@ checked-to-actual challenge inclusion and projection of argument observations th
 target's `[b,d]` view remain open, including membership of the paired
 diverging challenge.
 
+For this closed identity witness, §21's `Value(A)` entry also gives a local
+runtime-domain lemma: every source-admissible checked argument carrier whose
+exposed value endpoint is `A` can be received and forced by `f`; its effect
+row, store changes, and request/resumption history do not affect the identity
+body's ability to return the forced value. This establishes inclusion into
+the runtime-call domain, not yet into the actual type interface's
+`D_actual(ν)`. The missing bridge is to derive that role-generated interface
+domain from `Value(A)` without assigning independent meaning to the
+effect-position `never`.
+
 Keep complete `EnvStore`/`JointWF` construction, source alias/store transition
 closure, and finite-witness adequacy as later proof gates. They remain needed
 for a complete-domain Function comparison but do not block the bounded
