@@ -145,6 +145,14 @@ contamination. The successor theorem must account for graph-wide transport to
 the owning row state and preserve guards, weights, provenance and consumer
 conversion; current evidence does not establish those links.
 
+In that fixture, a bounded source-call trace reconstructs the preserved path:
+the lower on `beta` replays against its separate upper `alpha`, then reaches
+`alpha`'s row reducer; the inherited covered `beta` residual suppresses its
+own generic pair. The test directly asserts suppression and no residual `f`,
+but not the later alpha replay/row derivation. Its constructor heads have no
+arguments, so it does not exercise child-argument obligations. This trace
+supports only this bounded route, not the general conservation theorem.
+
 A separate M3 draft now proves finite least closure for a fixed finite graph,
 payload set and context carrier. Independent semantic and conformance reviews
 found only minor formal gaps; the primary closed them by making the finite

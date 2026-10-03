@@ -4,7 +4,7 @@ Status: Reviewed
 Date: 2026-10-03
 Scope: least closure of a fixed finite variable-bound graph with finite replay contexts
 Approved-by: none; the user's approved relation distinction is recorded in §1 of `2026-10-03-concrete-compatibility-boundary.md`
-Reviewed-by: architect pre-write audit; compiler_referee and spec_auditor review §§1–6 clean after primary closure of minor findings; fresh compiler_referee and spec_auditor review of §7 hypothesis; compiler_referee source-bridge and revised check-only contract-boundary deltas clean after major-finding repair; compiler_referee review of §8 clean after primary closure of one minor materialization-phase finding; architect pre-write audit plus compiler_referee/spec_auditor review of the §2/3/3.1/6 replay-admission refinement, no findings; compiler_referee §6 live-coverage suppression delta, no findings; architect/compiler_referee/spec_auditor bounded review of the same-owner and cross-source covered-row characterization, candidate only
+Reviewed-by: architect pre-write audit; compiler_referee and spec_auditor review §§1–6 clean after primary closure of minor findings; fresh compiler_referee and spec_auditor review of §7 hypothesis; compiler_referee source-bridge and revised check-only contract-boundary deltas clean after major-finding repair; compiler_referee review of §8 clean after primary closure of one minor materialization-phase finding; architect pre-write audit plus compiler_referee/spec_auditor review of the §2/3/3.1/6 replay-admission refinement, no findings; compiler_referee §6 live-coverage suppression delta, no findings; architect/compiler_referee/spec_auditor bounded review of the same-owner and cross-source covered-row characterization, candidate only; compiler_referee review of the alpha/beta routed-path delta, no findings
 Implementation authority: none
 Supersedes: none
 
@@ -274,6 +274,18 @@ At frozen commit `a58eefc31e22141574b6f20c6a5748151c6d79f1`:
   and discharged there. Exact conservation therefore has to span variable
   edges, inherited claim lineage and row-state ownership, not just the local
   insertion call.
+- A bounded call-path trace reconstructs that route for this fixture. The
+  ordinary `beta <: alpha` upper on `beta` still admits a lower/upper replay
+  for `late_family <: alpha`; the distinct inherited covered upper on
+  `beta` for the residual suppresses its own generic pair. The new lower on
+  `alpha` then enters alpha's row state, matches against `original_items`, and
+  routes to the original `{f | residual}` upper while leaving the reduced
+  residual materialization unchanged. The test directly asserts the beta
+  suppression and lack of residual `f`, but does not assert this later alpha
+  replay or its row derivation; those links are reconstructed from the frozen
+  call path. This fixture uses constructor heads with no arguments, so the
+  row-item match generates no child-argument subtype obligations. It is a
+  useful concrete trace, not a general conservation theorem.
 - `crates/infer/src/constraints/tests/case_01.rs::var_bound_addition_replays_against_opposite_bounds_with_union_weights`
   asserts a composed-weight lower/upper endpoint constraint. The neighboring
   `var_var_replay_materializes_transitive_edges` case asserts propagation of

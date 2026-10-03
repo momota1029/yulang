@@ -307,6 +307,19 @@ consumer conversion. Independent compiler-referee and spec-auditor reviews
 confirmed the local-route bounds and the cross-source counterexample; they did
 not certify successor semantics. No tests or builds were run.
 
+A bounded call-path reconstruction explains the tested `alpha`/`beta` case:
+the new `beta` lower can replay against beta's separate upper `alpha`, which
+inserts a corresponding lower at `alpha`; alpha's row state matches its item
+against the original row upper and leaves the reduced residual unchanged.
+The test directly checks beta's suppressed residual pair and absence of
+residual `f`, but does not assert this alpha replay, its row derivation, or the
+original-row check. Those links come from tracing `step_subtype`, lower-bound
+replay, and row routing. Since the fixture's constructor heads have no
+arguments, this case also omits child-argument obligations. The trace narrows
+the open graph-wide gate for this example only. No test was executed.
+An independent compiler-referee delta review found no issue in the reconstructed
+path or in the separation between test assertions and call-path evidence.
+
 ## Next gate
 
 Prove graph-wide bound-replay conservation for a fixed finite source
