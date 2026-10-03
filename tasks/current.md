@@ -163,7 +163,7 @@ parameter-entry role. Do not infer the former from Function-port spelling.
 The source clauses must establish the interface before assigning meaning to
 its effect ports. `never` remains a value bottom, distinct from an empty
 effect row and polarized solver sentinels; it has no independent pure/empty
-effect meaning.
+effect meaning. `Any` is also a distinct value type, not an effect sentinel.
 
 Immediate bounded subgate: derive source elaboration for the three cases
 (ordinary unannotated literal, explicitly Function-annotated literal, and
@@ -173,8 +173,9 @@ domain. The existing `ref_update_local_buffer_public` call
 is a concrete expected-context anchor. For each case, record the selected
 receiver role, the independently syntax-directed §21 parameter-entry role,
 and the resulting Function interface. Then derive the effect-port view from
-that interface. Do not give effect-row components uniform receiver semantics;
-`never` remains value bottom and gets no effect-position interpretation.
+that interface. Do not make a uniform effect-row-component-to-complete-
+interface mapping foundational. `never` and `Any` get no effect-position
+interpretation.
 
 Next derive the pure-function-value to handler-capable callback lift from
 source application/elimination. `Force(D) >>= B` explains why a value-entry

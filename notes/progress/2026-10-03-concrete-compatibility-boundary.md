@@ -1956,3 +1956,25 @@ then reported the major finding closed and no new findings. The remaining
 source contextualization theorem, exact owner/API, role-indexed ports and
 complete inequality are open. No code, tests, Oracle inspection or
 measurements; `git diff --check` is the record-slice check.
+
+### Role-first gate refinement (2026-10-03)
+
+The immediate subgate now states the three source introductions explicitly:
+ordinary unannotated function literals select Pure; an explicit Function
+annotation selects a handler boundary; callback-position literals select
+Handler from expected context. Each role must be established before its
+Function interface and effect-port interpretation. The gate does not begin
+with a uniform mapping from an effect-row component to a complete
+receiver/computation interface, and it keeps §21's independent
+Value/Computation parameter-entry role separate.
+
+The callback lift remains to be derived from role-specific source application
+and `Force(D) >>= B`, jointly accounting for argument computation `d` and body
+effect `b` in the existing `Rel_C` fiber and `ν`. Four independent effect-port
+subtyping checks and effect-position meanings for `never` or `Any` are not
+premises. Value `never`, `Any`, empty effect row, and polarized solver extrema
+remain distinct. This refines research order only: no solver carrier or
+provenance structure is justified without a concrete source fact that the
+existing `Rel_C`, `K,D`, occurrence/incidence, and directed-weight/subtraction
+evidence cannot represent. No code, tests, Oracle inspection, builds or
+measurements; record consistency was checked with `git diff --check`.

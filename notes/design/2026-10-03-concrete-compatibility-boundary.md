@@ -165,15 +165,14 @@ The same target variable `d` remains one shared term across both target ports
 under the existing assignment and ownership relation; the source contribution
 `b` remains present in the output descriptor. There is
 no independent `d <: never` obligation. For the second case, the intended
-effect evidence connects target input `e` with target output `e`; whether the
-two source `never` spellings elaborate to descriptors with no concrete
-contributions is not yet defined. More generally, the descriptor elaboration
-of `never` in these examples is open. It must not be obtained from a global
-`Never`, `Any`, empty-row, or polarized-sentinel alias. The value-type
-meanings of `never` and `Any` remain distinct from the effect descriptor
-language; no lattice account is needed for this Function rule. The value
-endpoints `a` and `c` remain part of this same Function resolution and its
-retained family equations.
+effect evidence connects target input `e` with target output `e`. The newer
+role-first clarification supersedes the earlier open question about how
+effect-position `never` elaborates: `never` has no separate effect-position
+meaning. Do not derive either case from a global `Never`, `Any`, empty-row, or
+polarized-sentinel alias. The value-type meanings of `never` and `Any` remain
+distinct from the effect descriptor language; no lattice account is needed
+for this Function rule. The value endpoints `a` and `c` remain part of this
+same Function resolution and its retained family equations.
 
 This is an endpoint-dependent resolution rule of the single query
 `A <: B`; it is not a second effect relation and its successful result cannot
@@ -231,25 +230,31 @@ Value-bottom meaning alone does not establish this premise.
 `Result(Computation(E,A)) = Comp(E,A)` govern result forwarding; they do not
 erase argument or body requests already executed. Both displayed inequalities
 remain intended constraints, while this source-call argument only explains
-the first conditionally and leaves the `never` elaboration open.
+the first conditionally. The newer role-first gate derives the relevant
+interfaces before interpreting their effect ports.
 
-#### Open source-elaboration choice for effect-position `never`
+#### Role-first source elaboration precedes component interpretation
 
-The user-approved inequalities remain the target, and `never` must retain its
-value-type identity while `EffectRow([])` and polarized internal bottoms stay
-distinct. The following are non-exhaustive research directions, not exclusive
-choices or approved semantics:
+This gate was reordered by the user's 2026-10-03 clarification. First derive
+the source-level role and Function interface for ordinary unannotated
+function literals (pure), explicitly Function-annotated literals (handler
+boundary), and callback-position literals (handler from expected context).
+Keep this receiver-role choice separate from §21's parameter-entry role.
+Only after the interface is established should its effect ports be interpreted.
 
-| Direction | Meaning to define | Consequence |
-|---|---|---|
-| Uniform component interpretation | Give one source interpretation to the admitted general effect-row component class, mapping each component to the complete interface under `ν` while preserving its type identity | Could derive port behavior without a `never`-specific rule; no inspected source rule currently defines the mapping. Interpreting value-bottom's value set as an empty request set and using that as contra admission would fail to admit an effectful argument, but a computation returning `never` may still emit request prefixes |
-| Additional Function-port rule | Only if uniform component interpretation cannot express the approved cases, define a source-derived Function-port mapping without changing the component's value-type identity or aliasing it to an empty row/internal bottom | Requires proof of a source-level distinction independent of spelling-specific Oracle behavior; a special case for the spelling alone would violate the theory-economy gate |
+A uniform map from each effect-row component to a complete
+receiver/computation interface is not a foundational rule. Check whether the
+role-directed source elaboration and the existing `Rel_C`, `K,D`,
+occurrence/incidence, and directed-weight/subtraction evidence already
+express the resulting constraints. Consider an additional mapping or carrier
+only if a concrete source fact cannot be represented there. The intended
+pure-to-handler lift remains to be derived from callback adaptation and
+source call semantics, including `Force(D) >>= B`; neither four independent
+port subtyping nor effect-position meanings for `never` or `Any` are premises.
 
-The invariant in either direction is that this is a source denotation question,
-not an implementation representation choice. Neither direction authorizes a
-lattice account or imports Oracle `is_pure_effect`/materialization behavior.
-`Any` remains its own value type and must receive the same uniform component
-interpretation unless a separate source distinction is proved.
+`never` (value bottom), `Any`, the empty effect row, and polarized internal
+solver extrema remain distinct. Oracle `is_pure_effect` and materialization
+behavior are historical implementation evidence only, not successor rules.
 
 In the coupled-interface candidate, `ArgDen_A` interprets type-argument tuples
 of already established typed request occurrences; `TypedRow(E,ν)` likewise
