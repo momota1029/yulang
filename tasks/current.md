@@ -280,6 +280,20 @@ holes, context composition, and preservation of roles, §21 entry, profiles,
 `Flow`/`Observe`, `K,D`, future latent use and resumption. Keep its extensional
 semantic domain separate from later finite presentation/principality.
 
+A conditional rigid-hole schema types the context against `T_checked` while
+keeping the tested callable out of `Γ`'s semantic environment; the actual
+callable, argument carrier and joint environment/store remain separate
+premises. Plugging does not get checked-type preservation. The unresolved
+BLOCKING issue is that excluding the explicit hole does not exclude aliases
+through a recursive captured store. `EnvStore` / `JointWF` need an independent
+guarded or well-founded account of captured values and shared cells, preserving
+alias identity without requiring the tested comparison. A major
+source-context closure obligation remains for storing/copying, alias calls,
+handler exit, mutation and resumption. Conditional non-vacuity holds only
+under joint source-state premises: the inert carrier reaches actual receipt
+before force, even when its computation diverges. This is not annotation
+acceptance or a nonempty-fiber theorem.
+
 Any hypothetical annotation-coverage rule must be a universal obligation over
 the supplied complete comparison, not deletion of uncovered observations.
 Its support projection applies only after concrete and abstract component

@@ -5,7 +5,7 @@ Date: 2026-10-03
 Scope: one inequality judgment with endpoint-dependent solving and local concrete cast/adaptation resolution
 Approved-by: user for the single inequality judgment, endpoint-dependent resolution direction, concrete-success non-composition, polarity-indexed Function effect descriptors, mixed abstract/concrete type components, canonical-flat covariant rows, abstract-only contravariant meet normalization, and concrete-bearing attachment descriptors for witnessed partial reverse-addition; component classification, co-occurrence consolidation, the component-to-existing-carrier bridge, proof that existing evidence licenses a particular reversal, replay eligibility, and implementation remain open
 Reviewed-by: prior compiler_referee/spec_auditor reviews cover frozen-source facts and earlier Record/replay candidates; 2026-10-03 compiler-referee delta reviews of the Function descriptor and mixed-row candidate found no blocking/major issues, with minor wording repairs closed; general-component, polarity-specific reverse-addition, and abstract-only contra-meet wording delta reviews found no blocking/major/minor issue; the conditional support-obligation corollary received bounded spec-auditor and compiler_referee review with all findings closed and no remaining finding; the intended-Function necessary-condition subsection received a bounded compiler_referee review with no findings; the conditional Act-family coverage candidate received a bounded compiler-referee review, its minor ownership clarification and major nonempty-fiber premise were repaired, and the delta review closed with no residual finding; the singleton `TypedRow` to candidate Function-support crosswalk received a bounded compiler_referee review with no findings; the abstract-component same-fiber candidate had a major joint-fiber/union-premise finding repaired and its bounded delta review closed with no residual finding; the full witness calculus remains unreviewed
-Role-first §8 review: architect pre-write audit; compiler_referee reported one BLOCKING complete-domain-construction gap and major decorated-behavior, entry-role separation, and support-only lifting gaps; spec_auditor found the selected direction conformant and confirmed these obligations remain open. No carrier insufficiency found.
+Role-first §8 review: architect pre-write audit; compiler_referee reported one BLOCKING complete-domain-construction gap and major decorated-behavior, entry-role separation, and support-only lifting gaps; spec_auditor found the selected direction conformant and confirmed these obligations remain open. Rigid-hole schema delta: compiler_referee accepted its conditional non-vacuity/actual-preservation claims, while retaining BLOCKING `EnvStore`/`JointWF` construction and a major operational-context-closure obligation. No carrier insufficiency found.
 Implementation authority: none
 Supersedes: none; narrows source applicability of structural relation candidates without invalidating their fragment theorems
 
@@ -1235,3 +1235,50 @@ This first theorem may establish an extensional, potentially infinite semantic
 domain. It does not also prove an effective finite presentation, principal
 comparison, or a new source acceptance policy. No new carrier is justified;
 the missing facts are source context typing and its closure theorem.
+
+### Rigid-hole proof schema and remaining alias obligation
+
+A second bounded Sol derivation gives a sound conditional proof schema, not a
+domain construction. Write a target-typed context with proof holes:
+
+```text
+Γ; Σ ⊢ C : (□f:T_checked, □a:I_argument) ⇒ I_result
+```
+
+The holes are typed by the checked callable and argument interfaces but are
+not inserted into `Γ`'s semantic environment. Separately assume a
+source-admissible environment/store, an actual callable under its actual
+interface, an argument code/carrier under its source interface, and their
+joint `ν,K,D`/lineage consistency. Plug `f` and the inert argument carrier only
+for execution. Do not invoke type preservation for the plugged program at
+`T_checked`: that is the membership proposition under test. If
+`D_checked ⊆ D_actual` is established, actual source behavior can be used for
+those challenges, followed by the independent observation inclusion.
+
+This still has one BLOCKING hole: removing `f` from the named environment does
+not remove aliases reachable through `f`'s captured store. For example, its
+closure can capture cell `ℓ`, whose value is `f` or a callback capturing `f`,
+while another context variable aliases `ℓ`. Requiring that entire graph to
+satisfy checked membership reintroduces the comparison being proved; excluding
+the aliases loses legitimate shared source states. `EnvStore` / `JointWF`
+therefore need a well-founded or guarded joint construction for contexts,
+captured values and shared cells that preserves alias identity and never
+chooses independent store witnesses. No existing source clause currently
+provides that construction.
+
+The conditional immediate-application lemma is narrower and sound: if the
+rigid-hole context and joint source-state premises hold for a runtime callable
+and argument code, evaluation obtains the callee, inertly builds `Delay(D)`,
+enters the callable's actual receiver, and establishes its receipt before
+forcing `D`. Hence even a purely diverging `D` yields a nonempty invocation
+challenge. This proves neither that every endpoint pair has a nonempty joint
+fiber nor that the target challenge is in the actual domain.
+
+The compiler-referee delta review accepted the rigid-hole/non-vacuity schema
+conditionally and found no error in delaying actual preservation until domain
+inclusion. It retained the BLOCKING context/environment/store construction
+finding and a major context-transition closure finding: storing/copying the
+closure, calling through aliases, handler exit, mutation, and raw resumption
+must preserve role/entry, profiles, `Flow`/`Observe`, incidence and expiry in
+one shared fiber. These are source-judgment/closure obligations, not evidence
+for another carrier. Do not call §8's invocation-coverage theorem closed.

@@ -1409,3 +1409,34 @@ comparison remain separate. No concrete carrier gap was found.
 Updated design §8 and `tasks/current.md`. No tests/builds/Oracle/compiler-code
 inspection. Focused verification: `git diff --check`. This remains a draft
 proof obligation, with no implementation authorization.
+
+### Rigid-hole contextual schema delta (2026-10-03)
+
+A second bounded Sol derivation proposed proof-only rigid holes typed against
+the checked interface, with tested values kept out of the hole context's
+semantic environment. Actual callable/carrier and joint source-state evidence
+are separate premises. This avoids direct circularity and does not justify
+checked-type preservation after plugging; actual preservation is usable only
+after checked-domain inclusion is proved.
+
+Conditional immediate-application non-vacuity now has a precise trace: after
+callee evaluation, the whole argument is inertly reified, the callable enters
+its **actual** receiver, and receipt occurs before force. A pure divergence in
+the carrier therefore prevents body execution but cannot remove the invocation
+challenge. This requires a jointly admissible source state and proves neither
+domain inclusion nor nonemptiness of every type fiber.
+
+The compiler-referee delta review accepted the schema and trace conditionally,
+but retained BLOCKING `EnvStore`/`JointWF` construction: an actual closure can
+capture `ℓ`, whose contents alias the closure or a callback capturing it, while
+another context variable aliases `ℓ`. Checking that store by the checked
+Function denotation reintroduces the comparison; excluding it loses legitimate
+states. A major context-closure obligation also remains for stored/copy aliases,
+later calls, handler exit, mutation and raw-resumption re-entry. Any actual
+construction must define a guarded/well-founded joint account, preserve shared
+location identity, and avoid independently choosing store witnesses. No new
+carrier is justified by the report.
+
+Updated design §8, `tasks/current.md`, and the design index. `git diff --check`
+is the only check; no tests/builds/code/Oracle inspection. Immediate theorem
+remains open and extensional; finite presentation/principality are later gates.
