@@ -2393,3 +2393,24 @@ phase-specific supports to `[b,d]` while the complete joint continuation
 relation stays in the same fiber. The canonical flat form is selected; its
 source denotation and combination rule are not. No compiler code, tests or
 builds changed.
+
+### Architect audit of the approved callback-context contract (2026-10-03)
+
+The bounded contract establishes pre-body Handler introduction for a new
+callback-position literal. It does not derive the distinct existing-Pure-value
+adaptation path's checked port marks. Charter §21 and ordinary invocation
+semantics preserve the `Value(A)` Force event, its operation instance and
+pending continuation under the shared `ν,K,D`; boundary `Observe` still
+requires source-marked executing views. Generic operational input/output
+directions do not identify those views with checked `p_d⁻` and `p_d⁺`.
+
+The same audit confirms that canonical flat form alone does not identify
+`[b,d]`'s support denotation. The phase partition bounds the call by supplied
+force/body admission sets, but a source component-combination clause must
+connect those sets to `d` and `b` in the same joint fiber. Existing
+`View`/`Observe`, `Rel_C`, occurrence/incidence, `K,D`, `Path`/`Inc_C`, and
+subtraction evidence can express the needed facts; no new carrier is
+justified. This is a missing source-semantic proposition, not an API/phase
+problem, and the callback-context contract does not decide it. The proposed
+bounded rule has been presented for user decision; no new semantics or
+implementation authority is selected here.

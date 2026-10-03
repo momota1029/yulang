@@ -271,6 +271,15 @@ phase-specific admission sets. Mapping that union to canonical `[b,d]` still
 requires a source-derived component-combination premise; no exact `p_d⁺`
 `Observe` or complete-observation inclusion follows.
 
+An architect audit of the newly approved callback-context contract confirms
+that it supplies neither exact `p_d⁻`/`p_d⁺` assignment for an existing Pure
+value nor the `[b,d]` support denotation. §21/core invocation semantics
+preserve the Value-entry Force event and its continuation, while boundary
+`Observe` applies only after source-marked executing views are supplied. No
+evidence-carrier gap is shown. A bounded source rule linking the same Force
+event to both checked ports and the canonical flat support remains a separate
+semantic decision; API and phase ownership are unrelated and remain open.
+
 Keep complete `EnvStore`/`JointWF` construction, source alias/store transition
 closure, and finite-witness adequacy as later proof gates. They remain needed
 for a complete-domain Function comparison but do not block the bounded
