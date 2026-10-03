@@ -2381,6 +2381,18 @@ then constrained by one `A <: F_cb`. The user has been asked to select that
 source rule; callback interface elaboration depending on the answer is
 pending, while independent structural work continues.
 
+Frozen `main` characterization at `a58eefc31e22141574b6f20c6a5748151c6d79f1`
+shows the historical path lowers each application argument before creating
+the application inequality (`lowering/expr/tail.rs:108–123, 630–643`), while
+`lower_lambda` has no expected-interface input and creates fresh parameter
+variables before lowering the body (`lowering/expr/lambda.rs:20–24, 61–63,
+285–292`). The later application query records an `ExpressionExpected` root
+and submits the whole `callee <: Fun(argument, result)` relation (`tail.rs:535–585`).
+This characterizes Oracle's post-body constraint path only. It does not settle
+the successor rule; the approved callback contract deliberately requires
+expected context before body constraints, and its endpoint propagation extent
+remains the pending user choice.
+
 ## Main records
 
 - `notes/design/2026-10-03-scoped-constraint-solving.md` — scoped regular equality quotient and finite closed structural subtype saturation; the following reviewed candidate addresses open residual factorization.
