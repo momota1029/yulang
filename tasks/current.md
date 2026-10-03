@@ -1802,7 +1802,26 @@ For callback literals it must then emit ordinary `A <: F_cb` obligations
 without assuming their success. No API/phase or new carrier is implicated.
 Until this rule is derived, the callback domain and observation proofs remain
 open; the separate same-activation Pure-value declared-use correspondence
-also remains pending its user decision.
+is now source-authorized at the slot-view level, while its concrete coordinate
+and receipt paths still need derivation.
+
+The user has now clarified the missing use-site point: a callback slot is a
+typed view for invocations made through that slot, not merely an assignment
+check. This view preserves the callback slot's original boundary/profile while
+leaving the underlying value's Pure/Handler introduction role and §21 entry
+unchanged. The Authoritative callback contract records this decision in §4;
+independent compiler-referee and spec-auditor delta reviews found no issue.
+This authorizes the source-level slot view, but does not prove its concrete
+typed paths, complete-domain inclusion, observation inclusion, or the intended
+Function inequality. `ExecuteCallable`/`J_call` remains a conditional
+denotational basis: core §9 defines `J_call` as the full relational image of
+the actual source producer's `ExecuteCallable` and derives input/output
+directions. That core remains Draft and does not itself project role-specific
+effect ports or define a finite complete interface. Next derive the slot
+boundary/profile's attachment to this full call relation, preserving source
+positions, the same `Rel_C`/`K,D`/`ν` fiber, and the existing subtraction
+evidence. Exact role-indexed port projection and shared-fiber accounting
+remain open. No API/phase, new carrier, or implementation is selected.
 
 ## Main records
 

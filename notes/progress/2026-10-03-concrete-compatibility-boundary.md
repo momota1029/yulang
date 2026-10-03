@@ -2902,11 +2902,33 @@ resumptions/future uses. It requires the checked complete `CallView` and same
 `ν,K,D` evidence. The negative `p_d⁻` path and slot/argument receipt
 correspondences are needed to construct domain inclusion through typed
 profiles; the positive `p_d⁺` path is observation-side. Current rules do not
-derive either source-coordinate map. The proposed declared-use projection is
-therefore a new bounded rule awaiting user decision, not a consequence of the
-approved callback-literal delivery contract. API/phase, typed-interface
-ownership, and evidence carriers remain unselected. No implementation or
-tests were performed.
+derive either source-coordinate map. The user has since selected the source
+rule that callback slots are typed views for invocations through them,
+preserving the underlying value's role and entry. This resolves whether the
+view exists; it does not itself prove the specific original-coordinate maps or
+receipt correspondences required by the typed evidence. API/phase,
+typed-interface ownership, and evidence carriers remain unselected. No
+implementation or tests were performed.
+
+Sol's follow-up derivation narrows the next step. Core §9 already defines
+`J_call` as the complete relational image of the actual producer's
+`ExecuteCallable`, parameterized by `J_arg`, environment and current
+configuration; the closure expansion includes receipt, §21 entry, typed
+rebind, body and designated result consumption. §9 also derives the port
+directions. This supplies a conditional semantic basis for the slot view, not
+a complete approved Function-interface construction: the core is Draft, its
+finite complete interaction image remains open, and it does not define the
+role-specific typed attachment or effect-port projection.
+
+In particular, `Force(D) >>= B` conditionally exposes requests from `D` and
+from body states reached after force. That may be covered by `[b,d]` when
+source rules establish `d` as the attached input contribution and `b` as the
+uniform bound on reached body behavior. It does not by itself prove exact
+`[b,d]`, checked-domain inclusion, response/store/future-history coverage, or
+subtraction eligibility. Retained Computation entry may ignore `D`, which
+rules out unconditional addition. The immediate proof task is now to derive
+the slot profile's attachment to the full `J_call` relation for invocation
+through the slot, keeping the underlying Pure role and Value entry intact.
 
 ### Role-indexed Function interface audit (2026-10-04)
 
@@ -2941,4 +2963,25 @@ domain, typed execution positions, and effect-port correspondences from the
 selected role, original boundary/profile, §21 entry, and body/result under
 shared `Rel_C`, `K,D`, and `ν`. This is independent of API/phase choice and
 does not authorize a new carrier. The existing-Pure same-activation
-declared-use projection remains separately pending user decision.
+declared-use projection is now source-authorized at the slot-view level; its
+concrete coordinate and receipt paths still need derivation.
+
+### Callback-slot invocation view clarification (2026-10-04)
+
+The user clarified that the callback slot is itself a typed view for each
+invocation made through that slot; it is not only an assignment-time check.
+The slot retains its original boundary/profile for those uses. This does not
+rewrite the underlying function value's Pure/Handler introduction role or
+§21 entry. For an existing Pure value, the slot view therefore surrounds the
+actual invocation while the original value's entry still performs its actual
+Value/Computation behavior. This is distinct from contextual introduction of
+a new callback literal, which receives Handler before body elaboration.
+
+The Authoritative callback-context contract §4 and its §8 identity witness now
+record this distinction. Compiler-referee and spec-auditor delta reviews found
+no blocking, major, or minor finding. The update selects no API/phase, evidence
+carrier, automatic conversion, or inequality success. In particular, it does
+not discharge the original-coordinate `Flow`/`Receive`/`Observe` maps or either
+complete-domain clause. Core §9's full `ExecuteCallable` relation is a
+conditional semantic basis for the invocation view, but the core is Draft;
+it does not yet derive role-specific source port projections.

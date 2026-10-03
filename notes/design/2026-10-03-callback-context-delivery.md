@@ -1,11 +1,11 @@
 # Callback expected-context delivery before literal-body elaboration
 
 Status: Authoritative
-Date: 2026-10-03
-Scope: bounded source elaboration for one unannotated Function literal passed to a known Function-valued callback formal
-Approved-by: user, 2026-10-03 (bounded source contract only)
+Date: 2026-10-04
+Scope: bounded source elaboration for an unannotated Function literal and an existing Pure Function value used through a known Function-valued callback formal
+Approved-by: user, 2026-10-03 (callback literal context delivery); user, 2026-10-04 (callback-slot invocation view preserves underlying role and entry)
 Drafted-by: primary
-Reviewed-by: architect, compiler_referee, and spec_auditor (2026-10-03, including §4 and §8 deltas); no unresolved findings
+Reviewed-by: architect, compiler_referee, and spec_auditor (2026-10-03, including §4 and §8 deltas); compiler_referee and spec_auditor (2026-10-04 invocation-view delta); no unresolved findings
 Supersedes: none
 
 ## 1. Purpose and authority boundary
@@ -106,7 +106,16 @@ different source paths:
 | Source path | Source role | Required semantic check |
 |---|---|---|
 | An unannotated literal appears directly in a known callback slot | Handler from the expected context, before body constraints | Elaborate that literal under the supplied callback boundary; do not first construct it as Pure and repair it afterward. |
-| An already constructed Pure function value is supplied to a handler-capable callback slot | Preserve the value's actual Pure introduction and its §21 entry | Resolve the concrete inequality between the actual value interface and the checked callback interface; any adapter is evidence/realization from that one query. |
+| An already constructed Pure function value is supplied to a handler-capable callback slot | Preserve the value's actual Pure introduction and its §21 entry | Resolve the concrete inequality between the actual value interface and the checked callback interface; the callback slot also supplies a typed view for invocation through that slot. |
+
+A callback slot is not only a type-checking location at assignment. It supplies
+a typed view of invocations made through that slot, retaining the slot's
+original boundary/profile for those uses. This use-site view does not rewrite
+the underlying function value's Pure/Handler introduction role or its §21
+parameter-entry semantics. In particular, a Pure value invoked through a
+handler-capable slot keeps its actual Pure role and Value/Computation entry;
+the slot view governs that invocation path. Any adapter remains evidence or
+realization from the same concrete `A <: B` query.
 
 The first path selects how a new literal is introduced. It does not prove the
 second path's concrete inequality. Conversely, success of that concrete
@@ -123,7 +132,9 @@ this fixture does not derive the complete callback transition, source
 challenge domain, or the pure-value adaptation.
 
 For the second path, §21's actual entry and the original decorated behavior
-must remain executable under the handler-capable slot view. For a Value-entry
+must remain executable under the handler-capable slot view on invocation
+through that slot. The view is a use-site typed boundary; it does not replace
+the underlying value's introduction or entry role. For a Value-entry
 call, `receipt; Force(D) >>= B` conditionally places requests from both the
 forced argument and reached body states in the common invocation. Relating
 those events to the target profile still requires typed receipt/`Flow`,
@@ -217,8 +228,9 @@ pass_existing_callback(f)    // witness specializes its shared A to Int
 
 Use an already constructed `f`, not an inline callback literal. The
 higher-order receiver receives `f` at its callback slot and invokes it during
-that same receiver activation, while the slot's handler-capable boundary is
-still live. Invoke the callback view with an inert argument carrier `D_req`
+that same receiver activation through the slot's handler-capable typed view,
+while its boundary is still live. The actual value remains Pure and keeps its
+§21 `Value(A)` entry. Invoke the callback view with an inert argument carrier `D_req`
 that emits one declared request, resumes with an `Int`, then returns. Under
 the source call schedule, the candidate order is:
 
