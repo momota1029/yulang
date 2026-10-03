@@ -1894,9 +1894,15 @@ of the request from `Force(J_arg)` to that same positive `d` member at
 `J_call.effect`, preserving its source identity and shared ledger. Whole-call
 `Observe`, `K,D` identity, matching family names, and row membership alone do
 not establish this: the complete row could admit the event through `b`
-without linking it to `d`. This is a source projection obligation expressible
-with existing typed paths and occurrence/incidence, not evidence for a new
-carrier. Independently,
+without linking it to `d`. Astra's bounded audit confirms that existing typed
+paths and occurrence/incidence can express the needed projection, but current
+equations do not entail it. Its two-member completions are a formal
+non-entailment witness for the evidence specification, not an executable
+source counterexample; a request may also be admitted by both `b` and `d`, so
+the proof needs an original `d` contribution witness rather than exclusive
+family attribution. Once source elaboration supplies that projection, the
+existing occurrence relation can carry it without a new carrier.
+Independently,
 `BackgroundWitness` must construct a nonempty shared `Rel_C`/`ν,K,D` source
 fiber without assuming `Q = T_P <: F_cb`. The two receipts and executing views
 do not establish fiber nonemptiness. After these premises, candidate evidence
