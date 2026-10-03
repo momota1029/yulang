@@ -1769,11 +1769,14 @@ Generating these declared-use correspondences as admissible source evidence
 was not covered by the approval at the time of this audit. The user later
 approved the callback slot as a typed invocation view in §4 of the
 Authoritative callback contract, preserving the underlying role and entry.
-That resolves whether the declared-use view exists, but its source-generated
-receipt/correspondence evidence, role-derived admission lemma, and complete
-domain/observation inclusions remain open. No API/phase choice, carrier, or
-implementation is selected. Do not infer domain or observation inclusion
-from `Force(D) >>= Return`.
+That resolves whether the declared-use view exists. A bounded
+compiler-referee delta now closes its ordinary receiver `Receive` for the
+case where the receiver actually obtains the typed callback binding. The
+source maps from `β`'s signed effect positions to the argument-force and
+complete-call positions, their admissibility when adaptation is unresolved,
+the role-derived admission lemma, and complete domain/observation inclusion
+remain open. No API/phase choice, carrier, or implementation is selected. Do
+not infer domain or observation inclusion from `Force(D) >>= Return`.
 
 ### Role-indexed Function interface audit (2026-10-04)
 
@@ -1803,9 +1806,10 @@ and effect-port correspondences from selected role, original boundary/profile,
 For callback literals it must then emit ordinary `A <: F_cb` obligations
 without assuming their success. No API/phase or new carrier is implicated.
 Until this rule is derived, the callback domain and observation proofs remain
-open; the separate same-activation Pure-value declared-use correspondence
-is now source-authorized at the slot-view level, while its concrete coordinate
-and receipt paths still need derivation.
+open; the separate same-activation Pure-value declared-use correspondence is
+now source-authorized at the slot-view level. Its ordinary slot receipt
+follows from a typed binding; concrete argument/call coordinates and their
+admissibility still need derivation.
 
 The user has now clarified the missing use-site point: a callback slot is a
 typed view for invocations made through that slot, not merely an assignment
@@ -1835,7 +1839,11 @@ maps. Given the ordinary typed binding of the slot and typed application
 correspondence for identity argument/result views, the slot view is rooted at
 the slot owner's `Receive`; core §9 supplies the `J_arg`/`J_call` directions,
 and §21 places the actual `Force(D)` inside the Pure value's unchanged entry.
-The conditional package is:
+For an actual typed binding, the ordinary receipt rule supplies
+`Receive(r, callback_slot, V_slot, M_slot)`; `M_slot` retains the instantiated
+slot profile and is not an inferred conversion from the underlying Pure
+interface. This closes the receipt node, not the endpoint interpretation of
+the next two maps. The candidate package is:
 
 ```text
 Receive(r, callback_slot, V_slot, M_slot)
@@ -1861,20 +1869,22 @@ complete-call position `J_call`, not the whole `[b,d]` effect or complete
 relation. Sharing the name `d` and opposite signs alone would not imply this;
 the approved slot invocation view and explicit linked-lifting intent do.
 Still open are source derivation that the known role-indexed `F_cb/profile`
-actually contains those original signed occurrences, generation of the
-`Receive`/application typed correspondences and executing views alongside
+actually contains those original signed occurrences, generation and
+admissibility of the application/force maps and executing views alongside
 `T_P <: F_cb`, shared-fiber well-formedness, evidence admissibility, and both
 universal clauses: checked challenge-domain inclusion and complete observation
 inclusion. A bounded finite-generation schema now constructs the unresolved
 query with candidate receipts, correspondences and views when the finite
 source/profile graph supplies those original occurrence facts. This does not
 prove that raw source constructs the profile or that the generated paths are
-admissible. Immediate next gate: prove `ArgEventToCallMember` for the bounded
-identity callback witness and establish its base-case open source fiber without
-assuming `Q`, then test candidate-evidence admissibility. Keep universal domain
-and observation inclusion separate. An independent Astra
-audit and the follow-up Sol derivation split that gate into two independent
-premises. A bounded compiler-referee audit confirms that, given supplied
+admissible. Immediate next gate: derive one shared abstract `d` denotation and
+its two port projections for the bounded identity callback witness; establish
+its base-case open source fiber without assuming `Q`; then test
+candidate-evidence admissibility. Keep universal domain and observation
+inclusion separate. Astra and compiler-referee audits refine the former
+`ArgEventToCallMember` gate into shared support membership, dynamic event
+preservation, and positive typed-incidence claims. A bounded compiler-referee
+audit confirms that, given supplied
 role-indexed typed paths for `F_cb` and original `Slots(β)`, source application
 associates the whole inert `t_D` with `J_arg`, its supplied effect occurrence
 with the argument-effect position, and the supplied positive `d` member of
@@ -1887,83 +1897,51 @@ instance/origin, `ν,K,D`, response endpoint and pending suffix through bind and
 one current-state resumption; typed-boundary pre-dispatch execution context
 therefore gives `Observe` at both the nested force view and whole `J_call`
 view. This remains conditional on a supplied decorated execution and legal
-response, and `Observe` names the whole call port. It does not attribute `q`
-to the positive `d` member of `[b,d]`. The remaining
-`ArgEventToCallMember` lemma must carry the original negative `d` incidence
-of the request from `Force(J_arg)` to that same positive `d` member at
-`J_call.effect`, preserving its source identity and shared ledger. Whole-call
-`Observe`, `K,D` identity, matching family names, and row membership alone do
-not establish this: the complete row could admit the event through `b`
-without linking it to `d`. Astra's bounded audit confirms that existing typed
-paths and occurrence/incidence can express the needed projection, but current
-equations do not entail it. Its two-member completions are a formal
-non-entailment witness for the evidence specification, not an executable
-source counterexample; a request may also be admitted by both `b` and `d`, so
-the proof needs an original `d` contribution witness rather than exclusive
-family attribution. Under the selected linked-contribution meaning, the
-bounded one-event implication is now explicit: if q is source-typed at the
-negative input d occurrence and the independently generated source context map
-`κ` carries the argument-force execution into `J_call`, bind preserves q and
-the live CallView yields whole-call `Observe`; the linked image-containment
-premise then places that same q at the designated positive d member. This
-does not assume positive membership as a premise, and b may also admit q. The
-architect audit confirms that image containment faithfully formalizes the
-already selected intent and adds no semantic choice. This conditional lemma
-does not yet construct `κ` or the positive member's denotation from an actual
-source profile; defining that denotation as the desired image would be
-circular. The remaining source elaboration must generate both independently
-of `Q`, then establish the base-case fiber. Existing typed paths and
-occurrence/incidence can carry the result without a new carrier. The reviewed
-finite linked-execution theorem in
-`notes/design/2026-10-02-parametric-component-linking.md` §7 already supplies
-the dynamic part of `κ` for a finite resolved link graph: request packets,
-current-state resumption and pending suffixes are preserved, and the call
-links its actual argument port to the producer's Value-entry path. Reuse that
-simulation rather than reproving trace preservation. It still assumes the
-source link graph and typed port maps; it does not generate the map from the
-original negative `d` occurrence through the shared contribution to the
-positive `d` member, nor does it establish a nonempty `Rel_C` fiber. The
-refined support proof below no longer requires such an event-incidence map for
-abstract membership, but the source-owned denotation and port projections are
-still missing. `BackgroundWitness` remains an independent obligation.
-Independently,
-`BackgroundWitness` must construct a nonempty shared `Rel_C`/`ν,K,D` source
-fiber without assuming `Q = T_P <: F_cb`. The two receipts and executing views
-do not establish fiber nonemptiness. After these premises, candidate evidence
-admissibility and the two universal inclusions remain separate. Astra found
-no concrete fact unavailable in existing `Flow`/`Observe`/`Path`/`Inc_C`,
-`K,D`, or subtraction evidence. No new carrier or implementation authority
-follows. A second, adversarial Astra pass separates projected row membership
-from event incidence: under the coupled-interface `J_R` candidate, sharing a
-source-owned argument binder `g` can place `(head(q), args(q))` in the positive
-row only if the designated positive occurrence belongs to `d`, has
-`head(q)`, shares the same `g`, uses `args(q) = ν(g)`, and the positive row
-has a nonempty joint fiber. `ArgDen_A` denotes invariant argument tuples, so
-`q` itself is ill-sorted as its member; membership of `args(q)` in an allowed
-argument domain does not imply equality with `ν(g)`. Even when projected
-membership follows, it erases event identity and does not transport the
-original negative incidence to a live positive `Path`/`Inc_C` witness. The
-inspected rules also do not map abstract effect component `d` to this
-operation-argument binder `g`; treating them as shared would be an unproved
-crosswalk. This narrows the conditional support lemma but does not establish
-its source premises or justify a new carrier.
+response, and `Observe` names the whole call port. It does not by itself
+establish the positive `d` member. Astra's two-member completions are a formal
+non-entailment witness for deriving that membership from whole-call
+observation, `K,D` identity, matching family names, or aggregate row support
+alone; they are not an executable source counterexample. A request may be
+admitted by both `b` and `d`, so exclusive family attribution is unnecessary.
 
-A compiler-referee delta found a cleaner conditional proof split for abstract
-support membership. If both signed occurrences are independently assigned the
-same semantic component denotation `Den(d,ν)` at one joint fiber, and the
-negative source contract proves `typed(q) ∈ Support(Den(d,ν))`, membership in
-the designated positive `d` occurrence follows by identity; a
-negative-to-positive event-incidence edge is unnecessary for that set
-membership step. Bind separately preserves the actual event, origin and
-`K,D`, while a live positive `Path`/`Inc_C` still requires its own typed
-profile/view derivation. This reading is faithful to the selected “same `d`
-contribution” intent but remains conditional: the source records say a shared
-term/assignment, not that both port occurrences use an occurrence-independent
-support projection of one denotation. A common denotation with different port
-projections, or support identity alone offered as capture evidence, is
-insufficient. The next narrow proof is therefore to derive the shared abstract
-denotation and both port projections from the role-indexed source profile at a
-nonempty joint fiber; complete event-domain inclusion remains separate.
+The proof can split into three claims. First, abstract support membership is
+immediate if both signed occurrences independently denote the same
+`Den(d,ν)` at one joint fiber and the negative source contract establishes
+`typed(q) ∈ Support(Den(d,ν))`: membership at the designated positive `d`
+occurrence follows by identity. A cross-polarity event-incidence edge is not
+needed for this set-membership step. Second, §9 bind preserves the actual
+event, origin and `K,D` through the Force-to-call execution, and the live
+CallView supplies whole-call `Observe`. Third, a positive `Path`/`Inc_C`
+witness still requires the positive profile occurrence's own typed mapping to
+the executing view. Support identity cannot replace capture evidence.
+
+An adversarial Astra audit checked whether the coupled-interface `J_R`
+candidate supplies the first claim. Sharing an operation-argument binder `g`
+places `(head(q), args(q))` in the positive row only if the designated
+positive occurrence belongs to `d`, has `head(q)`, shares the same `g`, uses
+`args(q) = ν(g)`, and the positive row has a nonempty joint fiber.
+`ArgDen_A` denotes invariant argument tuples, so `q` itself is ill-sorted as
+its member; membership of `args(q)` in an allowed domain does not imply
+equality with `ν(g)`. Even then, projected membership erases event identity.
+The inspected rules do not map abstract effect component `d` to this
+operation-argument binder `g`, so this candidate does not establish the
+abstract support premise.
+
+The reviewed finite linking theorem in
+`notes/design/2026-10-02-parametric-component-linking.md` §7 already supplies
+the dynamic execution map for a finite resolved link graph: request packets,
+current-state resumption and pending suffixes are preserved, and the call
+links its actual argument port to the producer's Value-entry path. It assumes
+the source link graph and typed port maps; reuse it rather than reproving
+trace preservation. The remaining source lemma must independently generate
+the shared abstract denotation and its two port projections from the
+role-indexed source profile, at a nonempty joint `Rel_C`/`ν,K,D` fiber. This is
+faithful to the user's same-`d` contribution intent but not yet derived from
+the current source clauses. `BackgroundWitness`, candidate evidence
+admissibility, and the universal domain and observation inclusions remain
+separate. Existing `Flow`/`Observe`/`Path`/`Inc_C`, `K,D`, and subtraction
+evidence show no concrete carrier gap; implementation authority remains
+closed.
 
 ## Main records
 
