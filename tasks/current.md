@@ -235,11 +235,19 @@ occurrences marked at their exact ports: `p_d⁻` for the input force and
 `p_d⁺` for the same event's exposed complete-call position. Identity `Flow*`,
 `Receive`, operational preservation and shared `ν,K,D` do not create or assign
 these occurrences. `Path`/`Inc_C` join them after source elaboration. The
-cross-polarity step is not a `Flow` edge between effect positions. Derive both
-port assignments from the role-specific source invocation relation, or
-identify the missing source rule. Reuse existing directed-weight/subtraction
-evidence for any witnessed partial reversal. The checked output projection
-remains open; do not infer it from flat row spelling alone.
+cross-polarity step is not a `Flow` edge between effect positions. Core §9
+proves the generic input/output directions and preserves the Force event
+through the invocation suffix, but does not assign the exact checked members
+`p_d⁻` and `p_d⁺`. A force view at `p_arg` and call view at `p_call` satisfy
+those operational clauses without proving either checked-port correspondence;
+this is underdetermination, not a counterexample to an approved rule. The
+next bounded proof gate is source-generated decorated invocation for the
+closed identity witness, before inequality success, deriving both port
+assignments at the same event emission under shared `ν,K,D`, preserving
+separate callback-value/argument receipts, actual §21 entry, live boundary,
+and resumption suffix. Reuse existing directed-weight/subtraction evidence
+for any witnessed partial reversal. No carrier gap, inequality proof, or
+accepted-program claim is established.
 
 Keep complete `EnvStore`/`JointWF` construction, source alias/store transition
 closure, and finite-witness adequacy as later proof gates. They remain needed
