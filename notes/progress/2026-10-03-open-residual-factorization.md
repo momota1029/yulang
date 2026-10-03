@@ -1264,11 +1264,25 @@ the isolated unary example does not refute the accelerator within its scope.
 
 Minimal mixed-record probe for the remaining P/P transition: use an abstract
 binary constructor `C` with declared variance `(+,-)`, exact Records
-`e={}` and `r={f:Int}`, descriptor `q=C(x,e)`, and the one bound `x <: q`.
-The regular assignment `x=C(x,r)` satisfies that original inequality by direct
-decomposition: the covariant child is `x <: x`, while the contravariant child
-is `e <: r`, valid by mandatory-Record width. This places a ranked P/P
-self-comparison and a nontrivial Record-width comparison in one package. It is
-a minimal closure probe only; it neither refutes a candidate nor proves a
-general regular-witness result, and `C` here is not a proposal to decompose
-Yulang Function's coupled effect interface as an arbitrary ranked product.
+`e={}` and `r={f:Int}`, descriptor `q=C(x,r)`, and the one bound `x <: q`.
+Choosing the head of flexible `x` as `C(x₁,e₁)` generates the covariant child
+obligation `x₁ <: x` (P/P) and the contravariant child obligation `r <: e₁`.
+The regular assignment `x=C(x,e)` sets `x₁=x` and `e₁=e`, discharging the
+first by reflexivity and the second by mandatory-Record width. This places a
+ranked P/P obligation and a nontrivial Record comparison in one satisfiable
+package. It is a minimal closure probe only; it neither refutes a candidate
+nor proves a general regular-witness result, and `C` here is not a proposal to
+decompose Yulang Function's coupled effect interface as an arbitrary ranked
+product.
+
+**Bounded compiler-referee delta review.** The initial probe had its Record
+direction reversed; with `q=C(x,r)` and witness `x=C(x,e)`, the reviewer
+confirmed the corrected direct decomposition. It also supplied a falsification
+case for dropping the generated P/P child: `x=C(Int,e)` passes the
+contravariant Record obligation `r <: e` but leaves the failed required child
+`Int <: x`. Thus a solver cannot skip the P/P edge merely because the witness
+above chooses identical endpoints. The proposed context atom still requires an
+opposing exact `K` partner, while this child is P/P; the review confirms that
+the current state proposal is undefined here. It reviewed the mixed witness and
+this omission discriminator only, not a general flex/flex construction or
+regular-witness theorem.

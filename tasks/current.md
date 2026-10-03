@@ -165,11 +165,18 @@ has nonempty Record descriptors, so the `Λ=∅` reduction no longer applies.
 Probe the transition with such a Record obligation still present; the isolated
 unary case does not show a failure of the accelerator within its stated scope.
 Minimal mixed probe: for an abstract binary constructor `C` with declared
-variance `(+,-)`, let `e={}`, `r={f:Int}`, `q=C(x,e)`, and require `x <: q`.
-The regular assignment `x=C(x,r)` satisfies the bound directly: its children
-give `x <: x` and `e <: r`. This forces a ranked P/P self-comparison and a
-nontrivial Record-width comparison in one package. It is a closure probe, not a
-counterexample or a general regular-witness argument.
+variance `(+,-)`, let `e={}`, `r={f:Int}`, `q=C(x,r)`, and require `x <: q`.
+Choosing the head of flexible `x` as `C(x₁,e₁)` produces `x₁ <: x` at the
+covariant child (a P/P obligation) and `r <: e₁` at the contravariant child.
+The regular assignment `x=C(x,e)` sets `x₁=x`, `e₁=e`, and satisfies both
+obligations directly; `r <: e` succeeds by mandatory-Record width. This is a
+closure probe, not a counterexample or a general regular-witness argument.
+The bounded compiler-referee delta review confirmed this derivation after
+rejecting and correcting the initial reversed Record direction. It also showed
+why the generated P/P obligation cannot simply be omitted: choosing
+`x=C(Int,e)` leaves the Record child valid but requires `Int <: x`, which
+fails. The existing exact-K-partner context atom still cannot encode this
+generic P/P edge; no general flex/flex transition has been reviewed.
 
 ## Current work
 
