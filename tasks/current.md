@@ -245,6 +245,27 @@ choose either component interpretation before deriving how introduction and
 expected context select the role and elaborate the complete interface. No
 new carrier or solver phase is justified by the current evidence.
 
+The next theorem is now scoped as role-directed Function introduction and
+contextual checking, with four distinct cases: synthesized unannotated
+literal; explicitly Function-annotated literal; callback-context literal; and
+an already-constructed value checked against a handler-capable interface.
+Preserve actual entry and decorated behavior for the last case. Cross each
+case independently with §21's value-entry versus retained-computation entry;
+`Force(D) >>= B` applies only to value entry, while retained entry follows
+actual body consumers. Construct complete source-admissible challenge domains
+independently of observed calls or comparison success, with source histories,
+stores, responses, profiles, callback/future-use and resumption. Do not accept
+via an empty joint fiber. Derive the joint `[b,d]` lift only after actual /
+checked domains and complete observations are constructed under shared `ν`
+and `K,D`.
+
+The M3 compiler-referee review found a BLOCKING gap in complete-domain
+construction and major gaps in decorated-behavior preservation, parameter
+entry separation, and support-only lifting. The bounded spec audit found the
+selected direction conformant; the semantic proof gaps remain open. No
+carrier insufficiency is shown, and compiler implementation remains
+unauthorized. See design §8 and the current progress entry.
+
 Any hypothetical annotation-coverage rule must be a universal obligation over
 the supplied complete comparison, not deletion of uncovered observations.
 Its support projection applies only after concrete and abstract component

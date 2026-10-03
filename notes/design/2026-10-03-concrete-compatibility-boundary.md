@@ -5,6 +5,7 @@ Date: 2026-10-03
 Scope: one inequality judgment with endpoint-dependent solving and local concrete cast/adaptation resolution
 Approved-by: user for the single inequality judgment, endpoint-dependent resolution direction, concrete-success non-composition, polarity-indexed Function effect descriptors, mixed abstract/concrete type components, canonical-flat covariant rows, abstract-only contravariant meet normalization, and concrete-bearing attachment descriptors for witnessed partial reverse-addition; component classification, co-occurrence consolidation, the component-to-existing-carrier bridge, proof that existing evidence licenses a particular reversal, replay eligibility, and implementation remain open
 Reviewed-by: prior compiler_referee/spec_auditor reviews cover frozen-source facts and earlier Record/replay candidates; 2026-10-03 compiler-referee delta reviews of the Function descriptor and mixed-row candidate found no blocking/major issues, with minor wording repairs closed; general-component, polarity-specific reverse-addition, and abstract-only contra-meet wording delta reviews found no blocking/major/minor issue; the conditional support-obligation corollary received bounded spec-auditor and compiler_referee review with all findings closed and no remaining finding; the intended-Function necessary-condition subsection received a bounded compiler_referee review with no findings; the conditional Act-family coverage candidate received a bounded compiler-referee review, its minor ownership clarification and major nonempty-fiber premise were repaired, and the delta review closed with no residual finding; the singleton `TypedRow` to candidate Function-support crosswalk received a bounded compiler_referee review with no findings; the abstract-component same-fiber candidate had a major joint-fiber/union-premise finding repaired and its bounded delta review closed with no residual finding; the full witness calculus remains unreviewed
+Role-first §8 review: architect pre-write audit; compiler_referee reported one BLOCKING complete-domain-construction gap and major decorated-behavior, entry-role separation, and support-only lifting gaps; spec_auditor found the selected direction conformant and confirmed these obligations remain open. No carrier insufficiency found.
 Implementation authority: none
 Supersedes: none; narrows source applicability of structural relation candidates without invalidating their fragment theorems
 
@@ -1096,3 +1097,90 @@ downstream, but only after role-specific Function interface elaboration shows
 that a component bridge is still needed. This addendum records the user's
 direction; it does not claim the missing elaboration or inequality proof is
 complete and grants no implementation authority.
+
+## 8. Role-directed elaboration proof obligations (2026-10-03)
+
+The bounded source derivation and independent compiler/specification review
+confirm the role-first ordering, while exposing the exact proof boundary.
+Charter §§16–21 and core §§6–9 already supply common invocation, inert
+argument reification, parameter entry, typed result forwarding, and conditional
+complete-domain comparison. They do not construct the receiver-role-indexed
+Function interface or its complete challenge domain from a source literal or
+expected callback context.
+
+| Source case | Selected receiver role | Required elaboration obligation |
+|---|---|---|
+| Unannotated literal in synthesis | Pure | Synthesize the body/result using §18 and the parameter entry fixed by §21; construct the complete Function view without identifying “pure” with empty call support. |
+| Explicitly Function-annotated literal | Handler boundary | Preserve the original annotation occurrence and construct its source boundary/profile and typed paths before interpreting effect ports; the annotation does not invent operation arms. |
+| Literal checked in callback position | Handler from expected context | Elaborate against the expected callback boundary while retaining its actual source entry and body; expected context cannot infer parameter retention from an effect row. |
+| Already-constructed function value checked at a handler-capable interface | Comparison/adaptation case, not literal introduction | Preserve actual executable entry and original decorated behavior. A changed entry or boundary requires a separately justified executable conversion. |
+
+Receiver role and parameter entry are independent axes. Every case must be
+parameterized by §21's `Value(A)` entry (receive, force once, rebind) or
+`Computation(E,A)` entry (receive, retain); neither role nor solved effect
+support changes that choice. Thus `Force(D) >>= B` is an operational premise
+only for a value-entry case. For retained entry, the complete invocation
+depends on actual body consumers: it may ignore the carrier or consume it
+through an explicit source path. Empty effect support cannot decide between
+these cases because pure divergence remains observable.
+
+The construction of the complete source domains must be independent of the
+comparison's success and of the set of currently observed calls. It must not
+make an unused exported function pass by vacuity, nor quantify over arbitrary
+machine configurations that no source context can construct. It must cover
+source-admissible caller histories, live stores, supplied values/computation
+carriers, responses, callback/future-use paths, and resumption. The existing
+coupled relation is the semantic candidate; an effective finite presentation
+is a later proof obligation. An empty joint fiber is not evidence of
+acceptance.
+
+For a value-entry call with argument computation `D`, the bind law gives the
+conditional execution shape:
+
+```text
+actual receiver and receipt established;
+Force(D) >>= typed rebind >>= body >>= designated result consumer
+```
+
+Every request from `D` keeps its origin, operation instance, live state and
+shared `K,D`; bind appends the same suffix. If `d` bounds argument execution
+and `b` uniformly bounds the body at every reachable post-force state under
+the same assignment, `supp(D) ∪ ⋃ supp(B(v,C₁))` is a conditional upper bound
+for this unfiltered support. It is not exact row addition and does not yet
+interpret `[b,d]`. Retained entry, shallow handling, raw-continuation
+re-emission, designated operation-result consumption, returned latent values,
+and future callback invocations remain in the complete relation.
+
+The intended pure-to-handler interface check still requires a derivation of
+both clauses at shared `ν`:
+
+```text
+D_checked(ν) ⊆ D_actual(ν)
+∀h ∈ D_checked(ν). P_actual(h) ⊆ P_checked(h)
+```
+
+The role-specific construction must supply the challenges, complete
+observations, original profiles, typed `Flow`/receipt correspondences, and
+event-specific `Observe`/incidence that make these clauses meaningful.
+Handler role by itself grants neither capture authority nor new operation
+arms. The displayed `never` remains uninterpreted as an effect port until that
+source construction is derived; it cannot be equated with an empty row or
+polarized solver extreme.
+
+The compiler-referee review reported a BLOCKING closure finding against the
+candidate complete-invocation theorem (the required challenge-domain
+construction is absent) and major findings for decorated-behavior preservation,
+the independent parameter-entry axis, and the insufficiency of support union
+for full Function comparison. The specification audit found the role-first
+direction conformant and confirmed those are open proof obligations, not a
+conflict with the user's selected rules. This section records the exact
+conditions; the findings remain open because no source-domain construction or
+preservation proof has been produced.
+
+The compiler-referee review found no evidence that `Rel_C`, shared `ν`, `K,D`,
+`Flow`, `Observe`, incidence or existing subtraction cannot represent a
+required fact. The blocker is missing source derivation/domain construction,
+not a demonstrated carrier insufficiency. Keep implementation authority
+closed. The next theorem should establish role-directed introduction and
+contextual checking with the above independent parameter-entry and decorated-
+behavior obligations; only then attempt the joint `[b,d]` lift.

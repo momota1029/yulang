@@ -1331,3 +1331,47 @@ reverse-addition evidence.
 Updated: design §7, task immediate gate, and design index. No implementation,
 tests, builds, measurements or Oracle inspection were done. Literal
 elaboration and the intended lifting derivation remain open.
+
+### Role-directed elaboration closure audit (2026-10-03)
+
+I reviewed the role-first case split against charter §§16–21, typed-core
+§§6–9, ordinary-computation §§3–4, and the coupled-interface relation. A
+bounded Sol architect derivation established that the user-selected cases
+remain distinct from §21 parameter entry and that the previous
+component-first/binary-choice question is superseded. It found no existing
+clause that constructs pure/handler Function descriptions from the literal,
+annotation or expected callback context.
+
+The candidate immediate theorem is role-directed Function introduction and
+contextual checking that constructs the complete invocation while preserving
+actual entry and decorated behavior. A M3 compiler-referee review found:
+
+1. **BLOCKING:** actual/checked complete challenge domains and `P` relations
+   are not constructed. They must range over source-admissible contexts,
+   histories, stores, responses and future callback uses, independently of
+   observed calls and comparison success; neither vacuity nor arbitrary
+   unconstructible configurations can define them.
+2. **Major:** code erasure alone does not preserve decorated behavior when
+   callback profiles differ. Core §7 erases proof labels while retaining
+   original profiles and paths; it does not prove equivalence for different
+   callback annotations.
+3. **Major:** receiver role does not select §21 parameter entry. `Force(D) >>= B`
+   applies only to `Value(A)` entry; retained computation entry follows its
+   actual body consumers, including the unused and explicitly forwarded cases.
+4. **Major:** support union is not full Function inclusion. The joint image
+   includes handlers, raw resumption, designated result consumption, live
+   state, latent return paths and future callbacks. `[b,d]` remains unproved.
+
+The spec-auditor review found no conflict with selected rules and confirmed
+that role alone creates neither a capture grant nor a changed existing
+callable entry. Both reviewers found no concrete insufficiency in `Rel_C`,
+shared `ν`, `K,D`, `Flow`, `Observe`, incidence or existing subtraction. The
+defect is missing source derivation/domain construction, not storage. The
+design §8 and `tasks/current.md` now record these as open closure obligations;
+the intended lift and implementation gate remain open.
+
+No compiler code, Oracle, tests, builds or measurements were inspected. The
+working change is records only; `git diff --check` is the focused integrity
+check. Next: construct the source-admissible challenge/interface relation for
+the three literal cases, parameterized by §21 entry, and prove the
+decorated-behavior transport case before deriving the inequality.
