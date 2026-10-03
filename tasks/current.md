@@ -2371,6 +2371,16 @@ through existing evidence. This is a missing source derivation, not a
 counterexample or new-carrier result; the selected linked-lifting intent is
 unchanged.
 
+A Sol architect derivation for the bounded known-`Value(F_cb)` literal case
+confirms that callback §2 entails pre-body delivery, Handler selection,
+independent §21 entry, and core §6's local body/result skeleton. It also
+confirms that the complete interface step remains explicitly open: current
+authority does not decide whether expected parameter/result endpoints flow
+into body inference or whether body endpoints are inferred independently and
+then constrained by one `A <: F_cb`. The user has been asked to select that
+source rule; callback interface elaboration depending on the answer is
+pending, while independent structural work continues.
+
 ## Main records
 
 - `notes/design/2026-10-03-scoped-constraint-solving.md` — scoped regular equality quotient and finite closed structural subtype saturation; the following reviewed candidate addresses open residual factorization.
