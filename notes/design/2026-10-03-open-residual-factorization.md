@@ -3,7 +3,7 @@
 Status: Reviewed
 Date: 2026-10-03
 Scope: candidate factorization theorem for open structural bounds after scoped rational equality quotienting
-Reviewed-by: compiler_referee and spec_auditor (M3, 2026-10-03); initial structural-outcome repairs, conditional factorization-lemma review, and operation-instance context delta found no remaining findings in reviewed scopes; bounded compiler_referee delta review of §7.1's one-class atomic-Record fiber found no findings
+Reviewed-by: compiler_referee and spec_auditor (M3, 2026-10-03); initial structural-outcome repairs, conditional factorization-lemma review, and operation-instance context delta found no remaining findings in reviewed scopes; bounded compiler_referee delta review of §7.1's one-class atomic-Record fiber found no findings; bounded compiler_referee and spec_auditor review of §7.2's closed-regular-endpoint shape-and-field fiber found no findings
 Implementation authority: none
 Supersedes: none
 
@@ -348,6 +348,86 @@ Effectful Function and operation compatibility, declared bounds, typed-family
 transport, lifecycle/generalization/freshening, full acceptance, termination,
 and resource limits remain later gates. The compiler implementation remains
 unauthorized.
+
+### 7.2 Shape-and-field fiber for closed regular Record endpoints (candidate)
+
+This extension replaces the atomic-field premise of §7.1 with fixed regular
+field endpoints. It remains inside the pure structural relation of
+`scoped-structural-projection.md`; it adds neither an effective field solver
+nor a source rejection rule. Fix the successful equality quotient and one
+descriptor-free class `X`, with finitely many bounds
+
+```text
+L_i <= X        (i in I_L)
+X <= U_j        (j in I_U)
+```
+
+Every `L_i` and `U_j` is a finite mandatory Record with unique labels. Every
+field endpoint is a fixed contractive regular graph in the scoped structural
+fragment, with no unresolved flexible class. Define
+
+```text
+U = ⋃_{j∈I_U} labels(U_j)
+I = ⋂_{i∈I_L} labels(L_i)           when I_L is nonempty
+F_f = { t ∈ Reg |
+       L_i(f) <= t for every lower record containing f,
+       t <= U_j(f) for every upper record containing f }
+```
+
+The bounds in `F_f` are exactly those contributed by the supplied records;
+an empty family on one side adds no obligation. The complete unguarded
+structural fiber is:
+
+```text
+at least one bound:
+  X = Record(D,t), D finite, U ⊆ D,
+  D ⊆ I when lower bounds exist,
+  t(f) ∈ F_f for every f ∈ D
+
+no bounds:
+  X is any graph in Reg, including non-Records
+```
+
+When lower bounds exist, put `A = { f ∈ I | F_f ≠ ∅ }`; the allowed shapes are
+exactly `U ⊆ D ⊆ A`, provided every required `f ∈ U` has nonempty `F_f`.
+With no lower bounds, every finite shape `D ⊇ U` is allowed provided required
+cells are feasible; fields in `D \ U` have arbitrary regular values. Thus
+structural existence is equivalent to `U ⊆ I` and nonempty required cells
+when lower bounds exist, nonempty required cells with upper bounds only, and
+automatic inhabitation of the declared domain when there are no bounds.
+This is a nonemptiness criterion, not an effective procedure for deciding
+`F_f`.
+
+For necessity, Record width forces `U ⊆ D`, and each lower Record forces every
+selected label into `I`. Covariant depth supplies exactly the field
+obligations listed in `F_f`. For sufficiency, choose `D=U` when there is an
+upper bound and select one witness from each required `F_f`; if there are
+lower bounds, `U ⊆ I` supplies the width conditions on every lower. The
+original structural clauses then hold directly by Record width and field
+comparison. No comparison between two endpoints through `X` is generated,
+and no concrete-success transitivity is used.
+
+Fixed recursive endpoints do not add unknowns: each field graph denotes its
+regular tree. A selected candidate field may itself be recursive or share
+graph nodes with another field; finite disjoint copies of its rooted regular
+graph still assemble a contractive Record. Graph-sharing identity has no
+structural meaning beyond unfolding/bisimulation in this fragment. This
+argument stops applying if endpoints contain unresolved `X` or another
+flexible class, identity-sensitive evidence, or constraints requiring
+cross-field sharing. Permissions, guards and `Phi` may also couple otherwise
+independent fields; the full fiber remains their conjunction on the same
+assembled assignment:
+
+```text
+∃ T ∈ StructuralFiber, ω:
+  Perm_Q(T,ω) ∧ Guards(T,ω) ∧ Phi_q(T,ω)
+```
+
+This theorem characterizes Record shape and field obligations. It does not
+decide those field obligations, eliminate the joint predicates, imply that
+source-generated packages meet its closed-endpoint premise, or authorize a
+source-level rejection. Empty required cells remain structural obstructions
+only after their original guards admit the comparisons.
 
 ## 8. Verification direction
 

@@ -50,6 +50,24 @@ invalidation/requeue behavior for a finite unsealed equality construction;
 this does not establish coverage for every source-generated subtype check or
 sealed lifecycle path.
 
+## Follow-up: closed-regular Record field fiber
+
+§7.2 of the candidate now extends the one-class Record fiber theorem from
+identity-only atomic fields to fixed contractive regular field endpoints with
+no unresolved flexible class. It characterizes all admissible label shapes
+and leaves each selected field's joint lower/upper comparisons in an explicit
+`F_f` fiber. The proof uses Record width/depth directly against one assembled
+`X`; it never compares two endpoint successes through `X`. Recursive regular
+field witnesses can be assembled by finite rooted-graph copies, while
+permissions, original guards, and `Phi/K,D` remain conjoined on the same
+assignment.
+
+Independent bounded compiler-referee and spec-auditor reviews found no
+findings in §7.2's fiber characterization or scope. This does not decide
+field-fiber nonemptiness effectively, handle flexible endpoints/cross-field
+constraints, or establish source-generation applicability. `git diff --check`
+passed; no tests, builds, or measurements ran.
+
 Next establish the source-wide context transition system while separating
 immutable lexical identity from mutable dependency certification. Then
 construct an effective joint representation for residual satisfiability plus

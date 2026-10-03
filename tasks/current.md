@@ -127,6 +127,16 @@ compiler-referee review is clean. It preserves all `X <= {}` Record
 extensions and retains permissions, guards, and `Phi/K,D` on one witness;
 it does not solve general residual acceptance or alter the source envelope.
 
+Follow-up bounded result: §7.2 extends the fiber characterization to fixed
+closed regular field endpoints. It factors Record-label selection from the
+per-label conjunction of the supplied lower and upper field inequalities;
+those field fibers remain obligations, not an effective solver. A bounded
+compiler-referee and spec-auditor review found no findings. It preserves the
+single-witness permission/guard/`Phi` intersection, does not compare endpoint
+successes through `X`, and applies only after fixed equality quotienting with
+no unresolved flexible class in the endpoints. It does not close source
+generation, general residual satisfiability, or any effect/component gate.
+
 Immediate gate: locate or derive the source clause that maps a literal
 effect-row component `τ` to its contribution to an existing complete
 receiver/computation view at one `ν`, preserving literal component identity
