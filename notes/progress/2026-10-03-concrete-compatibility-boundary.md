@@ -2667,3 +2667,49 @@ raised a major conformance finding on the earlier exact-coordinate wording;
 this correction accepts and closes that finding. Neither review certifies a
 complete raw-source model or inequality. No new semantic/API choice, carrier,
 implementation, tests, builds, or Oracle work resulted.
+
+### Candidate source-check schema for an existing Pure callback value (2026-10-03)
+
+Sol advanced the gate from a named missing judgment to a proof-only
+obligation-generating source-check schema. For an existing Pure value `f`
+with actual interface `T_actual`, a supplied known instantiated callback
+interface `F_cb` and original profile `(β,Γβ)`, and a same-activation
+callback use, the source elaboration generates exactly the concrete query
+`T_actual <: F_cb` under the one inequality solver. It also constructs a
+candidate decorated consumer plan and attaches proof obligations. This is a
+source rule that generates an `A <: B` task; it is not a second semantic
+compatibility relation, a query success, a source acceptance claim, or an API/
+phase selection.
+
+The candidate plan keeps the callback-slot receipt
+`Receive(r,slot,V_cb,χ_cb)` apart from the actual invocation's argument receipt
+`Receive(u,arg,V_arg,χ_arg)`, and proposes:
+
+```text
+β.p_d⁻ → V_force.p_force
+β.p_d⁺ → V_call.p_call
+View(V_call,p_call,
+  View(V_force,p_force,Force(D)) >>= typed rebind >>= Return)
+```
+
+Both paths are same-polarity typed correspondences from original profile to
+current execution. The views must be nested at emission so the same event is
+observed in both. The slot-owner receipt path needed by `Path` must be derived
+from typed callback-view flow; the argument receipt by `u` does not imply
+receipt of the callback's public view by `r` or authorize pasting it onto
+private bindings. Core entry/bind relates the negative argument contribution
+to the positive complete-call contribution without an effect-to-effect `Flow`.
+
+The plan's arrows remain proposed obligations until independently justified by
+source elaboration and the matching typed correspondence rules. The concrete
+inequality resolver must validate the plan and both complete-domain clauses;
+it cannot use the desired paths as an assumed result and then cite that result
+to prove them. For the fixed identity, `FunctionView(Id,Id)` gives the
+schedule-preserving operational realization but supplies neither boundary
+authority nor typed-path/receipt admissibility. The compiler-referee found no
+semantic contradiction in using the schema as an obligation generator and
+confirmed that actual Pure role and §21 Value entry remain intact. The path
+certificates, exact owner receipt join, and universal challenge/observation
+inclusions remain open. Existing HIR has no application node or typed formal
+input, so the schema is not yet an implementation design; API and phase remain
+unselected. No code, tests, builds, Oracle work, or new carrier resulted.

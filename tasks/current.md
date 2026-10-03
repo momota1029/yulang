@@ -355,6 +355,22 @@ Function denotation does not provide the source context/Env domain lifting.
 No semantic reapproval, API/phase choice, new carrier, implementation
 authority, or complete inequality proof follows yet.
 
+Sol has formulated the next proof-only source-checking schema for an existing
+Pure callback value. Given `f:T_actual`, known instantiated `(β,F_cb,Γβ)`, and
+the same-activation callback use, source elaboration emits the single query
+`T_actual <: F_cb`, a candidate decorated consumer plan, and obligations for
+its paths/receipts. This is a constraint-generating source rule, not another
+semantic compatibility relation. The plan is not yet evidence: query success
+cannot manufacture the correspondences that justify that success. The
+remaining source theorem must independently admit the same-polarity paths
+`β.p_d⁻ → V_force.p_force` and `β.p_d⁺ → V_call.p_call`, plus the slot-owner
+receipt correspondences required by `Path`; the invocation's separate
+`Receive(u,arg,V_arg,...)` does not supply them. The compiler-referee found
+the schema consistent as an obligation generator, with these maps and the
+complete-domain quantifiers still unproved. The current HIR/collector also
+lacks the application/typed-interface input needed to realize it, while the
+API/phase choice remains open.
+
 Sol's focused source-clause audit found no existing rule that derives the
 original slot's `p_d⁻`/`p_d⁺` paths to executable decorations for this existing
 Pure-value adaptation. The callback expected-context rule covers a newly
