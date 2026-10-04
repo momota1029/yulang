@@ -217,7 +217,8 @@ candidate; its finite principal presentation remains a separate open proof.
   A new finite selector-certificate theorem strictly extends the one-open-
   anchor witness construction when an existing anchor satisfies every
   incident directed bound after redirection. It handles multiple compatible
-  open anchors and includes a finite simulation certificate check; a second
+  open anchors; finite selector enumeration plus coinductive simulation gives
+  a terminating positive recognizer. A second
   example shows it is still only sufficient, since a satisfiable package can
   require a fresh constructor graph outside the anchor choices. The current
   HIR structural value shadow satisfies the selector premise in the stronger

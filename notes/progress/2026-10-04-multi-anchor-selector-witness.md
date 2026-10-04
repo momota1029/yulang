@@ -1,14 +1,15 @@
 # Multi-anchor selector witness for structural regularity
 
 Date: 2026-10-04
-Status: conditional theorem result; independent delta review complete; no
-implementation or language authority
+Status: conditional theorem result; theorem and finite-checker proof
+independently reviewed; no implementation or language authority
 Scope: regular-witness existence for a finite pure structural package
 Depends on: `2026-10-04-source-generated-callback-structural-theorems.md`, §6–7,
 and `2026-10-04-direct-main-gate-attacks.md`
 Authority: no new language or solver authority
 Reviewed-by: independent compiler_referee and spec_auditor delta review,
-2026-10-04; initial minor findings corrected
+2026-10-04; initial minor findings corrected and finite-checker extension
+reviewed.
 
 ## Result
 
@@ -99,6 +100,36 @@ The proof uses the same structural comparison relation and descriptor graph;
 it adds no carrier, transitive closure, or change to the principal residual.
 This is an existence witness only and does not collapse variables in the
 residual relation.
+
+## Finite source checker
+
+The selector premise has a terminating positive checker on this package
+class:
+
+1. Run the existing finite normalization and root-only construction for the
+   all-closed-anchor components.
+2. Compute the finite free/free components and their finite anchor sets.
+3. Enumerate one of the finitely many incident-anchor choices for every
+   component with an open anchor; use `{}` for no-anchor components.
+4. Build the finite redirected graph and check each retained oriented bound
+   by the finite greatest-fixed-point simulation on pairs of graph nodes.
+   The check follows only the existing head, width, and variance rules for
+   that one original bound.
+
+Each stage terminates. There are finitely many components and selectors, each
+candidate graph is finite and guarded, and its pair universe is finite. For a
+fixed candidate, descending elimination from all node pairs computes the
+greatest relation closed under the local structural rules. A surviving root
+pair is exactly a finite coinductive certificate for that direct bound. The
+procedure returns a regular witness when a selector passes; failure only
+means this selector construction found none, not that the package is
+unsatisfiable. It therefore gives an effective source-checkable sufficient
+fragment, not a decision procedure for unrestricted regular satisfiability.
+
+The verifier can also accept an explicit finite `W_s` and per-bound
+simulation certificates instead of performing selector search. That proof
+object uses the existing descriptor and comparison evidence; it is not a new
+semantic carrier or solver relation.
 
 ## Strict extension over one open anchor
 
