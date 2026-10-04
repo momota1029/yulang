@@ -146,7 +146,10 @@ This index is a navigation aid. The listed source document remains authoritative
   then mirrors typed-core §6 `(I,d,n)` shape for five ordinary-call forms
   under finite monomorphic Gamma. It records only structural-shadow triples;
   production lowering, complete Function constraints, and callback endpoints
-  remain open.
+  remain open. A new test starts from the actual `BindingBody` CST of
+  `my call f x = f x` and builds the existing Apply candidate; production
+  lowering still rejects the multi-parameter header before reaching that
+  body, and has no resolved Apply node. See the same HIR/source-core audit.
   [`research_function_shadow_obstruction.py`](../../tools/research_function_shadow_obstruction.py)
   executes the finite Value-versus-Computation entry witness against the
   identical value-only Function shadow; it is not a source or endpoint-query

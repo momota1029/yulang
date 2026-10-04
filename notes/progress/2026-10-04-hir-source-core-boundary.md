@@ -1,7 +1,7 @@
 # Production HIR boundary for the source-generated callback core
 
 Date: 2026-10-04
-Status: read-only source bridge audit; no implementation authority
+Status: source bridge audit with test-only probes; no production implementation authority
 Scope: correspondence between Theorem C's typed source core and current
 `yu-hir` lowering
 Depends on: [source-generated theorem package](../design/2026-10-04-source-generated-callback-structural-theorems.md)
@@ -181,6 +181,37 @@ inside the same parenthesized `MlArgument`, and checks the parenthesized span.
 This links the header candidate to the retained error-bearing CST shape, but
 does not promote it to a lambda node or test body recovery/binder ownership;
 parser implementation and callback lowering remain open.
+
+### 2026-10-05 principal call declaration body probe
+
+An independent regression audit found no issue within the changed test and
+confirmed that it introduces no production/public HIR surface.
+
+The test-only `research_binding_body_cst_flows_to_apply_candidate` now starts
+from the full parsed declaration `my call f x = f x`, selects the direct body
+`OperatorChain` from its `BindingBody`, associates it under the retained
+operator environment, and passes that actual associated expression through
+the existing generic `research_lower_apply` candidate. It checks the complete
+candidate tree and source ranges (`f` at `14..15`, `x` at `16..17`, body at
+`14..17`) with one application occurrence. This closes a narrow raw binding-
+body-CST to research-Apply correspondence for an already-formed declaration.
+
+The production route still stops earlier: `plain_binding_header` admits only
+zero or one `PatternMlApplicationTail`, so this two-parameter declaration is
+classified `UnsupportedTarget` before body lowering. Even a one-parameter
+declaration whose body is an application reaches `lower_simple_chain`, which
+rejects its non-leaf associated expression; `ResolvedExpr` still has no Apply
+variant. The research test selects the body directly and does not make either
+production stage accept the declaration. It proves neither name resolution,
+currying/lambda elaboration, Function constraints, nor a typed-core source
+correspondence. No compiler behavior changed.
+
+Focused verification passed for `research_binding_body_cst_flows_to_apply_candidate`
+and the existing `only_one_recovery_free_identifier_parameter_is_admitted`
+integration test. `rustfmt --check crates/yu-hir/src/lib.rs` and
+`git diff --check` passed. `cargo fmt --check` was also attempted but fails on
+pre-existing formatting differences across unrelated `yu-solver` files; it
+did not modify them.
 
 ### Test-only raw-source callback Apply candidate (2026-10-05)
 

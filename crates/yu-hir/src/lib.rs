@@ -1215,6 +1215,56 @@ mod tests {
     }
 
     #[test]
+    fn research_binding_body_cst_flows_to_apply_candidate() {
+        // This consumes the exact body node retained by the parser for the
+        // principal-type fixture. It stops before production declaration
+        // admission and resolved-HIR construction.
+        let source = "my call f x = f x";
+        let parsed = parsed(source);
+        let root = SyntaxNode::new_root(parsed.green().clone());
+        let bindings = root
+            .descendants()
+            .filter(|node| node.kind() == SyntaxKind::BindingStatement)
+            .collect::<Vec<_>>();
+        assert_eq!(bindings.len(), 1);
+        let bodies = bindings[0]
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::BindingBody)
+            .collect::<Vec<_>>();
+        assert_eq!(bodies.len(), 1);
+        let chains = bodies[0]
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::OperatorChain)
+            .collect::<Vec<_>>();
+        assert_eq!(chains.len(), 1);
+        assert_eq!(range_of(&chains[0]), 14..17);
+
+        let associated = associate_chain_owned(&parsed, chains[0].clone())
+            .expect("the original parser operator environment is retained")
+            .into_hir();
+        assert!(research_expression_is_valid(&associated));
+        let mut next = 0;
+        let candidate = research_lower_apply(&associated, source, &mut next);
+        assert_eq!(next, 1);
+        assert_eq!(
+            candidate,
+            ResearchApply::Apply {
+                occurrence: 0,
+                form: SyntaxKind::MlArgument,
+                range: 14..17,
+                callee: Box::new(ResearchApply::Atom {
+                    name: "f".to_owned(),
+                    range: 14..15,
+                }),
+                argument: Box::new(ResearchApply::Atom {
+                    name: "x".to_owned(),
+                    range: 16..17,
+                }),
+            }
+        );
+    }
+
+    #[test]
     fn research_apply_lowering_keeps_parenthesized_call_argument_nested() {
         let associated = parse("f(g(a))");
         assert_eq!(associated.chains().len(), 1);

@@ -587,10 +587,17 @@ The exact production membership rule and complete actual-to-checked proof are
 the next gate. Checked-challenge admission must remain independent of
 comparison success. The B-literal generation clause must independently show
 that all three selected occurrences and witnessed attachments project from
-the same source tuple before the ordinary query. Current `ResolvedExpr` still
-has no function-application node or inline-lambda-in-application lowering;
-lower-level `HirExpr::Apply` represents dynamic operator association. Parser
-recovery plus source/endpoint realization remain generation-conformance work.
+the same source tuple before the ordinary query. For the canonical principal
+declaration `my call f x = f x`, the raw header is rejected before body
+lowering: `plain_binding_header` admits at most one `PatternMlApplicationTail`.
+A research test now maps the actual body CST through association into the
+existing generic Apply candidate, bypassing that header rejection. Production
+`ResolvedExpr` still has no application node; even a one-parameter call body
+is rejected by `lower_simple_chain`. Inline lambda-in-application lowering is
+also absent. These are separate parser/HIR generation-conformance gaps, not a
+selected production design. Details are in the
+[HIR/source-core boundary record](../notes/progress/2026-10-04-hir-source-core-boundary.md).
+Parser recovery plus source/endpoint realization remain open.
 The design remains Draft; no production
 implementation is authorized. The current `id x = x` / scalar-body owner
 trace confirms source identities are retained but complete membership is not
