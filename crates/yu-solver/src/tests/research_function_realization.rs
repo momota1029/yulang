@@ -84,6 +84,118 @@ enum InvocationStep {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+enum ResultConsumerStep {
+    Request {
+        request: Request,
+        state: u8,
+    },
+    Resume {
+        origin: u8,
+        continuation: u8,
+        state_before: u8,
+        state_after: u8,
+    },
+    // This marks delivery by the consumer, after the callback body's return.
+    Return,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct SuspendedResultConsumer {
+    callback_trace: Vec<InvocationStep>,
+    consumer_trace: Vec<ResultConsumerStep>,
+    callback_result: i32,
+    pending: Request,
+    state: u8,
+    actual_role: ReceiverRole,
+    callback_view: ReceiverRole,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum ResultConsumerOutcome {
+    Returned {
+        callback_trace: Vec<InvocationStep>,
+        consumer_trace: Vec<ResultConsumerStep>,
+        callback_result: i32,
+        actual_role: ReceiverRole,
+        callback_view: ReceiverRole,
+    },
+    Suspended(SuspendedResultConsumer),
+}
+
+fn run_designated_result_consumer(
+    invocation: InvocationResult,
+    request: Request,
+    decision: RequestDecision,
+) -> ResultConsumerOutcome {
+    let InvocationResult::Returned {
+        trace,
+        actual_role,
+        callback_view,
+        result_value,
+    } = invocation
+    else {
+        panic!("the designated result consumer follows callback return");
+    };
+    // This bounded probe enters the consumer after a request-free callback
+    // prefix, whose live state is the initial 0. General returned-state
+    // threading is exercised by the separate source-composition playground.
+    let mut consumer_trace = vec![ResultConsumerStep::Request {
+        request: request.clone(),
+        state: 0,
+    }];
+    match decision {
+        RequestDecision::Forward => ResultConsumerOutcome::Suspended(SuspendedResultConsumer {
+            callback_trace: trace,
+            consumer_trace,
+            callback_result: result_value,
+            pending: request,
+            state: 0,
+            actual_role,
+            callback_view,
+        }),
+        RequestDecision::Handle { state_after, .. } => {
+            consumer_trace.push(ResultConsumerStep::Resume {
+                origin: request.origin,
+                continuation: request.continuation,
+                state_before: 0,
+                state_after,
+            });
+            consumer_trace.push(ResultConsumerStep::Return);
+            ResultConsumerOutcome::Returned {
+                callback_trace: trace,
+                consumer_trace,
+                callback_result: result_value,
+                actual_role,
+                callback_view,
+            }
+        }
+    }
+}
+
+fn resume_designated_result_consumer(
+    mut suspended: SuspendedResultConsumer,
+    decision: RequestDecision,
+) -> ResultConsumerOutcome {
+    let RequestDecision::Handle { state_after, .. } = decision else {
+        panic!("the forwarded result-consumer request receives a response");
+    };
+    suspended.consumer_trace.push(ResultConsumerStep::Resume {
+        origin: suspended.pending.origin,
+        continuation: suspended.pending.continuation,
+        state_before: suspended.state,
+        state_after,
+    });
+    suspended.consumer_trace.push(ResultConsumerStep::Return);
+    ResultConsumerOutcome::Returned {
+        callback_trace: suspended.callback_trace,
+        consumer_trace: suspended.consumer_trace,
+        callback_result: suspended.callback_result,
+        actual_role: suspended.actual_role,
+        callback_view: suspended.callback_view,
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
 enum RequestDecision {
     Handle { value: i32, state_after: u8 },
     Forward,
@@ -732,5 +844,103 @@ fn resumed_force_bind_keeps_suffix_and_underlying_pure_entry() {
     assert_eq!(
         trace.last(),
         Some(&InvocationStep::Return { value_type: "int" })
+    );
+}
+
+#[test]
+fn designated_consumer_resumes_after_the_hir_derived_callback_returns() {
+    let artifact = inspect_artifact("my id x = x", "research-id-consumer.yu");
+    let InvocationResult::Returned {
+        trace: callback_trace,
+        result_value,
+        actual_role,
+        callback_view,
+    } = invoke_pure_value_through_handler_view(&artifact, Vec::new(), Vec::new())
+    else {
+        panic!("the empty Force computation returns before the consumer");
+    };
+    assert_eq!(result_value, 0);
+    assert!(!callback_trace.iter().any(|step| matches!(
+        step,
+        InvocationStep::Request { .. } | InvocationStep::Resume { .. }
+    )));
+
+    let request = Request {
+        operation: "Publish",
+        origin: 31,
+        continuation: 47,
+    };
+    let ResultConsumerOutcome::Suspended(suspended) = run_designated_result_consumer(
+        InvocationResult::Returned {
+            trace: callback_trace.clone(),
+            actual_role,
+            callback_view,
+            result_value,
+        },
+        request.clone(),
+        RequestDecision::Forward,
+    ) else {
+        panic!("the designated consumer forwards its request");
+    };
+    assert_eq!(suspended.pending, request);
+    assert_eq!(suspended.callback_trace, callback_trace);
+    assert_eq!(suspended.callback_result, result_value);
+
+    let ResultConsumerOutcome::Returned {
+        callback_trace: resumed_callback,
+        consumer_trace,
+        callback_result,
+        actual_role,
+        callback_view,
+    } = resume_designated_result_consumer(
+        suspended,
+        RequestDecision::Handle {
+            value: 1,
+            state_after: 9,
+        },
+    )
+    else {
+        panic!("resuming the consumer request returns from the consumer");
+    };
+    assert_eq!(resumed_callback, callback_trace);
+    assert_eq!(callback_result, result_value);
+    assert_eq!(actual_role, ReceiverRole::Pure);
+    assert_eq!(callback_view, ReceiverRole::HandlerView);
+    assert_eq!(
+        consumer_trace,
+        vec![
+            ResultConsumerStep::Request {
+                request: request.clone(),
+                state: 0,
+            },
+            ResultConsumerStep::Resume {
+                origin: request.origin,
+                continuation: request.continuation,
+                state_before: 0,
+                state_after: 9,
+            },
+            ResultConsumerStep::Return,
+        ]
+    );
+    assert_eq!(
+        resumed_callback
+            .iter()
+            .filter(|step| matches!(step, InvocationStep::Receipt))
+            .count(),
+        1
+    );
+    assert_eq!(
+        resumed_callback
+            .iter()
+            .filter(|step| matches!(step, InvocationStep::ForceArgument))
+            .count(),
+        1
+    );
+    assert_eq!(
+        resumed_callback
+            .iter()
+            .filter(|step| matches!(step, InvocationStep::EnterBody { .. }))
+            .count(),
+        1
     );
 }
