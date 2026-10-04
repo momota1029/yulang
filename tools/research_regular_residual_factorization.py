@@ -3,9 +3,10 @@
 
 The checker compares direct greatest-fixed-point structural subtyping on
 instantiated regular graphs with finite open-head residual normalization.
-It uses mandatory Records and contravariant Function arguments. The model is
-pure and unscoped: it does not interpret lexical guards, Phi/K,D, effects, or
-source-generated packages.
+It uses mandatory Records and contravariant Function arguments. Joint tests
+retain supplied finite extensional Phi relations. The model does not generate
+source-derived Phi/K,D, interpret lexical guards or effects, or model source
+packages.
 
 Run: python3 -B tools/research_regular_residual_factorization.py
 """
@@ -190,6 +191,147 @@ def generated_closed_graphs() -> tuple[Graph, ...]:
     return tuple(sorted(graphs, key=repr))
 
 
+def graph_equal(left: Graph, right: Graph) -> bool:
+    """Equality of regular constructor unfoldings, independent of sharing."""
+    seen: set[tuple[int, int]] = set()
+    todo = [(left.root, right.root)]
+    while todo:
+        i, j = todo.pop()
+        if (i, j) in seen:
+            continue
+        seen.add((i, j))
+        left_node, right_node = left.nodes[i], right.nodes[j]
+        if left_node[0] != right_node[0]:
+            return False
+        if left_node[0] == "atom":
+            if left_node[1] != right_node[1]:
+                return False
+        elif left_node[0] == "fun":
+            todo.extend(((left_node[1], right_node[1]), (left_node[2], right_node[2])))
+        elif left_node[0] == "record":
+            left_fields, right_fields = dict(left_node[1]), dict(right_node[1])
+            if left_fields.keys() != right_fields.keys():
+                return False
+            todo.extend((left_fields[label], right_fields[label]) for label in left_fields)
+        else:
+            return False
+    return True
+
+
+def joint_phi_relations(domain: tuple[Graph, ...]):
+    all_pairs = frozenset((i, j) for i in range(len(domain)) for j in range(len(domain)))
+    return (
+        all_pairs,
+        frozenset((i, j) for i, j in all_pairs if graph_equal(domain[i], domain[j])),
+        frozenset((i, j) for i, j in all_pairs if not graph_equal(domain[i], domain[j])),
+        frozenset((i, j) for i, j in all_pairs if domain[i].nodes[domain[i].root][0] == "atom"),
+        frozenset((i, j) for i, j in all_pairs if domain[j].nodes[domain[j].root][0] == "record"),
+        frozenset((i, j) for i, j in all_pairs if (i + 2 * j) % 3 == 0),
+        frozenset((i, j) for i, j in all_pairs if i < j),
+        frozenset((i, j) for i, j in all_pairs if (i, j) not in {(0, 1), (1, 0)}),
+    )
+
+
+def package_solution_sets(bounds: tuple[Bound, ...], x: Graph, y: Graph):
+    direct = True
+    normalized = True
+    for bound in bounds:
+        form_ok, residuals, _ = normalize(bound)
+        instance, roots = instantiate(bound, {"x": x, "y": y})
+        direct = direct and subtype_gfp(instance, roots[bound.left], roots[bound.right])
+        normalized = normalized and form_ok and residual_holds(
+            bound, residuals, {"x": x, "y": y}
+        )
+    return direct, normalized
+
+
+def check_recursive_joint_packages():
+    domain = (
+        Graph((atom("A"),), 0),
+        Graph((atom("B"),), 0),
+        Graph((function(0, 0),), 0),
+        Graph((record((("a", 0),)),), 0),
+        Graph((record((("a", 1),)), atom("A")), 0),
+    )
+    phi_relations = joint_phi_relations(domain)
+    rng = Random(20261006)
+    pool = tuple(random_bound(rng, rng.choice((2, 3, 4))) for _ in range(48))
+    packages_checked = 0
+    pair_checks = 0
+    bound_checks = 0
+    recursive_packages = 0
+    nonempty_packages = 0
+    direct_projections: list[tuple[frozenset[int], frozenset[int]]] = []
+    normalized_projections: list[tuple[frozenset[int], frozenset[int]]] = []
+
+    for package_id in range(192):
+        count = 1 + rng.randrange(3)
+        selected = tuple(pool[index] for index in rng.sample(range(len(pool)), count))
+        phi = phi_relations[package_id % len(phi_relations)]
+        if any(has_cycle(bound.nodes, (bound.left, bound.right)) for bound in selected):
+            recursive_packages += 1
+        direct_solutions: set[tuple[int, int]] = set()
+        normalized_solutions: set[tuple[int, int]] = set()
+        for i, x in enumerate(domain):
+            for j, y in enumerate(domain):
+                if (i, j) not in phi:
+                    continue
+                direct, normalized = package_solution_sets(selected, x, y)
+                assert direct == normalized, (package_id, selected, phi, x, y, direct, normalized)
+                pair_checks += 1
+                bound_checks += count
+                if direct:
+                    direct_solutions.add((i, j))
+                if normalized:
+                    normalized_solutions.add((i, j))
+        assert direct_solutions == normalized_solutions
+        if direct_solutions:
+            nonempty_packages += 1
+        direct_projections.append(
+            (frozenset(i for i, _ in direct_solutions), frozenset(j for _, j in direct_solutions))
+        )
+        normalized_projections.append(
+            (
+                frozenset(i for i, _ in normalized_solutions),
+                frozenset(j for _, j in normalized_solutions),
+            )
+        )
+        packages_checked += 1
+
+    assert direct_projections == normalized_projections
+    return packages_checked, pair_checks, bound_checks, recursive_packages, nonempty_packages
+
+
+def check_joint_phi_obstruction():
+    # Each bound has a Phi-admitted witness alone, but no common tuple satisfies
+    # both bounds. Projecting and recombining each bound independently is unsound.
+    nodes_x = (variable("x"), atom("A"))
+    nodes_y = (variable("y"), atom("A"))
+    x_bound = Bound(nodes_x, 0, 1)
+    y_bound = Bound(nodes_y, 0, 1)
+    domain = (Graph((atom("A"),), 0), Graph((atom("B"),), 0))
+    phi = frozenset({(0, 1), (1, 0)})
+    x_only = any(
+        i == 0 and j == 1 and package_solution_sets((x_bound,), domain[i], domain[j])[0]
+        for i, j in phi
+    )
+    y_only = any(
+        i == 1 and j == 0 and package_solution_sets((y_bound,), domain[i], domain[j])[0]
+        for i, j in phi
+    )
+    joint = any(
+        package_solution_sets((x_bound, y_bound), domain[i], domain[j])[0]
+        for i, j in phi
+    )
+    without_phi = any(
+        package_solution_sets((x_bound, y_bound), x, y)[0]
+        for x in domain
+        for y in domain
+    )
+    assert x_only and y_only and not joint and without_phi
+    return x_only, y_only, joint, without_phi
+
+
 def one_node_bound_nodes() -> tuple[Node, ...]:
     nodes: list[Node] = [atom("A"), atom("B"), variable("x"), variable("y")]
     nodes.extend(function(child, child) for child in (0, 1))
@@ -360,6 +502,8 @@ def main() -> None:
     copy_root, copy_direct, copy_normalized = check_recursive_assignment_copy()
     cycle_visits, cycle_residuals, cycle_good, cycle_bad = check_cyclic_residual_both_outcomes()
     recursive = check_random_recursive(assignments)
+    joint = check_recursive_joint_packages()
+    x_only, y_only, common, without_phi = check_joint_phi_obstruction()
     print(
         "selected 15-node shallow endpoint graph: "
         f"{len(one_node_bound_nodes()) ** 2} endpoint pairs × {len(assignments) ** 2} assignments "
@@ -382,9 +526,20 @@ def main() -> None:
         f"residual instances={recursive[1]}; visits={recursive[2]}"
     )
     print(
+        "recursive joint packages: "
+        f"{joint[0]} packages, {joint[1]} Phi-admitted assignment pairs, "
+        f"{joint[2]} bound checks; {joint[3]} include cycles; "
+        f"{joint[4]} have a joint solution; exact x/y projections preserved"
+    )
+    print(
+        f"retained-Phi witness: separate x-bound={x_only}, "
+        f"separate y-bound={y_only}, common tuple={common}, "
+        f"dropping Phi admits a tuple={without_phi}"
+    )
+    print(
         "scope: pure regular graphs with atoms A/B, Function and mandatory "
-        "Records {a,b}; no lexical guards, Phi/K,D, effects, source generation, "
-        "or production solver"
+        "Records {a,b}, plus supplied finite extensional Phi; no source-derived "
+        "Phi/K,D, lexical guards, effects, source generation, or production solver"
     )
 
 

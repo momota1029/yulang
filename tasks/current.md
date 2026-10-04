@@ -736,9 +736,14 @@ remain in the linked progress records above and
   caught and helped repair two checker defects (assignment-edge offsets and
   reflexive-only generated endpoints); the repaired model includes a separate
   recursive-copy rejection assertion and a cyclic bound with both satisfying
-  and failing assignments. This characterizes pure single-bound normalization
-  only; scope guards, joint `Phi`, effect ports, source generation, and effective
-  principal projection remain open. See the
+  and failing assignments. Its joint extension also checks 192 one-to-three-
+  bound packages under supplied finite Phi masks (2,688 admitted assignments,
+  including 105 cyclic packages) with exact shared solution and separate
+  coordinate-projection equality. A two-bound witness confirms each bound can
+  have a Phi-admitted marginal while no shared tuple satisfies both; dropping
+  Phi admits a spurious tuple. This Phi is synthetic and does not represent
+  source-derived production `K,D`. Scope guards, effect ports, source generation,
+  and effective principal projection remain open. See the
   [recursive residual playground](../notes/progress/2026-10-05-regular-residual-factorization-playground.md).
   The direct MSO route is still invalid, and standard ranked exact-shape
   subtyping does not directly encode mandatory Record width. Historical
