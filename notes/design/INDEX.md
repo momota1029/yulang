@@ -43,6 +43,13 @@ This index is a navigation aid. The listed source document remains authoritative
   and independently checks graph witnesses. It is bounded characterization
   evidence only; arbitrary-package FMP remains open. Details are in the
   [progress follow-up](../progress/2026-10-04-structural-fmp-feedback-rank.md#executable-finite-quotient-playground-follow-up-2026-10-04).
+  [`tools/research_gamma_quotients.py`](../../tools/research_gamma_quotients.py)
+  generates 495 small packages in the one-fixed-Function/one-Int/one-free-root
+  fragment, including separate duplicate bounds, and checks 222,255
+  package/quotient pairs through monoid size four. All surviving graphs are
+  independently checked; this generated fragment still does not establish
+  unrestricted FMP. See the
+  [generated-package search record](../progress/2026-10-04-structural-fmp-feedback-rank.md#generated-package-quotient-search-2026-10-04).
 - **New reviewed structural existence result:**
   `notes/design/2026-10-04-preclosed-structural-regular-witness.md` proves
   arbitrary-tree/regular-tree equivalence and a terminating witness

@@ -265,3 +265,41 @@ check; the experiment neither closes (BR) nor generalizes to other descriptor
 systems. Exact arbitrary-package encodings, broader package generation, and
 counterexample shrinking remain the next playground work. The exact command
 and Python compilation check passed; no compiler behavior changed.
+
+## Generated-package quotient search (2026-10-04)
+
+A second model, [`tools/research_gamma_quotients.py`](../../tools/research_gamma_quotients.py),
+generalizes the fixed example to a finite generated family while keeping the
+same reviewed left/right address actions and closure schedule. Its `Package`
+records separate original bound IDs, fixed heads, and exact constructor-port
+equations. The exhaustive generator covers all nine choices for the two
+children of one fixed Function root (`q`), one fixed Int root (`i`), one free
+root (`x`), and every zero-, one-, or two-bound multiset from the nine ordered
+root inequalities. This yields 495 packages, including duplicate inequalities
+with distinct IDs. The generated family uses Function `(-,+)`, an Int atom,
+and empty Record defaults; there are no nonempty Record descriptors, optional
+fields, lexical rigid permissions, effects, or source-generation rules.
+
+`python3 tools/research_gamma_quotients.py 4` exhaustively checked these
+packages against all 449 labelled two-generated monoid presentations through
+size four: 222,255 package/quotient pairs. Of these, 27,383 quotient
+saturations completed conflict-free and each produced a graph that was
+independently checked for fixed root heads, root liveness, shifted descriptor
+domain/equality, and every original bound; 194,872 reached a conflict. The
+special fixed package from the first playground matched its feedback ranks
+under both implementations on all 449 monoid presentations. Focused malformed
+input and deliberately damaged-witness checks also rejected both cases.
+
+The finite package search asserts no counterexample to unrestricted FMP: it
+only checks regular quotient models in a restricted generated package family.
+If a saturation ever claims SAT while its independently constructed graph
+fails, a greedy bound-removal shrinker reports a smaller package. No such
+mismatch occurred. Independent compiler-referee review found and localized
+three checker defects before closure: G initially advanced only one path edge
+per feedback round; validation allowed descriptor edges without a fixed
+constructor parent; and the graph checker initially omitted fixed root-head
+and root-domain checks. Each was repaired, and the focused counterexamples
+were turned into assertions. The final review also checked descriptor-domain
+equivalence and confirmed complete G closure within a round. No source/package
+counterexample was found; these were playground implementation defects.
+Production inference remains untouched.

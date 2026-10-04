@@ -55,15 +55,19 @@ and must not turn an omitted rule into an implicit premise.
 The finite parent/use transport test model is a completed narrow experiment.
 The first structural playground now exercises the complete restricted
 `Fbar/G` rules on `q = Function(x, Int), x <: q`, sweeps cutoff quotients, and
-enumerates all labelled two-generated monoids through size four. It directly
-checks descriptor equalities and the original bound on any quotient that
-survives saturation. Its current exact scope and observations are in the
-[structural FMP progress record](../progress/2026-10-04-structural-fmp-feedback-rank.md#executable-finite-quotient-playground-follow-up-2026-10-04).
-The next structural step is to generalize this checker to arbitrary normalized
-packages with exact shifted descriptors and full `Gamma_P^coh`, while adding
-package generation and shrinking for genuine failed conjectures. Do not
-substitute the two-sided preclosed witness checker for this open gate. Callback
-bridge and principality models remain active subsequent lanes.
+enumerates all labelled two-generated monoids through size four. A second
+checker, `tools/research_gamma_quotients.py`, generates 495 packages in the
+restricted one-Function-root / one-Int-root / one-free-root fragment, each
+with zero to two independently identified bounds, and checks all 449 such
+monoids. It compares ranks against the first checker on their shared package
+and independently validates every surviving finite graph. Exact scope and
+observations are in the
+[structural FMP progress record](../progress/2026-10-04-structural-fmp-feedback-rank.md#generated-package-quotient-search-2026-10-04).
+The next structural step is to generalize the package language itself to
+arbitrary normalized `Gamma_P^coh`, including exact shifted descriptors and
+full domain/head/child coherence, then search and shrink candidate failures.
+Do not substitute the two-sided preclosed witness checker for this open gate.
+Callback bridge and principality models remain active subsequent lanes.
 
 This order selects research activity only. It does not assert a theorem,
 introduce a new carrier/relation, or authorize production cutover.
