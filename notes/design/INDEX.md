@@ -45,6 +45,11 @@ This index is a navigation aid. The listed source document remains authoritative
   exhausts the finite admission-uniform hiding lemma and minimizes a failure
   when the premise is removed. See its
   [progress record](../progress/2026-10-05-callback-admission-hiding-playground.md).
+  [`research_inequality_endpoint_dispatch.py`](../../tools/research_inequality_endpoint_dispatch.py)
+  checks the four endpoint dispatch cases and the approved nontransitive
+  optional-record witness over a finite variable-edge graph; it does not define
+  replay policy or a complete solver. See its
+  [progress record](../progress/2026-10-05-inequality-endpoint-dispatch-playground.md).
   [`research_function_shadow_obstruction.py`](../../tools/research_function_shadow_obstruction.py)
   executes the finite Value-versus-Computation entry witness against the
   identical value-only Function shadow; it is not a source or endpoint-query

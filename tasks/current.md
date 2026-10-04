@@ -142,6 +142,14 @@ and whole-carrier evidence remain unavailable in this HIR.
 
 ## Latest main-gate results
 
+The single-inequality endpoint rule also has a small executable check:
+[`research_inequality_endpoint_dispatch.py`](../tools/research_inequality_endpoint_dispatch.py)
+exhausts 512 variable-edge graphs and the approved optional-record
+nontransitivity witness. It verifies that local concrete successes never
+enter variable-edge closure. This is finite characterization only; lower/
+upper replay policy and complete solver behavior remain unspecified. See the
+[progress record](../notes/progress/2026-10-05-inequality-endpoint-dispatch-playground.md).
+
 **Classification A: normalized pure structural FMP is proved.**
 [Finite fence completion](../notes/design/2026-10-04-structural-fmp-fence-completion.md)
 constructs a regular solution of the same fixed package from any arbitrary
