@@ -60,11 +60,15 @@ This index is a navigation aid. The listed source document remains authoritative
   witness under Theorem S; it is explicitly not an equivalence to F5's
   polarized four-port Function constraints. See
   `notes/progress/2026-10-04-production-hir-empty-record-shadow.md`.
-  A separate source-generation theorem now checks the actual F5 value-skeleton
-  projection for integer bindings and own-parameter/integer lambda bodies:
-  each function root has one open Function anchor. It does not lift the
-  regular witness to the retained coupled effects or complete solver package;
-  see `notes/progress/2026-10-04-production-f5-value-skeleton-selector.md`.
+  A source-generation theorem checks the actual F5 value-skeleton projection
+  across current binding HIR (integer, alias, and one-parameter lambda forms)
+  when cross-SCC definition uses target alias chains ending in integers. The
+  finite source/SCC check establishes Theorem S incidence after actual internal and
+  restricted incoming routes. Arbitrary structured incoming schemes and the
+  retained coupled effects remain outside the result; see
+  `notes/progress/2026-10-04-production-f5-value-skeleton-hir-incidence.md`
+  and its narrower predecessor
+  `notes/progress/2026-10-04-production-f5-value-skeleton-selector.md`.
   Neither result closes or refutes FMP.
   See the direct-main-gate progress record.
 - **Other open gates:** source State/reference bridge and global source

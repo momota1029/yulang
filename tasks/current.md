@@ -204,14 +204,20 @@ candidate; its finite principal presentation remains a separate open proof.
   body-effect facts into the Function result-effect child, so no parallel
   carrier is needed for this grammar. The denotation/full-bound proof remains
   open; see the same progress record.
-  A further source-generation theorem applies Theorem S to the actual F5
-  value-skeleton projection for integer bindings and one-parameter lambdas
-  whose body is an integer or their own parameter. Integer roots have only
-  closed `Int` anchors; each lambda root has one open positive Function
-  anchor. Existing F5 Function terms and their correlated effect constraints
-  remain intact; the result is not a full-package satisfiability or
-  source-interface theorem. See
-  [F5 value-skeleton selector theorem](../notes/progress/2026-10-04-production-f5-value-skeleton-selector.md).
+  A source-generation theorem now covers the actual F5 value-skeleton
+  projection for the full current error-free binding HIR grammar (integer,
+  alias, and one-parameter lambda with integer, own-parameter, or resolved-
+  name body), provided every cross-SCC `DefinitionUse` targets an alias chain
+  ending in an integer binding. The finite HIR/SCC check establishes the
+  grounded or one-open-anchor condition after actual internal and restricted incoming
+  routes; Theorem S gives a regular witness whenever the projection is
+  satisfiable. Arbitrary structured incoming schemes remain outside this
+  source theorem. It still omits Function effect children only as a projection
+  and does not prove full-package satisfiability, source-interface adequacy,
+  effect denotation, principality, or successor correctness. See
+  [full-HIR value-skeleton incidence theorem](../notes/progress/2026-10-04-production-f5-value-skeleton-hir-incidence.md)
+  and its narrower predecessor
+  [selector theorem](../notes/progress/2026-10-04-production-f5-value-skeleton-selector.md).
   This closes only the conditional structural witness theorem, not general
   structural regularity, source adequacy, principal solutions, or the overall
   inference-replacement objective. Theorem S above separately proves
