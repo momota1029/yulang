@@ -286,6 +286,16 @@ This index is a navigation aid. The listed source document remains authoritative
   HIR/F5 owners; it records the exact premise without selecting `W`/`Z`, a
   carrier, or implementation. See the
   [interpretation audit](../progress/2026-10-05-production-complete-function-interpretation-audit.md).
+- **User-approved production Function-denotation basis (A):**
+  [the q1/d1 handoff](../../questions/2026-10-05-production-function-denotation/approved-answer.md)
+  selects the existing complete typed-observation `Rel_C` fiber, constrained
+  by independent endpoint/role/path/origin/continuation/scope/authority/
+  dependency interpretation, with separate comparison-independent context
+  admission. This closes the A/B basis choice, not the local `DescMem` or
+  admission clauses. The direct follow-up identifies that missing judgment;
+  no new carrier or `W/Z` rules are selected. See its
+  [audit record](../progress/2026-10-05-production-function-denotation-followup.md)
+  and [receipt](../../questions/2026-10-05-production-function-denotation/receipt.md).
 - **Active callback gate — production conformance:**
   `notes/design/2026-10-04-production-callback-endpoint-generation-draft.md`
   specifies the bounded application HIR/lowering, B step 6 finite endpoint

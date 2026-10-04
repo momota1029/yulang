@@ -583,8 +583,23 @@ semantic and authority review is recorded in
 [the interpretation audit](../notes/progress/2026-10-05-production-complete-function-interpretation-audit.md).
 The question handoff and its
 [integration receipt](../questions/2026-10-05-production-function-bound-membership/receipt.md)
-record the accepted policy. The independent principal-scheme lane and
-`P_ref`-only proof work remain active.
+record the accepted policy. A second approved handoff now selects A as the
+production denotation basis: restrict the original complete `Rel_C` fiber by
+independently interpreted endpoint/role/path/origin/continuation/scope/
+authority/dependency constraints, and define hole-context admission
+separately from comparison success. This closes the A/B basis choice only;
+it does not select endpoint-satisfaction or admission clauses, `W/Z`, a new
+carrier, or implementation. The direct derivation attempt found that the
+adequacy theorem quantifies over an arbitrary presentation without defining
+this descriptor interpretation, while typed-core §5 leaves general Function
+subtyping open and Theorem C's admission applies only to its source-generated
+reference. The minimal remaining premise is one comparison-independent
+source-typed interpretation of complete Function descriptors and punctured
+contexts over existing `Rel_C` evidence. No insufficiency of that evidence or
+source counterexample has been established. See the
+[approved-basis follow-up](../notes/progress/2026-10-05-production-function-denotation-followup.md)
+and its [integration receipt](../questions/2026-10-05-production-function-denotation/receipt.md).
+The independent principal-scheme lane and `P_ref`-only proof work remain active.
 
 User-directed principal-scheme acceptance examples now cover `id`, `zero`,
 `call`, `compose`, repeated calls, branches, and staged higher-order calls.
