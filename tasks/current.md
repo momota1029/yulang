@@ -98,6 +98,21 @@ candidate; its finite principal presentation remains a separate open proof.
   encode mandatory Record width. Bounded results and failed scoped encodings
   are not general impossibility:
   [open residual design](../notes/design/2026-10-03-open-residual-factorization.md),
+  and a source-checkable conditional closure for the closed monomorphic
+  pure lambda/integer fragment with empty input Record alphabet is now proved:
+  when structurally satisfiable in the regular graph domain, that fragment's
+  generated packages have a regular witness of at most `N+1` nodes, by §7.4.1
+  erasure and rational quotienting. A separate
+  induction proves the candidate generator emits only `Int`/Function
+  descriptors for this fragment. This is not a theorem for authoritative
+  complete Yulang generation: the candidate source rules' arbitrary preorder
+  is not identified with the structural graph carrier, and callbacks,
+  annotations, imports, effects, records and guards are outside the fragment.
+  The source-fragment result and exact boundaries are in
+  [empty-Record source fragment](../notes/progress/2026-10-04-empty_record_source_fragment.md).
+  This closes only the conditional structural witness theorem, not general
+  structural regularity, source adequacy, principal solutions, or the overall
+  inference-replacement objective. See also
   [root-only result](../notes/progress/2026-10-04-root-only-regular-witness.md),
   [queue probes](../notes/progress/2026-10-04-fixed-descriptor-queue-encoding.md),
   and [direct main-gate attacks](../notes/progress/2026-10-04-direct-main-gate-attacks.md).
