@@ -235,6 +235,42 @@ only on inferred component reuse. It does not model explicit capture,
 multi-request operation execution, complete Function comparison, or production
 endpoint projection, so it does not close the `compose` principal-scheme gate.
 
+### Ordered multi-request compose extension
+
+The compose checker now additionally enumerates every ordered operation
+sequence of length zero through two, every completed response prefix over two
+values and two resumed states, and the boundary at which the next request is
+pending. It checks 95 sequence/prefix histories under all four inner handler
+sets (380 assignments), then executes each pending-request resumption and
+compares it with an independently rebuilt whole prefix (88 transitions). A
+pending request and each completed request retain distinct event IDs, source
+origins, fixed `nu,K,D`, and indexed argument paths. The live state is updated
+from the response; the resumed event completes exactly once, and the remaining
+Force suffix stays ahead of Value entry. Covariant support comes from the
+complete finite source sequence, including requests still latent in a pending
+Force suffix. Repeated `Read` requests therefore remain two source events
+while their covariant support remains one set element. The same-component
+subtraction mutant loses support in 230 handler assignments.
+
+A deliberate replay mutant also has a one-request shrink: one pending `Read`
+followed by one response must produce one completed event; replay-before-resume
+produces two completions carrying the same event ID, and the checker rejects
+it. This validates mutation sensitivity of the bounded transition checker;
+it is not a source counterexample.
+
+This adds a bounded transition characterization to the earlier one-request
+probe, but still does not define general request/resumption evaluation,
+explicit capture, source-generated Function bounds, concrete Function
+resolution, or a principal scheme. The bounded checks are characterization
+evidence only; no semantic or production rule is inferred from them.
+The focused spec delta review found no remaining issue: it confirms the 88
+transitions and that full-prefix equality catches replay, lost state, altered
+metadata, wrong next-event exposure, and suffix changes. A follow-up review
+also confirms that deriving support from the complete bounded operation
+sequence correctly keeps latent suffix operations in outward support while
+the observed history remains prefix-specific; the revised mutation count is
+230.
+
 ## Next proof work
 
 The callback main gate still needs a source-to-endpoint correspondence showing

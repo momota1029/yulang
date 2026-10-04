@@ -624,6 +624,19 @@ characterization, not a full Function comparison or principal-scheme proof.
 An independent compiler-referee review found no major issue; after adding its
 requested resumed-state assertions, the focused checker and `py_compile` pass.
 Details: [callback/principality playgrounds](../notes/progress/2026-10-04-callback-principal-playgrounds.md).
+The checker now also enumerates 95 ordered zero-to-two-request prefixes,
+including each possible pending boundary and all completed response/state
+choices, under four handler sets (380 assignments). Repeated operations keep
+distinct source event IDs while projecting to one covariant support point; the
+88 explicit resume transitions match independent whole-prefix reconstruction,
+preserving the updated state, completed event exactly once, and remaining
+Force suffix. Support includes the full finite sequence, including requests
+latent in the pending suffix. The component-match subtraction mutant loses
+support in 230 assignments. A deliberate replay mutant shrinks to one pending
+`Read` and duplicates its event ID; the checker rejects it. This remains a bounded
+source-order model and does not close general request semantics,
+Function-bound realization, or principality. See the same
+[playground record](../notes/progress/2026-10-04-callback-principal-playgrounds.md).
 The latest user clarification accepts `Top -> int` for `zero`, with `any` as
 the surface notation, superseding the earlier `'a -> int` criterion. The prior
 negative-only quantification analysis is retained as history but creates no
