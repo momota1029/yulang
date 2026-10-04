@@ -75,6 +75,13 @@ endpoint bound from it. The required theorem must recover argument-entry
 admission and factor every endpoint-bound observation through argument,
 rebind, body/result consumer, and `J_call` into linked `[b,d]` at the same
 `ν,K,D`; callback B step 6 leaves this construction open.
+An attempted source-checkable constructor condition (compose only existing
+entry/body/result segments, with no independent call-bound leaf) is not yet
+sufficient: conservative slack on segment bounds still requires a proved
+monotonicity transport for latent and resumed witnesses. Shared descriptor
+identity also does not prove query-independent challenge admission. No
+non-tautological source-generation condition currently closes this gate; the
+exact failed attempt is appended to the direct main-gate record.
 The canonical exact semantic embedding in adequacy §4 does not supply this:
 §3 permits any conservative `P` covering `Sem`, without defining or
 identifying the syntax-generated Function endpoint. Exactness is unnecessary;

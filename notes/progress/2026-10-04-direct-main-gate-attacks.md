@@ -131,6 +131,23 @@ of synthesized `P_actual` and `P_checked`. Using it as the main gate would
 still require the same endpoint-to-composition adequacy premise and cannot be
 silently promoted to authority.
 
+A further source-checkable-generator attempt does not close that premise.
+Removing an independent complete-call bound leaf and assembling the actual
+endpoint from receipt/entry/rebind/body/result composition still permits
+conservative bounds on those segments. The checked generator then needs a
+proved denotational monotonicity law for every admitted segment witness,
+including conservative extras, latent views, and resumed suffixes. Merely
+retaining graph nodes, occurrence IDs, and evidence references does not prove
+that law; stating that all such witnesses survive the `[b,d]` replacement
+would restate the missing bound factorization. Likewise, a shared challenge
+descriptor does not suffice unless its nonempty admission is generated
+independently of query success. The exact adequacy contract currently allows
+both failures. This rejects that proposed AST condition as not yet a
+source-checkable sufficient premise; it is not a counterexample to a specified
+Yulang generator. The callback owner remains source-to-complete-Function-
+endpoint generation, whose constructor and admission rules are not yet
+defined by B step 6.
+
 Governing sources: [callback context delivery](../design/2026-10-03-callback-context-delivery.md)
 §§2–5, 7–8; [typed computation core](../design/2026-10-02-typed-computation-core-elaboration.md)
 §§6, 8–9; [source interface adequacy](../design/2026-10-02-source-interface-adequacy-theorem.md)
