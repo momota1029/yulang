@@ -326,7 +326,9 @@ source-generation boundary is recorded in the principal-scheme criteria.
 Two isolated characterization models now exercise narrower pieces of the
 open callback/principality gates: the callback lift checker preserves old
 tuples and distinct `d-`/`d+`/`b+` identities under total-coordinate extension,
-and shrinks independent-marginalization loss to two correlated rows; the
+exhaustively checks 65,536 bind-shaped relation pairs under two metadata
+contexts, with shared intermediate coordinates, and finds minimal bad-join
+witnesses both with and without a nonempty exact composition; the
 principal-support checker verifies finite common-support factorization while
 keeping occurrence endpoints distinct. Neither models source constructors,
 complete Function comparison, subtraction attachment, or generalization, and

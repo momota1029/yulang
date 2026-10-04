@@ -86,7 +86,11 @@ introduce a new carrier/relation, or authorize production cutover.
 checks the local old-tuple-preserving total-coordinate extension shape from
 Theorem C §2.6 and minimizes a two-row obstruction to replacing linked source
 witnesses with independent marginals. Its flat one-fiber model does not test
-constructor transport, source realization, or Theorem C's full inclusion.
+general constructor transport, source realization, or Theorem C's full
+inclusion. A finite `bind`-shaped relation join additionally checks that a
+shared intermediate coordinate, fiber, owner pair, scope, receipts, and port
+evidence survive total lifting across a composed relation; it remains a
+relational toy, not the operational bind/resumption semantics.
 [`tools/research_principal_support.py`](../../tools/research_principal_support.py)
 checks finite common-support factorization while retaining separate
 occurrence endpoints. This is only powerset-level evidence; it is not an

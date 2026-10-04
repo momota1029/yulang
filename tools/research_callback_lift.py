@@ -50,10 +50,171 @@ class Lifted:
     flat_output: tuple[int, ...]
 
 
+@dataclass(frozen=True, order=True)
+class BoundWitness:
+    """A finite source bind derivation with its shared intermediate value."""
+
+    fiber: int
+    owner_pair: tuple[str, str]
+    binder_scope: str
+    argument: int
+    intermediate: int
+    result: int
+    d_minus_id: str
+    d_plus_id: str
+    b_plus_id: str
+    call_receipt: str
+    argument_receipt: str
+
+
+@dataclass(frozen=True, order=True)
+class BoundLift:
+    old: BoundWitness
+    # Derived paths are computed only after first/suffix share one old tuple.
+    linked_paths: tuple[tuple[str, int, int], ...]
+
+
 def total_lift(w: Witness) -> Lifted:
     d = (w.arg_origin,)
     b = (w.body_origin, w.result)
     return Lifted(w, d, b, tuple(sorted(set(d) | set(b))))
+
+
+def bind_relation(
+    first: frozenset[tuple[int, int, int]],
+    suffix: frozenset[tuple[int, int, int]],
+    context: str,
+) -> set[BoundWitness]:
+    """Natural composition on the same fiber and intermediate value."""
+    output = set()
+    for fiber, argument, intermediate in first:
+        for suffix_fiber, suffix_intermediate, result in suffix:
+            if fiber != suffix_fiber or intermediate != suffix_intermediate:
+                continue
+            output.add(
+                BoundWitness(
+                    fiber=fiber,
+                    owner_pair=(f"{context}:outer-owner-{fiber}", f"{context}:latent-owner-{fiber}"),
+                    binder_scope=f"{context}:scope-{fiber}",
+                    argument=argument,
+                    intermediate=intermediate,
+                    result=result,
+                    d_minus_id=f"{context}:d-minus-{fiber}",
+                    d_plus_id=f"{context}:d-plus-{fiber}",
+                    b_plus_id=f"{context}:b-plus-{fiber}",
+                    call_receipt=f"{context}:call-receipt-{fiber}",
+                    argument_receipt=f"{context}:argument-receipt-{fiber}",
+                )
+            )
+    return output
+
+
+def lift_bind(rows: set[BoundWitness]) -> set[BoundLift]:
+    return {
+        BoundLift(
+            row,
+            (
+                (row.d_minus_id, row.argument, row.intermediate),
+                (row.d_plus_id, row.argument, row.intermediate),
+                (row.b_plus_id, row.intermediate, row.result),
+            ),
+        )
+        for row in rows
+    }
+
+
+def forget_bind(rows: set[BoundLift]) -> set[BoundWitness]:
+    return {row.old for row in rows}
+
+
+def bind_projection(row: BoundWitness) -> tuple[object, ...]:
+    return (
+        row.fiber,
+        row.owner_pair,
+        row.binder_scope,
+        row.argument,
+        row.intermediate,
+        row.result,
+        row.d_minus_id,
+        row.d_plus_id,
+        row.b_plus_id,
+        row.call_receipt,
+        row.argument_receipt,
+    )
+
+
+def bad_bind_dropping_intermediate(
+    first: frozenset[tuple[int, int, int]],
+    suffix: frozenset[tuple[int, int, int]],
+) -> set[tuple[int, int, int]]:
+    """Mutant: forget the shared intermediate before joining the children."""
+    output = set()
+    for fiber, argument, _intermediate in first:
+        for suffix_fiber, _suffix_intermediate, result in suffix:
+            if fiber == suffix_fiber:
+                output.add((fiber, argument, result))
+    return output
+
+
+def find_minimal_bind_correlation_failure(require_nonempty: bool):
+    first_universe = tuple((fiber, arg, mid) for fiber in range(2) for arg in range(2) for mid in range(2))
+    suffix_universe = tuple((fiber, mid, result) for fiber in range(2) for mid in range(2) for result in range(2))
+    for total_size in range(2, 5):
+        for first_size in range(1, total_size):
+            suffix_size = total_size - first_size
+            if first_size > len(first_universe) or suffix_size > len(suffix_universe):
+                continue
+            for first_rows in combinations(first_universe, first_size):
+                first = frozenset(first_rows)
+                for suffix_rows in combinations(suffix_universe, suffix_size):
+                    suffix = frozenset(suffix_rows)
+                    actual = bind_relation(first, suffix, "minimum")
+                    if require_nonempty and not actual:
+                        continue
+                    exact_projection = {
+                        (row.fiber, row.argument, row.result) for row in actual
+                    }
+                    mutant = bad_bind_dropping_intermediate(first, suffix)
+                    if mutant - exact_projection:
+                        return first, suffix, exact_projection, mutant
+    raise AssertionError("expected bind marginalization counterexample")
+
+
+def check_bind_compositions() -> tuple[int, int]:
+    first_universe = tuple((fiber, arg, mid) for fiber in range(2) for arg in range(2) for mid in range(2))
+    suffix_universe = tuple((fiber, mid, result) for fiber in range(2) for mid in range(2) for result in range(2))
+    first_relations = tuple(powerset(first_universe))
+    suffix_relations = tuple(powerset(suffix_universe))
+    cases = 0
+    nonempty = 0
+    for context in ("ctx-a", "ctx-b"):
+        for first in first_relations:
+            for suffix in suffix_relations:
+                actual = bind_relation(first, suffix, context)
+                checked = lift_bind(actual)
+                assert forget_bind(checked) == actual
+                assert {x.old for x in checked} == actual
+                assert {bind_projection(x) for x in actual} == {
+                    bind_projection(x.old) for x in checked
+                }
+                assert all(
+                    item.linked_paths
+                    == (
+                        (item.old.d_minus_id, item.old.argument, item.old.intermediate),
+                        (item.old.d_plus_id, item.old.argument, item.old.intermediate),
+                        (item.old.b_plus_id, item.old.intermediate, item.old.result),
+                    )
+                    for item in checked
+                )
+                assert all(
+                    item.old.call_receipt != item.old.argument_receipt
+                    and item.old.owner_pair[0] != item.old.owner_pair[1]
+                    for item in checked
+                )
+                if actual:
+                    nonempty += 1
+                cases += 1
+    return cases, nonempty
 
 
 def forget(w: Lifted) -> Witness:
@@ -146,12 +307,36 @@ def main() -> None:
     minimal_source, spurious_join = smallest_marginal_counterexample()
     assert len(minimal_source) == 2
     assert len(spurious_join - minimal_source) == 2
+    bind_cases, nonempty_bind_cases = check_bind_compositions()
+    empty_first, empty_suffix, empty_exact, empty_mutant = find_minimal_bind_correlation_failure(
+        require_nonempty=False
+    )
+    first, suffix, exact_bind, mutant_bind = find_minimal_bind_correlation_failure(
+        require_nonempty=True
+    )
+    assert len(empty_first) + len(empty_suffix) == 2
+    assert not empty_exact and empty_mutant
+    assert len(first) + len(suffix) == 3
+    assert exact_bind and mutant_bind - exact_bind
     print(f"joint binary relations checked: {checked}")
     print("old-tuple total-coordinate lift: all projections and observations preserved")
     print(f"independent-marginal counterexamples: {marginal_failures}/{checked}")
     print(f"minimal correlated source rows: {sorted(minimal_source)}")
     print(f"spurious rows after marginal join: {sorted(spurious_join - minimal_source)}")
-    print("scope: Theorem C §2.6 local lift invariant only; no source adequacy or Theorem C proof")
+    print(
+        "finite bind relation pairs checked: "
+        f"{bind_cases // 2} per metadata context across 2 contexts "
+        f"({nonempty_bind_cases // 2} nonempty per context)"
+    )
+    print(
+        "minimal bind mismatch (empty exact join): "
+        f"first={sorted(empty_first)}, suffix={sorted(empty_suffix)}, "
+        f"spurious={sorted(empty_mutant - empty_exact)}"
+    )
+    print(f"minimal bind mismatch with nonempty exact join: first={sorted(first)}, suffix={sorted(suffix)}")
+    print(f"exact bind projection: {sorted(exact_bind)}")
+    print(f"spurious after dropping shared intermediate: {sorted(mutant_bind - exact_bind)}")
+    print("scope: finite total-lift and bind-shaped join checks only; no operational bind, source adequacy, or Theorem C proof")
 
 
 if __name__ == "__main__":

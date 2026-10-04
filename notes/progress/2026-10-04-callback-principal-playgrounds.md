@@ -6,6 +6,9 @@ semantic authority
 Review: one independent compiler_referee review; no blocking/major finding.
 The minor identity-coverage suggestion was closed by generating distinct
 per-occurrence evidence identities and checking preservation after lifting.
+A later bind-composition delta review found that the minimum counterexample
+needed to distinguish empty joins from nonempty exact joins; both minima are
+now reported, and the primary reran the exhaustive checker.
 Governing direction: [inference research playgrounds](../design/2026-10-04-inference-research-playgrounds.md)
 Governing callback design: [production callback endpoint generation](../design/2026-10-04-production-callback-endpoint-generation-draft.md)
 Governing principal criterion: [principal scheme acceptance](2026-10-04-principal-scheme-acceptance-criteria.md)
@@ -20,6 +23,21 @@ the old tuple and distinct per-occurrence `d-`, `d+`, and `b+` evidence
 identities. It exhausts all 16 binary relations on two coordinates. Every lift forgets back
 to the exact original witness relation and preserves the complete modeled
 observation.
+
+The model also composes a first-child and suffix relation by a shared
+`(fiber, intermediate)` join, as a finite `bind`-shaped relational case. It
+exhausts all 65,536 pairs of binary child relations under each of two distinct
+metadata contexts (63,135 pairs per context have nonempty composition). The
+checked lift preserves each complete old tuple, its owners, scope, distinct
+call/argument receipts, and selected port-evidence identities.
+A mutant that drops the intermediate join has a two-row minimum if empty exact
+joins count: one first-child row and one suffix row with a mismatched
+intermediate. The exact join is empty, while the mutant admits a result. If a
+nonempty exact join is required, the minimum has three rows: one first-child
+row and two suffix rows, only one of which matches. The mutant admits an
+additional result from the unmatched suffix. These minima are exhaustive
+over the stated binary domains. This tests that the link survives composition;
+it is not a test of the operational continuation rule, requests, or resumption.
 
 The model also shrinks independent-marginalization failure to two correlated
 rows, `(0,0)` and `(1,1)`. Taking the product of the two marginals invents
@@ -64,6 +82,9 @@ the least finite common support but does not supply that argument.
 python3 tools/research_callback_lift.py
   16 relations; all total lifts preserve old projections and observations;
   six marginalization mismatches; smallest has two correlated rows.
+  65,536 bind-shaped relation pairs under each of two metadata contexts;
+  minimum bad join has two rows (empty exact join), or three rows when
+  requiring a nonempty exact join.
 python3 tools/research_principal_support.py
   584 finite assignments; 560 retain distinct endpoint supports.
 python3 -m py_compile tools/research_callback_lift.py tools/research_principal_support.py
