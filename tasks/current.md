@@ -325,6 +325,16 @@ checked lift. It reuses source segments, operand tuples, binder scopes,
 evidence; it adds no carrier. Theorem C applies only to the prebuilt Pure-value
 path; inline literals keep the ordinary `F_lit <: F_cb` check.
 
+An executable callback B trace audit now covers 192 bounded source/evidence
+tuples and rejects nine deliberate owner/tuple/role/endpoint/occurrence/
+attachment/row/query/path mutants. It assembles and queries the completed
+four-port endpoint and validates required Force/CallView path selection.
+Endpoint terms and selected occurrences are still inputs, so this validates
+the finite trace audit only; it is not a production endpoint interpretation
+or complete-bound checker. The full-bound realization factorization and
+raw/HIR bridge remain open. Details are in the
+[callback/principality playground record](../notes/progress/2026-10-04-callback-principal-playgrounds.md#callback-b-endpoint-trace-audit-2026-10-05).
+
 The production bridge is not proved or authorized for implementation. The
 smallest Pure-path blocker is a full-bound realization crosswalk, not
 exactness with respect to source execution. Let `D_A,D_C` and `P_A,P_C` be

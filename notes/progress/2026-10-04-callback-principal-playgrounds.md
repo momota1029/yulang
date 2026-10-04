@@ -318,3 +318,30 @@ python3 tools/research_callback_entry.py
 python3 -m py_compile tools/research_callback_entry.py
   pass
 ```
+
+## Callback B endpoint-trace audit (2026-10-05)
+
+[`tools/research_callback_endpoint_trace.py`](../../tools/research_callback_endpoint_trace.py)
+is a bounded executable audit of the finite source/evidence bookkeeping in
+the reviewed callback endpoint-generation draft §§2–4. It enumerates 192
+tuples of distinct outer/latent owners and operand tuples, binder scopes,
+eight independently selected parameter/body/result endpoint triples, and
+present or absent witnessed concrete attachments. For every tuple, the
+reference trace keeps the callback literal in Handler role, requires the
+`d-` Force path and the `d+`/`b+` CallView paths in the same latent tuple while
+preserving distinct occurrence identities, forms the completed four-port
+Function endpoint with flat covariant `[b+, d+]`, subtracts only a witnessed
+attachment, and emits one final ordinary `F_lit <: F_cb` query with that
+completed endpoint as its left operand. Nine deliberate mutants (owner,
+tuple, role, endpoint assignment, occurrence, attachment, row, query count,
+and selected path) are rejected by the audit.
+
+This is a conformance harness for the proposed constructor/evidence trace,
+not an independent source-to-production bridge: endpoint terms and the
+`d-`/`d+`/`b+` evidence are supplied as inputs. It does not model their
+production denotation, complete-bound membership, endpoint inequality
+resolution, callback adequacy, or principal solutions. The executable check
+therefore exercises the draft's finite audit boundary but does not discharge
+the known full-bound realization factorization premise. The raw/HIR bridge
+and production endpoint interpretation remain open; no source counterexample
+or new semantic choice was found.
