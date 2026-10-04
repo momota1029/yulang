@@ -202,7 +202,11 @@ candidate; its finite principal presentation remains a separate open proof.
   Function term, effect constraints, and provenance, so a parallel carrier
   is not justified. The missing item is the semantic transport from that
   existing linked evidence into the source Function view; effect-port
-  denotation, full bound inclusion, and callback domains remain open.
+  denotation, full bound inclusion, and callback domains remain open. A
+  separate source-case proof establishes the local projection correspondence
+  for the current error-free lambda body fragment (`Result(Value(A))` and F4
+  both report empty effect), without equating polarized bottom to an effect
+  row; see the same progress record.
   This closes only the conditional structural witness theorem, not general
   structural regularity, source adequacy, principal solutions, or the overall
   inference-replacement objective. Theorem S above separately proves

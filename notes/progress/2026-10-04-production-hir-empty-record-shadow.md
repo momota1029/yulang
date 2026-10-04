@@ -120,6 +120,40 @@ justified. What remains open is the semantic theorem that interprets this
 linked evidence as the source Function view and proves full-bound transport.
 The closed scheme alone does not carry that occurrence identity.
 
+### Local source-to-projection lemma for the current lambda fragment
+
+**Lemma.** For every complete parameterized binding admitted by the current
+lowerer, the source body result has a `Value` interface and its generated F4
+effect projection is `Empty`. This is not a theorem about the Function
+scheme's complete effect-port denotation.
+
+The source premise is checkable directly on HIR: a complete lambda body is an
+integer, a resolved module name, or that lambda's resolved parameter name.
+The typed-core rules give `Result(Value(A)) = Comp(empty,A)` in each case. For
+integer/module-name bodies, `emit_integer` or `emit_resolved_binding_name`
+emits the body's effect lower/upper facts. For parameter-name bodies,
+`emit_lambda` emits those same two facts for its `body_effect_component`.
+The lambda effect row receives the pair as well. Therefore both body and
+lambda rows have
+
+```text
+EffectBottomPositive <: row <: EmptyEffectNegative
+```
+
+and `finish` reports `SolvedEffect::Empty` for each row with those recorded
+bounds. In the parameter-name case,
+`admit_lambda_fact` places that exact body row in the Function's positive
+result-effect child. The facts and occurrence provenance remain available
+through `SolvedModule::store` after finalization.
+
+This closes a source-generation correspondence from `Result(Value(A))` to
+the current local effect **projection** over this HIR fragment. It does not
+identify `EffectBottomPositive` with an empty row, nor infer that the closed
+scheme's positive `Bottom` port means empty. Scheme generalization still
+records only canonical polarity endpoints; the denotational relation from
+the retained effect facts to a role-indexed source Function bound, and the
+callback full-bound clauses, remain open.
+
 This is the smallest concrete bridge obligation: derive, from the user-selected
 Pure introduction and the intended meaning of the polarized row constraints,
 that the F5 endpoint is an adequate presentation of the source interface,
