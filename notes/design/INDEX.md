@@ -60,9 +60,9 @@ This index is a navigation aid. The listed source document remains authoritative
   typed-observation lift; a separate bounded state-machine test exercises two
   `Force(D) >>= B` resumption splits while preserving the Pure value's actual
   role under a Handler callback view. A follow-up starts from the actual HIR
-  identity artifact with a request-free callback prefix, then suspends/resumes
-  a designated consumer after callback return and checks that callback entry
-  is not replayed. Neither test identifies
+  identity artifact, resumes its Force request at state 21, then suspends and
+  resumes the designated consumer from that state while checking that callback
+  entry is not replayed. Neither test identifies
   its candidate relation with production bounds. See its
   [progress record](../progress/2026-10-05-source-indexed-function-realization-playground.md).
   The raw unary-lambda CST probe records the current `\x` / `->` error-token

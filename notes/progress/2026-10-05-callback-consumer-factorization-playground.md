@@ -53,19 +53,18 @@ crosswalk remains open.
 `designated_consumer_resumes_after_the_hir_derived_callback_returns`. It starts
 from the actual collected/solved `id x = x` artifact, derives the identity body
 and callback entry from HIR/Function facts, then passes that returned callback
-trace to a one-request designated consumer. The consumer suspends and resumes
-with an updated state; the test checks its request origin/continuation, return
-value, and that callback receipt, Force, and body entry each occur once. The
-actual callable remains Pure/Value while the slot view remains Handler.
+trace to a one-request designated consumer. The callback's Force request
+resumes with value `7` and live state `21`; the consumer request must start in
+state `21` and resumes to `22`. The test checks request origin/continuation,
+result value, and that callback receipt, Force, and body entry each occur once.
+The actual callable remains Pure/Value while the slot view remains Handler.
 
 This grounds the continuation boundary in the current solver's retained
 identity Lambda artifacts. The consumer program and its request evidence are
 still supplied by the test, and no production `Apply`, consumer relation,
-Function-bound observation, or `b+` endpoint is generated. The callback prefix
-is request-free, so the test starts the consumer at the unchanged initial
-state; it does not establish state threading from an argument/body resumption
-into the consumer. `InvocationStep::Return` marks callback result delivery,
-before the consumer and complete invocation view return. The focused Rust
-test module passes. Compiler-referee review found no issue in the exercised
-trace and confirmed these limits; production lowering and backends were not
-reviewed or changed.
+Function-bound observation, or `b+` endpoint is generated. `InvocationResult`
+now carries the callback's final live state into this designated consumer;
+`InvocationStep::Return` marks callback result delivery before the consumer
+and complete invocation view return. The focused Rust test module passes.
+Compiler-referee delta review found no issue in the state-threading change;
+production lowering and backends remain outside scope.
