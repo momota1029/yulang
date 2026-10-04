@@ -282,6 +282,14 @@ actual observation. This validates the logical boundary only; production
 certificate derivation and actual-side factorization remain open. See the
 [admission-hiding playground](../notes/progress/2026-10-05-callback-admission-hiding-playground.md).
 
+The reviewed value-only structural-shadow obstruction now also has a finite
+executable witness: with identical `(Unit, Unit)` value shadows, Value entry
+forces a request-bearing inert argument while an unused retained Computation
+entry returns quietly. This supports keeping the complete Function query
+separate from its pure structural shadow; it is not source execution or a
+production inequality result. See the
+[Function shadow playground](../notes/progress/2026-10-05-function-shadow-obstruction-playground.md).
+
 The design and its current proof boundary are recorded in
 [production callback endpoint generation](../notes/design/2026-10-04-production-callback-endpoint-generation-draft.md).
 It specifies a bounded raw/HIR application node and lowering, B step 6 role-first
