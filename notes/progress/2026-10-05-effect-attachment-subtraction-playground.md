@@ -66,3 +66,18 @@ equating family support with event identity. No new carrier is proposed.
 Verification: `python3 tools/research_effect_attachment_subtraction.py` and
 `git diff --check` passed. No compiler tests, builds, or production changes
 were made.
+
+## Differential shallow-transition check
+
+The checker now imports the separate bounded shallow-resumption model and
+compares the event projection against its result for the same 96 fixed
+histories. All event IDs, origins, family labels, selected-first handling,
+one raw resumption, and terminal outer-family filters agree. This is a
+differential consistency check between two research models with shared
+assumptions; it is not an independent derivation of the source-machine rule.
+
+Verification: `python3 tools/research_effect_attachment_subtraction.py`
+reports 256 attachment/output combinations and 96 matching shallow histories;
+the component-membership probe still reports 31 same-fiber subsets and 8
+candidate-reading distinctions. No new semantic choice or production change
+follows.

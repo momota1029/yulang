@@ -21,6 +21,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from itertools import product
 
+from research_mixed_effect_subtraction import (
+    Event as ShallowEvent,
+    shallow_resume_once,
+)
+
 
 @dataclass(frozen=True, order=True)
 class EffectPoint:
@@ -113,13 +118,63 @@ def minimal_same_family_survivor() -> tuple[Event, ...]:
     return outgoing
 
 
+def differential_shallow_projection() -> int:
+    """Compare attachment projection with the separate 96-history model."""
+    families = ("tick", "write")
+    checked = 0
+    for length in (2, 3):
+        for family_vector in product(families, repeat=length):
+            history = tuple(
+                ShallowEvent(i, family, "same-source-flow")
+                for i, family in enumerate(family_vector)
+            )
+            target = EffectPoint(history[0].family, "opaque-args")
+            for resume, outer_mask in product((False, True), range(1 << len(families))):
+                outer = frozenset(
+                    family
+                    for i, family in enumerate(families)
+                    if outer_mask & (1 << i)
+                )
+                reference = shallow_resume_once(
+                    history,
+                    selected_family=history[0].family,
+                    resume_raw_continuation=resume,
+                    outer_consumes=outer,
+                )
+                projected_input = tuple(
+                    Event(
+                        f"q{event.event_id}",
+                        event.origin,
+                        EffectPoint(event.family, "opaque-args"),
+                        attached_to_target=event.family == target.family,
+                        consumed_by_boundary=event.event_id == 0,
+                        reaches_complete_output=(
+                            event.event_id != 0
+                            and resume
+                            and event.family not in outer
+                        ),
+                    )
+                    for event in history
+                )
+                projected = complete_output(projected_input)
+                assert tuple(
+                    (int(event.event_id[1:]), event.point.family, event.origin)
+                    for event in projected
+                ) == tuple((event.event_id, event.family, event.origin) for event in reference)
+                checked += 1
+    assert checked == 96
+    return checked
+
+
 def main() -> None:
     checked, unsafe, duplicates = enumerate_two_event_histories()
     witness = minimal_same_family_survivor()
+    differential = differential_shallow_projection()
     assert unsafe > 0 and duplicates > 0
     print(f"two-event attachment/output histories checked: {checked}")
     print(f"histories where consumed attachment does not justify support deletion: {unsafe}")
     print(f"histories with duplicate events but set-like public support: {duplicates}")
+    print(f"differential shallow-projection histories: {differential}")
     print(
         "minimal witness: q0 is consumed; distinct same-family q1 reaches the "
         f"complete output image, retaining support {sorted((p.family, p.arguments) for p in support(witness))}"
