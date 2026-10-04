@@ -484,3 +484,54 @@ receipts, or assuming an unapproved row-contribution premise. This audit found
 no representation obstruction and selects no API or compiler phase. It does
 not establish a counterexample or settle whether the missing elaboration can
 be derived without an additional semantic premise.
+
+### Authority adjudication: selected linked ports, proof still open (2026-10-04)
+
+A follow-up Astra audit was rerun against the user's explicit decisions as
+current authority, rather than only asking whether the older core text entails
+the correspondence. It corrects the earlier conclusion: for the bounded
+existing-Pure, known-slot, identity-transport, `Value(A)` case, the user has
+already selected the operational placement as part of the linked lifting
+intent. No additional semantic choice is needed to locate these occurrences:
+
+```text
+d⁻  -> the received whole argument computation and its designated Force view
+d⁺  -> that same argument-origin contribution in the complete slot CallView
+b⁺  -> the body's and designated result consumer's contribution at J_call
+```
+
+This is the role-indexed interpretation of the approved linked rule, not a
+theorem derived from the older application and `Force` clauses alone. The
+actual callable keeps its Pure introduction role and §21 entry. The slot's
+Handler view supplies the invocation boundary. Callback-value receipt and
+inner argument receipt remain distinct. The maps exist statically for
+request-free and divergent arguments; event-specific `Observe`/`Path` evidence
+is joined only for events that occur. `Force(D) >>= B` retains each argument
+request, its continuation dependencies, and the reached body/result suffix in
+one `ν,K,D` fiber. The covariant `[b,d]` display is canonical flat form; its
+correlation stays in the existing joint relation and occurrence evidence.
+No new carrier, independent port subtyping, or total subtraction rule follows.
+
+This closes the **intended location** of the three linked occurrences and
+removes the previous request for another approval of those locations. It does
+not close the concrete inequality. The complete source elaboration must still
+connect the selected interface endpoints/profile to these paths; construct
+the checked and actual whole-carrier challenge domains; show checked-domain
+admission at the actual `Value(A)` entry; and establish complete bound
+inclusion for all legal responses, state, alias, result, and resumption
+histories. Identity execution inclusion alone is insufficient when an
+interface bound admits more observations than the exact executions. These
+remain proof obligations over existing `CallView`, `Rel_C`, `K,D`, typed
+paths, and subtraction evidence.
+
+### Oracle endpoint-propagation characterization (2026-10-04)
+
+The user clarified that the Oracle's A/B behavior is B: it infers the literal
+body's endpoints independently, then constrains the completed Function
+interface against the expected interface. This is characterization of the
+historical Oracle path. It does not override the successor's selected
+callback rule: the expected boundary still reaches an unannotated callback
+literal before body-constraint generation and selects Handler. It remains to
+state whether the successor uses B for endpoint propagation within that
+role-first elaboration; the Oracle fact alone does not decide that successor
+choice.

@@ -2459,6 +2459,36 @@ the successor rule; the approved callback contract deliberately requires
 expected context before body constraints, and its endpoint propagation extent
 remains the pending user choice.
 
+### Current gate correction (2026-10-04)
+
+The user has now clarified that Oracle's endpoint behavior is B: infer body
+endpoints independently, then constrain the completed Function interface
+against the expected interface. Keep this as historical characterization;
+Oracle behavior alone does not choose successor endpoint propagation. The
+successor callback contract still requires the expected boundary before body
+constraints so it can select Handler. Whether successor endpoints also flow
+into body inference remains open.
+
+The bounded linked-port locations are no longer awaiting user approval. A
+follow-up Astra adjudication against the user's explicit role-first, typed
+callback-slot view, and linked-lift decisions treats them as the operational
+interpretation already selected by the user:
+
+```text
+d⁻ -> received whole argument / designated Force view
+d⁺ -> same argument-origin contribution at complete slot CallView
+b⁺ -> body/result-consumer contribution at J_call
+```
+
+The earlier Astra non-entailment result was about the older core text in
+isolation and must not override the user's later explicit authority. These
+placements do not establish endpoint/profile correspondence, whole-carrier
+challenge admission, or complete observation-bound inclusion. The active
+callback theorem gate is now those query-local adequacy clauses under one
+`Rel_C`/`ν,K,D` fiber, using existing evidence and preserving actual Pure role
+and §21 entry. No new carrier, API/phase decision, or implementation authority
+follows.
+
 ## Main records
 
 - `notes/design/2026-10-03-scoped-constraint-solving.md` — scoped regular equality quotient and finite closed structural subtype saturation; the following reviewed candidate addresses open residual factorization.
