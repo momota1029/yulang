@@ -702,6 +702,18 @@ formation rule follows from existing source semantics or requires a user
 choice remains unverified. See the
 [direct descriptor-formation audit](../notes/progress/2026-10-04-principal-contributor-bound-theorem.md#direct-common-descriptor-formation-audit-2026-10-05).
 
+A direct source derivation for the Value-entry callback now confirms the
+`receipt; Force(D) >>= rebind >>= body >>= designated result consumer`
+operational skeleton inside the complete `J_call` image, with raw continuation,
+event identity, live state, and common `nu,K,D` retained. It does not derive
+the mixed `[abstract, concrete]` component satisfaction clause: the abstract
+port view, concrete typed-family incidence, same-fiber combination, and
+attachment-justified partial reversal remain conditional. A two-`tick` shallow
+resumption discriminator rejects global family cancellation without complete
+handler-image absence evidence; it does not select annotation semantics. No
+new carrier is shown necessary. See the
+[focused derivation record](../notes/progress/2026-10-05-function-effect-descriptor-derivation.md).
+
 An executable contract-join probe now exhausts 65,536 two-stage cases with
 separate Function-valued and Int-valued challenge projections. Typed pullbacks
 retain the admitted source tuples and the closed concrete support union is
