@@ -41,6 +41,10 @@ This index is a navigation aid. The listed source document remains authoritative
   shrinks three scope-mutation failures; it does not close production membership
   factorization. See the
   [scope-lift record](../progress/2026-10-05-callback-scoped-lift-playground.md).
+  [`research_callback_admission_hiding.py`](../../tools/research_callback_admission_hiding.py)
+  exhausts the finite admission-uniform hiding lemma and minimizes a failure
+  when the premise is removed. See its
+  [progress record](../progress/2026-10-05-callback-admission-hiding-playground.md).
   Exact limits and minimized obstructions are in the
   [progress report](../progress/2026-10-04-callback-principal-playgrounds.md).
 - **Completed narrow experiment:**

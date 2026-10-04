@@ -274,6 +274,14 @@ characterization; joint hiding across production segments and actual-side
 membership factorization remain open. See the
 [scoped-lift playground](../notes/progress/2026-10-05-callback-scoped-lift-playground.md).
 
+An executable finite check now also covers the admission-uniform existential
+hiding lemma from §4.1 of the certified-transport theorem: all 73 fixed-fiber
+cases satisfying the uniformity premise project correctly. Without it, the
+checker shrinks a valid countermodel to three domain memberships and one
+actual observation. This validates the logical boundary only; production
+certificate derivation and actual-side factorization remain open. See the
+[admission-hiding playground](../notes/progress/2026-10-05-callback-admission-hiding-playground.md).
+
 The design and its current proof boundary are recorded in
 [production callback endpoint generation](../notes/design/2026-10-04-production-callback-endpoint-generation-draft.md).
 It specifies a bounded raw/HIR application node and lowering, B step 6 role-first
