@@ -14,9 +14,13 @@ This index is a navigation aid. The listed source document remains authoritative
 - **Next proof gate:** Pure-value callback adaptation and its Function theorem
   remain unproved. A direct main-theorem attack localizes the decisive bound
   clause to full endpoint-bound factorization through the existing
-  argument/body/result composition; query-independent challenge admission and
-  both containment conclusions remain required. See
-  `notes/progress/2026-10-04-direct-main-gate-attacks.md` and the callback row.
+  argument/body/result composition. The conditional first-order result uses
+  the source-checkable compositional endpoint recipe with a shared slot/actual
+  Value-entry argument endpoint; authoritative B does not yet specify the endpoint
+  emission rule needed to prove source generation satisfies that premise. See
+  `notes/progress/2026-10-04-callback-compositional-premise.md`,
+  `notes/progress/2026-10-04-direct-main-gate-attacks.md`, and the callback
+  row.
 - **Structural gate:** the finite residual presentation, regular-witness
   decidability, and principal/effective projection remain distinct. The exact
   open existence theorem is regular completion with descriptor prefix shifts
