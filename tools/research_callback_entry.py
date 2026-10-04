@@ -209,6 +209,51 @@ def checked_invariants() -> tuple[int, int]:
     return scenarios, completed_paths
 
 
+def repeated_raw_resumption_with_live_state() -> int:
+    """Resume one immutable pending continuation in two live states."""
+    pending = Requested(
+        "E_arg",
+        0,
+        (
+            (0, 0, Returned(0, 0, ("resume-state-0",))),
+            (0, 1, Returned(0, 1, ("resume-state-1",))),
+        ),
+        ("request:E_arg",),
+    )
+
+    def suffix(value: int, current_state: int) -> Trace:
+        return Returned(value, current_state, (f"suffix-state-{current_state}",))
+
+    pending_with_suffix = bind(pending, suffix)
+    assert isinstance(pending_with_suffix, Requested)
+    snapshot = (
+        pending_with_suffix.operation,
+        pending_with_suffix.state,
+        pending_with_suffix.continuations,
+        pending_with_suffix.events,
+    )
+    results = tuple(
+        resume(pending_with_suffix, response=0, resumed_state=live_state)
+        for live_state in (0, 1)
+    )
+    assert isinstance(pending_with_suffix, Requested)
+    assert (
+        pending_with_suffix.operation,
+        pending_with_suffix.state,
+        pending_with_suffix.continuations,
+        pending_with_suffix.events,
+    ) == snapshot
+    assert all(isinstance(result, Returned) for result in results)
+    assert tuple(result.state for result in results if isinstance(result, Returned)) == (0, 1)
+    assert tuple(
+        result.events[-1]
+        for result in results
+        if isinstance(result, Returned)
+    ) == ("suffix-state-0", "suffix-state-1")
+    assert all(result.events.count("request:E_arg") == 1 for result in results)
+    return len(results)
+
+
 def minimized_eager_counterexample() -> tuple[tuple[Event, ...], tuple[Event, ...]]:
     argument = request("E_arg", 0, result_values=(0,))
     source = CallableValue("Pure", "Value")
@@ -226,9 +271,11 @@ def minimized_eager_counterexample() -> tuple[tuple[Event, ...], tuple[Event, ..
 
 def main() -> None:
     scenarios, completed_paths = checked_invariants()
+    multi_shot_states = repeated_raw_resumption_with_live_state()
     correct, mutant = minimized_eager_counterexample()
     print(f"Value-entry argument/body mode pairs and initial states: {scenarios}")
     print(f"finite response/resumption completions checked: {completed_paths}")
+    print(f"same pending continuation resumed with distinct live states: {multi_shot_states}")
     print(f"minimal source-order path: {' -> '.join(correct)}")
     print(f"eager-force mutant path: {' -> '.join(mutant)}")
     print("scope: source-order and finite bind/resumption only; no endpoint-denotation theorem")

@@ -93,16 +93,19 @@ The minimal eager-force mutant has one argument request. The source path orders
 call receipt and argument receipt before entry force and the request; the
 mutant forces and reaches the request before it establishes the call receipt.
 An independent compiler-referee review found no blocking/major issue. Its
-minor force-marker placement finding was corrected, and its repeated-resume
-coverage wording was narrowed to sequential requests rather than reuse of one
-continuation.
+minor force-marker placement finding was corrected. A delta review found no
+remaining findings. The first review also exposed a
+gap between sequential requests and reusing one pending continuation; a
+separate explicit witness now resumes the same immutable request continuation
+twice with live states 0 and 1, checking that the bound suffix sees each state
+and that the pending request remains unchanged.
 
-The finite request table uses a fixed state update and each continuation is
-chosen once per enumerated path. It does not explore resuming the same captured
-continuation repeatedly with different live states. It also omits owner
-activation, shallow handler dispatch, State semantics, typed `Flow`/`Observe`,
-callback Function port interpretation, and production endpoint denotation.
-Thus it checks source ordering and the finite bind equation only.
+The finite request table uses a fixed state update and one selected response
+per path; the separate repeated-resumption witness covers only two states and
+one simple suffix. It does not model general owner activation, shallow handler
+dispatch, State semantics, typed `Flow`/`Observe`, callback Function port
+interpretation, or production endpoint denotation. Thus it checks source
+ordering and finite bind/resumption equations only.
 
 ## Verification
 
@@ -119,6 +122,7 @@ python3 -m py_compile tools/research_callback_lift.py tools/research_principal_s
   pass
 python3 tools/research_callback_entry.py
   8 argument/body mode and initial-state cases; 18 response paths;
+  one pending continuation resumed twice under distinct live states;
   eager-force ordering mutant minimized to one request.
 python3 -m py_compile tools/research_callback_entry.py
   pass

@@ -336,9 +336,9 @@ neither closes a main theorem. Exact counts and limits are in
 [callback/principal playgrounds](../notes/progress/2026-10-04-callback-principal-playgrounds.md).
 The separate Value-entry probe executes the selected finite Return/Request
 bind equations for `receipt; Force(D) >>= (v => RebindResultPath; B(v))`; it
-finds the one-request ordering difference caused by eager force-before-call.
-It does not model endpoint denotation, owner reactivation, repeated use of one
-continuation, or full Handler dispatch.
+checks a same-request continuation resumed under two live states and finds the
+one-request ordering difference caused by eager force-before-call. It does not
+model endpoint denotation, general owner reactivation, or full Handler dispatch.
 For the specified `compose f g x = f (g x)` case, `g`'s effect contribution
 remains in outward `c` because the annotation-free source gets full hygiene;
 reusing its inferred component at `f`'s argument port is not a written capture
