@@ -580,6 +580,40 @@ environment/store realization judgment independent of the comparison. The
 full context-domain obligation remains open; this finite case is a subproof,
 not a narrowed definition of the domain.
 
+#### Immutable source-graph realization subproof
+
+A bounded theorem audit isolates a larger query-independent structural
+fragment without treating it as the full contextual domain. For a supplied
+finite source derivation graph `G`, define the proof relation
+`EnvImm_H(G, η)` by mapping lexical roots to their binding descriptors,
+preserving aliases as shared descriptor edges, and letting closures/delays
+retain their body labels and lexical root maps. Recursive references point
+to labels already allocated for `G`; a distinguished callable hole `H` stays
+a hole, and its hypothetical checked interface is not evidence that a later
+actual filling inhabits that interface. Existing typed paths, profiles,
+receipts, `K,D`, and ownership references are carried from `G`.
+
+For this source-generated immutable graph fragment, name lookup, capture,
+binding extension, and recursive-label lookup preserve `EnvImm_H` by following
+or extending those finite graph edges. The relation is defined without
+Function-denotation membership, so that structural preservation itself is
+non-circular. Existing typed-core §4 supplies descriptor-graph realization;
+ordinary closure application and bind/resumption clauses transport finite
+histories conditionally on their supplied source transition premises. This
+does not certify executions after arbitrary filling of `H`, admit arbitrary
+semantic imports, or provide a general environment/store relation.
+
+The extension fails at source State replacement followed by access through a
+previously created capture. Current clauses transport a supplied live state
+and specify pure continuation restart, but do not construct the successor
+configuration/read relation that gives the fixture's later capture its
+replacement value. General imported roots also lack an independent
+source-admission clause. Thus this subproof reduces structural alias/capture
+circularity for supplied immutable derivation graphs; it does not close
+`D_checked ⊆ D_actual` or the full challenge domain. The precise remaining
+source-state boundary is recorded in
+[local-State capture observation](2026-10-04-local-state-capture-observation.md).
+
 A bounded source-semantics audit found a non-circular candidate context
 skeleton for comparing an existing Pure identity through a known callback
 slot: fix the instantiated slot/profile and one `ν,K,D` fiber before resolving

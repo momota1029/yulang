@@ -81,8 +81,14 @@ Review evidence and exact conditional claims are in
 One finite source-generated immediate-application witness is now closed for an
 empty lexical environment and no State/reference operations. It confirms
 receipt-before-force and the actual Pure Value-entry path, but does not define
-callback-slot domain admission or cover captures, aliases, imports, divergence,
-future use, or resumptions.
+callback-slot domain admission; that execution witness itself does not cover
+captures, aliases, imports, divergence, future use, or resumptions.
+For supplied finite source graphs, a query-independent proof relation also
+preserves immutable lexical aliases, captures, and recursive labels without
+requiring the callable hole to inhabit its checked denotation. This is
+structural transport conditional on supplied derivations; arbitrary imports
+and source-State replacement/read remain outside it. See the same progress
+record for the exact relation and limit.
 One conditional structural subgate is closed for typed filling into a finite
 supplied open derivation graph: the skeleton, slot/profile positions,
 distinct receipts, typed paths, and joint `K,D` incidence transport when
