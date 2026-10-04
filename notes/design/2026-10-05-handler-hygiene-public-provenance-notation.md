@@ -105,23 +105,26 @@ AtInput(q,e) ∧ Active_b(t) ∧ Capture_b(q)
 Candidate provenance-edge reading:
 
 ```text
-OptionalEdgeν(e,f)
-  iff there is an admissible source assignment/execution and a source
-      evidence path in which some q satisfies AtInput(q,e) and later
+Edgeν(e,f)
+  iff under this fixed admissible assignment ν, there is a source execution
+      and evidence path in which some q satisfies AtInput(q,e) and later
       FlowsTo(q,f,t).
 ```
 
-The `?` records possibility of this edge; it does not make a row member
-present-or-absent. It also does not assert that every execution takes the
-edge. If `q` is represented in `f`, `Capture_b(q)` is not copied to `f`.
+The `?` is a candidate way to expose that a path witnessing `Edgeν(e,f)` may
+exist; it does not make a row member present-or-absent, and it does not assert
+that every execution takes the edge. If `q` is represented in `f`,
+`Capture_b(q)` is not copied to `f`.
 After the source step that exits `b`, `Active_b` is false, and any subsequent
 handler eligibility is computed from the then-current ordinary source
 context. The output component retains its type/effect contribution, not the
 expired permission.
 
-This formulation leaves two semantic quantifiers open: whether “possible” is
-existential over executions, over solver assignments, or over both; and
-whether the public edge denotes an upper-bound permission or an exact
+This fixed-`ν` relation is only a local candidate. The public scheme still
+needs a quantifier across admitted assignments: for example, whether its edge
+means a may-flow in some admitted assignment, a permission available in every
+assignment, or an exact relation indexed by the assignment. It also remains
+open whether the public edge denotes an upper-bound permission or an exact
 may-flow fact. Those choices affect scheme generality and are not resolved by
 the punctuation itself.
 
@@ -178,12 +181,33 @@ public absence.
 
 The directed-weight/subtraction work may account for a *witnessed local
 subtraction* and its attachment. It does not presently prove that it can
-project the complete relation `OptionalEdgeν(e,f)`, quantify the optionality
+project the complete relation `Edgeν(e,f)`, quantify the optionality
 over all admitted source assignments, or distinguish all same-family source
 origins after row normalization. The concrete compatibility design expressly
 requires a source/component-to-existing-evidence bridge before treating the
 frozen weight rules as successor evidence. No duplicated regional,
 attachment, or provenance ledger is proposed here.
+
+The repository layers must also stay distinct when describing this possible
+reuse. The SCC charter and the Oracle investigation record directed left/right
+weight routing and `StackWeight`/`SubtractId` as frozen-Oracle
+characterization; they explicitly do not grant those transformations a
+successor denotation. `AllExcept(S)` can characterize a residual family
+filter in those traces, but by itself it says neither that an input
+contribution reached a result nor when a receiver's authority expired. The
+spellings `PWeight` and `#u[Empty]` do not occur in this checkout, so this
+note cannot map them to a current Yulang3 object or infer their meaning.
+
+The current Yulang3 solver is a separate fact: its `TermView` exposes
+positive/negative Function nodes with four endpoints, while F5 generalization
+recognizes only its existing pure-effect endpoint forms. The current code has
+no carrier named `StackWeight`, `SubtractId`, `PWeight`, or `AllExcept`, and
+no source-level input-to-result provenance edge. These facts describe the
+implementation boundary only. They do not make four Function ports
+independent effect subtyping judgments, nor establish that a new carrier is
+needed: the successor projection should first be derived from `Rel_C`,
+`K,D`, typed paths, occurrence/incidence, and existing witnessed subtraction
+evidence.
 
 The most economical candidate is to derive `'e?` as a public view over
 existing source evidence when that evidence already determines the edge. If
@@ -388,7 +412,11 @@ type-level ownership. A future syntax gate must decide whether the sigil
 identifier suffix is reinterpreted, escaped, or replaced in type context, and
 inspect tokenization, operator-table interaction, and adjacent type forms.
 That syntax decision must not infer or alter the relational meaning of the
-optional provenance edge.
+optional provenance edge. This is confirmed by the current lexer
+(`crates/yu-syntax/src/lexical/lexer.rs`, `scan_identifier` and
+`scan_identifier_suffix`) and type-starter scan in
+`crates/yu-syntax/src/declaration/type_decl.rs`; this note does not select a
+grammar workaround.
 
 ## Recommendation
 
