@@ -13,7 +13,7 @@ my id x = x
   id : 'a -> 'a
 
 my zero x = 0
-  zero : 'a -> int
+  zero : any -> int
 
 my call f x = f x
   call : ('a -> ['b] 'c) -> 'a -> ['b] 'c
@@ -44,6 +44,12 @@ does not by itself assert equality of the original source effect expressions.
 The successor must derive these presentations from its general rules and
 preserve the corresponding solution family.
 
+Clarification (2026-10-04): the earlier `'a -> int` presentation for `zero`
+is superseded. The user accepts the negative `Top` domain, with `any` as the
+surface type notation. This applies to `zero`'s unconstrained value argument;
+it does not collapse `Any`, `never`, empty effect rows, or polarized solver
+extrema in other positions.
+
 ## Existing production value-skeleton evidence
 
 The current HIR/F5 source-generation audit covers the value projection of the
@@ -55,67 +61,34 @@ that value projection. The exact source clauses and regular-witness boundary
 are recorded in [the value-skeleton theorem](2026-10-04-production-f5-value-skeleton-selector.md).
 
 This evidence supports the requested value skeletons and confirms that the
-literal itself carries no value refinement. It does not prove that the
-successor generalizer presents the free `zero` parameter as `'a`, or that the
-full coupled Function/effect package preserves either scheme. In particular,
-the existing theorem explicitly projects away effect children and disclaims
-scheme principality; it cannot certify the full requested principal types.
+literal itself carries no value refinement. The updated criterion accepts the
+current F5 value presentation `Top -> Int` (surface `any -> int`) for `zero`;
+the prior quantification mismatch is withdrawn. The source-generation theorem
+still projects away effect children and disclaims scheme principality, so it
+does not certify the full coupled Function/effect scheme or its successor
+solution family.
 
-The current F5 closed representation has a concrete migration difference for
-this case. Its test at `crates/yu-solver/src/lib.rs` around lines 20371–20400
-asserts zero quantifiers, a negative `Top` argument, and positive `Int` result
-for `my k x = 42`; the F5 scheme draft §§23–24 explicitly classifies this as
-negative-only elimination. The user-directed successor criterion instead
-requires `'a -> int`. This establishes a difference in public scheme
-representation, not semantic equivalence or inequivalence between the two
-forms. No theorem currently licenses carrying F5's negative-only elimination
-through to the successor.
-
-The generalization proof must therefore explain, by a source-owned rule rather
-than a `zero` special case, how a flexible component exposed at a public
-Function boundary survives as a quantifier even when its body has no
-constraint on it. Internal solver extrema still retain their distinct roles;
-the precise successor eligibility/projection rule remains unproved. This is
-an additional direct obligation alongside, not a substitute for, the
-common-allowance theorem.
-
-The pair `id`/`zero` makes the required generalization criterion precise at
-this boundary: both expose the source parameter's value component in the
-public Function argument, but only `id` gives that component positive result
-incidence. A successor rule based solely on bipolar incidence would quantify
-`id` and eliminate `zero`'s negative-only component, contradicting the two
-accepted schemes. A source-checkable candidate is to retain a flexible
-component as quantifiable when its source owner is a function parameter and
-its endpoint is exposed through that definition's public argument port,
-independent of body incidence polarity; preserve any attached original
-constraints in the scheme predicate. This uses the existing parameter owner
-and endpoint path, not a new solver carrier. The candidate still needs proof
-that it preserves the full solution family under SCC/environment closure,
-instantiation, and generalization; it does not decide how other one-sided
-internal components normalize.
-
-The representation itself is not a blocker. Code inspection of
-`yu-types::ClosedTypeFinalizer` and the normal F5 scheme-use path confirms that
-`Q=[q0]` with the only occurrence `q0` in a negative Function argument can be
-finalized and instantiated: finalization validates an in-range negative Q
-reference without requiring positive incidence, and each declared Q receives
-one fresh value variable that the negative occurrence resolves through the
-same substitution. This proves carrier and path capability only. It does not
-change F5's current negative-only elimination rule or establish successor
-solution preservation/principality. The remaining zero-specific proof point
-is therefore the source-owned generalizer's Q eligibility, not a new type
-carrier or instantiation mechanism.
+Historical note (superseded by the 2026-10-04 clarification): the earlier
+`'a -> int` criterion prompted an audit of negative-only quantification. That
+audit confirmed the closed scheme carrier can represent and instantiate a
+negative-only quantifier, and traced the source parameter to the public
+negative Function argument. The user then accepted `Top -> int` / `any -> int`,
+so this quantifier path is optional capability evidence, not a required change
+to successor generalization. It establishes no general interpretation of
+`Any` or polarized `Top` outside this value argument.
 
 ## Frozen Oracle characterization
 
 Oracle at `a58eefc31e22141574b6f20c6a5748151c6d79f1` confirms the displayed
 `call` scheme. Its unannotated composition fixture prints protected subtraction
 markers (`#0[Empty]`); the plain displayed form is present with an annotation.
-Oracle prediction for `zero` is `any -> int`, not the user-directed successor
-criterion, and is not adopted. The supplied same-line `twice` spelling parses
-as a root-level separator, so the two-call body above uses a block. No exact
-Oracle output was established for that normalized `twice`, `choose`, or
-`higher`; lower-level Oracle rules are characterization only.
+Oracle prediction for `zero` is `any -> int`, which matches the later
+user-accepted surface notation; that acceptance comes from the user's
+clarification, not Oracle's historical materialization rule. The supplied
+same-line `twice` spelling parses as a root-level separator, so the two-call
+body above uses a block. No exact Oracle output was established for that
+normalized `twice`, `choose`, or `higher`; lower-level Oracle rules remain
+characterization only.
 
 ## Proof boundary
 
@@ -142,7 +115,7 @@ derivation:
 | Example | Evidence already available | Unclosed part |
 |---|---|---|
 | `id` | Production value skeleton points the Function argument and result to the same live parameter endpoint. | Coupled effect interface and principal generalization. |
-| `zero` | Production value skeleton leaves the parameter free and fixes the literal result to `Int`. | Successor generalization must expose the free parameter as `'a` without a value refinement; full interface principality. |
+| `zero` | Production value skeleton leaves the parameter free and fixes the literal result to `Int`; the current F5 value view `Top -> Int` is accepted as surface `any -> int`. | Full coupled Function/effect interface and principal solution-family preservation. |
 | `call` | Frozen Oracle characterizes the displayed scheme; source candidate routes the invocation through the common output port. | Source-to-complete-interface generation and principal factorization. |
 | `compose` | The expected scheme and no-unwitnessed-subtraction condition are explicit. | Transport of `g`'s intermediate value through `f`'s argument entry while its effect remains in the outward allowance, with one complete correlated interface. |
 | `twice` | Covariant rows are intended to be flat support, so repeated support is not multiplicity. | Preserve both occurrence paths and sequential continuation while proving one principal allowance. |
