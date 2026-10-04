@@ -214,6 +214,16 @@ candidate; its finite principal presentation remains a separate open proof.
   [root-only result](../notes/progress/2026-10-04-root-only-regular-witness.md),
   [queue probes](../notes/progress/2026-10-04-fixed-descriptor-queue-encoding.md),
   and [direct main-gate attacks](../notes/progress/2026-10-04-direct-main-gate-attacks.md).
+  A new finite selector-certificate theorem strictly extends the one-open-
+  anchor witness construction when an existing anchor satisfies every
+  incident directed bound after redirection. It handles multiple compatible
+  open anchors and includes a finite simulation certificate check; a second
+  example shows it is still only sufficient, since a satisfiable package can
+  require a fresh constructor graph outside the anchor choices. The current
+  HIR structural value shadow satisfies the selector premise in the stronger
+  no-directed-bound case.
+  This does not bridge the actual F5 four-port Function constraints. Details
+  are in [multi-anchor selector witness](../notes/progress/2026-10-04-multi-anchor-selector-witness.md).
   A fixed product encoding with global `Top` is proved exact on its recursive
   source image; the attempted NPS decision transfer stops because inverted
   prefix modalities for shifted descriptors do not enforce the ordinary
