@@ -120,6 +120,39 @@ conditional on a source-derived component-combination rule; it does not prove
 this factorization. The branch example above refutes raw equality merging, not
 common-allowance principal inference itself.
 
+If the scheme residual retains the complete original constraints and evidence
+conjunctively, the two-way projection obligation has a sharper form. Fix an
+original fiber `ξ = (ν,K,D)` and its complete solution set `Sξ`. Let `Qξ(s,a)`
+mean that allowance `a` is source-expressible, well-scoped, and passes every
+required direct invocation comparison for solution `s`, preserving its
+dependencies and public observation. Then the retained presentation
+`Pξ = {(s,a) | s ∈ Sξ ∧ Qξ(s,a)}` projects back to all original solutions iff
+
+```text
+∀s ∈ Sξ. ∃a. Qξ(s,a).
+```
+
+The reverse projection is immediate from retaining `s`; the open proof is
+total extension by a representable common allowance for every original
+solution in the same fiber. This reduction is conditional on retaining the
+original solution coordinates/residual. If the scheme omits any of them, a
+stronger reconstruction theorem is needed. Support collection alone does not
+prove the extension: `a` must be independently defined by source composition,
+not by query success, and must respect branch/stage dependencies, both `twice`
+invocations, and `compose`'s unwitnessed contribution.
+
+For principal inference, nonempty extension is necessary but insufficient.
+The extension must also be principal: for every valid public Function/effect
+view `V`, there must be an admissible generalization/instantiation map `m_V`
+through which `V` factors from the generated presentation, without
+strengthening direct inequality checks or dropping residual dependencies. The
+map may depend on `V`; no single substitution is expected to serve every
+alternative view. A merely large allowance could preserve all source
+solutions while losing principal precision. Thus the exact open theorem is a
+**principal common-allowance extension** over every original fiber, including
+both total representability and factorization of all valid views; the formula
+above isolates only its totality clause.
+
 An independent architect audit checked whether these principal criteria could
 close the active Pure-value callback production bridge. They cannot: principal
 projection constrains the public solution family, but supplies no inversion of
