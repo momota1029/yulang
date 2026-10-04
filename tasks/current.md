@@ -78,6 +78,11 @@ the complete interface clauses. The remaining obligations are:
 
 Review evidence and exact conditional claims are in
 [value-entry-bind-projection.md](../notes/progress/2026-10-04-value-entry-bind-projection.md).
+One finite source-generated immediate-application witness is now closed for an
+empty lexical environment and no State/reference operations. It confirms
+receipt-before-force and the actual Pure Value-entry path, but does not define
+callback-slot domain admission or cover captures, aliases, imports, divergence,
+future use, or resumptions.
 One conditional structural subgate is closed for typed filling into a finite
 supplied open derivation graph: the skeleton, slot/profile positions,
 distinct receipts, typed paths, and joint `K,D` incidence transport when

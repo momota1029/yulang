@@ -561,6 +561,25 @@ ports jointly with the selected linked contribution and existing evidence.
 
 ### Whole-carrier identity context gate (2026-10-04)
 
+#### Closed finite immediate-application witness
+
+A bounded source derivation establishes one non-vacuous immediate-application
+execution in the empty lexical environment, without State or reference
+operations: introduce a Pure identity with Value entry, inertly build a
+literal's whole argument carrier, receive it at the actual invocation, force
+it after receipt, rebind the value, and return it through the identity body.
+Typed-core §6 supplies the source typing derivations; ordinary-computation §3
+supplies the execution sequence. This confirms receipt-before-force and the
+actual Pure role/entry for this finite case.
+
+This witness is not the known callback slot's complete challenge domain. It
+does not establish query-independent admission for arbitrary contexts,
+imports, captures, aliases, divergence, future use, or resumptions. Extending
+the derivation stops when lexical bindings/captures need a semantic
+environment/store realization judgment independent of the comparison. The
+full context-domain obligation remains open; this finite case is a subproof,
+not a narrowed definition of the domain.
+
 A bounded source-semantics audit found a non-circular candidate context
 skeleton for comparing an existing Pure identity through a known callback
 slot: fix the instantiated slot/profile and one `ν,K,D` fiber before resolving
