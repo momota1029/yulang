@@ -49,3 +49,19 @@ this record-only/documentation update. No tests, builds, or measurements were
 run. The callback theorem remains open for whole-carrier admission/domain
 inclusion, endpoint/profile adequacy, and observation-bound inclusion; the
 larger source-State and Milestone-3 blockers are summarized in `tasks/current.md`.
+
+## Follow-up compactification
+
+The user requested a further reduction of `tasks/current.md` to current
+decisions, proof gates, blockers, and governing links. The detailed callback
+witness clauses remain in
+`notes/progress/2026-10-04-value-entry-bind-projection.md`; structural witness
+limits remain in
+`notes/progress/2026-10-04-root-only-regular-witness.md`; State observations
+and the missing source bridge remain in
+`notes/progress/2026-10-04-local-state-capture-observation.md`; chronological
+investigations remain in the archived task ledger. No decision or design status
+changed in this navigation edit. `notes/design/INDEX.md` labels the callback
+contract as closed and the Pure-value theorem as open, and distinguishes the
+B/A requirements already in the Authoritative source contract from the explicit
+optimization-equivalence clarification recorded on 2026-10-04.
