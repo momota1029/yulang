@@ -103,6 +103,37 @@ not currently bridge the primary theorem. No user semantic choice is needed
 unless this clause is shown false for an explicit Yulang program; none was
 found.
 
+### Direct production-constructor inversion attempt (2026-10-04)
+
+A further constructor-induction attempt located the first missing inverse at
+Function introduction. In the current source-to-solver path,
+`admit_lambda_fact` constructs a four-child positive Function from parameter,
+body-value/effect and result endpoints, then admits the resulting inequality
+and provenance. It provides no rule that turns complete-bound membership into
+the invocation witness required above (`crates/yu-solver/src/lib.rs`,
+`admit_lambda_fact`, around line 10537). The lower-level
+`Draft::positive_function` constructor checks and stores those four child
+indices only (`crates/yu-types/src/lib.rs`, around line 1822). Typed-core's
+lambda clause still supplies just the parameter/body/result skeleton, while B
+step 6 still leaves the completed port projection as an obligation.
+
+Thus the missing clause can be stated at one production owner: for a
+source-generated Function endpoint `L`, every `O` in its complete denotation
+at a checked challenge `c` must have a finite witness through `L`'s existing
+argument, entry/rebind, body, designated result-consumer, and `J_call`
+composition, preserving the same tuple, scopes, `nu,K,D`, incidence and joint
+hiding. Shared type variables, stored provenance, and forward execution
+soundness do not yield that inverse. Theorem C has such inversion because its
+own bound is defined by the generated positive relation graph with joint
+existential hiding; no inspected rule identifies production endpoint
+membership with that graph.
+
+This attempt found no unconditional Yulang counterexample and no need for a
+new carrier. The endpoint-only `id`/`zero` witness remains conditional because
+that interpretation is not required. It does not change the active gate: the
+production Function-denotation/constructor crosswalk remains the next action.
+No compiler code or tests changed or ran.
+
 The adequacy draft confirms why exact source semantics does not fill the gap.
 Its §2 defines `Sem` by collecting exact executions and finite future uses;
 §3 requires only `Sem ⊆ ⟦P⟧` for **any** assigned complete-interface
