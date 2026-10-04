@@ -71,8 +71,9 @@ def three_use_exhaustion() -> tuple[int, int, int]:
         receiver, a0, b0, a1, b1, a2, b2 = row
         targets = ((a0, b0), (a1, b1), (a2, b2))
         formula = all(receiver in pair for pair in targets)
-        direct_witness = all(
-            any(value == receiver for value in pair) for pair in targets
+        direct_witness = any(
+            all(targets[i][choice] == receiver for i, choice in enumerate(choices))
+            for choices in product((0, 1), repeat=3)
         )
         assert formula == direct_witness
         checked += 1
