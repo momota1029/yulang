@@ -39,7 +39,8 @@ This index is a navigation aid. The listed source document remains authoritative
   [`research_callback_ab_solution_equivalence.py`](../../tools/research_callback_ab_solution_equivalence.py)
   exhausts 65,536 finite B/A relation pairs, checking exact solution
   preservation for entailed coordinate propagation with the final query
-  retained, and shrinks an endpoint-copy failure. See its
+  retained, then samples 2,048 tagged method/adapter/residual/evidence cases
+  and shrinks endpoint-copy and evidence-erasure failures. See its
   [progress record](../progress/2026-10-05-callback-ab-solution-equivalence-playground.md).
   [`research_callback_scoped_lift.py`](../../tools/research_callback_scoped_lift.py)
   exhausts a finite total-coordinate lift at its original binder scopes and

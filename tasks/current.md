@@ -446,11 +446,14 @@ raw/HIR bridge remain open. Details are in the
 The A/B scheduling invariant now has a separate executable solution-set probe:
 [`research_callback_ab_solution_equivalence.py`](../tools/research_callback_ab_solution_equivalence.py)
 exhausts 65,536 relation pairs over three independently synthesized binary
-endpoint coordinates. Exact unary projection of the completed B solution set,
-while retaining B's final joint query, preserves every solution. Its minimum
-endpoint-copy mutant loses B's `(0,0,0)` solution against expected `(0,0,1)`.
-This is a finite relational scheduling characterization, not a production
-propagator or callback semantics proof. Details are in the
+endpoint coordinates, retaining four distinct method/adapter/residual/evidence
+witnesses per endpoint. Exact unary projection of the completed B solution set,
+while retaining B's final joint query, preserves every tagged solution. A
+seeded 2,048-case sample independently varies witness availability; a minimal
+evidence-erasure mutant loses one of two same-endpoint alternatives. The
+endpoint-copy mutant loses all four B witnesses at `(0,0,0)` against expected
+`(0,0,1)`. These are finite relational scheduling characterizations, not a
+production propagator or callback semantics proof. Details are in the
 [A/B playground record](../notes/progress/2026-10-05-callback-ab-solution-equivalence-playground.md).
 
 A new executable composition probe directly exercises the remaining
