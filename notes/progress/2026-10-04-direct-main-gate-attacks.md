@@ -3,10 +3,12 @@
 Date: 2026-10-04
 Status: theorem-gate finding; no semantic decision or implementation authority
 
-This record reports direct attempts at the two current main gates. The callback
-lane has one exact missing theorem premise. The structural lane has one exact
-regular-completion boundary. Neither result authorizes a new carrier, semantic
-rule, or support-envelope change.
+This record preserves direct attempts at the two main gates and their later
+outcomes. The structural regular-completion boundary is now closed by
+[the reviewed finite-fence FMP theorem](../design/2026-10-04-structural-fmp-fence-completion.md).
+Earlier open-status statements and failed routes below are historical; their
+counterexamples remain construction-specific. No result here authorizes a
+new carrier, semantic rule, or support-envelope change.
 
 ## Pure-value callback / Function adequacy
 
@@ -199,7 +201,21 @@ Function-denotation section. The previous theorem-level attempt and evidence rem
 
 ## Structural regularity / finite presentation
 
-**Result: finite residual presentation remains available, but regular-witness
+**Current status: A, normalized pure structural FMP proved.**
+[Finite fence completion](../design/2026-10-04-structural-fmp-fence-completion.md)
+constructs a simultaneous regular model from any arbitrary permitted model
+of one fixed normalized package, using at most `8^N` profiles on the finite
+flat-term universe. It preserves exact shared descriptors, mandatory Record
+width, Function variance, invariant coordinates and arbitrary per-root rigid
+permissions. The complete finite-quotient equivalence below therefore gives
+the requested conflict reflection; the later finite-feedback residual (BR)
+is also proved. No source-generation premise is added. Proof and two clean
+independent reviews are in [the completion record](2026-10-04-structural-fmp-proof.md).
+The rest of this structural section records the earlier attacks and exact
+bridges used by that proof. Production Function/effect correspondence,
+joint predicates and principal residual questions remain separate.
+
+**Earlier result: finite residual presentation remains available, but regular-witness
 decidability for the full shifted-descriptor/variance fragment is open at one
 regular-completion theorem.** No undecidability reduction or source counterexample
 was found.

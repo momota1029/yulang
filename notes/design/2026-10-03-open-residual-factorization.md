@@ -7,6 +7,15 @@ Reviewed-by: compiler_referee and spec_auditor (M3, 2026-10-03); initial structu
 Implementation authority: none
 Supersedes: none
 
+**Existence update (2026-10-04):**
+[finite fence completion](2026-10-04-structural-fmp-fence-completion.md)
+now proves arbitrary-to-regular completion and finite-model reflection for
+the normalized pure structural package with arbitrary rigid permissions.
+Open regular-completion statements in this earlier record are historical
+for that fragment. Joint `Guard`/`Phi`, effects, exact projection and
+principal residual claims remain subject to their stated premises below;
+the new existence theorem does not eliminate those gates.
+
 ## 1. Purpose and boundary
 
 The [scoped constraint-solving package](2026-10-03-scoped-constraint-solving.md)
