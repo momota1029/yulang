@@ -22,6 +22,9 @@ blocking or major issue and validated its minimal witness. Its minor finding
 was a single `production` label in a finite-model count; the script now says
 `candidate endpoint`, and the primary reran the focused checker and
 `py_compile`.
+The compose-hygiene probe review found no blocking or major issue. Its minor
+finding required explicit assertions for resumed response/live-state pairs;
+these were added and the primary reran the focused checker and `py_compile`.
 Governing direction: [inference research playgrounds](../design/2026-10-04-inference-research-playgrounds.md)
 Governing callback design: [production callback endpoint generation](../design/2026-10-04-production-callback-endpoint-generation-draft.md)
 Governing principal criterion: [principal scheme acceptance](2026-10-04-principal-scheme-acceptance-criteria.md)
@@ -201,6 +204,28 @@ the extra behavior. It does not model arbitrary higher-order histories,
 subtraction, or production endpoint denotation; production conformance remains
 open.
 
+## Annotation-free compose hygiene probe
+
+[`tools/research_compose_hygiene.py`](../../tools/research_compose_hygiene.py)
+checks the finite `Force(D_g) >>= (v => RebindResultPath; B_f)` request case
+under one fixed `nu,K,D` fiber. Its request-bind relation keeps a pending
+prefix and appends the Value-entry suffix. The search covers two operation
+kinds, all 16 subsets of two value/state responses, and all four handler
+operation sets: 128 cases. It verifies exact response/live-state transport,
+request origin/event/path preservation, and the pending/resumed suffix. With
+no written capture contract, every caller-owned `g` request remains in
+outward `c` even if `f` has a handler for that operation.
+
+A row-match mutant subtracts the request whenever `f`'s handler covers its
+operation and both source types print component `b`. It loses the contribution
+in 64 cases. The minimized witness is one pending `Read` from `g` at
+`J_arg:g-to-f`, an inner `Read` handler in `f`, and no capture contract; the
+source-boundary view retains `Read` in outward `c`, while the mutant removes
+it. This characterizes the hygiene consequence and refutes subtraction based
+only on inferred component reuse. It does not model explicit capture,
+multi-request operation execution, complete Function comparison, or production
+endpoint projection, so it does not close the `compose` principal-scheme gate.
+
 ## Next proof work
 
 The callback main gate still needs a source-to-endpoint correspondence showing
@@ -273,6 +298,12 @@ python3 tools/research_callback_callable_projection.py
   owner; authority-erasing mutant false-green in both source-owner cases;
   minimum has one source owner and one extra returned/invoked callable.
 python3 -m py_compile tools/research_callback_callable_projection.py
+  pass
+python3 tools/research_compose_hygiene.py
+  128 Force/Value-entry cases; event/fiber/origin/path and suffix preservation
+  pass; exact response/live-state transport pass; component-match mutant loses
+  outward support in 64 cases; minimum is one pending Read request.
+python3 -m py_compile tools/research_compose_hygiene.py
   pass
 python3 -m py_compile tools/research_callback_lift.py tools/research_principal_support.py
   pass

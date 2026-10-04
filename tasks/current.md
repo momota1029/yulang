@@ -357,6 +357,18 @@ ownership. It is not evidence that production admits extra owners and does not
 close higher-order endpoint denotation. Reviewed with one minor terminology
 repair and focused rerun; see
 [callback/principality playgrounds](../notes/progress/2026-10-04-callback-principal-playgrounds.md).
+An annotation-free `compose` probe now exhausts 128 finite `Force(D_g)` request
+cases under the fixed same-fiber Value-entry bind, covering operation kind,
+all two-value/two-state response relations, and inner handler operation sets.
+Pending and resumed traces preserve their exact request/fiber/path and
+response/live-state pairs; without an explicit capture contract, the `g`
+request remains in outward `c` even when `f` handles that operation. A mutant
+that subtracts on shared printed component `b` loses the contribution in 64
+cases; the minimum is one pending `Read`. This is a source-order/hygiene
+characterization, not a full Function comparison or principal-scheme proof.
+An independent compiler-referee review found no major issue; after adding its
+requested resumed-state assertions, the focused checker and `py_compile` pass.
+Details: [callback/principality playgrounds](../notes/progress/2026-10-04-callback-principal-playgrounds.md).
 The latest user clarification accepts `Top -> int` for `zero`, with `any` as
 the surface notation, superseding the earlier `'a -> int` criterion. The prior
 negative-only quantification analysis is retained as history but creates no

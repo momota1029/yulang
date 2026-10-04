@@ -126,3 +126,11 @@ same-interface callable absent from the source identity graph. This is a
 bounded obstruction to broadening the scalar `Sat_j` rule, not evidence about
 production endpoint denotation or arbitrary higher-order histories. Exact
 limits are in the same progress report.
+[`tools/research_compose_hygiene.py`](../../tools/research_compose_hygiene.py)
+checks the fixed-fiber `Force(D_g)` request prefix and Value-entry bind for the
+annotation-free `compose` consequence. It confirms that an inner handler and
+shared printed effect component `b` alone do not subtract a caller-owned
+request when no capture contract is written; a finite mutant loses the
+required outward support. This does not establish a complete Function query
+or principal scheme. Details and exact search limits are in the same progress
+report.

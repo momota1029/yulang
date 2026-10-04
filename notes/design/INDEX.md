@@ -33,6 +33,9 @@ This index is a navigation aid. The listed source document remains authoritative
   [`research_callback_callable_projection.py`](../../tools/research_callback_callable_projection.py)
   checks the higher-order authority-preservation boundary of the approved
   typed projection.
+  [`research_compose_hygiene.py`](../../tools/research_compose_hygiene.py)
+  checks that shared `b` row spelling does not grant capture for annotation-free
+  `compose`.
   Exact limits and minimized obstructions are in the
   [progress report](../progress/2026-10-04-callback-principal-playgrounds.md).
 - **Completed narrow experiment:**
