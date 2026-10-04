@@ -104,10 +104,12 @@ and the required authority.
 - Milestone 3 (finite symbolic presentation) still lacks source-wide
   comparison/context closure, complete source realization, and effective
   joint residual/projection for open Records and feedback. A reviewed bounded
-  theorem now gives a regular witness for unguarded structural constraints
-  whose flexible classes occur only as inequality roots and whose other
-  endpoints are closed descriptors. It does not cover shifted open-descriptor
-  equations, principal residuals, or source acceptance; see
+  theorem now gives regular witnesses and an exact finite-automaton
+  presentation of the normalized regular solution image for unguarded
+  structural constraints whose flexible classes occur only as inequality
+  roots and whose other endpoints are closed descriptors. It does not cover
+  shifted open-descriptor equations, the full fiber/principal residuals, or
+  source acceptance; see
   [root-only regular-witness theorem](../notes/progress/2026-10-04-root-only-regular-witness.md).
   There is no class-3 impossibility result. One bounded source-origin subgate is closed:
   normative callback B supplies one occurrence-indexed initial

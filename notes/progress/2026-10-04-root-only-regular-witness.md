@@ -17,18 +17,22 @@ graph constraints, and source acceptance are outside the result.
 
 The result strengthens the existing closed-endpoint interval results to
 several mutually constrained free roots. It decides existence in this bounded
-fragment and constructs one regular witness; it does not describe the full
-solution fiber or supply a principal residual representation.
+fragment and constructs one regular witness. A reviewed corollary below gives
+an exact automaton for the normalized image of the regular solution fiber;
+neither result describes the full unnormalized fiber or supplies a principal
+residual representation.
 
 ## Finite synchronous construction
 
 Let `Λ` contain all labels in the closed input graphs. Before completeness,
 erase every field outside `Λ` throughout an arbitrary satisfying assignment.
-Keep every input atom distinct; if the atom domain has values outside the
-finite input set, map all such values to one fixed atom outside that set. If
-it has none, no extra representative is needed. These transformations
-preserve every original direct structural comparison and its retained child
-obligations.
+Let `A` contain every input atom identity and, when the atom domain has
+identities outside that finite set, one fixed representative for all such
+identities. Map each non-input atom to that representative, keeping input
+atoms fixed. If there are no non-input atoms, `A` contains only the input
+identities. Together, label erasure and atom mapping define an idempotent
+normalization `N` that preserves every original direct structural comparison
+and its retained child obligations.
 
 Use tagged child coordinates
 
@@ -44,13 +48,14 @@ free roots, all designated closed roots, and every original bound in its
 positive orientation. A shared equality class has one track.
 
 At each state, choose one simultaneous head vector for all present free
-tracks: an input atom, Function, or Record with a mask from `Λ`. Closed tracks
-follow their exact heads. Reject mismatched heads, atoms, or obligations whose
-endpoint is absent. For each coordinate present in any track, construct a
-successor state, even when no obligation currently uses that child; it records
-all resulting track presences, closed anchors, and obligations. Thus selected
-heads always have complete well-formed child graphs. Coordinates absent in
-every track may terminate or use one all-absent state.
+tracks: an atom from `A`, Function, or Record with a mask from `Λ`. Closed
+tracks follow their exact heads. Reject mismatched heads, atoms, or
+obligations whose endpoint is absent. For each coordinate present in any
+track, construct a successor state, even when no obligation currently uses
+that child; it records all resulting track presences, closed anchors, and
+obligations. Thus selected heads always have complete well-formed child
+graphs. Coordinates absent in every track may terminate or use one
+all-absent state.
 
 For each active obligation, apply the direct structural rule. A Record
 comparison requires the upper labels to be a subset of the lower labels and
@@ -92,6 +97,45 @@ both endpoints, so their obligations are no longer requested; atom renaming
 preserves identity agreement. This is existence preservation, not full-fiber
 preservation.
 
+## Exact recognition of the normalized regular fiber
+
+The same finite automaton also recognizes the complete normalized projection
+of regular solutions. Let `N` be the normalization above. Consider finite run
+graphs whose nodes carry an automaton state and a simultaneous head vector,
+with coordinate edges to child run nodes. Each node must be in the greatest
+fixed point, and its transition must satisfy local head, anchor, presence,
+and bound-obligation checks. Acceptance is coinductive local validity with no
+additional fairness condition. Distinct run nodes may carry the same
+automaton state with different heads or successors. A run is regular when
+this graph is finite. Project its free components to a tuple of regular types
+and forget the automaton annotations. Then
+
+```text
+{ projections of regular accepting runs }
+  = { N(η) | η is a regular solution of the root-only package }.
+```
+
+For the forward direction, each original bound's active tokens at run nodes
+form a post-fixed direct structural simulation, so the projected tuple
+satisfies every original inequality and is already normalized. For the
+reverse direction, normalize any regular solution and decorate its unfolding
+with the free-track graph nodes, exact closed anchors, and active
+bound/orientation set at every address. These annotations range over a finite
+product, making a regular run. Local checks follow from the original
+comparisons. Its states form a post-fixed set and therefore lie in the
+greatest fixed point.
+
+Run memory must be allowed to distinguish occurrences that have the same
+automaton state. For example, for `X <: X`, the solution
+`X = Function(Int, Int)` has the same state at its root and result child
+(present `X`, no closed anchors, the same positive obligation), but different
+head vectors. A strategy that chooses exactly one transition per state
+constructs one witness and does not recognize this whole normalized fiber.
+Allowing multiple run nodes with a repeated state restores exact recognition.
+This corollary recognizes only the image under label/atom normalization; it
+does not preserve unmentioned-field extensions or provide a principal Yulang
+type/residual.
+
 ## Exact boundary and next theorem
 
 The construction cannot handle open descriptor equations such as
@@ -117,3 +161,11 @@ fully seeded initial obligations, and the relation-based post-fixed
 soundness/completeness argument above. It confirmed that the open-descriptor
 address shift is outside the construction. No compiler edits, tests, builds,
 Oracle inspection, or measurements were performed.
+
+A second independent Astra theorem audit found the exact normalized-fiber
+corollary sound under finite regular run graphs. It identified and repaired
+one necessary distinction: a run graph may contain separate nodes with the
+same automaton state and different head vectors; a one-transition-per-state
+strategy is only the witness extractor, not the fiber recognizer. The
+reviewer found no remaining counterexample or substantive gap within this
+scope. No implementation authority follows.
