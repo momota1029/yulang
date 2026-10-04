@@ -53,6 +53,13 @@ Publication does not notify or resume a stopped goal.
   endpoint assignment/equality is invalid.
 - **Existing Pure callback value:** preserve its actual role and §21 entry; a
   callback slot supplies a typed invocation view without rewriting the value.
+- **Future data existential compatibility:** constructor/package internals may
+  hide witness types with existential packaging; they need not all become
+  public data parameters. This constrains future representation choices without
+  adding existential support to current inference or broadening current proofs.
+  No data-existential syntax, elimination, generalization, solver-carrier, or
+  runtime rule is selected; existing operation/request existential designs
+  remain separate. See the [Authoritative compatibility addendum](../notes/design/2026-10-04-existential-data-witness-compatibility.md).
 
 The governing semantic sources are [concrete compatibility](../notes/design/2026-10-03-concrete-compatibility-boundary.md)
 and [callback context delivery](../notes/design/2026-10-03-callback-context-delivery.md).

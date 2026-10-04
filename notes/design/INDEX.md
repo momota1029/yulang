@@ -47,6 +47,13 @@ This index is a navigation aid. The listed source document remains authoritative
   completion when each free component has closed anchors or one open anchor,
   under the stated rigid-scope condition. These are conditional mathematical
   results, not full production-generation or principal-inference theorems.
+- **Future data-existential compatibility:** the Authoritative
+  `notes/design/2026-10-04-existential-data-witness-compatibility.md` permits
+  future constructor/package-local existential witnesses without requiring
+  every hidden type to become a public data parameter. This is a compatibility
+  constraint only; no data-existential syntax, inference support, proof scope,
+  solver carrier or implementation is selected. Existing operation/request
+  existential designs remain separate.
 - **Active callback gate — production design, not proof-search expansion:**
   `notes/design/2026-10-04-production-callback-endpoint-generation-draft.md`
   specifies the bounded application HIR/lowering, B step 6 finite endpoint
