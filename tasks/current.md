@@ -192,19 +192,12 @@ remaining proof parts are now listed in the criteria record. The smallest
 shared open premise remains a source-generated principal common-allowance
 extension over each full `ν,K,D` solution fiber, followed by factorization of
 every valid public view through generalization.
-One separate migration mismatch is now concrete: current F5 generalization
-maps an unused negative Function argument to `Top`, while the accepted
-successor criterion requires the source-owned boundary component to remain
-`'a` in `zero : 'a -> int`. This is a representation mismatch only; no
-equivalence theorem or successor eligibility rule is established. See the
-criteria record's boundary-quantification gate. The `id`/`zero` pair also
-rules out a generalizer that quantifies only bipolar components. The current
-candidate is source-owned public-argument reachability independent of body
-polarity, with original constraints retained; SCC/environment preservation is
-still open. The existing closed-scheme carrier and instantiator can represent a
-negative-only Q without new machinery; only F5's generalizer currently
-eliminates that case. The exact evidence and scope are recorded in the
-criteria's boundary-quantification gate.
+The latest user clarification accepts `Top -> int` for `zero`, with `any` as
+the surface notation, superseding the earlier `'a -> int` criterion. The prior
+negative-only quantification analysis is retained as history but creates no
+successor generalization requirement. The full coupled Function/effect
+solution-family proof remains open; see the updated
+[principal scheme criteria](../notes/progress/2026-10-04-principal-scheme-acceptance-criteria.md).
 
 Historical callback adequacy exploration and its earlier gate descriptions
 remain in the linked progress records above and
