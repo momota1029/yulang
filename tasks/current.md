@@ -238,6 +238,21 @@ No production cutover authority follows from any playground or from the pure
 FMP theorem.
 
 **Callback direct follow-up: reference realization proved; production conformance open.**
+
+The latest residual attack proves a finite transformation-certificate theorem
+for whole membership and independent admission, and its Pure-value callback
+corollary at the fixed complete old fiber. It covers every finite
+latent/future/resumption history. Checked-admission dependencies remain in
+that fiber; an additional hiding lemma proves marginal containment when
+checked admission is constant across the forgotten fiber. A two-witness
+countermodel shows why binding a hidden name once is insufficient by itself.
+These results have independent compiler-referee/spec-auditor review, with
+the hidden-admission finding repaired and its delta closed. Deriving the
+decorated input and complete finite certificates from the selected production
+generator remains open. See
+[certified callback and constrained-use theorems](../notes/design/2026-10-04-certified-callback-and-constrained-use.md)
+and the [residual attack record](../notes/progress/2026-10-04-callback-principality-residual-attack.md).
+
 The latest user request reopened direct proof work on callback and
 principality after the pure FMP proof. The independently reviewed
 [source-indexed reference construction](../notes/design/2026-10-04-source-indexed-callback-realization.md)
@@ -343,6 +358,24 @@ admissible map for each independently valid public presentation, using the
 existing complete Function query and source occurrence maps. The quantifiers
 remain `∀s∈Sξ. ∃a. Qξ(s,a)` and `∀V. ∃m_V`. No source-scheme counterexample
 or new descriptor semantics is asserted.
+
+The further reviewed constrained-use theorem removes a separate
+map-construction-calculus requirement: fresh-copy the whole finite
+presentation, apply any supplied uniform descriptor graft, retain the client
+constraint, and append one direct complete query at the actual designated
+exported root. Its finite graph exists before solving. It preserves exactly
+the client's full solution relation iff `C_V(v) => Ext_P(v)` for every public
+assignment. Thus the remaining all-view gate is this entailment for every
+independently valid `V`, alongside legal common-allowance totality. No general
+explicit universal-preimage descriptor is required when the query is retained.
+If the common descriptor replaces the exported source root, its witness must
+also satisfy the direct root-to-`V` comparison; totality alone is insufficient.
+The conditional retained-root corollary does not change any accepted scheme's
+root. Source/query completeness and descriptor realization remain unproved;
+classification is C. Full proofs, source applicability, and independent
+reviews are in the linked certified-callback/constrained-use theorem and
+residual attack record.
+
 An executable contract-join probe now exhausts 65,536 two-stage cases with
 separate Function-valued and Int-valued challenge projections. Typed pullbacks
 retain the admitted source tuples and the closed concrete support union is

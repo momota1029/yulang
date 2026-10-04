@@ -6,6 +6,16 @@ Scope: finite forward source presentations, exact complete-domain preimage laws,
 Implementation authority: none
 Supersedes: none
 
+**Later constrained-use result:**
+[certified callback transport and finite constrained uses](2026-10-04-certified-callback-and-constrained-use.md)
+§5 constructs ordinary whole-copy/graft/direct-query uses from existing
+operations. A separate map-construction calculus is therefore unnecessary
+for that route; exact public projection still requires its scoped extension
+entailment for every independently valid `V`. An explicit descriptor for a
+general universal preimage is also unnecessary when the complete query is
+retained. Legal common-allowance realization and direct-query completeness
+remain open. The semantic results below are unchanged.
+
 ## 1. Result and remaining target
 
 The user-directed
@@ -389,10 +399,14 @@ use the actual allowed map/evidence class, rather than demand equality by
 literal row substitution or assume arbitrary relation maps are allowed.
 
 The existing whole-presentation generalization/reindexing theorem transports
-a supplied finite presentation exactly. It does not itself construct these
-maps or prove every public view is represented. In particular, pointwise
-existence of a descriptor for each solution does not supply one syntactic
-`m_V` for a whole public solution family.
+a supplied finite presentation exactly. Combined with graph grafting, joint
+client conjunction and one ordinary direct query, it now supplies the finite
+ordinary-use construction in
+[the later theorem](2026-10-04-certified-callback-and-constrained-use.md) §5.
+Its exact-public-projection condition remains unproved for all independently
+valid views. Pointwise descriptor existence alone still does not establish
+that condition, especially if the common descriptor replaces the exported
+root; the later theorem §6 states that distinction explicitly.
 
 ## 7. What a completed proof would now have to do
 

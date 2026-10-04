@@ -12,6 +12,19 @@ Those two realization obligations remain, with the original quantifiers;
 none of the accepted schemes below is changed. See the
 [combined proof/review record](2026-10-04-callback-principality-direct-followup.md).
 
+**Further constrained-use attack:**
+[finite ordinary-use construction](../design/2026-10-04-certified-callback-and-constrained-use.md)
+§5 now builds one whole fresh instance plus a direct comparison at the
+designated exported root for every well-formed finite public view. The
+separate map-construction-calculus concern is withdrawn for that route.
+It becomes solution-preserving exactly when `C_V(v) => Ext_P(v)` holds for
+every public assignment, with the whole original scope tree retained.
+That entailment for every independently valid `V`, and legal common-allowance
+totality, remain unproved. Section 6 distinguishes a retained exported source
+root from a replacement common root; no accepted scheme is reinterpreted as
+a mere display. Full result and review scope are in the
+[residual attack record](2026-10-04-callback-principality-residual-attack.md).
+
 The following public schemes are the user's expected principal presentations
 for the stated source definitions. They are criteria for the general
 constraint-generation, co-occurrence, inequality-solving, and generalization
