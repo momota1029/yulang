@@ -22,6 +22,13 @@ model may be discarded after its useful obstruction is recorded. A passing
 bounded search is characterization evidence and never substitutes for a
 theorem.
 
+Complete proof closure is not a prerequisite for starting an executable
+experiment. When an obligation remains open, build the smallest isolated model
+that can test its current invariant, include a deliberate mutation where
+useful, and revise or discard the model when a counterexample invalidates its
+encoding. Keep the model's scope and unsearched space explicit. This direction
+does not lower the proof and review gates for production adoption.
+
 This direction particularly applies to:
 
 1. structural finite-model property, including shifted open-descriptor

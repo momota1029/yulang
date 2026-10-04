@@ -144,7 +144,10 @@ establish that source can declare `\`.
 An isolated test predicate now exercises that reservation shape for the
 complete single-binder opener, matching the lexer’s identifier family and
 same-line space/tab trivia. It rejects incomplete headers but does not drive
-the parser or check body recovery, so it does not close the parser/HIR bridge.
+the parser or check body recovery. A paired CST assertion maps its binder and
+arrow ranges to the current error-bearing tree and confirms the body token
+remains inside the parenthesized application argument; no lambda node is
+produced, so the parser/HIR bridge remains open.
 The HIR-to-core bridge now closes for its monomorphic pure-value fragment:
 integer/name leaves and unannotated parameterized bindings map to finite
 `literal`/`name`/`lambda(P,result(body))` derivations under a fixed `Gamma`.
@@ -439,6 +442,16 @@ the finite trace audit only; it is not a production endpoint interpretation
 or complete-bound checker. The full-bound realization factorization and
 raw/HIR bridge remain open. Details are in the
 [callback/principality playground record](../notes/progress/2026-10-04-callback-principal-playgrounds.md#callback-b-endpoint-trace-audit-2026-10-05).
+
+The A/B scheduling invariant now has a separate executable solution-set probe:
+[`research_callback_ab_solution_equivalence.py`](../tools/research_callback_ab_solution_equivalence.py)
+exhausts 65,536 relation pairs over three independently synthesized binary
+endpoint coordinates. Exact unary projection of the completed B solution set,
+while retaining B's final joint query, preserves every solution. Its minimum
+endpoint-copy mutant loses B's `(0,0,0)` solution against expected `(0,0,1)`.
+This is a finite relational scheduling characterization, not a production
+propagator or callback semantics proof. Details are in the
+[A/B playground record](../notes/progress/2026-10-05-callback-ab-solution-equivalence-playground.md).
 
 A new executable composition probe directly exercises the remaining
 result-consumer seam: `Force(D) >>= rebind >>= body >>= consumer`, where each

@@ -36,6 +36,11 @@ This index is a navigation aid. The listed source document remains authoritative
   [`research_compose_hygiene.py`](../../tools/research_compose_hygiene.py)
   checks that shared `b` row spelling does not grant capture for annotation-free
   `compose`.
+  [`research_callback_ab_solution_equivalence.py`](../../tools/research_callback_ab_solution_equivalence.py)
+  exhausts 65,536 finite B/A relation pairs, checking exact solution
+  preservation for entailed coordinate propagation with the final query
+  retained, and shrinks an endpoint-copy failure. See its
+  [progress record](../progress/2026-10-05-callback-ab-solution-equivalence-playground.md).
   [`research_callback_scoped_lift.py`](../../tools/research_callback_scoped_lift.py)
   exhausts a finite total-coordinate lift at its original binder scopes and
   shrinks three scope-mutation failures; it does not close production membership
@@ -79,7 +84,8 @@ This index is a navigation aid. The listed source document remains authoritative
   ML-argument stages remain left-nested in pre-HIR association. See the
   [HIR/source-core audit](../progress/2026-10-04-hir-source-core-boundary.md).
   A separate test-only predicate checks the complete unary opener against the
-  existing identifier family; it does not test production dispatch or recovery.
+  existing identifier family and maps its ranges to retained tokens in the
+  error-bearing callback CST; it does not test production dispatch or recovery.
   Its test-only mixed-call candidate preserves nested application arguments,
   then mirrors typed-core §6 `(I,d,n)` shape for five ordinary-call forms
   under finite monomorphic Gamma. It records only structural-shadow triples;

@@ -110,6 +110,45 @@ fn research_lambda_header_predicate_recognizes_complete_unary_opener() {
 }
 
 #[test]
+fn research_lambda_header_predicate_maps_to_retained_callback_cst_tokens() {
+    let source = r"host (\x -> x)";
+    let (green, _) = run(source);
+    let root = SyntaxNode::new_root(green);
+    let range = |range: rowan::TextRange| {
+        u32::from(range.start()) as usize..u32::from(range.end()) as usize
+    };
+    let slash = source.find('\\').unwrap();
+    let (binder, arrow) = research_complete_unary_lambda_header(source, slash).unwrap();
+    let identifiers = root
+        .descendants_with_tokens()
+        .filter_map(|element| element.into_token())
+        .filter(|token| token.kind() == SyntaxKind::Identifier)
+        .map(|token| (token.text().to_owned(), range(token.text_range())))
+        .collect::<Vec<_>>();
+    assert!(identifiers.contains(&("x".to_owned(), binder.clone())));
+    let body_start = source[arrow.end..]
+        .find('x')
+        .map(|offset| arrow.end + offset)
+        .unwrap();
+    assert!(identifiers.contains(&("x".to_owned(), body_start..body_start + 1)));
+
+    let parenthesized = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::ParenthesizedExpression)
+        .unwrap();
+    let parenthesized_range = range(parenthesized.text_range());
+    assert_eq!(parenthesized_range.start, source.find('(').unwrap());
+    assert_eq!(parenthesized_range.end, source.len());
+    assert!(parenthesized_range.start <= binder.start);
+    assert!(parenthesized_range.end >= body_start + 1);
+    assert!(
+        parenthesized
+            .ancestors()
+            .any(|node| node.kind() == SyntaxKind::MlArgument)
+    );
+}
+
+#[test]
 fn research_registered_backslash_prefix_interacts_with_lambda_header() {
     // Table-level fixture only: it probes dispatch precedence if this exact
     // operator entry exists, not whether Yulang source can declare it.

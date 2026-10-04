@@ -175,8 +175,12 @@ This predicate is only a characterization of the reviewed reservation shape.
 It is not called by the production parser and does not test CST dispatch, body
 parsing, malformed-body recovery, or binder ownership. The existing direct CST
 tests still establish that current parsing rejects the ordinary single-
-backslash spelling before HIR; parser implementation and callback lowering
-remain open.
+backslash spelling before HIR. A paired probe matches the recognized binder
+and arrow ranges to actual CST tokens, confirms the body identifier remains
+inside the same parenthesized `MlArgument`, and checks the parenthesized span.
+This links the header candidate to the retained error-bearing CST shape, but
+does not promote it to a lambda node or test body recovery/binder ownership;
+parser implementation and callback lowering remain open.
 
 ## 2026-10-05 test-only source synthesis shape
 
