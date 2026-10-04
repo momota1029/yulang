@@ -67,6 +67,24 @@ partial reverse step and does not define what `tau` means in an annotation.
 The example is schematic; exact raw Yulang annotation syntax and wiring are
 not established by this transition.
 
+## Bounded executable characterization
+
+[`research_mixed_effect_subtraction.py`](../../tools/research_mixed_effect_subtraction.py)
+enumerates 96 fixed histories of two or three events from one source-flow
+origin. It assumes the first event is eligible and selected, one response
+resumes the raw suffix once, and the outer context is represented by a
+terminal family filter with no additional requests, state dependence, guards,
+or resumption. In this fragment, event identity is distinct from both source
+origin and family. The minimized two-event same-family witness leaves the
+second event in output while support-wide cancellation removes the family.
+
+This checker verifies the stated finite transition model; most assertions are
+structural consistency checks of that model, not an independent proof of the
+source machine. Actual outer handler images, arbitrary continuation use, and
+any annotation-to-descriptor interpretation remain outside its scope. An
+independent spec audit found no defect within the bounded scope and required
+these origin and outer-handler qualifications.
+
 ## Proof boundary
 
 The derivation closes source execution composition for this bounded callback
@@ -78,5 +96,6 @@ The production gate remains the direct derivation of comparison-independent
 descriptor membership and challenge admission, followed by the actual-to-
 checked containment theorem on the same complete fiber.
 
-No implementation, executable model, tests, builds, or Oracle investigation
-were performed for this focused derivation.
+No production implementation, broad tests, builds, or Oracle investigation
+were performed for this focused derivation. The bounded checker above is
+research-only.

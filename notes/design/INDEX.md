@@ -69,6 +69,13 @@ This index is a navigation aid. The listed source document remains authoritative
   request/resumption composition and derives `d-`/`d+`/`b+` occurrence views
   from the composed trace; it does not interpret production bounds. See the
   [consumer-factorization record](../progress/2026-10-05-callback-consumer-factorization-playground.md).
+  [`research_mixed_effect_subtraction.py`](../../tools/research_mixed_effect_subtraction.py)
+  characterizes 96 fixed histories under selected-first shallow handling,
+  one raw-suffix resumption, and a terminal outer-family filter. Its minimized
+  same-family pair shows why support-wide cancellation cannot establish
+  complete-image absence; its spec audit found no issue within that bounded
+  model. It does not model annotation semantics or general handler images; see
+  the [descriptor derivation record](../progress/2026-10-05-function-effect-descriptor-derivation.md).
   [`research_callback_admission_hiding.py`](../../tools/research_callback_admission_hiding.py)
   exhausts the finite admission-uniform hiding lemma and minimizes a failure
   when the premise is removed. See its

@@ -713,6 +713,13 @@ resumption discriminator rejects global family cancellation without complete
 handler-image absence evidence; it does not select annotation semantics. No
 new carrier is shown necessary. See the
 [focused derivation record](../notes/progress/2026-10-05-function-effect-descriptor-derivation.md).
+A research-only checker now enumerates 96 fixed histories with a shared source
+origin, distinct dynamic event IDs, one selected first event, one raw-suffix
+resumption, and a terminal outer-family filter. It reproduces the minimized
+same-family witness. The checker is model characterization, not independent
+source-machine validation or descriptor interpretation; its spec audit
+confirmed the bounded assumptions and required explicit origin/outer-handler
+qualifications. No production path changed.
 
 An executable contract-join probe now exhausts 65,536 two-stage cases with
 separate Function-valued and Int-valued challenge projections. Typed pullbacks
