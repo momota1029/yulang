@@ -33,7 +33,7 @@ No such historical file should be deleted or rewritten as part of this plan.
 | Safe hiding | Admission-uniform lemma in certified transport; total-definition elimination, exact coverage law and source-incidence closure in 2026-10-05 coverage note | State three different scopes: fresh defined outputs need no uniformity; certified additional hiding has its stated fixed-fiber uniformity sufficient condition; exact old-witness marginal comparison is iff Coverage. |
 | Source adequacy vs endpoint adequacy | `2026-10-02-source-interface-adequacy-theorem.md`, Theorem C, source-indexed realization, production callback draft | Distinguish source execution inclusion, generated-source reference membership, certified presentation transport, and production actual-bound factorization. Do not treat execution simulation as coverage of arbitrary endpoint extras. |
 | Principality public-use maps | principal-scheme acceptance criteria, common-allowance/preimage notes, certified constrained-use theorem, callback coverage/source joins | Retain old `m_V` statements as history; foreground common descriptor totality plus retained direct-query `C_V => Ext_P` for all views. Keep the exact designated exported root condition. |
-| Source/stage joins | principal contribution attempts and typed contract-join characterization; 2026-10-05 source-preserving composition/`higher` obstruction | Distinguish finite typed pullback characterization from a realizable complete descriptor. Retain whole source witnesses/provider incidence before projection. |
+| Source/stage joins | principal contribution attempts and typed contract-join characterization; 2026-10-05 source-preserving composition/`higher` obstruction; source factor-cover theorem | Present whole-witness composition and factor coverage as exact relation-preserving routes, including client/evidence preservation. Keep their hypotheses explicit; neither creates a legal descriptor or proves an all-view direct query exists. |
 
 ## Superseded wording to annotate on future edits
 
@@ -44,6 +44,8 @@ No such historical file should be deleted or rewritten as part of this plan.
 - “An explicit `m_V` map must be constructed” is not required by the ordinary retained-query use route. The all-view extension entailment remains open.
 - “Theorem C proves the production callback bridge” is false: reference/source theorem conditions and production conformance are separate.
 - “Matching four Function ports proves endpoint adequacy” is false; complete membership, effects, role/entry, all root alternatives and independent admission remain relevant.
+- “Any proper marginal reconstruction must fail” is too strong: factor coverage is sufficient for any supplied factorization, and its necessity is only a uniform theorem over independent nontrivial product domains. The fixed XOR/provider source example separately refutes every proper coordinate projection for its stated source context.
+- “A certified exact rewrite still needs a separate proof that unchanged client/direct-query evidence is preserved” is unnecessary: complete-use preservation follows by conjoining the same joint relation to both sides of the established equality. This does not establish that the query succeeds for every valid public view.
 
 The originals remain untouched; these phrases should be corrected only in a later authorized consolidation, with local source scope recorded.
 
