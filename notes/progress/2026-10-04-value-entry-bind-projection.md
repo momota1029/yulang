@@ -596,3 +596,32 @@ settled port locations, actual Pure role/§21 entry, and existing
 is to define query-independent admission and closure using those structures,
 then establish bound adequacy separately. No new carrier/API decision or
 implementation authority follows.
+
+### Supplied typed-filling structural transport corollary
+
+A bounded compiler-referee audit closes one conditional structural subgate.
+Fix a finite supplied open derivation graph in the ordinary call/closure/
+explicit-consumer/request fragment, with its lexical/declaration interfaces,
+original slot descriptors, distinct callback-value and inner-argument
+receipts, and joint `K,D` evidence. Callable holes retain rigid source
+interfaces; whole-carrier holes are filled only by supplied computation
+derivations whose interface and incident typing, path, receipt, and profile
+premises match the hole. Under capture-avoiding typed filling and consistent
+endpoint/binder/path/evidence transport that preserves those premises and
+source tags, structural elaboration commutes with filling: it preserves the
+enclosing result/consumer skeleton, source roles and entry, slot/profile
+positions, distinct receipts, typed paths, and joint `K,D` incidence. The
+filled graph includes the filling's own derivation; it need not have the same
+size as the open graph.
+
+This follows by induction over a supplied finite derivation graph using core
+§6's fixed-skeleton and premise-preserving endpoint-substitution results.
+Matching endpoint shapes alone are insufficient: the filling must supply the
+incident typed evidence at the hole. `Observe`, `Flow`, and receipt ownership
+remain event-specific supplied obligations where the ordinary semantics
+require them. The result proves neither semantic environment/store admission
+nor capture or State validity, and gives no plugging/execution closure for
+arbitrary source contexts. In particular it establishes neither
+`D_checked ⊆ D_actual` nor `P_actual ⊆ P_checked`; the whole-carrier and
+complete-interface gates remain open. No source rule, carrier, API, or
+implementation authority is added.

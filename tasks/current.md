@@ -78,6 +78,12 @@ the complete interface clauses. The remaining obligations are:
 
 Review evidence and exact conditional claims are in
 [value-entry-bind-projection.md](../notes/progress/2026-10-04-value-entry-bind-projection.md).
+One conditional structural subgate is closed for typed filling into a finite
+supplied open derivation graph: the skeleton, slot/profile positions,
+distinct receipts, typed paths, and joint `K,D` incidence transport when
+matching typing premises are supplied. This does not construct semantic
+admission or close context/execution closure; the whole-carrier and
+bound-inclusion clauses remain open.
 Do not add a carrier/API, independent effect-port subtyping, or a global
 transitive relation between concrete successes without a demonstrated need
 and the required authority.
