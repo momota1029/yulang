@@ -125,6 +125,21 @@ whether the public edge denotes an upper-bound permission or an exact
 may-flow fact. Those choices affect scheme generality and are not resolved by
 the punctuation itself.
 
+There is also a boundary-alignment obligation. The ordinary-computation
+candidate defines callback capture relative to an active receiver and carries
+the typed boundary profile along corresponding result paths to later latent
+views while that receiver remains active. The proposed public reading instead
+says that a contribution represented in output component `'f` is ordinary
+there and no longer carries the input capture restriction. These statements
+agree when `'f` denotes a result outside the capture boundary (for example,
+after the receiver returns). They do not yet establish that merely reaching a
+result-typed path cuts capture authority if that path is still observed inside
+the active receiver. Thus the projection theorem must say whether the public
+`'f` endpoint denotes boundary exit, or prove that materialization at that
+endpoint itself ends the callback incidence. This note preserves the user's
+intended cutoff as the candidate surface reading; it does not silently amend
+the reviewed source-machine rule.
+
 The candidate must be interpreted per event and path. It cannot replace
 `q`, `ν`, typed `Flow`, `Observe`, `Path`, occurrence/incidence, or the shared
 `K,D` witnesses by a family-set test. In particular, two requests with the
@@ -192,7 +207,12 @@ The receiver may subtract an eligible `foo` event during this invocation.
 Another event from `'e` may flow to `'f`; if so, it is ordinary output at the
 result boundary. A later handler may consume it under its own normal contract.
 The notation does not say that the callback always emits, that all of `'e`
-flows, or that `'f` inherits permission to subtract `foo`.
+flows, or that `'f` inherits permission to subtract `foo`. This example assumes
+the `'f` endpoint lies beyond the capture boundary. If the corresponding
+returned latent value is executed again while the receiver remains active,
+the current reviewed source candidate retains incidence along that matching
+result path; whether the public scheme marks that as the same `'e?` edge, a
+second edge, or an already ordinary `'f` contribution is unresolved.
 
 ### Nested handlers
 
@@ -338,31 +358,37 @@ ports does not establish an edge or capture permission.
 4. What exact source position is the boundary in the higher-order type, and
    how does it compose with an explicit annotation and expected callback
    boundary when both are present?
-5. How are two independent same-family contributions represented when one
+5. Does reaching the public result component `'f` itself end capture authority,
+   or does the edge denote only flows that have crossed the receiver's
+   source-level exit? How should a returned latent value invoked again while
+   the receiver is still active be projected?
+6. How are two independent same-family contributions represented when one
    is captured and the other is not, especially after canonical flat-row
    normalization?
-6. When two capture scopes overlap on one input/output component pair, can
+7. When two capture scopes overlap on one input/output component pair, can
    the existing source path relation distinguish them without a public
    multiplicity marker? If not, what is the smallest source example showing
    the lost fact?
-7. Under which exact principal-scheme equivalence can `'e?` be erased to an
+8. Under which exact principal-scheme equivalence can `'e?` be erased to an
    ordinary row variable?
-8. What parser precedence and token ownership should apply to postfix `?`, if
+9. What parser precedence and token ownership should apply to postfix `?`, if
    the notation proceeds beyond a design candidate?
 
 ## Syntax observation
 
-The current syntax reference defines effect rows with an adjacent apostrophe
-and bracket (`'[ ... ]`); standalone `'e` is a sigil identifier. The lexer
-scans the sigil identifier independently, while the type parser has no
-documented postfix optional-provenance production. A following `?` is not
-part of the sigil-identifier token. The repository does not establish whether
-`'e?` is accepted as an operator-like type tail, rejected, or recovered in a
-particular way. Therefore the candidate has no demonstrated lexical
-collision, but parser/AST precedence is unresolved. A future syntax gate
-should inspect exact CST/tokenization and neighboring type forms before
-choosing punctuation; syntax convenience must not alter the relational
-meaning.
+The syntax reference defines effect rows with the adjacent opener `'[ ... ]`
+and standalone `'e` as a sigil identifier. The lexer delegates the sigil's
+suffix to `scan_identifier`, which consumes an optional trailing `?` or `!`.
+Therefore `'e?` currently collides lexically with an existing sigil-identifier
+spelling; the `?` is not a separate token in this form. The type-expression
+grammar admits `SigilIdentifier` as a type atom but defines no separate
+provenance suffix. The expression grammar's dynamic suffix operators are an
+additional contextual use of suffix punctuation, not a resolution of this
+type-level ownership. A future syntax gate must decide whether the sigil
+identifier suffix is reinterpreted, escaped, or replaced in type context, and
+inspect tokenization, operator-table interaction, and adjacent type forms.
+That syntax decision must not infer or alter the relational meaning of the
+optional provenance edge.
 
 ## Recommendation
 

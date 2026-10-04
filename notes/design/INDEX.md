@@ -19,9 +19,12 @@ This index is a navigation aid. The listed source document remains authoritative
 - **Exploratory public-projection candidate:**
   [handler hygiene provenance notation](2026-10-05-handler-hygiene-public-provenance-notation.md)
   is Draft only. It studies `'e?` as a possible input-to-result provenance
-  edge with capture authority ending at the receiver boundary. It selects no
-  syntax, semantics, carrier, or implementation and does not alter the
-  Authoritative callback-context contract or the existing open proof gates.
+  edge with capture authority ending at the public result boundary. The
+  reviewed ordinary-computation candidate transports callback incidence along
+  matching result paths while the receiver remains active, so this note marks
+  the endpoint/receiver-exit alignment as an open projection obligation. It
+  selects no syntax, semantics, carrier, or implementation and does not alter
+  the Authoritative callback-context contract or existing proof gates.
 
 - **Executable proof-search direction:**
   [inference research playgrounds](2026-10-04-inference-research-playgrounds.md)
