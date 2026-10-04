@@ -78,14 +78,16 @@ rebind, body/result consumer, and `J_call` into linked `[b,d]` at the same
 One non-tautological, source-checkable sufficient premise is isolated in
 [callback compositional premise](../notes/progress/2026-10-04-callback-compositional-premise.md):
 finite endpoint generation must realize the existing entry/rebind/body/result
-bind recipe, close all bound-permitted successors (including conservative
-slack), preserve existing evidence in one fiber, share the slot and actual
-§21 Value-entry argument endpoint, and add no independent complete-call
-bound leaf. This syntactic endpoint-identity restriction gives domain equality
-without assuming the target inclusion. Under that check, a finite-history
-induction proves observation-bound inclusion for the bounded first-order
-Value-entry callback fragment. Its minimality is unproved, and the shared
-argument endpoint deliberately excludes variance/adaptation cases. Source
+bind recipe; locally bound each segment's source outcomes; transport the
+exact row components and `ν,K,D` references through the linked `d⁺`/`b⁺`
+occurrences; type every bound-permitted rebind/resumption; preserve the joint
+fiber; share the slot and actual §21 Value-entry argument endpoint; and add no
+independent complete-call bound leaf. The endpoint identity gives domain
+equality without assuming the target inclusion. Under these checks, a
+finite-history induction proves observation-bound inclusion for the bounded
+first-order Value-entry callback fragment. This sufficient premise is not
+shown minimal, and the shared argument endpoint deliberately excludes
+variance/adaptation cases. Source
 operational graph generation is specified in typed-core §9: it links
 entry/bind/body/result-consumer constructors per callable and shares recursive
 nodes. What remains underdetermined is the bridge from that operational graph

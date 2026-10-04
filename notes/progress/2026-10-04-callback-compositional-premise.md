@@ -18,7 +18,9 @@ its minimality remains open.
 For each callback invocation, CERR requires the generated complete endpoint
 to be assembled from the existing entry/argument, typed rebind, body/result,
 and designated result-consumer constructors by the ordinary state-threaded
-bind equations. The graph must:
+bind equations. For the stated conditional theorem, its atomic segment nodes
+also need a local adequacy check; constructor shape alone is insufficient.
+The checkable conditions are:
 
 1. link the independently generated segment endpoints to those constructors;
 2. for this bounded fragment only, the slot's checked argument descriptor
@@ -32,15 +34,26 @@ bind equations. The graph must:
 5. preserve the generated value roots and return members at each constructor;
    in this bounded fragment these are first-order data, with no latent
    callable/thunk future-use obligation; and
-6. introduce no independent complete-call bound leaf.
+6. each argument, body, and result-consumer endpoint covers its own source
+   segment's finite observations and returned first-order values in the same
+   fiber; and
+7. the canonical flat output row `[b,d]` retains each component descriptor
+   and its `ν,K,D` references from the `d⁺` and `b⁺` occurrences, with the
+   existing occurrence/path links; it does not reconstruct, filter, or
+   independently approximate those components; and
+8. every return admitted by an argument-segment bound is a valid input to the
+   generated typed rebind/body continuation, including after each permitted
+   resumption; and
+9. introduce no independent complete-call bound leaf.
 
 The finite recipe and shared endpoint identities are checked from the
-endpoint-generation clauses and their constructor references; universal
-closure is then proved by induction on those clauses. They retain slack in
-segment bounds and do not require exact segment presentations. Universal
-closure is essential:
+endpoint-generation clauses and their constructor references. The local
+segment bounds may retain conservative slack and need not be exact. The
+typed-return condition is essential:
 the existing adequacy bind lemma covers successors admitted by the bounds,
 whereas source-reached successors alone do not cover conservative slack.
+`Flow`/`Observe` transport and locate evidence but do not establish local
+segment adequacy or the component-preserving row inclusion by themselves.
 
 The endpoint-identity restriction gives `D_checked = D_actual` in this
 fragment directly from their common source-owned argument descriptor and
@@ -65,13 +78,17 @@ argument endpoint excludes distinct parameter endpoints related only by
 variance/adaptation. No necessity claim is made for this restriction.
 
 **Proof.** The common source-owned argument endpoint gives domain equality
-under the shared `ν`. Induct on the finite bind history. At entry, use the
-segment `Flow`/`Observe` evidence. A return continues along the
-generated rebind/body edge. A request preserves its existing continuation;
-on every permitted resumption CERR supplies the next edge at the same fiber.
-The body and result-consumer cases repeat the same argument. Each observed
-request therefore comes from one of the linked segment constructors, and
-the existing linked-port map places it in `[b,d]`. No row-union inference,
+under the shared `ν`. Each source entry/body/result observation belongs to its
+local segment bound by condition 6. Induct on the finite bind history. At
+entry, use the typed rebind condition and segment `Flow`/`Observe` evidence.
+A return continues along the generated rebind/body edge. A request preserves
+its existing continuation; on every permitted resumption CERR supplies the
+next edge at the same fiber. The body and result-consumer cases repeat the
+same argument. For conservative slack admitted by a segment bound, condition
+7 preserves the exact row component that admits it, together with its
+dependencies and occurrence path, in the canonical flat target row. Thus
+every member admitted through those segment components remains admitted by
+the linked target bound. No row-union inference,
 exact segment presentation, new carrier, or concrete-comparison transitivity
 is used.
 
@@ -96,7 +113,8 @@ bounds the operational graph. §9 explicitly leaves the symbolic complete
 image as an inference obligation. The conditional theorem above concerns
 that finite endpoint, so the operational graph theorem cannot discharge it.
 
-The authoritative B contract does **not currently entail CERR**. B requires
+The authoritative B contract does **not currently entail CERR or its local
+adequacy checks**. B requires
 independent parameter/body/result synthesis and one final `F_lit <: F_cb`,
 but callback design §2.1 step 6 leaves formation of the completed interface
 as an obligation. Typed-core §9 supplies the operational `J_call` image for a
@@ -107,8 +125,9 @@ syntax-generated endpoint with that interface.
 
 This is an underdetermination theorem about the finite endpoint-generation
 contract: a finite abstraction that maps the operational links to the same
-entry/rebind/body/result constructors and preserves their joint bound can
-satisfy CERR; a completion that independently adds a conservative
+entry/rebind/body/result constructors, locally covers each source segment,
+and preserves their joint bound can satisfy the premise; a completion that
+independently adds a conservative
 complete-call bound leaf still satisfies B's stated endpoint independence
 and final inequality ordering, but can admit an observation without segment
 factorization. The current documents specify neither finite abstraction.
