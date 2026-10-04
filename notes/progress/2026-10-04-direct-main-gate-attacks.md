@@ -10,6 +10,20 @@ Earlier open-status statements and failed routes below are historical; their
 counterexamples remain construction-specific. No result here authorizes a
 new carrier, semantic rule, or support-envelope change.
 
+**Later callback/principality follow-up:** the user reopened both direct
+attacks after the structural proof. The reviewed
+[source-indexed reference realization](../design/2026-10-04-source-indexed-callback-realization.md)
+proves a complete endpoint crosswalk for an explicitly constructed reference
+interpretation and transports the approved typed projection through all
+finite latent/resumption histories. Current production conformance is still
+unproved; the earlier actual-bound warning remains applicable to other
+endpoint interpretations. The reviewed
+[common-allowance preimage result](../design/2026-10-04-common-allowance-context-preimage.md)
+proves forward joint presentation and exact semantic preimage laws, while
+leaving legal descriptor realization and admissible public-view maps open.
+Full arguments, quantifiers and two independent reviews are recorded in the
+[direct follow-up](2026-10-04-callback-principality-direct-followup.md).
+
 ## Pure-value callback / Function adequacy
 
 **Result: the main theorem remains open at the source-to-endpoint adequacy

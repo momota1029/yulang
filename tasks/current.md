@@ -231,7 +231,20 @@ premise. Callback bridge and principality playgrounds remain active lanes.
 No production cutover authority follows from any playground or from the pure
 FMP theorem.
 
-**Callback adequacy proof search is complete; active gate is production design.**
+**Callback direct follow-up: reference realization proved; production conformance open.**
+The latest user request reopened direct proof work on callback and
+principality after the pure FMP proof. The independently reviewed
+[source-indexed reference construction](../notes/design/2026-10-04-source-indexed-callback-realization.md)
+now gives finite endpoint membership/admission clauses and proves
+`D_C^ref = D_GC ⊆ D_GA = D_A^ref` and
+`P_A^ref = Pi[P_GA]`, `P_C^ref = Pi[P_GC]` on checked challenges.
+Whole-observation typed projection preserves every finite latent/future-use
+and resumption history. This closes the crosswalk for the constructed
+reference interpretation, not for an independently chosen/current production
+interpretation. Source generation and production membership conformance,
+including the B literal's supplied decorations, remain real gates. See the
+[proof/review follow-up](../notes/progress/2026-10-04-callback-principality-direct-followup.md).
+
 The design and its current proof boundary are recorded in
 [production callback endpoint generation](../notes/design/2026-10-04-production-callback-endpoint-generation-draft.md).
 It specifies a bounded raw/HIR application node and lowering, B step 6 role-first
@@ -313,6 +326,17 @@ endpoint-realization crosswalk. Principal factorization requires
 obstructions or find a counterexample. Full evidence and scope qualifications
 are in the
 [principal scheme criteria](../notes/progress/2026-10-04-principal-scheme-acceptance-criteria.md).
+The latest reviewed
+[safe context-preimage result](../notes/design/2026-10-04-common-allowance-context-preimage.md)
+proves finite intensional forward amalgams and the exact domain-safe
+image/preimage law. Positive forward relation construction does not in general
+express the required universal condition; an explicit finite monotonicity
+countermodel identifies that proof boundary. Common-allowance closure still
+requires a legal descriptor realization for each original solution and an
+admissible map for each independently valid public presentation, using the
+existing complete Function query and source occurrence maps. The quantifiers
+remain `∀s∈Sξ. ∃a. Qξ(s,a)` and `∀V. ∃m_V`. No source-scheme counterexample
+or new descriptor semantics is asserted.
 The latest user clarification accepts `Top -> int` for `zero`, with `any` as
 the surface notation, superseding the earlier `'a -> int` criterion. The prior
 negative-only quantification analysis is retained as history but creates no
