@@ -43,9 +43,35 @@ and [callback context delivery](../notes/design/2026-10-03-callback-context-deli
 Oracle behavior around `Never`, `Any`, effects, and references is
 characterization only where it conflicts with these decisions.
 
-## Active proof gates
+## Conditional source-generated results
 
-**Next gate — Pure-value callback/Function theorem.** Establish whole-carrier
+The user's permission to add source-generated hypotheses now has two reviewed
+conditional proofs in
+[the source-generated theorem package](../notes/design/2026-10-04-source-generated-callback-structural-theorems.md):
+
+- **Callback C:** an explicit positive source relation generator and its
+  shared-body lift give full bound containment at one `ν,K,D`, including
+  conservative local alternatives. The lift copies old witnesses and adds
+  only total-function fresh logical coordinates; independently generated
+  source challenge rules prove domain inclusion. This is a theorem for that
+  constructed generator, not arbitrary annotations or every production
+  endpoint with the same printed ports.
+- **Structural S:** after normalization, each free/free component has only
+  closed anchors, or exactly one open anchor. With the stated rigid-scope
+  condition, a root-only decision kernel plus guarded anchor reconstruction
+  proves arbitrary-tree/regular-tree satisfiability equivalence and constructs
+  a simultaneous regular witness. Nonempty mandatory Records, Function
+  contravariance, and open recursive descriptors are included. The principal
+  residual and every original inequality remain unchanged.
+
+These are source-checkable conditional results, not language rejection rules.
+Their exact restrictions, reviewed repairs, and verification are recorded in
+[the paired progress note](../notes/progress/2026-10-04-source-generated-theorems.md).
+The unrestricted obligations below remain active.
+
+## Active unrestricted proof gates
+
+**Next gate — unrestricted Pure-value callback/Function theorem.** Establish whole-carrier
 admission/domain inclusion, endpoint/profile and linked-contribution adequacy,
 and observation-bound inclusion across legal histories. Reuse existing
 `Rel_C`, `K,D`, paths, receipts, occurrence/incidence, `Flow`/`Observe`, and
@@ -99,9 +125,12 @@ An attempted source-checkable constructor condition (compose only existing
 entry/body/result segments, with no independent call-bound leaf) is not yet
 sufficient: conservative slack on segment bounds still requires a proved
 monotonicity transport for latent and resumed witnesses. Shared descriptor
-identity also does not prove query-independent challenge admission. No
-non-tautological source-generation condition currently closes this gate; the
-exact failed attempt is appended to the direct main-gate record.
+identity also does not prove query-independent challenge admission. That
+weaker condition remains rejected in the direct main-gate record. Theorem C
+above closes its explicitly constructed generator's conditional claim by a
+proved conservative extension and local admission rules; the unrestricted
+source-to-endpoint correspondence and arbitrary target annotations remain
+open.
 The canonical exact semantic embedding in adequacy §4 does not supply this:
 §3 permits any conservative `P` covering `Sem`, without defining or
 identifying the syntax-generated Function endpoint. Exactness is unnecessary;
@@ -139,7 +168,11 @@ candidate; its finite principal presentation remains a separate open proof.
   [empty-Record source fragment](../notes/progress/2026-10-04-empty_record_source_fragment.md).
   This closes only the conditional structural witness theorem, not general
   structural regularity, source adequacy, principal solutions, or the overall
-  inference-replacement objective. See also
+  inference-replacement objective. Theorem S above separately proves
+  arbitrary-to-regular reflection with nonempty Records and open recursive
+  anchors under its finite incidence and rigid-scope predicates. Multiple
+  distinct anchors in a component with an open anchor remain outside that
+  theorem. See also
   [root-only result](../notes/progress/2026-10-04-root-only-regular-witness.md),
   [queue probes](../notes/progress/2026-10-04-fixed-descriptor-queue-encoding.md),
   and [direct main-gate attacks](../notes/progress/2026-10-04-direct-main-gate-attacks.md).
@@ -202,7 +235,8 @@ candidate; its finite principal presentation remains a separate open proof.
   complete `EnvStore`/`JointWF`, source-wide acceptance/principality, and
   generalization/SCC lifecycle remain open.
 
-No bounded result closes these gates or authorizes compiler implementation.
+The conditional results do not close these unrestricted gates or authorize
+compiler implementation.
 
 ## Governing designs and preserved history
 
