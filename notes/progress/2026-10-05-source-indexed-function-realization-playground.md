@@ -183,3 +183,37 @@ introduces no production carrier or denotation, and does not close complete
 Function-bound membership, callback adequacy, B-step-6 endpoint generation,
 or principal common-allowance factorization. The boundary remains the actual
 HIR's lack of application/callback invocation lowering.
+
+## Independent complete-root membership audit
+
+An architect audit of the smallest current Pure Function root, `id x = x`,
+isolates the production bridge's missing semantic clause. Existing owners retain
+the lambda occurrence, parameter ordinal, body/value/effect components, and
+admission position (`LambdaRecipe`); `emit_lambda` records the identity-body
+constraints; `admit_lambda_fact` emits the linked positive Function lower
+contribution; generalization follows the actual definition-root row and
+materializes the four Function ports; closed-use routing freshens and routes
+decoded type predicates. The Function term retains its polarized children and
+lineage. These facts establish source ownership and endpoint sharing, but not
+the complete membership of the interpreted actual Function bound.
+
+The smallest missing clause is **exhaustive root membership/admission**:
+specify which finite typed observations belong to the actual bound at each
+admitted challenge under fixed `nu,K,D`, and give every admitting alternative,
+including any conservative endpoint extras, a finite scope-preserving decoder
+to retained source/local-bound evidence. Source execution rules provide
+witnesses for executions but do not exclude additional memberships; endpoint
+ports and provenance likewise do not decide whether the bound is exactly
+source-witnessed or admits other port-compatible behavior. Defining the actual
+bound as the image of the source generator would assume the missing
+production-conformance result, so it is not a derivation.
+
+This audit finds neither a source counterexample nor evidence that the current
+carrier is insufficient. It does not promote the exact-source-witness reference
+interpretation to production semantics and does not select a new carrier. Once
+the exhaustive membership/admission clause is independently settled, the next
+proof obligation is to construct its decoder and show that closed-use
+freshening preserves the same scopes, rigid quantifier positions, coupled
+polarized effects, and `nu,K,D`. Review scope was this `id` root and its source,
+constraint, Function-term, generalization, and closed-routing owners; no code,
+tests, or measurements changed.

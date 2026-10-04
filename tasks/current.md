@@ -553,6 +553,16 @@ current `id x = x` / scalar-body owner trace confirms that HIR and constraint
 facts retain distinct source identities but do not yet define either a
 complete bound-factoring relation or the projected `Sat_j` relation; see
 [Lambda endpoint owners](../notes/progress/2026-10-04-lambda-endpoint-owner-trace.md).
+An independent audit of the smallest Pure root, `id x = x`, narrows this to
+the missing exhaustive Function-bound membership/admission clause: enumerate
+all admitted finite typed observations under fixed `nu,K,D`, including
+conservative endpoint extras, and decode each to scope-preserving retained
+source/local-bound evidence. Execution supplies positive witnesses but cannot
+exclude extras; ports, provenance, and closed-predicate freshening do not
+define complete membership. The exact-source reference image cannot be assumed
+as production semantics. No source counterexample or carrier insufficiency
+was found. See the
+[complete-root membership audit](../notes/progress/2026-10-05-source-indexed-function-realization-playground.md#independent-complete-root-membership-audit).
 
 User-directed principal-scheme acceptance examples now cover `id`, `zero`,
 `call`, `compose`, repeated calls, branches, and staged higher-order calls.
