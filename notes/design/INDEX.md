@@ -2,6 +2,15 @@
 
 This index is a navigation aid. The listed source document remains authoritative for its own text and scope. If this file conflicts with a source, read the source and correct the index.
 
+## Active workflow navigation (2026-10-04)
+
+- [Yulang question board](2026-10-04-yulang-question-board.md) — Authoritative;
+  user-approved 2026-10-04 after independent proposal review; no supersession.
+  Sections 2–4 govern the external Yulang-only board, answer-draft approval,
+  revision validation, ownership and goal/authority boundaries. The bootstrap
+  and active rule are tracked in
+  [the delivery record](../progress/2026-10-04-yulang-question-board.md).
+
 ## Active inference navigation (2026-10-04)
 
 - **New reviewed structural existence result:**

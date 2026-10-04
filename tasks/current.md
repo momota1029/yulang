@@ -15,6 +15,16 @@ index is navigation only; source designs govern. See
 [design authority](../rules/design-authority.md) and
 [design index](../notes/design/INDEX.md).
 
+Yulang user-decision handoffs now use the approved
+[question-board workflow](../rules/question-board.md) for goal-driven work and
+explicit board requests. The shared local board is
+`/home/momota1029/.local/share/yulang/question-board/`; answer drafts require
+explicit user approval before consumption. Bootstrap delivery and verification
+are recorded in [the workflow record](../notes/progress/2026-10-04-yulang-question-board.md).
+The next workflow action is to publish an actual unresolved question when one
+arises, or open the board's answering entrypoint in a separate thread. No live
+question is seeded by bootstrap, and board publication does not resume a goal.
+
 ## Closed decisions
 
 - **Inequality:** one endpoint-dependent `A <: B` solver. Variable-bound

@@ -37,6 +37,11 @@ Inspect only the context needed for the task:
 - a relevant handoff or daily record;
 - the owning entrypoint, tests, and call sites.
 
+For goal-driven Yulang user decisions and explicit question-board requests,
+read `rules/question-board.md` and the shared board at turn start and before
+dependent actions. The separate answering primary starts from the board's
+own `AGENTS.md`, outside the compiler worktree.
+
 Respect confirmed facts, rejected approaches, forbidden actions, and active
 gates in handoffs. Do not restart an approved design or completed investigation
 without concrete contradictory evidence.
@@ -155,6 +160,7 @@ work, makes safe integration impossible, or requires a genuine user decision.
 - operating modes, reviewer limits, review convergence, delta review,
   measurement and record budgets: `rules/orchestration-budget.md`
 - workflow and handoffs: `rules/workflow.md`
+- goal-driven questions and approved answer handoffs: `rules/question-board.md`
 - compiler structure and diagnostics: `rules/compiler-engineering.md`
 - chasa parser idioms: `rules/parser-chasa.md`
 - bug fixing: `rules/bug-fixing.md`

@@ -83,6 +83,13 @@ A subagent must not ask interactive permission questions. If a necessary decisio
 
 The primary agent resolves ordinary repository ambiguity and presents only genuine author/user decisions.
 
+For goal-driven Yulang work, route genuine user decisions through
+[`question-board.md`](question-board.md). Read the shared board at turn start
+and before dependent actions. An answering primary organizes a draft in a
+separate thread; only an explicitly approved answer can be consumed. Ordinary
+conversational clarification need not use the board. An explicit board request
+also selects this workflow. Board publication does not notify or resume a goal.
+
 ## Progress records
 
 Long or multi-step work reports at meaningful milestones: relevant files found, root cause found, before a write, after a coherent slice, after checks, and on a blocker or scope expansion. Avoid line-by-line narration.
