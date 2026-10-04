@@ -378,6 +378,151 @@ fn invalid_partition_is_rejected_and_use_ids_avoid_source_namespaces() {
 }
 
 #[test]
+fn incomplete_overlapping_and_unknown_partitions_are_rejected_atomically() {
+    let source = sample_graph();
+    let source_snapshot = source.clone();
+
+    assert_eq!(
+        make_parent(
+            &source,
+            &[Identity(1)],
+            &[Identity(90)],
+            &[],
+            FaultInjection::default(),
+        ),
+        Err(TransportError::IncompletePartition),
+    );
+    assert_eq!(
+        make_parent(
+            &source,
+            &[Identity(1), Identity(2)],
+            &[Identity(2), Identity(90)],
+            &[],
+            FaultInjection::default(),
+        ),
+        Err(TransportError::DuplicateIdentity),
+    );
+    assert_eq!(
+        make_parent(
+            &source,
+            &[Identity(1), Identity(999)],
+            &[Identity(90)],
+            &[],
+            FaultInjection::default(),
+        ),
+        Err(TransportError::UnknownIdentity),
+    );
+    assert_eq!(source, source_snapshot);
+
+    let view = parent(&source);
+    assert_eq!(
+        make_uses(
+            &view,
+            &[vec![Identity(300), Identity(300)]],
+            FaultInjection::default(),
+        ),
+        Err(TransportError::DuplicateIdentity),
+    );
+    assert_eq!(source, source_snapshot);
+}
+
+#[test]
+fn every_explicit_fault_point_returns_no_partial_transport() {
+    let source = sample_graph();
+    let source_snapshot = source.clone();
+    let parent_lanes = [
+        AllocationLane::Identities,
+        AllocationLane::Terms,
+        AllocationLane::Bounds,
+        AllocationLane::Evidence,
+    ];
+
+    for lane in parent_lanes {
+        let mut saw_failure = false;
+        let mut reached_success = false;
+        for skip in 0..64 {
+            match make_parent(
+                &source,
+                &[Identity(1), Identity(2)],
+                &[Identity(90)],
+                &[],
+                FaultInjection::fail_after(lane, skip),
+            ) {
+                Err(TransportError::AllocationFailed(observed)) => {
+                    assert_eq!(observed, lane);
+                    saw_failure = true;
+                }
+                Ok(view) => {
+                    assert_eq!(
+                        view.graph,
+                        reference_substitute(&source, &view.identity_map)
+                    );
+                    reached_success = true;
+                    break;
+                }
+                Err(other) => panic!("unexpected parent transport error: {other:?}"),
+            }
+            assert_eq!(source, source_snapshot);
+        }
+        assert!(saw_failure, "allocation lane {lane:?} was never injected");
+        assert!(reached_success, "allocation lane {lane:?} did not converge");
+    }
+
+    let view = parent(&source);
+    let receivers = [vec![Identity(500)], vec![Identity(501)]];
+    let use_lanes = [
+        AllocationLane::Identities,
+        AllocationLane::Terms,
+        AllocationLane::Bounds,
+        AllocationLane::Evidence,
+        AllocationLane::UseViews,
+    ];
+
+    for lane in use_lanes {
+        let mut saw_failure = false;
+        let mut reached_success = false;
+        for skip in 0..64 {
+            match make_uses(&view, &receivers, FaultInjection::fail_after(lane, skip)) {
+                Err(TransportError::AllocationFailed(observed)) => {
+                    assert_eq!(observed, lane);
+                    saw_failure = true;
+                }
+                Ok(overlays) => {
+                    assert_eq!(overlays.len(), receivers.len());
+                    for overlay in &overlays {
+                        assert_eq!(
+                            overlay.graph,
+                            reference_substitute(&view.graph, &overlay.identity_map)
+                        );
+                    }
+                    reached_success = true;
+                    break;
+                }
+                Err(other) => panic!("unexpected use transport error: {other:?}"),
+            }
+            assert_eq!(source, source_snapshot);
+            assert_eq!(view, parent(&source));
+        }
+        assert!(saw_failure, "allocation lane {lane:?} was never injected");
+        assert!(reached_success, "allocation lane {lane:?} did not converge");
+    }
+
+    // Three identity-lane checks build one use overlay. Failure at the next
+    // check happens while constructing the second overlay; no first overlay
+    // escapes through the Result.
+    assert_eq!(
+        make_uses(
+            &view,
+            &receivers,
+            FaultInjection::fail_after(AllocationLane::Identities, 3),
+        ),
+        Err(TransportError::AllocationFailed(AllocationLane::Identities)),
+    );
+    assert_eq!(source, source_snapshot);
+    assert_eq!(view, parent(&source));
+}
+
+#[test]
 fn injected_allocation_failures_return_no_partial_graph() {
     let source = sample_graph();
     let source_snapshot = source.clone();

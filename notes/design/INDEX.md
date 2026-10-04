@@ -42,7 +42,9 @@ This index is a navigation aid. The listed source document remains authoritative
   [experimental parent/use transport](2026-10-04-intrusion-experimental-transport.md)
   is Authoritative for a `cfg(test)` graph transport prototype only. Its
   differential tests do not establish source root classification or bound
-  adequacy. The separate structural FMP theorem below now closes the pure
+  adequacy. The [2026-10-05 test follow-up](../progress/2026-10-05-intrusion-transport-test-followup.md)
+  records expanded malformed-partition and allocation-failure checks. The
+  separate structural FMP theorem below now closes the pure
   existence gate; research playground authority remains as recorded.
 
 - **Reviewed structural FMP theorem — classification A:**

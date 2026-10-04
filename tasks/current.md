@@ -72,6 +72,12 @@ Publication does not notify or resume a stopped goal.
   or alter `InferenceSession` behavior. Its invariants, differential tests,
   failure conditions, and rollback are in the
   [Authoritative experimental transport gate](../notes/design/2026-10-04-intrusion-experimental-transport.md).
+  This turn hardens its focused test matrix with incomplete/overlapping/unknown
+  partition rejection and explicit failure injection at every helper fault
+  point; a two-use late-failure case confirms no partial overlay escapes. The
+  initial skip count was corrected from six checks per use to the observed
+  three. All 8 focused tests pass; details are in the
+  [transport test follow-up](../notes/progress/2026-10-05-intrusion-transport-test-followup.md).
 - **Research playground loop:** the user explicitly authorizes executable
   models before proof closure and expects active conjecture/check/break/shrink/
   revise/prove work on structural FMP, callback production bridge, and
