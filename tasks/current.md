@@ -98,7 +98,9 @@ and the required authority.
   One same-invocation observation is already fixed by the stable-core fixture:
   a `get` closure created before `r.update` later returns `"start!"`, not its
   initial `"start"` capture. The general transition, distinct activations,
-  escape, and multi-shot resumption remain open; see
+  escape, and multi-shot resumption remain open. A separate two-slot fixture
+  expects independent updates `(11, 21)`, without covering repeated activation
+  identity. See
   [local-State capture observation](../notes/progress/2026-10-04-local-state-capture-observation.md).
 - General first-class-reference/import realization, complete `EnvStore` /
   `JointWF`, source-wide acceptance/principality, and generalization/SCC

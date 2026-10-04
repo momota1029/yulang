@@ -25,6 +25,12 @@ read and update to meet the replacement data for that execution. This is
 compatible with current data through a captured reference, but does not make
 the static slot ID itself the dynamic state identity.
 
+A second fixture, `tests/contracts/stable-core/v0/run/vm/pass/example_refs`,
+updates two local declarations independently and expects `(11, 21)`. This
+supports distinct updates for two visible slots in one lexical execution; it
+does not identify runtime activations across calls or establish alias behavior
+for escaped/multi-shot closures.
+
 ## Exact remaining boundary
 
 The fixture does not define the general transition relation: how dynamic State
