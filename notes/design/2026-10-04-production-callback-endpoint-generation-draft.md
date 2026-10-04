@@ -29,6 +29,20 @@ decorations. Section 4's production conformance boundary remains; the new
 proof provides concrete constructor rules against which to establish it.
 No implementation authority follows.
 
+**Further finite-certificate theorem:**
+[certified callback transport](2026-10-04-certified-callback-and-constrained-use.md)
+§§2–4 proves the crosswalk for independently supplied presentations whose
+complete membership/admission rules and transformations have the stated
+finite certificate. It covers all finite latent/future/resumption histories
+at the fixed common fiber, retaining checked-admission dependencies. An
+additional hiding lemma applies when checked admission is constant across
+the forgotten fiber; joint binding alone does not suffice. The certificate
+accounts for all root alternatives; execution coverage or four-child
+descriptor equality does not suffice. Derivation of these certificates and
+their decorated inputs from the selected production generator remains open.
+This is a sufficient proof class, not a new rejection rule or selection of
+production semantics.
+
 ## 1. Design target and retained decisions
 
 This design fixes one reference generation path for known-callee callback

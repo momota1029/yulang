@@ -24,6 +24,20 @@ leaving legal descriptor realization and admissible public-view maps open.
 Full arguments, quantifiers and two independent reviews are recorded in the
 [direct follow-up](2026-10-04-callback-principality-direct-followup.md).
 
+**Further residual attack:**
+[finite certificates and ordinary constrained uses](../design/2026-10-04-certified-callback-and-constrained-use.md)
+derive arbitrary-membership/admission transport from finite local proof
+certificates, with a separate safe-hiding condition, and construct the
+ordinary whole-copy/direct-query use for each finite public target. The
+remaining principal condition is exact projection of that use, not a
+separate map calculus. Production certificate generation, legal common
+descriptors and all-valid-view query completeness remain open; the full
+residual request is classified C. The
+[new proof/review record](2026-10-04-callback-principality-residual-attack.md)
+states the exported-root qualification and source witness against importing
+the pure structural Function comparison. Earlier open-map wording below is
+historical to the preceding attempts.
+
 ## Pure-value callback / Function adequacy
 
 **Result: the main theorem remains open at the source-to-endpoint adequacy
