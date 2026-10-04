@@ -23,8 +23,12 @@ This index is a navigation aid. The listed source document remains authoritative
   and conditional variance-aware suffix descent. The direct MSO route fails.
   The standard guarded-BPA undecidability reduction does not transfer without
   transparent parameter-changing recursive type constructors; this does not
-  settle regular completion or rule out another reduction. See the
-  direct-main-gate progress record.
+  settle regular completion or rule out another reduction. For normalized
+  pure structural constraints with finite rigid permissions, the sharpened
+  decision gap is regular extension of a conflict-free least closure over
+  domain, head, and original-bound activation facts. That regular-model
+  premise is unproved and excludes `Guard`/`Phi/K,D`. See the direct-main-gate
+  progress record.
 - **Other open gates:** source State/reference bridge and global source
   acceptance/principality/lifecycle remain open; see `tasks/current.md` for
   the compact active summary and linked progress records for evidence/history.

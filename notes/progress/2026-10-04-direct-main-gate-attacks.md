@@ -153,9 +153,41 @@ literature reduction specifically, the exact absent premise is transparent
 parameter-changing recursive type constructors; admitting that premise would
 expand language authority rather than follow from regular graph recursion.
 
+### Exact regular-completion premise
+
+A direct Astra attack on the remaining regular-completion gate gives a sharper
+proof split, but does not close it. For the normalized pure structural
+fragment with finite rigid permissions, the existing least forced-completion
+argument characterizes arbitrary-tree satisfiability: finite Horn conflicts
+exclude every assignment, while a conflict-free closure decodes to a possibly
+nonregular assignment by defaulting unforced present heads to Records. This
+arbitrary-tree result is already recorded in
+[least forced-completion progress record](2026-10-03-open-residual-factorization.md).
+An independent compiler-referee audit found no blocking flaw in the clarified
+permission, descriptor-shift, width, and variance clauses; it also confirmed
+that this does not prove regularity.
+
+The single unproved premise for a dovetailed decision procedure is:
+
+> Every conflict-free least closure of the existing `D_q`, `H_q^h`, and
+> `A_b^±` address facts has simultaneous regular supersets satisfying the same
+> descriptor, head, width, variance, and permission constraints without a
+> conflict.
+
+Finite regular graph enumeration semi-decides regular satisfiability; finite
+Horn-conflict derivations semi-decide arbitrary-tree unsatisfiability. The
+premise would make these procedures jointly terminating. It is equivalent to
+the arbitrary-tree-to-regular-model property for this normalized fragment,
+and remains unproved; ordinary Horn compactness does not supply it. This
+formulation reuses the existing address/activation constraints and adds no
+semantic carrier. It excludes arbitrary `Guard` and `Phi/K,D` predicates,
+effects, and optional Records, so no broader structural or source theorem
+follows.
+
 ## Work boundary
 
 These are theorem findings, not completed gates. Callback closure depends on
 the one full-bound factorization premise above. Structural closure depends on
-the one regular-completion theorem above. No tests, builds, Oracle runs,
-measurements, compiler edits, or design-status changes were made.
+the regular-extension premise above; no regularity proof or nonregular-only
+counterexample was found. No tests, builds, Oracle runs, measurements, compiler
+edits, or design-status changes were made.

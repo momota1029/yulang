@@ -84,6 +84,12 @@ not close the bound gap, and no carrier or semantic choice follows.
   [root-only result](../notes/progress/2026-10-04-root-only-regular-witness.md),
   [queue probes](../notes/progress/2026-10-04-fixed-descriptor-queue-encoding.md),
   and [direct main-gate attacks](../notes/progress/2026-10-04-direct-main-gate-attacks.md).
+- For the normalized pure structural fragment with finite rigid permissions,
+  the arbitrary-tree closure can be inconsistent only with a finite Horn
+  conflict. The remaining exact premise for a regular decision procedure is
+  that every conflict-free least closure has a simultaneous regular extension
+  for domain, head, and original-bound activation facts. This is unproved and
+  excludes arbitrary `Guard` and `Phi/K,D`; see the direct main-gate record.
 - The standard guarded-BPA undecidability result does not directly settle
   this gate: it requires transparent parameter-changing recursive type
   constructors, which current type-declaration authority does not establish;
