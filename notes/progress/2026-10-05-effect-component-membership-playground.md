@@ -67,19 +67,46 @@ same complete observation fiber. If source authority does not distinguish
 the two candidate readings, that exact choice must be returned for user
 selection. No new carrier is justified by this probe.
 
-Verification: `python3 tools/research_effect_component_membership.py`,
-`python3 -m py_compile tools/research_effect_component_membership.py`, and
-`git diff --check` passed. No compiler tests, builds, production code, or
-Oracle investigation were performed.
+Verification for the initial candidate comparison: `python3
+tools/research_effect_component_membership.py`, `python3 -m py_compile
+tools/research_effect_component_membership.py`, and `git diff --check` passed.
+No compiler tests, builds, production code, or Oracle investigation were
+performed.
 
 ## Follow-up: separate membership from subtraction
 
 The two candidate readings above do not capture the user's separate
 requirement that reverse addition operate only on a concrete contribution with
-known attachment. The later
+known attachment. The follow-up
 [support/attachment probe](2026-10-05-effect-attachment-subtraction-playground.md)
 shows why component membership, per-event subtraction authority, and
 complete-output support removal must be considered separately. Treat the
 comparison above only as a finite illustration that an exact-owner filter is
-not equivalent to family/type coverage; it is not the current semantic choice
-question by itself.
+not equivalent to family/type coverage.
+
+## Reconciliation with the selected callback-visibility rule
+
+The governing ordinary-computation package §7 records the user's 2026-10-02
+decision: direct requests and caller-owned requests exposed by `Force` have
+equal eligibility under the same concrete typed callback boundary. Its §4
+defines capture through the active receiver/handler, an explicit contract
+`Γ_b`, per-event `Inc_C`, typed `Flow`/`Observe`, and the receiver's receipt for
+the same view. This rules out exact event-origin equality as an eligibility
+condition once that contract and incidence are established. Origin remains
+evidence; it does not veto a caller-owned request exposed by `Force`.
+
+The checker at the current path now tests that selected relation over 256
+combinations. Direct and caller-`Force` origins have equal eligibility when
+the concrete contract, typed observation path/incidence, and active receiver
+and handler agree. A family-only mutant has 60 false positives; an exact-origin
+filter rejects two otherwise eligible caller-`Force` cases in this finite
+matrix. The result is a consistency check, not an independent source-machine
+proof.
+
+This closes the origin-filter ambiguity for the selected callback-visibility
+subcase; it does not define general row membership. The remaining source gate
+is to elaborate the concrete surface component into the right `Γ_b` profile
+and typed port, then compose abstract component views and attached concrete
+subtraction in one complete `Rel_C` fiber. The prior user-facing binary
+question that treated whole-view membership and event ownership as alternatives
+is withdrawn; no new semantic decision follows from this probe.

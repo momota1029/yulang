@@ -56,12 +56,14 @@ Publication does not notify or resume a stopped goal.
   preservation, soundness, principality, and implementation remain open. See
   the [approved handoff receipt](../questions/2026-10-05-function-effect-row-denotation/receipt.md)
   and [compatibility addendum](../notes/design/2026-10-03-concrete-compatibility-boundary.md#9-user-directed-mixed-effect-row-fragment-2026-10-05).
-  A new finite complete-observation probe distinguishes compatible typed-port
-  coverage from filtering to the exact annotation occurrence; a follow-up
-  separates row support from attachment-indexed partial subtraction. Neither
-  probe selects annotation membership; event-specific subtraction must not
-  erase another same-family contribution still present in the complete output
-  image. See the [membership probe](../notes/progress/2026-10-05-effect-component-membership-playground.md)
+  The selected callback-visibility rule gives direct and caller-owned `Force`
+  requests equal eligibility under the same concrete contract and typed
+  incidence; the 256-case matrix rejects exact-origin filtering and
+  family-only matching. The remaining mapping from surface concrete rows to
+  `Γ_b`, mixed abstract/concrete composition, and subtraction attachment are
+  still open. A separate support/attachment model shows that consuming one
+  contribution cannot erase a same-family point that remains in the complete
+  output image. See the [membership reconciliation](../notes/progress/2026-10-05-effect-component-membership-playground.md)
   and [support/attachment probe](../notes/progress/2026-10-05-effect-attachment-subtraction-playground.md).
   `never`, `Any`, empty rows, and polarized solver bounds remain distinct.
 - **Callback literal:** B is the normative/reference constraint generation:

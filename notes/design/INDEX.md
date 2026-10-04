@@ -78,6 +78,18 @@ This index is a navigation aid. The listed source document remains authoritative
   complete-image absence; its spec audit found no issue within that bounded
   model. It does not model annotation semantics or general handler images; see
   the [descriptor derivation record](../progress/2026-10-05-function-effect-descriptor-derivation.md).
+  [`research_effect_component_membership.py`](../../tools/research_effect_component_membership.py)
+  checks the selected origin-insensitive callback capture rule against 256
+  finite typed views: direct and caller-owned `Force` events agree when their
+  contract, incidence, and active boundary agree, while family-only matching
+  is rejected. This does not derive surface annotation-to-profile elaboration;
+  see the [membership reconciliation record](../progress/2026-10-05-effect-component-membership-playground.md).
+  [`research_effect_attachment_subtraction.py`](../../tools/research_effect_attachment_subtraction.py)
+  checks 256 event/attachment projections and differentially matches 96 cases
+  from the shallow-resumption probe. It shows that consuming one attached
+  contribution does not erase a same-family point still present in the
+  complete output image; it does not derive source attachment. See the
+  [support/attachment record](../progress/2026-10-05-effect-attachment-subtraction-playground.md).
   [`research_callback_admission_hiding.py`](../../tools/research_callback_admission_hiding.py)
   exhausts the finite admission-uniform hiding lemma and minimizes a failure
   when the premise is removed. See its

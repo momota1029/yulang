@@ -1,21 +1,17 @@
 #!/usr/bin/env python3
-"""Compare two candidate readings of a concrete effect-row component.
+"""Check source-selected capture eligibility for a concrete effect item.
 
-The model keeps each complete typed observation inside one fixed ``Rel_C``
-fiber. Events retain identity, origin, source occurrence, family, typed family
-arguments, port path, and whether they occur in a resumed/latent suffix. It
-compares:
+The governing ordinary-computation design records the user's decision that a
+concrete callback contract gives equal eligibility to direct requests and
+caller-owned requests exposed by ``Force`` in the same complete ``CallView``.
+Eligibility still requires the exact operation contract, typed observation
+path/incidence, and live receiver/handler. Origin alone is not authority, and
+family equality alone is not sufficient.
 
-* port coverage: every compatible event in the complete port observation is
-  covered by ``write int`` when its typed path reaches that port; and
-* component-owned filtering: additionally require the event to be attached to
-  the exact source occurrence assigned to the row component.
-
-These are exploratory interpretations, not selected Yulang semantics. The
-checker only establishes that they differ even when the event is in the same
-complete observation and has a typed path to the same port. It does not model
-the subtyping solver, general family variance, handler transitions, or derive
-the annotation-to-occurrence rule.
+This finite matrix is a consistency check for that selected rule. It contrasts
+it with a deliberately wrong source-occurrence filter and a family-only
+predicate. It does not derive source annotation elaboration, mixed abstract /
+concrete component membership, handler semantics, or the ``A <: B`` solver.
 
 Run: python3 tools/research_effect_component_membership.py
 """
@@ -28,135 +24,139 @@ from itertools import product
 
 @dataclass(frozen=True, order=True)
 class Fiber:
-    # One assignment and its joint witnesses are shared by all observations.
     nu: str
     k: str
     d: str
 
 
 @dataclass(frozen=True, order=True)
-class Event:
+class ConcreteContract:
+    annotation_occurrence: str
+    port: str
+    family: str
+    family_argument: str
+
+
+@dataclass(frozen=True, order=True)
+class EventView:
     event_id: str
     origin: str
-    source_occurrence: str
+    origin_occurrence: str
     family: str
     family_argument: str
-    port_path: str | None
-    in_suffix: bool
+    observed_port: str | None
+    typed_path_incidence: bool
+    receiver_active: bool
+    handler_active: bool
+    in_later_force_suffix: bool
 
 
-@dataclass(frozen=True)
-class CompleteObservation:
-    fiber: Fiber
-    challenge: str
-    port: str
-    events: tuple[Event, ...]
-
-
-@dataclass(frozen=True)
-class ConcreteComponent:
-    occurrence: str
-    family: str
-    family_argument: str
-
-
-def covered_by_port(component: ConcreteComponent, obs: CompleteObservation) -> bool:
-    """Candidate: matching typed events on the complete port path are covered."""
-    return any(
-        event.family == component.family
-        and event.family_argument == component.family_argument
-        and event.port_path == obs.port
-        for event in obs.events
-    )
-
-
-def covered_by_component_owned_event(
-    component: ConcreteComponent, obs: CompleteObservation
-) -> bool:
-    """Candidate mutant: also require event ownership by this row item."""
-    return any(
-        event.family == component.family
-        and event.family_argument == component.family_argument
-        and event.port_path == obs.port
-        and event.source_occurrence == component.occurrence
-        for event in obs.events
-    )
-
-
-def event_universe(component: ConcreteComponent) -> tuple[Event, ...]:
-    # Same-family/same-type events may originate at another expression; wrong
-    # family/type and events with no path to the port are controls.
+def selected_capture_rule(contract: ConcreteContract, event: EventView) -> bool:
+    """User-selected rule: exact typed contract + observed live incidence."""
     return (
-        Event("q0", "origin-A", component.occurrence, component.family,
-              component.family_argument, "port", False),
-        Event("q1", "origin-B", "other-occurrence", component.family,
-              component.family_argument, "port", True),
-        Event("q2", "origin-C", "other-occurrence", component.family,
-              "other-type", "port", True),
-        Event("q3", "origin-D", "other-occurrence", "read",
-              component.family_argument, "port", True),
-        Event("q4", "origin-E", "other-occurrence", component.family,
-              component.family_argument, None, True),
+        event.family == contract.family
+        and event.family_argument == contract.family_argument
+        and event.observed_port == contract.port
+        and event.typed_path_incidence
+        and event.receiver_active
+        and event.handler_active
     )
 
 
-def check_same_fiber_observations() -> tuple[int, int, int]:
+def wrong_origin_filter(contract: ConcreteContract, event: EventView) -> bool:
+    """Mutant: wrongly require event origin to equal annotation occurrence."""
+    return (
+        selected_capture_rule(contract, event)
+        and event.origin_occurrence == contract.annotation_occurrence
+    )
+
+
+def wrong_family_only_rule(contract: ConcreteContract, event: EventView) -> bool:
+    """Mutant: wrongly infer capture from family/type equality alone."""
+    return (
+        event.family == contract.family
+        and event.family_argument == contract.family_argument
+    )
+
+
+def enumerate_fixed_fiber() -> tuple[int, int, int, int]:
     fiber = Fiber("nu0", "K0", "D0")
-    component = ConcreteComponent("annotation-occurrence", "write", "int")
-    universe = event_universe(component)
-    checks = differing = suffix_witnesses = 0
+    contract = ConcreteContract("annotation-occurrence", "callview-port", "write", "int")
+    checks = eligible = origin_mutant_differences = family_only_false_positives = 0
 
-    # Every complete observation retains the exact same fiber; no projection
-    # is recombined with a different K,D tuple during candidate comparison.
-    for width in range(1, len(universe) + 1):
-        for selection in product((False, True), repeat=len(universe)):
-            events = tuple(event for event, keep in zip(universe, selection) if keep)
-            if len(events) != width:
-                continue
-            obs = CompleteObservation(fiber, "challenge", "port", events)
-            broad = covered_by_port(component, obs)
-            owned = covered_by_component_owned_event(component, obs)
-            assert not owned or broad
-            if broad != owned:
-                differing += 1
-                assert any(
-                    e.source_occurrence != component.occurrence
-                    and e.family == component.family
-                    and e.family_argument == component.family_argument
-                    and e.port_path == obs.port
-                    for e in obs.events
-                )
-            if any(e.in_suffix and e.family == component.family for e in events):
-                suffix_witnesses += 1
-            checks += 1
+    for origin, family, argument, observed, path, receiver, handler, suffix in product(
+        ("direct", "caller-force"),
+        ("write", "read"),
+        ("int", "unit"),
+        (False, True),
+        (False, True),
+        (False, True),
+        (False, True),
+        (False, True),
+    ):
+        event = EventView(
+            event_id="q0",
+            origin=origin,
+            origin_occurrence=(
+                "annotation-occurrence" if origin == "direct" else "caller-thunk-occurrence"
+            ),
+            family=family,
+            family_argument=argument,
+            observed_port="callview-port" if observed else None,
+            typed_path_incidence=path,
+            receiver_active=receiver,
+            handler_active=handler,
+            in_later_force_suffix=suffix,
+        )
 
-    # Minimal complete-history witness: the compatible event is in a resumed
-    # suffix, reaches the same port, and is not owned by the row item's source
-    # occurrence. Both interpretations keep its event/origin identity intact.
-    q = Event("q1", "origin-B", "other-occurrence", "write", "int", "port", True)
-    obs = CompleteObservation(fiber, "challenge", "port", (q,))
-    assert covered_by_port(component, obs)
-    assert not covered_by_component_owned_event(component, obs)
-    assert (obs.fiber, obs.events[0].event_id, obs.events[0].origin) == (
-        fiber, "q1", "origin-B"
-    )
-    assert checks == 2**len(universe) - 1
-    return checks, differing, suffix_witnesses
+        # All rows refer to the exact same complete typed-assignment fiber;
+        # only the bounded event-view coordinates vary.
+        assert fiber == Fiber("nu0", "K0", "D0")
+        actual = selected_capture_rule(contract, event)
+        owner_mutant = wrong_origin_filter(contract, event)
+        family_mutant = wrong_family_only_rule(contract, event)
+        eligible += actual
+        origin_mutant_differences += actual != owner_mutant
+        family_only_false_positives += family_mutant and not actual
+
+        assert not actual or (
+            event.family == contract.family
+            and event.family_argument == contract.family_argument
+            and event.observed_port == contract.port
+            and event.typed_path_incidence
+            and event.receiver_active
+            and event.handler_active
+        )
+        if origin == "direct":
+            paired = EventView(
+                **{
+                    **event.__dict__,
+                    "origin": "caller-force",
+                    "origin_occurrence": "caller-thunk-occurrence",
+                }
+            )
+            assert selected_capture_rule(contract, event) == selected_capture_rule(
+                contract, paired
+            )
+        checks += 1
+
+    # Two origins × two families × two arguments × five Boolean dimensions.
+    assert checks == 2 * 2 * 2 * 2**5 == 256
+    assert eligible == 4  # one per origin and suffix state
+    assert origin_mutant_differences == 2
+    assert family_only_false_positives > 0
+    return checks, eligible, origin_mutant_differences, family_only_false_positives
 
 
 def main() -> None:
-    checks, differing, suffix_witnesses = check_same_fiber_observations()
-    assert differing > 0 and suffix_witnesses > 0
-    print(f"nonempty complete observations checked in one Rel_C fiber: {checks}")
-    print(f"observations distinguishing the two readings: {differing}")
-    print(f"observations retaining same-family suffix events: {suffix_witnesses}")
+    checks, eligible, origin_differences, family_false_positives = enumerate_fixed_fiber()
+    print(f"typed capture views checked in one Rel_C fiber: {checks}")
+    print(f"eligible exact-contract views: {eligible}")
+    print(f"direct-vs-caller-Force origin-filter mutant failures: {origin_differences}")
+    print(f"family-only false-positive views: {family_false_positives}")
     print(
-        "minimal distinction: a compatible same-family event on the complete "
-        "port path is covered by port coverage, but rejected by component-owned filtering"
-    )
-    print(
-        "scope: two candidate membership readings only; no handler semantics, "
-        "annotation rule, solver relation, or production authority"
+        "scope: consistency with selected callback visibility; source annotation "
+        "profile elaboration and mixed-row membership remain open"
     )
 
 
