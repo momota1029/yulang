@@ -61,6 +61,39 @@ full coupled Function/effect package preserves either scheme. In particular,
 the existing theorem explicitly projects away effect children and disclaims
 scheme principality; it cannot certify the full requested principal types.
 
+The current F5 closed representation has a concrete migration difference for
+this case. Its test at `crates/yu-solver/src/lib.rs` around lines 20371–20400
+asserts zero quantifiers, a negative `Top` argument, and positive `Int` result
+for `my k x = 42`; the F5 scheme draft §§23–24 explicitly classifies this as
+negative-only elimination. The user-directed successor criterion instead
+requires `'a -> int`. This establishes a difference in public scheme
+representation, not semantic equivalence or inequivalence between the two
+forms. No theorem currently licenses carrying F5's negative-only elimination
+through to the successor.
+
+The generalization proof must therefore explain, by a source-owned rule rather
+than a `zero` special case, how a flexible component exposed at a public
+Function boundary survives as a quantifier even when its body has no
+constraint on it. Internal solver extrema still retain their distinct roles;
+the precise successor eligibility/projection rule remains unproved. This is
+an additional direct obligation alongside, not a substitute for, the
+common-allowance theorem.
+
+The pair `id`/`zero` makes the required generalization criterion precise at
+this boundary: both expose the source parameter's value component in the
+public Function argument, but only `id` gives that component positive result
+incidence. A successor rule based solely on bipolar incidence would quantify
+`id` and eliminate `zero`'s negative-only component, contradicting the two
+accepted schemes. A source-checkable candidate is to retain a flexible
+component as quantifiable when its source owner is a function parameter and
+its endpoint is exposed through that definition's public argument port,
+independent of body incidence polarity; preserve any attached original
+constraints in the scheme predicate. This uses the existing parameter owner
+and endpoint path, not a new solver carrier. The candidate still needs proof
+that it preserves the full solution family under SCC/environment closure,
+instantiation, and generalization; it does not decide how other one-sided
+internal components normalize.
+
 ## Frozen Oracle characterization
 
 Oracle at `a58eefc31e22141574b6f20c6a5748151c6d79f1` confirms the displayed

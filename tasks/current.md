@@ -189,6 +189,16 @@ remaining proof parts are now listed in the criteria record. The smallest
 shared open premise remains a source-generated principal common-allowance
 extension over each full `ν,K,D` solution fiber, followed by factorization of
 every valid public view through generalization.
+One separate migration mismatch is now concrete: current F5 generalization
+maps an unused negative Function argument to `Top`, while the accepted
+successor criterion requires the source-owned boundary component to remain
+`'a` in `zero : 'a -> int`. This is a representation mismatch only; no
+equivalence theorem or successor eligibility rule is established. See the
+criteria record's boundary-quantification gate. The `id`/`zero` pair also
+rules out a generalizer that quantifies only bipolar components. The current
+candidate is source-owned public-argument reachability independent of body
+polarity, with original constraints retained; SCC/environment preservation is
+still open.
 
 Historical callback adequacy exploration and its earlier gate descriptions
 remain in the linked progress records above and
