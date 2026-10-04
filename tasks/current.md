@@ -112,19 +112,19 @@ endpoint bound from it. The required theorem must recover argument-entry
 admission and factor every endpoint-bound observation through argument,
 rebind, body/result consumer, and `J_call` into linked `[b,d]` at the same
 `ν,K,D`; callback B step 6 leaves this construction open.
-The failed callback proof now has a compact source-checkable premise relative
-to its compositional induction: independent challenge admission, constructor-
-local witness lifting (including conservative local slack), and faithful
-composition into the complete endpoint with the existing linked `d⁺`/`b⁺`
-components. The bounded first-order Value-entry theorem follows by finite-
-history induction. The common argument endpoint is one checkable way to
-establish admission in that fragment, not an adaptation equality rule. This
-condition is not claimed weakest among all possible proof contracts. Typed-
-core §9 separately proves the operational source graph's composition shape
-by induction over finite derivations. It does not prove the still-unspecified
-finite inference endpoint satisfies admission or local lifting. B step 6
-therefore remains the one missing finite-generation bridge; see
-[callback compositional premise](../notes/progress/2026-10-04-callback-compositional-premise.md).
+The failed callback proof now isolates a non-circular sufficient generator
+premise: independently certified challenge admission plus a positive
+source-labelled relation graph whose checked lift copies whole tuples and
+binder scopes and adds only total-coordinate definitions. Inverting this
+graph proves bound inclusion even with conservative local slack; this
+excludes the root-only widening countermodel without assuming a regular
+solution or the desired inclusion. It is not claimed absolutely weakest.
+Theorem C proves the conditional result for its explicitly constructed
+typed-core relational generator. Typed-core §9 separately proves operational
+composition shape, but neither theorem identifies that graph with the
+production finite inference endpoint. Current HIR also lacks application and
+request constructors. B step 6 and the raw-source-to-endpoint correspondence
+therefore remain open; see [callback compositional premise](../notes/progress/2026-10-04-callback-compositional-premise.md).
 An attempted source-checkable constructor condition (compose only existing
 entry/body/result segments, with no independent call-bound leaf) is not yet
 sufficient: conservative slack on segment bounds still requires a proved
