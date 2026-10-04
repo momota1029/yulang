@@ -38,6 +38,18 @@ states the exported-root qualification and source witness against importing
 the pure structural Function comparison. Earlier open-map wording below is
 historical to the preceding attempts.
 
+**Experiment-guided follow-up:**
+[callback coverage and source joins](../design/2026-10-05-callback-coverage-and-source-joins.md)
+strengthens the exact linked pair to bound equality on checked fibers and
+gives a necessary/sufficient observation-Coverage law for legal old-witness
+marginals. Fresh total outputs can be eliminated without admission uniformity;
+a finite source dependency closure derives a safe old-hiding class. Source
+`higher` and supplied-selector witnesses rule out independent marginal/local
+representative shortcuts. The 4,096-case checker corroborates the separate
+unbounded proofs. Full production conformance, common descriptor totality and
+all-view direct-query evidence remain open. See the
+[new proof/review record](2026-10-05-experiment-guided-main-gate-attack.md).
+
 ## Pure-value callback / Function adequacy
 
 **Result: the main theorem remains open at the source-to-endpoint adequacy

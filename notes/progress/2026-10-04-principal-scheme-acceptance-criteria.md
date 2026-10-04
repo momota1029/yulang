@@ -25,6 +25,18 @@ root from a replacement common root; no accepted scheme is reinterpreted as
 a mere display. Full result and review scope are in the
 [residual attack record](2026-10-04-callback-principality-residual-attack.md).
 
+**Reviewed experiment-guided attack:**
+[source-preserving composition](../design/2026-10-05-callback-coverage-and-source-joins.md)
+§6 gives source-core obstructions to independently reconstructing a common
+root from stage marginals or locally substituted scalar representatives.
+The exact reconstruction test retains the challenge and compares the complete
+joined observation image (`LJ_Pi`). Keeping original source witnesses and
+returned-provider incidence avoids those shortcuts; neither this nor flat
+support union proves that the demanded shared descriptor exists. Legal
+allowance totality and all-valid-view direct evidence through the actual
+export remain the original open obligations in §8 of that note. None of the
+accepted schemes or quantifiers below changes.
+
 The following public schemes are the user's expected principal presentations
 for the stated source definitions. They are criteria for the general
 constraint-generation, co-occurrence, inequality-solving, and generalization

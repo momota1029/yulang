@@ -279,6 +279,22 @@ generator remains open. See
 [certified callback and constrained-use theorems](../notes/design/2026-10-04-certified-callback-and-constrained-use.md)
 and the [residual attack record](../notes/progress/2026-10-04-callback-principality-residual-attack.md).
 
+The experiment-guided follow-up strengthens the exact linked reference pair:
+fresh total definitions can be eliminated with the old scopes and admission;
+actual and checked bounds are equal on checked fibers. A legal old-witness
+marginal preserves comparison iff every actual complete observation has a
+checked-admitted representative (Coverage). A finite source dependency closure
+derives a sufficient safe-hiding complement, including request/provider
+production premises. The new checker exhausts 4,096 encodings and separates
+uniform admission, same-witness admission and Coverage. A source-core
+`higher` diagonal defeats independent stage marginals; a supplied scalar
+selector defeats local representative substitution. Original joined witnesses
+avoid both routes, but legal common descriptors and all-view direct-query
+evidence remain open. Proof/review status is in
+[the experiment-guided record](../notes/progress/2026-10-05-experiment-guided-main-gate-attack.md)
+and [complete argument](../notes/design/2026-10-05-callback-coverage-and-source-joins.md).
+The full callback/principal classification remains C; structural FMP remains A.
+
 The latest user request reopened direct proof work on callback and
 principality after the pure FMP proof. The independently reviewed
 [source-indexed reference construction](../notes/design/2026-10-04-source-indexed-callback-realization.md)

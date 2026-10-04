@@ -288,6 +288,13 @@ Finally apply §5.1 to a checked challenge and use both bound equalities.
 This proves complete containment for one direct Function query without
 composing successes of concrete comparisons. QED.
 
+The reviewed [coverage follow-up](2026-10-05-callback-coverage-and-source-joins.md)
+§3 makes the reverse forgetting consequence explicit: for this exact linked
+pair, `P_A^ref(h;xi) = P_C^ref(h;xi)` on `D_C^ref`. Domains need not be equal,
+and independently widened checked endpoints are not covered by that equality.
+Its §4 gives the exact additional Coverage condition for legal old-witness
+marginals without exchanging original quantifiers.
+
 ### 5.3 Finite presentation
 
 Each source node emits a bounded constructor template and references its
