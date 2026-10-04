@@ -671,7 +671,13 @@ are the candidate projection substrate; no concrete failure showing a
 missing carrier is established. The edge quantifier, principal order, syntax
 behavior, and source-to-public projection theorem remain open, so the note
 adds no semantic or implementation authority. Its **(B)** assessment is
-exploratory. See [handler hygiene provenance notation](../notes/design/2026-10-05-handler-hygiene-public-provenance-notation.md).
+exploratory. A finite checker finds the same flat support for histories with
+different input-to-result provenance edges, including a one-event
+cross-origin pair and a mixed-origin two-event pair; the edge separates both
+modeled cases. This supports keeping provenance distinct from row membership,
+but does not prove that `'e?` is a principal public projection. See the
+[playground record](../notes/progress/2026-10-05-handler-provenance-projection-playground.md)
+and [design note](../notes/design/2026-10-05-handler-hygiene-public-provenance-notation.md).
 An architect cross-check found no counterexample among the seven accepted
 schemes and no demonstrated missing carrier. A direct Astra theorem attack,
 independently reviewed by a compiler referee and architect, distinguishes the

@@ -27,6 +27,13 @@ This index is a navigation aid. The listed source document remains authoritative
   the endpoint/receiver-exit alignment as an open projection obligation. It
   selects no syntax, semantics, carrier, or implementation and does not alter
   the Authoritative callback-context contract or existing proof gates.
+  [`research_handler_provenance_projection.py`](../../tools/research_handler_provenance_projection.py)
+  finds a one-event cross-origin collision and exhausts 16 two-event/two-boundary
+  incidence assignments; flat family support can agree despite different
+  input-to-result provenance edges, which the candidate edge separates. The
+  checker does not derive incidence from source evidence or establish a
+  principal projection.
+  See its [progress record](../progress/2026-10-05-handler-provenance-projection-playground.md).
 
 - **Executable proof-search direction:**
   [inference research playgrounds](2026-10-04-inference-research-playgrounds.md)
