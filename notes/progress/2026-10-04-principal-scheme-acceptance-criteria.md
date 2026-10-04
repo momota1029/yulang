@@ -88,6 +88,38 @@ concrete endpoint resolution, and generalization. In particular, branch or
 staged-call effects may share a principal public allowance without treating
 successful concrete comparisons as transitive or equating evidence owners.
 
+## Common-allowance factorization gate
+
+The shared effect variables in these criteria are public common allowances,
+not equations identifying the original branch or call-stage endpoints. The
+general source rule needed to derive them is still unproved. Its exact form is
+a two-way, same-fiber solution-preservation law: every original source solution
+must induce the shared-allowance presentation plus retained original
+constraints/evidence, and every such presented solution must reconstruct a
+permitted original solution under the same `ν,K,D`. Original invocation
+endpoints, scopes, occurrence evidence, and concrete inequalities remain
+separate; each invocation view is checked directly against the common
+allowance.
+
+This law is stronger than collecting support points or taking a row union.
+For example, branch endpoints `{Read}` and `{Write}` can both fit an outward
+allowance `{Read, Write}`; identifying those endpoints with each other would
+lose that assignment. For `higher`, the stage views likewise remain distinct
+and retain their dependency on the first-stage result. For `twice`, both
+invocation occurrences and sequential continuation behavior remain, although
+the public support has no multiplicity. For `compose`, the `g` contribution
+must flow through `f`'s argument interface and stay in the outward allowance
+unless existing subtraction evidence witnesses its consumption. No successful
+concrete comparisons are composed to justify any of these views.
+
+The missing premise is therefore one source-generated complete-interface
+factorization preserving the joint solution fiber while presenting these
+simultaneous common allowances. The current concrete-compatibility design
+leaves co-occurrence consolidation open and makes support-union results
+conditional on a source-derived component-combination rule; it does not prove
+this factorization. The branch example above refutes raw equality merging, not
+common-allowance principal inference itself.
+
 An independent architect audit checked whether these principal criteria could
 close the active Pure-value callback production bridge. They cannot: principal
 projection constrains the public solution family, but supplies no inversion of

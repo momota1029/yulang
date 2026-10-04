@@ -164,7 +164,7 @@ User-directed principal-scheme acceptance examples now cover `id`, `zero`,
 `call`, `compose`, repeated calls, branches, and staged higher-order calls.
 Frozen Oracle evidence is characterization only; the successor's compositional
 principal-solution preservation proof remains open. Exact examples, Oracle
-limits, and the bounded obligation are in
+limits, and the common-allowance factorization premise are in
 [principal scheme criteria](../notes/progress/2026-10-04-principal-scheme-acceptance-criteria.md).
 
 Historical callback adequacy exploration and its earlier gate descriptions
