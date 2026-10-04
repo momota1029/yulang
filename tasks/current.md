@@ -2503,6 +2503,17 @@ inequality remain open, including the complete challenge and observation
 inclusions above. Do not reinterpret this ordering as independent effect-port
 subtyping or as a transitive global relation between concrete successes.
 
+The whole-carrier identity context gate has a candidate non-circular skeleton
+and a conditional exact-execution correspondence, but the full inequality is
+still open. Existing source rules do not supply independent whole-carrier
+admission and plugging/execution closure, so `D_checked ⊆ D_actual` is unproved.
+Exact execution equality also does not establish `P_actual ⊆ P_checked` for
+observation upper bounds. Next derive query-independent admission/closure and
+bound adequacy from existing context, store, `Rel_C`, `K,D`, path, receipt,
+and subtraction evidence; add no carrier or API absent a concrete inability
+to express the needed fact. Details are in
+`notes/progress/2026-10-04-value-entry-bind-projection.md`.
+
 ## Main records
 
 - `notes/design/2026-10-03-scoped-constraint-solving.md` — scoped regular equality quotient and finite closed structural subtype saturation; the following reviewed candidate addresses open residual factorization.

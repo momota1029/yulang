@@ -558,3 +558,41 @@ is still the implementation/theorem seam: this order does not define a
 component-wise effect rule or promote concrete query successes to a global
 subtyping relation. The single Function comparison must resolve its coupled
 ports jointly with the selected linked contribution and existing evidence.
+
+### Whole-carrier identity context gate (2026-10-04)
+
+A bounded source-semantics audit found a non-circular candidate context
+skeleton for comparing an existing Pure identity through a known callback
+slot: fix the instantiated slot/profile and one `ν,K,D` fiber before resolving
+the comparison; use callable and whole-argument-computation holes; keep the
+tested identity outside the context's semantic environment; and plug the
+identity through the retained slot view. The application constructs the
+argument carrier inertly and the identity's Value entry executes
+`Force(D) >>= typed rebind >>= identity result >>= ReturnFromInvocation`.
+The callback-value receipt and inner-argument receipt remain distinct.
+
+Conditioned on independently admitted contexts, corresponding live stores,
+aliases, activation order, complete views, owner re-entry, invocation
+delimiters, and transport of every legal response and resumption history, the
+Pure identity execution and the reference argument-consumer execution have
+the same finite decorated observations modulo administrative labels. State-
+threaded bind preserves requests and attaches the identity suffix to each
+resumption; divergence preserves each emitted prefix. This is execution
+correspondence, not a proof of the complete interface inclusions.
+
+The universal callback inequality gate remains open for two exact reasons:
+
+1. Existing source clauses do not define an independent whole-carrier
+   contextual admission judgment with well-formed environment/store and
+   plugging/execution closure. Thus `D_checked ⊆ D_actual` is not established.
+2. Equality of exact executions does not imply `P_actual ⊆ P_checked` when
+   the interface observations are upper bounds with additional admitted
+   observations. Endpoint/profile adequacy and linked contribution evidence
+   over all challenges also remain obligations.
+
+This is a proof gap, not a demonstrated representation obstruction. Keep the
+settled port locations, actual Pure role/§21 entry, and existing
+`Rel_C`, `K,D`, path, receipt, and subtraction evidence. The next proof gate
+is to define query-independent admission and closure using those structures,
+then establish bound adequacy separately. No new carrier/API decision or
+implementation authority follows.
