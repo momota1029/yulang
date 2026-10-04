@@ -155,3 +155,31 @@ evidence rather than hidden as a green-test-only repair. A follow-up review
 also aligned the wrapper entry marker with the returned `Name` body occurrence,
 matching the future identity function's body-occurrence convention. All
 reported findings are closed within this finite handled-history scope.
+
+## Retained Function artifact reconstruction
+
+The `cfg(test)` probe now retains the complete positive Function port tuple,
+its `LambdaRecipe`, the body occurrence and binder, the original component
+handles, and distinct body/construction effect-row identities. It checks that
+the positive result-effect port is the exact body-row handle and that the
+source body and construction constraints retain their occurrence, slot,
+polarity, and provenance links. Across the existing 96 declaration-order and
+renaming variants, these links are carried through generalized schemes and
+three fresh closed-use routes; the check preserves the shared diagonal and
+distinguishes positive polarized effect leaves from negative ones.
+
+Three local mutations are rejected: replacing the body row with the
+construction row, attaching another Lambda's body row, and substituting a
+different positive Function result coordinate. The F4 boundary is also
+checked: every source Lambda occurrence is present in the public projection,
+its internal body occurrence is absent, and its projected effect is
+unconditionally checked as `Empty`. The independent compiler-referee review
+found this membership check could be vacuous when conditionally guarded by the
+projection list; the test now asserts the exact inclusion/exclusion before
+checking the projection. Focused tests pass after that repair.
+
+This improves reconstruction of existing source-indexed evidence only. It
+introduces no production carrier or denotation, and does not close complete
+Function-bound membership, callback adequacy, B-step-6 endpoint generation,
+or principal common-allowance factorization. The boundary remains the actual
+HIR's lack of application/callback invocation lowering.

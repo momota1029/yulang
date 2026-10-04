@@ -240,6 +240,18 @@ own final state was reused as expected input) and trace-coverage gaps; the test
 now derives exact ordered traces and final state from source responses and HIR
 occurrences. Review is clean within that finite scope. The full callback bound
 and principal common-allowance bridges remain open.
+The same test-only artifact now retains and checks the exact positive
+Function-port tuple, `LambdaRecipe`, source body occurrence/binder, original
+component handles, and distinct body/construction effect rows across those
+variants and three fresh closed uses. Mutations that substitute the
+construction row, another Lambda's body row, or a different Function result
+coordinate are rejected. F4 projection checks now require source Lambda
+occurrences present and internal body occurrences absent before asserting the
+source Lambda's `Empty` effect; an independent review caught and closed a
+previously vacuous conditional check. Focused verification passes. This
+preserves existing test-only source evidence and adds no production carrier;
+the application/callback endpoint and full bound-membership gates remain open.
+See the [source-indexed realization playground](../notes/progress/2026-10-05-source-indexed-function-realization-playground.md#retained-function-artifact-reconstruction).
 
 **Classification A: normalized pure structural FMP is proved.**
 [Finite fence completion](../notes/design/2026-10-04-structural-fmp-fence-completion.md)

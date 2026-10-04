@@ -354,11 +354,195 @@ fn resume_invocation(
     )
 }
 
+// Evidence handles belong to this solved store; closed projection does not
+// identify its polarized Bottom with the body's empty-effect projection.
+#[derive(Clone, Debug)]
+struct FunctionReconstruction {
+    recipe: LambdaRecipe,
+    body_occurrence: HirOccurrenceId,
+    body_slots: (u8, u8),
+    body_row: u32,
+    construction_row: u32,
+    body_component: Term,
+    construction_component: Term,
+    ports: [Term; 4],
+}
+
+fn reconstruction_inputs(session: &InferenceSession) -> Vec<FunctionReconstruction> {
+    session
+        .batch
+        .lambda_recipes
+        .iter()
+        .map(|recipe| {
+            let binding = session
+                .batch
+                .hir
+                .items()
+                .iter()
+                .find_map(|item| match item {
+                    HirItem::Binding(binding)
+                        if binding.value().occurrence() == &recipe.occurrence =>
+                    {
+                        Some(binding)
+                    }
+                    _ => None,
+                })
+                .expect("recipe source Lambda");
+            let ResolvedExpr::Lambda { body, .. } = binding.value() else {
+                unreachable!()
+            };
+            let slots = match body.as_ref() {
+                ResolvedExpr::Integer { .. } => (2, 3),
+                ResolvedExpr::Name {
+                    resolution: NameResolution::Parameter(_),
+                    ..
+                } => (0, 1),
+                ResolvedExpr::Name {
+                    resolution: NameResolution::Resolved(_),
+                    ..
+                } => (1, 2),
+                _ => panic!("admitted recipe body"),
+            };
+            // Ports are filled from the admitted Function, never synthesized here.
+            let placeholder = session.batch.component_term_at(recipe.root_component);
+            FunctionReconstruction {
+                recipe: recipe.clone(),
+                body_occurrence: body.occurrence().clone(),
+                body_slots: slots,
+                body_component: session
+                    .batch
+                    .component_term_at(recipe.body_effect_component),
+                construction_component: session
+                    .batch
+                    .component_term_at(recipe.lambda_effect_component),
+                body_row: session.live_components[recipe.body_effect_component].ordinal,
+                construction_row: session.live_components[recipe.lambda_effect_component].ordinal,
+                ports: [placeholder; 4],
+            }
+        })
+        .collect()
+}
+
+fn retained_function_ports(solved: &SolvedModule, occurrence: &HirOccurrenceId) -> [Term; 4] {
+    let cause = ConstraintOccurrenceId::new(occurrence.clone(), 2);
+    let fact = solved
+        .store()
+        .facts()
+        .iter()
+        .find(|fact| {
+            solved
+                .store()
+                .provenance()
+                .iter()
+                .any(|edge| edge.fact() == fact.id() && edge.cause().occurrence() == &cause)
+                && matches!(
+                    solved.store().term_view(fact.lower()),
+                    Ok(TermView::PositiveFunction { .. })
+                )
+        })
+        .expect("retained source Function fact");
+    let TermView::PositiveFunction {
+        argument,
+        argument_effect,
+        result_effect,
+        result,
+    } = solved.store().term_view(fact.lower()).unwrap()
+    else {
+        unreachable!()
+    };
+    [argument, argument_effect, result_effect, result]
+}
+
+fn row_matches(solved: &SolvedModule, term: Term, row: u32, polarity: Polarity) -> bool {
+    matches!(solved.store().term_view(term), Ok(TermView::LiveVariable(variable))
+        if variable.kind() == ComponentKind::Effect && variable.ordinal() == row && variable.polarity() == polarity)
+}
+
+fn reconstruction_matches(solved: &SolvedModule, record: &FunctionReconstruction) -> bool {
+    record.body_row != record.construction_row
+        && record.ports == retained_function_ports(solved, &record.recipe.occurrence)
+        && row_matches(solved, record.ports[2], record.body_row, Polarity::Positive)
+}
+
+fn reconstructions_other_row(solved: &SolvedModule, record: &FunctionReconstruction) -> u32 {
+    solved
+        .store()
+        .facts()
+        .iter()
+        .find_map(|fact| {
+            let Ok(TermView::PositiveFunction { result_effect, .. }) =
+                solved.store().term_view(fact.lower())
+            else {
+                return None;
+            };
+            let Ok(TermView::LiveVariable(row)) = solved.store().term_view(result_effect) else {
+                return None;
+            };
+            (row.kind() == ComponentKind::Effect
+                && row.ordinal() != record.body_row
+                && row.ordinal() != record.construction_row)
+                .then_some(row.ordinal())
+        })
+        .expect("another source Lambda owns a different body row")
+}
+
+fn check_reconstruction(solved: &SolvedModule, record: &FunctionReconstruction) {
+    assert!(reconstruction_matches(solved, record));
+    assert!(solved.occurrences().contains(&record.recipe.occurrence));
+    assert!(!solved.occurrences().contains(&record.body_occurrence));
+    for (occurrence, component, slots) in [
+        (
+            &record.body_occurrence,
+            record.body_component,
+            record.body_slots,
+        ),
+        (
+            &record.recipe.occurrence,
+            record.construction_component,
+            (0, 1),
+        ),
+    ] {
+        for (slot, lower_bound) in [(slots.0, true), (slots.1, false)] {
+            let cause = ConstraintOccurrenceId::new(occurrence.clone(), slot);
+            assert!(
+                solved.store().facts().iter().any(|fact| {
+                    let endpoints_match = if lower_bound {
+                        matches!(
+                            solved.store().term_view(fact.lower()),
+                            Ok(TermView::Leaf(Leaf::EffectBottomPositive))
+                        ) && fact.upper() == component
+                    } else {
+                        fact.lower() == component
+                            && matches!(
+                                solved.store().term_view(fact.upper()),
+                                Ok(TermView::Leaf(Leaf::EmptyEffectNegative))
+                            )
+                    };
+                    endpoints_match
+                        && solved.store().provenance().iter().any(|edge| {
+                            edge.fact() == fact.id() && edge.cause().occurrence() == &cause
+                        })
+                }),
+                "retained effect occurrence/slot/polarity"
+            );
+        }
+    }
+    // The source Lambda is published as an F4 projection; its internal body is not.
+    assert_eq!(
+        solved
+            .projection_for(&record.recipe.occurrence)
+            .unwrap()
+            .effect(),
+        SolvedEffect::Empty
+    );
+}
+
 struct SourceArtifact {
     body: BodyProgram,
     lambda_occurrence: HirOccurrenceId,
     body_occurrence: HirOccurrenceId,
     binder: HirParameterId,
+    reconstruction: FunctionReconstruction,
 }
 
 fn source_body(expr: &ResolvedExpr, parameter: &HirParameterId) -> (BodyProgram, HirOccurrenceId) {
@@ -410,7 +594,12 @@ fn inspect_artifact(source: &str, path: &str) -> SourceArtifact {
         .root_value_component(binding.definition_root())
         .expect("collected source root");
     let root_term = batch.term_for_component(&root_component);
-    let solved = SolvedModule::solve(batch).expect("bounded source Function solves");
+    let session = InferenceSession::try_new(batch).unwrap();
+    let mut records = reconstruction_inputs(&session);
+    let solved = session.run().expect("bounded source Function solves");
+    let mut reconstruction = records.remove(0);
+    reconstruction.ports = retained_function_ports(&solved, &reconstruction.recipe.occurrence);
+    check_reconstruction(&solved, &reconstruction);
     assert!(solved.errors().is_empty(), "{source}");
 
     let function_fact = solved
@@ -532,6 +721,7 @@ fn inspect_artifact(source: &str, path: &str) -> SourceArtifact {
         lambda_occurrence: lambda_occurrence.clone(),
         body_occurrence,
         binder: parameter.clone(),
+        reconstruction,
     }
 }
 
@@ -595,6 +785,10 @@ fn source_output(body: BodyProgram, input: i32) -> i32 {
 }
 
 fn projected_observation(artifact: &SourceArtifact, challenge: &Challenge) -> TypedObservation {
+    assert_eq!(
+        artifact.reconstruction.body_occurrence,
+        artifact.body_occurrence
+    );
     let completion = if challenge.completes {
         let _erased_data_output = source_output(artifact.body, challenge.input);
         Completion::Returned
@@ -1342,7 +1536,90 @@ fn returned_function_aliases_keep_source_identity_and_principal_diagonal() {
                 .map(|usage| usage.occurrence().clone())
                 .collect::<std::collections::HashSet<_>>();
 
-            let solved = SolvedModule::solve(batch).expect("higher-order name uses solve");
+            let session = InferenceSession::try_new(batch).unwrap();
+            let mut reconstructions = reconstruction_inputs(&session);
+            let solved = session.run().expect("higher-order name uses solve");
+            for record in &mut reconstructions {
+                record.ports = retained_function_ports(&solved, &record.recipe.occurrence);
+                check_reconstruction(&solved, record);
+                let mut wrong_construction = record.clone();
+                wrong_construction.body_row = record.construction_row;
+                assert!(!reconstruction_matches(&solved, &wrong_construction));
+                let other = reconstructions_other_row(&solved, record);
+                let mut wrong_attachment = record.clone();
+                wrong_attachment.body_row = other;
+                assert!(!reconstruction_matches(&solved, &wrong_attachment));
+                let mut split_coordinate = record.clone();
+                split_coordinate.ports[3] = solved.store().facts().iter().find_map(|fact| {
+                    let Ok(TermView::PositiveFunction { result, .. }) = solved.store().term_view(fact.lower()) else { return None };
+                    (result != record.ports[3] && matches!(solved.store().term_view(result), Ok(TermView::LiveVariable(variable)) if variable.kind() == ComponentKind::Value && variable.polarity() == Polarity::Positive)).then_some(result)
+                }).expect("other source Lambda supplies a distinct positive value coordinate");
+                assert!(!reconstruction_matches(&solved, &split_coordinate));
+            }
+            // Named uses instantiate closed polarized projections. Their
+            // effect leaves remain projections, not source-row identities.
+            let mut fresh_coordinates = std::collections::HashSet::new();
+            for route in &solved.routed_uses {
+                let fact_id = route.fact.expect("structured named use has a routed fact");
+                let fact = solved
+                    .store()
+                    .facts()
+                    .iter()
+                    .find(|fact| fact.id() == fact_id)
+                    .unwrap();
+                let TermView::PositiveFunction {
+                    argument,
+                    argument_effect,
+                    result_effect,
+                    result,
+                } = solved.store().term_view(fact.lower()).unwrap()
+                else {
+                    panic!("named route retains instantiated Function");
+                };
+                assert!(matches!(
+                    solved.store().term_view(argument_effect),
+                    Ok(TermView::Leaf(Leaf::EmptyEffectNegative))
+                ));
+                assert!(matches!(
+                    solved.store().term_view(result_effect),
+                    Ok(TermView::Leaf(Leaf::EffectBottomPositive))
+                ));
+                let (argument, result) = match solved.store().term_view(result).unwrap() {
+                    TermView::PositiveFunction {
+                        argument,
+                        argument_effect,
+                        result_effect,
+                        result,
+                    } => {
+                        assert!(matches!(
+                            solved.store().term_view(argument_effect),
+                            Ok(TermView::Leaf(Leaf::EmptyEffectNegative))
+                        ));
+                        assert!(matches!(
+                            solved.store().term_view(result_effect),
+                            Ok(TermView::Leaf(Leaf::EffectBottomPositive))
+                        ));
+                        (argument, result)
+                    }
+                    _ => (argument, result),
+                };
+                let TermView::LiveVariable(argument) = solved.store().term_view(argument).unwrap()
+                else {
+                    panic!("fresh argument")
+                };
+                let TermView::LiveVariable(result) = solved.store().term_view(result).unwrap()
+                else {
+                    panic!("fresh result")
+                };
+                assert_eq!(argument.polarity(), Polarity::Negative);
+                assert_eq!(result.polarity(), Polarity::Positive);
+                assert_eq!(argument.ordinal(), result.ordinal());
+                assert!(
+                    fresh_coordinates.insert(argument.ordinal()),
+                    "separate closed uses get fresh coordinates"
+                );
+            }
+            assert_eq!(fresh_coordinates.len(), 3);
             assert!(solved.errors().is_empty(), "{source}");
             assert_diagonal_function_scheme(&solved, id_index, false);
             assert_diagonal_function_scheme(&solved, wrap_index, true);
@@ -1416,11 +1693,18 @@ fn returned_function_invocation_keeps_outer_and_future_source_events_separate() 
     else {
         unreachable!()
     };
+    let session = InferenceSession::try_new(collect(hir.clone())).unwrap();
+    let mut records = reconstruction_inputs(&session);
+    let solved = session.run().unwrap();
+    let mut reconstruction = records.remove(0);
+    reconstruction.ports = retained_function_ports(&solved, &reconstruction.recipe.occurrence);
+    check_reconstruction(&solved, &reconstruction);
     let id_artifact = SourceArtifact {
         body,
         lambda_occurrence: lambda_occurrence.clone(),
         body_occurrence,
         binder: parameter.clone(),
+        reconstruction,
     };
 
     let outer_histories = generated_handled_histories(2, 10);
