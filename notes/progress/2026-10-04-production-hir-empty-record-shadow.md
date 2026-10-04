@@ -102,6 +102,20 @@ correspondence for the identity example only. It says nothing about denotation
 of the effect ports, conservative bound slack, callback views, or
 `D_checked`/`P_actual` inclusion.
 
+The effect evidence has a precise phase boundary in current code. Before
+generalization, `emit_lambda` gives the identity body-effect component both
+polarized bounds, and `admit_lambda_fact` places that component in the
+Function's positive result-effect port. `finish` reports the lambda and body
+effect projections as `SolvedEffect::Empty` when those two bounds are present.
+But F5c's generalization summary nodes retain only Function argument/result;
+scheme materialization later inserts the canonical negative `Empty` and
+positive `Bottom` effect endpoints. This is an observed representation
+transformation, not a successor meaning for either endpoint. The source-owned
+body-effect occurrence and its bounds exist before that transformation, so
+there is no evidence yet that a new carrier is needed; the missing result is
+the theorem that transports this existing row evidence into the source
+Function view without losing its identity and correlation.
+
 This is the smallest concrete bridge obligation: derive, from the user-selected
 Pure introduction and the intended meaning of the polarized row constraints,
 that the F5 endpoint is an adequate presentation of the source interface,
@@ -114,6 +128,7 @@ is proved.
 Relevant source locations: `crates/yu-hir/src/module.rs` (`ResolvedExpr`,
 `lower_module`, `lower_body`, `lower_simple_chain`) and
 `crates/yu-solver/src/lib.rs` (`emit_lambda`, `admit_lambda_fact`, and
-`emit_resolved_binding_name`) and
-`crates/yu-solver/src/term.rs` (`TermView` / `TermNode`). No compiler code or
-tests changed.
+`emit_resolved_binding_name`, `finish`, and `finalize_generalization_draft_raw`),
+`crates/yu-solver/src/f5c_generalization.rs` (`F5cSummaryNodeKind` and
+materialization), and `crates/yu-solver/src/term.rs` (`TermView` / `TermNode`).
+No compiler code or tests changed.
