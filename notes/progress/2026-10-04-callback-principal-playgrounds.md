@@ -76,6 +76,34 @@ through source constraint generation, co-occurrence analysis, complete
 Function comparison/evidence, and generalization. The support model identifies
 the least finite common support but does not supply that argument.
 
+## Value-entry operational-order probe
+
+[`tools/research_callback_entry.py`](../../tools/research_callback_entry.py)
+implements the selected finite `Return`/`Request` bind equations and the
+Value-entry path
+`receipt; Force(D) >>= (v => RebindResultPath; B(v))` for a prebuilt Pure value
+invoked through a callback-slot typed view. It checks argument/body paths with
+zero or one request each under two initial states, and enumerates all 18
+completed response paths. Each path retains one call receipt, one distinct
+argument receipt, one force, one rebind, and one body entry; state passed to
+the body/resumed suffix follows the modeled resumed state. The underlying
+callable remains Pure/Value while the slot view remains present.
+
+The minimal eager-force mutant has one argument request. The source path orders
+call receipt and argument receipt before entry force and the request; the
+mutant forces and reaches the request before it establishes the call receipt.
+An independent compiler-referee review found no blocking/major issue. Its
+minor force-marker placement finding was corrected, and its repeated-resume
+coverage wording was narrowed to sequential requests rather than reuse of one
+continuation.
+
+The finite request table uses a fixed state update and each continuation is
+chosen once per enumerated path. It does not explore resuming the same captured
+continuation repeatedly with different live states. It also omits owner
+activation, shallow handler dispatch, State semantics, typed `Flow`/`Observe`,
+callback Function port interpretation, and production endpoint denotation.
+Thus it checks source ordering and the finite bind equation only.
+
 ## Verification
 
 ```text
@@ -88,5 +116,10 @@ python3 tools/research_callback_lift.py
 python3 tools/research_principal_support.py
   584 finite assignments; 560 retain distinct endpoint supports.
 python3 -m py_compile tools/research_callback_lift.py tools/research_principal_support.py
+  pass
+python3 tools/research_callback_entry.py
+  8 argument/body mode and initial-state cases; 18 response paths;
+  eager-force ordering mutant minimized to one request.
+python3 -m py_compile tools/research_callback_entry.py
   pass
 ```

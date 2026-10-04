@@ -23,7 +23,9 @@ This index is a navigation aid. The listed source document remains authoritative
   search is evidence only; production inference routing remains gated.
   Current bounded callback/principality models are
   [`research_callback_lift.py`](../../tools/research_callback_lift.py) and
-  [`research_principal_support.py`](../../tools/research_principal_support.py);
+  [`research_principal_support.py`](../../tools/research_principal_support.py),
+  plus the source-order probe
+  [`research_callback_entry.py`](../../tools/research_callback_entry.py);
   their exact limits and minimized obstruction are in the
   [progress report](../progress/2026-10-04-callback-principal-playgrounds.md).
 - **Completed narrow experiment:**

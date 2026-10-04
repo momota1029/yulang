@@ -97,3 +97,6 @@ occurrence endpoints. This is only powerset-level evidence; it is not an
 effect comparison or principal-scheme theorem. Exact dimensions, minimized
 obstruction, and remaining proof gates are recorded in the
 [callback/principal playground report](../progress/2026-10-04-callback-principal-playgrounds.md).
+[`tools/research_callback_entry.py`](../../tools/research_callback_entry.py)
+checks the selected Value-entry source order and finite bind/resumption paths;
+it does not model typed endpoint denotation or multi-shot owner semantics.
