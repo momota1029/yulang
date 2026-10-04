@@ -202,6 +202,9 @@ The current HIR/F5 collector does not yet admit the application, block, and
 branch forms in `call`, `compose`, `twice`, `choose`, or `higher`; the listed
 schemes are successor criteria, not current production outputs. The exact
 source-generation boundary is recorded in the principal-scheme criteria.
+For the specified `compose f g x = f (g x)` case, `g`'s effect contribution
+must remain in the outward `c` allowance even when attached at `f`'s argument
+interface; that attachment does not authorize subtracting it from `c`.
 
 Historical callback adequacy exploration and its earlier gate descriptions
 remain in the linked progress records above and
