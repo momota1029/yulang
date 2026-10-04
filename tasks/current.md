@@ -168,6 +168,11 @@ limits, and the remaining premise (a principal, representable common allowance
 for every original solution fiber, with all valid views factoring through its
 generalization) are in
 [principal scheme criteria](../notes/progress/2026-10-04-principal-scheme-acceptance-criteria.md).
+This turn's source-output-effect contributor shape is only a reviewed proof
+candidate; its sort-specific paths and explicit same-fiber totality obligation
+are recorded in
+[the contributor-bound attempt](../notes/progress/2026-10-04-principal-contributor-bound-theorem.md).
+It establishes no source-to-endpoint rule and no implementation authority.
 
 Historical callback adequacy exploration and its earlier gate descriptions
 remain in the linked progress records above and

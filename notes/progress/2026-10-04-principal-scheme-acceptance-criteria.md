@@ -120,6 +120,15 @@ conditional on a source-derived component-combination rule; it does not prove
 this factorization. The branch example above refutes raw equality merging, not
 common-allowance principal inference itself.
 
+A finite source-output-effect contributor rule has been recorded as a
+proof candidate in [the contributor-bound theorem attempt](2026-10-04-principal-contributor-bound-theorem.md).
+It keeps intermediate value endpoints and staged Function values separate,
+and phrases each candidate contributor as an existing direct endpoint query.
+Independent semantic and authority reviews found no authority violation, but
+both identified that the candidate still lacks a source-derived contributor
+map; total representability and all-view factorization remain unproved. It is
+not a derived theorem or implementation authorization.
+
 If the scheme residual retains the complete original constraints and evidence
 conjunctively, the two-way projection obligation has a sharper form. Fix an
 original fiber `ξ = (ν,K,D)` and its complete solution set `Sξ`. Let `Qξ(s,a)`
