@@ -189,6 +189,12 @@ An earlier formulation as direct inequalities from effect contributors to a
 common output row is withdrawn: effect ports must be handled jointly inside
 complete Function inequalities. The remaining candidate establishes no
 source-to-endpoint rule and no implementation authority.
+The annotation-free `compose` source behavior now has a conditional
+derivation: when no capture contract is written, default full hygiene keeps
+caller-owned observations in the complete `f` call along
+`Force(D_g) >>= B_f`; its candidate Function contract places them in outward
+`c`. Production endpoint projection and principal representability remain
+unproved; details are in the contributor-bound attempt.
 An architect cross-check found no counterexample among the seven accepted
 schemes and no demonstrated missing carrier. Their per-example evidence and
 remaining proof parts are now listed in the criteria record. The smallest

@@ -48,6 +48,35 @@ Function comparison, not special typing rules or independent effect checks:
 | `choose cond f g x = if cond: f x else: g x` | each branch's invocation effect reaches the common allowance through its branch path | branch value results meet at their own branch-result endpoint; source endpoints/evidence remain distinct |
 | `higher f g x = f g x` | first-stage and returned-call outward effects can reach `R` only through separate staged application/interface paths | the intermediate returned Function remains its own value endpoint; public `e` may be common while stage evidence and dependencies stay correlated |
 
+### Direct source-level consequence for annotation-free `compose`
+
+With nothing written about capture, hygiene applies fully by default. Under
+that source-level rule and the draft Function denotation in
+`2026-10-01-coupled-effect-interface-core-draft.md` § candidate Function
+contract, the effect-preservation part of `compose` follows directly from
+source execution. Fix the same `ν,K,D` fiber and a composition derivation whose
+application relation passes `g x`'s inert whole-argument carrier `D_g` to
+`f`'s Value-entry port. Take any request `q` in an observed prefix of the
+designated `Force(D_g)`. The entry expansion runs
+`Force(D_g) >>= RebindResultPath >>= B_f`; stateful bind preserves that same
+request origin and its `K,D` incidence. Since the source writes no capture
+contract, the default full hygiene prevents a handler inside `f` from
+consuming this caller-owned `q`. The complete `Beh(f,D_g)` therefore exposes
+the same event at `f`'s call boundary. The candidate Function contract for
+`f` then requires that event to belong to its covariant output row. The outer
+`compose` body exposes that contribution under the same assignment and
+evidence fiber. This
+derives the source-level reason `g`'s contribution must be admitted by outward
+`c`; it does not compare an effect port independently or infer a subtraction
+from matching row-variable spelling.
+
+This closes only the source-execution inclusion for observations already
+present in `Force(D_g)` and the stated Value-entry path. It does not prove that
+production endpoint constraints denote the complete `Beh` relation, that
+their finite Function comparison projects to this inclusion, or that every
+original solution has a representable principal `c`. Those are the remaining
+endpoint and scheme obligations below.
+
 If the coupled Function source rule constructs an output allowance, it must be
 generalized with all original bounds and residual evidence; value endpoints
 and intermediate Function interfaces remain separately represented. A
