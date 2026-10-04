@@ -111,10 +111,14 @@ But F5c's generalization summary nodes retain only Function argument/result;
 scheme materialization later inserts the canonical negative `Empty` and
 positive `Bottom` effect endpoints. This is an observed representation
 transformation, not a successor meaning for either endpoint. The source-owned
-body-effect occurrence and its bounds exist before that transformation, so
-there is no evidence yet that a new carrier is needed; the missing result is
-the theorem that transports this existing row evidence into the source
-Function view without losing its identity and correlation.
+effect evidence is not discarded from the solved artifact: `SolvedModule`
+retains the `ConstraintStore`, whose facts, provenance, and term view still
+expose the original Function node, its result-effect child, and the
+body/lambda effect constraints after `finish`. For this identity path, existing
+store evidence retains occurrence linkage; a parallel carrier is not
+justified. What remains open is the semantic theorem that interprets this
+linked evidence as the source Function view and proves full-bound transport.
+The closed scheme alone does not carry that occurrence identity.
 
 This is the smallest concrete bridge obligation: derive, from the user-selected
 Pure introduction and the intended meaning of the polarized row constraints,
@@ -127,8 +131,9 @@ is proved.
 
 Relevant source locations: `crates/yu-hir/src/module.rs` (`ResolvedExpr`,
 `lower_module`, `lower_body`, `lower_simple_chain`) and
-`crates/yu-solver/src/lib.rs` (`emit_lambda`, `admit_lambda_fact`, and
-`emit_resolved_binding_name`, `finish`, and `finalize_generalization_draft_raw`),
+`crates/yu-solver/src/lib.rs` (`emit_lambda`, `admit_lambda_fact`,
+`emit_resolved_binding_name`, `finish`, `SolvedModule::store`, and
+`finalize_generalization_draft_raw`),
 `crates/yu-solver/src/f5c_generalization.rs` (`F5cSummaryNodeKind` and
 materialization), and `crates/yu-solver/src/term.rs` (`TermView` / `TermNode`).
 No compiler code or tests changed.

@@ -197,11 +197,12 @@ candidate; its finite principal presentation remains a separate open proof.
   projection does match for this identity: one F5 quantifier is shared by its
   negative argument and positive result ports, just as typed-core shares `A`.
   The actual body-effect occurrence and its polarized bounds suffice for
-  F4's local `SolvedEffect::Empty` projection, but F5c generalization drops
-  effect occurrences from Function summary nodes and reintroduces fixed
-  polarized endpoints. A source-view transport theorem across that phase is
-  still missing; effect-port denotation, full bound inclusion, and callback
-  domains remain open.
+  F4's local `SolvedEffect::Empty` projection. F5c summary nodes omit effect
+  ports, but the post-solve `ConstraintStore` still retains the original
+  Function term, effect constraints, and provenance, so a parallel carrier
+  is not justified. The missing item is the semantic transport from that
+  existing linked evidence into the source Function view; effect-port
+  denotation, full bound inclusion, and callback domains remain open.
   This closes only the conditional structural witness theorem, not general
   structural regularity, source adequacy, principal solutions, or the overall
   inference-replacement objective. Theorem S above separately proves
