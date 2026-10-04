@@ -177,6 +177,15 @@ candidate; its finite principal presentation remains a separate open proof.
   annotations, imports, effects, records and guards are outside the fragment.
   The source-fragment result and exact boundaries are in
   [empty-Record source fragment](../notes/progress/2026-10-04-empty_record_source_fragment.md).
+  A separate audit now proves the same `Λ = ∅` incidence premise for the
+  current error-free production HIR's monomorphic **structural value shadow**:
+  resolved integer/name leaves and one-atom unannotated lambdas generate only
+  Int/Function equations, with no structural inequalities or rigid names.
+  Theorem S then gives a regular witness whenever that shadow is satisfiable.
+  This is not an equivalence theorem for current F5's polarized four-port
+  Function constraints; effects, callbacks, Records, and complete successor
+  generation remain outside it. See
+  [production HIR empty-Record shadow](../notes/progress/2026-10-04-production-hir-empty-record-shadow.md).
   This closes only the conditional structural witness theorem, not general
   structural regularity, source adequacy, principal solutions, or the overall
   inference-replacement objective. Theorem S above separately proves

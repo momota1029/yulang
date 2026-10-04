@@ -52,6 +52,11 @@ This index is a navigation aid. The listed source document remains authoritative
   under finite-depth, all-translates decoding assumptions; marker provenance
   also blocks prefix-pop/suffix-append alone. A descriptor-monoid subtree-meet
   fold fails on a regular two-variable example but does not refute FMP.
+  The current error-free production HIR's structural value shadow has a
+  separate finite source-generation proof for `Λ = ∅` and thus a regular
+  witness under Theorem S; it is explicitly not an equivalence to F5's
+  polarized four-port Function constraints. See
+  `notes/progress/2026-10-04-production-hir-empty-record-shadow.md`.
   Neither result closes or refutes FMP.
   See the direct-main-gate progress record.
 - **Other open gates:** source State/reference bridge and global source
