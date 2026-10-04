@@ -776,6 +776,42 @@ mod tests {
     }
 
     #[test]
+    fn research_call_surface_retains_left_associated_stages() {
+        for (source, stage_kind, inner_range, last_range) in [
+            ("f(a)(b)", SyntaxKind::CallTail, 0..4, 5..6),
+            ("f a b", SyntaxKind::MlArgument, 0..3, 4..5),
+        ] {
+            let associated = parse(source);
+            assert_eq!(associated.chains().len(), 1, "{source}");
+            let outer = associated.chains()[0].expression();
+            assert_eq!(outer.range(), &(0..source.len()));
+            let (kind, outer_children) = value(outer);
+            assert_eq!(kind, stage_kind, "{source}");
+            assert_eq!(outer_children.len(), 2, "one outer argument stage");
+
+            let inner = &outer_children[0];
+            assert_eq!(inner.range(), &inner_range);
+            let (kind, inner_children) = value(inner);
+            assert_eq!(kind, stage_kind, "{source}");
+            assert_eq!(inner_children.len(), 2, "one inner argument stage");
+            assert_eq!(
+                value(&inner_children[0]).0,
+                SyntaxKind::IdentifierExpression
+            );
+            assert_eq!(
+                value(&inner_children[1]).0,
+                SyntaxKind::IdentifierExpression
+            );
+
+            assert_eq!(outer_children[1].range(), &last_range);
+            assert_eq!(
+                value(&outer_children[1]).0,
+                SyntaxKind::IdentifierExpression
+            );
+        }
+    }
+
+    #[test]
     fn associates_projection_tails_as_structural_continuations() {
         let associated = parse("f.(x).{y}.field::name");
         assert_eq!(

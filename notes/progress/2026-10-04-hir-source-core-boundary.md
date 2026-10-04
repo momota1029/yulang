@@ -114,3 +114,20 @@ change the accepted source contract or specify malformed-header recovery.
 Both focused probes pass. Full-file/header operator interactions and the
 subsequent Apply/HIR lowering remain untested, and no production parser or HIR
 behavior changed.
+
+## 2026-10-05 call-stage association probe
+
+The existing pre-HIR associator was checked against both `f(a)(b)` and
+`f a b`. In each case it preserves one argument per stage as a left-nested
+binary structure: two `CallTail` nodes for the first spelling and two
+`MlArgument` nodes for the second, with exact source ranges and identifier
+leaves. The executable characterization is
+[`research_call_surface_retains_left_associated_stages`](../../crates/yu-hir/src/lib.rs).
+
+This closes only the surface grouping question for those ordinary calls. The
+association product stores structural `HirExpr::Value` nodes; it does not
+assign call semantics or emit the typed-core `call`/`bind` graph. The
+`ResolvedExpr` lowerer still rejects these non-leaf structures, so the actual
+source-to-core gap is now localized after operator-chain/postfix association
+and before resolved expression emission. Inline lambda parsing remains a
+separate preceding gap. The focused test passes; no compiler behavior changed.
