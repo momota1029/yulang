@@ -70,7 +70,10 @@ This index is a navigation aid. The listed source document remains authoritative
   and parameter-renaming variants of `id`, `wrap ignored = id`, and two aliases;
   it confirms root identity, routed source uses, fresh closed-use instantiations,
   and nested principal diagonal schemes. Current HIR still has no application
-  lowering, so returned-function invocation and endpoint adequacy remain open.
+  lowering; a test-only exact-trace composition covers 1,314 bounded
+  wrapper-return/future-call histories against those HIR identities. Production
+  invocation and endpoint adequacy remain open. Review caught and the test
+  repaired a circular expected-state check; details are in the progress record.
   The raw unary-lambda CST probe records the current `\x` / `->` error-token
   boundary; a paired source probe confirms one-to-four parenthesized and
   ML-argument stages remain left-nested in pre-HIR association. See the

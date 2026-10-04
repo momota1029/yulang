@@ -303,9 +303,18 @@ fn invoke_pure_value_through_handler_view(
     requests: Vec<Request>,
     decisions: Vec<RequestDecision>,
 ) -> InvocationResult {
+    invoke_pure_value_through_handler_view_from_state(artifact, 0, requests, decisions)
+}
+
+fn invoke_pure_value_through_handler_view_from_state(
+    artifact: &SourceArtifact,
+    initial_state: u8,
+    requests: Vec<Request>,
+    decisions: Vec<RequestDecision>,
+) -> InvocationResult {
     advance_requests(
         vec![InvocationStep::Receipt, InvocationStep::ForceArgument],
-        0,
+        initial_state,
         0,
         requests,
         decisions,
@@ -1099,6 +1108,131 @@ fn assert_diagonal_function_scheme(
     assert_eq!(argument.ordinal(), result.ordinal());
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum WrapperReturnStep {
+    Receipt,
+    ForceArgument,
+    Request {
+        request: Request,
+        state: u8,
+    },
+    Resume {
+        origin: u8,
+        continuation: u8,
+        state_before: u8,
+        state_after: u8,
+    },
+    EnterBody {
+        occurrence: HirOccurrenceId,
+        binder: HirParameterId,
+    },
+    ReturnCallable {
+        source_root: yu_hir::DefId,
+    },
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct ReturnedCallable {
+    trace: Vec<WrapperReturnStep>,
+    source_root: yu_hir::DefId,
+    final_state: u8,
+}
+
+fn run_source_wrapper_to_returned_callable(
+    wrapper: &yu_hir::HirBinding,
+    id_root: &yu_hir::HirBinding,
+    requests: &[Request],
+    decisions: &[RequestDecision],
+) -> ReturnedCallable {
+    assert_eq!(requests.len(), decisions.len());
+    let ResolvedExpr::Lambda {
+        parameter, body, ..
+    } = wrapper.value()
+    else {
+        panic!("the wrapper is a source Lambda");
+    };
+    let ResolvedExpr::Name {
+        resolution: NameResolution::Resolved(returned_root),
+        ..
+    } = body.as_ref()
+    else {
+        panic!("the wrapper returns a resolved source root");
+    };
+    assert_eq!(returned_root, id_root.id());
+    let ResolvedExpr::Name {
+        occurrence: returned_occurrence,
+        ..
+    } = body.as_ref()
+    else {
+        unreachable!()
+    };
+
+    let mut trace = vec![WrapperReturnStep::Receipt, WrapperReturnStep::ForceArgument];
+    let mut state = 0;
+    for (request, decision) in requests.iter().zip(decisions) {
+        trace.push(WrapperReturnStep::Request {
+            request: request.clone(),
+            state,
+        });
+        let RequestDecision::Handle { state_after, .. } = decision else {
+            panic!("the bounded returned-callable trace completes the wrapper Force");
+        };
+        trace.push(WrapperReturnStep::Resume {
+            origin: request.origin,
+            continuation: request.continuation,
+            state_before: state,
+            state_after: *state_after,
+        });
+        state = *state_after;
+    }
+    trace.push(WrapperReturnStep::EnterBody {
+        occurrence: returned_occurrence.clone(),
+        binder: parameter.clone(),
+    });
+    trace.push(WrapperReturnStep::ReturnCallable {
+        source_root: returned_root.clone(),
+    });
+    ReturnedCallable {
+        trace,
+        source_root: returned_root.clone(),
+        final_state: state,
+    }
+}
+
+fn generated_handled_histories(
+    max_len: usize,
+    origin_base: u8,
+) -> Vec<(Vec<Request>, Vec<RequestDecision>)> {
+    let mut histories = vec![(Vec::new(), Vec::new())];
+    let alphabet = ["Read", "Write"];
+    for length in 1..=max_len {
+        for operation_codes in 0..alphabet.len().pow(length as u32) {
+            for responses in 0..4usize.pow(length as u32) {
+                let mut code = operation_codes;
+                let mut response_code = responses;
+                let mut requests = Vec::with_capacity(length);
+                let mut decisions = Vec::with_capacity(length);
+                for index in 0..length {
+                    let operation = alphabet[code % alphabet.len()];
+                    code /= alphabet.len();
+                    requests.push(Request {
+                        operation,
+                        origin: origin_base + index as u8,
+                        continuation: origin_base + 32 + index as u8,
+                    });
+                    let state_after = (response_code % 2) as u8;
+                    response_code /= 2;
+                    let value = (response_code % 2) as i32;
+                    response_code /= 2;
+                    decisions.push(RequestDecision::Handle { value, state_after });
+                }
+                histories.push((requests, decisions));
+            }
+        }
+    }
+    histories
+}
+
 #[test]
 fn returned_function_aliases_keep_source_identity_and_principal_diagonal() {
     fn permutations(items: &mut [&'static str], at: usize, out: &mut Vec<Vec<&'static str>>) {
@@ -1234,4 +1368,175 @@ fn returned_function_aliases_keep_source_identity_and_principal_diagonal() {
         }
     }
     assert_eq!(case_count, 96);
+}
+
+#[test]
+fn returned_function_invocation_keeps_outer_and_future_source_events_separate() {
+    let source = "my id x = x\nmy wrap ignored = id\nmy left = wrap\nmy right = wrap";
+    let hir = module(source, "research-returned-function-future-call.yu");
+    assert!(hir.errors().is_empty());
+    let (_, id_binding) = binding_named(&hir, "id");
+    let (_, wrapper) = binding_named(&hir, "wrap");
+    let (_, left) = binding_named(&hir, "left");
+    let (_, right) = binding_named(&hir, "right");
+    for alias in [left, right] {
+        let ResolvedExpr::Name {
+            resolution: NameResolution::Resolved(target),
+            ..
+        } = alias.value()
+        else {
+            panic!("the alias resolves to the wrapper");
+        };
+        assert_eq!(target, wrapper.id());
+    }
+    let ResolvedExpr::Lambda {
+        parameter: wrapper_parameter,
+        body: wrapper_body,
+        ..
+    } = wrapper.value()
+    else {
+        panic!("wrap is a source Lambda");
+    };
+    let ResolvedExpr::Name {
+        occurrence: wrapper_body_occurrence,
+        ..
+    } = wrapper_body.as_ref()
+    else {
+        panic!("wrap's body is the returned source name");
+    };
+    let ResolvedExpr::Lambda { parameter, .. } = id_binding.value() else {
+        panic!("id is a source Lambda");
+    };
+    let (body, body_occurrence) = source_body(id_binding.value(), parameter);
+    assert_eq!(body, BodyProgram::Identity);
+    let ResolvedExpr::Lambda {
+        occurrence: lambda_occurrence,
+        ..
+    } = id_binding.value()
+    else {
+        unreachable!()
+    };
+    let id_artifact = SourceArtifact {
+        body,
+        lambda_occurrence: lambda_occurrence.clone(),
+        body_occurrence,
+        binder: parameter.clone(),
+    };
+
+    let outer_histories = generated_handled_histories(2, 10);
+    let future_histories = generated_handled_histories(1, 100);
+    assert_eq!(outer_histories.len(), 73);
+    assert_eq!(future_histories.len(), 9);
+    let mut composed_histories = 0;
+    for (alias_name, alias) in [("left", left), ("right", right)] {
+        assert_eq!(alias.id().spelling(), alias_name);
+        for (outer_requests, outer_decisions) in &outer_histories {
+            let returned = run_source_wrapper_to_returned_callable(
+                wrapper,
+                id_binding,
+                outer_requests,
+                outer_decisions,
+            );
+            assert_eq!(returned.source_root, *id_binding.id());
+            let mut expected_outer_state = 0;
+            let mut expected_outer_trace =
+                vec![WrapperReturnStep::Receipt, WrapperReturnStep::ForceArgument];
+            for (request, decision) in outer_requests.iter().zip(outer_decisions) {
+                let RequestDecision::Handle { state_after, .. } = decision else {
+                    unreachable!("generator emits handled outer histories")
+                };
+                expected_outer_trace.push(WrapperReturnStep::Request {
+                    request: request.clone(),
+                    state: expected_outer_state,
+                });
+                expected_outer_trace.push(WrapperReturnStep::Resume {
+                    origin: request.origin,
+                    continuation: request.continuation,
+                    state_before: expected_outer_state,
+                    state_after: *state_after,
+                });
+                expected_outer_state = *state_after;
+            }
+            expected_outer_trace.push(WrapperReturnStep::EnterBody {
+                occurrence: wrapper_body_occurrence.clone(),
+                binder: wrapper_parameter.clone(),
+            });
+            expected_outer_trace.push(WrapperReturnStep::ReturnCallable {
+                source_root: id_binding.id().clone(),
+            });
+            assert_eq!(returned.trace, expected_outer_trace);
+            assert_eq!(returned.final_state, expected_outer_state);
+            let outer_trace = returned.trace.clone();
+
+            for (future_requests, future_decisions) in &future_histories {
+                let outer_origins = outer_requests
+                    .iter()
+                    .map(|request| request.origin)
+                    .collect::<std::collections::HashSet<_>>();
+                let outer_continuations = outer_requests
+                    .iter()
+                    .map(|request| request.continuation)
+                    .collect::<std::collections::HashSet<_>>();
+                assert!(
+                    future_requests
+                        .iter()
+                        .all(|request| !outer_origins.contains(&request.origin)
+                            && !outer_continuations.contains(&request.continuation))
+                );
+                let InvocationResult::Returned {
+                    trace: future_trace,
+                    actual_role,
+                    callback_view,
+                    result_value,
+                    final_state,
+                } = invoke_pure_value_through_handler_view_from_state(
+                    &id_artifact,
+                    returned.final_state,
+                    future_requests.clone(),
+                    future_decisions.clone(),
+                )
+                else {
+                    panic!("all generated future histories are handled");
+                };
+                assert_eq!(actual_role, ReceiverRole::Pure);
+                assert_eq!(callback_view, ReceiverRole::HandlerView);
+                let mut expected_future_state = expected_outer_state;
+                let mut expected_argument_value = 0;
+                let mut expected_future_trace =
+                    vec![InvocationStep::Receipt, InvocationStep::ForceArgument];
+                for (request, decision) in future_requests.iter().zip(future_decisions) {
+                    let RequestDecision::Handle { value, state_after } = decision else {
+                        unreachable!("generator emits handled future histories")
+                    };
+                    expected_future_trace.push(InvocationStep::Request {
+                        request: request.clone(),
+                        state: expected_future_state,
+                    });
+                    expected_future_trace.push(InvocationStep::Resume {
+                        origin: request.origin,
+                        continuation: request.continuation,
+                        value_type: "int",
+                        state_before: expected_future_state,
+                        state_after: *state_after,
+                    });
+                    expected_future_state = *state_after;
+                    expected_argument_value = *value;
+                }
+                expected_future_trace.push(InvocationStep::EnterBody {
+                    occurrence: id_artifact.body_occurrence.clone(),
+                    binder: id_artifact.binder.clone(),
+                });
+                expected_future_trace.push(InvocationStep::Return { value_type: "int" });
+                assert_eq!(future_trace, expected_future_trace);
+                assert_eq!(result_value, expected_argument_value);
+                assert_eq!(final_state, expected_future_state);
+                assert_eq!(
+                    returned.trace, outer_trace,
+                    "future use cannot replay outer entry"
+                );
+                composed_histories += 1;
+            }
+        }
+    }
+    assert_eq!(composed_histories, 1_314);
 }

@@ -181,7 +181,13 @@ checks resolved source-root identity through the returned Function, the three
 collected/routed named uses, fresh instantiation count, and the same nested
 diagonal principal scheme for both aliases. This reaches production parsing,
 HIR, constraint collection, routing, and generalization, but no invocation of
-the returned Function is expressible in current HIR; the full callback bound
+the returned Function is expressible in current production HIR. A separate
+test-only composition runs 1,314 bounded outer-Force/future-call histories
+against those actual HIR identities, with exact independent trace/state
+expectations. Compiler-referee review found a checker weakness (the model's
+own final state was reused as expected input) and trace-coverage gaps; the test
+now derives exact ordered traces and final state from source responses and HIR
+occurrences. Review is clean within that finite scope. The full callback bound
 and principal common-allowance bridges remain open.
 
 **Classification A: normalized pure structural FMP is proved.**

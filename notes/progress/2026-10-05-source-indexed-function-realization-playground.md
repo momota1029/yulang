@@ -115,3 +115,43 @@ current HIR still has no application lowering. The check therefore does not
 establish complete Function-bound membership, callback adequacy, B-step-6
 endpoint generation, or principal common-allowance factorization. All 96
 generated cases pass; this adds evidence without closing those gates.
+
+## Bounded later invocation through the returned root
+
+A second test-only executable model now composes the HIR-derived wrapper
+return with a later call through the returned `id` value. The actual HIR
+provides `wrap`'s resolved body root, the original `id` lambda/body/binder
+identities, and the two alias-to-wrapper links. The model then runs the
+approved Value-entry ordering for the wrapper (receipt, one argument Force,
+body, return of the original `id` root), followed by the existing
+Pure-value-through-Handler-view invocation model for that root.
+
+The generated space has 73 completely handled wrapper argument histories
+(zero, one, or two requests, with two operation labels and all binary values
+and resumed states) and 9 future-call histories (zero or one request with the
+same response dimensions), for both `left` and `right`: 1,314 composed traces.
+Checks keep the wrapper and future-call receipts, Force events, body
+occurrence/binder, request origin/continuation, result, and current state
+separate. The first future request observes the wrapper's final resumed state;
+future use preserves the original Pure/Value entry under a Handler view and
+does not replay the wrapper trace.
+
+This is an executable composition of the bounded source rules over actual
+resolved HIR identities, not execution of production calls: current HIR still
+has no application node, and the wrapper/future invocation transitions are
+driven by the test model. It does not establish complete Function-bound
+membership, all-history adequacy, or a production endpoint bridge. The finite
+probe passed and found no counterexample in its generated space.
+
+The independent compiler-referee review found that the first test draft used
+the model's returned state as the expected future state, so a constant-zero
+outer-state mutant could pass. It also found that event membership checks
+could miss reordered or omitted events. The test now computes the expected
+state directly from outer responses and compares complete ordered wrapper and
+future traces against independently constructed expectations, including
+request identities, body provenance, and exact state transitions. The focused
+rerun passes; the concrete checker weakness is retained here as proof-search
+evidence rather than hidden as a green-test-only repair. A follow-up review
+also aligned the wrapper entry marker with the returned `Name` body occurrence,
+matching the future identity function's body-occurrence convention. All
+reported findings are closed within this finite handled-history scope.
