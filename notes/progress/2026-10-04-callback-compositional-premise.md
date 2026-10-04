@@ -8,12 +8,41 @@ source-interface-adequacy §4, and the direct main-gate attacks
 
 ## Result
 
-One non-tautological, source-checkable sufficient premise isolated by the
-failed direct proof is **compositional endpoint recipe realization (CERR)**.
-CERR is a structural check on the generator's output constructors, not a claim
-that a regular solution exists and not the desired observation inclusion
-restated. The current evidence does not prove CERR is weakest or necessary;
-its minimality remains open.
+The failed proof isolates one irreducible obligation for the compositional
+induction: **constructor-local witness lifting of the generated endpoint**.
+This is the compact form of the earlier compositional endpoint recipe
+realization (CERR). It is a finite check of endpoint-generation rules and
+their emitted graph, independent of the tested inequality and any solution.
+It is not a claim that a regular solution exists or the desired global
+observation inclusion restated.
+
+For the existing source-recipe induction, the check has three clauses:
+
+1. **Admission:** each checked challenge is admitted by independently emitted
+   source rules at the same `nu,K,D`; admission does not depend on success of
+   the inequality being proved.
+2. **Local lifting:** for every generated entry, rebind, body, result-consumer,
+   primitive, and resumption constructor, every witness allowed by its source
+   bound has a checked-side witness with the same source identities, typed
+   paths, and joint dependencies. This includes conservative slack, not only
+   source-reached executions.
+3. **Composition:** the complete endpoint is the existing state-threaded
+   composition of those constructors; the `d+` and `b+` row components retain
+   their original descriptors and `nu,K,D` links, with no independent
+   complete-call bound leaf.
+
+The finite recipe and clauses are checked from generation rules and emitted
+references. The common-argument-endpoint restriction below is one simple
+source-checkable way to discharge Admission in this bounded fragment; it is
+not a semantic equality imposed by adaptation.
+
+This is minimal only relative to the existing compositional proof: Admission
+constructs domain inclusion without query success, Local lifting covers
+witnesses introduced by conservative local bounds, and Composition connects
+those witnesses to the checked complete endpoint. This does not prove that
+the clauses are necessary for every possible proof or weakest in an absolute
+ordering of generator contracts. The nine CERR checks below are the concrete
+bounded-fragment audit expanding these clauses.
 
 For each callback invocation, CERR requires the generated complete endpoint
 to be assembled from the existing entry/argument, typed rebind, body/result,
@@ -63,7 +92,8 @@ construction. It makes no claim for distinct parameter endpoints related by
 variance or adaptation.
 
 **Conditional theorem.** For the bounded first-order Value-entry callback
-fragment, if CERR holds, then `D_checked = D_actual` and the generated
+fragment, if constructor-local witness lifting holds, then
+`D_checked = D_actual` and the generated
 complete endpoint covers every
 actual finite legal invocation history and returned first-order value root
 in the same `ν,K,D` fiber, and every actual request observation factors
@@ -104,14 +134,18 @@ There are two generators here and they must not be conflated. Typed-core §9
 does give a source-level **operational graph** construction: for every
 resolved ordinary core callable, allocate its carrier port and link the
 actual entry, bind, body, result consumer, and return delimiters; recursive
-references reuse graph nodes. The ordinary source code graph therefore has
-the constructor shape needed for the operational bind argument. This proves
-the source operational-graph shape property, not finite endpoint generation.
+references reuse graph nodes. Induction over its finite derivation graph
+proves that this operational translation satisfies the Composition graph
+shape check: each expression constructor emits its specified node and links
+its child labels, while recursive references reuse preallocated labels. This
+is a separate source-generation theorem and does not inspect an inequality or
+a solved assignment.
 
-It does not prove that the finite **inference endpoint** has that shape or
-bounds the operational graph. §9 explicitly leaves the symbolic complete
-image as an inference obligation. The conditional theorem above concerns
-that finite endpoint, so the operational graph theorem cannot discharge it.
+It does not prove that the finite **inference endpoint** has that shape,
+satisfies Admission and Local lifting, or bounds the operational graph. §9
+explicitly leaves the symbolic complete image as an inference obligation.
+The conditional theorem above concerns that finite endpoint, so the
+operational graph theorem cannot discharge it.
 
 The authoritative B contract does **not currently entail CERR or its local
 adequacy checks**. B requires
@@ -134,12 +168,12 @@ factorization. The current documents specify neither finite abstraction.
 Therefore no theorem that the finite Yulang inference endpoint satisfies
 CERR follows yet, and no Yulang source counterexample follows either.
 
-The exact unresolved item is the bridge from the §9 operational graph to
-the finite endpoint emitted after B step 5. Its step-6 rule must define the
-existing-constructor abstraction and establish local typed closure for every
-bound-permitted successor. This is a missing finite-generation rule/premise,
-not a user semantic choice and not a reason to add new evidence machinery.
-Until that bridge is proved, the Pure-value callback/Function adequacy gate
-remains open.
+The exact unresolved item is the bridge from the §9 operational graph to the
+finite endpoint emitted after B step 5. Its step-6 rule must establish
+Admission and Local lifting for each emitted constructor and preserve the
+operational graph's Composition links. This is one missing finite-generation
+contract, not a user semantic choice and not a reason to add new evidence
+machinery. Until that bridge is proved, the Pure-value callback/Function
+adequacy gate remains open.
 
 No code, tests, or semantic authority changed.

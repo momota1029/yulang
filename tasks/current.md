@@ -112,26 +112,19 @@ endpoint bound from it. The required theorem must recover argument-entry
 admission and factor every endpoint-bound observation through argument,
 rebind, body/result consumer, and `J_call` into linked `[b,d]` at the same
 `ν,K,D`; callback B step 6 leaves this construction open.
-One non-tautological, source-checkable sufficient premise is isolated in
-[callback compositional premise](../notes/progress/2026-10-04-callback-compositional-premise.md):
-finite endpoint generation must realize the existing entry/rebind/body/result
-bind recipe; locally bound each segment's source outcomes; transport the
-exact row components and `ν,K,D` references through the linked `d⁺`/`b⁺`
-occurrences; type every bound-permitted rebind/resumption; preserve the joint
-fiber; share the slot and actual §21 Value-entry argument endpoint; and add no
-independent complete-call bound leaf. The endpoint identity gives domain
-equality without assuming the target inclusion. Under these checks, a
-finite-history induction proves observation-bound inclusion for the bounded
-first-order Value-entry callback fragment. This sufficient premise is not
-shown minimal, and the shared argument endpoint deliberately excludes
-variance/adaptation cases. Source
-operational graph generation is specified in typed-core §9: it links
-entry/bind/body/result-consumer constructors per callable and shares recursive
-nodes. What remains underdetermined is the bridge from that operational graph
-to B's finite inference endpoint; B leaves step 6 open and §9 does not identify
-`J_call` with that endpoint. This is not a Yulang counterexample or a semantic
-choice; the gate remains open pending the finite abstraction rule and its
-all-bound-successor proof.
+The failed callback proof now has a compact source-checkable premise relative
+to its compositional induction: independent challenge admission, constructor-
+local witness lifting (including conservative local slack), and faithful
+composition into the complete endpoint with the existing linked `d⁺`/`b⁺`
+components. The bounded first-order Value-entry theorem follows by finite-
+history induction. The common argument endpoint is one checkable way to
+establish admission in that fragment, not an adaptation equality rule. This
+condition is not claimed weakest among all possible proof contracts. Typed-
+core §9 separately proves the operational source graph's composition shape
+by induction over finite derivations. It does not prove the still-unspecified
+finite inference endpoint satisfies admission or local lifting. B step 6
+therefore remains the one missing finite-generation bridge; see
+[callback compositional premise](../notes/progress/2026-10-04-callback-compositional-premise.md).
 An attempted source-checkable constructor condition (compose only existing
 entry/body/result segments, with no independent call-bound leaf) is not yet
 sufficient: conservative slack on segment bounds still requires a proved
