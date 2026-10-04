@@ -198,6 +198,10 @@ negative-only quantification analysis is retained as history but creates no
 successor generalization requirement. The full coupled Function/effect
 solution-family proof remains open; see the updated
 [principal scheme criteria](../notes/progress/2026-10-04-principal-scheme-acceptance-criteria.md).
+The current HIR/F5 collector does not yet admit the application, block, and
+branch forms in `call`, `compose`, `twice`, `choose`, or `higher`; the listed
+schemes are successor criteria, not current production outputs. The exact
+source-generation boundary is recorded in the principal-scheme criteria.
 
 Historical callback adequacy exploration and its earlier gate descriptions
 remain in the linked progress records above and

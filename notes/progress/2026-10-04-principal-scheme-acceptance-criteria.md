@@ -112,6 +112,19 @@ The active proposal was audited against each acceptance example. The audit found
 no counterexample to the requested schemes, but did not establish their
 derivation:
 
+The current production HIR does not yet generate most of these source forms.
+`ResolvedExpr` contains only `Lambda`, `Integer`, `Name`, and `Error`, while
+`lower_simple_chain` returns `Unsupported` unless association yields a leaf
+`Value` with no children ([HIR source boundary](2026-10-04-hir-source-core-boundary.md)).
+The F5 collector's body admission likewise handles only integer/name leaves
+and the current one-parameter lambda recipe. As a result, `call`, `compose`,
+`twice`, `choose`, and `higher` do not currently reach production constraint
+generation; in particular, the parser's `IfExpression` syntax has no resolved
+HIR constructor or branch constraint rule. The principal schemes remain
+successor acceptance criteria, not claims about current F5 output. Proving
+their common-allowance theorem against a production source generator requires
+those application/block/branch forms to be represented and admitted first.
+
 | Example | Evidence already available | Unclosed part |
 |---|---|---|
 | `id` | Production value skeleton points the Function argument and result to the same live parameter endpoint. | Coupled effect interface and principal generalization. |
