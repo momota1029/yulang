@@ -158,6 +158,23 @@ and its failed non-cofinal quotient families remain valid. Production
 Function/effect correspondence, joint predicates and principal projection
 remain distinct open gates; no compiler implementation is added here.
 
+The user has authorized an executable research loop before proof closure. The
+new [finite-fence playground](../notes/progress/2026-10-05-structural-fence-playground.md)
+implements the reviewed §4–10 profile construction outside production in
+[`check_structural_fence_completion.py`](../tools/check_structural_fence_completion.py).
+Its first counterexamples found and shrank five candidate implementation
+mistakes (endpoint reversal vs variance conjugation, negative child direction,
+empty Record classification, start-profile budget handling, and rigid-head
+namespace collision); these were corrected and retained as regressions. The
+checker currently passes 13 focused packages, 1,226 exhaustively generated
+packages with an independent SAT-witness validator, and a bounded one-node
+false-UNSAT differential over 7,356 package/model pairs. A narrow independent
+delta review closed the negative-coordinate and rigid-namespace findings with
+no remaining issues. This is finite implementation characterization, not a
+theorem or production solver selection. The next research gate is a small
+multi-node regular-witness oracle; full Function/effect correspondence, source
+adequacy, and principality remain open.
+
 [Two-sided constructor-bound regular completion](../notes/design/2026-10-04-preclosed-structural-regular-witness.md)
 now has an independently reviewed constructive proof and executable research
 checker. If every flattened variable has a constructor-bearing lower and
