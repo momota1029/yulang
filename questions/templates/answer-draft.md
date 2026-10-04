@@ -28,5 +28,7 @@ Governing source/section: <locator>
 <Display this entire saved draft with its revision. Explicit user approval must
 unambiguously identify that displayed revision before finalization.>
 
-Pending status: this draft and unapproved history remain unstaged/uncommitted.
+Pending status: all unintegrated answer files/history remain unstaged/uncommitted,
+including after approval. The answerer never mutates Git; the questioning primary
+discovers, validates and commits the matching approved bundle.
 Corrections to approved answers require a new linked question and renewed approval.

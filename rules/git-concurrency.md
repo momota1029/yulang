@@ -9,12 +9,16 @@ Stage explicit paths. Do not use `git add -A` in a shared or potentially dirty w
 Under [`question-board.md`](question-board.md), pending question directories
 and unapproved drafts in `questions/` stay unstaged and uncommitted, including
 during ordinary checkpoint commits. Do not hide them with Git ignore rules.
-The separate answering primary may commit only the selected question, approved
-draft and finalized answer after explicit user approval and exclusive worktree
-writer/Git ownership handoff. This is primary integration, not subagent Git
-authority. Exclude all other pending questions and unrelated staged work; if
-the index or ownership conflicts, defer only affected publication and preserve
-files. Tracked board instructions and blank templates may be committed.
+The answering primary writes only selected answer files/history and never
+mutates Git. All unintegrated bundles, including approved local answers, stay
+excluded from ordinary checkpoints. The questioning primary discovers and
+validates a finalized local answer, rechecks bundle stability, and alone commits
+the matching question, approved current draft and approved answer together.
+Check current-file equality with committed versions before consumption. No
+worktree-wide writer/Git ownership handoff is required for these disjoint paths.
+Exclude other pending questions and unrelated staged work; concrete index/path
+conflicts defer only affected integration. Tracked instructions/templates are
+infrastructure and may be committed.
 
 ## Coherent commits
 
@@ -31,7 +35,12 @@ A commit is a reviewable and bisectable checkpoint, not merely a progress timest
 
 Independent read-only review may run in parallel and reports stay isolated until all reviewers finish.
 
-Do not run two write-capable agents in the same working tree. Use a distinct git worktree and branch for each concurrent writer. Do not use one shared index from several sessions.
+Do not run two write-capable agents in the same working tree. Use a distinct git
+worktree and branch for each concurrent writer. The narrow question-board exception
+permits questioning/answering primaries on disjoint owned files under
+`question-board.md`; the answerer never mutates Git, so only the questioning
+primary owns the index. This exception does not permit concurrent write-capable
+child agents. Do not use one shared index from several sessions.
 
 ## Branch safety
 

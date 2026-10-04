@@ -87,10 +87,13 @@ For goal-driven Yulang work, route genuine user decisions through
 [`question-board.md`](question-board.md). Read the shared board at turn start
 and before dependent actions. The board is `questions/` in the worktree
 containing the pending question. Keep questions and drafts unstaged and
-uncommitted until explicit answer approval. An answering primary organizes a
-draft in a separate thread, then commits only the selected approved handoff
-after exclusive writer/Git ownership transfer. Consume only a fresh approved
-handoff whose matching question/draft/answer are committed and unchanged. Ordinary
+uncommitted until the questioning primary discovers and validates a finalized
+local answer, then commits the matching question/draft/answer together. The
+answering primary saves/displays a draft in a separate thread, obtains explicit
+approval and publishes the exact finalized answer without Git mutations. Disjoint
+file responsibilities require no worktree-wide writer/Git handoff. Recheck bundle
+stability before staging; consume only a fresh valid committed handoff whose
+current files match committed versions. Ordinary
 conversational clarification need not use the board. An explicit board request
 also selects this workflow. Posting a question does not pause a goal; continue
 independent authorized work. Publication does not notify or resume a goal.

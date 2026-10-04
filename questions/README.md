@@ -1,77 +1,71 @@
 # Yulang worktree question board
 
-Use this board for user decisions in goal-driven Yulang work and explicit board
-requests. Ordinary conversational clarifications need no board entry. Read
-`AGENTS.md` and the selected question before answering.
+Use for goal-driven Yulang decisions and explicit board requests. Ordinary
+conversational clarifications need no entry. Read `AGENTS.md` and the selected
+question before answering.
 
 The board is `questions/` in the original active worktree, currently
-`/home/momota1029/rust/yulang/questions/`. Use the exact absolute worktree path
-recorded in the question: another worktree cannot see its uncommitted files.
-This is a local file handoff, without remote transport or automatic delivery.
+`/home/momota1029/rust/yulang/questions/`. Use the question's exact absolute path;
+another worktree cannot see uncommitted files. This is a local handoff with no
+remote transport or automatic delivery.
 
-Authority: `../notes/design/2026-10-04-inrepo-uncommitted-question-board.md` §§1–5.
-Detailed policy: `../rules/question-board.md`.
+Authority: [questioner-integrated handoff](../notes/design/2026-10-04-questioner-integrated-answer-handoff.md)
+§§1–5. Detailed policy: [question-board rule](../rules/question-board.md).
 
 ## Separate answering conversation
 
-Example instruction for the user's separate conversation:
+Example instruction:
 
 > Open `/home/momota1029/rust/yulang/questions/`, read `AGENTS.md`, and explain
-> `<question-directory>/question.md`. Display the complete identified answer
-> draft for my explicit approval. Establish exclusive worktree writer and Git
-> ownership before saving answer files or integrating the approved answer.
+> `<question-directory>/question.md`. Save and display a complete identified
+> answer draft for my explicit approval. After approval, save the finalized
+> answer locally. Do not stage, commit or push; the questioning primary will
+> discover, validate and commit the matching question and answer.
 
-The answering agent is that conversation's primary, not a child agent. Transfer
-exclusive writer/Git ownership from the working primary before writes, and
-return it afterward. Only one primary may be write-capable; serial commands
-alone do not establish ownership. During the handoff, the original goal may
-continue independent read-only work. Without ownership, explanation and drafting
-can continue in chat while file/Git publication waits.
+The answerer is this conversation's primary, not a child. It writes only the
+selected answer files/history, with one answerer per question. The questioning
+primary retains all Git and other repository writes. Both may continue on
+disjoint owned paths; no worktree-wide ownership handoff is needed.
 
 ## Files and approval
 
 | File in a unique question directory | Sole writer |
 | --- | --- |
-| `question.md` | working primary |
-| `answer-draft.md` | answering primary |
+| `question.md` | questioning primary |
+| `answer-draft.md` and preserved draft revisions | answering primary |
 | `approved-answer.md` | answering primary |
-| `receipt.md` (after validation) | working primary |
+| `receipt.md` | questioning primary |
 
-The tracked bootstrap and blank forms in `templates/` are not live questions,
-answers, approvals or authority. Maintain them only as the working primary.
+Bootstrap/blank templates are infrastructure, not live questions or approval.
+All unintegrated question directories stay unstaged/uncommitted and Git-visible,
+including approved local answers; ordinary checkpoints exclude them.
 
-Actual pending question directories, including drafts and unapproved history,
-remain unstaged and uncommitted. They are visible with
-`git status --short --untracked-files=all -- questions`; do not ignore them.
-Every ordinary checkpoint excludes these entire pending directories.
+Save and display the complete identified draft, distinguish user wording from
+interpretation, and obtain explicit approval of that displayed revision. Discussion,
+preferences, silence or paraphrases are not approval. Save `approved-answer.md`
+last as one complete artifact with exact approved content and actual provenance.
+Preserve finalized draft/answer content; corrections need a new linked question
+and renewed approval. Archive earlier pending drafts before revising them.
+Preserve existing committed handoffs.
 
-Save and display the complete identified draft, distinguish user quotes from
-interpretation, then obtain explicit approval of that exact displayed revision.
-Discussion, preferences, silence and assistant paraphrases are not approval.
-After approval, save exact approved content and actual approval provenance.
-The answering primary commits the selected question, approved current draft and
-approved answer together under the scoped Git checks in `rules/git-concurrency.md`.
-Earlier unapproved draft archives remain excluded unless the user explicitly
-approves including those files as non-authoritative history in the displayed
-bundle. Such optional history is not required for ordinary answering. Other
-pending questions remain excluded. Child agents have no Git authority.
+## Discovery and commit
 
-The working primary consumes only committed matching exact question/draft/answer
-on the intended branch whose current files match those committed versions and
-whose premises, revisions, provenance, scope and authority remain valid. A commit
-never proves approval. Reject changed, stale, ambiguous or mismatched handoffs
-only for affected work. Write a receipt after validation; it may enter the next
-coherent commit. Do not consume an unchanged accepted answer twice.
+The questioning primary reads the board at turn start and before dependent work.
+When it finds a finalized local answer, it validates identities/revisions, exact
+draft content, approval provenance, current premises/source revisions, scope,
+branch/worktree and authority. Recheck bundle stability, then commit the selected
+matching question, approved current draft and approved answer together under scoped
+Git checks. Unapproved archives stay excluded unless explicitly approved as
+non-authoritative history in the displayed bundle. Other pending questions stay
+excluded. The answerer performs no Git mutation.
 
-Preserve questions, approved content, receipts and history. Archive earlier
-pending draft revisions before revising them. Corrections to approved content
-use a new linked question and renewed approval; never overwrite old approval.
+Consume only a fresh valid committed bundle whose current files match committed
+versions on the intended branch. A commit never proves approval. Preserve and
+reject stale/ambiguous/mismatched answers only for affected work. The questioning
+primary writes the receipt and avoids applying a consumed answer again. Record
+reviewed user-approved durable decisions in governing sources before implementation.
 
-Posting never pauses a goal. Unanswered questions block only dependent actions;
-continue independent authorized work, with read-only work during another primary's
-writer handoff. Read the board at turn start and before dependent actions. Do not
-repeatedly repost or budget-poll. No watcher, helper, service or automatic goal
-pause/wake/resume exists; resumption follows the live runtime contract.
-Approval and a commit do not waive independent review or durable-design gates.
-Record reviewed, approved durable decisions in governing repository sources
-before implementation.
+Posting does not pause a goal; continue independent authorized work. No watcher,
+background polling, notification or automatic goal pause/wake/resume exists.
+Necessary resumption follows the live runtime contract. Approval/integration waive
+no independent review or compiler implementation gate.

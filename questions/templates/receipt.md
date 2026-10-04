@@ -10,8 +10,10 @@ Current relevant source revision(s): <revisions validated>
 Task/thread locator: <locator, or unavailable: reason>
 Governing source/section: <locator>
 
-Approved handoff commit: <commit on intended branch>
-Current files match committed question/draft/answer: <validated evidence>
+Local answer discovery: <complete finalized file and discovery context>
+Pre-integration validation and bundle stability: <evidence, or not integrated>
+Approved handoff commit: <questioner-owned commit on intended branch, or not integrated>
+Current files match committed question/draft/answer: <validated evidence, or not integrated>
 
 ## Validation
 

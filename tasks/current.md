@@ -18,15 +18,18 @@ index is navigation only; source designs govern. See
 Yulang user-decision handoffs now use the approved
 [question-board workflow](../rules/question-board.md) for goal-driven work and
 explicit board requests. The board is `questions/` in the active worktree;
-pending questions and unapproved drafts stay unstaged/uncommitted and visible
-in Git status. The answering primary commits the selected question and answer
-after explicit draft approval and exclusive writer/Git ownership handoff.
-Consumption requires committed, unchanged, fresh approved content. Delivery
-is recorded in [the workflow record](../notes/progress/2026-10-04-inrepo-uncommitted-question-board.md).
-The next workflow action is to publish an actual unresolved question when one
-arises, or open the board's answering entrypoint in a separate thread. No live
-question is seeded by bootstrap. Posting a question does not pause a goal;
-continue independent authorized work. Publication does not resume a stopped goal.
+all unintegrated question/answer bundles stay unstaged/uncommitted and visible,
+including explicitly approved local answers. The answerer writes selected answer
+files without Git mutations. The questioner discovers and validates the finalized
+answer, rechecks bundle stability, then commits the matching question/draft/answer.
+Disjoint primary file responsibilities need no worktree-wide ownership handoff.
+Consumption requires committed, unchanged, fresh approved content. Authority:
+[questioner-integrated handoff](../notes/design/2026-10-04-questioner-integrated-answer-handoff.md).
+Delivery: [workflow record](../notes/progress/2026-10-04-questioner-integrated-answer-handoff.md).
+Next workflow action: discover/validate finalized local answers at turn start and
+before dependent work, or publish the next real unresolved question without a
+commit. Posting does not pause a goal; continue independent authorized work.
+Publication does not notify or resume a stopped goal.
 
 ## Closed decisions
 

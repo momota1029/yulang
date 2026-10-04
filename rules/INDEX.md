@@ -11,7 +11,7 @@
 - [`agent-orchestration.md`](agent-orchestration.md) — specialist roles, task routing, information isolation, review loops, and handoffs.
 - [`legacy-compatibility.md`](legacy-compatibility.md) — interpretation of historical Claude/Codex/Fable/Level terminology without reviving retired policy.
 - [`workflow.md`](workflow.md) — task context, handoffs, scoped execution, progress records, decision points, and completion reports.
-- [`question-board.md`](question-board.md) — repository-local uncommitted questions, approved-answer commits, revision validation, and primary ownership handoffs.
+- [`question-board.md`](question-board.md) — repository-local uncommitted questions/answers, questioner-owned integration, revision validation, and disjoint primary file writers.
 - [`git-concurrency.md`](git-concurrency.md) — worktree isolation, staging, commits, branch safety, and integration ownership.
 
 ## Compiler engineering

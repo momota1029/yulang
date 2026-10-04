@@ -40,8 +40,10 @@ Inspect only the context needed for the task:
 For goal-driven Yulang user decisions and explicit question-board requests,
 read `rules/question-board.md` and `questions/` at turn start and before
 dependent actions. The separate answering primary reads `questions/AGENTS.md`
-in the worktree containing the uncommitted question. Hand off exclusive
-worktree writer/Git ownership before answer publication and integration.
+in the worktree containing the uncommitted question. The answerer writes only
+selected answer files without Git operations; the questioner discovers, validates
+and commits the matching approved bundle. No worktree-wide ownership handoff
+is required for these disjoint primary-owned paths.
 
 Respect confirmed facts, rejected approaches, forbidden actions, and active
 gates in handoffs. Do not restart an approved design or completed investigation
@@ -67,7 +69,9 @@ selected M0–M3 reviewer budget and convergence criteria, and give it an
 explicit objective, scope, inputs, stop condition, and required report.
 Proactive use is not automatic fan-out: invoke only roles justified by required
 production or a named risk, parallelize only independent read-only work, and
-never run more than one write-capable agent in the same working tree.
+never run more than one write-capable child agent in the same working tree.
+The question-board exception for disjoint questioning/answering primary writers
+is defined in `rules/question-board.md`.
 
 Use subagents as the primary working mechanism for bounded exploration,
 implementation, and independent review whenever a role-shaped unit exists.
@@ -112,8 +116,9 @@ another large completed slice to accumulate.
 
 Pending question directories and unapproved drafts under `questions/` are
 explicitly excluded from every checkpoint commit. Keep them unstaged,
-uncommitted and visible in Git status until an explicitly approved answer
-is committed with its matching question and draft. Tracked instructions and
+uncommitted and visible in Git status, including approved local answers, until
+the questioning primary validates and commits the matching question/draft/answer
+bundle. The answering primary never performs Git mutations. Tracked instructions and
 blank templates are infrastructure, not pending questions.
 
 Before work, choose the lightest sufficient M0–M3 mode, set reviewer,
@@ -152,7 +157,10 @@ work, makes safe integration impossible, or requires a genuine user decision.
 - Do not run an unfamiliar broad or heavy test suite before checking its current resource behavior.
 - Do not repeat broad checks after record-only or comment-only updates.
 - Do not blanket-stash, hard-reset, or clean a working tree that may contain valuable concurrent work.
-- Do not run two write-capable agents in the same working tree.
+- Do not run two write-capable agents in the same working tree. The sole
+  question-board exception permits questioning/answering primaries on disjoint
+  owned paths under `rules/question-board.md`; it does not permit concurrent
+  write-capable child agents.
 - The primary must explicitly set `fork_turns: "none"` on every
   supported `spawn_agent` call. Children do not re-delegate. Do not inherit parent
   conversation history. Supply the required task scope, governing sources,

@@ -138,8 +138,11 @@ assigned; a producer reports the proposed record delta.
   and measurements; a producer's performance claim is not evidence.
 
 Keep reviewer reports mutually hidden until all assigned reviewers finish.
-Parallelize independent read-only work only. Never run two write-capable agents
-in one working tree. Preserve the role's permissions regardless of model.
+Parallelize independent read-only child work only. Never run two write-capable
+child agents in one working tree. The question-board exception for disjoint
+questioning/answering primary writers follows `rules/question-board.md` and
+grants no child Git or concurrency rights. Preserve role permissions regardless
+of model.
 
 ## Findings and repair loop
 

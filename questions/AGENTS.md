@@ -1,76 +1,71 @@
 # Yulang question board primary entrypoint
 
-Read `README.md`, the selected `question.md` and its history, then read the
-original worktree's `rules/question-board.md`, `rules/design-authority.md` and
-`notes/design/2026-10-04-inrepo-uncommitted-question-board.md` §§1–5. For scoped
-Git integration, read `rules/git-concurrency.md`. Use the question's exact
-original worktree/branch/source locators.
-Another worktree does not inherit pending files. If context or authority is
-missing, stop only the affected answer and report it; do not guess.
+Read `README.md`, the selected `question.md` and its history, then the original
+worktree's `rules/question-board.md`, `rules/design-authority.md` and
+`notes/design/2026-10-04-questioner-integrated-answer-handoff.md` §§1–5.
+The questioning primary also reads `rules/git-concurrency.md` for integration.
+Use exact worktree/branch/source locators. Another worktree cannot see pending
+files. Missing context/authority blocks only affected work; do not guess.
 
-## Role selection
+## Role selection and file writers
 
-Select the role from the actual task. The working primary publishes
-`question.md`, validates committed answers and records `receipt.md`, and owns
-main repository authority and records. It maintains bootstrap instructions and
-templates within the confirmed scope, following `rules/question-board.md`.
+The working/questioning primary writes questions/receipts, maintains bootstrap
+and repository records, validates local answers and alone performs Git integration.
+Act as answering primary only in a separate user conversation explaining and
+answering a selected question; it is not a child-agent role.
 
-Act as the answering primary only when the user starts a separate conversation
-to explain and answer a selected question. The answering-only instructions below
-apply to that role; they do not restrict the working primary's owned paths.
+The answering primary writes only the selected `answer-draft.md`, preserved draft
+revisions and `approved-answer.md`. Repository sources are read-only context;
+questions, receipts, compiler, authority records, bootstrap and templates belong
+to the questioning primary. Only one answerer writes each selected question.
+These primaries may write disjoint owned paths concurrently without worktree-wide
+writer/Git ownership transfer. This is a narrow exception to the general
+same-worktree primary-writer restriction, not permission for concurrent child
+writers. The answerer never stages, commits, pushes, changes branches or mutates
+the index. Do not spawn agents while answering.
 
-## Answering primary: ownership
+## Answering primary: approval and local publication
 
-Repository sources are read-only context for the answering primary. Before any
-answering-primary file write or Git integration, explicitly receive exclusive worktree writer and
-Git ownership from the working primary; return it after publication. No two
-primaries may be write-capable concurrently, even with serialized commands.
-The original goal can continue independent read-only work during the handoff.
-If ownership is unavailable, explain/draft in chat and wait only on file/Git
-publication. Do not pause the goal merely because a question was posted.
+Explain alternatives, save a complete identified/revisioned draft and scope,
+and distinguish exact user wording from interpretation. Display the entire saved
+draft for explicit approval of that revision. Preferences, discussion, silence
+and paraphrases are not approval. Clarify ambiguity only for the affected answer.
+Never invent approval quotes, source revisions or thread locators; mark unavailable
+locators explicitly.
 
-Write only the selected `answer-draft.md`, `approved-answer.md` and preserved
-answer draft revisions. Do not edit questions, receipts, compiler files,
-repository authority/records, bootstrap instructions or templates. The working
-primary owns those paths. No child agent inherits this primary's Git authority;
-do not spawn agents while answering.
+After approval, publish `approved-answer.md` last as one complete saved artifact,
+containing exact approved draft content/revision and actual approval provenance.
+Leave all answer files unstaged/uncommitted and Git-visible. Its complete presence
+means finalized local publication; the questioning primary discovers and validates
+it before committing the matching question/draft/answer. Report the saved path;
+no Git or writer handoff is required.
 
-## Answering primary: approval and scoped publication
+Preserve earlier pending drafts before revision. Never change finalized draft or
+answer content; corrections need a new linked question from the questioning
+primary and renewed approval. Preserve questions, finalized answers, receipts and
+history. Do not rewrite historical committed handoffs.
 
-Explain alternatives, save a complete identified draft with its revision and
-scope, and distinguish user quotes from your interpretation. Display the entire
-saved draft for explicit approval of that exact revision. Preferences,
-discussion, silence and assistant paraphrases do not finalize answers. Clarify
-ambiguous approval for only the affected answer. Never invent approval quotes,
-source revisions or thread locators; mark unavailable locators explicitly.
+## Questioning primary: discovery and integration
 
-Pending question directories, drafts and unapproved history stay unstaged and
-uncommitted, excluded from all ordinary checkpoints. Inspect visibility with
-`git status --short --untracked-files=all -- questions`. Do not Git-ignore them.
-After explicit approval, save the exact approved content and provenance, then
-commit the selected question, approved current draft and approved answer together
-under exclusive ownership and scoped branch/upstream/outbound-range checks.
-Earlier unapproved history is excluded unless the user explicitly approves its
-inclusion as non-authoritative history in the displayed bundle; it is optional.
-Exclude all other pending questions. Commit existence never substitutes for
-approval. If pending paths were accidentally staged, remove only those known
-paths from the index while preserving files and unrelated state.
+Read the board at turn start and before dependent actions. Exclude entire
+unintegrated question directories, including approved local answers, from ordinary
+checkpoints. Validate identities/revisions, exact approved content/provenance,
+current premises/source revisions, intended worktree/branch, scope and authority
+before staging. Recheck selected-bundle stability, then commit only the matching
+question, approved current draft and approved answer under scoped Git checks.
+Unapproved archives stay excluded unless explicitly approved as non-authoritative
+history in the displayed bundle; other pending questions remain excluded. If
+accidentally staged, remove only known paths, preserving files and unrelated state.
 
-Preserve earlier pending draft revisions before replacing a draft. Never change
-approved content; corrections require a new linked question and renewed approval.
-Preserve published questions, finalized answers, receipts and history.
+Before consumption, verify current files equal committed versions on the intended
+branch. Existing committed answers undergo the same validation. A commit never
+substitutes for approval. The questioning primary owns receipts and prevents
+duplicate consumption. Approval/integration waive no independent review or durable
+design gate; record reviewed decisions in governing sources before implementation.
 
-The working primary validates only committed matching fresh exact question,
-draft and answer, including current-file equality to the committed versions,
-explicit approval provenance, scope and authority; it writes the receipt later
-and prevents duplicate consumption. Board approval/commit waive no independent
-review or durable-design gate. You do not maintain authority records.
+Posting does not pause a goal or suppress independent work on owned paths. No
+watcher, service, background polling or automatic pause/wake/resume is added.
+A saved answer neither notifies another thread nor resumes a stopped goal.
 
-Posting a question does not suppress independent work or invoke goal pause.
-Do not add watchers, helpers, services, polling or automatic goal lifecycle
-actions. A saved file does not notify, wake or resume another thread; lifecycle
-control follows the live runtime contract.
-
-Direct conversation follows the root user's Japanese style: no honorific
-endings, first person 私, gentle plain speech. Artifacts retain their intended
-technical register.
+Direct conversation follows the root Japanese style: no honorific endings, first
+person 私, gentle plain speech. Artifacts retain their intended technical register.

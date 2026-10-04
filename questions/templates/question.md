@@ -29,5 +29,7 @@ Independent authorized work: <work that may continue>
 Required answer: <what resolves the question>
 
 Pending publication: keep this entire question directory unstaged and uncommitted
-until explicit approval. Posting does not pause the goal; dependent work waits.
-During answering writer ownership, original work continues read-only.
+until the questioning primary discovers and validates an explicitly approved
+local answer and commits the matching question/draft/answer together. The
+answering primary never mutates Git. Posting does not pause the goal; dependent
+work waits while independent work continues on disjoint owned paths.

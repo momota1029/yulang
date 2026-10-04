@@ -4,13 +4,15 @@ This index is a navigation aid. The listed source document remains authoritative
 
 ## Active workflow navigation (2026-10-04)
 
-- [Repository question board](2026-10-04-inrepo-uncommitted-question-board.md)
-  — Authoritative; user-requested 2026-10-04 after independent scope review.
-  Sections 2–4 govern branch-local `questions/`, pending uncommitted questions,
-  approved-answer commits and exclusive primary ownership handoffs. Supersedes
-  the [external board](2026-10-04-yulang-question-board.md) in location,
-  answer integration and delivery; retains approval/revision/authority safeguards.
-  See [delivery](../progress/2026-10-04-inrepo-uncommitted-question-board.md).
+- [Questioner-integrated question board](2026-10-04-questioner-integrated-answer-handoff.md)
+  — Authoritative; current explicit user change, independently scope-reviewed.
+  Sections 2–4 retain local `questions/` and explicit draft approval, let answerers
+  publish without Git, and assign discovery/validation/bundle commits to questioners.
+  Disjoint primary file writers require no worktree-wide ownership handoff.
+  Supersedes the integration/ownership parts of the
+  [earlier repository board](2026-10-04-inrepo-uncommitted-question-board.md);
+  unchanged approval/revision/freshness/authority safeguards remain.
+  See [delivery](../progress/2026-10-04-questioner-integrated-answer-handoff.md).
 
 ## Active inference navigation (2026-10-04)
 
