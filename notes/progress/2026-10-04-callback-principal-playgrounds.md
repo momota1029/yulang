@@ -391,3 +391,26 @@ the dependency graph from production HIR/solver evidence or prove admission
 invariance for Yulang's full request, resumption, and future-use schemas. Its
 counterexample rejects the omitted-producer shortcut, not the reviewed
 complete-closure theorem.
+
+## Callback B role-first scheduler probe (2026-10-05)
+
+[`tools/research_callback_b_scheduler.py`](../../tools/research_callback_b_scheduler.py)
+executes the bounded source shape from
+[`production callback endpoint generation`](../design/2026-10-04-production-callback-endpoint-generation-draft.md)
+§§2–3: a known host callback slot receives one inline unary literal. Across
+four combinations of two expected boundaries and two body forms (name and
+integer), it records the ordering `reserve Apply -> deliver boundary -> select
+Handler -> synthesize body -> assemble complete Function -> emit one
+inequality`. The independently generated parameter/body/result endpoints are
+not assigned from the expected boundary; the completed Function endpoint is
+the left operand of the final ordinary query. The model preserves a distinct
+outer Apply owner/tuple and lambda latent owner/tuple, and links the body-effect
+evidence to the literal's generated body-effect endpoint.
+
+A one-step mutation moves Handler selection after body generation; another
+drops the completed endpoint's effect-port children while keeping the final
+query pointed at that malformed endpoint. The audit rejects both. This checks
+the role-first B schedule and endpoint wiring, not raw parser/HIR production,
+the validity or derivation of supplied port evidence, complete endpoint
+resolution, host invocation behavior, or either callback adequacy inclusion.
+No production source-generation path changed.

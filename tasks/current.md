@@ -307,6 +307,13 @@ transitive-closure complement varies. Omitting the exposed-request to
 producer-proof edge shrinks to one `call_executed` bit that changes admission.
 Production extraction of the dependency graph remains open; see the
 [playground record](../notes/progress/2026-10-04-callback-principal-playgrounds.md#callback-admission-dependency-closure-probe-2026-10-05).
+An executable B scheduler probe also covers four bounded Apply/literal cases:
+expected context reaches Handler selection before body synthesis, independently
+synthesized endpoints form the completed Function left operand, and the final
+ordinary inequality is emitted once. A post-body role-selection mutant is
+rejected, as is a mutant that drops completed effect ports. Parser/HIR
+generation and port-evidence validity remain open; see the
+[playground record](../notes/progress/2026-10-04-callback-principal-playgrounds.md#callback-b-role-first-scheduler-probe-2026-10-05).
 
 The latest user request reopened direct proof work on callback and
 principality after the pure FMP proof. The independently reviewed
