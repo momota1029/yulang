@@ -411,14 +411,37 @@ Theorem C's **mathematical** generator and yields its full-bound result for that
 relational graph. It does not, by itself, identify the denotation of a
 production `yu-types` endpoint with that graph.
 
-The one remaining production theorem is a **full-bound realization
-factorization**. It does not require production endpoints to be exact source
-semantics or to equal a least presentation. Theorem C already permits
-source-certified conservative local relations `Rel_j`; its generator `G`
-composes those leaves with the positive source constructors in §2.3. Let
-`D_A,D_C` and `P_A,P_C` be the production actual/checked challenge domains
-and complete bounds, and let `D_GA,D_GC` and `P_GA,P_GC` be those of Theorem
-C's corresponding generator. A sufficient crosswalk is:
+The production target remains **full-bound containment** at each independent
+joint fiber `xi = (nu,K,D)` satisfying the selected residual:
+
+```text
+D_C(xi) ⊆ D_A(xi)
+∀c ∈ D_C(xi): P_A(c;xi) ⊆ P_C(c;xi)
+```
+
+The approved production-membership policy permits production Function bounds
+to include endpoint-compatible observations beyond source-generated
+constructors. It does not identify those alternatives. Before this theorem can
+be closed, production must have an exhaustive membership/admission rule for
+the actual and checked bounds; challenge admission remains independent of
+success of the pending comparison. Every admitted alternative must respect
+the complete port, type/effect, authority, dependency, tuple, scope, and
+`nu,K,D` constraints of that rule. Port shape alone does not authorize an
+arbitrary continuation, origin, or capture grant.
+
+This scope records the user's approved Option 2 policy in the
+[integrated answer](../../questions/2026-10-05-production-function-bound-membership/approved-answer.md)
+and its [receipt](../../questions/2026-10-05-production-function-bound-membership/receipt.md).
+It supersedes only the production-membership policy question; it does not
+change Theorem C's source-generated claim, the callback B rule, or any solver
+representation.
+
+Theorem C remains the result for its positive source generator and certified
+local relations. Let `D_A,D_C` and `P_A,P_C` be the production actual/checked
+challenge domains and complete bounds, and let `D_GA,D_GC` and `P_GA,P_GC` be
+those of Theorem C's corresponding generator `G`. The previous source-route
+crosswalk is a **sufficient proof route**, not a required production
+membership rule:
 
 ```text
 D_C ⊆ D_GC ⊆ D_GA ⊆ D_A
@@ -432,16 +455,17 @@ for every c ∈ D_C and O with a G_C derivation at c:
 
 For each `c ∈ D_C`, the domain chain places `c` in `D_GC`, where Theorem C
 maps each `G_A` witness to a `G_C` witness while preserving the complete
-observation and old tuple. Thus the displayed premises yield both production
-conclusions. The `Rel_j` may admit more behaviors than their exact
-primitive executions; both generators must share each such certified local
-relation. No equality between `P_A` and exact `Sem`, between either production
-bound and `G`, or between the full endpoint denotations is needed. The first
-production premise is the irreducible open part: every observation admitted
-by `P_A(c)` for `c ∈ D_C` must factor through its existing argument,
-entry/rebind, body, designated result consumer, and `J_call` composition. The checked-side
-inclusion and both domain links must be established by the finite source
-audit, with challenge admission independent of query success.
+observation and old tuple. Thus the displayed premises imply production
+containment when every actual member is covered by `G_A`. The `Rel_j` may
+admit more behaviors than their exact primitive executions; both generators
+must share each such certified local relation. No equality between `P_A` and
+exact `Sem`, between either production bound and `G`, or between the full
+endpoint denotations is needed. The premise that every `P_A(c)` member factors
+through argument, entry/rebind, body, designated result consumer, and
+`J_call` is only a sufficient source-constructor route. Option 2 does not make
+it necessary for production members. The checked-side inclusion and domain
+links in this route still require the finite source audit, with challenge
+admission independent of query success.
 
 This factorization preserves the same full tuples/scopes, `nu,K,D`, occurrence
 incidences, and joint hiding; the checked generator adds only total fresh
@@ -466,17 +490,20 @@ or the relation used by this generator. This is evidence against silently
 assuming exact recipe factorization from ports, not a production
 counterexample or an approved choice of local abstraction.
 
-Under this crosswalk, Theorem C gives `D_GC ⊆ D_GA` and
+Under this sufficient crosswalk, Theorem C gives `D_GC ⊆ D_GA` and
 `P_GA(c) ⊆ P_GC(c)` for every `c ∈ D_GC`; the production-domain and bound
 embeddings then give `D_C ⊆ D_A` and `P_A ⊆ P_C`, where the latter means
 `∀c ∈ D_C, P_A(c) ⊆ P_C(c)`. This proof permits conservative production
 endpoints and does not require equality with `Sem`, `G`, or each other. The
 total-coordinate clause preserves every old tuple in the middle generator.
-Without the crosswalk, the source induction establishes correspondence only
-to the mathematical graph, not to a production `yu-types` endpoint. Neither
-`Force(D) >>= B` nor common `nu,K,D` alone proves the actual-side
-factorization. This is the exact remaining blocker; no production
-counterexample or additional user semantic choice has been found.
+An alternative proof may use the exhaustive production membership rule to
+show the actual-to-checked inclusion directly, without deriving a `G_A`
+witness for each production-only member. That proof still must preserve the
+same full observations, tuples/scopes, `nu,K,D`, occurrence incidence, and
+authority/dependency evidence. The accepted answer leaves both the exact
+membership rule and this complete containment proof open; no particular extra
+observation is selected by the policy. Neither `Force(D) >>= B` nor shared
+`nu,K,D` alone proves containment.
 
 The current code does not expose this relational representation directly:
 `ResolvedExpr` contains only Lambda/Integer/Name/Error, `ConstraintStore`

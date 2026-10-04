@@ -348,10 +348,20 @@ queries. Annotation/callback overlap remains outside this bounded contract.
 
 The construction removes the abstract endpoint-realization premise for
 `P_ref`; it does not remove it for an independently chosen production
-interpretation `P_prod`. A compiler must be shown to retain or reconstruct
-the constructor trace, domain rules, local bounds, scopes, occurrence maps
-and total checked extension above. An interpretation admitting extra root
-observations needs a corresponding certified constructor witness.
+interpretation `P_prod`. The user-approved
+[Option 2 policy](../../questions/2026-10-05-production-function-bound-membership/approved-answer.md)
+permits production Function bounds to admit endpoint-compatible observations
+beyond the source constructors in this reference grammar. Therefore this
+section's constructor trace is required only for the route that establishes
+conformance to `P_ref`; it is not a mandatory witness form for every
+production member.
+Production still needs an exhaustive membership/admission rule for its actual
+and checked bounds, together with a proof that the actual bound embeds in the
+checked bound on every checked challenge. Any production-only observation
+must be covered by that rule and by retained-evidence factoring or an
+independent checked-containment proof. Option 2 does not admit arbitrary
+continuations, origins, authority, or `nu,K,D` relationships merely because
+the four type ports fit. The exact production alternatives remain unspecified.
 
 Current owners expose a concrete limit. `crates/yu-hir/src/module.rs`,
 `ResolvedExpr` and `lower_simple_chain`, do not supply application source
@@ -367,14 +377,17 @@ The higher-order warning is specific: under an *endpoint-only* interpretation,
 two same-typed source functions can share a bound although one returns its
 supplied quiet closure and another returns an effectful captured closure.
 Future invocation distinguishes them by a typed request even after concrete
-data erasure. Thus the approved projection alone cannot justify replacing
-all production memberships by the exact source recipe. The reference avoids
-that inference by retaining each latent source witness; it does not refute
-all conservative endpoint interpretations.
+data erasure. Thus port compatibility alone cannot characterize the approved
+production extras or prove their containment. The reference avoids that
+inference by retaining each latent source witness; it does not refute all
+conservative endpoint interpretations.
 
-No additional observation choice is needed for the theorems here. Selecting
-or implementing the reference as production semantics is a separate design
-and conformance step. General abstract-component interpretation, common
+The permission to have some production-only observations is selected; their
+membership rule is not. Production may use the exact reference rule, a
+conservative extension, or another rule only after that rule exhaustively
+identifies its admitted observations and supports the actual-to-checked
+containment proof. Theorem C and `P_ref` remain source-generator results, not
+production semantics. General abstract-component interpretation, common
 allowance, State/opaque providers, unrelated annotations and compiler
 implementation remain outside the closed claims.
 

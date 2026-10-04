@@ -518,55 +518,35 @@ remain test inputs; it grounds the transition in retained HIR without emitting
 a production consumer relation or Function endpoint. Compiler-referee review
 found no issue in the bounded test. Exact scope is in the same record.
 
-The production bridge is not proved or authorized for implementation. The
-smallest Pure-path blocker is a full-bound realization crosswalk, not
-exactness with respect to source execution. Let `D_A,D_C` and `P_A,P_C` be
-production actual/checked challenge domains and complete bounds, and let
-`D_GA,D_GC` and `P_GA,P_GC` be the corresponding source-generated Theorem C
-objects. A sufficient bridge is
-`D_C ⊆ D_GC ⊆ D_GA ⊆ D_A`, plus (1) for every `c ∈ D_C`, every
-`O ∈ P_A(c)` has a finite `G_A` witness factoring through the existing
-`J_arg`, entry/rebind, body,
-designated result consumer, and `J_call` composition under the same full
-tuple, scopes, `nu,K,D`, and occurrence evidence, and (2) every generated
-`G_C` observation at `c ∈ D_C` embeds in `P_C(c)`. Theorem C supplies bound
-transport on `D_GC`, which contains `D_C`, and the middle domain inclusion;
-the production crosswalk would then establish `D_C ⊆ D_A` and
-`P_A ⊆ P_C`, meaning `∀c ∈ D_C, P_A(c) ⊆ P_C(c)`. Its local primitive
-relations may conservatively overapproximate their executions. No equality
-among production bounds, generated relations,
-and `Sem` is required. The still-open point is the actual-side membership
-factorization: source execution simulation and `Sem_actual ⊆ P_actual` do not
-account for arbitrary extras admitted by `P_actual`. Checked-challenge
-admission must be generated independently of comparison success. The merged
-scalar saturation proves only a projected first-order case and does not close
-higher-order adequacy. The B-literal generation clause must independently
-show that all three selected occurrences and witnessed attachments project
-from the same source tuple before the ordinary query. The current HIR has no
-Apply or inline lambda, and parser recovery plus this source/endpoint
-realization remain conformance work. The design remains Draft; implementation
-is unauthorized pending closure of this crosswalk premise and explicit
-approval. No Yulang source counterexample or additional semantic choice has
-been established. Earlier proof attempts and the exact repository evidence
-remain in the linked value-entry and direct-main-gate progress records. The
-current `id x = x` / scalar-body owner trace confirms that HIR and constraint
-facts retain distinct source identities but do not yet define either a
-complete bound-factoring relation or the projected `Sat_j` relation; see
-[Lambda endpoint owners](../notes/progress/2026-10-04-lambda-endpoint-owner-trace.md).
-An independent audit of the smallest Pure root, `id x = x`, narrows this to
-the missing exhaustive Function-bound membership/admission clause: enumerate
-all admitted finite typed observations under fixed `nu,K,D`, including
-conservative endpoint extras, and decode each to scope-preserving retained
-source/local-bound evidence. Execution supplies positive witnesses but cannot
-exclude extras; ports, provenance, and closed-predicate freshening do not
-define complete membership. The exact-source reference image cannot be assumed
-as production semantics. No source counterexample or carrier insufficiency
-was found. See the
-[complete-root membership audit](../notes/progress/2026-10-05-source-indexed-function-realization-playground.md#independent-complete-root-membership-audit).
-The remaining interpretation choice is on the local question board as
-[`production-function-bound-membership/q1`](../questions/2026-10-05-production-function-bound-membership/question.md).
-Only claims dependent on production actual-bound membership wait; the separate
-principal-scheme lane and `P_ref`-only proof work remain authorized.
+The production bridge remains open and production adoption is unauthorized.
+The user-approved Option 2 policy now permits production Function bounds to
+admit endpoint-compatible observations beyond the source-generated Theorem C
+generator; it does not define which extras are admitted. Theorem C and
+`P_ref` remain reference/source-generator results. The target is now directly
+`D_C ⊆ D_A` and `∀c ∈ D_C, P_A(c) ⊆ P_C(c)` at one full `(nu,K,D)` fiber,
+under an exhaustive, comparison-independent membership/admission rule.
+Every permitted extra still needs retained-evidence factoring or a separate
+complete checked-containment proof; matching ports alone cannot admit arbitrary
+continuations, origins, authority, or dependencies. The prior
+`D_C ⊆ D_GC ⊆ D_GA ⊆ D_A` route, with each actual observation factored through
+`J_arg`, entry/rebind, body, designated result consumer and `J_call`, remains
+a sufficient proof route, not a mandatory source-constructor membership rule.
+
+The exact production membership rule and complete actual-to-checked proof are
+the next gate. Checked-challenge admission must remain independent of
+comparison success. The B-literal generation clause must independently show
+that all three selected occurrences and witnessed attachments project from
+the same source tuple before the ordinary query. Current HIR still has no
+Apply or inline lambda, and parser recovery plus source/endpoint realization
+remain generation-conformance work. The design remains Draft; no production
+implementation is authorized. The current `id x = x` / scalar-body owner
+trace confirms source identities are retained but complete membership is not
+defined; see [Lambda endpoint owners](../notes/progress/2026-10-04-lambda-endpoint-owner-trace.md)
+and the [complete-root membership audit](../notes/progress/2026-10-05-source-indexed-function-realization-playground.md#independent-complete-root-membership-audit).
+The question handoff and its
+[integration receipt](../questions/2026-10-05-production-function-bound-membership/receipt.md)
+record the accepted policy. The independent principal-scheme lane and
+`P_ref`-only proof work remain active.
 
 User-directed principal-scheme acceptance examples now cover `id`, `zero`,
 `call`, `compose`, repeated calls, branches, and staged higher-order calls.
