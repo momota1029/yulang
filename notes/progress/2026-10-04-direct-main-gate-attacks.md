@@ -60,10 +60,83 @@ but does not remove this gap: it already occurs for the stateless terminating
 Pure identity. No new user semantic choice or representation deficiency has
 been demonstrated.
 
+The missing step is specifically **compositional inversion of the synthesized
+complete Function endpoint**. Even for `f = λx.x`, typed-core §6 derives
+`P=Value(A)`, `I_body=Value(A)`, `Result(I_body)=Comp(empty,A)`, and only the
+skeleton `Fun(P,Result(I_body))`; §§3 and 9 give the invocation schedule but
+explicitly do not define a complete-call scheme from that skeleton. The needed
+theorem must invert membership in the endpoint's full bound: each checked-
+admissible carrier is admitted by the actual entry, and each observation in
+the actual bound has a constituent witness through argument, typed rebind,
+body/result consumer, and `J_call`, under the same `ν,K,D` and linked `[b,d]`
+profile. Callback B step 6 requires forming and checking the completed
+interface but does not state this endpoint-denotation clause. Thus the gap is
+present before State/import closure; no source counterexample or semantic
+choice follows.
+
+An additional direct attempt checked whether existing projection and linking
+results already provide this inversion. Parametric-component-linking §3
+proves exact existential projection for a supplied complete relation
+`F(X,Z)`: membership in `exists Z.F` yields a constituent witness under the
+same external assignment. But §3 explicitly leaves source construction and
+completeness of that relation open; §§4–6 require the source presentation to
+emit it before the linking laws apply. Core §8's fixed-domain certificate
+theorem preserves a supplied unchanged challenge set and weakens guarantees;
+its next gate explicitly excludes different admissible interaction domains.
+Core §9 defines `J_call` as the actual complete execution image and derives
+port directions, but says its finite symbolic presentation remains open.
+Parametric-component-linking §7 links supplied templates/maps and proves
+forward executable simulation; it neither identifies `P_actual` with that
+linked image nor rules out abstract extra successors. Therefore these existing
+lemmas compose only after the source-to-complete-endpoint adequacy premise is
+supplied:
+
+> For the B-generated role-indexed Function endpoint, its complete denotation
+> is represented by the same-fiber linked `J_arg` / entry-rebind / body /
+> designated-result-consumer / `J_call` relation, with checked-challenge
+> admission preserved independently of comparison success.
+
+This is the source-generation completeness / compositional endpoint-inversion
+clause, not another constraint-linking lemma. It is absent even in the
+stateless terminating Pure identity case, so the maximal ready fragment does
+not currently bridge the primary theorem. No user semantic choice is needed
+unless this clause is shown false for an explicit Yulang program; none was
+found.
+
+The adequacy draft confirms why exact source semantics does not fill the gap.
+Its §2 defines `Sem` by collecting exact executions and finite future uses;
+§3 requires only `Sem ⊆ ⟦P⟧` for **any** assigned complete-interface
+presentation and explicitly permits conservative presentations; §4's exact
+embedding `Eν,σ(C)` is a potentially infinite semantic interface built from
+source configurations. It never identifies a syntax-synthesized Function
+endpoint with `Eν,σ(C)` or supplies endpoint constructors. Thus choosing the
+exact embedding as `P_actual` would silently add an endpoint-construction
+assumption, while the `{0}` / `{0,1}` countermodel still shows that execution
+coverage alone cannot compare two permitted presentations. The single missing
+premise is the connection from B's generated endpoint to the existing
+same-fiber composition; exactness of `P_actual` is not required.
+
+There is a related **non-authoritative route candidate** in the coupled-effect
+draft's Function denotation section: quantify over source-typed call
+configurations and bound each `Beh` prefix/result by the function interface.
+Its variance argument is sufficient when both functions range over the same
+call configurations and preserve captured visibility lineage. For the Pure
+identity, exact `Beh` is `Force(D)` followed by returning the rebound value;
+this makes the source execution inclusion transparent when the target's
+`[b,d]` view admits `d` and the result endpoints agree. But the draft labels
+this denotation a candidate and leaves the source-typed contextual domain,
+endpoint generation, and finite principal presentation open. It therefore
+proves a useful conditional semantic inclusion, not the required comparison
+of synthesized `P_actual` and `P_checked`. Using it as the main gate would
+still require the same endpoint-to-composition adequacy premise and cannot be
+silently promoted to authority.
+
 Governing sources: [callback context delivery](../design/2026-10-03-callback-context-delivery.md)
 §§2–5, 7–8; [typed computation core](../design/2026-10-02-typed-computation-core-elaboration.md)
-§9; [source interface adequacy](../design/2026-10-02-source-interface-adequacy-theorem.md)
-§§2–4. The previous theorem-level attempt and evidence remain in
+§§6, 8–9; [source interface adequacy](../design/2026-10-02-source-interface-adequacy-theorem.md)
+§§2–4; [parametric component linking](../design/2026-10-02-parametric-component-linking.md)
+§§3–7; [coupled effect-interface draft](../design/2026-10-01-coupled-effect-interface-core-draft.md)
+Function-denotation section. The previous theorem-level attempt and evidence remain in
 [value-entry bind/projection](2026-10-04-value-entry-bind-projection.md).
 
 ## Structural regularity / finite presentation
@@ -119,6 +192,30 @@ proper types. A proposed fixed-arity encoding with global `Top` admits spurious
 solutions unless it separately proves recursive source-image preservation.
 See [Niehren, Priesnitz, and Su, *Complexity of Subtype Satisfiability over
 Posets*, §§2, 4.1, 5](https://www.cs.ucdavis.edu/~su/publications/esop05.pdf).
+
+An exact follow-up attack resolves the encoding question on its source image.
+With a fixed Record product scaffold that distinguishes Record roots from
+field payloads even for zero or one labels, encoding absent fields as global
+`Top` is an order embedding for image-valid trees: present/present slots
+compare payloads recursively, an absent upper slot accepts either case, and
+an absent lower slot cannot satisfy a present upper slot. Arrow covariance
+and contravariance match Function subtyping. The bounded scaffold preserves
+shared descriptor variables, shifted equations, and regularity under
+encode/decode.
+
+This does **not** give a decision theorem by adding a regular source-image
+grammar to the NPS PDL reduction. Descriptor equations use prefix shift
+`x(iw) = child_i(x)(w)`, translated with inverted modalities, while recursive
+grammar enforcement needs ordinary suffix-child modalities `w → wi`.
+Reversing addresses exchanges the two directions and does not make both
+available in NPS's fragment. Its §4.1 states this limitation, and §5's
+separate subtype reductions do not establish preservation of the added
+recursive sort discipline. Track-wide rigid-name bans are expressible and are
+not the blocker. Thus the exact remaining condition for this route is a
+solution-preserving, decidably checkable translation of the recursive
+Value/Field/Record-scaffold source image into the same-address prefix/suffix
+constraint system. No counterexample to regular extension follows, and no
+second encoding candidate is advanced.
 
 A direct transfer of the known guarded-BPA undecidability reduction also fails
 at a precise premise. DeYoung et al. encode a BPA process by transparent,
@@ -183,6 +280,130 @@ formulation reuses the existing address/activation constraints and adds no
 semantic carrier. It excludes arbitrary `Guard` and `Phi/K,D` predicates,
 effects, and optional Records, so no broader structural or source theorem
 follows.
+
+A direct finite-folding attempt identifies why a simple pumping proof does not
+follow. Horn closure need not commute with quotienting address occurrences. A
+fold can identify an activation `A_b(u)` from one occurrence with an
+upper-field fact `D_up(vl)` from another. Saturating their combined state
+creates a child activation, which can transport a head through a shifted
+descriptor equation into a fixed conflict or forbidden rigid name. Finite
+local profiles therefore do not alone prove that a conflict-free closure has
+a conflict-free regular extension. No normalized instance where every finite
+fold fails was constructed; this is a failed pumping step, not a
+counterexample to regular extension or an undecidability result. The required
+regular-extension premise is unchanged.
+
+The operators already implicit in the clauses isolate this premise more
+usefully. Let `F(A)` be forced domain/head/presence saturation from supplied
+original-bound activation languages `A`, including descriptor equations and
+permission checks; let `G(U)` be activation closure from facts `U` under the
+existing Record-width and variance-directed descent clauses; and let `A₀`
+contain the original root activations. The regular-extension theorem is
+equivalent to existence, whenever the least joint closure is conflict-free,
+of a regular activation invariant satisfying
+
+```text
+A₀ ⊆ A
+G(F(A)) ⊆ A
+F(A) is conflict-free.
+```
+
+Sufficiency uses the existing fixed-activation regular saturation and
+default-Record completion. Necessity follows because any regular satisfying
+assignment induces regular activation languages whose forced facts remain
+conflict-free and whose required descents are included. This reformulation
+adds no carrier: it exposes the remaining circularity, since ranked heads
+decide which orientations descend, while those descents can force new heads
+through shifted descriptors. Separate regularity of `F` and `G` does not prove
+existence of the joint invariant. No saturation bound or counterexample is
+known.
+
+A direct finite-quotient proof attempt sharpens the failure point without
+changing the premise. A quotient of address words would need finite-index
+congruence under both descriptor prefix transport and structural suffix
+descent: `u ~ v` must imply `iu ~ iv` and `ui ~ vi`. The quotient facts must
+contain the least closure and remain closed under every Horn rule without
+mixing facts into a head, width, variance, or permission conflict. Equating
+words by their current finite fact profiles is insufficient because those
+profiles need not agree after either context is added. The full contextual
+equivalence that is guaranteed to respect both contexts may have infinite
+index; requiring it to be finite would additionally regularize the least
+closure, stronger than regular extension itself. No finite congruence
+construction or counterexample to its existence emerged. The original
+regular-extension premise remains the exact main gate.
+
+The quotient condition can be stated as an exact model theorem, which avoids
+confusing a quotient of the least closure with a regular solution. Let
+`Γ_P` be the complete finite address-constraint package for normalized input
+`P`, including domain/head/child coherence, exact descriptor masks and shifted
+equations, every original bound activation and its variance-directed descent,
+and all rigid permissions. Then:
+
+```text
+P has a regular solution
+iff
+there exist a finite monoid M and a surjective monoid homomorphism
+μ : I* → M, with μ(ε)=1 and μ(uv)=μ(u)·μ(v),
+such that Γ_P interpreted on M has a model.
+```
+
+The interpretation sends prefix shift `iw` to `μ(i)·μ(w)` and structural
+descent `wi` to `μ(w)·μ(i)`. For necessity, take a common transition monoid
+for the finitely many regular domain, head, and comparison-trace languages of
+a regular solution. For sufficiency, lift a finite quotient model along `μ`;
+the monoid law preserves both address operations, and the listed coherence,
+activation, and permission clauses give regular type graphs and simulations
+for the original bounds. Omitting child coherence or checking only for head
+collisions would not suffice.
+
+This yields the exact remaining finite-model property:
+
+> Every satisfiable complete address package `Γ_P` has a model over some
+> finite monoid quotient, that is, a surjective monoid homomorphism from
+> `I*` together with a model of the full quotient constraints.
+
+The converse direction of the equivalence is proved by quotient lifting; the
+finite-model property itself remains unproved, with no normalized package
+refuting it. This also pinpoints the decision issue: finite quotient models
+can be enumerated, while arbitrary-tree unsatisfiability has the existing
+finite Horn-conflict witness. These semidecision directions decide regular
+satisfiability only if the finite-model property holds; if a satisfiable
+package has no finite quotient model, neither enumeration settles that case.
+This is an exact reformulation of the same regular-completion gate, not a new
+carrier or a second encoding route.
+An independent spec-auditor review found the equivalence and conditional
+semidecision argument sound; its sole precision finding—that `μ` must be an
+explicit surjective monoid homomorphism—has been incorporated above.
+
+One tempting construction is now ruled out by a finite operator example:
+safe regular activation invariants are not closed under union. Take fixed
+descriptors `r = {f:Int}`, `t = {f:Bool}` and bounds
+`r <: y`, `t <: z`, `x <: y`, `x <: z`. The regular solutions
+`x = y = r, z = {}` and `x = z = t, y = {}` induce individually safe
+activation families: the first activates `f` only for `r <: y` and `x <: y`;
+the second only for `t <: z` and `x <: z`. Their union forces both `Int` and
+`Bool` at `x.f`, so its forced closure conflicts. This does not refute regular
+extension: `x = y = z = {}` is another regular witness. It shows that
+independently safe automata cannot be combined by a union construction; one
+joint safe invariant must be selected.
+
+Intersection has the opposite algebraic behavior: monotonicity of
+`T(A)=A₀∪G(F(A))` makes post-fixed safe invariants closed under arbitrary
+intersection. This still supplies no regular invariant: it presupposes a
+nonempty family of regular invariants, and an infinite intersection can be
+nonregular even for one fixed package. For `r={a:Int,b:Int}`, `r<:r`,
+`X<:X`, every assignment
+
+```text
+Dₙ = { aⁱbʲ | i,j≥0 and (i<n ⇒ j≤i) }
+```
+
+for `X` is a regular all-Record solution, while `⋂ₙ Dₙ =
+{aⁱbʲ | j≤i}` is nonregular (the prefixes `aⁱ` have pairwise distinct
+residuals). The package also has `X={}`, so this is not a counterexample to
+regular extension. It rules out deriving a finite-state bound by arbitrary
+intersection or descending refinement alone; the fixed-activation saturation
+construction's state count still depends on the supplied automata.
 
 ## Work boundary
 

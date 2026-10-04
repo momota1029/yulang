@@ -25,10 +25,12 @@ This index is a navigation aid. The listed source document remains authoritative
   transparent parameter-changing recursive type constructors; this does not
   settle regular completion or rule out another reduction. For normalized
   pure structural constraints with finite rigid permissions, the sharpened
-  decision gap is regular extension of a conflict-free least closure over
-  domain, head, and original-bound activation facts. That regular-model
-  premise is unproved and excludes `Guard`/`Phi/K,D`. See the direct-main-gate
-  progress record.
+  decision gap is finite-model reflection for the complete address package:
+  every satisfiable package must have a model over a finite monoid quotient
+  preserving descriptor prefix shifts, structural suffix descent, coherence,
+  activations, and permissions. This is equivalent to regular satisfiability;
+  the finite-model property is unproved and excludes `Guard`/`Phi/K,D`. See
+  the direct-main-gate progress record.
 - **Other open gates:** source State/reference bridge and global source
   acceptance/principality/lifecycle remain open; see `tasks/current.md` for
   the compact active summary and linked progress records for evidence/history.

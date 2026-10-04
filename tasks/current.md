@@ -68,6 +68,23 @@ presentations `P_i` may conservatively cover it. The missing proof concerns
 factorization of that presentation's full bound, not choosing a new meaning
 for `Sem`. This is not a Yulang program counterexample, State exclusion does
 not close the bound gap, and no carrier or semantic choice follows.
+The exact owner is compositional inversion of the synthesized Function
+endpoint: core §6 yields only the `Fun(P,Result(I_body))` skeleton, while
+§§3/9 give invocation execution without a rule deriving the complete-call
+endpoint bound from it. The required theorem must recover argument-entry
+admission and factor every endpoint-bound observation through argument,
+rebind, body/result consumer, and `J_call` into linked `[b,d]` at the same
+`ν,K,D`; callback B step 6 leaves this construction open.
+The canonical exact semantic embedding in adequacy §4 does not supply this:
+§3 permits any conservative `P` covering `Sem`, without defining or
+identifying the syntax-generated Function endpoint. Exactness is unnecessary;
+the missing premise is its same-fiber compositional factorization. The
+non-authoritative coupled-effect draft's candidate Function contract quantifies
+over well-typed contextual calls, but the call-domain choice remains open;
+program-reached calls are vacuous for unused exports, while arbitrary runtime
+states include configurations no typed source context can construct. I asked
+which call domain should govern before deriving Function adequacy from that
+candidate; its finite principal presentation remains a separate open proof.
 
 **Other open gates:**
 
@@ -84,12 +101,40 @@ not close the bound gap, and no carrier or semantic choice follows.
   [root-only result](../notes/progress/2026-10-04-root-only-regular-witness.md),
   [queue probes](../notes/progress/2026-10-04-fixed-descriptor-queue-encoding.md),
   and [direct main-gate attacks](../notes/progress/2026-10-04-direct-main-gate-attacks.md).
+  A fixed product encoding with global `Top` is proved exact on its recursive
+  source image; the attempted NPS decision transfer stops because inverted
+  prefix modalities for shifted descriptors do not enforce the ordinary
+  suffix-child source-image grammar. This is a failed proof route, not a
+  counterexample to regular completion.
 - For the normalized pure structural fragment with finite rigid permissions,
   the arbitrary-tree closure can be inconsistent only with a finite Horn
   conflict. The remaining exact premise for a regular decision procedure is
   that every conflict-free least closure has a simultaneous regular extension
   for domain, head, and original-bound activation facts. This is unproved and
   excludes arbitrary `Guard` and `Phi/K,D`; see the direct main-gate record.
+  A direct finite-fold pumping attempt fails because quotienting addresses
+  can combine activation and field-presence premises from different
+  occurrences; closure after folding may create conflicts absent before the
+  fold. No instance defeating every regular extension is known.
+  Equivalently, the remaining theorem asks for a regular activation invariant
+  `A` with `A₀ ⊆ A`, `G(F(A)) ⊆ A`, and conflict-free `F(A)`, where `F` is
+  forced domain/head saturation and `G` is the existing width/variance
+  descent. The circular dependency is now explicit: descent decides heads
+  through shifted descriptors, while heads decide descent. Safe regular
+  activation invariants are not union-closed: two individually safe choices
+  can force incompatible heads when combined. Thus a regular-extension proof
+  must select one joint invariant. They are intersection-closed, but infinite
+  intersections can be nonregular even for a fixed package, and the package
+  may still have a trivial regular witness. Neither closure property supplies
+  the required invariant. Equivalently, the unresolved finite-model property
+  says every satisfiable complete address package has a model over some
+  finite monoid quotient preserving shifted descriptor prefixes, structural
+  suffix descent, and all coherence, activation, and permission clauses.
+  Regular solutions give such quotients and quotient models lift back to
+  regular solutions, but the finite-model property is unproved and has no
+  counterexample. Finite quotient enumeration plus finite Horn-conflict
+  witnesses decides regular satisfiability only if this property holds; see
+  the exact statement in the direct main-gate record.
 - The standard guarded-BPA undecidability result does not directly settle
   this gate: it requires transparent parameter-changing recursive type
   constructors, which current type-declaration authority does not establish;
