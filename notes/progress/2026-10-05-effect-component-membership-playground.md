@@ -71,3 +71,15 @@ Verification: `python3 tools/research_effect_component_membership.py`,
 `python3 -m py_compile tools/research_effect_component_membership.py`, and
 `git diff --check` passed. No compiler tests, builds, production code, or
 Oracle investigation were performed.
+
+## Follow-up: separate membership from subtraction
+
+The two candidate readings above do not capture the user's separate
+requirement that reverse addition operate only on a concrete contribution with
+known attachment. The later
+[support/attachment probe](2026-10-05-effect-attachment-subtraction-playground.md)
+shows why component membership, per-event subtraction authority, and
+complete-output support removal must be considered separately. Treat the
+comparison above only as a finite illustration that an exact-owner filter is
+not equivalent to family/type coverage; it is not the current semantic choice
+question by itself.
