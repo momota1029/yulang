@@ -80,6 +80,23 @@ integer/name leaves and unannotated parameterized bindings map to finite
 This includes `id x = x` with `P=Value(A)`. Applications, callback call sites,
 and whole-carrier evidence remain unavailable in this HIR.
 
+## Latest structural main-gate result
+
+[Two-sided constructor-bound regular completion](../notes/design/2026-10-04-preclosed-structural-regular-witness.md)
+now has an independently reviewed constructive proof and executable research
+checker. If every flattened variable has a constructor-bearing lower and
+upper bound in the finite pure structural closure, arbitrary-tree and
+regular-tree satisfiability coincide and closure decides existence. Multiple
+open recursive anchors, mandatory Record width, Function contravariance and
+invariant coordinates are included. The construction creates new witnesses
+with at most `(2^n-1)^2` nodes and preserves all original descriptor equations.
+It covers a recursive example for which no existing anchor selector works.
+The predicate is finite and source-checkable, not proved for all Yulang
+sources and not a rejection policy. One-sided/unbounded roots, effects,
+arbitrary guards, joint predicates, principality and full source adequacy
+remain open. Proof/review/check details are in
+[the structural progress record](../notes/progress/2026-10-04-preclosed-structural-witness-review.md).
+
 ## Active unrestricted proof gates
 
 **Next gate — unrestricted Pure-value callback/Function theorem.** Establish whole-carrier
