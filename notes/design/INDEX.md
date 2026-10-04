@@ -33,8 +33,8 @@ This index is a navigation aid. The listed source document remains authoritative
   row. The current production HIR also does not yet emit Theorem C's
   call/bind/request core; see
   `notes/progress/2026-10-04-hir-source-core-boundary.md`.
-  It does emit the isolated Pure identity value subcase, but has no callback
-  call-site or whole-carrier path yet.
+  It maps its monomorphic pure-value fragment to source-core derivations, but
+  has no callback call-site or whole-carrier path yet.
 - **Structural gate:** the finite residual presentation, regular-witness
   decidability, and principal/effective projection remain distinct. The exact
   open existence theorem is regular completion with descriptor prefix shifts

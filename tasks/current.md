@@ -74,10 +74,11 @@ lowerer rejects non-leaf `Apply` expressions. It therefore does not yet emit
 Theorem C's call/bind/request derivation graph. The exact source-shape audit
 and next bridge obligations are in
 [HIR/source-core boundary](../notes/progress/2026-10-04-hir-source-core-boundary.md).
-The HIR does generate the isolated Pure identity value subcase: a simple
-unannotated `id x = x` lowers to a lambda and a name resolved to that same
-parameter, which maps to `lambda(P,result(name x))` with `P=Value(A)`. The
-callback call site and whole-carrier evidence remain unavailable in this HIR.
+The HIR-to-core bridge now closes for its monomorphic pure-value fragment:
+integer/name leaves and unannotated parameterized bindings map to finite
+`literal`/`name`/`lambda(P,result(body))` derivations under a fixed `Gamma`.
+This includes `id x = x` with `P=Value(A)`. Applications, callback call sites,
+and whole-carrier evidence remain unavailable in this HIR.
 
 ## Active unrestricted proof gates
 

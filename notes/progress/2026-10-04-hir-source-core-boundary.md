@@ -30,14 +30,23 @@ production HIR constructs such graphs from raw Yulang input. The new finding
 does not refute Theorem C, change accepted Yulang programs, or authorize
 compiler edits.
 
-## Closed HIR-to-core subcase: unannotated identity binding
+## Closed HIR-to-core subcase: monomorphic pure value bindings
 
-There is a small source-produced subgraph that maps directly. For an admitted
-simple parameterized binding `id x = x` with no annotation or recovery, the
-lowering clauses construct `ResolvedExpr::Lambda` around a
-`ResolvedExpr::Name` whose `NameResolution::Parameter` carries the same
-`HirParameterId` created for the lambda. The occurrence and source range are
-retained on both nodes (`module.rs` lines 1159–1202, 1422–1464).
+There is a source-produced subgraph that maps directly. Take a finite HIR
+module with no `Error` nodes, only integer/name leaves and admitted
+parameterized bindings, no annotations, and a fixed monomorphic `Gamma` for
+unique module `DefId`s. The lowering clauses create one parameter identity,
+resolve each body name either to that parameter or to a fixed module root,
+and wrap the atomic body in a lambda (`module.rs` lines 1159–1202,
+1422–1464). Occurrences and source ranges are retained. No application is
+included; the lowerer rejects a non-leaf associated `Apply`.
+
+The generated derivation maps each HIR node directly: integer to `literal`,
+parameter/module name to `name`, and the source-generated lambda to
+`lambda(P, result(d_body))`. A source environment maps each `HirParameterId`
+to its single core binder and each module `DefId` to its fixed root. For the
+discriminating `id x = x` instance, the `NameResolution::Parameter` points
+back to the same `HirParameterId` created for the lambda.
 
 The typed-core derivation is syntax-directed:
 
@@ -48,22 +57,26 @@ Gamma[x := Value(A)] |- result(name x) : Comp(empty,A)
 Gamma |- lambda(P, result(name x)) : Value(Fun(P,Comp(empty,A)))
 ```
 
-The body endpoint `A` is shared through the parameter binding; HIR does not
-materialize or solve it. The source tag chooses a Pure function introduction,
-and §21 chooses its Value-entry behavior. This proves that current lowering
-can supply Theorem C's actual Pure identity **value derivation** for this
-closed form. It does not supply the known callback callee/use graph, an
-effectful whole-argument carrier, `d⁻`/`d⁺`/`b⁺` profile paths, receipt
-incidence, or the finite complete endpoint. Those remain distinct source and
-solver bridges.
+Induction on the finite HIR binding graph gives the corresponding derivation
+for this monomorphic pure value fragment. The body endpoint `A` is shared
+through its parameter binding; HIR does not materialize or solve it. The
+source tag chooses Pure function introduction, and §21 chooses its
+Value-entry behavior. This proves that current lowering supplies Theorem C's
+actual Pure identity **value derivation** and the same structural mapping for
+all expressions in the named HIR fragment. It does not supply the known
+callback callee/use graph, an effectful whole-argument carrier,
+`d⁻`/`d⁺`/`b⁺` profile paths, receipt incidence, or the finite complete
+endpoint. It is a source-derivation map under fixed `Gamma`, not a theorem
+that the future inference generator emits the required constraints. Those
+remain distinct source and solver bridges.
 
 ## Exact next bridge
 
 To claim raw/production correspondence for the callback fragment, a later
 implementation/design gate must identify the source forms admitted by that
 fragment and map their resolved HIR nodes to Theorem C's derivation
-constructors. The identity-value case above closes the lambda/parameter-name
-map for its narrow binding form. Callback applications, effectful argument
+constructors. The monomorphic pure-value case above closes the HIR map for
+its named grammar. Callback applications, effectful argument
 carriers, requests, and their `d⁻`/`d⁺`/`b⁺`, receipt, profile, and `K,D`
 evidence need production HIR constructors and a lowering theorem before they
 can be checked against the theorem generator. This is not yet evidence that
