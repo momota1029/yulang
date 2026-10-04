@@ -18,6 +18,17 @@ Depends on: [callback context delivery](2026-10-03-callback-context-delivery.md)
 [concrete compatibility](2026-10-03-concrete-compatibility-boundary.md), and
 [HIR/source-core boundary](../progress/2026-10-04-hir-source-core-boundary.md)
 
+**Reviewed reference-interpretation follow-up:**
+[source-indexed endpoint realization](2026-10-04-source-indexed-callback-realization.md)
+constructs finite membership/admission clauses and proves their complete
+crosswalk with Theorem C, including the approved typed projection over all
+finite latent/future/resumption histories. This is a constructed reference
+interpretation. It does not identify the current production denotation with
+that interpretation or prove generation of all required raw-source
+decorations. Section 4's production conformance boundary remains; the new
+proof provides concrete constructor rules against which to establish it.
+No implementation authority follows.
+
 ## 1. Design target and retained decisions
 
 This design fixes one reference generation path for known-callee callback

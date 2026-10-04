@@ -3,6 +3,15 @@
 Status: user-directed acceptance criteria; successor derivation remains open.
 Date: 2026-10-04.
 
+**Reviewed direct follow-up:**
+[joint presentation and safe context preimages](../design/2026-10-04-common-allowance-context-preimage.md)
+now prove finite forward complete-view presentation and the exact
+domain-safe universal-preimage law. They do not prove a legal descriptor
+realizing the common allowance or an admissible `m_V` for each public view.
+Those two realization obligations remain, with the original quantifiers;
+none of the accepted schemes below is changed. See the
+[combined proof/review record](2026-10-04-callback-principality-direct-followup.md).
+
 The following public schemes are the user's expected principal presentations
 for the stated source definitions. They are criteria for the general
 constraint-generation, co-occurrence, inequality-solving, and generalization
