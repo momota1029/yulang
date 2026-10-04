@@ -150,6 +150,15 @@ enter variable-edge closure. This is finite characterization only; lower/
 upper replay policy and complete solver behavior remain unspecified. See the
 [progress record](../notes/progress/2026-10-05-inequality-endpoint-dispatch-playground.md).
 
+The first HIR-backed Function-realization candidate inspects the current
+`id`/`zero` artifacts, reconstructs their identity/constant body relation, and
+checks projected typed observations over 26 finite argument-history tuples
+per source. The old-tuple-preserving lift is exact in this candidate. Its
+remaining bridge is the key one: no production endpoint currently defines
+this complete relation, and HIR lacks application/callback invocation forms.
+Details and limits are in the
+[source-indexed realization playground](../notes/progress/2026-10-05-source-indexed-function-realization-playground.md).
+
 **Classification A: normalized pure structural FMP is proved.**
 [Finite fence completion](../notes/design/2026-10-04-structural-fmp-fence-completion.md)
 constructs a regular solution of the same fixed package from any arbitrary
