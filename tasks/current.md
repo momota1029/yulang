@@ -219,10 +219,13 @@ candidate; its finite principal presentation remains a separate open proof.
   and its narrower predecessor
   [selector theorem](../notes/progress/2026-10-04-production-f5-value-skeleton-selector.md).
   The incidence premise is now extended to cross-SCC uses whose target alias
-  chain ends in either an integer or an own-parameter identity lambda. The
-  latter's generated `forall q. Function(q,q)` scheme contributes one open
-  anchor; the alias-preservation induction and one-cut argument are source-
-  checked, and the source generator satisfies the premise for that fragment.
+  chain ends in an integer, an own-parameter identity lambda, or an
+  alias-only cycle. The identity target's generated
+  `forall q. Function(q,q)` scheme contributes one open anchor; cycle targets
+  contribute no value inequality in the existing incoming route, without
+  assigning semantics to polarized `Bottom`. The alias-preservation induction
+  and one-cut argument are source-checked, and the source generator satisfies
+  the premise for that fragment.
   Arbitrary schemes, extrema-bearing function schemes, and full Function
   effects remain outside it; see
   [identity-scheme incoming extension](../notes/progress/2026-10-04-identity-incoming-incidence-extension.md).
