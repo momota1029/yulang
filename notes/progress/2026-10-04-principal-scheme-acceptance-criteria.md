@@ -38,12 +38,20 @@ my higher f g x = f g x
 Value-level dependencies must not be exposed as refinements (`zero` keeps an
 unconstrained argument). Effect support is not usage multiplicity (`twice`).
 The compose presentation retains `g`'s effect contribution in the outer `c`
-allowance. Passing that contribution through `f`'s argument interface does not
-remove it from `c`, even if an attachment is witnessed. Branch and staged
+allowance under the default hygiene rule. Passing that contribution through
+`f`'s argument interface does not by itself establish consumption or
+subtraction. Branch and staged
 call outputs use the displayed shared effect components, but that presentation
 does not by itself assert equality of the original source effect expressions.
 The successor must derive these presentations from its general rules and
 preserve the corresponding solution family.
+
+This is not a compose-specific subtraction semantics. When source does not
+explicitly establish an attachment/consumption, hygiene preserves the distinct
+effect contribution instead of implicitly capturing or subtracting it. Existing
+witnessed partial subtraction remains available inside `f`'s contravariant
+descriptor; matching the same row component there does not alone erase it from
+the outward `c` allowance.
 
 Clarification (2026-10-04): the earlier `'a -> int` presentation for `zero`
 is superseded. The user accepts the negative `Top` domain, with `any` as the
@@ -131,7 +139,7 @@ those application/block/branch forms to be represented and admitted first.
 | `id` | Production value skeleton points the Function argument and result to the same live parameter endpoint. | Coupled effect interface and principal generalization. |
 | `zero` | Production value skeleton leaves the parameter free and fixes the literal result to `Int`; the current F5 value view `Top -> Int` is accepted as surface `any -> int`. | Full coupled Function/effect interface and principal solution-family preservation. |
 | `call` | Frozen Oracle characterizes the displayed scheme; source candidate routes the invocation through the common output port. | Source-to-complete-interface generation and principal factorization. |
-| `compose` | The expected scheme retains `g`'s effect contribution in outward `c`, even when it is attached at `f`'s argument interface. | Prove source generation and principal factorization of that retained contribution through one complete correlated interface; it may not be subtracted from `c` in this case. |
+| `compose` | Under hygiene, the expected scheme retains `g`'s effect contribution in outward `c`; the matching component at `f`'s argument port alone is not consumption evidence. | Prove source generation and principal factorization of that retained contribution through one complete correlated interface, preserving the existing rule that concrete subtraction needs witnessed attachment. |
 | `twice` | Covariant rows are intended to be flat support, so repeated support is not multiplicity. | Preserve both occurrence paths and sequential continuation while proving one principal allowance. |
 | `choose` | Branch views may both fit one allowance while remaining unequal (`{Read}` and `{Write}` into `{Read,Write}`). | Source-generated common allowance and its principal factorization; raw equality merging is invalid. |
 | `higher` | Function stages and their evidence remain separate in the coupled-interface proposal. | Prove the shared public `e` factors through both stage views while preserving the intermediate returned Function dependency. |
@@ -166,8 +174,9 @@ and retain their dependency on the first-stage result. For `twice`, both
 invocation occurrences and sequential continuation behavior remain, although
 the public support has no multiplicity. For `compose`, the `g` contribution
 must flow through `f`'s argument interface and remain in the outward `c`
-allowance. Even a witnessed attachment at `f` does not permit subtracting this
-contribution from `c` for the specified source definition. No successful
+allowance unless source-owned attachment/consumption evidence explicitly
+justifies otherwise. Reusing the row component at `f`'s port is not by itself
+such evidence; hygiene prevents that implicit subtraction. No successful
 concrete comparisons are composed to justify any of these views.
 
 The missing premise is therefore one source-generated complete-interface
@@ -206,7 +215,7 @@ original solution coordinates/residual. If the scheme omits any of them, a
 stronger reconstruction theorem is needed. Support collection alone does not
 prove the extension: `a` must be independently defined by source composition,
 not by query success, and must respect branch/stage dependencies, both `twice`
-invocations, and `compose`'s retained `g` contribution in outward `c`.
+invocations, and `compose`'s hygiene-preserved `g` contribution in outward `c`.
 
 For principal inference, nonempty extension is necessary but insufficient.
 The extension must also be principal: for every valid public Function/effect
