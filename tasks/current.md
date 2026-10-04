@@ -576,6 +576,16 @@ caller-owned observations in the complete `f` call along
 `Force(D_g) >>= B_f`; its candidate Function contract places them in outward
 `c`. Production endpoint projection and principal representability remain
 unproved; details are in the contributor-bound attempt.
+An exploratory Draft now records the candidate public spelling `'e?` for an
+optional provenance edge from a capture-constrained input component to an
+ordinary output component. It keeps row membership separate from provenance,
+and treats capture authority as expiring at the source boundary. Existing
+`Flow`/`Observe`, occurrence/incidence, `Rel_C`, `K,D`, directed-weight and
+subtraction evidence are the candidate projection substrate; no concrete
+failure showing a missing carrier is established. The edge quantifier,
+principal order, and source-to-public projection theorem remain open, so the
+note adds no semantic or implementation authority. Its **(B)** assessment is
+exploratory. See [handler hygiene provenance notation](../notes/design/2026-10-05-handler-hygiene-public-provenance-notation.md).
 An architect cross-check found no counterexample among the seven accepted
 schemes and no demonstrated missing carrier. A direct Astra theorem attack,
 independently reviewed by a compiler referee and architect, distinguishes the
