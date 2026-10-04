@@ -30,6 +30,9 @@ This index is a navigation aid. The listed source document remains authoritative
   [`research_callback_sat_lift.py`](../../tools/research_callback_sat_lift.py).
   [`research_principal_contract_join.py`](../../tools/research_principal_contract_join.py)
   checks the finite typed-pullback common-contract join.
+  [`research_callback_callable_projection.py`](../../tools/research_callback_callable_projection.py)
+  checks the higher-order authority-preservation boundary of the approved
+  typed projection.
   Exact limits and minimized obstructions are in the
   [progress report](../progress/2026-10-04-callback-principal-playgrounds.md).
 - **Completed narrow experiment:**

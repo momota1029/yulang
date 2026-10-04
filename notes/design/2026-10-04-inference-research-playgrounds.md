@@ -118,3 +118,11 @@ Int-valued challenge projections kept separate. It tests the safe-domain
 pullbacks and concrete-support join only; it does not interpret the completed
 Function query or prove admissible scheme maps. Exact counts and the type-
 collapse obstruction are in the same progress report.
+[`tools/research_callback_callable_projection.py`](../../tools/research_callback_callable_projection.py)
+checks a returned callable followed by a future invocation. It demonstrates
+why the approved scalar-value projection must retain callable authority,
+request origin and continuation links; a type-only over-approximation admits a
+same-interface callable absent from the source identity graph. This is a
+bounded obstruction to broadening the scalar `Sat_j` rule, not evidence about
+production endpoint denotation or arbitrary higher-order histories. Exact
+limits are in the same progress report.

@@ -17,6 +17,11 @@ needed to distinguish empty joins from nonempty exact joins; both minima are
 now reported, and the primary reran the exhaustive checker.
 Independent spec_auditor review of the typed-pullback contract-join probe found
 no actionable findings; its finite scope and reported counts match the code.
+Independent compiler_referee review of the callable-projection probe found no
+blocking or major issue and validated its minimal witness. Its minor finding
+was a single `production` label in a finite-model count; the script now says
+`candidate endpoint`, and the primary reran the focused checker and
+`py_compile`.
 Governing direction: [inference research playgrounds](../design/2026-10-04-inference-research-playgrounds.md)
 Governing callback design: [production callback endpoint generation](../design/2026-10-04-production-callback-endpoint-generation-draft.md)
 Governing principal criterion: [principal scheme acceptance](2026-10-04-principal-scheme-acceptance-criteria.md)
@@ -170,6 +175,32 @@ correlation. The result is evidence for §5's semantic join and for keeping
 stage projections attached to the source tuple; descriptor realization and
 all-view factorization remain open.
 
+## Higher-order callable projection boundary probe
+
+[`tools/research_callback_callable_projection.py`](../../tools/research_callback_callable_projection.py)
+models a source identity callback returning a callable, followed by one
+client-side invocation. Two runtime callables share the same structural
+Function interface but retain distinct source authority and continuation
+identities. Across all four nonempty endpoint-owner sets containing the
+actual source owner, full typed-observation membership factors through the
+exact identity source iff the endpoint admits no extra owner.
+
+The minimized over-approximation has one source input (`owner-left`), one
+future invocation, and two same-interface callable identities. If a candidate
+endpoint admits both, the source graph cannot account for the extra
+`owner-right` request and continuation. A mutant that erases callable
+authority, request origin and continuation owner makes that false factorization
+appear to pass; it does so in both source-owner cases. The typed projection
+here erases no callable authority: the approved decision only erases concrete
+data-value identity/correlation, while retaining authority relationships.
+
+This is a bounded obstruction to applying the scalar integer `Sat_j`
+abstraction to callable values without source ownership. It is not a
+counterexample to the approved projection or evidence that production admits
+the extra behavior. It does not model arbitrary higher-order histories,
+subtraction, or production endpoint denotation; production conformance remains
+open.
+
 ## Next proof work
 
 The callback main gate still needs a source-to-endpoint correspondence showing
@@ -236,6 +267,12 @@ python3 tools/research_principal_contract_join.py
   pullback-domain and least closed-support join checks pass; one-row
   type-collapse mutant loses the admitted source tuple.
 python3 -m py_compile tools/research_principal_contract_join.py
+  pass
+python3 tools/research_callback_callable_projection.py
+  4 typed callable endpoint cases; factorization iff no extra same-interface
+  owner; authority-erasing mutant false-green in both source-owner cases;
+  minimum has one source owner and one extra returned/invoked callable.
+python3 -m py_compile tools/research_callback_callable_projection.py
   pass
 python3 -m py_compile tools/research_callback_lift.py tools/research_principal_support.py
   pass

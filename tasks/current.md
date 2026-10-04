@@ -345,6 +345,18 @@ minimal admitted tuple `(fn0, 0)`. This checks the semantic contract join in
 the finite concrete-support fragment only; it does not establish shared
 descriptor realization, complete Function comparison, or `m_V` admissibility.
 See [callback/principality playgrounds](../notes/progress/2026-10-04-callback-principal-playgrounds.md).
+An additional finite callback probe checks the higher-order boundary of the
+approved typed observation projection: an identity callback returning a
+callable followed by one future invocation. Two same-interface callable
+owners stay distinct with their request origins and continuations. Of four
+candidate endpoint owner sets containing the source owner, all and only sets
+with an extra owner fail full-observation factorization; erasing authority
+labels creates two false greens. This concretely blocks generalizing the
+integer `Sat_j` abstraction across callable values without preserving source
+ownership. It is not evidence that production admits extra owners and does not
+close higher-order endpoint denotation. Reviewed with one minor terminology
+repair and focused rerun; see
+[callback/principality playgrounds](../notes/progress/2026-10-04-callback-principal-playgrounds.md).
 The latest user clarification accepts `Top -> int` for `zero`, with `any` as
 the surface notation, superseding the earlier `'a -> int` criterion. The prior
 negative-only quantification analysis is retained as history but creates no
