@@ -106,3 +106,9 @@ the source principal-scheme theorem. Results are in the same progress report.
 [`tools/research_callback_entry.py`](../../tools/research_callback_entry.py)
 checks the selected Value-entry source order and finite bind/resumption paths;
 it does not model typed endpoint denotation or multi-shot owner semantics.
+[`tools/research_callback_sat_lift.py`](../../tools/research_callback_sat_lift.py)
+exercises the bounded scalar `Sat_j` relation over finite request/resumption
+graphs and checks old-tuple recovery under total-coordinate extension. Its
+`v=a` mutant minimizes a concrete loss, but the model still does not identify
+the production endpoint denotation or cover higher-order behavior. Results and
+finite limits are in the same callback/principality progress report.

@@ -3,10 +3,13 @@
 Date: 2026-10-04
 Status: bounded executable characterization evidence; no implementation or
 semantic authority
-Review: independent compiler_referee review of the callback/lift models found
-no blocking/major finding. The row-match probe review found one minor wording
-scope issue (“minimum” did not identify the fixed-universe ordering), repaired
-as “lexicographically least”; no remaining finding.
+Review: independent compiler_referee review of callback/lift models found no
+blocking/major finding. The row-match probe's minor “minimum” wording issue was
+repaired as “lexicographically least.” The scalar-lift probe review found a
+minor scope overclaim; the model now records explicit lexical-scope/path labels
+and says that logical quantifier scope and joint hiding remain untested. The
+primary reran the focused checker and closed that delta without another review
+round.
 The minor identity-coverage suggestion was closed by generating distinct
 per-occurrence evidence identities and checking preservation after lifting.
 A later bind-composition delta review found that the minimum counterexample
@@ -98,6 +101,45 @@ effect rows, compare complete Function interfaces, or prove the seven
 principal acceptance schemes. It adds no semantic rule or implementation
 authority.
 
+## Scalar callback abstraction and checked-lift probe
+
+[`tools/research_callback_sat_lift.py`](../../tools/research_callback_sat_lift.py)
+combines the local integer-body relation `Sat_j(a,v,C,C')` from
+[`callback-local-abstraction-boundary`](2026-10-04-callback-local-abstraction-boundary.md)
+§§4–5 with the old-tuple-preserving checked lift. Its finite Force corpus has
+548 argument graphs over `Int={0,1}` and two configurations: direct returns,
+all response subsets for one request, and every pair of response subsets for
+two sequential requests. It retains pending request prefixes and every legal
+resumption branch under one fixed `nu,K,D` fiber.
+
+The checker produces 5,800 pending/completed abstract observations. Exact
+identity and integer-zero literal bodies each embed all 3,684 of their finite
+observations in the abstract relation. The checked extension is a total
+function of each complete old tuple; forgetting its added `d`/`b` projections
+recovers the entire abstract relation, including pending suffixes, response
+histories, receipts, owner labels, one modeled lexical-scope identifier, typed-
+path labels, and the distinct `d-`, `d+`, and `b+` identities. Challenge
+The finite challenge graph list is fixed before body/query generation; this
+does not construct or compare actual/checked challenge domains. The probe
+checks copying those modeled fields, but does not model logical quantifier
+scope, independent hiding, or movement of joint witnesses.
+
+The `v=a` checked-generation mutant loses 2,116 abstract observations. The
+lexicographically least direct-return loss under `(initial state, input,
+result, challenge)` is input `0`, result `1`, state `0`. A one-request witness
+has response `1` resumed in live state `0`, then `Sat_j` returns `0` for input
+`1`; it is absent under the mutant. This concretely tests that the scalar
+abstraction's output coordinate stays distinct from its read coordinate and
+that a checked lift adds no condition to the old tuple.
+
+The finite domain is `Int={0,1}`, configurations `{0,1}`, at most two request
+layers, and all subsets of the four response/configuration pairs per request.
+It does not establish the production F5 endpoint denotation, arbitrary integer
+or request behavior, higher-order observations, general Handler/State
+semantics, Yulang source-wide challenge admission, or logical scope/hiding
+transport. Its proof target is only the executable characterization of Theorem
+L's bounded scalar fragment, not Theorem L's general statement.
+
 ## Next proof work
 
 The callback main gate still needs a source-to-endpoint correspondence showing
@@ -155,9 +197,15 @@ python3 tools/research_principal_row_match.py
   32 complete assignments; 18 row-formula solutions; 4 after joint receiver
   restriction; eager-left-match mutant retains 0; lexicographically least lost
   assignment shown within the stated binary universe.
+python3 tools/research_callback_sat_lift.py
+  548 Force graphs; 5,800 pending/completed abstract observations; identity and
+  literal embeddings each cover 3,684 rows; total lift forgets exactly; the
+  v=a mutant loses 2,116 rows with direct and resumed witnesses reported.
 python3 -m py_compile tools/research_callback_lift.py tools/research_principal_support.py
   pass
 python3 -m py_compile tools/research_principal_row_match.py
+  pass
+python3 -m py_compile tools/research_callback_sat_lift.py
   pass
 python3 tools/research_callback_entry.py
   8 argument/body mode and initial-state cases; 18 response paths;

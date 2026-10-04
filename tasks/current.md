@@ -342,6 +342,14 @@ bind equations for `receipt; Force(D) >>= (v => RebindResultPath; B(v))`; it
 checks a same-request continuation resumed under two live states and finds the
 one-request ordering difference caused by eager force-before-call. It does not
 model endpoint denotation, general owner reactivation, or full Handler dispatch.
+The new scalar callback-lift probe combines finite `Sat_j` output abstraction
+with the checked total-coordinate extension over 548 Force graphs, including
+all one- and two-request response subsets. Exact identity/literal observations
+embed; an equality mutant loses 2,116 abstract observations, including the
+one-request witness `input 1 -> response 1 at state 0 -> abstract result 0`.
+This is bounded scalar characterization only and does not close the production
+callback bridge. Details and omitted space are in
+[callback/principality playgrounds](../notes/progress/2026-10-04-callback-principal-playgrounds.md).
 For the specified `compose f g x = f (g x)` case, `g`'s effect contribution
 remains in outward `c` because the annotation-free source gets full hygiene;
 reusing its inferred component at `f`'s argument port is not a written capture
