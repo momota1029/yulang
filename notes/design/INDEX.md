@@ -69,6 +69,10 @@ This index is a navigation aid. The listed source document remains authoritative
   `notes/progress/2026-10-04-production-f5-value-skeleton-hir-incidence.md`
   and its narrower predecessor
   `notes/progress/2026-10-04-production-f5-value-skeleton-selector.md`.
+  A reviewed extension admits acyclic cross-SCC alias chains ending in an
+  own-parameter identity lambda, whose quantified `Function(q,q)` scheme
+  contributes one open anchor; arbitrary structured schemes remain outside.
+  See `notes/progress/2026-10-04-identity-incoming-incidence-extension.md`.
   Neither result closes or refutes FMP.
   See the direct-main-gate progress record.
 - **Other open gates:** source State/reference bridge and global source

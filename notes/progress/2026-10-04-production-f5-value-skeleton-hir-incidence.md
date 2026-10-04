@@ -145,6 +145,9 @@ show that F5 generalization, structured instantiation, and extrema
 normalization preserve a permitted incidence package, or certify the
 resulting finite package with the existing multi-anchor selector. No current
 source counterexample to regular completion is established here.
+The acyclic identity-scheme incoming family is a proved extension of this
+restriction; see
+[identity-scheme incoming incidence](2026-10-04-identity-incoming-incidence-extension.md).
 
 This result proves neither equivalence with the coupled four-port F5 package
 nor full F5 satisfiability, effect-port denotation, callback adequacy,
