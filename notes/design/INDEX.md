@@ -21,6 +21,11 @@ This index is a navigation aid. The listed source document remains authoritative
   is Authoritative user direction permitting isolated executable models before
   proof closure for structural FMP, callback bridge, and principality. Finite
   search is evidence only; production inference routing remains gated.
+  Current bounded callback/principality models are
+  [`research_callback_lift.py`](../../tools/research_callback_lift.py) and
+  [`research_principal_support.py`](../../tools/research_principal_support.py);
+  their exact limits and minimized obstruction are in the
+  [progress report](../progress/2026-10-04-callback-principal-playgrounds.md).
 - **Completed narrow experiment:**
   [experimental parent/use transport](2026-10-04-intrusion-experimental-transport.md)
   is Authoritative for a `cfg(test)` graph transport prototype only. Its

@@ -79,3 +79,17 @@ Callback bridge and principality models remain active subsequent lanes.
 
 This order selects research activity only. It does not assert a theorem,
 introduce a new carrier/relation, or authorize production cutover.
+
+### Callback and principality characterization models
+
+[`tools/research_callback_lift.py`](../../tools/research_callback_lift.py)
+checks the local old-tuple-preserving total-coordinate extension shape from
+Theorem C §2.6 and minimizes a two-row obstruction to replacing linked source
+witnesses with independent marginals. Its flat one-fiber model does not test
+constructor transport, source realization, or Theorem C's full inclusion.
+[`tools/research_principal_support.py`](../../tools/research_principal_support.py)
+checks finite common-support factorization while retaining separate
+occurrence endpoints. This is only powerset-level evidence; it is not an
+effect comparison or principal-scheme theorem. Exact dimensions, minimized
+obstruction, and remaining proof gates are recorded in the
+[callback/principal playground report](../progress/2026-10-04-callback-principal-playgrounds.md).

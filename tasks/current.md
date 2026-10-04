@@ -323,6 +323,15 @@ The current HIR/F5 collector does not yet admit the application, block, and
 branch forms in `call`, `compose`, `twice`, `choose`, or `higher`; the listed
 schemes are successor criteria, not current production outputs. The exact
 source-generation boundary is recorded in the principal-scheme criteria.
+Two isolated characterization models now exercise narrower pieces of the
+open callback/principality gates: the callback lift checker preserves old
+tuples and distinct `d-`/`d+`/`b+` identities under total-coordinate extension,
+and shrinks independent-marginalization loss to two correlated rows; the
+principal-support checker verifies finite common-support factorization while
+keeping occurrence endpoints distinct. Neither models source constructors,
+complete Function comparison, subtraction attachment, or generalization, and
+neither closes a main theorem. Exact counts and limits are in
+[callback/principal playgrounds](../notes/progress/2026-10-04-callback-principal-playgrounds.md).
 For the specified `compose f g x = f (g x)` case, `g`'s effect contribution
 remains in outward `c` because the annotation-free source gets full hygiene;
 reusing its inferred component at `f`'s argument port is not a written capture
