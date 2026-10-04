@@ -30,7 +30,9 @@ This index is a navigation aid. The listed source document remains authoritative
   satisfies these premises. See
   `notes/progress/2026-10-04-callback-compositional-premise.md`,
   `notes/progress/2026-10-04-direct-main-gate-attacks.md`, and the callback
-  row.
+  row. The current production HIR also does not yet emit Theorem C's
+  call/bind/request core; see
+  `notes/progress/2026-10-04-hir-source-core-boundary.md`.
 - **Structural gate:** the finite residual presentation, regular-witness
   decidability, and principal/effective projection remain distinct. The exact
   open existence theorem is regular completion with descriptor prefix shifts

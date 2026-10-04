@@ -68,6 +68,12 @@ These are source-checkable conditional results, not language rejection rules.
 Their exact restrictions, reviewed repairs, and verification are recorded in
 [the paired progress note](../notes/progress/2026-10-04-source-generated-theorems.md).
 The unrestricted obligations below remain active.
+The raw/production bridge is now localized: current `yu-hir::ResolvedExpr`
+emits only lambda, integer, name, and error nodes, while its simple-chain
+lowerer rejects non-leaf `Apply` expressions. It therefore does not yet emit
+Theorem C's call/bind/request derivation graph. The exact source-shape audit
+and next bridge obligations are in
+[HIR/source-core boundary](../notes/progress/2026-10-04-hir-source-core-boundary.md).
 
 ## Active unrestricted proof gates
 
