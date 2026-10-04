@@ -59,7 +59,10 @@ Publication does not notify or resume a stopped goal.
   adding existential support to current inference or broadening current proofs.
   No data-existential syntax, elimination, generalization, solver-carrier, or
   runtime rule is selected; existing operation/request existential designs
-  remain separate. See the [Authoritative compatibility addendum](../notes/design/2026-10-04-existential-data-witness-compatibility.md).
+  remain separate. The user's `ref 'e 'a` / hidden `'b` example is recorded
+  there only as a representation candidate, including its illustrative read
+  and write paths; it does not select their typing or runtime rules. See the
+  [Authoritative compatibility addendum](../notes/design/2026-10-04-existential-data-witness-compatibility.md).
 
 The governing semantic sources are [concrete compatibility](../notes/design/2026-10-03-concrete-compatibility-boundary.md)
 and [callback context delivery](../notes/design/2026-10-03-callback-context-delivery.md).
