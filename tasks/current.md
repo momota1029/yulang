@@ -80,7 +80,7 @@ integer/name leaves and unannotated parameterized bindings map to finite
 This includes `id x = x` with `P=Value(A)`. Applications, callback call sites,
 and whole-carrier evidence remain unavailable in this HIR.
 
-## Latest structural main-gate result
+## Latest main-gate results
 
 [Two-sided constructor-bound regular completion](../notes/design/2026-10-04-preclosed-structural-regular-witness.md)
 now has an independently reviewed constructive proof and executable research
@@ -96,6 +96,21 @@ sources and not a rejection policy. One-sided/unbounded roots, effects,
 arbitrary guards, joint predicates, principality and full source adequacy
 remain open. Proof/review/check details are in
 [the structural progress record](../notes/progress/2026-10-04-preclosed-structural-witness-review.md).
+
+[Callback local abstraction](../notes/progress/2026-10-04-callback-local-abstraction-boundary.md)
+now proves an explicit endpoint-only erasure obstruction: source-adequate
+grounded ports for identity and a constant cannot both be inverted through
+the exact identity recipe on a fixed singleton argument relation. This
+refutes that factorization shortcut, not callback containment or current
+production semantics. A locally saturated integer-body relation, with its
+own result coordinate, gives a finite shared-generator lift for projected
+first-order observations and independently admitted histories. Full-root
+identity, latent values, higher-order inputs and identification with the
+actual finite endpoint remain open. Independent review found no blocking or
+major defect. The next production-bridge proof must locate each erased
+dependency in a source-owned local relation or retain it in the complete
+presentation; matching four ports alone does not supply exact source
+factorization.
 
 ## Active unrestricted proof gates
 

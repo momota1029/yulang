@@ -13,6 +13,13 @@ This index is a navigation aid. The listed source document remains authoritative
   source-checkable condition constructs fresh graphs beyond anchor selection;
   it does not cover one-sided/unbounded roots or full joint inference.
   `tools/check_preclosed_structural_witness.py` is a research checker only.
+- **Reviewed callback abstraction boundary:**
+  `notes/progress/2026-10-04-callback-local-abstraction-boundary.md` proves
+  that an endpoint-only interpretation can erase the value dependence needed
+  by exact source-recipe inversion. This is not a callback counterexample.
+  A finite locally saturated scalar generator has a projected first-order
+  lift with independent admission; complete-root observations, higher-order
+  behavior and the actual production endpoint bridge remain open.
 - **Closed source contract:** callback literal B constraint generation and
   B-equivalent A optimization are recorded in the Authoritative callback
   design, §2.1. The earlier expected-context, Handler-role, independent
