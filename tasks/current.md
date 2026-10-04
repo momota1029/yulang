@@ -95,9 +95,11 @@ and the required authority.
   from `StateSlotId` or introduce primitive heap mutation. See the
   source-state boundary in
   [concrete-compatibility-boundary.md](../notes/design/2026-10-03-concrete-compatibility-boundary.md).
-  The key discriminator is what a closure captured before an update reads
-  afterward; derive this from the intended State expansion before treating it
-  as a new user decision.
+  One same-invocation observation is already fixed by the stable-core fixture:
+  a `get` closure created before `r.update` later returns `"start!"`, not its
+  initial `"start"` capture. The general transition, distinct activations,
+  escape, and multi-shot resumption remain open; see
+  [local-State capture observation](../notes/progress/2026-10-04-local-state-capture-observation.md).
 - General first-class-reference/import realization, complete `EnvStore` /
   `JointWF`, source-wide acceptance/principality, and generalization/SCC
   lifecycle remain open. No implementation authorization follows from the
@@ -113,6 +115,7 @@ and the required authority.
 - [Ordinary computation semantics](../notes/design/2026-10-02-ordinary-computation-semantics-package.md)
 - [Value-entry bind/projection progress](../notes/progress/2026-10-04-value-entry-bind-projection.md)
 - [Callback policy and task-ledger compactification](../notes/progress/2026-10-04-callback-policy-and-task-compaction.md)
+- [Bounded local-State capture observation](../notes/progress/2026-10-04-local-state-capture-observation.md)
 - [Pre-compaction chronological task ledger](../notes/progress/2026-10-04-task-ledger-before-compaction.md)
 
 The archived ledger preserves prior investigation, counterexamples, reviewer
