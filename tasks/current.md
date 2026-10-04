@@ -128,6 +128,25 @@ dependency in a source-owned local relation or retain it in the complete
 presentation; matching four ports alone does not supply exact source
 factorization.
 
+The callback observation-boundary question is answered and consumed in
+[its receipt](../questions/2026-10-04-function-bound-value-observation/receipt.md):
+use typed observations that forget concrete data-value identity/correlation
+while retaining value types, typed events/requests, continuations, origins,
+and the existing `nu,K,D` relations. This makes the projected scalar local
+abstraction an eligible proof route, not a higher-order adequacy result. The
+answer does not approve compiler implementation or update the governing
+source design. An independent semantic review found the choice compatible
+with Theorem C's stronger exact-observation transport, since a common
+projection preserves its inclusion; it did not establish projection adequacy
+for higher-order endpoints. The next callback proof must certify the
+projection through latent descriptors, requests, resumed histories, and
+query-independent challenge admission while retaining joint scopes,
+authority-bearing evidence identities, and `nu,K,D`, then prove the domain
+sandwich, actual-bound realization for every endpoint-admitted observation,
+and checked-bound embedding. Compiler implementation remains unauthorized;
+the source theorem package is Reviewed and conditional, while production
+generation remains Draft.
+
 ## Active unrestricted proof gates
 
 **Callback adequacy proof search is complete; active gate is production design.**
@@ -378,8 +397,11 @@ remain in the linked progress records above and
   refutes regularizing one arbitrary solution by a descriptor-monoid meet:
   literal subtree meets break child coherence, while a coherent local
   head/mask fold removes a field required by the original bound. The package
-  itself has the regular witness `X=Y`, so FMP remains open; see the direct
-  record.
+  itself has the regular witness `X=Y`, so FMP remains open. A synchronized
+  local-signature representative fold also fails to preserve
+  `q=Fun(X,X)`'s shifted shared-root equation, despite that package already
+  having a regular witness; this refutes that reconstruction step only. The
+  direct record has the exact paths and independent review.
 - The standard guarded-BPA undecidability result does not directly settle
   this gate: it requires transparent parameter-changing recursive type
   constructors, which current type-declaration authority does not establish;

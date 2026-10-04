@@ -565,6 +565,32 @@ regular extension. It rules out deriving a finite-state bound by arbitrary
 intersection or descending refinement alone; the fixed-activation saturation
 construction's state count still depends on the supplied automata.
 
+### Synchronized-signature representative selection fails
+
+A direct attempt to repair representative folding by synchronizing each
+address's head/mask signature across all descriptor tracks also fails unless
+the fold preserves shifted descriptor sharing globally. Let `R(t)={f:t}` and
+use the package `q=Fun(X,X)` with free `X`, no inequalities, and the regular
+assignment `X=R^3(Int)`. Under root-first paths, descriptor transport prepends
+`arg`/`ret`, while tree descent appends `f`; hence
+`q(arg·w)=X(w)=q(ret·w)`. The local signatures
+`s=(X:R{f},q:absent)` occur at `f,ff`,
+`t=(X:absent,q:R{f})` at `arg,arg f,arg ff`, and
+`u=(X:absent,q:Int)` at `arg fff`. Choosing `f` for `s` and `arg ff` for `t`
+gives locally coherent transitions `δ_f(s)=s`, `δ_f(t)=u` and root
+transitions `δ_arg=δ_ret=t`. The independently folded tracks become
+`X'=μZ.{f:Z}` and `q'=Fun({f:Int},{f:Int})`, so
+`q'(arg f)=Int` but `X'(f)=μZ.{f:Z}`. This violates the exact shared-root
+equation even though each folded track is individually regular and locally
+coherent. The original package itself has the regular witness
+`X=R^3(Int)`; this rejects the stated representative-selection proof step,
+not the finite-model property. Explicit identity labels can repair this bad
+choice, but a general construction must prove simultaneous prefix/suffix
+compatibility for every shared root. Merely assuming such finite compatible
+choices restates the open theorem. An independent architect construction and
+compiler-referee delta review checked the path convention, signatures,
+transition failure, and regular witness; no theorem status changed.
+
 ## Work boundary
 
 These are findings about the unrestricted gates. Callback closure depends on
