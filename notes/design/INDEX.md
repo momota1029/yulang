@@ -137,12 +137,13 @@ This index is a navigation aid. The listed source document remains authoritative
   Neither result closes or refutes FMP.
   See the direct-main-gate progress record.
 - **Principal schemes:** the source-generated common-allowance theorem remains
-  open. Conditional on role-specific complete Function interfaces, the current
-  source rules do not yet map a scoped abstract effect component to the
-  complete correlated port view needed to define the fixed-fiber allowance
-  query; no counterexample or stronger uniform-quantifier obstruction is
-  established. The production callback endpoint crosswalk is a separate
-  earlier gate. See `notes/progress/2026-10-04-principal-scheme-acceptance-criteria.md`.
+  open. Source rules first need to construct role-indexed complete Function
+  views; conditional on that, they still need to interpret scoped abstract
+  effect allowances as correlated port views before fixed-fiber totality and
+  all-view factorization can be proved. Annotation/callback-context overlap is
+  unresolved. No counterexample or stronger uniform-quantifier obstruction is
+  established. The production callback endpoint crosswalk is separate. See
+  `notes/progress/2026-10-04-principal-scheme-acceptance-criteria.md`.
 - **Other open gates:** source State/reference bridge and global source
   acceptance/principality/lifecycle remain open; see `tasks/current.md` for
   the compact active summary and linked progress records for evidence/history.

@@ -234,18 +234,34 @@ above isolates only its totality clause.
 ### Direct attack on the principal common-allowance theorem (2026-10-04)
 
 A direct Astra attack and independent compiler-referee audit did not prove
-fiber-total representability or find a source counterexample. They localize a
-specific missing definition **within the allowance-extension proof, assuming
-role-specific complete Function interfaces have already been generated**:
-source rules do not yet interpret a scoped abstract effect component as a
-complete correlated port view, including its checked challenge domain. Without
-that, the complete checked endpoint `B_i(s,a)` required to define `Qξ(s,a)`
-is not source-defined, so the total-extension obligation
-`∀s ∈ Sξ. ∃a. Qξ(s,a)` cannot currently be discharged. The missing interpretation
-is explicitly recorded in [concrete compatibility](../design/2026-10-03-concrete-compatibility-boundary.md)
-§7; §8 makes clear that source role and complete interface elaboration precede
-port interpretation. This is not the earliest global gate: production callback
-endpoint realization remains a separate, earlier crosswalk obligation.
+fiber-total representability or find a source counterexample. The principal
+extension has two ordered source-definition dependencies:
+
+1. **Role-indexed complete interface construction is itself missing.** The
+   source decisions fix receiver-role selection before body generation, and
+   Core §6 constructs the parameter/body/result skeleton. But the source rules
+   do not yet construct the complete Function view from the literal, its
+   annotation or expected callback boundary, `P`, and `Result(I_body)`, with
+   the corresponding challenge domain, typed paths, and joint observation
+   bound. Core §9 gives the semantic execution relation and conditional
+   comparison law, while leaving its finite complete-interface construction
+   open. The annotation/callback-context overlap also has no selected rule.
+2. **Conditional on those complete interfaces, the allowance extension still
+   lacks its port interpretation.** Source rules do not yet interpret a
+   scoped abstract effect component as a complete correlated port view,
+   including its checked challenge domain. Without that, the complete checked
+   endpoint `B_i(s,a)` required to define `Qξ(s,a)` is not source-defined, so
+   `∀s ∈ Sξ. ∃a. Qξ(s,a)` cannot currently be discharged.
+
+The component-first rejection and role-first order are in
+[concrete compatibility](../design/2026-10-03-concrete-compatibility-boundary.md)
+§1, “Role-first source elaboration precedes component interpretation”; the
+source clarification and complete-interface obligations are in §§7–8. These
+are definition gaps, not a counterexample or evidence that another carrier is
+needed. This
+principal-inference sequence is also distinct from the production Pure-value
+callback endpoint-realization crosswalk, which remains an earlier blocker for
+that callback theorem.
 
 Principality additionally requires `∀V. ∃m_V` for valid public views. The
 stronger uniform quantifier orders `∃P. ∀ξ` and `∃m. ∀V` are not established

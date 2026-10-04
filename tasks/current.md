@@ -231,16 +231,17 @@ caller-owned observations in the complete `f` call along
 unproved; details are in the contributor-bound attempt.
 An architect cross-check found no counterexample among the seven accepted
 schemes and no demonstrated missing carrier. A direct Astra theorem attack,
-independently reviewed by a compiler referee, localized the missing definition
-within the principal-extension proof: after role-specific complete interfaces
-are available, source rules still do not interpret a scoped abstract effect
-component as a complete correlated port view and challenge domain. Thus the
-complete checked endpoint needed to define the fixed-fiber `Qξ(s,a)` is not
-source-defined, and `∀s∈Sξ. ∃a. Qξ(s,a)` is not proved. This is not a global
-earlier gate; production callback endpoint realization remains separate. The
-same audit confirms that principal factorization requires `∀V. ∃m_V`; it does
-not establish stronger uniform quantifier orders as obstructions or find a
-counterexample. Full evidence and scope qualifications are in the
+independently reviewed by a compiler referee and architect, distinguishes the
+ordered source-definition gaps: source rules still need to construct a complete
+role-indexed Function view from the literal, annotation/expected boundary,
+`P`, and `Result(I_body)`; only then can the abstract effect allowance be
+interpreted as a correlated complete port view and fixed-fiber `Qξ(s,a)` be
+defined. Thus `∀s∈Sξ. ∃a. Qξ(s,a)` is not proved. Annotation/callback-context
+overlap remains unspecified. This is separate from the production callback
+endpoint-realization crosswalk. Principal factorization requires
+`∀V. ∃m_V`; the audits did not establish stronger uniform quantifier orders as
+obstructions or find a counterexample. Full evidence and scope qualifications
+are in the
 [principal scheme criteria](../notes/progress/2026-10-04-principal-scheme-acceptance-criteria.md).
 The latest user clarification accepts `Top -> int` for `zero`, with `any` as
 the surface notation, superseding the earlier `'a -> int` criterion. The prior
