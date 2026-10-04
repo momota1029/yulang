@@ -85,12 +85,14 @@ bound leaf. This syntactic endpoint-identity restriction gives domain equality
 without assuming the target inclusion. Under that check, a finite-history
 induction proves observation-bound inclusion for the bounded first-order
 Value-entry callback fragment. Its minimality is unproved, and the shared
-argument endpoint deliberately excludes variance/adaptation cases. The separate
-source-generation theorem is currently underdetermined: authoritative B does
-not specify the endpoint-emission rule after step 5, and typed-core §9 defines
-the semantic `J_call` image without identifying it as the generated finite
-endpoint. This is not a Yulang counterexample or a semantic choice; the gate
-remains open pending that source rule and its all-bound-successor proof.
+argument endpoint deliberately excludes variance/adaptation cases. Source
+operational graph generation is specified in typed-core §9: it links
+entry/bind/body/result-consumer constructors per callable and shares recursive
+nodes. What remains underdetermined is the bridge from that operational graph
+to B's finite inference endpoint; B leaves step 6 open and §9 does not identify
+`J_call` with that endpoint. This is not a Yulang counterexample or a semantic
+choice; the gate remains open pending the finite abstraction rule and its
+all-bound-successor proof.
 An attempted source-checkable constructor condition (compose only existing
 entry/body/result segments, with no independent call-bound leaf) is not yet
 sufficient: conservative slack on segment bounds still requires a proved

@@ -83,6 +83,19 @@ Function theorem.
 
 ## Separate source-generation result
 
+There are two generators here and they must not be conflated. Typed-core §9
+does give a source-level **operational graph** construction: for every
+resolved ordinary core callable, allocate its carrier port and link the
+actual entry, bind, body, result consumer, and return delimiters; recursive
+references reuse graph nodes. The ordinary source code graph therefore has
+the constructor shape needed for the operational bind argument. This proves
+the source operational-graph shape property, not finite endpoint generation.
+
+It does not prove that the finite **inference endpoint** has that shape or
+bounds the operational graph. §9 explicitly leaves the symbolic complete
+image as an inference obligation. The conditional theorem above concerns
+that finite endpoint, so the operational graph theorem cannot discharge it.
+
 The authoritative B contract does **not currently entail CERR**. B requires
 independent parameter/body/result synthesis and one final `F_lit <: F_cb`,
 but callback design §2.1 step 6 leaves formation of the completed interface
@@ -92,19 +105,22 @@ finite presentation for every caller. Source-interface-adequacy §4 proves
 bind lifting for a supplied adequate interface; it does not identify the
 syntax-generated endpoint with that interface.
 
-This is an underdetermination theorem about the current written generation
-contract: a generator completion that builds the endpoint from the listed
-bind constructors can satisfy CERR; a completion that independently adds a
-conservative complete-call bound leaf still satisfies B's stated endpoint
-independence and final inequality ordering, but can admit an observation
-without segment factorization. The current documents specify neither
-completion. Therefore no theorem that complete Yulang generation satisfies
+This is an underdetermination theorem about the finite endpoint-generation
+contract: a finite abstraction that maps the operational links to the same
+entry/rebind/body/result constructors and preserves their joint bound can
+satisfy CERR; a completion that independently adds a conservative
+complete-call bound leaf still satisfies B's stated endpoint independence
+and final inequality ordering, but can admit an observation without segment
+factorization. The current documents specify neither finite abstraction.
+Therefore no theorem that the finite Yulang inference endpoint satisfies
 CERR follows yet, and no Yulang source counterexample follows either.
 
-The exact unresolved item is the endpoint-emission rule after B step 5: it
-must define a finite constructor recipe for step 6 and prove its all-bound-
-successor closure. This is a missing source rule/premise, not a user semantic
-choice and not a reason to add new evidence machinery. Until that rule is
-specified, the Pure-value callback/Function adequacy gate remains open.
+The exact unresolved item is the bridge from the §9 operational graph to
+the finite endpoint emitted after B step 5. Its step-6 rule must define the
+existing-constructor abstraction and establish local typed closure for every
+bound-permitted successor. This is a missing finite-generation rule/premise,
+not a user semantic choice and not a reason to add new evidence machinery.
+Until that bridge is proved, the Pure-value callback/Function adequacy gate
+remains open.
 
 No code, tests, or semantic authority changed.
