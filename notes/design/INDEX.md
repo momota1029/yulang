@@ -20,8 +20,11 @@ This index is a navigation aid. The listed source document remains authoritative
 - **Structural gate:** the finite residual presentation, regular-witness
   decidability, and principal/effective projection remain distinct. The exact
   open existence theorem is regular completion with descriptor prefix shifts
-  and conditional variance-aware suffix descent. The direct MSO route fails;
-  no undecidability result follows. See the direct-main-gate progress record.
+  and conditional variance-aware suffix descent. The direct MSO route fails.
+  The standard guarded-BPA undecidability reduction does not transfer without
+  transparent parameter-changing recursive type constructors; this does not
+  settle regular completion or rule out another reduction. See the
+  direct-main-gate progress record.
 - **Other open gates:** source State/reference bridge and global source
   acceptance/principality/lifecycle remain open; see `tasks/current.md` for
   the compact active summary and linked progress records for evidence/history.

@@ -84,6 +84,11 @@ not close the bound gap, and no carrier or semantic choice follows.
   [root-only result](../notes/progress/2026-10-04-root-only-regular-witness.md),
   [queue probes](../notes/progress/2026-10-04-fixed-descriptor-queue-encoding.md),
   and [direct main-gate attacks](../notes/progress/2026-10-04-direct-main-gate-attacks.md).
+- The standard guarded-BPA undecidability result does not directly settle
+  this gate: it requires transparent parameter-changing recursive type
+  constructors, which current type-declaration authority does not establish;
+  its constructed unfolding can be non-regular. This rules out that transfer,
+  not the open regular-completion theorem or other reductions.
 - **Source State/reference bridge:** derive dynamic ownership, read/update
   replacement, captured access, and repeated resumption; the `start!` fixture
   fixes only one observation:

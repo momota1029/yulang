@@ -120,12 +120,38 @@ solutions unless it separately proves recursive source-image preservation.
 See [Niehren, Priesnitz, and Su, *Complexity of Subtype Satisfiability over
 Posets*, §§2, 4.1, 5](https://www.cs.ucdavis.edu/~su/publications/esop05.pdf).
 
+A direct transfer of the known guarded-BPA undecidability reduction also fails
+at a precise premise. DeYoung et al. encode a BPA process by transparent,
+parameterized recursive constructor families `t_X[α]`, whose recursive calls
+transform the continuation argument; their reduction is stated in §2.3.2 and
+Theorem 2.1 of [*Parametric Subtyping for Structural Parametric
+Polymorphism*](https://ankushdas.github.io/docs/popl24.pdf). Yulang's scoped
+regular fragment instead assigns finite regular graphs to finitely many free
+classes; a recursive scheme bound is a binder reference with one lower/upper
+pair, not a type-level operator that is re-applied to a changed argument.
+The inspected type-declaration authority defers alias/nominal semantics and
+does not authorize transparent parameter-changing recursion.
+
+This difference is substantive: for the guarded equations `X = a·X·Y + b·ε`
+and `Y = c·ε`, the paper's construction gives
+`t_X[α] = {a: t_X[t_Y[α]], b: α}` and
+`t_Y[α] = {c: α}`. In `t_X[{}]`, the subtree after `a^n` has a `b` child
+consisting of exactly an `n`-long `c` chain. These subtrees are pairwise
+non-bisimilar, so this constructed unfolding has no finite regular graph
+presentation. This validates the missing-premise distinction; it is not a
+Yulang counterexample and does not exclude a separate reduction directly into
+finite regular constraints.
+
 Finite constrained residual presentation, regular-witness existence, and
 principal/effective projection of the full solution fiber remain distinct
 claims. The first is covered by existing scoped residual work; neither a
 single witness nor that presentation proves the latter two. Existing bounded
 Record saturation remains within its stated scope. No queue-machine candidate
-is advanced here.
+is advanced here. The current structural gate is therefore still the
+simultaneous regular-completion theorem, not an undecidability result. For the
+literature reduction specifically, the exact absent premise is transparent
+parameter-changing recursive type constructors; admitting that premise would
+expand language authority rather than follow from regular graph recursion.
 
 ## Work boundary
 
