@@ -94,6 +94,18 @@ that it preserves the full solution family under SCC/environment closure,
 instantiation, and generalization; it does not decide how other one-sided
 internal components normalize.
 
+The representation itself is not a blocker. Code inspection of
+`yu-types::ClosedTypeFinalizer` and the normal F5 scheme-use path confirms that
+`Q=[q0]` with the only occurrence `q0` in a negative Function argument can be
+finalized and instantiated: finalization validates an in-range negative Q
+reference without requiring positive incidence, and each declared Q receives
+one fresh value variable that the negative occurrence resolves through the
+same substitution. This proves carrier and path capability only. It does not
+change F5's current negative-only elimination rule or establish successor
+solution preservation/principality. The remaining zero-specific proof point
+is therefore the source-owned generalizer's Q eligibility, not a new type
+carrier or instantiation mechanism.
+
 ## Frozen Oracle characterization
 
 Oracle at `a58eefc31e22141574b6f20c6a5748151c6d79f1` confirms the displayed

@@ -198,7 +198,10 @@ criteria record's boundary-quantification gate. The `id`/`zero` pair also
 rules out a generalizer that quantifies only bipolar components. The current
 candidate is source-owned public-argument reachability independent of body
 polarity, with original constraints retained; SCC/environment preservation is
-still open.
+still open. The existing closed-scheme carrier and instantiator can represent a
+negative-only Q without new machinery; only F5's generalizer currently
+eliminates that case. The exact evidence and scope are recorded in the
+criteria's boundary-quantification gate.
 
 Historical callback adequacy exploration and its earlier gate descriptions
 remain in the linked progress records above and
