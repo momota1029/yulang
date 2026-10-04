@@ -112,8 +112,9 @@ and the required authority.
   escape, and multi-shot resumption remain open. A separate two-slot fixture
   expects independent updates `(11, 21)`, without covering repeated activation
   identity. Frozen Oracle inspection adds only a characterization of
-  `ref.update` continuation flow and `var_ref` State get/set expansion; the
-  successor State/restart derivation remains open. See
+  `ref.update` continuation flow; its `var_ref` State-backed implementation
+  is separate from the custom-ref local-buffer fixture. The successor
+  State/restart derivation remains open. See
   [local-State capture observation](../notes/progress/2026-10-04-local-state-capture-observation.md).
 - General first-class-reference/import realization, complete `EnvStore` /
   `JointWF`, source-wide acceptance/principality, and generalization/SCC

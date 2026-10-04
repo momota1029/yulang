@@ -57,19 +57,21 @@ a58eefc31e22141574b6f20c6a5748151c6d79f1 found the public implementation in
 and passes its result to the saved continuation before looping. The `var_ref`
 constructor connects `get` and `set` to the State operations and builds
 `update_effect` as `set:ref_update::update:get()`. The frozen runtime fixture
-is the same captured-buffer example summarized above.
+is a distinct custom `ref` record: its `get` closure reads `$buffer`, and its
+`update_effect` closure evaluates `&buffer = ref_update::update $buffer`.
+That fixture does **not** call `var_ref`; `var_ref` is a separate State-backed
+implementation in the same library file.
 
 This source adds the concrete library-control-flow shape behind that one
 Oracle path. It is implementation characterization only: neither the
 `loop:k:f v` structure nor the operation-handler decomposition is adopted as a
-general successor rule. It identifies the source proof seam in the fixture:
-callback return data passes through a pending update continuation to the
-State `set` operation, while the fixture requires the later captured read to
-return the replacement. The successor derivation must still show how
-`&buffer = value`'s pure continuation restart composes with the State handler's
-resumption under that replacement. The stable-core expected output
-independently fixes the final `start!` observation; this inspection did not
-run the fixture.
+general successor rule. For the fixture, the callback result flows through
+the saved continuation into the local `&buffer = ...` assignment; the
+separate `var_ref` State `set` handler is not on this execution path. The
+successor derivation must show how that assignment's pure continuation
+restart composes with callback resumption and how the captured `get` later
+reads the replacement. The stable-core expected output independently fixes
+the final `start!` observation; this inspection did not run the fixture.
 
 For the callback literal at `r.update (\old -> old + "!")`, the successor
 contract remains the approved role-first rule: the known callback context
@@ -80,10 +82,11 @@ separate from adapting an already constructed Pure value. The Oracle body does
 not prove that Pure-value inequality.
 
 The inspected expansion still does not give successor equations for dynamic
-State ownership, distinct activations, escaped captures, or multi-shot
-resumption. It also does not construct whole-carrier admission or prove either
-Function-domain inclusion. The next bounded proof remains the same-invocation
-fixture derivation: connect the callback's returned value to the State
-replacement across the two selected continuation mechanisms, then derive the
-later captured read from the State source clauses. Keep raw callback
-resumption and State restart as distinct transitions.
+local-slot ownership, distinct activations, escaped captures, or multi-shot
+resumption. The separate `var_ref` body cannot fill that gap for the custom
+record in the fixture. The expansion also does not construct whole-carrier
+admission or prove either Function-domain inclusion. The next bounded proof
+remains the same-invocation fixture derivation: connect callback resumption to
+the local assignment's replacement and derive the later captured read from
+the selected State source clauses. Keep raw callback resumption and State
+restart as distinct transitions.
