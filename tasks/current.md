@@ -134,6 +134,9 @@ lowerer rejects non-leaf `Apply` expressions. It therefore does not yet emit
 Theorem C's call/bind/request derivation graph. The exact source-shape audit
 and next bridge obligations are in
 [HIR/source-core boundary](../notes/progress/2026-10-04-hir-source-core-boundary.md).
+The bounded `host (\x -> x)` source is also characterized at the current CST
+boundary: the expression parser emits Error tokens for `\`, `-`, and `>` under
+an empty operator table, before an inline lambda reaches HIR.
 The HIR-to-core bridge now closes for its monomorphic pure-value fragment:
 integer/name leaves and unannotated parameterized bindings map to finite
 `literal`/`name`/`lambda(P,result(body))` derivations under a fixed `Gamma`.

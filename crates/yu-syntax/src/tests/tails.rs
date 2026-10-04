@@ -1,4 +1,35 @@
 use crate::tests::support::*;
+
+#[test]
+fn research_unary_callback_lambda_header_currently_falls_back_to_errors() {
+    let (green, _) = run(r"host (\x -> x)");
+    let root = SyntaxNode::new_root(green);
+    let errors = root
+        .descendants_with_tokens()
+        .filter_map(|element| element.into_token())
+        .filter(|token| token.kind() == SyntaxKind::Error)
+        .map(|token| token.text().to_owned())
+        .collect::<Vec<_>>();
+    let identifiers = root
+        .descendants_with_tokens()
+        .filter_map(|element| element.into_token())
+        .filter(|token| token.kind() == SyntaxKind::Identifier)
+        .map(|token| token.text().to_owned())
+        .collect::<Vec<_>>();
+
+    // Research characterization only: this records the current parser gap,
+    // not the accepted source behavior for callback literals.
+    assert_eq!(errors, [r"\", "-", ">"]);
+    assert_eq!(identifiers, ["host", "x", "x"]);
+    assert!(
+        root.descendants()
+            .any(|node| node.kind() == SyntaxKind::MlArgument)
+    );
+    assert!(
+        root.descendants()
+            .any(|node| node.kind() == SyntaxKind::ParenthesizedExpression)
+    );
+}
 use crate::{
     ambient_claim::AmbientClaimView,
     handoff::MlMode,

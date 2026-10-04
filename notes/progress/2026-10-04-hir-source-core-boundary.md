@@ -85,3 +85,22 @@ HIR boundary.
 
 No compiler code or tests changed/run. `git diff --check` is the only check
 required for this record-only update.
+
+## 2026-10-05 raw callback-lambda parser probe
+
+A test-only CST characterization now runs the bounded source spelling
+`host (\x -> x)` through the current expression parser with an empty operator
+table. It produces an `MlArgument` containing a parenthesized expression, but
+the purported lambda opener is not recognized: the error tokens are exactly
+`\`, `-`, and `>`, while `x` is parsed as ordinary identifiers. The retained
+probe is
+[`research_unary_callback_lambda_header_currently_falls_back_to_errors`](../../crates/yu-syntax/src/tests/tails.rs).
+
+This narrows the raw-to-HIR gap to a concrete starting point: the current
+parser does not produce the selected unary lambda header under this ordinary
+operator environment, before the lowerer's already-known non-leaf Apply
+rejection is reached. It characterizes present behavior only; it does not
+change the accepted source contract or specify malformed-header recovery.
+The focused test passes. Full-file/header operator interactions and the
+subsequent Apply/HIR lowering remain untested, and no production parser or HIR
+behavior changed.
