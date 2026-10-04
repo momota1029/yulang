@@ -708,6 +708,16 @@ remain in the linked progress records above and
   shifted descriptors and variance/width-directed descent. The finite
   constrained residual presentation, principal/effective projection and
   production source/effect correspondence remain distinct obligations.
+  An isolated finite checker now compares direct structural satisfaction with
+  open-head residual normalization over 2,025 endpoint pairs (1,800 contain
+  variables), then carries 2,048 generated joint packages and supplied finite
+  `Phi` relations through exact solution and coordinate-projection checks.
+  Its shrunk wrong-variance mutant confirms sensitivity to Function
+  contravariance. This is acyclic bounded characterization only; recursive
+  residual SCCs, interpreted scope guards and `nu,K,D`, structural projection,
+  source-context finiteness, effective principal projection and production
+  acceptance remain open. See the
+  [residual-factorization playground](../notes/progress/2026-10-05-residual-factorization-playground.md).
   The direct MSO route is still invalid, and standard ranked exact-shape
   subtyping does not directly encode mandatory Record width. Historical
   bounded results and failed scoped encodings are recorded in
