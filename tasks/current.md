@@ -63,8 +63,11 @@ by the actual endpoint bound factors through the existing argument/body/result
 composition and linked view. The exact missing bound premise and its minimal
 logical countermodel are in
 [direct main-gate attacks](../notes/progress/2026-10-04-direct-main-gate-attacks.md).
-This is not a Yulang program counterexample, State exclusion does not close
-the bound gap, and no carrier or semantic choice follows.
+The source reference `Sem` is already the exact collecting relation; endpoint
+presentations `P_i` may conservatively cover it. The missing proof concerns
+factorization of that presentation's full bound, not choosing a new meaning
+for `Sem`. This is not a Yulang program counterexample, State exclusion does
+not close the bound gap, and no carrier or semantic choice follows.
 
 **Other open gates:**
 

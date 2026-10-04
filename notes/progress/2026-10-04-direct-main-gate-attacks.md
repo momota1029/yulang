@@ -28,6 +28,13 @@ execution transport:  Sem_actual(d) corresponds to checked execution
 required conclusion:  P_actual(d) ⊆ P_checked(d)
 ```
 
+The source reference remains the exact collecting relation `Sem` defined by
+the source-interface adequacy draft. `P_actual` and `P_checked` are endpoint
+presentations whose denotations may conservatively cover `Sem`; exactness is
+not a separate language-semantic choice here. The unresolved obligation is to
+factor the denotation of the actual endpoint presentation, including its
+permitted slack, through the linked checked view.
+
 The minimal logical countermodel to the execution-only inference has one
 challenge, an execution returning `0`, an actual bound admitting `{0,1}`, and
 a checked bound admitting only `{0}`. Both bounds contain the execution, but
