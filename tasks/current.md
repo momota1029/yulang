@@ -53,6 +53,13 @@ Publication does not notify or resume a stopped goal.
   endpoint assignment/equality is invalid.
 - **Existing Pure callback value:** preserve its actual role and §21 entry; a
   callback slot supplies a typed invocation view without rewriting the value.
+- **Cross-edit inference lifecycle:** intrusion, variable-level, bound, and SCC
+  internal state need not reverse-update across edits; a changed inference
+  component may be rebuilt. Downstream inference invalidation may stop only
+  when the complete generalized canonical interface is unchanged. Interface
+  fields/equality, component boundaries, and non-inference artifact invalidation
+  remain open. This adds no implementation authority. See the
+  [Authoritative rebuild-boundary addendum](../notes/design/2026-10-04-scc-intrusion-cross-edit-rebuild-addendum.md).
 - **Future data existential compatibility:** constructor/package internals may
   hide witness types with existential packaging; they need not all become
   public data parameters. This constrains future representation choices without
