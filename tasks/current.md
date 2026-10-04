@@ -173,6 +173,12 @@ candidate; its sort-specific paths and explicit same-fiber totality obligation
 are recorded in
 [the contributor-bound attempt](../notes/progress/2026-10-04-principal-contributor-bound-theorem.md).
 It establishes no source-to-endpoint rule and no implementation authority.
+An architect cross-check found no counterexample among the seven accepted
+schemes and no demonstrated missing carrier. Their per-example evidence and
+remaining proof parts are now listed in the criteria record. The smallest
+shared open premise remains a source-generated principal common-allowance
+extension over each full `ν,K,D` solution fiber, followed by factorization of
+every valid public view through generalization.
 
 Historical callback adequacy exploration and its earlier gate descriptions
 remain in the linked progress records above and

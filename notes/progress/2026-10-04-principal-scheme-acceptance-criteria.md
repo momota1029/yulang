@@ -88,6 +88,31 @@ concrete endpoint resolution, and generalization. In particular, branch or
 staged-call effects may share a principal public allowance without treating
 successful concrete comparisons as transitive or equating evidence owners.
 
+## Current design cross-check
+
+The active proposal was audited against each acceptance example. The audit found
+no counterexample to the requested schemes, but did not establish their
+derivation:
+
+| Example | Evidence already available | Unclosed part |
+|---|---|---|
+| `id` | Production value skeleton points the Function argument and result to the same live parameter endpoint. | Coupled effect interface and principal generalization. |
+| `zero` | Production value skeleton leaves the parameter free and fixes the literal result to `Int`. | Successor generalization must expose the free parameter as `'a` without a value refinement; full interface principality. |
+| `call` | Frozen Oracle characterizes the displayed scheme; source candidate routes the invocation through the common output port. | Source-to-complete-interface generation and principal factorization. |
+| `compose` | The expected scheme and no-unwitnessed-subtraction condition are explicit. | Transport of `g`'s intermediate value through `f`'s argument entry while its effect remains in the outward allowance, with one complete correlated interface. |
+| `twice` | Covariant rows are intended to be flat support, so repeated support is not multiplicity. | Preserve both occurrence paths and sequential continuation while proving one principal allowance. |
+| `choose` | Branch views may both fit one allowance while remaining unequal (`{Read}` and `{Write}` into `{Read,Write}`). | Source-generated common allowance and its principal factorization; raw equality merging is invalid. |
+| `higher` | Function stages and their evidence remain separate in the coupled-interface proposal. | Prove the shared public `e` factors through both stage views while preserving the intermediate returned Function dependency. |
+
+This audit uses the user's schemes as acceptance criteria. Frozen Oracle output is
+characterization only. It found no missing carrier: `Rel_C`, shared `ν,K,D`,
+source occurrences/incidence, typed paths, existing subtraction evidence, and
+generalization remain the required proof vocabulary, but their sufficiency for
+the complete principal extension is unverified. The exact open premise is the
+source-generated principal common-allowance extension stated below, not another
+per-example rule. The cross-check is recorded in
+[the contributor-bound proof attempt](2026-10-04-principal-contributor-bound-theorem.md).
+
 ## Common-allowance factorization gate
 
 The shared effect variables in these criteria are public common allowances,
