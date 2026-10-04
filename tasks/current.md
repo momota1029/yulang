@@ -404,7 +404,12 @@ remain in the linked progress records above and
   suffix descent, and all coherence, activation, and permission clauses.
   Regular solutions give such quotients and quotient models lift back to
   regular solutions, but the finite-model property is unproved and has no
-  counterexample. Finite quotient enumeration plus finite Horn-conflict
+  counterexample. A direct `lambda x. x x` attack refutes one shortcut for
+  extending the two-sided witness construction: a variance-generated child
+  with one empty anchor side cannot be defaulted independently to empty Record.
+  The source package remains regularly satisfiable, so the FMP gate is
+  unchanged; details are in the direct main-gate record. Finite quotient
+  enumeration plus finite Horn-conflict
   witnesses decides regular satisfiability only if this property holds; see
   the exact statement in the direct main-gate record. An independent
   meet-closure theorem rules out aperiodic Wang reductions whose same-package

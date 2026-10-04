@@ -534,6 +534,36 @@ missing-premise localization, not a theorem or counterexample. The next
 structural proof action is confined to proving this reflection or constructing
 the one fixed counterexample; no new carrier or encoding candidate is added.
 
+### Direct one-sided-state completion attempt (2026-10-04)
+
+An attempt to extend the reviewed two-sided constructor-bound witness by
+defaulting a child state with no constructor-bound anchors to empty Record
+fails on the source-generated pure structural package
+
+```text
+q = Function(X,R)
+X <: q.
+```
+
+This package is the `lambda x. x x` structural shadow in the source generator
+([source-generated theorem package](../design/2026-10-04-source-generated-callback-structural-theorems.md),
+§§2 and 8.1). In the pair-state construction, the root has
+`L({X}) = ∅`, `U({X}) = {q}`. Function contravariance creates the child state
+`gamma({X},∅)`. Treating that state as unconstrained and choosing empty Record
+produces `X = Function(E,E)` and `q = Function(X,E)`, but the original bound
+then requires `X <: E`, a Function-to-Record head conflict. Exact shifted
+descriptor equations are preserved by this bad assignment; variance-driven
+activation is what exposes the conflict.
+
+The package itself has the regular satisfying witness `X=q=μZ.Function(Z,E)`
+and `R=E`. Thus this refutes only the premise that an empty side of the
+two-sided state permits an independent default. It is not a counterexample to
+regular completion or finite-model property. The next theorem still requires
+conflict reflection for one fixed address package; any valid construction
+must retain the shared endpoint relation through one-sided variance children.
+No new encoding, carrier, or semantic rule is introduced by this failed
+attempt.
+
 A direct attempt to use the information meet to construct that quotient fails
 on a small exact package. Let `F` be Function, `E={}`, `i=Int`,
 `R={f:i}`, and impose
