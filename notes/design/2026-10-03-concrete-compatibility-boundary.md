@@ -1908,3 +1908,50 @@ outside this subgate. Status: unapproved architecture candidate; no
 implementation authority. The immutable location for declared source
 interfaces, source annotation elaboration, and the member/import lookup path
 remain unresolved.
+
+## 9. User-directed mixed effect-row fragment (2026-10-05)
+
+The user selected the following polarity-sensitive mixed-row fragment; it is
+not a complete Function signature. The handoff and its exact scope are
+recorded in the
+[approved effect-row answer](../../questions/2026-10-05-function-effect-row-denotation/receipt.md):
+
+```text
+contravariant row: ['e, write int]
+covariant allowance: ['e, write int]
+deep-handler shared covariant component after targeted removal:
+  'e without the attached write int contribution
+```
+
+For this fragment, the covariant `['e, write int]` is an allowance for the
+shared abstract effect component `'e` together with the concrete `write int`
+contribution. The shared `'e` is also present in the contravariant row. This
+is not an unconditional row-union law for all descriptors, nor does it
+identify events solely by family support.
+
+In the contravariant position, a matching `write 'a` contribution contained
+in `'e` must satisfy compatibility with the concrete `write int`; the user's
+example constraint is `int <: 'a`. This example does not establish a general
+variance rule for every operation family or payload argument.
+
+For this illustrated **deep-handler** case, the covariant occurrence of the
+shared `'e` carries the effect after the targeted `write int` contribution
+has been removed. Removal is justified only by the existing source-owned
+request, continuation, path, attachment and complete-handler-image evidence
+for that contribution. It does not mean deleting every `write int` event by
+family name. The primitive handler remains shallow: its raw resumed suffix
+runs outside the selected activation. The existing derived deep form
+recursively reapplies shallow handling around the resumed continuation as
+specified in ordinary computation semantics §5. Selector and arm effects,
+re-emissions, latent results and later uses remain part of the complete image;
+the full expansion must justify the particular removal.
+
+This scoped user decision does not define all mixed-row membership or
+annotation-to-port occurrence rules. It does not close complete-image
+preservation, source-to-`Rel_C` correspondence, soundness, principality, or
+the source-generated Function endpoint bridge. The tentative shallow-handler
+principal type in the approved answer remains a conjecture, not a selected
+rule. The `A <: B` solver remains the single endpoint-dependent inequality
+solver; concrete successes are not made transitive. The answer selects no
+parser spelling, general family-argument variance, algorithm, solver carrier,
+or compiler implementation.

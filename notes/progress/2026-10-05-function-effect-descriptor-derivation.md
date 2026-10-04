@@ -99,3 +99,24 @@ checked containment theorem on the same complete fiber.
 No production implementation, broad tests, builds, or Oracle investigation
 were performed for this focused derivation. The bounded checker above is
 research-only.
+
+## Approved polarity-sensitive row decision (2026-10-05)
+
+The user later approved a bounded mixed-row meaning in the local question
+handoff: covariant `['e, write int]` allows shared `'e` plus the concrete
+contribution when `'e` is also contravariant; contravariant matching of
+`write 'a` against the concrete item carries the supplied example constraint
+`int <: 'a`; and the illustrated deep-handler output carries `'e` with only
+the targeted `write int` contribution removed. This does not settle the
+comparison-independent component-membership rule or identify family support
+with event identity. A removal still has to be justified by attachment and
+the complete deep-handler image; a shallow raw resumption may expose another
+same-family event. The suggested shallow-handler principal type remains
+tentative. The exact scope and approval provenance are in the
+[question receipt](../../questions/2026-10-05-function-effect-row-denotation/receipt.md)
+and the user-directed
+[compatibility addendum](../design/2026-10-03-concrete-compatibility-boundary.md#9-user-directed-mixed-effect-row-fragment-2026-10-05).
+Independent architecture, specification, and semantic review required the
+fragment's scope and complete-image limits to remain explicit; those limits
+are recorded here and in the design addendum. No implementation authority or
+new carrier follows.

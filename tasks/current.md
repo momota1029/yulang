@@ -45,6 +45,17 @@ Publication does not notify or resume a stopped goal.
   independently-subtyped Types. Covariant rows are canonical flat forms;
   contravariant concrete-bearing descriptors retain only structure needed for
   witnessed partial reverse addition using existing subtraction evidence.
+  The newly approved mixed-row fragment distinguishes the two polarities:
+  `['e, write int]` covariantly allows the shared `'e` (also contravariant)
+  together with `write int`; contravariantly, a matching `write 'a` in `'e`
+  must satisfy the supplied compatibility example `int <: 'a`; for this
+  deep-handler case the shared covariant `'e` excludes only the targeted,
+  source-witnessed `write int` contribution. This does not license
+  family-wide deletion or define all row membership. The shallow-handler
+  principal type remains tentative; evidence mapping, complete-image
+  preservation, soundness, principality, and implementation remain open. See
+  the [approved handoff receipt](../questions/2026-10-05-function-effect-row-denotation/receipt.md)
+  and [compatibility addendum](../notes/design/2026-10-03-concrete-compatibility-boundary.md#9-user-directed-mixed-effect-row-fragment-2026-10-05).
   `never`, `Any`, empty rows, and polarized solver bounds remain distinct.
 - **Callback literal:** B is the normative/reference constraint generation:
   expected context selects Handler/boundary before body generation, endpoints

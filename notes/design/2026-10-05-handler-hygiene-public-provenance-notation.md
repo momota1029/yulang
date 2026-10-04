@@ -74,6 +74,16 @@ the intended authority cutoff at the result position easier to state. This
 comparison is about candidate readings only; neither spelling has selected
 semantics.
 
+The user has separately selected a polarity-sensitive mixed-row fragment for
+a deep handler: the shared abstract component may appear contravariantly and
+covariantly, with the targeted concrete contribution removed at the shared
+covariant position when the complete source image and attachment evidence
+justify it. That decision is recorded in the
+[concrete-compatibility addendum](2026-10-03-concrete-compatibility-boundary.md#9-user-directed-mixed-effect-row-fragment-2026-10-05).
+It does not select `'e?`, define its optional-edge quantifier, or prove that
+this spelling projects that mixed-row relation. The tentative shallow-handler
+scheme remains only a candidate.
+
 ## Small-step / relational interpretation candidate
 
 The following is one candidate relation for discussing the notation. It is
@@ -220,6 +230,12 @@ any richer internal representation.
 
 These sketches illustrate questions for the candidate relation. They are not
 accepted source programs or new typing rules.
+
+The approved mixed-row fragment distinguishes a deep-handler removal from
+primitive shallow resumption. It does not settle the public provenance edge in
+the examples below; each `'e?` reading remains exploratory, and targeted
+removal still requires the complete source image rather than family-wide
+cancellation.
 
 ### Higher-order callback
 
@@ -431,6 +447,12 @@ the existing event-specific hygiene theory: capture permission is local to an
 active receiver, while typed paths and event evidence may relate an input
 contribution to a result. The existing evidence avoids a reason to add a
 parallel carrier at this stage.
+
+The user's later polarity-sensitive deep-handler decision narrows one
+mixed-row case and is recorded in the governing compatibility addendum. It
+does not close the separate question of whether an optional provenance marker
+is a public projection of that case, especially while the receiver remains
+active along a returned latent path.
 
 However, the current work has not proved that the edge is derivable from the
 existing evidence across higher-order, nested, shallow, recursive, and
