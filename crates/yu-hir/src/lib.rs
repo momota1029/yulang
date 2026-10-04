@@ -749,6 +749,30 @@ mod tests {
         (*kind, children)
     }
 
+    fn collect_call_stage_ranges(
+        expression: &HirExpr,
+        expected_stage: SyntaxKind,
+        calls: &mut Vec<Range<usize>>,
+        arguments: &mut Vec<Range<usize>>,
+    ) {
+        let (kind, children) = value(expression);
+        if kind == SyntaxKind::IdentifierExpression {
+            assert!(children.is_empty());
+            return;
+        }
+        assert_eq!(kind, expected_stage, "every stage uses the source form");
+        assert_eq!(children.len(), 2, "one target and one argument stage");
+        collect_call_stage_ranges(&children[0], expected_stage, calls, arguments);
+        assert_eq!(
+            value(&children[1]).0,
+            SyntaxKind::IdentifierExpression,
+            "the bounded argument is a name leaf"
+        );
+        assert!(value(&children[1]).1.is_empty());
+        arguments.push(children[1].range().clone());
+        calls.push(expression.range().clone());
+    }
+
     #[test]
     fn associates_structural_postfixes_before_the_enclosing_chain() {
         let associated = parse("f(x)[y].field::name arg as Int");
@@ -777,37 +801,50 @@ mod tests {
 
     #[test]
     fn research_call_surface_retains_left_associated_stages() {
-        for (source, stage_kind, inner_range, last_range) in [
-            ("f(a)(b)", SyntaxKind::CallTail, 0..4, 5..6),
-            ("f a b", SyntaxKind::MlArgument, 0..3, 4..5),
+        for (stage_kind, parenthesized) in [
+            (SyntaxKind::CallTail, true),
+            (SyntaxKind::MlArgument, false),
         ] {
-            let associated = parse(source);
-            assert_eq!(associated.chains().len(), 1, "{source}");
-            let outer = associated.chains()[0].expression();
-            assert_eq!(outer.range(), &(0..source.len()));
-            let (kind, outer_children) = value(outer);
-            assert_eq!(kind, stage_kind, "{source}");
-            assert_eq!(outer_children.len(), 2, "one outer argument stage");
+            for stage_count in 1..=4 {
+                let mut source = "f".to_owned();
+                let mut expected_call_ranges = Vec::new();
+                let mut expected_argument_ranges = Vec::new();
+                for index in 0..stage_count {
+                    let argument = char::from(b'a' + index);
+                    if parenthesized {
+                        source.push('(');
+                        let start = source.len();
+                        source.push(argument);
+                        expected_argument_ranges.push(start..source.len());
+                        source.push(')');
+                    } else {
+                        source.push(' ');
+                        let start = source.len();
+                        source.push(argument);
+                        expected_argument_ranges.push(start..source.len());
+                    }
+                    expected_call_ranges.push(0..source.len());
+                }
 
-            let inner = &outer_children[0];
-            assert_eq!(inner.range(), &inner_range);
-            let (kind, inner_children) = value(inner);
-            assert_eq!(kind, stage_kind, "{source}");
-            assert_eq!(inner_children.len(), 2, "one inner argument stage");
-            assert_eq!(
-                value(&inner_children[0]).0,
-                SyntaxKind::IdentifierExpression
-            );
-            assert_eq!(
-                value(&inner_children[1]).0,
-                SyntaxKind::IdentifierExpression
-            );
-
-            assert_eq!(outer_children[1].range(), &last_range);
-            assert_eq!(
-                value(&outer_children[1]).0,
-                SyntaxKind::IdentifierExpression
-            );
+                let associated = parse(&source);
+                assert_eq!(associated.chains().len(), 1, "{source}");
+                let expression = associated.chains()[0].expression();
+                assert_eq!(
+                    value(expression).0,
+                    stage_kind,
+                    "the outer node is one ordinary argument stage"
+                );
+                let mut actual_call_ranges = Vec::new();
+                let mut actual_argument_ranges = Vec::new();
+                collect_call_stage_ranges(
+                    expression,
+                    stage_kind,
+                    &mut actual_call_ranges,
+                    &mut actual_argument_ranges,
+                );
+                assert_eq!(actual_call_ranges, expected_call_ranges, "{source}");
+                assert_eq!(actual_argument_ranges, expected_argument_ranges, "{source}");
+            }
         }
     }
 

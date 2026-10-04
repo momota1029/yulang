@@ -58,8 +58,8 @@ This index is a navigation aid. The listed source document remains authoritative
   relation with production bounds. See its
   [progress record](../progress/2026-10-05-source-indexed-function-realization-playground.md).
   The raw unary-lambda CST probe records the current `\x` / `->` error-token
-  boundary; a paired source probe confirms `f(a)(b)` and `f a b` retain two
-  left-nested argument stages in pre-HIR association. See the
+  boundary; a paired source probe confirms one-to-four parenthesized and
+  ML-argument stages remain left-nested in pre-HIR association. See the
   [HIR/source-core audit](../progress/2026-10-04-hir-source-core-boundary.md).
   [`research_function_shadow_obstruction.py`](../../tools/research_function_shadow_obstruction.py)
   executes the finite Value-versus-Computation entry witness against the

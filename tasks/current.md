@@ -146,10 +146,10 @@ integer/name leaves and unannotated parameterized bindings map to finite
 `literal`/`name`/`lambda(P,result(body))` derivations under a fixed `Gamma`.
 This includes `id x = x` with `P=Value(A)`. Applications, callback call sites,
 and whole-carrier evidence remain unavailable in this HIR. The pre-HIR
-associator does preserve `f(a)(b)` and `f a b` as two left-nested binary
-argument stages; the remaining ordinary-call bridge is from those structural
-nodes into `ResolvedExpr` and typed-core `call`/`bind`. See the call-stage
-association probe in the HIR/source-core record.
+associator preserves one-to-four parenthesized and ML-argument calls as
+left-nested one-argument stages; the remaining ordinary-call bridge is from
+those structural nodes into `ResolvedExpr` and typed-core `call`/`bind`. See
+the call-stage association probe in the HIR/source-core record.
 
 ## Latest main-gate results
 

@@ -117,12 +117,18 @@ behavior changed.
 
 ## 2026-10-05 call-stage association probe
 
-The existing pre-HIR associator was checked against both `f(a)(b)` and
-`f a b`. In each case it preserves one argument per stage as a left-nested
-binary structure: two `CallTail` nodes for the first spelling and two
-`MlArgument` nodes for the second, with exact source ranges and identifier
-leaves. The executable characterization is
+The existing pre-HIR associator was checked against parenthesized and
+ML-argument chains from one through four stages (`f(a)(b)...` and
+`f a b ...`). Across all eight generated sources, it preserves one argument
+per stage as a left-nested binary structure, with exact source ranges and
+identifier leaves. A test-only postorder walk records the source range for
+each candidate `call` stage. The executable characterization is
 [`research_call_surface_retains_left_associated_stages`](../../crates/yu-hir/src/lib.rs).
+An independent delta review found one minor test-contract gap: the first
+generated walk did not enforce a uniform stage kind or restrict recursion to
+the callee branch. The test now checks both conditions, requires each
+argument to be an identifier leaf, and compares all generated call and
+argument ranges. The focused test and formatting checks pass after the repair.
 
 This closes only the surface grouping question for those ordinary calls. The
 association product stores structural `HirExpr::Value` nodes; it does not
