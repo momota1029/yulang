@@ -262,6 +262,17 @@ This index is a navigation aid. The listed source document remains authoritative
   Production generalization/use membership and common-component typed-view
   introduction remain open, with totality and all-view quantifiers unchanged.
   Review status is in the [attack record](../progress/2026-10-05-factor-cover-main-gate-attack.md).
+- **Conditional source contracts and common allowance:**
+  [source contracts](2026-10-05-source-contracts-and-common-allowance.md)
+  specify finite emission, active constrained-root interpretation and local
+  whole-query proof rules. Conditional constructor correspondence, guarantee-only
+  common extension and all finite source-allocation-view factorization use the
+  actual common export and original residual. Approved Option 2 is respected:
+  a positive guarded production abstraction permits unanchored root extras and
+  transports paired base/envelope proofs. The concrete abstraction rules are
+  proposed, not selected; unrestricted all-view/source coverage and production
+  conformance remain open. Review and finite evidence are in the
+  [conditional proof record](../progress/2026-10-05-source-contract-conditional-proof.md).
 - **User-approved production Function-bound membership policy (Option 2):**
   production bounds may admit endpoint-compatible observations beyond the
   source-generated Theorem C relation, but matching ports alone do not admit
@@ -370,6 +381,7 @@ the source design documents and explicit user decisions.
 
 | Document | Status | Authority scope | Approved / state | Useful locator or gate |
 |---|---|---|---|---|
+| `notes/design/2026-10-05-source-contracts-and-common-allowance.md` | Reviewed conditional theorem package; base compiler/spec/repair and Option 2 mathematical/conformance reviews closed | Additional source-generated assumptions permitted; approved Option 2 allows conservative root extras; concrete formation/abstraction clauses remain Draft; no implementation authority | Local source-base correspondence; guarantee-only common extension; actual-export allocation-view factorization; finite complete-query calculus; guarded positive abstraction with unanchored extras; 648 absorption and 648 allocation cases plus 884,736 finite abstraction comparisons | Concrete membership/abstract primitives and query rules remain proposed. Current production conformance, unrestricted source/value/capture/view coverage, all full principal schemes and residual/lifecycle gates remain open. |
 | `notes/design/2026-10-05-source-factor-cover-and-query-preservation.md` | Reviewed limited mathematical theorems; two independent clean reviews | Source-local decomposition of existing complete relations; no representation or implementation decision | Complete factor coverage proves exact reconstruction and preservation of every unchanged client/direct-evidence relation; sharp uniform necessity on nontrivial products; fixed observable parity route counterexample; 148,224-case research checker | Full production membership, legal common-component formation/typed-path interpretation and all-valid-view extension through the designated export remain open. Classification C; structural FMP remains A. |
 | `notes/design/2026-10-04-source-indexed-callback-realization.md` | Reviewed limited mathematical construction; no implementation authority | Source-associated reference endpoints in Theorem C's decorated immutable envelope | Finite root membership/admission clauses give a bidirectional constructor correspondence with generated bounds. Whole-observation typed projection preserves all finite latent and resumption histories. Two independent reviews closed with one minor owner-name correction. | Option 2 permits production-only observations under an exhaustive rule; it does not make `P_ref` mandatory production semantics. Exact production membership, actual-to-checked containment, and all-source B decoration generation remain open. |
 | `notes/design/2026-10-04-common-allowance-context-preimage.md` | Reviewed semantic results and exact remaining realization obligations; no implementation authority | Complete forward relations, safe universal context preimages and common semantic contracts at one fixed fiber | Finite joint forward presentation; image/preimage equivalence with independent admission; finite separation from uniform positive formulas; least common semantic contract with exact domain condition. Two independent clean reviews. | Legal common descriptors and all-view solution-preserving instantiation remain unproved. The later constrained-use theorem supplies the finite ordinary map construction and replaces that separate concern with its exact-projection entailment. No new descriptor kind, row rule or main-gate closure. |

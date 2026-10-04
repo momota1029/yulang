@@ -183,6 +183,34 @@ acceptance schemes remain open.
 
 ## Latest main-gate results
 
+The new [source-contract package](../notes/design/2026-10-05-source-contracts-and-common-allowance.md)
+states conditional realization, every-old-solution common extension and
+factorization of independently valid finite source-allocation views. It makes
+active constrained-root membership, guarantee-only typed incidence and finite
+whole-Function certificate rules explicit; it does not assume global adequacy
+or `Direct` completeness. The actual query uses `B_common`, with original
+provider/output constraints retained. Fixed old bounds are not overwritten by
+a public allowance. The independent conservative abstraction retains unreachable
+contributors, so its effect argument requires neither productive prefixes nor
+inhabited intermediate types. Its exact quantifier is
+`forall V in V_alloc(S). exists m_V`, with non-coverage/value and scope premises;
+coverage of arbitrary valid views or all accepted full schemes is not claimed.
+Initial compiler/spec review and the two accepted mathematical repairs are in
+the [conditional proof record](../notes/progress/2026-10-05-source-contract-conditional-proof.md);
+fresh repair review closed both major findings with no blocking/major issue;
+its descriptor-exposure minor was clarified. The finite checker covers 648 joint absorption
+and 648 allocation-view cases. Adoption, actual production conformance, full
+source/view coverage, residual solving and implementation remain gated.
+The later committed Option 2 answer at `74eab866` is incorporated: source-base
+inversion is not imposed on production. A separate positive guarded abstract
+grammar permits unanchored conservative root extras; its two-parameter
+monotonicity lifts the conditional proofs when abstractors, hard-envelope
+proofs, scopes and independent admission match. The production-view quantifier
+is explicitly `forall V in V_alloc,H(S). exists m_V`. The finite extension
+checks 110,592 guarded closure cases and 884,736 inclusion comparisons. Exact
+abstraction primitives and production membership remain unselected; the
+approved policy alone supplies no containment theorem or implementation authority.
+
 The reviewed [source factor-cover proof](../notes/design/2026-10-05-source-factor-cover-and-query-preservation.md)
 gives a finite sufficient test for exact relation reconstruction: each original
 factor's complete operand interface must occur in a retained bag. It is also
