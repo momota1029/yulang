@@ -154,17 +154,20 @@ records only canonical polarity endpoints; the denotational relation from
 the retained effect facts to a role-indexed source Function bound, and the
 callback full-bound clauses, remain open.
 
-For `id x = x`, the evidence identity itself is also pinned without an added
-carrier. `emit_lambda` allocates the body's effect component once and records
-its lower/upper facts at the body occurrence. `LambdaRecipe` stores that
-component position. `admit_lambda_fact` retrieves the same live component
-ordinal and uses it as the positive Function result-effect child. The body
-facts and Function fact retain distinct source occurrence/slot identities in
-`ConstraintStore::provenance`; their common term endpoint is the link. The
-existing `f5d_identity_lambda_admits_exact_effect_and_function_facts` test
-checks those source slots, shared value parameter/result ordinal, Function
-shape, and post-finish store retention. This closes only the identity
-occurrence-link construction, not the semantic interpretation of that link.
+The effect-row identity link is not limited to identity bodies. For every
+complete lambda body accepted by this HIR, the collector obtains its effect
+component either from the explicit parameter-name case or from the integer /
+resolved-name occurrence positions. It records that component position in
+`LambdaRecipe`; `admit_lambda_fact` retrieves the same live component ordinal
+and uses it as the positive Function result-effect child. The body effect
+facts and Function fact keep their distinct source occurrence/slot identities
+in `ConstraintStore::provenance`, while the shared term endpoint supplies the
+link. The identity-specific
+`f5d_identity_lambda_admits_exact_effect_and_function_facts` test checks the
+source slots, shared value parameter/result ordinal, Function shape, and
+post-finish store retention. This closes the row-occurrence construction for
+the current complete lambda-body grammar, not the semantic interpretation of
+that link or callback/whole-bound adequacy.
 
 This is the smallest concrete bridge obligation: derive, from the user-selected
 Pure introduction and the intended meaning of the polarized row constraints,
