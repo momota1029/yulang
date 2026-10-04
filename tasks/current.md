@@ -185,7 +185,10 @@ This turn's source-output-effect contributor shape is only a reviewed proof
 candidate; its sort-specific paths and explicit same-fiber totality obligation
 are recorded in
 [the contributor-bound attempt](../notes/progress/2026-10-04-principal-contributor-bound-theorem.md).
-It establishes no source-to-endpoint rule and no implementation authority.
+An earlier formulation as direct inequalities from effect contributors to a
+common output row is withdrawn: effect ports must be handled jointly inside
+complete Function inequalities. The remaining candidate establishes no
+source-to-endpoint rule and no implementation authority.
 An architect cross-check found no counterexample among the seven accepted
 schemes and no demonstrated missing carrier. Their per-example evidence and
 remaining proof parts are now listed in the criteria record. The smallest

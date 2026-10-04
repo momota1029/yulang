@@ -1,8 +1,8 @@
 # Principal contributor-bound theorem attempt
 
 Date: 2026-10-04
-Status: proof candidate derived from user-directed principal schemes; not an
-approved source rule or implementation authority
+Status: proof candidate; the standalone contributor-inequality shortcut is
+withdrawn after a conformance audit; no source rule or implementation authority
 Scope: source-owned output effect allowance candidate for finite nonrecursive
 source graphs; value endpoints and intermediate Function values remain separate
 
@@ -12,25 +12,16 @@ Can the expected shared components for `compose`, `twice`, `choose`, and
 `higher` arise from the existing inequality solver and generalization, without
 equating original endpoints or adding an effect-specific carrier?
 
-The candidate concerns one selected covariant effect-output port `R` at a
-completed source observation boundary. It does not combine arbitrary value and
-effect endpoints. A source occurrence may contribute to `R` only when the
-existing source typing rule and complete invocation/interface query already
-place that occurrence's outward effect guarantee at this port. The proposed
-constraint must then be that existing endpoint-dependent inequality, with its
-source identity and evidence retained:
-
-```text
-contributor_i <: R
-```
-
-This is an ordinary endpoint query at its source boundary, not a new row
-subtyping rule. Variable endpoints can be retained as bounds and propagated
-transitively. Concrete endpoints are resolved locally by the one `A <: B`
-solver. Successful concrete queries are never composed to create another
-query. The endpoint identities and each query's `ν,K,D`, scope, occurrence,
-and attachment evidence remain distinct. If existing source rules do not
-generate such a query, this candidate cannot add it by assumption.
+The candidate concerns one selected covariant effect-output port `R` only as a
+projection of a completed Function comparison at a source observation
+boundary. It does not license an independent query `contributor_i <: R`:
+Function effect ports are not independently-subtyped general Types. The one
+`A <: B` solver must compare both effect descriptors jointly inside the
+complete Function inequality, using its existing `ν,K,D`, scope, occurrence,
+and attachment evidence. This note has not derived how an outward contributor
+is represented by that coupled query or how its principal common allowance is
+projected. A row-support inclusion written by itself would add an unapproved
+effect-subtyping relation.
 
 The candidate has two important limits:
 
@@ -46,10 +37,10 @@ The candidate has two important limits:
 
 ## Constraint-shape consequences
 
-The following are projections of that single generation rule, not special
-typing rules:
+The following are candidate source projections through the complete coupled
+Function comparison, not special typing rules or independent effect checks:
 
-| Source pattern | Candidate effect-port path to the common output allowance | Value and public-row consequence |
+| Source pattern | Candidate source projection in the coupled Function comparison | Value and public-row consequence |
 |---|---|---|
 | `call f x = f x` | the call's own invocation effect is related to `R` through the existing complete application/interface path | the call's value result remains its own endpoint; the one call row is preserved |
 | `compose f g x = f (g x)` | `g`'s invocation effect and `f`'s outward effect reach `R` only through their existing staged application/interface paths | This annotation-free source has no written capture contract, so full hygiene applies: `g x`'s value flows to `f`'s argument endpoint, while its effect contribution remains in outward `R`. An inferred matching component at `f`'s port alone does not grant capture/subtraction. |
@@ -57,38 +48,36 @@ typing rules:
 | `choose cond f g x = if cond: f x else: g x` | each branch's invocation effect reaches the common allowance through its branch path | branch value results meet at their own branch-result endpoint; source endpoints/evidence remain distinct |
 | `higher f g x = f g x` | first-stage and returned-call outward effects can reach `R` only through separate staged application/interface paths | the intermediate returned Function remains its own value endpoint; public `e` may be common while stage evidence and dependencies stay correlated |
 
-The output effect allowance is generalized with all original bounds and
-residual evidence; value endpoints and intermediate Function interfaces remain
-separately represented. A prospective instantiation map may send the
-allowance to any valid public endpoint satisfying the retained direct
-constraints. Thus the mechanical principality route would be a bound-graph
-factorization theorem: each valid public view must satisfy the same
-source-generated direct constraints, and the scheme's freshening map must
-transport their evidence. This uses the existing scheme/bound carrier; it does
-not claim that support union alone preserves a complete interface.
+If the coupled Function source rule constructs an output allowance, it must be
+generalized with all original bounds and residual evidence; value endpoints
+and intermediate Function interfaces remain separately represented. A
+prospective instantiation map may send the allowance to any valid public
+endpoint only through the retained whole-interface constraints. The mechanical
+principality route would therefore be a factorization theorem for complete
+Function comparisons and their joint evidence, not a bound graph of
+independently-subtyped effect components. Support union alone does not preserve
+a complete interface.
 
 ## Proof obligation, not conclusion
 
 The table identifies a candidate endpoint shape, but the current source
-specifications do not yet prove the source-to-`R` contributor map for general
-applications, sequential blocks, and branches. The concrete-compatibility
-design explicitly leaves component-to-carrier mapping and co-occurrence
-consolidation open. Nor does this argument prove that every valid complete
+specifications do not yet prove the source-to-`R` projection through complete
+Function comparisons for general applications, sequential blocks, and
+branches. The concrete-compatibility design explicitly leaves
+component-to-carrier mapping and co-occurrence consolidation open. Nor does
+this argument prove that every valid complete
 Function view factors through the generalized endpoint, that all concrete
 adapter choices are preserved, or that the finite residual has a principal
 presentation.
 
 The required same-fiber totality statement is explicit: for each original
 solution fiber `ξ=(ν,K,D)` with solution set `Sξ`, every `s∈Sξ` must admit a
-source-expressible, well-scoped allowance `a` such that every required direct
-invocation comparison succeeds while preserving dependencies and public
-observation (`∀s∈Sξ. ∃a. Qξ(s,a)`). Principality additionally requires every
-valid public Function/effect view to factor through the generalized
-presentation. The smallest next proof is therefore not a new row calculus:
-establish the finite source-owned contributor map using existing direct
-inequalities and one full fiber, then prove totality and all-view factorization
-through the existing generalizer. Failure on a particular source occurrence
-would identify a missing incidence/path premise; success would discharge
-these clauses only for that finite grammar. Callback production adequacy,
-recursive SCCs, open-world imports, and the full supported-input envelope
-remain separate.
+source-expressible, well-scoped allowance `a` such that the generated complete
+Function inequalities jointly succeed while preserving dependencies and
+public observation (`∀s∈Sξ. ∃a. Qξ(s,a)`). Principality additionally requires
+every valid public Function/effect view to factor through that generalized
+presentation. The candidate still lacks the source-to-complete-Function
+projection that would establish `Qξ`; treating an effect contributor as a
+standalone lower bound is not an available shortcut. Callback production
+adequacy, recursive SCCs, open-world imports, and the full supported-input
+envelope remain separate.
