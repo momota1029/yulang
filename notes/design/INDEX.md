@@ -53,8 +53,10 @@ This index is a navigation aid. The listed source document remains authoritative
   every hidden type to become a public data parameter. This is a compatibility
   constraint only; no data-existential syntax, inference support, proof scope,
   solver carrier or implementation is selected. It records the user's
-  illustrative `ref 'e 'a` sketch with hidden `'b` and read/write paths as a
-  candidate only; their typing/runtime rules remain open. Existing
+  illustrative `ref 'e 'a` sketch (`run` universally quantifies `'b`; the
+  write path separately existentializes it) and read/write paths as a
+  candidate only; their quantifier interaction and typing/runtime rules remain
+  open. Existing
   operation/request existential designs remain separate.
 - **Active callback gate — production design, not proof-search expansion:**
   `notes/design/2026-10-04-production-callback-endpoint-generation-draft.md`

@@ -51,23 +51,28 @@ reference-like value's public parameters small:
 
 ```yulang
 struct ref 'e 'a {
-    run: ('a -> ['b] 'a) -> ['b, 'e] ()
+    run: forall 'b. (('a -> ['b] 'a) -> ['b, 'e] ())
 }
 ```
 
-In this sketch, `'b` is hidden existentially inside the package rather than
-exposed as another public `ref` parameter. The user also gave these possible
-source paths:
+The user clarified that `run` is universally quantified in `'b`; that binder
+is part of the field type, not an existential hidden by the `ref` package.
+Separately, the user states that `'b` becomes existential in the value-writing
+path below. The relation and scope between the field's universal binder and
+that write-side existential have not been formalized here, so they must not be
+collapsed into one binder.
+
+The user also gave these possible source paths:
 
 ```yulang
 sub { &v.run:return; ... }
 &v.run:\->v
 ```
 
-The write path is the stated point where `'b` becomes existential; the read
-path is left as “handled appropriately” and has no further rule here. This is
-an illustrative representation candidate, not a selection of general data
-declaration syntax, existential introduction/elimination typing, effect
-semantics, or runtime behavior. It does not add existential support to the
-current inference proofs or implementation scope. The general compatibility
-constraint above remains the governing requirement.
+The read path is left as “handled appropriately” and has no further rule here.
+This remains an illustrative representation candidate, not a selection of
+general data declaration syntax, existential introduction/elimination typing,
+the quantifier interaction for writes, effect semantics, or runtime behavior.
+It does not add existential support to the current inference proofs or
+implementation scope. The general compatibility constraint above remains the
+governing requirement.
