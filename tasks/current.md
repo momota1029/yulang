@@ -53,6 +53,13 @@ subtraction evidence. Do not add a carrier/API or independent port-subtyping
 rule without identifying a concrete unrepresentable fact and obtaining
 authority. Detailed clauses and conditional results:
 [value-entry bind/projection](../notes/progress/2026-10-04-value-entry-bind-projection.md).
+The theorem-level attempt reaches finite immutable source graphs and
+identity-entry execution transport, but not the original Function endpoint's
+complete domain/bound interpretation. That single owning proof gate must
+construct challenge admission independently of query success and factor the
+entire actual observation bound through the linked argument/body/result view;
+exact execution equality is insufficient. See the latest adjudication in the
+linked record.
 
 **Other open gates:**
 

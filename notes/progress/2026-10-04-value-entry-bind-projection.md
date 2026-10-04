@@ -678,3 +678,40 @@ arbitrary source contexts. In particular it establishes neither
 `D_checked ⊆ D_actual` nor `P_actual ⊆ P_checked`; the whole-carrier and
 complete-interface gates remain open. No source rule, carrier, API, or
 implementation authority is added.
+
+### Theorem-level callback attempt (2026-10-04)
+
+The primary, a Sol architect derivation, and a high-effort Astra attempt
+attacked the Pure-value callback theorem directly, including the largest
+assembled immutable finite source-graph fragment: lexical aliases/captures,
+recursive labels, delayed whole arguments, ordinary requests, and finite
+resumption histories, with State replacement and semantic imports excluded.
+The derivation preserves the existing Pure introduction and §21 `Value(A)`
+entry, distinct callback and argument receipts, the retained slot view, and
+the selected `d⁻`, `d⁺`, and `b⁺` occurrence locations. It establishes only
+structural/source execution transport for supplied typed histories; it does
+not establish either universal complete-interface inclusion.
+
+The obstruction persists even when the challenge domains are granted equal.
+Core §9 treats `P_i(h)` as a complete interface observation bound, not the
+exact image of the particular execution. The minimal abstract witness to the
+failed inference is one challenge `h`, one actual execution returning `0`, an
+actual bound that also admits `1`, and a checked bound admitting only `0`.
+Both bounds cover the execution, yet the actual bound is not included in the
+checked one. This is a countermodel to deriving bound inclusion from
+execution correspondence, not a Yulang program counterexample or a proposed
+interpretation of Function ports.
+
+The remaining owner is one source-to-endpoint adequacy theorem for the
+original role-indexed Function query. It must construct the complete checked
+challenge domain independently of query success and show that every member of
+the actual endpoint's complete bound factors through the source
+`Force(D) >>= B` argument/body/result composition and is admitted by the
+linked target view `[b,d]`, preserving the existing endpoint/profile,
+receipt, `ν,K,D`, occurrence/incidence, `Flow`/`Observe`, and resumption
+evidence. The existing bind proof and event routing do not imply this bound
+factorization. This is one missing source theorem with domain and bound
+conclusions, not a demonstrated carrier deficiency or an unresolved user
+choice; no new relation, carrier, or semantic rule is authorized. A larger
+execution-only fragment does not close the original inequality because its
+`P_actual` endpoint bound remains unaccounted for.
