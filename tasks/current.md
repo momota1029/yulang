@@ -87,7 +87,12 @@ and the required authority.
 - Milestone 3 (finite symbolic presentation) still lacks source-wide
   comparison/context closure, complete source realization, and effective
   joint residual/projection for open Records and feedback. There is no
-  class-3 impossibility result.
+  class-3 impossibility result. One bounded source-origin subgate is closed:
+  normative callback B supplies one occurrence-indexed initial
+  `F_lit <: F_cb` root per eligible callback-literal derivation, with its
+  context/profile references retained under admissible transport. This does
+  not establish finite derived-query contexts or any global closure theorem;
+  see [callback initial-root enumeration](../notes/progress/2026-10-04-callback-initial-root-enumeration.md).
 - The source local-State operational bridge is incomplete. Static
   `StateSlotId` and pure continuation restart are decided, but the source
   equations for dynamic ownership, read/update replacement, captured access,
