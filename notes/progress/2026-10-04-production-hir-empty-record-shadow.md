@@ -85,8 +85,24 @@ source shadow and the current term algebra, while **application of Theorem S
 to actual production constraint generation remains unproved** because its
 input relation and coupled effect ports have not been bridged.
 
+For the exact source `id x = x`, the two sides currently visible are:
+
+| Layer | Generated interface |
+|---|---|
+| Typed source core §§6/21 | `Value(Fun(Value(A), Comp(empty,A)))`; Pure introduction, Value entry |
+| HIR collector / F5 admission | `Function(negative parameter, EmptyEffect, positive body-effect, positive result) <: definition root`; body and lambda effect components each receive polarized bottom/empty bounds |
+
+This is the smallest concrete bridge obligation: derive, from the user-selected
+Pure introduction and the intended meaning of the polarized row constraints,
+that the F5 endpoint is an adequate presentation of the source interface,
+including its effect evidence. The Oracle materialization of polarized bounds
+cannot be used as that derivation, and the structural shadow's erasure of
+effect ports does not discharge it. The source endpoint and F5 endpoint are
+recorded as different objects until this correspondence is proved.
+
 Relevant source locations: `crates/yu-hir/src/module.rs` (`ResolvedExpr`,
 `lower_module`, `lower_body`, `lower_simple_chain`) and
-`crates/yu-solver/src/lib.rs` (`emit_lambda`, `admit_lambda_fact`) and
+`crates/yu-solver/src/lib.rs` (`emit_lambda`, `admit_lambda_fact`, and
+`emit_resolved_binding_name`) and
 `crates/yu-solver/src/term.rs` (`TermView` / `TermNode`). No compiler code or
 tests changed.

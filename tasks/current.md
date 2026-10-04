@@ -189,6 +189,11 @@ candidate; its finite principal presentation remains a separate open proof.
   without losing effect correlation remains open; callbacks, Records, and
   complete successor generation remain outside it. See
   [production HIR empty-Record shadow](../notes/progress/2026-10-04-production-hir-empty-record-shadow.md).
+  The smallest concrete source/solver bridge is pinned to `id x = x`:
+  typed-core gives `Value(Fun(Value(A),Comp(empty,A)))`, while F5 creates a
+  four-port Function fact plus polarized body/lambda effect bounds. Prove the
+  intended source-interface adequacy of that endpoint before lifting any
+  callback theorem; Oracle materialization is not the proof.
   This closes only the conditional structural witness theorem, not general
   structural regularity, source adequacy, principal solutions, or the overall
   inference-replacement objective. Theorem S above separately proves
