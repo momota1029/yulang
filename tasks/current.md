@@ -417,14 +417,15 @@ This is still a finite source-composition characterization: stages have at
 most one request, relation rows are supplied, and no production endpoint
 membership or Theorem C inclusion is established. Details and exact scope are
 in the [consumer-factorization playground](../notes/progress/2026-10-05-callback-consumer-factorization-playground.md).
-The HIR-backed `id` realization test also runs a designated consumer request
-after an actual HIR-derived Pure/Value callback Force request resumes at state
-21. The consumer starts from that returned state and resumes to state 22; the
-test checks the callback receipt, Force, and body each occur once. Its consumer
-and request evidence remain test inputs; it grounds operational sequencing in
-retained HIR without emitting a production consumer relation or Function
-endpoint. The compiler-referee review is clean within this bounded trace. The
-exact scope is in the same record.
+The HIR-backed `id`/`zero` realization test enumerates 21 handled Force
+histories of length zero to two, each with two possible values and two states.
+It runs a designated consumer request from each callback's returned state and
+resumes it into either next state, for 42 callback cases and 84 consumer
+resumptions. The test checks result values, state flow, and exactly-once
+callback receipt/Force/body entry. Consumer programs and request evidence
+remain test inputs; it grounds the transition in retained HIR without emitting
+a production consumer relation or Function endpoint. Compiler-referee review
+found no issue in the bounded test. Exact scope is in the same record.
 
 The production bridge is not proved or authorized for implementation. The
 smallest Pure-path blocker is a full-bound realization crosswalk, not

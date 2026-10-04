@@ -50,21 +50,22 @@ crosswalk remains open.
 ## HIR-backed continuation boundary
 
 `crates/yu-solver/src/tests/research_function_realization.rs` now adds
-`designated_consumer_resumes_after_the_hir_derived_callback_returns`. It starts
-from the actual collected/solved `id x = x` artifact, derives the identity body
-and callback entry from HIR/Function facts, then passes that returned callback
-trace to a one-request designated consumer. The callback's Force request
-resumes with value `7` and live state `21`; the consumer request must start in
-state `21` and resumes to `22`. The test checks request origin/continuation,
-result value, and that callback receipt, Force, and body entry each occur once.
-The actual callable remains Pure/Value while the slot view remains Handler.
+`designated_consumer_resumes_after_the_hir_derived_callback_returns` starts
+from the actual collected/solved `id x = x` and `zero x = 0` artifacts. It
+enumerates all 21 handled Force histories of length zero through two, where
+each response chooses one of two values and one of two states. For each
+history, the designated consumer request starts in the callback's final live
+state and is resumed into either of two next states: 42 callback executions
+and 84 consumer resumptions total. The test checks result values, state flow,
+request origin/continuation, and exactly one callback receipt, Force, and body
+entry per trace. Each callable retains Pure/Value role under a Handler view.
 
 This grounds the continuation boundary in the current solver's retained
-identity Lambda artifacts. The consumer program and its request evidence are
-still supplied by the test, and no production `Apply`, consumer relation,
-Function-bound observation, or `b+` endpoint is generated. `InvocationResult`
-now carries the callback's final live state into this designated consumer;
-`InvocationStep::Return` marks callback result delivery before the consumer
-and complete invocation view return. The focused Rust test module passes.
-Compiler-referee delta review found no issue in the state-threading change;
-production lowering and backends remain outside scope.
+identity and constant-body Lambda artifacts. The consumer program and its
+request evidence are still supplied by the test, and no production `Apply`,
+consumer relation, Function-bound observation, or `b+` endpoint is generated.
+`InvocationResult` carries the callback's final live state into this designated
+consumer; `InvocationStep::Return` marks callback result delivery before the
+consumer and complete invocation view return. The focused Rust test module
+passes. The compiler-referee review is clean for this enumerated test; production
+lowering and backends remain outside scope.
