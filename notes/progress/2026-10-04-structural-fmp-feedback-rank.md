@@ -4,8 +4,14 @@ Date: 2026-10-04
 Branch: `research/simple-sub-intrusion`
 Base inspected: `be138584741a007e084aabe1c0e66641dac497b2`
 Integration base: `8ddd2df276d5f6179a80c8e8610ac349e413d54f`
-Status: reviewed classification C; unrestricted FMP and fixed-package counterexample remain open
+Status: reviewed historical classification C; subsequent finite-fence proof closes FMP and BR
 Implementation authority: none
+
+**Later completion:** [the finite-fence FMP proof](2026-10-04-structural-fmp-proof.md)
+closes the fixed-package theorem and (BR), with two independent clean
+reviews. The remaining-action statements in this record are historical.
+The finite-feedback theorem and restricted executable playground below
+remain valid evidence; neither is being reclassified as the full proof.
 
 ## Request and classification
 

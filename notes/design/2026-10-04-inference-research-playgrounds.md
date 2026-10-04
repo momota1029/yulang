@@ -52,6 +52,14 @@ and must not turn an omitted rule into an implicit premise.
 
 ## Current work order
 
+**Mathematical status update:** the subsequently reviewed
+[finite-fence theorem](2026-10-04-structural-fmp-fence-completion.md)
+proves normalized pure structural FMP and BR. The structural proof-search
+order recorded below preceded that result; arbitrary-package playgrounds
+remain useful for checking constructions, but are no longer a missing
+premise for the pure FMP theorem. This update changes no experimental or
+production authority. Callback bridge and principality remain open lanes.
+
 The finite parent/use transport test model is a completed narrow experiment.
 The first structural playground now exercises the complete restricted
 `Fbar/G` rules on `q = Function(x, Int), x <: q`, sweeps cutoff quotients, and

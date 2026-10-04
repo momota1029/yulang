@@ -136,15 +136,21 @@ and whole-carrier evidence remain unavailable in this HIR.
 
 ## Latest main-gate results
 
-[Finite feedback quotients](../notes/design/2026-10-04-structural-finite-feedback-quotients.md)
-now proves that every fixed finite feedback horizon of a free-satisfiable
-normalized structural package has a safe finite surjective monoid quotient,
-including complete domain/head/child coherence. **Classification C:** full
-FMP is still open, now exactly conditional boundedness of first-conflict
-feedback ranks along a cofinal quotient tower. A fixed regular package shows
-that bounding all failing quotients without the all-quotients-fail premise is
-false. Proof, accepted coherence repair and independent review are in
-[the FMP progress record](../notes/progress/2026-10-04-structural-fmp-feedback-rank.md).
+**Classification A: normalized pure structural FMP is proved.**
+[Finite fence completion](../notes/design/2026-10-04-structural-fmp-fence-completion.md)
+constructs a regular solution of the same fixed package from any arbitrary
+permitted tree solution, with at most `8^N` states on the finite flat-term
+universe. Exact shared recursive descriptors, mandatory Record width,
+Function contravariance, invariant coordinates and arbitrary rigid permission
+sets are preserved. This proves finite-quotient conflict reflection and the
+previous cofinal bounded-rank residual (BR), without an additional source
+predicate. Two independent reviews found no defects; the finite distance
+algebra and Record case checks pass. See
+[the proof/review record](../notes/progress/2026-10-04-structural-fmp-proof.md).
+The earlier [finite-feedback result](../notes/design/2026-10-04-structural-finite-feedback-quotients.md)
+and its failed non-cofinal quotient families remain valid. Production
+Function/effect correspondence, joint predicates and principal projection
+remain distinct open gates; no compiler implementation is added here.
 
 [Two-sided constructor-bound regular completion](../notes/design/2026-10-04-preclosed-structural-regular-witness.md)
 now has an independently reviewed constructive proof and executable research
@@ -156,9 +162,10 @@ invariant coordinates are included. The construction creates new witnesses
 with at most `(2^n-1)^2` nodes and preserves all original descriptor equations.
 It covers a recursive example for which no existing anchor selector works.
 The predicate is finite and source-checkable, not proved for all Yulang
-sources and not a rejection policy. One-sided/unbounded roots, effects,
-arbitrary guards, joint predicates, principality and full source adequacy
-remain open. Proof/review/check details are in
+sources and not a rejection policy. One-sided/unbounded roots are outside
+that conditional construction and are now covered by the full pure FMP
+theorem above. Effects, arbitrary guards, joint predicates, principality and
+full source adequacy remain open. Proof/review/check details are in
 [the structural progress record](../notes/progress/2026-10-04-preclosed-structural-witness-review.md).
 
 [Callback local abstraction](../notes/progress/2026-10-04-callback-local-abstraction-boundary.md)
@@ -199,20 +206,30 @@ generation remains Draft.
 
 The test-only finite parent/use graph transport prototype is complete under
 its narrow gate. It has independent substitution-reference tests and does not
-change the production solver. The structural playgrounds are executable at
+change the production solver. The pure structural FMP gate is now closed by
+the reviewed finite-fence theorem in
+[`finite fence completion`](../notes/design/2026-10-04-structural-fmp-fence-completion.md):
+every satisfiable normalized pure structural package has a permitted regular
+model with at most `8^N` states, preserving exact descriptors, Record width,
+Function variance, invariant coordinates, and rigid permissions. This closes
+the arbitrary-package FMP and finite-quotient conflict-reflection gates; it
+does not identify production source generation or coupled effects with that
+pure package, and it grants no production cutover authority.
+
+The structural playgrounds remain executable characterization evidence at
 `tools/research_structural_feedback.py` and
 `tools/research_gamma_quotients.py`. Beyond the fixed rank example, the
 generated-package checker exhausts 495 one-Function/one-Int/one-free-root
 packages with zero to two separate bounds against 449 labelled two-generated
 monoids through size four (222,255 pairs). It independently validates all
 27,383 conflict-free graph witnesses and differentially matches the fixed
-example's ranks. This is still a restricted constructor fragment, not
-arbitrary `Gamma_P^coh` and not evidence of unrestricted FMP. The immediate
-research gate is to admit general normalized descriptor graphs and full
-structural coordinates while preserving bound identities and both monoid
-actions, then grow package generation and shrinking around the full model.
-Callback bridge and principality playgrounds remain active follow-on lanes.
-No production cutover authority follows from any playground.
+example's ranks. The generated fragment does not itself establish unrestricted
+FMP; that result comes from the separate reviewed theorem. Generalizing this
+playground can validate the construction against arbitrary normalized
+`Gamma_P^coh`, but it is characterization work rather than a missing theorem
+premise. Callback bridge and principality playgrounds remain active lanes.
+No production cutover authority follows from any playground or from the pure
+FMP theorem.
 
 **Callback adequacy proof search is complete; active gate is production design.**
 The design and its current proof boundary are recorded in
@@ -318,15 +335,14 @@ remain in the linked progress records above and
 
 **Other open gates:**
 
-- **Structural solving / Milestone 3:** the finite constrained residual
-  presentation remains distinct from regular-witness decidability and
-  principal/effective projection. The exact existence boundary is regular
-  completion when descriptor equations prefix-shift addresses while active
-  comparisons descend suffixes with variance and Record-width conditions.
-  This remains open; it is not an undecidability result. The direct MSO route
-  is invalid, and standard ranked exact-shape subtyping does not directly
-  encode mandatory Record width. Bounded results and failed scoped encodings
-  are not general impossibility:
+- **Structural solving / Milestone 3:** regular-witness existence for the
+  normalized pure package is now closed by finite fence completion, including
+  shifted descriptors and variance/width-directed descent. The finite
+  constrained residual presentation, principal/effective projection and
+  production source/effect correspondence remain distinct obligations.
+  The direct MSO route is still invalid, and standard ranked exact-shape
+  subtyping does not directly encode mandatory Record width. Historical
+  bounded results and failed scoped encodings are recorded in
   [open residual design](../notes/design/2026-10-03-open-residual-factorization.md),
   and a source-checkable conditional closure for the closed monomorphic
   pure lambda/integer fragment with empty input Record alphabet is now proved:
@@ -405,9 +421,10 @@ remain in the linked progress records above and
   is sufficient, not claimed absolutely weakest.
   Arbitrary schemes, effects, and full Function adequacy remain outside it; see
   [identity-scheme incoming extension](../notes/progress/2026-10-04-identity-incoming-incidence-extension.md).
-  This closes only the conditional structural witness theorem, not general
-  structural regularity, source adequacy, principal solutions, or the overall
-  inference-replacement objective. Theorem S above separately proves
+  Those incidence results close their conditional structural witness theorem;
+  full pure structural regularity is now supplied separately by FMP. Source
+  adequacy, principal solutions and the overall inference-replacement objective
+  remain open. Theorem S above separately proves
   arbitrary-to-regular reflection with nonempty Records and open recursive
   anchors under its finite incidence and rigid-scope predicates. Multiple
   distinct anchors in a component with an open anchor remain outside that
@@ -431,71 +448,26 @@ remain in the linked progress records above and
   prefix modalities for shifted descriptors do not enforce the ordinary
   suffix-child source-image grammar. This is a failed proof route, not a
   counterexample to regular completion.
-- For the normalized pure structural fragment with finite rigid permissions,
-  the arbitrary-tree closure can be inconsistent only with a finite Horn
-  conflict. The remaining exact premise for a regular decision procedure is
-  that every conflict-free least closure has a simultaneous regular extension
-  for domain, head, and original-bound activation facts. This is unproved and
-  excludes arbitrary `Guard` and `Phi/K,D`; see the direct main-gate record.
-  A direct finite-fold pumping attempt fails because quotienting addresses
-  can combine activation and field-presence premises from different
-  occurrences; closure after folding may create conflicts absent before the
-  fold. No instance defeating every regular extension is known.
-  Equivalently, the remaining theorem asks for a regular activation invariant
-  `A` with `A₀ ⊆ A`, `G(F(A)) ⊆ A`, and conflict-free `F(A)`, where `F` is
-  forced domain/head saturation and `G` is the existing width/variance
-  descent. The circular dependency is now explicit: descent decides heads
-  through shifted descriptors, while heads decide descent. Safe regular
-  activation invariants are not union-closed: two individually safe choices
-  can force incompatible heads when combined. Thus a regular-extension proof
-  must select one joint invariant. They are intersection-closed, but infinite
-  intersections can be nonregular even for a fixed package, and the package
-  may still have a trivial regular witness. Neither closure property supplies
-  the required invariant. Equivalently, the unresolved finite-model property
-  says every satisfiable complete address package has a model over some
-  finite monoid quotient preserving shifted descriptor prefixes, structural
-  suffix descent, and all coherence, activation, and permission clauses.
-  Regular solutions give such quotients and quotient models lift back to
-  regular solutions, but the finite-model property is unproved and has no
-  counterexample. A direct `lambda x. x x` attack refutes one shortcut for
-  extending the two-sided witness construction: a variance-generated child
-  with one empty anchor side cannot be defaulted independently to empty Record.
-  The source package remains regularly satisfiable, so the FMP gate is
-  unchanged; details are in the direct main-gate record. Finite quotient
-  enumeration plus finite Horn-conflict
-  witnesses decides regular satisfiability only if this property holds; see
-  the exact statement in the direct main-gate record. An independent
-  meet-closure theorem rules out aperiodic Wang reductions whose same-package
-  solutions realize every translate and whose finite-depth decoder commutes
-  with a shared-scaffold information meet. A separate marker-provenance
-  invariant shows that prefix stripping plus structural suffix descent alone
-  cannot renew the unary head/presence marker needed by a direct two-sided
-  counting gadget; activation feedback remains unexcluded. Neither result
-  proves FMP or refutes it. A concrete `Y=Fun(Y,{f:Int})`, `X <: Y` example
-  refutes regularizing one arbitrary solution by a descriptor-monoid meet:
-  literal subtree meets break child coherence, while a coherent local
-  head/mask fold removes a field required by the original bound. The package
-  itself has the regular witness `X=Y`, so FMP remains open. A synchronized
-  local-signature representative fold also fails to preserve
-  `q=Fun(X,X)`'s shifted shared-root equation, despite that package already
-  having a regular witness; this refutes that reconstruction step only. The
-  direct record has the exact paths and independent review. A direct Astra
-  attack plus independent compiler-referee audit now localizes the main gate
-  exactly to finite-quotient conflict reflection: if every finite monoid
-  quotient of one complete `Γ_P` is inconsistent, must the free-address least
-  Horn closure have a finite conflict? This is equivalent to FMP given the
-  existing arbitrary-tree conflict characterization. Neither side is proved;
-  a negative result requires one fixed `P` satisfying over `I*` but failing
-  every finite quotient. The reviewed finite-feedback theorem now gives
-  `forall k exists mu` safe through round `k`, including complete coherence.
-  The exact residual (BR) asks whether, conditional on every finite quotient
-  of this fixed package failing, their first-conflict ranks along a cofinal
-  tower are uniformly bounded. A genuine FMP counterexample has all those
-  ranks finite but tending to infinity. This is not an exchange to
-  `exists mu forall k`; see
-  [finite feedback quotients, §5](../notes/design/2026-10-04-structural-finite-feedback-quotients.md#5-cofinal-quotient-tower-and-exact-residual-statement).
-  No new source premise, carrier, rejection rule or compiler implementation
-  is selected.
+- **Pure structural existence is closed:** the reviewed finite-fence theorem
+  proves arbitrary-tree satisfiability iff regular satisfiability iff a model
+  exists on some finite surjective monoid quotient of the complete `Gamma_P`.
+  Therefore a free-conflict-free package has a simultaneous regular extension
+  of its domain, head, presence and original activation facts. The fixed-package
+  conflict-reflection statement and conditional cofinal rank bound (BR) follow.
+  Exact recursive descriptor sharing, mandatory width, Function variance,
+  invariant coordinates and arbitrary permission sets are included; arbitrary
+  `Guard`, `Phi/K,D`, effects and optional Records remain outside the theorem.
+  The old representative, information-meet, local-signature, and empty-side
+  constructions still fail as recorded. Those examples remain regularly
+  satisfiable and do not refute FMP. The new construction uses seven finite
+  fence distances to all original terms, selected-field landmarks, and exact
+  successor profiles; it does not exchange `forall k exists mu` with
+  `exists mu forall k`. Proof and independent certification are in
+  [finite fence completion](../notes/design/2026-10-04-structural-fmp-fence-completion.md)
+  and [its progress record](../notes/progress/2026-10-04-structural-fmp-proof.md).
+  The historical attempts remain in the direct-main-gate and finite-feedback
+  records. No extra source premise, carrier, rejection rule or compiler
+  implementation is selected by this theorem.
 - The standard guarded-BPA undecidability result does not directly settle
   this gate: it requires transparent parameter-changing recursive type
   constructors, which current type-declaration authority does not establish;
@@ -503,8 +475,8 @@ remain in the linked progress records above and
   mapped against the finite descriptor graph: the BPA reduction needs a
   recursive definition to act on arbitrary changing type arguments, while
   current descriptor edges retain fixed graph references. This rules out
-  only that direct transfer, not the open regular-completion theorem or other
-  reductions. See
+  only that direct transfer. The separate finite-fence theorem now settles
+  regular completion for the current finite descriptor fragment. See
   [BPA transfer audit](../notes/progress/2026-10-04-bpa-recursive-constructor-transfer-audit.md).
 - **Source State/reference bridge:** derive dynamic ownership, read/update
   replacement, captured access, and repeated resumption; the `start!` fixture

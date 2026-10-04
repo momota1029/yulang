@@ -1,7 +1,7 @@
 # Finite feedback quotients and the exact remaining FMP premise
 
 Date: 2026-10-04
-Status: Reviewed mathematical theorem package; unrestricted FMP remains open
+Status: Reviewed mathematical theorem package; historical classification C, FMP/BR subsequently proved
 Reviewed-by: two independent compiler-referee reviews and one focused coherence delta review
 Scope: the existing normalized pure structural address Horn system
 Base inspected: `be138584741a007e084aabe1c0e66641dac497b2`
@@ -10,6 +10,14 @@ Implementation authority: none
 Supersedes: none
 
 Review and verification: [paired progress record](../progress/2026-10-04-structural-fmp-feedback-rank.md).
+
+**Subsequent result:** [finite fence completion](2026-10-04-structural-fmp-fence-completion.md)
+proves the full normalized pure structural FMP, including arbitrary rigid
+permissions, and therefore proves (BR). The open-status and negative-target
+statements below describe this earlier investigation. Its finite-feedback
+theorems, exact rank equivalences and construction-specific counterexamples
+remain valid. The later proof constructs a complete regular model directly;
+it does not exchange the finite-horizon quantifiers here.
 
 ## 1. Classification and governing facts
 
@@ -572,7 +580,7 @@ of any original flat term. No finite recycling theorem for those contexts
 was established. Assuming their finite joint compatibility would assume the
 regular-completion result rather than prove it.
 
-## 8. Exact remaining scope
+## 8. Exact scope remaining after this earlier result
 
 The new theorems establish fixed-quotient completion for the explicit,
 model-conservative coherence presentation, finite-horizon quotient safety and
