@@ -235,6 +235,16 @@ This index is a navigation aid. The listed source document remains authoritative
   4,096 finite encodings. Production conformance, legal common descriptors and
   all-view direct-query evidence remain open, classification C. See
   [proof/review record](../progress/2026-10-05-experiment-guided-main-gate-attack.md).
+- **Reviewed source factor-cover proof and actual-query preservation:**
+  [source factor coverage](2026-10-05-source-factor-cover-and-query-preservation.md)
+  supplies a finite sufficient criterion for exact source relation joins and
+  a sharp converse uniform over independent factors on nontrivial products.
+  Exactness preserves every unchanged client and existing direct evidence.
+  A fixed supplied-primitive XOR/provider example defeats all proper marginals
+  of its ternary dependency; 148,224 finite cases corroborate the proof.
+  Production generalization/use membership and common-component typed-view
+  introduction remain open, with totality and all-view quantifiers unchanged.
+  Review status is in the [attack record](../progress/2026-10-05-factor-cover-main-gate-attack.md).
 - **Active callback gate — production conformance:**
   `notes/design/2026-10-04-production-callback-endpoint-generation-draft.md`
   specifies the bounded application HIR/lowering, B step 6 finite endpoint
@@ -339,6 +349,7 @@ the source design documents and explicit user decisions.
 
 | Document | Status | Authority scope | Approved / state | Useful locator or gate |
 |---|---|---|---|---|
+| `notes/design/2026-10-05-source-factor-cover-and-query-preservation.md` | Reviewed limited mathematical theorems; two independent clean reviews | Source-local decomposition of existing complete relations; no representation or implementation decision | Complete factor coverage proves exact reconstruction and preservation of every unchanged client/direct-evidence relation; sharp uniform necessity on nontrivial products; fixed observable parity route counterexample; 148,224-case research checker | Full production membership, legal common-component formation/typed-path interpretation and all-valid-view extension through the designated export remain open. Classification C; structural FMP remains A. |
 | `notes/design/2026-10-04-source-indexed-callback-realization.md` | Reviewed limited mathematical construction; no implementation authority | Source-associated reference endpoints in Theorem C's decorated immutable envelope | Finite root membership/admission clauses give a bidirectional constructor correspondence with generated bounds. Whole-observation typed projection preserves all finite latent and resumption histories. Two independent reviews closed with one minor owner-name correction. | Full production generation/denotation conformance and all-source B decoration generation remain open. This does not select the reference as authoritative production semantics. |
 | `notes/design/2026-10-04-common-allowance-context-preimage.md` | Reviewed semantic results and exact remaining realization obligations; no implementation authority | Complete forward relations, safe universal context preimages and common semantic contracts at one fixed fiber | Finite joint forward presentation; image/preimage equivalence with independent admission; finite separation from uniform positive formulas; least common semantic contract with exact domain condition. Two independent clean reviews. | Legal common descriptors and all-view solution-preserving instantiation remain unproved. The later constrained-use theorem supplies the finite ordinary map construction and replaces that separate concern with its exact-projection entailment. No new descriptor kind, row rule or main-gate closure. |
 | `notes/design/2026-10-04-certified-callback-and-constrained-use.md` | Reviewed limited mathematical theorems; compiler/spec review and mathematical repair delta closed | Finite existing-presentation certificates, fixed-fiber callback transport, admission-uniform hiding, and finite ordinary constrained uses | Complete membership/admission inversion for all finite histories; safe-hiding lemma and countermodel to unrestricted hiding; whole-copy/graft/direct-query construction with exact public projection iff scoped extension; explicit designated-root distinction | Production input/certificate derivation, safe hiding of any remaining admission dependencies, legal common descriptor realization and direct-query completeness for all valid public views remain open. Classification C; no semantics, carrier, rejection rule or implementation change. |

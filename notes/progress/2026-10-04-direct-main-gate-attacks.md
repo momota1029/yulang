@@ -52,6 +52,15 @@ all-view direct-query evidence remain open. See the
 
 ## Pure-value callback / Function adequacy
 
+The later [factor-cover attack](2026-10-05-factor-cover-main-gate-attack.md)
+closes a finite source-local criterion for exact reconstruction and every
+unchanged client/direct-evidence extension. Its sharp uniform converse and
+fixed XOR/provider obstruction rule out all proper marginals of a ternary
+dependency. The [complete argument](../design/2026-10-05-source-factor-cover-and-query-preservation.md)
+locates production membership at generalization/fresh-use owners and the
+unprovided common-component introduction/typed-view rule. The full callback
+and principal goals remain C; the historical failure distinctions below hold.
+
 **Result: the main theorem remains open at the source-to-endpoint adequacy
 theorem; its bound clause has one decisive missing endpoint-bound
 factorization premise, even with State excluded.**

@@ -183,6 +183,21 @@ acceptance schemes remain open.
 
 ## Latest main-gate results
 
+The reviewed [source factor-cover proof](../notes/design/2026-10-05-source-factor-cover-and-query-preservation.md)
+gives a finite sufficient test for exact relation reconstruction: each original
+factor's complete operand interface must occur in a retained bag. It is also
+necessary for a uniform guarantee over independently arbitrary factors on
+nontrivial product domains, without asserting that production fibers are
+products. Exact reconstruction preserves every unchanged joint client and
+actual direct-query evidence relation. A fixed XOR/returned-provider source-core
+example defeats all proper projections of its ternary dependency even after
+approved observation erasure. The isolated checker exhausts 148,224 cases.
+Complete production membership across generalization/fresh use and the legal
+common-component introduction/typed-view rule remain open; original totality,
+all-view quantifiers and the actual exported root are unchanged. Full callback/
+principal classification remains C, structural FMP A. Review/verification is
+tracked in the [new attack record](../notes/progress/2026-10-05-factor-cover-main-gate-attack.md).
+
 The single-inequality endpoint rule also has a small executable check:
 [`research_inequality_endpoint_dispatch.py`](../tools/research_inequality_endpoint_dispatch.py)
 exhausts 512 variable-edge graphs and the approved optional-record
