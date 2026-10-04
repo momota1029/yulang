@@ -56,6 +56,10 @@ Publication does not notify or resume a stopped goal.
   preservation, soundness, principality, and implementation remain open. See
   the [approved handoff receipt](../questions/2026-10-05-function-effect-row-denotation/receipt.md)
   and [compatibility addendum](../notes/design/2026-10-03-concrete-compatibility-boundary.md#9-user-directed-mixed-effect-row-fragment-2026-10-05).
+  A new finite complete-observation probe distinguishes compatible typed-port
+  coverage from filtering to the exact annotation occurrence; it chooses
+  neither and leaves source annotation membership open. See the
+  [membership probe record](../notes/progress/2026-10-05-effect-component-membership-playground.md).
   `never`, `Any`, empty rows, and polarized solver bounds remain distinct.
 - **Callback literal:** B is the normative/reference constraint generation:
   expected context selects Handler/boundary before body generation, endpoints
