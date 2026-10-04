@@ -729,6 +729,17 @@ remain in the linked progress records above and
   context-carry and failure-order sensitivity only; they do not establish
   production guard finiteness or lexical-scope semantics. See the
   [guard-context probe](../notes/progress/2026-10-05-residual-guard-context-playground.md).
+  A further recursive-graph checker compares direct greatest-fixed-point
+  subtyping against finite residual normalization: it exhausts 32,400 checks
+  over a selected shallow endpoint graph and adds 15,360 seeded checks over
+  bounds with up to four reachable nodes, including 133 cyclic bounds. Review
+  caught and helped repair two checker defects (assignment-edge offsets and
+  reflexive-only generated endpoints); the repaired model includes a separate
+  recursive-copy rejection assertion and a cyclic bound with both satisfying
+  and failing assignments. This characterizes pure single-bound normalization
+  only; scope guards, joint `Phi`, effect ports, source generation, and effective
+  principal projection remain open. See the
+  [recursive residual playground](../notes/progress/2026-10-05-regular-residual-factorization-playground.md).
   The direct MSO route is still invalid, and standard ranked exact-shape
   subtyping does not directly encode mandatory Record width. Historical
   bounded results and failed scoped encodings are recorded in
