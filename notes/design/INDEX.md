@@ -2,9 +2,28 @@
 
 This index is a navigation aid. The listed source document remains authoritative for its own text and scope. If this file conflicts with a source, read the source and correct the index.
 
+## Active inference navigation (2026-10-04)
+
+- **Closed source contract:** callback literal B constraint generation and
+  B-equivalent A optimization are recorded in the Authoritative callback
+  design, §2.1. The earlier expected-context, Handler-role, independent
+  endpoint, and ordinary `F_lit <: F_cb` requirements were already in scope;
+  the explicit B-normative label, optimization allowance, and equivalence
+  dimensions record the user's 2026-10-04 clarification. No API or algorithm
+  is selected.
+- **Next proof gate:** Pure-value callback adaptation and its Function theorem
+  remain unproved. The callback design row points to the detailed obligations.
+- **Other open gates:** structural solving/Milestone 3, the source
+  State/reference bridge, and global source acceptance/principality/lifecycle
+  remain open; see `tasks/current.md` for the compact active summary and linked
+  progress records for evidence/history.
+
+These pointers summarize navigation only; authority and status remain those of
+the source design documents and explicit user decisions.
+
 | Document | Status | Authority scope | Approved / state | Useful locator or gate |
 |---|---|---|---|---|
-| `notes/design/2026-10-03-callback-context-delivery.md` | Authoritative bounded source contract; no compiler/API implementation authority | **Closed:** callback literal context selects Handler/boundary before body constraints; endpoints are independently synthesized; completed interface checked by ordinary `F_lit <: F_cb`. B is normative/reference generation. A is allowed only as a scheduling/partial-evaluation optimization equivalent to B, preserving solutions and observations. Existing Pure values retain actual role and §21 entry; callback slot supplies a typed invocation view. | §§2–2.1 and 4. B/A policy explicitly clarified by user 2026-10-04. The earlier expected-context, independent-endpoint, and ordinary-inequality requirements were already in the Authoritative contract; explicit normative naming, optimization allowance, and equivalence dimensions are recorded in §2.1 and `notes/progress/2026-10-04-callback-policy-and-task-compaction.md`. No API or optimized algorithm is selected. | **Open proof gate:** Pure-value adaptation through a known callback slot: whole-carrier admission/domain inclusion; complete endpoint/profile and linked-contribution adequacy; observation-bound inclusion across legal histories. Conditional typed-filling transport does not close these clauses; see `notes/progress/2026-10-04-value-entry-bind-projection.md`. |
+| `notes/design/2026-10-03-callback-context-delivery.md` | Authoritative bounded source contract; no compiler/API implementation authority | **Closed source contract:** callback literal context selects Handler/boundary before body constraints; endpoints are independently synthesized; completed interface checked by ordinary `F_lit <: F_cb`. B is normative/reference generation. A is permitted only as B-equivalent scheduling/partial evaluation; it preserves accepted programs, principal solutions, method/adapter choices, and residual/evidence semantics. Existing Pure values retain actual role and §21 entry; callback slot supplies a typed invocation view. | §§2–2.1 and 4. Expected-context delivery, independent endpoints, and ordinary inequality were already in the Authoritative contract. The user’s 2026-10-04 clarification explicitly names B as normative and A as an optimization subject to observational/solution equivalence. No API or optimized algorithm is selected. | **Open proof gate:** Pure-value adaptation through a known callback slot: whole-carrier admission/domain inclusion; complete endpoint/profile and linked-contribution adequacy; observation-bound inclusion across legal histories. Conditional typed-filling transport does not close these clauses; see `notes/progress/2026-10-04-value-entry-bind-projection.md`. |
 | `notes/design/2026-10-02-parametric-component-linking.md` | Draft; prior linking/binder and §7 executable-linking packages independently reviewed; no implementation authority | graph grafting, joint relational linking and contextual recertification | §7 constructs a merged kernel from finite supplied open templates before query lowering and joint safety/image saturation | general Function comparison, source-template generation, effective complete checking, instance completeness and lifecycle remain open |
 | `notes/design/2026-10-02-heap-backed-client-interactions.md` | Draft; M3 semantic/conformance package reviewed; no implementation authority | finite command driver and heap carrier for a template-closed interaction signature | typed packet pool covers unbounded retained handles without supplied finite client code; conditional command-prefix and weak-store simulation | source interface encapsulation, command/fault refinement, finite predicates and acceptance bridge remain open; no class-3 witness |
 | `notes/design/2026-10-02-counting-aware-row-projection.md` | Draft; M3 semantic/conformance package reviewed; no implementation authority | row membership plus correlated request capacities | finite exact projection with residual threshold at most `b 2^h`; separate finite-row and arbitrary-subset interpretations | type/domain predicates, full invocation checking and source principality remain open; no source row-domain choice |

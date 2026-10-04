@@ -65,3 +65,14 @@ changed in this navigation edit. `notes/design/INDEX.md` labels the callback
 contract as closed and the Pure-value theorem as open, and distinguishes the
 B/A requirements already in the Authoritative source contract from the explicit
 optimization-equivalence clarification recorded on 2026-10-04.
+
+The follow-up compactification is complete: `tasks/current.md` now keeps only
+the full objective, closed decisions, active proof gates/blockers, and governing
+design/history links. The index now has a short active-inference navigation
+section and the callback row restates the exact closed/open split. Authority
+adjudication remains unchanged: B's ordering and ordinary final inequality
+followed from the existing Authoritative contract; the user's explicit B
+reference designation, allowance of A as an optimization, and named
+observational/solution-equivalence conditions are the newly clarified durable
+content. No unresolved semantic choice was found, so no user decision is
+pending.
