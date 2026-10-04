@@ -146,6 +146,17 @@ false solutions. This is an exact boundary of the construction, not a
 counterexample to a stronger finite method or to general regular-witness
 existence.
 
+This is specifically a limit of the synchronous tuple automaton. Its run at
+address `w` sees each free track at that same address; it cannot compare one
+track at `Arg·w` with another track at `w`. A descriptor equation therefore
+needs a cross-component subtree test (the TACT distinction in Su et al.,
+[§5.3](https://web.cs.ucdavis.edu/~su/publications/popl02.pdf)). The paper
+notes that TACT is not closed under projection and leaves the relevant
+restricted emptiness problem as a proposed direction. That does not refute
+the root-only automaton or prove the Yulang fragment impossible; it identifies
+why ordinary synchronous automaton closure does not supply the missing
+open-descriptor theorem.
+
 The next structural theorem must retain shifted root/child equations together
 with all joint comparison obligations. Separately, principal residuals,
 effective projection for open Records/feedback, source-wide generation and
