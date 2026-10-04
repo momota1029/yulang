@@ -103,8 +103,13 @@ and the required authority.
 
 - Milestone 3 (finite symbolic presentation) still lacks source-wide
   comparison/context closure, complete source realization, and effective
-  joint residual/projection for open Records and feedback. There is no
-  class-3 impossibility result. One bounded source-origin subgate is closed:
+  joint residual/projection for open Records and feedback. A reviewed bounded
+  theorem now gives a regular witness for unguarded structural constraints
+  whose flexible classes occur only as inequality roots and whose other
+  endpoints are closed descriptors. It does not cover shifted open-descriptor
+  equations, principal residuals, or source acceptance; see
+  [root-only regular-witness theorem](../notes/progress/2026-10-04-root-only-regular-witness.md).
+  There is no class-3 impossibility result. One bounded source-origin subgate is closed:
   normative callback B supplies one occurrence-indexed initial
   `F_lit <: F_cb` root per eligible callback-literal derivation, with its
   context/profile references retained under admissible transport. This does
@@ -144,6 +149,7 @@ and the required authority.
 - [Concrete compatibility boundary](../notes/design/2026-10-03-concrete-compatibility-boundary.md)
 - [Scoped constraint solving](../notes/design/2026-10-03-scoped-constraint-solving.md)
 - [Open residual factorization](../notes/design/2026-10-03-open-residual-factorization.md)
+- [Root-only regular-witness theorem](../notes/progress/2026-10-04-root-only-regular-witness.md)
 - [Ordinary computation semantics](../notes/design/2026-10-02-ordinary-computation-semantics-package.md)
 - [Value-entry bind/projection progress](../notes/progress/2026-10-04-value-entry-bind-projection.md)
 - [Callback policy and task-ledger compactification](../notes/progress/2026-10-04-callback-policy-and-task-compaction.md)
