@@ -46,6 +46,8 @@ This is a snapshot of a fast-moving research branch. “Current” below means s
 
 **Characterization.** The finite-fence Python checker and generated package searches check the construction on bounded families and retain shrunk defects as regressions. They do not establish the theorem, choose production algorithms, or set resource limits. See [finite-fence playground](../progress/2026-10-05-structural-fence-playground.md).
 
+**Open — finite constrained residual and effective projection.** The reviewed scoped-solving work gives equality quotienting, closed structural comparison, and a candidate factorization of solutions through finite open-bound residual edges under stable finite guard/evidence contexts. It does not yet close source-wide context finiteness, the full effective joint solver for residuals plus `Phi/K,D` and structural projection, or an effective principal projection. Pure FMP supplies regular-model existence for the normalized pure structural part; it does not itself solve the residual constraints, jointly project effects/guards, or give a production decision procedure. See [scoped constraint solving](../design/2026-10-03-scoped-constraint-solving.md), [open residual factorization](../design/2026-10-03-open-residual-factorization.md) §§1, 4–7, and the active-gate summary in [tasks/current.md](../../tasks/current.md).
+
 ### 4. Callback transport and safe hiding
 
 **Theorem — total-definition elimination.** Fresh total coordinates defined at their original scopes can be forgotten while preserving old witnesses, complete observations, and their independently generated admission certificates. This needs no admission-uniformity condition for those new derived coordinates. **Theorem — linked equality.** The specified actual and checked reference bounds are equal on each checked-admitted complete fiber. Both results are in [callback coverage and source-preserving composition](../design/2026-10-05-callback-coverage-and-source-joins.md) §§2–3 and strengthen the earlier inclusion-only formulation for that exact linked pair.
@@ -83,6 +85,9 @@ This is a snapshot of a fast-moving research branch. “Current” below means s
 3. Construct legal source-expressible common descriptors for every original solution under the existing totality quantifiers.
 4. Prove the all-view extension entailment/direct-query completeness through the designated exported root, including actual resolver evidence.
 5. Connect retained constraints and generalized constrained interfaces to soundness/principality, then specify canonical interface equality and production lifecycle behavior before any cutover.
+6. Close finite residual factorization's source-context premises and the effective joint solving/projection of structural residuals with guards and `Phi/K,D`; regular existence alone is not effective inference.
+7. Close the separate source State/reference and global environment/import bridge, including dynamic ownership, update/restart, captured access, repeated resumption, and `EnvStore`/`JointWF`.
+8. Complete ordinary effect/handler semantics, then the charter's later mandatory method-selection, role, and implementation-resolution gate for the claimed source envelope.
 
 No new mathematical gap discovered while assembling this map is silently repaired here. Any proof hole noticed during subsequent work belongs in the relevant open gate with its exact quantifiers.
 

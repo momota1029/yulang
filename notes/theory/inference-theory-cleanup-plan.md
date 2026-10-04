@@ -62,11 +62,13 @@ These are design-space observations, not deletion recommendations. Do not remove
 
 - Production HIR Apply/inline-lambda lowering and B endpoint generation; parser/recovery surface and result-consumer incidence are actively characterized.
 - Production complete Function/effect denotation and the actual-side membership factorization, including arbitrary conservative root alternatives and independent challenge admission.
+- Finite constrained residual factorization's stable finite guard/evidence-context premise; effective joint solving with `Phi/K,D`; and effective principal projection. Pure regular-model existence does not discharge these.
 - Extraction of certified transformation evidence/source decorations from current production `ConstraintStore`/routing/generalization.
 - Coverage or retention policy for admission-live old existential witnesses at their legal source scopes.
 - Common descriptor construction and totality for each source solution; valid typed effect joins and source/provider preservation.
 - All-view direct-query extension entailment, designated root/evidence and resolver completeness.
 - Generalized constrained-interface fields, canonical comparison, SCC split/merge and enclosing-environment behavior, atomic rebuild publication, and non-inference artifact invalidation.
+- Source State/reference plus global first-class-reference/import and `EnvStore`/`JointWF` adequacy; ordinary effect/handler semantics; and the later mandatory method-selection/role/implementation-resolution gate.
 - Broader source envelope: mutable state, arbitrary imports/handler images, annotations, recursive schemes, and all ordinary application/branch/block forms where the existing theorems explicitly exclude them.
 
 Until these gates close, keep new proof drafts and checkers in their existing narrow research/progress locations and avoid implying that a finite model or a reviewed reference construction is production semantics.
