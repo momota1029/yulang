@@ -3,9 +3,9 @@
 Status: Authoritative
 Date: 2026-10-04
 Scope: bounded source elaboration for an unannotated Function literal and an existing Pure Function value used through a known Function-valued callback formal
-Approved-by: user, 2026-10-03 (callback literal context delivery); user, 2026-10-04 (callback-slot invocation view preserves underlying role and entry)
+Approved-by: user, 2026-10-03 (callback literal context delivery); user, 2026-10-04 (callback-slot invocation view preserves underlying role and entry; B is reference generation and A is allowed only as equivalent optimization)
 Drafted-by: primary
-Reviewed-by: architect, compiler_referee, and spec_auditor (2026-10-03, including §4 and §8 deltas); compiler_referee and spec_auditor (2026-10-04 invocation-view delta); no unresolved findings
+Reviewed-by: architect, compiler_referee, and spec_auditor (2026-10-03, including §4 and §8 deltas); compiler_referee and spec_auditor (2026-10-04 invocation-view delta); compiler_referee (2026-10-04 §2.1 B/A policy delta); no unresolved findings
 Supersedes: none
 
 ## 1. Purpose and authority boundary
@@ -76,6 +76,40 @@ an explicit literal annotation, annotation/callback overlap, unknown callees,
 retained `Computation` formals, import/member lookup, and general source
 acceptance. The overlap remains a separate open source rule; retain both
 original descriptors when deriving it later.
+
+### 2.1 Normative reference generation and equivalent early propagation
+
+The normative/reference constraint-generation semantics for this bounded
+callback-literal case is **B**:
+
+1. Deliver the expected callback boundary before generating body constraints,
+   selecting Handler role and that boundary.
+2. Independently synthesize the parameter, body, and result endpoints under
+   that selected role and the syntax-directed §21 parameter-entry rule.
+3. Form the completed literal interface `F_lit` and validate it against the
+   instantiated callback interface by one ordinary inequality
+   `F_lit <: F_cb`.
+
+Expected-context delivery selects the role and boundary; it does not copy or
+equate the expected value endpoints with synthesized literal endpoints. This
+is the reference ordering already stated in §2 steps 2–6. The user's
+2026-10-04 clarification makes that B ordering normative and identifies the
+single completed-interface query as its final check.
+
+An implementation may use **A** as an optimization: propagate an expected
+interface consequence earlier, or partially evaluate/schedule B's constraints,
+only when the early work is logically entailed by the constraints B would
+ultimately generate. A is not a distinct source typing rule or language
+semantics. In particular, direct endpoint assignment/equality is invalid when
+it is stronger than `F_lit <: F_cb` and removes a solution admitted by B.
+
+The optimization's proof obligation is observational and solution equivalence
+with B. It must preserve accepted programs, principal solutions,
+method/adapter choices, and residual/evidence semantics, while preserving the
+meaning of the ordinary completed-interface inequality. This policy does not
+select an API, compiler phase, propagation algorithm, or implementation
+authority. A candidate optimization still needs a proof of equivalence before
+implementation; expected-interface substitution alone is not that proof.
 
 ## 3. Source-order and runtime invariants
 
