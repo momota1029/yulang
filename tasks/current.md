@@ -301,6 +301,12 @@ the exact projected source relation in every case. It characterizes the
 reviewed §6.3 obstruction only and does not construct a production common
 descriptor. Details are in the
 [callback/principality playground record](../notes/progress/2026-10-04-callback-principal-playgrounds.md#higher-returned-provider-join-probe-2026-10-05).
+An executable admission-dependency probe also checks the safe-hiding premise:
+all 64 Boolean certificate assignments preserve admission when only the
+transitive-closure complement varies. Omitting the exposed-request to
+producer-proof edge shrinks to one `call_executed` bit that changes admission.
+Production extraction of the dependency graph remains open; see the
+[playground record](../notes/progress/2026-10-04-callback-principal-playgrounds.md#callback-admission-dependency-closure-probe-2026-10-05).
 
 The latest user request reopened direct proof work on callback and
 principality after the pure FMP proof. The independently reviewed

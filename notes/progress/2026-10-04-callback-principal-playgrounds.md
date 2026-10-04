@@ -371,3 +371,23 @@ source-core relation only. It does not model production endpoint denotation,
 Function comparison, a solver-generated common descriptor, or principal
 factorization; the result is characterization evidence, not a new theorem or
 a counterexample to every possible shared allowance.
+
+## Callback admission dependency-closure probe (2026-10-05)
+
+[`tools/research_callback_dependency_closure.py`](../../tools/research_callback_dependency_closure.py)
+tests the small incidence rule behind Theorem 4 of
+[`callback coverage and source-preserving composition`](../design/2026-10-05-callback-coverage-and-source-joins.md): safe hiding must close admission operands through the existing proof that an exposed request was produced and retained. Its certificate is a finite Boolean dependency graph with challenge, producer, retention, owner, and one unrelated private coordinate.
+
+All 64 assignments and 128 assignment-pair comparisons confirm that varying
+only the input outside the transitive dependency closure leaves admission
+unchanged. The checker then removes the `request_exposed -> request_produced`
+edge from the closure traversal and shrinks the failure to one bit: with
+challenge, continuation retention, and owner fixed, changing `call_executed`
+changes admission. This makes the need to follow request-production
+provenance through more than one dependency edge executable.
+
+The model checks a Boolean certificate abstraction only. It does not extract
+the dependency graph from production HIR/solver evidence or prove admission
+invariance for Yulang's full request, resumption, and future-use schemas. Its
+counterexample rejects the omitted-producer shortcut, not the reviewed
+complete-closure theorem.
