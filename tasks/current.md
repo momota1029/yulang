@@ -404,6 +404,20 @@ or complete-bound checker. The full-bound realization factorization and
 raw/HIR bridge remain open. Details are in the
 [callback/principality playground record](../notes/progress/2026-10-04-callback-principal-playgrounds.md#callback-b-endpoint-trace-audit-2026-10-05).
 
+A new executable composition probe directly exercises the remaining
+result-consumer seam: `Force(D) >>= rebind >>= body >>= consumer`, where each
+stage may request, suspend, and resume. It differentially compares monadic
+suffix propagation with an independent stage walker over 8,192 graphs and
+87,264 observations. The model derives argument `d-`/`d+` and body/consumer
+`b+` occurrence projections from one composed source trace, preserves the
+outer/latent owners, receipts, binder scope, typed paths, and fixed `nu,K,D`,
+and rejects minimized omitted-consumer and consistently projected Force-replay
+mutants. An independent spec delta review closed the checker corrections.
+This is still a finite source-composition characterization: stages have at
+most one request, relation rows are supplied, and no production endpoint
+membership or Theorem C inclusion is established. Details and exact scope are
+in the [consumer-factorization playground](../notes/progress/2026-10-05-callback-consumer-factorization-playground.md).
+
 The production bridge is not proved or authorized for implementation. The
 smallest Pure-path blocker is a full-bound realization crosswalk, not
 exactness with respect to source execution. Let `D_A,D_C` and `P_A,P_C` be

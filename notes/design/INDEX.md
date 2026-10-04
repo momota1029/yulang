@@ -41,6 +41,11 @@ This index is a navigation aid. The listed source document remains authoritative
   shrinks three scope-mutation failures; it does not close production membership
   factorization. See the
   [scope-lift record](../progress/2026-10-05-callback-scoped-lift-playground.md).
+  [`research_callback_consumer_factorization.py`](../../tools/research_callback_consumer_factorization.py)
+  differentially checks finite `Force >>= rebind >>= body >>= consumer`
+  request/resumption composition and derives `d-`/`d+`/`b+` occurrence views
+  from the composed trace; it does not interpret production bounds. See the
+  [consumer-factorization record](../progress/2026-10-05-callback-consumer-factorization-playground.md).
   [`research_callback_admission_hiding.py`](../../tools/research_callback_admission_hiding.py)
   exhausts the finite admission-uniform hiding lemma and minimizes a failure
   when the premise is removed. See its
