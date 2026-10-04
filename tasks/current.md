@@ -563,6 +563,10 @@ define complete membership. The exact-source reference image cannot be assumed
 as production semantics. No source counterexample or carrier insufficiency
 was found. See the
 [complete-root membership audit](../notes/progress/2026-10-05-source-indexed-function-realization-playground.md#independent-complete-root-membership-audit).
+The remaining interpretation choice is on the local question board as
+[`production-function-bound-membership/q1`](../questions/2026-10-05-production-function-bound-membership/question.md).
+Only claims dependent on production actual-bound membership wait; the separate
+principal-scheme lane and `P_ref`-only proof work remain authorized.
 
 User-directed principal-scheme acceptance examples now cover `id`, `zero`,
 `call`, `compose`, repeated calls, branches, and staged higher-order calls.
