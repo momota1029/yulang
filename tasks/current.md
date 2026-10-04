@@ -251,6 +251,14 @@ interpretation. Source generation and production membership conformance,
 including the B literal's supplied decorations, remain real gates. See the
 [proof/review follow-up](../notes/progress/2026-10-04-callback-principality-direct-followup.md).
 
+A finite scope-aware checker now exhausts the old-tuple-preserving total
+coordinate lift under `forall kappa. exists z`, including one captured `s`
+outside that binder, and minimizes three mutations that move `s`, `z`, or
+tuple-dependent `w` across it. This closes only that finite scoping
+characterization; joint hiding across production segments and actual-side
+membership factorization remain open. See the
+[scoped-lift playground](../notes/progress/2026-10-05-callback-scoped-lift-playground.md).
+
 The design and its current proof boundary are recorded in
 [production callback endpoint generation](../notes/design/2026-10-04-production-callback-endpoint-generation-draft.md).
 It specifies a bounded raw/HIR application node and lowering, B step 6 role-first

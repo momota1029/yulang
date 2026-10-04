@@ -36,6 +36,11 @@ This index is a navigation aid. The listed source document remains authoritative
   [`research_compose_hygiene.py`](../../tools/research_compose_hygiene.py)
   checks that shared `b` row spelling does not grant capture for annotation-free
   `compose`.
+  [`research_callback_scoped_lift.py`](../../tools/research_callback_scoped_lift.py)
+  exhausts a finite total-coordinate lift at its original binder scopes and
+  shrinks three scope-mutation failures; it does not close production membership
+  factorization. See the
+  [scope-lift record](../progress/2026-10-05-callback-scoped-lift-playground.md).
   Exact limits and minimized obstructions are in the
   [progress report](../progress/2026-10-04-callback-principal-playgrounds.md).
 - **Completed narrow experiment:**
