@@ -281,6 +281,11 @@ This index is a navigation aid. The listed source document remains authoritative
   open; no extra member or implementation is selected. See the
   [approved answer](../../questions/2026-10-05-production-function-bound-membership/approved-answer.md)
   and [receipt](../../questions/2026-10-05-production-function-bound-membership/receipt.md).
+  A direct main-gate audit finds the required exhaustive, comparison-independent
+  production membership/admission interpretation is still absent from current
+  HIR/F5 owners; it records the exact premise without selecting `W`/`Z`, a
+  carrier, or implementation. See the
+  [interpretation audit](../progress/2026-10-05-production-complete-function-interpretation-audit.md).
 - **Active callback gate — production conformance:**
   `notes/design/2026-10-04-production-callback-endpoint-generation-draft.md`
   specifies the bounded application HIR/lowering, B step 6 finite endpoint

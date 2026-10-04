@@ -564,13 +564,23 @@ The exact production membership rule and complete actual-to-checked proof are
 the next gate. Checked-challenge admission must remain independent of
 comparison success. The B-literal generation clause must independently show
 that all three selected occurrences and witnessed attachments project from
-the same source tuple before the ordinary query. Current HIR still has no
-Apply or inline lambda, and parser recovery plus source/endpoint realization
-remain generation-conformance work. The design remains Draft; no production
+the same source tuple before the ordinary query. Current `ResolvedExpr` still
+has no function-application node or inline-lambda-in-application lowering;
+lower-level `HirExpr::Apply` represents dynamic operator association. Parser
+recovery plus source/endpoint realization remain generation-conformance work.
+The design remains Draft; no production
 implementation is authorized. The current `id x = x` / scalar-body owner
 trace confirms source identities are retained but complete membership is not
 defined; see [Lambda endpoint owners](../notes/progress/2026-10-04-lambda-endpoint-owner-trace.md)
 and the [complete-root membership audit](../notes/progress/2026-10-05-source-indexed-function-realization-playground.md#independent-complete-root-membership-audit).
+The direct main-gate interpretation audit localizes the prerequisite as an
+exhaustive, comparison-independent production Function membership and
+admission interpretation at each full `(nu,K,D)` fiber, including active
+descriptor membership and any Option 2 extras. Current HIR/F5 source
+identities, four ports, facts, and provenance do not define that predicate.
+No source counterexample or carrier insufficiency was found. Independent
+semantic and authority review is recorded in
+[the interpretation audit](../notes/progress/2026-10-05-production-complete-function-interpretation-audit.md).
 The question handoff and its
 [integration receipt](../questions/2026-10-05-production-function-bound-membership/receipt.md)
 record the accepted policy. The independent principal-scheme lane and
