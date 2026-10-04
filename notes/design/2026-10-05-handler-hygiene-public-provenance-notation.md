@@ -256,12 +256,17 @@ or neither.
 ### Shallow handler and resumed continuation
 
 A handler may consume a request and resume its raw continuation outside that
-selected activation. The continuation may emit the same family again. Thus an
-input-origin `foo` contribution can be locally subtracted and a later
-same-family event can still reach `'f`. The edge `'e?` permits describing
-that input-to-output provenance without asserting that the original event
-survived. Event identity, continuation, and resumption evidence must decide
-which event flowed; the family name does not.
+selected activation. The continuation may emit a distinct event of the same
+family. That later event can reach `'f`, but it is not automatically evidence
+for an edge from `'e`: the candidate relation above requires input and output
+incidence for the same event `q`. The edge may cover the later event only if
+the existing typed-flow/provenance evidence independently connects it to the
+input component. Causal succession or family equality alone does not provide
+that connection. This is a discriminating case for the projection theorem:
+either the public edge summarizes a broader source contribution lineage than
+one event, with that lineage already recoverable from current evidence, or
+this example lies outside what one `'e?` can express. The note selects neither
+interpretation.
 
 ### Recursive handler
 
