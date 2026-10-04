@@ -42,12 +42,19 @@ This index is a navigation aid. The listed source document remains authoritative
   source segments, operand tuples, binder scopes, `nu,K,D`, and existing
   occurrence/path/Flow/Observe/subtraction evidence. Theorem C remains limited
   to prebuilt Pure values; inline literals use the ordinary `F_lit <: F_cb`
-  comparison. The exact unclosed Pure-path premise is the production endpoint
-  realization law: emitted endpoints must denote the least finite relation
-  generated from source-owned local relations, preserve
-  full tuples/scopes, and implement the checked lift as a total-coordinate
-  extension. The merged scalar local-abstraction theorem only covers projected
-  first-order observations and is not production authority. B-literal
+  comparison. The exact unclosed Pure-path premise is full-bound factorization:
+  every observation admitted by the actual endpoint's complete bound must
+  factor through its existing `J_arg`, entry/rebind, body, designated result
+  consumer, and `J_call` composition in the same `nu,K,D` fiber, with the
+  linked checked view admitting that factorization. Checked-challenge admission
+  must be independent of comparison success. The equivalent endpoint
+  realization law requires production endpoints to denote the least finite
+  relation generated from source-owned local relations, preserve full
+  tuples/scopes, and implement the checked lift as a total-coordinate
+  extension. Source execution simulation alone does not prove this because an
+  endpoint may admit extra observations. The merged scalar local-abstraction
+  theorem only covers projected first-order observations and is not production
+  authority. B-literal
   occurrence/attachment projection and
   raw/HIR parser recovery remain generation-conformance obligations. The
   design is Draft and implementation is not authorized. Historical proof

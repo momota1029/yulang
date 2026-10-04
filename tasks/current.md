@@ -124,25 +124,36 @@ checked lift. It reuses source segments, operand tuples, binder scopes,
 evidence; it adds no carrier. Theorem C applies only to the prebuilt Pure-value
 path; inline literals keep the ordinary `F_lit <: F_cb` check.
 
-The production bridge is not proved or authorized for implementation. Its
-single Pure-path blocker is the endpoint realization law: the emitted endpoint
-and constraint trace must denote a least finite-derivation relation generated
-from source-owned local relations, with full tuples/scopes; any erased value
-dependence needs a local source certificate. The checked endpoint must be the
-total-coordinate extension of that same relation. The merged scalar saturation
-proves only a projected first-order case and does not select production
-semantics or close higher-order adequacy. The B-literal generation clause must
-independently show that all three selected occurrences and witnessed
-attachments project from the same source tuple before the ordinary query.
-The current HIR has no Apply or inline lambda, and parser recovery plus this
-source/endpoint realization remain conformance work. The design remains
-Draft; implementation is unauthorized pending closure of the endpoint
-realization premise and explicit approval. Earlier proof attempts and the
-exact repository evidence remain in the linked value-entry and direct-main-gate
-progress records. The current `id x = x` / scalar-body owner trace confirms
-that HIR and constraint facts retain distinct source identities but do not yet
-define either the complete exact local relation or the projected `Sat_j`
-relation; see
+The production bridge is not proved or authorized for implementation. The
+smallest Pure-path blocker is the full-bound factorization clause: every
+observation admitted by the actual synthesized endpoint's complete bound must
+factor through its existing `J_arg`, entry/rebind, body, designated result
+consumer, and `J_call` composition in the same `nu,K,D` fiber, and the linked
+checked view must admit that factorization. Checked-challenge admission must
+also be generated independently of comparison success. Source execution
+simulation and `Sem_actual ⊆ P_actual` do not prove this clause because the
+endpoint may admit extra observations. The existing source-generated theorem
+proves the lift conditionally once both sides use the same certified local
+relations; it does not identify those relations with production endpoint
+denotations. The equivalent endpoint-realization formulation therefore
+requires the emitted endpoint to denote the least finite-derivation relation
+generated from source-owned local relations, with full tuples/scopes; any
+erased value dependence needs a local source certificate, and the checked
+endpoint must be a total-coordinate extension of that same relation. The
+merged scalar saturation proves only a projected first-order case and does not
+close higher-order adequacy. The B-literal generation clause must independently
+show that all three selected occurrences and witnessed attachments project
+from the same source tuple before the ordinary query. The current HIR has no
+Apply or inline lambda, and parser recovery plus this source/endpoint
+realization remain conformance work. The design remains Draft; implementation
+is unauthorized pending closure of the endpoint-realization premise and
+explicit approval. No Yulang source counterexample or additional semantic
+choice has been established. Earlier proof attempts and the exact repository
+evidence remain in the linked value-entry and direct-main-gate progress
+records. The current `id x = x` / scalar-body owner trace confirms that HIR and
+constraint facts retain distinct source identities but do not yet define
+either the complete exact local relation or the projected `Sat_j` relation;
+see
 [Lambda endpoint owners](../notes/progress/2026-10-04-lambda-endpoint-owner-trace.md).
 
 Historical callback adequacy exploration and its earlier gate descriptions
