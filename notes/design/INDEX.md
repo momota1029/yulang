@@ -90,6 +90,10 @@ This index is a navigation aid. The listed source document remains authoritative
   contribution does not erase a same-family point still present in the
   complete output image; it does not derive source attachment. See the
   [support/attachment record](../progress/2026-10-05-effect-attachment-subtraction-playground.md).
+  The [conditional concrete-profile derivation](../progress/2026-10-05-concrete-capture-profile-derivation.md)
+  unfolds the selected `Captureν` rule under an already supplied `Γ_b`,
+  `Inc_C`, and active typed port. It establishes origin-insensitive local
+  eligibility, not surface annotation elaboration or mixed-row membership.
   [`research_callback_admission_hiding.py`](../../tools/research_callback_admission_hiding.py)
   exhausts the finite admission-uniform hiding lemma and minimizes a failure
   when the premise is removed. See its

@@ -60,10 +60,13 @@ Publication does not notify or resume a stopped goal.
   requests equal eligibility under the same concrete contract and typed
   incidence; the 256-case matrix rejects exact-origin filtering and
   family-only matching. The remaining mapping from surface concrete rows to
-  `Γ_b`, mixed abstract/concrete composition, and subtraction attachment are
-  still open. A separate support/attachment model shows that consuming one
-  contribution cannot erase a same-family point that remains in the complete
-  output image. See the [membership reconciliation](../notes/progress/2026-10-05-effect-component-membership-playground.md)
+  `Γ_b` is now isolated as a conditional local derivation; mixed
+  abstract/concrete composition, production annotation elaboration, and the
+  complete-image subtraction proof remain open. A separate support/attachment
+  model shows that consuming one contribution cannot erase a same-family point
+  that remains in the complete output image. See the
+  [membership reconciliation](../notes/progress/2026-10-05-effect-component-membership-playground.md),
+  [conditional concrete-profile derivation](../notes/progress/2026-10-05-concrete-capture-profile-derivation.md),
   and [support/attachment probe](../notes/progress/2026-10-05-effect-attachment-subtraction-playground.md).
   `never`, `Any`, empty rows, and polarized solver bounds remain distinct.
 - **Callback literal:** B is the normative/reference constraint generation:
