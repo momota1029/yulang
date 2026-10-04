@@ -8,7 +8,10 @@ is retained as an oriented payload or resolved locally; concrete successes
 never become graph edges.
 
 The script intentionally does not specify lower/upper replay eligibility,
-general record compatibility, casts/adapters, or a complete solver.
+general record compatibility, casts/adapters, or a complete solver. A separate
+finite check enumerates concrete witnesses for one variable between a lower
+and upper payload; it rejects direct lower-to-upper composition as a complete
+existence test but does not select a solver replay policy.
 
 Run: python3 tools/research_inequality_endpoint_dispatch.py
 """
@@ -40,6 +43,8 @@ class Inequality:
 def resolve_concrete(left: Record, right: Record) -> bool:
     """The bounded compatibility table, not a general record relation."""
     if left == right:
+        return True
+    if left == EMPTY and right == OPT_STRING:
         return True
     if left == OPT_STRING and right == EMPTY:
         return True
@@ -161,6 +166,7 @@ def concrete_witness() -> tuple[int, int]:
     # Both adjacent concrete inequalities hold, while their proposed composite
     # is a failed local query. This is the approved optional-record witness.
     assert (OPT_STRING, EMPTY) in successes
+    assert (EMPTY, OPT_STRING) in successes
     assert (EMPTY, OPT_INT) in successes
     assert (OPT_STRING, OPT_INT) not in successes
 
@@ -192,6 +198,7 @@ def concrete_successes_are_not_edges() -> int:
         for left, right in product(CONCRETE, repeat=2)
         if resolve_concrete(left, right)
     )
+    assert len(successes) == 6
     checked = 0
     for mask in range(1 << len(successes)):
         selected = tuple(q for i, q in enumerate(successes) if mask & (1 << i))
@@ -203,7 +210,43 @@ def concrete_successes_are_not_edges() -> int:
         assert all(ok for _, ok in local)
         assert all(dispatch(q)[0] == "local-concrete" for q in selected)
         checked += 1
+    assert checked == 1 << len(successes) == 64
     return checked
+
+
+def lower_upper_middle_witnesses(lower: Record, upper: Record) -> tuple[Record, ...]:
+    """Finite existential check: retain X and resolve both original endpoints."""
+    return tuple(
+        middle
+        for middle in CONCRETE
+        if resolve_concrete(lower, middle) and resolve_concrete(middle, upper)
+    )
+
+
+def lower_upper_exhaustion() -> tuple[int, int, int, tuple[Record, Record, tuple[Record, ...]]]:
+    """Find interval witnesses lost by an unsound direct concrete composition."""
+    checked = 0
+    inhabited = 0
+    missed_nonempty_intervals = []
+    for lower, upper in product(CONCRETE, repeat=2):
+        witnesses = lower_upper_middle_witnesses(lower, upper)
+        # Each assignment is justified by two direct concrete endpoint checks.
+        assert all(
+            resolve_concrete(lower, middle) and resolve_concrete(middle, upper)
+            for middle in witnesses
+        )
+        direct = resolve_concrete(lower, upper)
+        inhabited += bool(witnesses)
+        if witnesses and not direct:
+            missed_nonempty_intervals.append((lower, upper, witnesses))
+        checked += 1
+    assert checked == len(CONCRETE) ** 2 == 9
+    assert inhabited == 7
+    assert len(missed_nonempty_intervals) == 1
+    return checked, inhabited, len(missed_nonempty_intervals), min(
+        missed_nonempty_intervals,
+        key=lambda item: (item[0], item[1], item[2]),
+    )
 
 
 def main() -> None:
@@ -211,12 +254,23 @@ def main() -> None:
     graph_families, graph_checks = variable_graph_exhaustion()
     concrete_success_count, chain_length = concrete_witness()
     subsets = concrete_successes_are_not_edges()
+    interval_cases, inhabited_intervals, missed_intervals, minimum_interval = lower_upper_exhaustion()
     print(f"endpoint dispatch cases: {matrix}/4")
     print(f"variable-edge graphs: {graph_families}; oracle comparisons: {graph_families}; composition checks: {graph_checks}")
     print(f"successful concrete cells in bounded table: {concrete_success_count}")
     print(f"nontransitive optional-record chain: {chain_length} constraints; direct query fails")
     print(f"subsets of local concrete evidence kept outside edge closure: {subsets}")
-    print("scope: endpoint dispatch and approved optional-record witness only; no replay policy or complete solver")
+    lower, upper, middles = minimum_interval
+    print(
+        f"lower/upper payload pairs checked: {interval_cases}; inhabited: "
+        f"{inhabited_intervals}; nonempty intervals rejected by direct-composition "
+        f"mutant: {missed_intervals}"
+    )
+    print(
+        "minimum retained-middle witness: "
+        f"{lower} <: X <: {upper} with X in {middles}; direct endpoint query fails"
+    )
+    print("scope: endpoint dispatch and finite interval witnesses only; no replay policy or complete solver")
 
 
 if __name__ == "__main__":

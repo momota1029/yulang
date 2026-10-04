@@ -58,8 +58,10 @@ This index is a navigation aid. The listed source document remains authoritative
   [progress record](../progress/2026-10-05-callback-admission-hiding-playground.md).
   [`research_inequality_endpoint_dispatch.py`](../../tools/research_inequality_endpoint_dispatch.py)
   checks the four endpoint dispatch cases and the approved nontransitive
-  optional-record witness over a finite variable-edge graph; it does not define
-  replay policy or a complete solver. See its
+  optional-record witness over a finite variable-edge graph, then enumerates
+  lower/upper middle witnesses and rejects direct concrete composition as a
+  complete existence test; it does not define general replay policy or a
+  complete solver. See its
   [progress record](../progress/2026-10-05-inequality-endpoint-dispatch-playground.md).
   The current HIR-backed Lambda realization candidate for `id` and `zero`
   inspects their actual Function facts and public schemes, then checks a finite

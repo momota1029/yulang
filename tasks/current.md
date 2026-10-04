@@ -181,8 +181,14 @@ The single-inequality endpoint rule also has a small executable check:
 [`research_inequality_endpoint_dispatch.py`](../tools/research_inequality_endpoint_dispatch.py)
 exhausts 512 variable-edge graphs and the approved optional-record
 nontransitivity witness. It verifies that local concrete successes never
-enter variable-edge closure. This is finite characterization only; lower/
-upper replay policy and complete solver behavior remain unspecified. See the
+enter variable-edge closure, and exhausts all nine lower/upper endpoint pairs
+for a retained middle-variable witness. A single nonempty interval is rejected
+by a direct-concrete-composition mutant: `{foo?: string} <: X <: {foo?: int}`
+with `X = {}`. The table contains all three approved directed optional-record
+successes, six successful cells including reflexivity, 64 local-evidence
+subsets, and seven inhabited lower/upper pairs. This is finite
+characterization only; general lower/upper
+replay policy and complete solver behavior remain unspecified. See the
 [progress record](../notes/progress/2026-10-05-inequality-endpoint-dispatch-playground.md).
 
 The first HIR-backed Function-realization candidate inspects the current
