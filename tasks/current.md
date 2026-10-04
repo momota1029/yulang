@@ -139,7 +139,11 @@ source/endpoint realization remain conformance work. The design remains
 Draft; implementation is unauthorized pending closure of the endpoint
 realization premise and explicit approval. Earlier proof attempts and the
 exact repository evidence remain in the linked value-entry and direct-main-gate
-progress records.
+progress records. The current `id x = x` / scalar-body owner trace confirms
+that HIR and constraint facts retain distinct source identities but do not yet
+define either the complete exact local relation or the projected `Sat_j`
+relation; see
+[Lambda endpoint owners](../notes/progress/2026-10-04-lambda-endpoint-owner-trace.md).
 
 Historical callback adequacy exploration and its earlier gate descriptions
 remain in the linked progress records above and

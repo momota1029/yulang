@@ -53,7 +53,9 @@ This index is a navigation aid. The listed source document remains authoritative
   design is Draft and implementation is not authorized. Historical proof
   attacks remain in
   `notes/progress/2026-10-04-value-entry-bind-projection.md` and
-  `notes/progress/2026-10-04-direct-main-gate-attacks.md`.
+  `notes/progress/2026-10-04-direct-main-gate-attacks.md`. A fresh production
+  owner trace for identity and scalar Lambda bodies is in
+  `notes/progress/2026-10-04-lambda-endpoint-owner-trace.md`.
 - **Structural gate:** the finite residual presentation, regular-witness
   decidability, and principal/effective projection remain distinct. The exact
   open existence theorem is regular completion with descriptor prefix shifts
