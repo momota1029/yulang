@@ -55,6 +55,15 @@ major or minor findings. No findings required repairs. All required policy/task/
 design/progress records are synchronized; nothing in this maintenance slice is
 deferred.
 
+A subsequent focused read-only closure pass over the current artifacts found
+one minor omission in the approved-answer template: its correction guidance
+required a new draft and renewed approval but did not explicitly require a new
+linked question. The template now requires the questioning primary to create a
+new linked question and the answerer to provide a new draft for renewed approval.
+This is a wording repair within the already approved rule. Primary delta review
+confirmed the artifact against successor §3; focused template and diff checks
+passed.
+
 Focused checks completed:
 
 - Inline Python file/link/template/active-authority inspection passed for sixteen

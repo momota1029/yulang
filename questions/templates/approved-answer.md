@@ -25,7 +25,8 @@ Revision explicitly approved: <draft identity/revision>
 Authorized scope: <exact approved scope>
 
 <Populate only after unambiguous approval of the displayed draft revision.
-Preserve finalized content; changes require a new draft and renewed approval.>
+Preserve finalized content; corrections require a new linked question from the
+questioning primary, a new draft and renewed approval.>
 
 Publication: <after explicit approval, save this complete finalized file last;
 leave it unstaged/uncommitted. The answerer never mutates Git. The questioning
