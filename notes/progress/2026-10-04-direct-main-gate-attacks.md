@@ -337,6 +337,12 @@ simultaneous regular-completion theorem, not an undecidability result. For the
 literature reduction specifically, the exact absent premise is transparent
 parameter-changing recursive type constructors; admitting that premise would
 expand language authority rather than follow from regular graph recursion.
+The exact feature mismatch is mapped in the
+[BPA recursive-constructor transfer audit](2026-10-04-bpa-recursive-constructor-transfer-audit.md):
+the reduction needs one recursive definition to act uniformly on arbitrary,
+changing type arguments, while this package has fixed child references in a
+finite regular descriptor graph. This closes only that direct literature
+transfer, not regular completion or other reductions.
 
 ### Exact regular-completion premise
 

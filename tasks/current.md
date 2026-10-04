@@ -274,8 +274,13 @@ candidate; its finite principal presentation remains a separate open proof.
 - The standard guarded-BPA undecidability result does not directly settle
   this gate: it requires transparent parameter-changing recursive type
   constructors, which current type-declaration authority does not establish;
-  its constructed unfolding can be non-regular. This rules out that transfer,
-  not the open regular-completion theorem or other reductions.
+  its constructed unfolding can be non-regular. The exact mismatch is now
+  mapped against the finite descriptor graph: the BPA reduction needs a
+  recursive definition to act on arbitrary changing type arguments, while
+  current descriptor edges retain fixed graph references. This rules out
+  only that direct transfer, not the open regular-completion theorem or other
+  reductions. See
+  [BPA transfer audit](../notes/progress/2026-10-04-bpa-recursive-constructor-transfer-audit.md).
 - **Source State/reference bridge:** derive dynamic ownership, read/update
   replacement, captured access, and repeated resumption; the `start!` fixture
   fixes only one observation:

@@ -52,6 +52,9 @@ This index is a navigation aid. The listed source document remains authoritative
   under finite-depth, all-translates decoding assumptions; marker provenance
   also blocks prefix-pop/suffix-append alone. A descriptor-monoid subtree-meet
   fold fails on a regular two-variable example but does not refute FMP.
+  The exact constructor-family mismatch for the guarded-BPA result and the
+  additional comparison-relation boundary are mapped in
+  `notes/progress/2026-10-04-bpa-recursive-constructor-transfer-audit.md`.
   The current error-free production HIR's structural value shadow has a
   separate finite source-generation proof for `Λ = ∅` and thus a regular
   witness under Theorem S; it is explicitly not an equivalence to F5's
