@@ -193,7 +193,11 @@ candidate; its finite principal presentation remains a separate open proof.
   typed-core gives `Value(Fun(Value(A),Comp(empty,A)))`, while F5 creates a
   four-port Function fact plus polarized body/lambda effect bounds. Prove the
   intended source-interface adequacy of that endpoint before lifting any
-  callback theorem; Oracle materialization is not the proof.
+  callback theorem; Oracle materialization is not the proof. The value-port
+  projection does match for this identity: one F5 quantifier is shared by its
+  negative argument and positive result ports, just as typed-core shares `A`.
+  Effect-port denotation, full bound inclusion, and callback domains remain
+  open.
   This closes only the conditional structural witness theorem, not general
   structural regularity, source adequacy, principal solutions, or the overall
   inference-replacement objective. Theorem S above separately proves

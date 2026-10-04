@@ -92,13 +92,24 @@ For the exact source `id x = x`, the two sides currently visible are:
 | Typed source core §§6/21 | `Value(Fun(Value(A), Comp(empty,A)))`; Pure introduction, Value entry |
 | HIR collector / F5 admission | `Function(negative parameter, EmptyEffect, positive body-effect, positive result) <: definition root`; body and lambda effect components each receive polarized bottom/empty bounds |
 
+The **value-port projection** does line up in this case. The lambda recipe
+uses the same fresh parameter ordinal for its negative argument and positive
+result endpoints. F5d generalizes that shared component once; the existing
+identity-scheme assertion checks one quantifier and that both Function value
+ports name it. The typed-core derivation likewise uses the same `A` for the
+Value-entry parameter and returned name. This closes the value endpoint
+correspondence for the identity example only. It says nothing about denotation
+of the effect ports, conservative bound slack, callback views, or
+`D_checked`/`P_actual` inclusion.
+
 This is the smallest concrete bridge obligation: derive, from the user-selected
 Pure introduction and the intended meaning of the polarized row constraints,
 that the F5 endpoint is an adequate presentation of the source interface,
-including its effect evidence. The Oracle materialization of polarized bounds
-cannot be used as that derivation, and the structural shadow's erasure of
-effect ports does not discharge it. The source endpoint and F5 endpoint are
-recorded as different objects until this correspondence is proved.
+including its effect evidence and full bound. The Oracle materialization of
+polarized bounds cannot be used as that derivation, and the structural
+shadow's erasure of effect ports does not discharge it. The source endpoint
+and F5 endpoint remain different complete objects until this correspondence
+is proved.
 
 Relevant source locations: `crates/yu-hir/src/module.rs` (`ResolvedExpr`,
 `lower_module`, `lower_body`, `lower_simple_chain`) and
