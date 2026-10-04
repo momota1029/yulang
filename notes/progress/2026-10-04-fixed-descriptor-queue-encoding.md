@@ -1,9 +1,9 @@
-# Queue encoding probes: descriptor collapse and marker transfer
+# Queue encoding probes: descriptor, marker, and pair activation
 
 Date: 2026-10-04
 Branch: research/simple-sub-intrusion
-Status: scoped negative result about one encoding; no language or solver decision
-Reviewed-by: Astra bounded fixed-descriptor and flexible-marker probes; primary Sol adjudication
+Status: scoped negative results about three encoding patterns; no language or solver decision
+Reviewed-by: Astra bounded fixed-descriptor, flexible-marker, and pair-activation probes; primary Sol adjudication
 Implementation authority: none
 
 ## Question
@@ -134,10 +134,53 @@ append transition uniformly. The obstruction uses a flexible descendant, but
 does not address activation-based encodings or every use of shifted
 cross-component equations.
 
+## Cyclic upper and active-pair probe
+
+A third candidate uses an active ordered endpoint pair, rather than field
+presence alone, as its configuration marker. Let V be the recursive Record
+with both labels and U the wrapper requiring only a:
+
+    V   = {a:V, b:V}
+    U   = {a:V}
+    Q_s = {a:X}          // X is descriptor-free
+
+    β: Q_s <: U
+
+The package has the regular solution X=V. At the root, β descends only through
+upper field a. The resulting active comparisons are:
+
+    trace ε:       Q_s <: U
+    trace a:       X <: V
+    trace a·w:     X.w <: V
+    trace a·w·b:   X.wb <: V
+
+for every w in {a,b}*. Because upper V requires both fields, once X <: V is
+active its descendants cover every word over {a,b}. Thus β's active trace set
+is exactly {ε} ∪ a{a,b}*; the original bound id and positive orientation stay
+attached to every descendant.
+
+The descriptor prefix equation rewrites the lower endpoint as Q_s(a·v)=X(v).
+After stripping that a from the endpoint representation, the projected pair
+set is {(X.v,V) | v in {a,b}*}. This is wider than the transition outputs
+{w·b | w in {a,b}*}: it already includes target addresses ε and a, which do
+not end in b. The child comparison for an appended b exists, but the cyclic
+upper forces the same active pair at all intervening and non-output nodes.
+The append implication is therefore not symbol-conditioned by endpoint-pair
+identity alone.
+
+Filtering the original traces to a{a,b}*b before projecting pairs would
+recover the desired output language as a mathematical definition. This
+package supplies no structural rule that makes later obligations or a
+designated failure depend on that filtered subset instead of all active β
+descendants. An external trace filter would be a new operational control and
+would need its own derivation from the admitted constraint rules. This scoped
+obstruction does not rule out other descriptor graphs, variance patterns, or
+joint bounds that implement such control.
+
 ## Next exact theorem probe
 
 A stronger reduction attempt must now exhibit a finite symbol-conditioned
-one-step gadget not defeated by these two tested patterns, for designated
+one-step gadget not defeated by these three tested patterns, for designated
 encodings of controls and words, of the shape
 
     Reach_s(a·w) => Reach_t(w·v)

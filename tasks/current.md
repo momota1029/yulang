@@ -69,7 +69,7 @@ lemmas are in [value-entry bind/projection progress](../notes/progress/2026-10-0
   closure, complete source realization, and effective joint residual/projection
   for open Records and feedback. The root-only regular-witness result is
   bounded; shifted open-descriptor equations, full fibers/principality, and
-  source acceptance remain open. No general impossibility result exists; two
+  source acceptance remain open. No general impossibility result exists; three
   queue-encoding patterns fail in scoped probes only. See
   [queue encoding probes](../notes/progress/2026-10-04-fixed-descriptor-queue-encoding.md),
   [open residual factorization](../notes/design/2026-10-03-open-residual-factorization.md)
