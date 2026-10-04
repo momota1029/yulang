@@ -182,6 +182,33 @@ This links the header candidate to the retained error-bearing CST shape, but
 does not promote it to a lambda node or test body recovery/binder ownership;
 parser implementation and callback lowering remain open.
 
+### Test-only raw-source callback Apply candidate (2026-10-05)
+
+The new private `research_callback_apply_from_error_cst` test helper composes
+the bounded header predicate with the current parser's retained error-bearing
+CST for `host (\x -> x)`. It requires a single callee identifier before the
+parenthesized span, checks exactly one `MlArgument` and the intervening
+`OperatorChain` parent/span relationship, checks the full parenthesized span,
+and maps the header binder and arrow-following body identifier back to actual
+CST tokens. The resulting `ResearchCallbackApply` candidate
+contains `callee = host` and a lambda argument with binder/body `x`. Complete
+headers with no body, and a missing binder, are rejected.
+
+This is a raw-source-to-test-candidate correspondence for the single
+parenthesized unary identity spelling. It consumes CST tokens that production
+currently classifies as errors; it does not change parser dispatch, produce a
+production lambda or Apply node, test body recovery, resolve names, or emit
+typed-core/source-evidence records. The source/HIR and callback endpoint
+bridges remain open. Independent regression review found two minor assertion
+gaps (argument ownership/cardinality and full-span equality); both were added
+and the focused test rerun. Delta review confirmed the assertions and scope
+claims; no findings remain.
+
+Verification: `cargo --config 'build.rustc-wrapper=""' test -p yu-syntax research_ -- --nocapture`,
+`rustfmt --edition 2024 --check crates/yu-syntax/src/tests/tails.rs`, and
+`git diff --check` passed. This test filter ran five characterization tests;
+the rest of the package was not run for this slice.
+
 ## 2026-10-05 test-only source synthesis shape
 
 The same private candidate now runs the typed-computation-core §6 result-role

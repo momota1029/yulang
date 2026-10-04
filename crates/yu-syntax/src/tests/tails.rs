@@ -74,6 +74,77 @@ fn research_complete_unary_lambda_header(
     Some((binder, cursor..cursor + 2))
 }
 
+#[derive(Debug, Eq, PartialEq)]
+struct ResearchCallbackLambda {
+    binder: String,
+    body: String,
+}
+
+#[derive(Debug, Eq, PartialEq)]
+struct ResearchCallbackApply {
+    callee: String,
+    argument: ResearchCallbackLambda,
+}
+
+fn research_callback_apply_from_error_cst(source: &str) -> Option<ResearchCallbackApply> {
+    let (green, _) = run(source);
+    let root = SyntaxNode::new_root(green);
+    let to_range = |range: rowan::TextRange| {
+        u32::from(range.start()) as usize..u32::from(range.end()) as usize
+    };
+    let open_paren = source.find('(')?;
+    let slash = source.find('\\')?;
+    let (binder_range, arrow_range) = research_complete_unary_lambda_header(source, slash)?;
+
+    let parenthesized = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::ParenthesizedExpression)?;
+    let ml_arguments = root
+        .descendants()
+        .filter(|node| node.kind() == SyntaxKind::MlArgument)
+        .collect::<Vec<_>>();
+    let parenthesized_range = to_range(parenthesized.text_range());
+    let ml_argument = ml_arguments.first()?;
+    let argument_chain = parenthesized.parent()?;
+    if ml_arguments.len() != 1
+        || argument_chain.kind() != SyntaxKind::OperatorChain
+        || argument_chain.parent().as_ref() != Some(ml_argument)
+        || argument_chain.text_range() != ml_argument.text_range()
+        || parenthesized_range.start != open_paren
+        || parenthesized_range.end != source.len()
+    {
+        return None;
+    }
+
+    let identifiers = root
+        .descendants_with_tokens()
+        .filter_map(|element| element.into_token())
+        .filter(|token| token.kind() == SyntaxKind::Identifier)
+        .map(|token| (token.text().to_owned(), to_range(token.text_range())))
+        .collect::<Vec<_>>();
+    let callees = identifiers
+        .iter()
+        .filter(|(_, range)| range.end <= open_paren)
+        .collect::<Vec<_>>();
+    let binder = identifiers
+        .iter()
+        .find(|(_, range)| *range == binder_range)?;
+    let body = identifiers
+        .iter()
+        .find(|(_, range)| range.start >= arrow_range.end)?;
+    if parenthesized_range.end < body.1.end || callees.len() != 1 {
+        return None;
+    }
+
+    Some(ResearchCallbackApply {
+        callee: callees[0].0.clone(),
+        argument: ResearchCallbackLambda {
+            binder: binder.0.clone(),
+            body: body.0.clone(),
+        },
+    })
+}
+
 #[test]
 fn research_lambda_header_predicate_recognizes_complete_unary_opener() {
     // Header-shape candidate only: this does not exercise production parser
@@ -146,6 +217,25 @@ fn research_lambda_header_predicate_maps_to_retained_callback_cst_tokens() {
             .ancestors()
             .any(|node| node.kind() == SyntaxKind::MlArgument)
     );
+}
+
+#[test]
+fn research_callback_literal_source_maps_to_apply_candidate() {
+    // The candidate is reconstructed from source ranges and retained CST
+    // tokens; this does not change parser dispatch or create production HIR.
+    let candidate = research_callback_apply_from_error_cst(r"host (\x -> x)").unwrap();
+    assert_eq!(
+        candidate,
+        ResearchCallbackApply {
+            callee: "host".to_owned(),
+            argument: ResearchCallbackLambda {
+                binder: "x".to_owned(),
+                body: "x".to_owned(),
+            },
+        }
+    );
+    assert!(research_callback_apply_from_error_cst(r"host (\ -> x)").is_none());
+    assert!(research_callback_apply_from_error_cst(r"host (\x ->)").is_none());
 }
 
 #[test]

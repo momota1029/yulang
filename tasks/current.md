@@ -147,7 +147,13 @@ same-line space/tab trivia. It rejects incomplete headers but does not drive
 the parser or check body recovery. A paired CST assertion maps its binder and
 arrow ranges to the current error-bearing tree and confirms the body token
 remains inside the parenthesized application argument; no lambda node is
-produced, so the parser/HIR bridge remains open.
+produced, so the parser/HIR bridge remains open. A test-only raw-source mapper
+now combines those CST ranges into an Apply candidate for exactly
+`host (\x -> x)`, preserving the callee and unary-lambda binder/body; it
+rejects missing-binder/body cases. It consumes the current error-bearing CST
+and emits no production node, resolved name, typed-core derivation or callback
+evidence. The bounded source/HIR bridge remains open; see the
+[HIR/source-core record](../notes/progress/2026-10-04-hir-source-core-boundary.md).
 The HIR-to-core bridge now closes for its monomorphic pure-value fragment:
 integer/name leaves and unannotated parameterized bindings map to finite
 `literal`/`name`/`lambda(P,result(body))` derivations under a fixed `Gamma`.

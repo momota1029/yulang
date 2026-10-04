@@ -89,6 +89,10 @@ This index is a navigation aid. The listed source document remains authoritative
   A separate test-only predicate checks the complete unary opener against the
   existing identifier family and maps its ranges to retained tokens in the
   error-bearing callback CST; it does not test production dispatch or recovery.
+  A raw-source test candidate now maps `host (\x -> x)` to an Apply with an
+  identity-lambda argument using those tokens, but produces no production HIR
+  or typed evidence. See the same
+  [HIR/source-core audit](../progress/2026-10-04-hir-source-core-boundary.md).
   Its test-only mixed-call candidate preserves nested application arguments,
   then mirrors typed-core §6 `(I,d,n)` shape for five ordinary-call forms
   under finite monomorphic Gamma. It records only structural-shadow triples;
