@@ -183,8 +183,11 @@ candidate; its finite principal presentation remains a separate open proof.
   Int/Function equations, with no structural inequalities or rigid names.
   Theorem S then gives a regular witness whenever that shadow is satisfiable.
   This is not an equivalence theorem for current F5's polarized four-port
-  Function constraints; effects, callbacks, Records, and complete successor
-  generation remain outside it. See
+  Function constraints: even `id x = x` generates a directed Function fact
+  with coupled effect components. The theorem therefore applies to the named
+  source shadow, not actual production constraints. Bridging those facts
+  without losing effect correlation remains open; callbacks, Records, and
+  complete successor generation remain outside it. See
   [production HIR empty-Record shadow](../notes/progress/2026-10-04-production-hir-empty-record-shadow.md).
   This closes only the conditional structural witness theorem, not general
   structural regularity, source adequacy, principal solutions, or the overall

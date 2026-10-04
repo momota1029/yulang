@@ -71,7 +71,22 @@ constraints, and is not the full successor inference generator. Applications,
 Records, callback expected interfaces, annotations, imports, and open-world
 clients remain outside current HIR or this theorem.
 
+The gap is visible on the smallest lambda. `ConstraintBatch::collect` records
+a `LambdaRecipe`; `InferenceSession::admit_lambda_fact` later creates a
+positive four-port Function term
+`Function(negative-parameter, EmptyEffect, body-effect, result)` and admits
+the directed fact from that term to the definition root. The collector also
+emits polarized effect bounds for the lambda/body. These are actual F5
+constraints, not the structural-shadow equations above. The source semantics
+selects a Pure introduction, but the current polarized representation alone
+does not identify this fact with the two-child structural equality package.
+Thus the record-free constructor inventory is established for both the
+source shadow and the current term algebra, while **application of Theorem S
+to actual production constraint generation remains unproved** because its
+input relation and coupled effect ports have not been bridged.
+
 Relevant source locations: `crates/yu-hir/src/module.rs` (`ResolvedExpr`,
 `lower_module`, `lower_body`, `lower_simple_chain`) and
+`crates/yu-solver/src/lib.rs` (`emit_lambda`, `admit_lambda_fact`) and
 `crates/yu-solver/src/term.rs` (`TermView` / `TermNode`). No compiler code or
 tests changed.
