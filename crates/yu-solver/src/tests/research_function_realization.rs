@@ -1022,3 +1022,216 @@ fn designated_consumer_resumes_after_the_hir_derived_callback_returns() {
     assert_eq!(callback_cases, 42);
     assert_eq!(consumer_resumptions, 84);
 }
+
+fn binding_named<'a>(hir: &'a HirModule, name: &str) -> (usize, &'a yu_hir::HirBinding) {
+    hir.items()
+        .iter()
+        .enumerate()
+        .find_map(|(index, item)| match item {
+            HirItem::Binding(binding) if binding.id().spelling() == name => Some((index, binding)),
+            _ => None,
+        })
+        .unwrap_or_else(|| panic!("missing binding {name}"))
+}
+
+fn assert_diagonal_function_scheme(
+    solved: &SolvedModule,
+    binding_index: usize,
+    nested_result: bool,
+) {
+    let scheme = solved.schemes[binding_index]
+        .as_ref()
+        .expect("every source root gets a closed scheme");
+    let view = solved.closed_types.scheme_view(scheme).unwrap();
+    assert_eq!(view.quantifier_count(), 1);
+    let PositiveValueView::Function {
+        argument,
+        argument_effect,
+        result_effect,
+        result,
+    } = view.positive_value(view.predicate()).unwrap()
+    else {
+        panic!("expected Function scheme");
+    };
+    assert!(matches!(
+        view.negative_effect(argument_effect),
+        Ok(NegativeEffectView::Empty)
+    ));
+    assert!(matches!(
+        view.positive_effect(result_effect),
+        Ok(PositiveEffectView::Bottom)
+    ));
+
+    let (diagonal_argument, diagonal_result) = if nested_result {
+        assert!(matches!(
+            view.negative_value(argument),
+            Ok(NegativeValueView::Top)
+        ));
+        let PositiveValueView::Function {
+            argument,
+            argument_effect,
+            result_effect,
+            result,
+        } = view.positive_value(result).unwrap()
+        else {
+            panic!("wrapper returns the source Function value");
+        };
+        assert!(matches!(
+            view.negative_effect(argument_effect),
+            Ok(NegativeEffectView::Empty)
+        ));
+        assert!(matches!(
+            view.positive_effect(result_effect),
+            Ok(PositiveEffectView::Bottom)
+        ));
+        (argument, result)
+    } else {
+        (argument, result)
+    };
+    let NegativeValueView::Quantified(argument) = view.negative_value(diagonal_argument).unwrap()
+    else {
+        panic!("diagonal Function argument is quantified");
+    };
+    let PositiveValueView::Quantified(result) = view.positive_value(diagonal_result).unwrap()
+    else {
+        panic!("diagonal Function result is quantified");
+    };
+    assert_eq!(argument.ordinal(), result.ordinal());
+}
+
+#[test]
+fn returned_function_aliases_keep_source_identity_and_principal_diagonal() {
+    fn permutations(items: &mut [&'static str], at: usize, out: &mut Vec<Vec<&'static str>>) {
+        if at == items.len() {
+            out.push(items.to_vec());
+            return;
+        }
+        for index in at..items.len() {
+            items.swap(at, index);
+            permutations(items, at + 1, out);
+            items.swap(at, index);
+        }
+    }
+
+    let mut orders = Vec::new();
+    permutations(&mut ["id", "wrap", "left", "right"], 0, &mut orders);
+    assert_eq!(orders.len(), 24);
+    let mut case_count = 0;
+    for order in orders {
+        for (id_parameter, wrap_parameter) in [
+            ("x", "ignored"),
+            ("value", "skipped"),
+            ("input", "unused"),
+            ("arg", "discard"),
+        ] {
+            let declarations = std::collections::HashMap::from([
+                ("id", format!("my id {id_parameter} = {id_parameter}")),
+                ("wrap", format!("my wrap {wrap_parameter} = id")),
+                ("left", "my left = wrap".to_owned()),
+                ("right", "my right = wrap".to_owned()),
+            ]);
+            let source = order
+                .iter()
+                .map(|name| declarations[name].as_str())
+                .collect::<Vec<_>>()
+                .join("\n");
+            let path = format!("research-returned-function-alias-{case_count}.yu");
+            let hir = module(&source, &path);
+            assert!(hir.errors().is_empty(), "{source}");
+            assert_eq!(
+                hir.items()
+                    .iter()
+                    .filter_map(|item| match item {
+                        HirItem::Binding(binding) => Some(binding.id().spelling()),
+                        _ => None,
+                    })
+                    .collect::<Vec<_>>(),
+                order
+            );
+            let (id_index, id_binding) = binding_named(&hir, "id");
+            let (wrap_index, wrap_binding) = binding_named(&hir, "wrap");
+            let (_, left_binding) = binding_named(&hir, "left");
+            let (_, right_binding) = binding_named(&hir, "right");
+
+            let ResolvedExpr::Lambda { body, .. } = wrap_binding.value() else {
+                panic!("wrap is a source Lambda");
+            };
+            let ResolvedExpr::Name {
+                resolution: NameResolution::Resolved(returned_root),
+                ..
+            } = body.as_ref()
+            else {
+                panic!("wrap returns one resolved source root");
+            };
+            assert_eq!(returned_root, id_binding.id());
+            for alias in [left_binding, right_binding] {
+                let ResolvedExpr::Name {
+                    resolution: NameResolution::Resolved(alias_root),
+                    ..
+                } = alias.value()
+                else {
+                    panic!("aliases retain a resolved source root");
+                };
+                assert_eq!(alias_root, wrap_binding.id());
+            }
+
+            let batch = collect(hir.clone());
+            assert_eq!(batch.definition_uses().len(), 3);
+            let names_by_ordinal = hir
+                .items()
+                .iter()
+                .filter_map(|item| match item {
+                    HirItem::Binding(binding) => Some(binding.id().spelling()),
+                    _ => None,
+                })
+                .enumerate()
+                .map(|(ordinal, name)| (ordinal as u32, name))
+                .collect::<std::collections::HashMap<_, _>>();
+            let mut use_edges = batch
+                .definition_uses()
+                .iter()
+                .map(|usage| {
+                    (
+                        names_by_ordinal[&usage.parent().ordinal()],
+                        names_by_ordinal[&usage.target().ordinal()],
+                    )
+                })
+                .collect::<Vec<_>>();
+            use_edges.sort_unstable();
+            assert_eq!(
+                use_edges,
+                vec![("left", "wrap"), ("right", "wrap"), ("wrap", "id")]
+            );
+            let collected_uses = batch
+                .definition_uses()
+                .iter()
+                .map(|usage| usage.occurrence().clone())
+                .collect::<std::collections::HashSet<_>>();
+
+            let solved = SolvedModule::solve(batch).expect("higher-order name uses solve");
+            assert!(solved.errors().is_empty(), "{source}");
+            assert_diagonal_function_scheme(&solved, id_index, false);
+            assert_diagonal_function_scheme(&solved, wrap_index, true);
+            for alias in ["left", "right"] {
+                let (alias_index, _) = binding_named(&hir, alias);
+                assert_diagonal_function_scheme(&solved, alias_index, true);
+            }
+
+            let routed = solved
+                .routed_uses
+                .iter()
+                .map(|usage| usage.use_id.occurrence().clone())
+                .collect::<std::collections::HashSet<_>>();
+            assert_eq!(solved.routed_uses.len(), 3, "no source use is routed twice");
+            assert_eq!(routed, collected_uses);
+            assert_eq!(routed.len(), 3, "every returned-root use routes once");
+            assert_eq!(
+                solved.counters().instantiation_fresh_value_variables(),
+                3,
+                "each quantified returned Function use gets a separate fresh substitution"
+            );
+            case_count += 1;
+        }
+    }
+    assert_eq!(case_count, 96);
+}

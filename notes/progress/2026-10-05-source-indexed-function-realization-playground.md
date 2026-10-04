@@ -82,3 +82,36 @@ The global Cargo config routes rustc through `sccache`, which failed with
 `Operation not permitted`; the per-command wrapper override let the same
 focused test run directly and pass. Python/script checks and broad suites were
 not run for this Rust-only gate.
+
+## Returned Function through source aliases
+
+The same test module now drives the real parser, HIR resolver, constraint
+collector, solver, and closed-scheme generalizer on this supported source
+shape:
+
+```text
+my id x = x
+my wrap ignored = id
+my left = wrap
+my right = wrap
+```
+
+It generates all 24 declaration orders and four pairs of hygienic parameter
+renamings (96 complete source modules). For every module, it checks that HIR
+resolves `wrap`'s returned Function to the original `id` root and both aliases
+to the original `wrap` root; collection retains exactly those three named-use
+edges; solver routing consumes each collected use once; and the finalized
+schemes have the principal shape `id : 'a -> 'a` and
+`wrap/left/right : any -> ('a -> 'a)`, with one shared quantifier across the
+nested Function argument/result and the expected pure effect ports. The
+production instantiation counter also records three fresh value variables,
+one for each polymorphic source use across the returned Function chain.
+
+This characterizes source-root preservation, higher-order scheme
+generalization, and distinct closed-use instantiation on the current
+application-free HIR fragment. It directly exercises production source and
+solver artifacts, but no call is made through the returned Function because
+current HIR still has no application lowering. The check therefore does not
+establish complete Function-bound membership, callback adequacy, B-step-6
+endpoint generation, or principal common-allowance factorization. All 96
+generated cases pass; this adds evidence without closing those gates.

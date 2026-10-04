@@ -66,6 +66,11 @@ This index is a navigation aid. The listed source document remains authoritative
   entry is not replayed. Neither test identifies
   its candidate relation with production bounds. See its
   [progress record](../progress/2026-10-05-source-indexed-function-realization-playground.md).
+  Its newer HIR-backed returned-Function check exhausts 96 declaration-order
+  and parameter-renaming variants of `id`, `wrap ignored = id`, and two aliases;
+  it confirms root identity, routed source uses, fresh closed-use instantiations,
+  and nested principal diagonal schemes. Current HIR still has no application
+  lowering, so returned-function invocation and endpoint adequacy remain open.
   The raw unary-lambda CST probe records the current `\x` / `->` error-token
   boundary; a paired source probe confirms one-to-four parenthesized and
   ML-argument stages remain left-nested in pre-HIR association. See the

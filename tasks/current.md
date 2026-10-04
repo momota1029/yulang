@@ -1,6 +1,6 @@
 # Current task: replace Yulang type inference with SCC-intrusion inference
 
-Updated: 2026-10-04. Branch: research/simple-sub-intrusion.
+Updated: 2026-10-05. Branch: research/simple-sub-intrusion.
 
 ## Objective and authority
 
@@ -174,6 +174,15 @@ This characterizes the source rule for those traces; it still does not connect
 production Function bounds to complete membership.
 Details and limits are in the
 [source-indexed realization playground](../notes/progress/2026-10-05-source-indexed-function-realization-playground.md).
+The same HIR-backed test now exhausts 96 source modules for
+`id : 'a -> 'a`, `wrap ignored = id`, and two aliases of `wrap`: all 24
+declaration orders crossed with four pairs of hygienic parameter names. It
+checks resolved source-root identity through the returned Function, the three
+collected/routed named uses, fresh instantiation count, and the same nested
+diagonal principal scheme for both aliases. This reaches production parsing,
+HIR, constraint collection, routing, and generalization, but no invocation of
+the returned Function is expressible in current HIR; the full callback bound
+and principal common-allowance bridges remain open.
 
 **Classification A: normalized pure structural FMP is proved.**
 [Finite fence completion](../notes/design/2026-10-04-structural-fmp-fence-completion.md)
