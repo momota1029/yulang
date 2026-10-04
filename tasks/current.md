@@ -2463,11 +2463,15 @@ remains the pending user choice.
 
 The user has now clarified that Oracle's endpoint behavior is B: infer body
 endpoints independently, then constrain the completed Function interface
-against the expected interface. Keep this as historical characterization;
-Oracle behavior alone does not choose successor endpoint propagation. The
-successor callback contract still requires the expected boundary before body
-constraints so it can select Handler. Whether successor endpoints also flow
-into body inference remains open.
+against the expected interface. The Authoritative bounded callback contract
+already selects this same endpoint protocol for an unannotated literal with a
+known instantiated callback formal: deliver the expected boundary before body
+constraints to select Handler, generate parameter/body endpoints independently
+under that role, then submit one `A <: F_cb` query for the completed interface
+(callback-context-delivery §2, steps 2–6). Pre-body role delivery does not mean
+bidirectional endpoint propagation. The user's Oracle clarification confirms
+the historical characterization and is consistent with the selected bounded
+successor rule. This closes that A/B choice only for this bounded case.
 
 The bounded linked-port locations are no longer awaiting user approval. A
 follow-up Astra adjudication against the user's explicit role-first, typed
@@ -2488,6 +2492,16 @@ callback theorem gate is now those query-local adequacy clauses under one
 `Rel_C`/`ν,K,D` fiber, using existing evidence and preserving actual Pure role
 and §21 entry. No new carrier, API/phase decision, or implementation authority
 follows.
+
+The bounded callback-literal endpoint protocol is also closed: expected
+context reaches the literal before body constraints only to select Handler
+and its callback boundary; §21 parameter endpoints and body/result endpoints
+are independently generated under that role; the completed role-indexed
+interface is then checked against `F_cb` by one `A <: B`. The exact
+role-indexed interface construction and the resulting concrete Function
+inequality remain open, including the complete challenge and observation
+inclusions above. Do not reinterpret this ordering as independent effect-port
+subtyping or as a transitive global relation between concrete successes.
 
 ## Main records
 
