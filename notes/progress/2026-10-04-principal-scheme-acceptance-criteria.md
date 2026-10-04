@@ -37,6 +37,16 @@ allowance totality and all-valid-view direct evidence through the actual
 export remain the original open obligations in §8 of that note. None of the
 accepted schemes or quantifiers below changes.
 
+**Reviewed factor-cover follow-up:**
+[complete source-factor reconstruction](../design/2026-10-05-source-factor-cover-and-query-preservation.md)
+now has a finite sufficient test, sharp uniformly over independent factors on
+nontrivial products. It preserves every unchanged joint client and actual
+direct-evidence relation. A fixed supplied XOR/provider source-core example
+defeats all proper projections of one dependency. The missing introduction/
+typed-path interpretation of one legal common descriptor, its totality and
+all-view extension through the designated export remain explicit in §7.
+None of the public schemes below is changed or newly certified principal.
+
 The following public schemes are the user's expected principal presentations
 for the stated source definitions. They are criteria for the general
 constraint-generation, co-occurrence, inequality-solving, and generalization

@@ -470,6 +470,14 @@ existing typed source incidences, not occurrence-specific selectors.
 There is no assertion that this one join key suffices for every source graph;
 other captures, residuals and history coordinates must also remain joint.
 
+The later [source factor-cover theorem](2026-10-05-source-factor-cover-and-query-preservation.md)
+supplies a finite sufficient test: each original relation factor has its whole
+operand interface in a retained bag. It is sharp for guarantees uniform over
+independently arbitrary factors on nontrivial product domains. Exact equality
+then preserves every unchanged client and actual query/evidence relation.
+Its fixed parity/provider source-core example defeats all proper projections
+of one ternary dependency; retaining only pairwise overlap is insufficient.
+
 This refutes independent marginal reconstruction, not a common descriptor
 that retains and actually consults the original joint relation. Storing
 `K_G` beside an export is not enough if that export's interpretation ignores
