@@ -53,12 +53,17 @@ and must not turn an omitted rule into an implicit premise.
 ## Current work order
 
 The finite parent/use transport test model is a completed narrow experiment.
-The next active playground targets unrestricted structural FMP directly: it
-must model exact descriptor shifts and the complete finite-quotient coherence
-rules from [finite feedback quotients](2026-10-04-structural-finite-feedback-quotients.md),
-and search for either escaping first-conflict ranks or a boundedness invariant.
-Do not substitute the two-sided preclosed witness checker for this open gate.
-Callback bridge and principality models remain active subsequent lanes.
+The first structural playground now exercises the complete restricted
+`Fbar/G` rules on `q = Function(x, Int), x <: q`, sweeps cutoff quotients, and
+enumerates all labelled two-generated monoids through size four. It directly
+checks descriptor equalities and the original bound on any quotient that
+survives saturation. Its current exact scope and observations are in the
+[structural FMP progress record](../progress/2026-10-04-structural-fmp-feedback-rank.md#executable-finite-quotient-playground-follow-up-2026-10-04).
+The next structural step is to generalize this checker to arbitrary normalized
+packages with exact shifted descriptors and full `Gamma_P^coh`, while adding
+package generation and shrinking for genuine failed conjectures. Do not
+substitute the two-sided preclosed witness checker for this open gate. Callback
+bridge and principality models remain active subsequent lanes.
 
 This order selects research activity only. It does not assert a theorem,
 introduce a new carrier/relation, or authorize production cutover.

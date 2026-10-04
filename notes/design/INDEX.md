@@ -36,6 +36,13 @@ This index is a navigation aid. The listed source document remains authoritative
   to infinity along a cofinal tower when every quotient of one fixed package
   fails. Classification C; no FMP theorem or genuine counterexample, new
   source-generation assumption or implementation authority.
+  [`tools/research_structural_feedback.py`](../../tools/research_structural_feedback.py)
+  is the first executable restricted-package playground: it checks the
+  complete feedback/coherence schedule for `q=Function(x,Int), x<:q`, sweeps
+  cutoff quotients, exhausts labelled two-generated monoids through size 4,
+  and independently checks graph witnesses. It is bounded characterization
+  evidence only; arbitrary-package FMP remains open. Details are in the
+  [progress follow-up](../progress/2026-10-04-structural-fmp-feedback-rank.md#executable-finite-quotient-playground-follow-up-2026-10-04).
 - **New reviewed structural existence result:**
   `notes/design/2026-10-04-preclosed-structural-regular-witness.md` proves
   arbitrary-tree/regular-tree equivalence and a terminating witness

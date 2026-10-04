@@ -223,3 +223,45 @@ The mathematical next task is exactly the conditional bounded-rank premise
 conflict ranks. The existence of a satisfying quotient excludes that negative
 target immediately; failure on a non-cofinal family does not establish it.
 Compiler implementation remains unauthorized.
+
+## Executable finite-quotient playground follow-up (2026-10-04)
+
+Following the user's explicit research-playground direction, a standalone
+checker was added at [`tools/research_structural_feedback.py`](../../tools/research_structural_feedback.py).
+It implements the reviewed `Fbar/G` clauses for the fixed package
+`q = Function(x, Int), x <: q` over the restricted `{arg, ret}` alphabet:
+exact left-shifted descriptors, right/suffix Function descent with signed
+orientation, descriptor and active-head transfer, domain prefix/child
+coherence, and atom child denials. For conflict-free finite quotients it
+completes unknown live leaves with empty Records, then independently checks
+the resulting graph's exact descriptor equalities and `x <: q` by coinductive
+graph traversal.
+
+The run `python3 tools/research_structural_feedback.py 8` checked cutoff
+monoids of depths 2–8. First conflict ranks were 1–7, matching the earlier
+hand-bounded ranks for depths 2–9. It also exhaustively enumerated 449 labelled
+two-generated monoid presentations through size 4: 443 conflicted and 6
+survived; each surviving quotient produced a finite graph that independently
+passed both exact descriptor equations and the original comparison. The first
+survivor has four elements and noncommuting generator actions (`arg*ret=2`,
+`ret*arg=1`), which directly exercises the distinction between descriptor
+prefix shifts and comparison suffix descent.
+
+An independent compiler-referee review found one rank-convention bug in the
+first checker revision: the singleton quotient's descriptor-only Function/Int
+clash had been counted as round 1, while the governing characterization
+assigns descriptor-only conflicts rank 0. The checker now runs initial
+descriptor/domain/coherence saturation without comparison transfer before
+counting feedback rounds, and asserts the singleton case. Re-run histogram:
+417 of 449 presentations conflict at rank 0, 26 at rank 1, and 6 have checked
+models. The reviewer confirmed the corrected left/right action order, exact
+limited domain rules, enumeration count and independent graph checks; its
+finding is closed with no remaining review issue.
+
+This is a bounded executable characterization of one reviewed package, not
+an FMP proof or a counterexample search over arbitrary `Gamma_P`. The package
+already has a regular model, so the surviving quotient is a consistency
+check; the experiment neither closes (BR) nor generalizes to other descriptor
+systems. Exact arbitrary-package encodings, broader package generation, and
+counterexample shrinking remain the next playground work. The exact command
+and Python compilation check passed; no compiler behavior changed.

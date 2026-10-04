@@ -199,13 +199,19 @@ generation remains Draft.
 
 The test-only finite parent/use graph transport prototype is complete under
 its narrow gate. It has independent substitution-reference tests and does not
-change the production solver. The next research gate is an executable
-finite-model/search harness for the unrestricted structural finite-model
-problem, using the reviewed `Gamma_P^coh` / conflict-rank characterization.
-The harness must represent exact descriptor shifts and full domain/head/child
-coherence; a bounded pass is characterization evidence only. Callback bridge
-and principality playgrounds remain active follow-on lanes. No production
-cutover authority follows from any playground.
+change the production solver. The first structural feedback playground is
+executable at `tools/research_structural_feedback.py`. It models one reviewed
+package with exact shifted descriptors, right-action comparison descent and
+complete restricted domain/head/child coherence; cutoff depths 2–8 show
+first-conflict ranks 1–7, while exhaustive labelled two-generated monoids
+through size 4 find six independently checked finite witnesses among 449
+presentations. This does not approach arbitrary-package FMP: the tested
+package already has a regular model. The immediate research gate is to
+generalize the playground to arbitrary normalized `Gamma_P^coh` packages,
+preserving separate original bounds and both monoid actions, then add package
+generation/shrinking for candidate counterexamples. Callback bridge and
+principality playgrounds remain active follow-on lanes. No production cutover
+authority follows from any playground.
 
 **Callback adequacy proof search is complete; active gate is production design.**
 The design and its current proof boundary are recorded in
