@@ -337,6 +337,14 @@ admissible map for each independently valid public presentation, using the
 existing complete Function query and source occurrence maps. The quantifiers
 remain `∀s∈Sξ. ∃a. Qξ(s,a)` and `∀V. ∃m_V`. No source-scheme counterexample
 or new descriptor semantics is asserted.
+An executable contract-join probe now exhausts 65,536 two-stage cases with
+separate Function-valued and Int-valued challenge projections. Typed pullbacks
+retain the admitted source tuples and the closed concrete support union is
+pointwise least; identifying the local challenge coordinates loses the
+minimal admitted tuple `(fn0, 0)`. This checks the semantic contract join in
+the finite concrete-support fragment only; it does not establish shared
+descriptor realization, complete Function comparison, or `m_V` admissibility.
+See [callback/principality playgrounds](../notes/progress/2026-10-04-callback-principal-playgrounds.md).
 The latest user clarification accepts `Top -> int` for `zero`, with `any` as
 the surface notation, superseding the earlier `'a -> int` criterion. The prior
 negative-only quantification analysis is retained as history but creates no

@@ -112,3 +112,9 @@ graphs and checks old-tuple recovery under total-coordinate extension. Its
 `v=a` mutant minimizes a concrete loss, but the model still does not identify
 the production endpoint denotation or cover higher-order behavior. Results and
 finite limits are in the same callback/principality progress report.
+[`tools/research_principal_contract_join.py`](../../tools/research_principal_contract_join.py)
+exhausts a two-stage finite semantic-contract join with Function- and
+Int-valued challenge projections kept separate. It tests the safe-domain
+pullbacks and concrete-support join only; it does not interpret the completed
+Function query or prove admissible scheme maps. Exact counts and the type-
+collapse obstruction are in the same progress report.

@@ -28,6 +28,8 @@ This index is a navigation aid. The listed source document remains authoritative
   and [`research_callback_entry.py`](../../tools/research_callback_entry.py).
   The scalar `Sat_j`/total-coordinate probe is
   [`research_callback_sat_lift.py`](../../tools/research_callback_sat_lift.py).
+  [`research_principal_contract_join.py`](../../tools/research_principal_contract_join.py)
+  checks the finite typed-pullback common-contract join.
   Exact limits and minimized obstructions are in the
   [progress report](../progress/2026-10-04-callback-principal-playgrounds.md).
 - **Completed narrow experiment:**

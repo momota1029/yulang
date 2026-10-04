@@ -15,6 +15,8 @@ per-occurrence evidence identities and checking preservation after lifting.
 A later bind-composition delta review found that the minimum counterexample
 needed to distinguish empty joins from nonempty exact joins; both minima are
 now reported, and the primary reran the exhaustive checker.
+Independent spec_auditor review of the typed-pullback contract-join probe found
+no actionable findings; its finite scope and reported counts match the code.
 Governing direction: [inference research playgrounds](../design/2026-10-04-inference-research-playgrounds.md)
 Governing callback design: [production callback endpoint generation](../design/2026-10-04-production-callback-endpoint-generation-draft.md)
 Governing principal criterion: [principal scheme acceptance](2026-10-04-principal-scheme-acceptance-criteria.md)
@@ -140,6 +142,34 @@ semantics, Yulang source-wide challenge admission, or logical scope/hiding
 transport. Its proof target is only the executable characterization of Theorem
 L's bounded scalar fragment, not Theorem L's general statement.
 
+## Typed-pullback complete-contract join probe
+
+[`tools/research_principal_contract_join.py`](../../tools/research_principal_contract_join.py)
+exhausts the finite semantic-contract join from
+[`common allowance/context preimage`](../design/2026-10-04-common-allowance-context-preimage.md)
+§5 for a two-stage source tuple `(g,x)`. The first challenge projection sees
+one of two Function-valued arguments; the second sees one of two integer
+arguments. Each stage has its own challenge domain and maps each local value
+to a closed support over `{Read,Write}`. The generator ranges over all 16
+source tuple relations, four domains for each stage, and 16 support maps for
+each stage: 65,536 cases.
+
+For each tuple relation `G`, the checker forms the common domain by pulling
+both local domains back along their own projections, then unions the two
+supports at each retained tuple. All 65,536 cases satisfy the complete-domain
+condition and the pointwise least-support property; 24,320 have a nonempty
+common domain. A minimized one-row case `(fn0, 0)` is admitted by both typed
+pullbacks, while a mutant that identifies the Function-valued and Int-valued
+challenge coordinates admits nothing.
+
+This checks the finite contract theorem's typed pullback and closed-support
+join, not Yulang's completed `A <: B` resolver or principal-scheme maps. It
+does not prove that a shared abstract effect component denotes the joined
+views, handle subtraction attachments, or preserve arbitrary higher-order
+correlation. The result is evidence for §5's semantic join and for keeping
+stage projections attached to the source tuple; descriptor realization and
+all-view factorization remain open.
+
 ## Next proof work
 
 The callback main gate still needs a source-to-endpoint correspondence showing
@@ -201,6 +231,12 @@ python3 tools/research_callback_sat_lift.py
   548 Force graphs; 5,800 pending/completed abstract observations; identity and
   literal embeddings each cover 3,684 rows; total lift forgets exactly; the
   v=a mutant loses 2,116 rows with direct and resumed witnesses reported.
+python3 tools/research_principal_contract_join.py
+  65,536 typed two-stage contract cases; 24,320 nonempty common domains;
+  pullback-domain and least closed-support join checks pass; one-row
+  type-collapse mutant loses the admitted source tuple.
+python3 -m py_compile tools/research_principal_contract_join.py
+  pass
 python3 -m py_compile tools/research_callback_lift.py tools/research_principal_support.py
   pass
 python3 -m py_compile tools/research_principal_row_match.py
