@@ -47,3 +47,43 @@ when extending to activation and resumption closure. Do not reopen the
 same-invocation old-value question for this fixture; ask for a new semantic
 choice only if the source expansion leaves one of the remaining cases
 undetermined.
+
+## Frozen Oracle expansion characterization
+
+Read-only inspection of frozen main at commit
+a58eefc31e22141574b6f20c6a5748151c6d79f1 found the public implementation in
+`lib/std/control/var.yu`. Its `ref.update` method repeatedly invokes
+`r.update_effect()`; the `ref_update::update v,k` handler clause calls `f v`
+and passes its result to the saved continuation before looping. The `var_ref`
+constructor connects `get` and `set` to the State operations and builds
+`update_effect` as `set:ref_update::update:get()`. The frozen runtime fixture
+is the same captured-buffer example summarized above.
+
+This source adds the concrete library-control-flow shape behind that one
+Oracle path. It is implementation characterization only: neither the
+`loop:k:f v` structure nor the operation-handler decomposition is adopted as a
+general successor rule. It identifies the source proof seam in the fixture:
+callback return data passes through a pending update continuation to the
+State `set` operation, while the fixture requires the later captured read to
+return the replacement. The successor derivation must still show how
+`&buffer = value`'s pure continuation restart composes with the State handler's
+resumption under that replacement. The stable-core expected output
+independently fixes the final `start!` observation; this inspection did not
+run the fixture.
+
+For the callback literal at `r.update (\old -> old + "!")`, the successor
+contract remains the approved role-first rule: the known callback context
+selects Handler before body constraints; parameter/body/result endpoints are
+formed independently under normative B; the completed interface is checked
+once by ordinary `F_lit <: F_cb`. This is a new literal-introduction path,
+separate from adapting an already constructed Pure value. The Oracle body does
+not prove that Pure-value inequality.
+
+The inspected expansion still does not give successor equations for dynamic
+State ownership, distinct activations, escaped captures, or multi-shot
+resumption. It also does not construct whole-carrier admission or prove either
+Function-domain inclusion. The next bounded proof remains the same-invocation
+fixture derivation: connect the callback's returned value to the State
+replacement across the two selected continuation mechanisms, then derive the
+later captured read from the State source clauses. Keep raw callback
+resumption and State restart as distinct transitions.
