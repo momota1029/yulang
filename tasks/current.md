@@ -159,6 +159,14 @@ exact 14 recovery-free patterns among its 30 generated cases. This characterizes
 parser-to-candidate shape only. It does
 not add production Apply lowering, endpoint generation, or Theorem C
 correspondence; details are appended to the HIR/source-core record.
+The candidate now also mirrors typed-core §6's `(I,d,n)` shape under a finite
+monomorphic Gamma for five ordinary-call forms, including chained and nested
+applications plus a Computation-tagged `pending` name. Tests check each
+structural-shadow endpoint triple and retain the nested computation as a whole
+argument. This notation model omits actual port profiles, `K,D`, invocation/
+subtraction evidence, and full constraints, so it is not executable core or
+complete Function comparison. Production Apply lowering and principal
+acceptance schemes remain open.
 
 ## Latest main-gate results
 

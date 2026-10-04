@@ -160,3 +160,25 @@ candidate data, not production `HirOccurrenceId` or `ResolvedExpr::Apply`.
 This is parser-to-candidate-shape evidence only: it does not establish name
 resolution, callback endpoint generation, constraint generation, or Theorem C
 correspondence, and it changes no production behavior.
+
+## 2026-10-05 test-only source synthesis shape
+
+The same private candidate now runs the typed-computation-core §6 result-role
+shape over `f a`, `f(a)`, `f a b`, `f(a)(b)`, and `f(g(a))`, under a supplied
+monomorphic research `Gamma`. It constructs `(I,d,n)` notation trees for
+Name and Apply: Value names normalize through `result`, Computation names
+through their original `eliminate_p` label, and each application reifies
+`call(n_f,n_a)` before normalizing its Computation result. Exact per-call
+structural-shadow endpoint triples are checked for staged and nested calls;
+`f(g(a))` checks the inner computation remains the outer whole argument.
+An empty-row-labelled Computation name remains a Computation through
+normalization.
+
+This candidate deliberately stores only effect labels, not source port
+profiles, `K,D`, invocation/subtraction evidence, or complete application
+constraints. Its endpoint triples are the pure structural-shadow projection,
+not a successful concrete inequality or a complete Function query. The core
+objects are test notation, not an executable typed-core API; name resolution
+is supplied by the finite research `Gamma`. No production HIR, collector,
+solver, or endpoint generation changed, and the test does not establish the
+callback Theorem C bridge or principal-scheme preservation.

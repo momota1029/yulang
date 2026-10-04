@@ -690,7 +690,7 @@ fn range_of_token(token: &SyntaxToken) -> Range<usize> {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
+    use std::{collections::HashMap, sync::Arc};
 
     use super::*;
     use yu_syntax::{SourceText, SyntaxEnvironment, parse_file, scan_header};
@@ -851,6 +851,7 @@ mod tests {
     #[derive(Clone, Debug, Eq, PartialEq)]
     enum ResearchApply {
         Atom {
+            name: String,
             range: Range<usize>,
         },
         Group {
@@ -866,7 +867,7 @@ mod tests {
         },
     }
 
-    fn research_lower_apply(expression: &HirExpr, next: &mut u32) -> ResearchApply {
+    fn research_lower_apply(expression: &HirExpr, source: &str, next: &mut u32) -> ResearchApply {
         let HirExpr::Value {
             kind,
             range,
@@ -884,20 +885,21 @@ mod tests {
                     occurrence,
                     form: *kind,
                     range: range.clone(),
-                    callee: Box::new(research_lower_apply(&children[0], next)),
-                    argument: Box::new(research_lower_apply(&children[1], next)),
+                    callee: Box::new(research_lower_apply(&children[0], source, next)),
+                    argument: Box::new(research_lower_apply(&children[1], source, next)),
                 }
             }
             SyntaxKind::ParenthesizedExpression => ResearchApply::Group {
                 range: range.clone(),
                 children: children
                     .iter()
-                    .map(|child| research_lower_apply(child, next))
+                    .map(|child| research_lower_apply(child, source, next))
                     .collect(),
             },
             SyntaxKind::IdentifierExpression => {
                 assert!(children.is_empty(), "identifier leaf");
                 ResearchApply::Atom {
+                    name: source[range.clone()].to_owned(),
                     range: range.clone(),
                 }
             }
@@ -949,6 +951,163 @@ mod tests {
         }
     }
 
+    fn research_apply_atoms(expression: &ResearchApply, into: &mut Vec<(String, Range<usize>)>) {
+        match expression {
+            ResearchApply::Atom { name, range } => into.push((name.clone(), range.clone())),
+            ResearchApply::Group { children, .. } => {
+                for child in children {
+                    research_apply_atoms(child, into);
+                }
+            }
+            ResearchApply::Apply {
+                callee, argument, ..
+            } => {
+                research_apply_atoms(callee, into);
+                research_apply_atoms(argument, into);
+            }
+        }
+    }
+
+    fn expected_research_atoms(source: &str) -> Vec<(String, Range<usize>)> {
+        let mut atoms = Vec::new();
+        let mut start = None;
+        for (index, character) in source.char_indices() {
+            if character.is_ascii_alphabetic() {
+                start.get_or_insert(index);
+            } else if let Some(atom_start) = start.take() {
+                atoms.push((source[atom_start..index].to_owned(), atom_start..index));
+            }
+        }
+        if let Some(atom_start) = start {
+            atoms.push((source[atom_start..].to_owned(), atom_start..source.len()));
+        }
+        atoms
+    }
+
+    // A test-only notation mirror of typed-core §6, not an executable core API.
+    // Effect strings are labels only: this model omits port profiles, K,D,
+    // invocation/subtraction evidence, and complete application constraints.
+    #[derive(Clone, Debug, Eq, PartialEq)]
+    enum ResearchInterface {
+        Value { value: String },
+        Computation { effect: String, value: String },
+    }
+
+    impl ResearchInterface {
+        fn value_endpoint(&self) -> &str {
+            match self {
+                Self::Value { value } | Self::Computation { value, .. } => value,
+            }
+        }
+    }
+
+    #[derive(Clone, Debug, Eq, PartialEq)]
+    enum ResearchData {
+        Name(String),
+        ReifiedCall {
+            callee: Box<ResearchComputation>,
+            argument: Box<ResearchComputation>,
+        },
+    }
+
+    #[derive(Clone, Debug, Eq, PartialEq)]
+    enum ResearchComputation {
+        Result(Box<ResearchData>),
+        Eliminate {
+            effect: String,
+            data: Box<ResearchData>,
+        },
+    }
+
+    #[derive(Clone, Debug, Eq, PartialEq)]
+    struct ResearchSynthesis {
+        interface: ResearchInterface,
+        data: ResearchData,
+        normalized: ResearchComputation,
+    }
+
+    #[derive(Clone, Debug, Eq, PartialEq)]
+    struct ResearchApplicationProjection {
+        // This is only the structural endpoint triple from the pure shadow;
+        // it does not assert or solve a concrete Function inequality.
+        occurrence: u32,
+        callee_value: String,
+        argument_value: String,
+        result_value: String,
+    }
+
+    fn research_normalize(
+        interface: &ResearchInterface,
+        data: ResearchData,
+    ) -> ResearchComputation {
+        match interface {
+            ResearchInterface::Value { .. } => ResearchComputation::Result(Box::new(data)),
+            ResearchInterface::Computation { effect, .. } => ResearchComputation::Eliminate {
+                effect: effect.clone(),
+                data: Box::new(data),
+            },
+        }
+    }
+
+    fn research_synthesize(
+        expression: &ResearchApply,
+        gamma: &HashMap<String, ResearchInterface>,
+        projections: &mut Vec<ResearchApplicationProjection>,
+    ) -> ResearchSynthesis {
+        match expression {
+            ResearchApply::Atom { name, .. } => {
+                let interface = gamma
+                    .get(name)
+                    .unwrap_or_else(|| panic!("unknown research name {name}"))
+                    .clone();
+                let data = ResearchData::Name(name.clone());
+                let normalized = research_normalize(&interface, data.clone());
+                ResearchSynthesis {
+                    interface,
+                    data,
+                    normalized,
+                }
+            }
+            ResearchApply::Group { children, .. } => {
+                let [inner] = children.as_slice() else {
+                    panic!("a source grouping denotes exactly one research expression");
+                };
+                research_synthesize(inner, gamma, projections)
+            }
+            ResearchApply::Apply {
+                occurrence,
+                callee,
+                argument,
+                ..
+            } => {
+                let callee = research_synthesize(callee, gamma, projections);
+                let argument = research_synthesize(argument, gamma, projections);
+                let result_value = format!("call{occurrence}.value");
+                let effect = format!("call{occurrence}.effect");
+                projections.push(ResearchApplicationProjection {
+                    occurrence: *occurrence,
+                    callee_value: callee.interface.value_endpoint().to_owned(),
+                    argument_value: argument.interface.value_endpoint().to_owned(),
+                    result_value: result_value.clone(),
+                });
+                let interface = ResearchInterface::Computation {
+                    effect,
+                    value: result_value,
+                };
+                let data = ResearchData::ReifiedCall {
+                    callee: Box::new(callee.normalized),
+                    argument: Box::new(argument.normalized),
+                };
+                let normalized = research_normalize(&interface, data.clone());
+                ResearchSynthesis {
+                    interface,
+                    data,
+                    normalized,
+                }
+            }
+        }
+    }
+
     #[test]
     fn research_apply_lowering_preserves_mixed_unary_call_spines() {
         // This is a test-only candidate for the reviewed ResolvedExpr::Apply
@@ -984,7 +1143,7 @@ mod tests {
                 valid_patterns.push((stage_count, forms));
                 let mut next = 0;
                 let candidate =
-                    research_lower_apply(associated.chains()[0].expression(), &mut next);
+                    research_lower_apply(associated.chains()[0].expression(), &source, &mut next);
                 assert!(
                     research_apply_arguments_are_atoms(&candidate),
                     "generated grouped-spine stages keep atomic operands: {source}"
@@ -1060,7 +1219,8 @@ mod tests {
         let associated = parse("f(g(a))");
         assert_eq!(associated.chains().len(), 1);
         let mut next = 0;
-        let candidate = research_lower_apply(associated.chains()[0].expression(), &mut next);
+        let candidate =
+            research_lower_apply(associated.chains()[0].expression(), "f(g(a))", &mut next);
         let ResearchApply::Apply {
             form: SyntaxKind::CallTail,
             argument,
@@ -1077,6 +1237,286 @@ mod tests {
             }
         ));
         assert_eq!(next, 2);
+    }
+
+    #[test]
+    fn research_apply_synthesis_preserves_whole_nested_computations() {
+        let gamma = HashMap::from([
+            (
+                "f".to_owned(),
+                ResearchInterface::Value {
+                    value: "Tf".to_owned(),
+                },
+            ),
+            (
+                "g".to_owned(),
+                ResearchInterface::Value {
+                    value: "Tg".to_owned(),
+                },
+            ),
+            (
+                "a".to_owned(),
+                ResearchInterface::Value {
+                    value: "Ta".to_owned(),
+                },
+            ),
+            (
+                "b".to_owned(),
+                ResearchInterface::Value {
+                    value: "Tb".to_owned(),
+                },
+            ),
+        ]);
+
+        for (source, application_count, forms, expected_projections) in [
+            (
+                "f a",
+                1,
+                vec![SyntaxKind::MlArgument],
+                vec![ResearchApplicationProjection {
+                    occurrence: 0,
+                    callee_value: "Tf".to_owned(),
+                    argument_value: "Ta".to_owned(),
+                    result_value: "call0.value".to_owned(),
+                }],
+            ),
+            (
+                "f(a)",
+                1,
+                vec![SyntaxKind::CallTail],
+                vec![ResearchApplicationProjection {
+                    occurrence: 0,
+                    callee_value: "Tf".to_owned(),
+                    argument_value: "Ta".to_owned(),
+                    result_value: "call0.value".to_owned(),
+                }],
+            ),
+            (
+                "f a b",
+                2,
+                vec![SyntaxKind::MlArgument; 2],
+                vec![
+                    ResearchApplicationProjection {
+                        occurrence: 1,
+                        callee_value: "Tf".to_owned(),
+                        argument_value: "Ta".to_owned(),
+                        result_value: "call1.value".to_owned(),
+                    },
+                    ResearchApplicationProjection {
+                        occurrence: 0,
+                        callee_value: "call1.value".to_owned(),
+                        argument_value: "Tb".to_owned(),
+                        result_value: "call0.value".to_owned(),
+                    },
+                ],
+            ),
+            (
+                "f(a)(b)",
+                2,
+                vec![SyntaxKind::CallTail; 2],
+                vec![
+                    ResearchApplicationProjection {
+                        occurrence: 1,
+                        callee_value: "Tf".to_owned(),
+                        argument_value: "Ta".to_owned(),
+                        result_value: "call1.value".to_owned(),
+                    },
+                    ResearchApplicationProjection {
+                        occurrence: 0,
+                        callee_value: "call1.value".to_owned(),
+                        argument_value: "Tb".to_owned(),
+                        result_value: "call0.value".to_owned(),
+                    },
+                ],
+            ),
+            (
+                "f(g(a))",
+                2,
+                vec![SyntaxKind::CallTail; 2],
+                vec![
+                    ResearchApplicationProjection {
+                        occurrence: 1,
+                        callee_value: "Tg".to_owned(),
+                        argument_value: "Ta".to_owned(),
+                        result_value: "call1.value".to_owned(),
+                    },
+                    ResearchApplicationProjection {
+                        occurrence: 0,
+                        callee_value: "Tf".to_owned(),
+                        argument_value: "call1.value".to_owned(),
+                        result_value: "call0.value".to_owned(),
+                    },
+                ],
+            ),
+        ] {
+            let associated = parse(source);
+            assert_eq!(associated.chains().len(), 1, "{source}");
+            assert!(research_expression_is_valid(
+                associated.chains()[0].expression()
+            ));
+            let mut next = 0;
+            let candidate =
+                research_lower_apply(associated.chains()[0].expression(), source, &mut next);
+            let mut actual_atoms = Vec::new();
+            research_apply_atoms(&candidate, &mut actual_atoms);
+            actual_atoms.sort_by_key(|(_, range)| range.start);
+            assert_eq!(actual_atoms, expected_research_atoms(source), "{source}");
+            assert!(research_apply_arguments_are_atoms(&candidate) || source == "f(g(a))");
+            assert_eq!(
+                research_apply_spine(&candidate).len(),
+                application_count,
+                "{source}"
+            );
+            assert_eq!(next as usize, application_count, "{source}");
+
+            let mut projections = Vec::new();
+            let synthesis = research_synthesize(&candidate, &gamma, &mut projections);
+            assert_eq!(projections.len(), application_count, "{source}");
+            assert_eq!(projections, expected_projections, "{source}");
+            assert_eq!(synthesis.interface.value_endpoint(), "call0.value");
+            assert!(matches!(
+                synthesis.normalized,
+                ResearchComputation::Eliminate { ref effect, .. } if effect == "call0.effect"
+            ));
+            if matches!(source, "f a b" | "f(a)(b)") {
+                assert_eq!(
+                    synthesis.data,
+                    ResearchData::ReifiedCall {
+                        callee: Box::new(ResearchComputation::Eliminate {
+                            effect: "call1.effect".to_owned(),
+                            data: Box::new(ResearchData::ReifiedCall {
+                                callee: Box::new(ResearchComputation::Result(Box::new(
+                                    ResearchData::Name("f".to_owned()),
+                                ))),
+                                argument: Box::new(ResearchComputation::Result(Box::new(
+                                    ResearchData::Name("a".to_owned()),
+                                ))),
+                            }),
+                        }),
+                        argument: Box::new(ResearchComputation::Result(Box::new(
+                            ResearchData::Name("b".to_owned()),
+                        ))),
+                    },
+                    "the prior computation is normalized as the staged callee: {source}"
+                );
+            }
+            let mut projected_forms = Vec::new();
+            fn gather_forms(expression: &ResearchApply, into: &mut Vec<SyntaxKind>) {
+                match expression {
+                    ResearchApply::Atom { .. } => {}
+                    ResearchApply::Group { children, .. } => {
+                        for child in children {
+                            gather_forms(child, into);
+                        }
+                    }
+                    ResearchApply::Apply {
+                        form,
+                        callee,
+                        argument,
+                        ..
+                    } => {
+                        gather_forms(callee, into);
+                        into.push(*form);
+                        gather_forms(argument, into);
+                    }
+                }
+            }
+            gather_forms(&candidate, &mut projected_forms);
+            assert_eq!(projected_forms, forms, "{source}");
+        }
+
+        let associated = parse("f(g(a))");
+        let mut next = 0;
+        let candidate =
+            research_lower_apply(associated.chains()[0].expression(), "f(g(a))", &mut next);
+        let mut projections = Vec::new();
+        let synthesis = research_synthesize(&candidate, &gamma, &mut projections);
+        assert_eq!(
+            projections,
+            [
+                ResearchApplicationProjection {
+                    occurrence: 1,
+                    callee_value: "Tg".to_owned(),
+                    argument_value: "Ta".to_owned(),
+                    result_value: "call1.value".to_owned(),
+                },
+                ResearchApplicationProjection {
+                    occurrence: 0,
+                    callee_value: "Tf".to_owned(),
+                    argument_value: "call1.value".to_owned(),
+                    result_value: "call0.value".to_owned(),
+                },
+            ]
+        );
+        assert_eq!(
+            synthesis.normalized,
+            ResearchComputation::Eliminate {
+                effect: "call0.effect".to_owned(),
+                data: Box::new(ResearchData::ReifiedCall {
+                    callee: Box::new(ResearchComputation::Result(Box::new(ResearchData::Name(
+                        "f".to_owned()
+                    ),))),
+                    argument: Box::new(ResearchComputation::Eliminate {
+                        effect: "call1.effect".to_owned(),
+                        data: Box::new(ResearchData::ReifiedCall {
+                            callee: Box::new(ResearchComputation::Result(Box::new(
+                                ResearchData::Name("g".to_owned()),
+                            ))),
+                            argument: Box::new(ResearchComputation::Result(Box::new(
+                                ResearchData::Name("a".to_owned()),
+                            ))),
+                        }),
+                    }),
+                }),
+            }
+        );
+
+        let mut retained_gamma = gamma.clone();
+        retained_gamma.insert(
+            "pending".to_owned(),
+            ResearchInterface::Computation {
+                effect: "empty-row".to_owned(),
+                value: "A_pending".to_owned(),
+            },
+        );
+        let associated = parse("f pending");
+        let mut next = 0;
+        let candidate =
+            research_lower_apply(associated.chains()[0].expression(), "f pending", &mut next);
+        let mut projections = Vec::new();
+        let synthesis = research_synthesize(&candidate, &retained_gamma, &mut projections);
+        assert_eq!(
+            projections[0].argument_value, "A_pending",
+            "the whole argument's interface result is projected"
+        );
+        assert!(matches!(
+            synthesis.data,
+                ResearchData::ReifiedCall { ref argument, .. }
+                if matches!(argument.as_ref(), ResearchComputation::Eliminate { effect, data }
+                    if effect == "empty-row"
+                        && matches!(data.as_ref(), ResearchData::Name(name) if name == "pending"))
+        ));
+
+        let associated = parse("pending");
+        let mut next = 0;
+        let candidate =
+            research_lower_apply(associated.chains()[0].expression(), "pending", &mut next);
+        let mut projections = Vec::new();
+        let synthesis = research_synthesize(&candidate, &retained_gamma, &mut projections);
+        assert_eq!(
+            synthesis.interface,
+            ResearchInterface::Computation {
+                effect: "empty-row".to_owned(),
+                value: "A_pending".to_owned(),
+            }
+        );
+        assert_eq!(
+            synthesis.normalized,
+            ResearchComputation::Eliminate {
+                effect: "empty-row".to_owned(),
+                data: Box::new(ResearchData::Name("pending".to_owned())),
+            }
+        );
     }
 
     #[test]
