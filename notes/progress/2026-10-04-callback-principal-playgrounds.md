@@ -345,3 +345,29 @@ therefore exercises the draft's finite audit boundary but does not discharge
 the known full-bound realization factorization premise. The raw/HIR bridge
 and production endpoint interpretation remain open; no source counterexample
 or new semantic choice was found.
+
+## `higher` returned-provider join probe (2026-10-05)
+
+[`tools/research_principal_higher_join.py`](../../tools/research_principal_higher_join.py)
+executes the source-core obstruction in
+[`callback coverage and source-preserving composition`](../design/2026-10-05-callback-coverage-and-source-joins.md)
+§6.3. The finite source has `f y = y`: each challenge supplies one of two
+same-interface callable providers, the first call returns that exact provider,
+and a later call emits its retained request origin and continuation. The
+approved projected observation here keeps the challenge, typed request origin,
+and continuation identity; it need not expose an inert callable's scalar
+identity before that later call.
+
+The checker exhausts all 16 relations between two challenges and two providers.
+Joining stage marginals on the printed Function interface invents cross-owner
+histories in six relations. Its minimum witness has the diagonal source rows
+`(h0,g0)` and `(h1,g1)`: the type-only join adds
+`(h0,request:g1,continuation:g1)`. Joining instead on the original returned
+provider incidence exactly recovers the source image for all 16 relations.
+
+This makes the §6.3 lossless-join obstruction executable and gives a minimized
+regression against dropping the intermediate provider. It checks a finite
+source-core relation only. It does not model production endpoint denotation,
+Function comparison, a solver-generated common descriptor, or principal
+factorization; the result is characterization evidence, not a new theorem or
+a counterexample to every possible shared allowance.

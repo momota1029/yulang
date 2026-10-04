@@ -294,6 +294,13 @@ evidence remain open. Proof/review status is in
 [the experiment-guided record](../notes/progress/2026-10-05-experiment-guided-main-gate-attack.md)
 and [complete argument](../notes/design/2026-10-05-callback-coverage-and-source-joins.md).
 The full callback/principal classification remains C; structural FMP remains A.
+An additional executable `higher` source-core probe exhausts all 16
+challenge/provider relations and shrinks the type-only stage-join error to two
+diagonal rows; preserving the original returned-provider incidence restores
+the exact projected source relation in every case. It characterizes the
+reviewed §6.3 obstruction only and does not construct a production common
+descriptor. Details are in the
+[callback/principality playground record](../notes/progress/2026-10-04-callback-principal-playgrounds.md#higher-returned-provider-join-probe-2026-10-05).
 
 The latest user request reopened direct proof work on callback and
 principality after the pure FMP proof. The independently reviewed
