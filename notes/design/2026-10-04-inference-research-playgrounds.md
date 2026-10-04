@@ -97,6 +97,12 @@ occurrence endpoints. This is only powerset-level evidence; it is not an
 effect comparison or principal-scheme theorem. Exact dimensions, minimized
 obstruction, and remaining proof gates are recorded in the
 [callback/principal playground report](../progress/2026-10-04-callback-principal-playgrounds.md).
+[`tools/research_principal_row_match.py`](../../tools/research_principal_row_match.py)
+checks the conditional finite point-row disjunction under two independently
+freshened uses and a correlated receiver constraint. Its eager-match mutant
+loses all four assignments retained by the formula; this tests alternative
+preservation in the finite row fragment only, not Yulang effect comparison or
+the source principal-scheme theorem. Results are in the same progress report.
 [`tools/research_callback_entry.py`](../../tools/research_callback_entry.py)
 checks the selected Value-entry source order and finite bind/resumption paths;
 it does not model typed endpoint denotation or multi-shot owner semantics.

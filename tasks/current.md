@@ -330,9 +330,12 @@ exhaustively checks 65,536 bind-shaped relation pairs under two metadata
 contexts, with shared intermediate coordinates, and finds minimal bad-join
 witnesses both with and without a nonempty exact composition; the
 principal-support checker verifies finite common-support factorization while
-keeping occurrence endpoints distinct. Neither models source constructors,
-complete Function comparison, subtraction attachment, or generalization, and
-neither closes a main theorem. Exact counts and limits are in
+keeping occurrence endpoints distinct. A separate point-row matcher retains
+the conditional disjunctive alternatives through two independent fresh uses
+and a correlated receiver restriction; its eager-match mutant loses all four
+surviving assignments. These models still do not represent source constructors,
+complete Function comparison, subtraction attachment, or the full
+generalization theorem. Exact counts and limits are in
 [callback/principal playgrounds](../notes/progress/2026-10-04-callback-principal-playgrounds.md).
 The separate Value-entry probe executes the selected finite Return/Request
 bind equations for `receipt; Force(D) >>= (v => RebindResultPath; B(v))`; it

@@ -24,6 +24,7 @@ This index is a navigation aid. The listed source document remains authoritative
   Current bounded callback/principality models are
   [`research_callback_lift.py`](../../tools/research_callback_lift.py) and
   [`research_principal_support.py`](../../tools/research_principal_support.py),
+  [`research_principal_row_match.py`](../../tools/research_principal_row_match.py),
   plus the source-order probe
   [`research_callback_entry.py`](../../tools/research_callback_entry.py);
   their exact limits and minimized obstruction are in the

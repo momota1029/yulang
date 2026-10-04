@@ -3,7 +3,10 @@
 Date: 2026-10-04
 Status: bounded executable characterization evidence; no implementation or
 semantic authority
-Review: one independent compiler_referee review; no blocking/major finding.
+Review: independent compiler_referee review of the callback/lift models found
+no blocking/major finding. The row-match probe review found one minor wording
+scope issue (“minimum” did not identify the fixed-universe ordering), repaired
+as “lexicographically least”; no remaining finding.
 The minor identity-coverage suggestion was closed by generating distinct
 per-occurrence evidence identities and checking preservation after lifting.
 A later bind-composition delta review found that the minimum counterexample
@@ -65,6 +68,36 @@ establish either direction of the principal-scheme solution-family theorem.
 In particular it does not justify the `compose` hygiene boundary or the
 principal `call`/`twice`/`choose`/`higher` interfaces by itself.
 
+## Conditional point-row fresh-use probe
+
+[`tools/research_principal_row_match.py`](../../tools/research_principal_row_match.py)
+exhausts the 32 assignments of one receiver and four independently owned
+point arguments over two ground equality classes. It checks the conditional
+point-row formula `{F<r>} ⊆ {F<a>,F<b>}` as the disjunction `a=r ∨ b=r`,
+then alpha-freshens `a,b` separately for two uses and retains both formulas
+under one correlated receiver constraint. Explicit occurrence-level witness
+search agrees with the formula on all assignments: 18 satisfy the two row
+constraints, and 4 remain after the joint receiver restriction.
+
+An eager-left-match mutant selects `a=r` for both uses before the receiver
+constraint is applied; it admits none of those four assignments. The
+lexicographically least lost assignment in the stated binary universe is
+receiver `0`, use 1 targets `(0,1)`, and use 2 targets `(1,0)`. The search does
+not vary the number of uses, targets, or constraints.
+Each row comparison succeeds, while the client's cross-use constraint requires
+opposite choices. The mutant therefore demonstrates why the conditional
+finite presentation must retain the disjunction through independent use and
+joint restriction instead of committing a local match early.
+
+This is characterization evidence for the exact point-valued fragment in
+`coupled-effect-interface-core-draft.md` § “Finite point-row constrained
+presentation” and its whole-presentation freshening law. It assumes the
+candidate `FamCompat_A` reduces to equality over two ground classes. It does
+not establish that Yulang source constraints occupy that fragment, interpret
+effect rows, compare complete Function interfaces, or prove the seven
+principal acceptance schemes. It adds no semantic rule or implementation
+authority.
+
 ## Next proof work
 
 The callback main gate still needs a source-to-endpoint correspondence showing
@@ -118,7 +151,13 @@ python3 tools/research_callback_lift.py
   requiring a nonempty exact join.
 python3 tools/research_principal_support.py
   584 finite assignments; 560 retain distinct endpoint supports.
+python3 tools/research_principal_row_match.py
+  32 complete assignments; 18 row-formula solutions; 4 after joint receiver
+  restriction; eager-left-match mutant retains 0; lexicographically least lost
+  assignment shown within the stated binary universe.
 python3 -m py_compile tools/research_callback_lift.py tools/research_principal_support.py
+  pass
+python3 -m py_compile tools/research_principal_row_match.py
   pass
 python3 tools/research_callback_entry.py
   8 argument/body mode and initial-state cases; 18 response paths;
