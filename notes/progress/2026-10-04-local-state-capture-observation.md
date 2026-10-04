@@ -90,3 +90,27 @@ remains the same-invocation fixture derivation: connect callback resumption to
 the local assignment's replacement and derive the later captured read from
 the selected State source clauses. Keep raw callback resumption and State
 restart as distinct transitions.
+
+## Bounded successor derivation audit
+
+A Sol architecture audit of the same-invocation path found the exact missing
+bridge. Ordinary continuation composition can deliver the callback response
+to the saved assignment suffix, but it does not perform State replacement;
+the architecture's pure continuation restart does not yet specify how a later
+read through the pre-existing capture observes that replacement. The
+unproved obligation is therefore:
+
+```text
+WriteLocal(s, v, K, C) -> RestartLocal(s, v, K, C')
+  implies that a later read through the existing capture of s,
+  reached by K in this invocation, returns v.
+```
+
+This is an obligation schema, not an adopted transition rule. `s` denotes the
+visible declaration origin and is not runtime activation identity. For the
+fixture, the expected output fixes the instance `v = "start!"`; it does not
+choose a general dynamic-State representation. The conditional trace still
+requires a successor `ref.update` expansion premise, callback-response
+delivery, ordinary raw resumption, the separate local-assignment restart, and
+the captured `get` read. No `var_ref` equation belongs to this custom-ref
+path.

@@ -116,6 +116,11 @@ and the required authority.
   is separate from the custom-ref local-buffer fixture. The successor
   State/restart derivation remains open. See
   [local-State capture observation](../notes/progress/2026-10-04-local-state-capture-observation.md).
+  The bounded derivation audit located the missing bridge: callback response
+  delivery/raw resumption reaches the local assignment, but no successor
+  clause connects pure restart to a later read through the pre-existing
+  capture. This remains a proof obligation, not a selected runtime rule; the
+  fixture fixes only the `"start!"` observation.
 - General first-class-reference/import realization, complete `EnvStore` /
   `JointWF`, source-wide acceptance/principality, and generalization/SCC
   lifecycle remain open. No implementation authorization follows from the
