@@ -30,6 +30,30 @@ fn research_unary_callback_lambda_header_currently_falls_back_to_errors() {
             .any(|node| node.kind() == SyntaxKind::ParenthesizedExpression)
     );
 }
+
+#[test]
+fn research_registered_backslash_prefix_interacts_with_lambda_header() {
+    // Table-level fixture only: it probes dispatch precedence if this exact
+    // operator entry exists, not whether Yulang source can declare it.
+    let operators = OperatorTable::from_declarations([OperatorDeclaration::new(
+        "\\",
+        OperatorFixities::new().with_prefix(BindingPower::scalar(70)),
+    )])
+    .expect("research backslash prefix declaration");
+    let (green, _) = run_with(r"host (\x -> x)", &operators);
+    let root = SyntaxNode::new_root(green);
+    let errors = root
+        .descendants_with_tokens()
+        .filter_map(|element| element.into_token())
+        .filter(|token| token.kind() == SyntaxKind::Error)
+        .map(|token| token.text().to_owned())
+        .collect::<Vec<_>>();
+    assert_eq!(errors, ["-", ">"]);
+    assert!(
+        root.descendants()
+            .any(|node| node.kind() == SyntaxKind::PrefixOperatorUse)
+    );
+}
 use crate::{
     ambient_claim::AmbientClaimView,
     handoff::MlMode,

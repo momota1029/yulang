@@ -93,14 +93,24 @@ A test-only CST characterization now runs the bounded source spelling
 table. It produces an `MlArgument` containing a parenthesized expression, but
 the purported lambda opener is not recognized: the error tokens are exactly
 `\`, `-`, and `>`, while `x` is parsed as ordinary identifiers. The retained
-probe is
+empty-table probe is
 [`research_unary_callback_lambda_header_currently_falls_back_to_errors`](../../crates/yu-syntax/src/tests/tails.rs).
+
+A second probe supplies a constructed operator table with a `\` prefix
+entry. The current parser then consumes the would-be lambda introducer as a
+`PrefixOperatorUse` and still reports `-` and `>` as error tokens. This is a
+table-level precedence fixture only; it does not assert that source programs
+can declare that spelling. It characterizes the collision that the reviewed
+parser design avoids by reserving a complete `\ Identifier ->` header before
+dynamic-operator lookup, while leaving nonmatching `\` to existing fallback.
+The test is
+[`research_registered_backslash_prefix_interacts_with_lambda_header`](../../crates/yu-syntax/src/tests/tails.rs).
 
 This narrows the raw-to-HIR gap to a concrete starting point: the current
 parser does not produce the selected unary lambda header under this ordinary
 operator environment, before the lowerer's already-known non-leaf Apply
 rejection is reached. It characterizes present behavior only; it does not
 change the accepted source contract or specify malformed-header recovery.
-The focused test passes. Full-file/header operator interactions and the
+Both focused probes pass. Full-file/header operator interactions and the
 subsequent Apply/HIR lowering remain untested, and no production parser or HIR
 behavior changed.
