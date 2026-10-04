@@ -43,6 +43,13 @@ This index is a navigation aid. The listed source document remains authoritative
   [`research_callback_callable_projection.py`](../../tools/research_callback_callable_projection.py)
   checks the higher-order authority-preservation boundary of the approved
   typed projection.
+  [`research_callback_nested_value_projection.py`](../../tools/research_callback_nested_value_projection.py)
+  composes scalar saturation with a returned package's dependent future call:
+  the source projection remains included, but equality fails when a widened
+  scalar changes the retained callable's request. A fixed-challenge owner-swap
+  mutant also changes future request provenance. This is finite
+  characterization only; see its
+  [progress record](../progress/2026-10-05-callback-mixed-value-future-call-playground.md).
   [`research_compose_hygiene.py`](../../tools/research_compose_hygiene.py)
   checks that shared `b` row spelling does not grant capture for annotation-free
   `compose`.

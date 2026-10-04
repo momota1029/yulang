@@ -118,7 +118,7 @@ These are attached as evidence to their corresponding gates, not as arrows that 
 
 - `check_structural_fence_completion.py`: bounded validation of the finite-fence construction; its regressions record five repaired candidate bugs.
 - `research_callback_admission_coverage.py`: finite coverage encodings and source-obstruction models.
-- A/B relation equivalence, scoped lift, admission hiding, consumer composition, HIR `id`/`zero` trace and higher-order provider probes: finite cases only.
+- A/B relation equivalence, scoped lift, admission hiding, consumer composition, HIR `id`/`zero` trace, higher-order provider, and mixed scalar/callable future-consumer probes: finite cases only.
 - Inequality endpoint dispatch, contract joins, and Value-vs-Computation shadow probes: finite characterization of the exact local distinction stated by each record.
 
 See the per-probe links in [the theory map](inference-theory-map.md) and [design index](../design/INDEX.md). A passing run cannot upgrade a node's classification.

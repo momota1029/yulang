@@ -556,6 +556,18 @@ limits, and the remaining premise (a principal, representable common allowance
 for every original solution fiber, with all valid views factoring through its
 generalization) are in
 [principal scheme criteria](../notes/progress/2026-10-04-principal-scheme-acceptance-criteria.md).
+A mixed callback-result playground composes ground scalar saturation with a
+retained callable in the same package and fixed source challenge. Across two
+correlated packages, source typed observations remain included in the checked
+projection, but projected equality fails when widening scalar `0` to `1`
+changes a later invocation from `Read` to `Write`; a same-challenge callable
+owner swap changes request origin as well. Compiler-referee review rejected
+and helped repair an initial mutant that accidentally changed the challenge;
+the fixed-tuple checker now passes. This is finite dependent-use
+characterization, not a production counterexample or theorem. It shows that
+local scalar projection alone cannot establish exact equality after arbitrary
+dependent result consumption. Details and limits are in the
+[mixed-value future-call record](../notes/progress/2026-10-05-callback-mixed-value-future-call-playground.md).
 This turn's source-output-effect contributor shape is only a reviewed proof
 candidate; its sort-specific paths and explicit same-fiber totality obligation
 are recorded in
