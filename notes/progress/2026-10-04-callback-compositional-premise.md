@@ -8,11 +8,12 @@ source-interface-adequacy §4, and the direct main-gate attacks
 
 ## Result
 
-The failed direct proof localizes the missing assumption to one finite,
-source-checkable property of endpoint generation: **compositional endpoint
-recipe realization (CERR)**. CERR is a structural check on the generator's
-output constructors, not a claim that a regular solution exists and not the
-desired observation inclusion restated.
+One non-tautological, source-checkable sufficient premise isolated by the
+failed direct proof is **compositional endpoint recipe realization (CERR)**.
+CERR is a structural check on the generator's output constructors, not a claim
+that a regular solution exists and not the desired observation inclusion
+restated. The current evidence does not prove CERR is weakest or necessary;
+its minimality remains open.
 
 For each callback invocation, CERR requires the generated complete endpoint
 to be assembled from the existing entry/argument, typed rebind, body/result,
@@ -57,6 +58,11 @@ through the argument-entry, rebind, body/result-consumer recipe into the
 linked `[b,d]` view. Hence both `D_checked ⊆ D_actual` and
 `P_actual ⊆ P_checked` hold for this fragment's complete call/value
 observations.
+
+This is a deliberately restricted sufficient fragment, not a minimum-
+assumption theorem for general Function adaptation. In particular, the shared
+argument endpoint excludes distinct parameter endpoints related only by
+variance/adaptation. No necessity claim is made for this restriction.
 
 **Proof.** The common source-owned argument endpoint gives domain equality
 under the shared `ν`. Induct on the finite bind history. At entry, use the

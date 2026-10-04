@@ -75,8 +75,8 @@ endpoint bound from it. The required theorem must recover argument-entry
 admission and factor every endpoint-bound observation through argument,
 rebind, body/result consumer, and `J_call` into linked `[b,d]` at the same
 `ν,K,D`; callback B step 6 leaves this construction open.
-The smallest non-tautological source-checkable conditional result is now
-isolated in [callback compositional premise](../notes/progress/2026-10-04-callback-compositional-premise.md):
+One non-tautological, source-checkable sufficient premise is isolated in
+[callback compositional premise](../notes/progress/2026-10-04-callback-compositional-premise.md):
 finite endpoint generation must realize the existing entry/rebind/body/result
 bind recipe, close all bound-permitted successors (including conservative
 slack), preserve existing evidence in one fiber, share the slot and actual
@@ -84,7 +84,8 @@ slack), preserve existing evidence in one fiber, share the slot and actual
 bound leaf. This syntactic endpoint-identity restriction gives domain equality
 without assuming the target inclusion. Under that check, a finite-history
 induction proves observation-bound inclusion for the bounded first-order
-Value-entry callback fragment. The separate
+Value-entry callback fragment. Its minimality is unproved, and the shared
+argument endpoint deliberately excludes variance/adaptation cases. The separate
 source-generation theorem is currently underdetermined: authoritative B does
 not specify the endpoint-emission rule after step 5, and typed-core §9 defines
 the semantic `J_call` image without identifying it as the generated finite
