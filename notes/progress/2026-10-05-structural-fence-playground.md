@@ -58,9 +58,36 @@ On 2026-10-05:
 - Exhaustive package generation over one variable, six endpoint terms, and
   zero through two inequalities: 1,226 packages; no generated witness was
   rejected by the independent validator.
-- Bounded false-rejection differential: the same 1,226 packages against six
-  candidate one-node graphs (7,356 package/model checks); no `UNSAT` result
-  rejected a candidate witness.
+- Bounded false-rejection differential: the 1,226 packages against every
+  labeled graph with one or two nodes over atoms `A/B`, Record masks `{}` and
+  `{a}`, Function `(-,+)`, and invariant `Box`. All 248 one-variable graph/root
+  assignments were checked against each `UNSAT` package (265,856 checks); no
+  false rejection was found.
+- A two-root extension generated all 169 one-inequality packages over `X,Y`
+  and the eleven corresponding flat endpoints. Every assignment of both roots
+  into the same 127 labeled one/two-node graphs was checked for each `UNSAT`
+  result (45,080 checks); no false rejection was found. This exercises shared
+  graph nodes and cross-variable bounds without rigid leaves.
+- The exhaustive two-root corpus was extended to all unordered pairs of
+  distinct bounds: 14,196 packages (`2,562 SAT`, `11,634 UNSAT`). Every
+  `UNSAT` result was challenged against all 490 root assignments in the same
+  127 one/two-node graphs (5,700,660 checks); no false rejection was found.
+- Four two-root constraint shapes were tested under all four combinations of
+  `k` allowed/forbidden independently at roots `X` and `Y`. Including a rigid
+  atom gives 151 one/two-node graph shapes; 5,830 graph/root assignments were
+  screened, with per-root permissions applied before independent inequality
+  validation.
+- The focused structural rejection cases were checked against all exactly-
+  three-node graphs in a package-matched signature: atoms `Int/Bool`, every
+  Record mask over `{a,b}` with each field pointing at any graph node, Function
+  `(-,+)`, and invariant `Box`. This gives 27,000 labeled graph shapes and
+  810,000 graph/root checks across the atomic and overlapping-Record `UNSAT`
+  cases; no bounded false rejection was found.
+- Per-root rigid cases were also checked against all 6,859 three-node graphs
+  over the small `A/B/k` signature and Record field `a` (617,310 graph/root
+  assignment screens). A prior toy-signature pass was identified in review as
+  vacuous for the `Int/Bool` and `{a,b}` rejection cases; the package-matched
+  rerun replaces that weaker result.
 - `python3 -m py_compile tools/check_structural_fence_completion.py` and
   `git diff --check` pass.
 
@@ -72,14 +99,21 @@ policy, source mapping, effects semantics, or principal representation.
 
 ## Review and next gate
 
-One independent `compiler_referee` review found the endpoint-reversal,
+Independent `compiler_referee` reviews found the endpoint-reversal,
 negative-coordinate, empty-Record, profile-limit, and rigid-namespace issues.
-The primary repaired them and reran the focused and finite differential
-checks. Narrow delta reviews confirmed closure of the negative-coordinate,
-rigid-namespace, and malformed-rigid-instance findings with no new findings.
-No broad compiler tests or performance measurements were run.
+The primary repaired them and reran focused, generated-package, shared-graph,
+and per-root permission checks. Review also caught that the first three-node
+structural signature missed the actual `Int/Bool` atoms and second Record field;
+the 27,000-shape package-matched campaign above replaced it. Narrow reviews
+closed the solver fixes, generalized enumeration/counting, permission
+filtering, and this relevant-signature repair. No broad compiler tests or
+performance measurements were run.
 
-Next research gate: grow the independently enumerated graph oracle to small
-multi-node regular assignments, preserve and shrink any new discrepancy, and
-compare more generated SAT/UNSAT packages. Production integration remains
-gated by the full Function/effect bridge, source adequacy, and principality.
+This oracle is complete only for the stated graph bounds, small signature, and
+package families; it does not prove that a reported `UNSAT` is correct outside
+these finite families. Rigid permissions are checked for a small targeted
+two-root corpus, not the full 14,196-package family. The next inference
+replacement gate should return to the remaining production-facing callback
+and principality bridges; further structural model expansion is useful only if
+it tests a specific open claim. Production integration remains gated by the
+full Function/effect bridge, source adequacy, and principality.

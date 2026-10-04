@@ -75,11 +75,14 @@ This index is a navigation aid. The listed source document remains authoritative
   [`check_structural_fence_completion.py`](../../tools/check_structural_fence_completion.py)
   runs the reviewed profile construction outside production. Its initial
   differential/exhaustive loop exposed five implementation defects, now
-  minimized and retained as regressions. Focused and bounded one-node checks
-  pass; independent review and narrow repair reviews are closed, as recorded
+  minimized and retained as regressions. Focused tests, one- and two-root
+  exhaustive package families, targeted distinct rigid permissions, and
+  bounded shared-graph searches through three nodes pass; independent review
+  and narrow repair reviews are closed, as recorded
   in the [playground record](../progress/2026-10-05-structural-fence-playground.md).
-  This is characterization evidence, not a proof, production algorithm, or
-  resource policy. Multi-node oracle search is the next experiment.
+  The finite searches are characterization evidence, not a proof, production
+  algorithm, or resource policy. Remaining inference work centers on the
+  production callback and principality bridges.
 - **Earlier reviewed finite-feedback theorem:**
   [finite feedback quotients](2026-10-04-structural-finite-feedback-quotients.md)
   preserves any fixed finite number of mutual feedback rounds on one finite

@@ -166,14 +166,23 @@ Its first counterexamples found and shrank five candidate implementation
 mistakes (endpoint reversal vs variance conjugation, negative child direction,
 empty Record classification, start-profile budget handling, and rigid-head
 namespace collision); these were corrected and retained as regressions. The
-checker currently passes 13 focused packages, 1,226 exhaustively generated
-packages with an independent SAT-witness validator, and a bounded one-node
-false-UNSAT differential over 7,356 package/model pairs. A narrow independent
-delta review closed the negative-coordinate and rigid-namespace findings with
-no remaining issues. This is finite implementation characterization, not a
-theorem or production solver selection. The next research gate is a small
-multi-node regular-witness oracle; full Function/effect correspondence, source
-adequacy, and principality remain open.
+checker currently passes 13 focused packages and validates every generated SAT
+witness in 1,226 exhaustively generated one-root packages. Its bounded
+false-UNSAT oracle checks every root assignment into 127 labeled one/two-node
+graphs: 265,856 checks for the one-root family and 45,080 checks for 169
+two-root one-inequality packages. The complete two-root/two-inequality family
+adds 14,196 packages and 5,700,660 graph/root checks. Targeted distinct
+per-root rigid cases add 5,830 screens. Three-node checking covers the focused
+structural rejection cases in a signature matched to `Int`, `Bool`, and both
+Record fields (810,000 graph/root checks), plus rigid cases (617,310 screens).
+No bounded counterexample remains. Review found and corrected an earlier
+vacuous three-node signature. Independent reviews closed the generator, count,
+permission-filtering, and package-matched scope deltas. These are finite
+characterization results, not proof or production solver selection; rigid
+permissions are only partially cross-producted with the package family. The
+next inference replacement gate is the production-facing
+callback/principality bridge. Full Function/effect correspondence and source
+adequacy remain open.
 
 [Two-sided constructor-bound regular completion](../notes/design/2026-10-04-preclosed-structural-regular-witness.md)
 now has an independently reviewed constructive proof and executable research

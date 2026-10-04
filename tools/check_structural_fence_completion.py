@@ -16,6 +16,7 @@ from __future__ import annotations
 
 from collections import deque
 from dataclasses import dataclass
+from itertools import combinations, product
 
 if __package__:
     from .check_preclosed_structural_witness import (
@@ -515,6 +516,101 @@ def check_rigid_permissions():
     return allowed, forbidden
 
 
+def bounded_graphs(
+    node_counts=(1, 2),
+    include_rigid=False,
+    atom_heads=("A", "B"),
+    field_labels=("a",),
+):
+    """Enumerate every labeled graph over the requested finite signature."""
+    node_forms = [Node(head, {}, ()) for head in atom_heads]
+    if include_rigid:
+        node_forms.append(Node("$rigid:k", {}, ()))
+    for node_count in node_counts:
+        choices = [
+            node_forms
+            + [
+                Node("Record", dict(zip(labels, children)),
+                     tuple((label, 1) for label in labels))
+                for size in range(len(field_labels) + 1)
+                for labels in combinations(field_labels, size)
+                for children in product(range(node_count), repeat=size)
+            ]
+            + [
+                Node("Function", {"arg": arg, "ret": ret},
+                     (("arg", -1), ("ret", 1)))
+                for arg in range(node_count)
+                for ret in range(node_count)
+            ]
+            + [
+                Node("Box", {"value": child}, (("value", 0),))
+                for child in range(node_count)
+            ]
+            for _ in range(node_count)
+        ]
+        for graph in product(*choices):
+            yield list(graph)
+
+
+def graph_respects_permissions(nodes, root, allowed):
+    pending = [root]
+    visited = set()
+    while pending:
+        node_id = pending.pop()
+        if node_id in visited:
+            continue
+        visited.add(node_id)
+        node = nodes[node_id]
+        if node.head.startswith("$rigid:"):
+            if node.head.removeprefix("$rigid:") not in allowed:
+                return False
+        pending.extend(node.children.values())
+    return True
+
+
+def check_bounded_graph_oracle(
+    packages,
+    node_counts=(1, 2),
+    include_rigid=False,
+    atom_heads=("A", "B"),
+    field_labels=("a",),
+):
+    graph_nodes = tuple(
+        bounded_graphs(node_counts, include_rigid, atom_heads, field_labels)
+    )
+    checked = 0
+    for problem, permissions, result in packages:
+        if result.status != "UNSAT":
+            continue
+        for nodes in graph_nodes:
+            all_rigid_names = frozenset(
+                node.head.removeprefix("$rigid:")
+                for node in nodes
+                if node.head.startswith("$rigid:")
+            )
+            check_permissions = bool(permissions) or bool(all_rigid_names)
+            for roots in product(range(len(nodes)), repeat=len(problem.variables)):
+                root_map = dict(zip(problem.variables, roots))
+                if check_permissions and any(
+                    not graph_respects_permissions(
+                        nodes, root_map[root],
+                        (permissions or {}).get(root, all_rigid_names),
+                    )
+                    for root in problem.variables
+                ):
+                    checked += 1
+                    continue
+                candidate = ValidatedGraph("SAT", nodes, root_map,
+                                           len(problem.variables), 0)
+                if validate(problem, candidate):
+                    raise AssertionError(
+                        ("false UNSAT against bounded graph", problem, nodes,
+                         root_map, result)
+                    )
+                checked += 1
+    return len(graph_nodes), checked
+
+
 def main() -> None:
     result_counts = {"SAT": 0, "UNSAT": 0}
     total_profiles = total_matrix_entries = 0
@@ -562,6 +658,115 @@ def main() -> None:
     print(
         "scope: normalized pure structural terms and per-root rigid permissions; "
         "no effects, optional Records, extrema, source adequacy, or principality"
+    )
+
+    x = "X"
+    terms = [atom("A"), atom("B"), record(), record(a=x),
+             function(x, x), invariant(x)]
+    endpoints = [x, *terms]
+    endpoint_pairs = [(left, right) for left in endpoints for right in endpoints]
+    generated = []
+    for bound_count in range(3):
+        for bounds in combinations(endpoint_pairs, bound_count):
+            problem = Problem((x,), bounds)
+            generated.append((problem, None, solve(problem)))
+    graph_count, oracle_checks = check_bounded_graph_oracle(generated)
+    print(
+        f"bounded graph oracle (one variable): {len(generated)} packages; "
+        f"{graph_count} one/two-node graphs; {oracle_checks} "
+        "graph/root false-UNSAT checks"
+    )
+
+    y = "Y"
+    two_variable_terms = [
+        atom("A"), atom("B"), record(), record(a=x), record(a=y),
+        function(x, x), function(x, y), function(y, x), function(y, y),
+        invariant(x), invariant(y),
+    ]
+    two_variable_endpoints = [x, y, *two_variable_terms]
+    two_variable_packages = [
+        (problem := Problem((x, y), ((left, right),)), None, solve(problem))
+        for left in two_variable_endpoints
+        for right in two_variable_endpoints
+    ]
+    two_root_graphs, two_root_checks = check_bounded_graph_oracle(
+        two_variable_packages
+    )
+    print(
+        f"bounded graph oracle (two variables): {len(two_variable_packages)} "
+        f"one-inequality packages; {two_root_graphs} one/two-node graphs; "
+        f"{two_root_checks} graph/root false-UNSAT checks"
+    )
+
+    two_inequality_packages = []
+    two_inequality_statuses = {"SAT": 0, "UNSAT": 0}
+    for bounds in combinations(
+        [(left, right)
+         for left in two_variable_endpoints
+         for right in two_variable_endpoints],
+        2,
+    ):
+        problem = Problem((x, y), bounds)
+        result = solve(problem)
+        assert result.status in two_inequality_statuses, (problem, result)
+        two_inequality_statuses[result.status] += 1
+        two_inequality_packages.append((problem, None, result))
+    graph_shapes, two_inequality_checks = check_bounded_graph_oracle(
+        two_inequality_packages
+    )
+    print(
+        f"bounded graph oracle (two variables): {len(two_inequality_packages)} "
+        f"two-inequality packages; statuses={two_inequality_statuses}; "
+        f"{graph_shapes} one/two-node graphs; {two_inequality_checks} "
+        "graph/root false-UNSAT checks"
+    )
+
+    rigid_endpoint = rigid("k")
+    permission_cases = []
+    for inequality in (
+        ((x, rigid_endpoint),),
+        ((rigid_endpoint, x),),
+        ((x, y), (y, rigid_endpoint)),
+        ((rigid_endpoint, x), (x, y)),
+    ):
+        for allowed_x, allowed_y in product((frozenset(), frozenset({"k"})), repeat=2):
+            problem = Problem((x, y), inequality)
+            permissions = {x: allowed_x, y: allowed_y}
+            permission_cases.append(
+                (problem, permissions, solve(problem, permissions))
+            )
+    rigid_graphs, rigid_checks = check_bounded_graph_oracle(
+        permission_cases, include_rigid=True
+    )
+    print(
+        f"bounded rigid-permission oracle: {len(permission_cases)} packages; "
+        f"{rigid_graphs} one/two-node graphs; {rigid_checks} "
+        "graph/root assignment screens (permissions filter before inequality checks)"
+    )
+
+    three_node_structural = [
+        (problem, None, solve(problem))
+        for _, problem, _ in focused_cases()
+    ]
+    three_node_graphs, three_node_checks = check_bounded_graph_oracle(
+        three_node_structural,
+        node_counts=(3,),
+        atom_heads=("Int", "Bool"),
+        field_labels=("a", "b"),
+    )
+    print(
+        f"bounded graph oracle (focused structural cases): {three_node_graphs} "
+        f"signature-matched three-node graphs; {three_node_checks} "
+        "graph/root false-UNSAT checks"
+    )
+
+    three_node_rigid_graphs, three_node_rigid_checks = check_bounded_graph_oracle(
+        permission_cases, node_counts=(3,), include_rigid=True
+    )
+    print(
+        f"bounded graph oracle (per-root rigid cases): "
+        f"{three_node_rigid_graphs} three-node graphs; "
+        f"{three_node_rigid_checks} graph/root assignment screens"
     )
 
 
