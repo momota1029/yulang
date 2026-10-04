@@ -226,6 +226,10 @@ This index is a navigation aid. The listed source document remains authoritative
 - **Other open gates:** source State/reference bridge and global source
   acceptance/principality/lifecycle remain open; see `tasks/current.md` for
   the compact active summary and linked progress records for evidence/history.
+  The [bounded StateSlot restart playground](../progress/2026-10-05-local-state-restart-playground.md)
+  checks captured-alias visibility and activation separation only under an
+  explicit candidate store model; it does not close missing source-step
+  equations.
 
 These pointers summarize navigation only; authority and status remain those of
 the source design documents and explicit user decisions.

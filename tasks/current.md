@@ -571,6 +571,12 @@ remain in the linked progress records above and
   replacement, captured access, and repeated resumption; the `start!` fixture
   fixes only one observation:
   [State bridge record](../notes/progress/2026-10-04-local-state-capture-observation.md).
+  A bounded executable probe now checks 512 visible-alias/update configurations
+  under a clearly marked candidate live-store/restart model and minimizes
+  capture-by-value and static-ID/runtime-cell conflation mutant failures. This
+  is characterization only: source equations for update/restart and captured
+  re-entry remain absent. See
+  [restart playground](../notes/progress/2026-10-05-local-state-restart-playground.md).
 - **Global source bridge/lifecycle:** first-class-reference/import realization,
   complete `EnvStore`/`JointWF`, source-wide acceptance/principality, and
   generalization/SCC lifecycle remain open.
