@@ -31,6 +31,84 @@ fn research_unary_callback_lambda_header_currently_falls_back_to_errors() {
     );
 }
 
+fn research_complete_unary_lambda_header(
+    source: &str,
+    start: usize,
+) -> Option<(std::ops::Range<usize>, std::ops::Range<usize>)> {
+    if !source.get(start..)?.starts_with('\\') {
+        return None;
+    }
+    let mut cursor = start + '\\'.len_utf8();
+    while source
+        .as_bytes()
+        .get(cursor)
+        .is_some_and(|byte| matches!(byte, b' ' | b'\t'))
+    {
+        cursor += 1;
+    }
+    let binder_start = cursor;
+    let first = source.get(cursor..)?.chars().next()?;
+    if first != '_' && !unicode_ident::is_xid_start(first) {
+        return None;
+    }
+    cursor += first.len_utf8();
+    while let Some(next) = source.get(cursor..)?.chars().next()
+        && unicode_ident::is_xid_continue(next)
+    {
+        cursor += next.len_utf8();
+    }
+    if matches!(source.get(cursor..)?.chars().next(), Some('?' | '!')) {
+        cursor += 1;
+    }
+    let binder = binder_start..cursor;
+    while source
+        .as_bytes()
+        .get(cursor)
+        .is_some_and(|byte| matches!(byte, b' ' | b'\t'))
+    {
+        cursor += 1;
+    }
+    if !source.get(cursor..)?.starts_with("->") {
+        return None;
+    }
+    Some((binder, cursor..cursor + 2))
+}
+
+#[test]
+fn research_lambda_header_predicate_recognizes_complete_unary_opener() {
+    // Header-shape candidate only: this does not exercise production parser
+    // reservation, body parsing, or recovery ownership.
+    for binder in ["x", "λ", "_", "_x", "x?", "λ!"] {
+        for trivia in ["", " ", "\t"] {
+            let source = format!("\\{trivia}{binder}{trivia}-> body");
+            let (binder_range, arrow_range) =
+                research_complete_unary_lambda_header(&source, 0).unwrap();
+            assert_eq!(&source[binder_range], binder);
+            assert_eq!(&source[arrow_range], "->");
+        }
+    }
+
+    // The opener is complete even when the body is missing. Body recovery is
+    // deliberately outside this header-predicate probe.
+    let source = r"\x ->";
+    let (binder, arrow) = research_complete_unary_lambda_header(source, 0).unwrap();
+    assert_eq!(&source[binder], "x");
+    assert_eq!(&source[arrow], "->");
+
+    for source in [r"\ -> x", r"\x - > x", r"\\x -> x", r"\x"] {
+        assert_eq!(
+            research_complete_unary_lambda_header(source, 0),
+            None,
+            "{source}"
+        );
+    }
+    let source = r"host (\x -> x)";
+    let slash = source.find('\\').unwrap();
+    let (binder, arrow) = research_complete_unary_lambda_header(source, slash).unwrap();
+    assert_eq!(&source[binder], "x");
+    assert_eq!(&source[arrow], "->");
+}
+
 #[test]
 fn research_registered_backslash_prefix_interacts_with_lambda_header() {
     // Table-level fixture only: it probes dispatch precedence if this exact

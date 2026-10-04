@@ -78,6 +78,8 @@ This index is a navigation aid. The listed source document remains authoritative
   boundary; a paired source probe confirms one-to-four parenthesized and
   ML-argument stages remain left-nested in pre-HIR association. See the
   [HIR/source-core audit](../progress/2026-10-04-hir-source-core-boundary.md).
+  A separate test-only predicate checks the complete unary opener against the
+  existing identifier family; it does not test production dispatch or recovery.
   Its test-only mixed-call candidate preserves nested application arguments,
   then mirrors typed-core §6 `(I,d,n)` shape for five ordinary-call forms
   under finite monomorphic Gamma. It records only structural-shadow triples;

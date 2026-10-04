@@ -161,6 +161,23 @@ This is parser-to-candidate-shape evidence only: it does not establish name
 resolution, callback endpoint generation, constraint generation, or Theorem C
 correspondence, and it changes no production behavior.
 
+## 2026-10-05 complete lambda-opener predicate probe
+
+A standalone test-only predicate now recognizes the bounded complete opener
+`\ Identifier ->` before any operator-table decision would be made. Its
+identifier scan mirrors the current lexer shape (XID start/continuation,
+underscore start, and one optional `?`/`!` suffix); the generated trivia set is
+horizontal space/tab only. Cases cover ASCII and Unicode names, the `_` family,
+suffixes, nonzero source offset, a missing body after a complete opener, and
+near misses with no binder or no exact arrow.
+
+This predicate is only a characterization of the reviewed reservation shape.
+It is not called by the production parser and does not test CST dispatch, body
+parsing, malformed-body recovery, or binder ownership. The existing direct CST
+tests still establish that current parsing rejects the ordinary single-
+backslash spelling before HIR; parser implementation and callback lowering
+remain open.
+
 ## 2026-10-05 test-only source synthesis shape
 
 The same private candidate now runs the typed-computation-core §6 result-role

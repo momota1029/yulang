@@ -141,6 +141,10 @@ constructed `\` prefix entry, the current parser consumes it as an operator
 and still rejects the arrow; the bounded parser candidate must reserve only a
 complete lambda header before dynamic lookup. This table-level probe does not
 establish that source can declare `\`.
+An isolated test predicate now exercises that reservation shape for the
+complete single-binder opener, matching the lexer’s identifier family and
+same-line space/tab trivia. It rejects incomplete headers but does not drive
+the parser or check body recovery, so it does not close the parser/HIR bridge.
 The HIR-to-core bridge now closes for its monomorphic pure-value fragment:
 integer/name leaves and unannotated parameterized bindings map to finite
 `literal`/`name`/`lambda(P,result(body))` derivations under a fixed `Gamma`.
