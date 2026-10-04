@@ -352,13 +352,23 @@ transport/interpretation laws, the checked predicate then depends only on
 `x,h`, so `(H)` follows. Merely absent printed endpoint fields or a
 query-free-looking final formula do not establish that dependency condition.
 
-Thus an additional shared hiding step has two proved routes: keep its
-admission-dependent coordinate in the comparison interface, or establish
+At this checkpoint an additional shared hiding step has two proved routes:
+keep its admission-dependent coordinate in the comparison interface, or establish
 `(H)` before taking independent domain/bound marginals. A separately proved
 observation-preserving checked-admitted representative theorem can cover
 more cases, but it is not inferred from shared binding alone. The
 certificate theorem's preservation of a complete jointly scoped relation
 remains valid without asserting this extra marginalization law.
+
+The reviewed [experiment-guided follow-up](2026-10-05-callback-coverage-and-source-joins.md)
+§§2–5 strengthens this boundary. Total fresh definitions can be eliminated
+at their original scopes without `(H)`. The specified linked pair has equal
+bounds on checked-admitted fibers; for its legal existential marginals,
+observation Coverage by checked-admitted representatives is necessary and
+sufficient. It is strictly weaker than `(H)`. The follow-up also derives a
+conservative finite source-incidence test for safe old hiding, including
+request/provider production premises. Arbitrary separately widened checked
+bounds retain the weaker sufficient/robust-necessary qualification there.
 
 ### 4.2 Production applicability
 

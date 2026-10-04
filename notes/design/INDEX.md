@@ -171,6 +171,17 @@ This index is a navigation aid. The listed source document remains authoritative
   completeness remain open, with the actual exported root unchanged.
   Independent compiler/spec review and repaired hidden-admission finding are
   recorded in the [residual attack](../progress/2026-10-04-callback-principality-residual-attack.md).
+- **Reviewed experiment-guided callback/allowance attack:**
+  [coverage and source-preserving composition](2026-10-05-callback-coverage-and-source-joins.md)
+  proves total-definition elimination, exact linked bound equality on checked
+  fibers and a necessary/sufficient Coverage law for legal old-witness
+  marginals. A finite source dependency closure gives a safe-hiding class;
+  higher-order and scalar-selector source examples defeat independent
+  marginal/representative reconstruction. The
+  [new checker](../../tools/research_callback_admission_coverage.py) exhausts
+  4,096 finite encodings. Production conformance, legal common descriptors and
+  all-view direct-query evidence remain open, classification C. See
+  [proof/review record](../progress/2026-10-05-experiment-guided-main-gate-attack.md).
 - **Active callback gate — production conformance:**
   `notes/design/2026-10-04-production-callback-endpoint-generation-draft.md`
   specifies the bounded application HIR/lowering, B step 6 finite endpoint
