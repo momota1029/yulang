@@ -160,6 +160,13 @@ facts retain distinct source identities but do not yet define either a
 complete bound-factoring relation or the projected `Sat_j` relation; see
 [Lambda endpoint owners](../notes/progress/2026-10-04-lambda-endpoint-owner-trace.md).
 
+User-directed principal-scheme acceptance examples now cover `id`, `zero`,
+`call`, `compose`, repeated calls, branches, and staged higher-order calls.
+Frozen Oracle evidence is characterization only; the successor's compositional
+principal-solution preservation proof remains open. Exact examples, Oracle
+limits, and the bounded obligation are in
+[principal scheme criteria](../notes/progress/2026-10-04-principal-scheme-acceptance-criteria.md).
+
 Historical callback adequacy exploration and its earlier gate descriptions
 remain in the linked progress records above and
 [callback compositional premise](../notes/progress/2026-10-04-callback-compositional-premise.md).
