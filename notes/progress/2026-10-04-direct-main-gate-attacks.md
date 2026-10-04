@@ -239,6 +239,67 @@ presentation. This validates the missing-premise distinction; it is not a
 Yulang counterexample and does not exclude a separate reduction directly into
 finite regular constraints.
 
+### Aperiodic tiling and two-sided marker audit
+
+A further direct Astra attack, independently checked by a
+`compiler_referee`, closes a broad but explicitly bounded class of proposed
+negative reductions. The finite-model property itself remains open.
+
+First, the arbitrary-tree solutions of the normalized pure structural
+fragment with finite rigid permissions are closed under a coordinatewise
+**information meet**. For a nonempty family of assignments, matching atoms
+and ranked heads retain their head and recurse; Record masks intersect and
+retained payloads recurse; incompatible heads produce `Record{}`. Every exact
+descriptor keeps its prescribed head, mask, and child equations. For each
+original direct bound, endpoints have matching heads memberwise; if those
+heads disagree across assignments, both results become `Record{}`. Otherwise
+the common head remains, Record upper-mask inclusion follows by intersection,
+and retained child comparisons follow the same declared variance. A rigid
+leaf survives only if it was the same permitted leaf in every assignment.
+Child projection is used only along coordinates retained by the meet. This
+closure excludes `Guard`, `Phi/K,D`, effects, optional Records, and any
+predicate not proved to preserve the operation.
+
+It rules out an aperiodic Wang-tiling reduction satisfying all of these
+conditions: every northeast translate of a legal tiling is realized by a
+solution of one fixed package; every arbitrary-tree solution decodes legally;
+the decoder is coordinate-independent and reads a finite-depth observation
+tuple; a common navigation scaffold makes those observations commute with the
+information meet, including the countable family below. If `F : N² → O` is
+the finite observation array of a tiling, meet the source assignments for all
+its translates. At `(i,j)` the observed value is the meet of
+`{ F(i+r,j+s) | r,s ≥ 0 }`. These finite nonempty value-sets decrease as
+either coordinate increases. Choose a position with minimum cardinality;
+every later northeast set is its subset with the same cardinality, hence the
+sets and their meets are constant on that tail. The meet assignment is still
+a source solution, so its decoded constant tail is legal. Repeating its
+constant tile gives a periodic plane tiling, contradicting aperiodicity.
+Finite-depth observations over a finite signature provide the required finite
+determination, but the common-scaffold/meet-commutation premise must still be
+proved for any concrete encoding. This is not a prohibition on reductions
+that realize only an anchored tiling, decode only regular solutions, or fail
+these translation and observation conditions.
+
+Second, the least forced-completion rules have a **marker provenance
+invariant**. For fixed activation traces, each forced head or field-presence
+fact descends from an exact descriptor seed via descriptor-prefix rewrites,
+same-address head transfers guarded by an original-bound activation, and
+`Present_l ⇒ Head_Record`. Structural suffix descent creates a child
+comparison and child liveness, but does not itself create a head or field
+marker on the child payload. Therefore, when `Reach` denotes a forced unary
+head/presence predicate, prefix stripping plus comparison descent alone does
+not derive a two-sided counting implication such as
+`Reach_s(a·w) ⇒ Reach_t(w·b)`: the target unary marker and its activated
+transfer path must also be derived. This is a precise obstacle to that direct
+gadget. It does not rule out feedback where newly generated activation later
+unlocks a descriptor-seeded marker; no invariant excluding all such feedback
+or exact package realizing it has been found.
+
+The FMP gate therefore remains exactly the joint regular-invariant/finite-
+model property above. These audits restrict aperiodic reductions with
+finite-depth observation and direct marker-renewal attempts; they do not
+prove finite-model reflection or provide a counterexample to it.
+
 Finite constrained residual presentation, regular-witness existence, and
 principal/effective projection of the full solution fiber remain distinct
 claims. The first is covered by existing scoped residual work; neither a

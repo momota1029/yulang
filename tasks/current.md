@@ -134,7 +134,14 @@ candidate; its finite principal presentation remains a separate open proof.
   regular solutions, but the finite-model property is unproved and has no
   counterexample. Finite quotient enumeration plus finite Horn-conflict
   witnesses decides regular satisfiability only if this property holds; see
-  the exact statement in the direct main-gate record.
+  the exact statement in the direct main-gate record. An independent
+  meet-closure theorem rules out aperiodic Wang reductions whose same-package
+  solutions realize every translate and whose finite-depth decoder commutes
+  with a shared-scaffold information meet. A separate marker-provenance
+  invariant shows that prefix stripping plus structural suffix descent alone
+  cannot renew the unary head/presence marker needed by a direct two-sided
+  counting gadget; activation feedback remains unexcluded. Neither result
+  proves FMP or refutes it.
 - The standard guarded-BPA undecidability result does not directly settle
   this gate: it requires transparent parameter-changing recursive type
   constructors, which current type-declaration authority does not establish;
