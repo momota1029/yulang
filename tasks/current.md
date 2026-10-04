@@ -642,6 +642,16 @@ root. Source/query completeness and descriptor realization remain unproved;
 classification is C. Full proofs, source applicability, and independent
 reviews are in the linked certified-callback/constrained-use theorem and
 residual attack record.
+The direct formation audit narrows the first missing source clause: one legal
+abstract effect descriptor must have a complete correlated view at every
+original typed Function path, preserving the common `Rel_C` / `nu,K,D` fiber
+while permitting path-specific challenge/value carriers. Existing linking,
+joins, factor coverage, freshening, hiding, and grafting do not create that
+descriptor interpretation. The `choose` unequal-branch witness rejects
+endpoint equality only; it does not refute a common allowance. Whether the
+formation rule follows from existing source semantics or requires a user
+choice remains unverified. See the
+[direct descriptor-formation audit](../notes/progress/2026-10-04-principal-contributor-bound-theorem.md#direct-common-descriptor-formation-audit-2026-10-05).
 
 An executable contract-join probe now exhausts 65,536 two-stage cases with
 separate Function-valued and Int-valued challenge projections. Typed pullbacks

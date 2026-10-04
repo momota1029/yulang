@@ -110,3 +110,47 @@ projection that would establish `Qξ`; treating an effect contributor as a
 standalone lower bound is not an available shortcut. Callback production
 adequacy, recursive SCCs, open-world imports, and the full supported-input
 envelope remain separate.
+
+## Direct common-descriptor formation audit (2026-10-05)
+
+An architect audit of the principal gate finds no derivation of the legal
+common descriptor from the current source authority or production owners, and
+no counterexample to the accepted schemes. The missing clause precedes the
+same-fiber extension proof:
+
+```text
+one legal abstract effect component `a`
+  -> its complete correlated view at every original typed Function path
+  -> challenge admission, observations, and retained dependencies
+```
+
+The same descriptor must serve repeated occurrences, while path-specific
+challenge/value carriers remain distinct (as in `higher`). Its interpretation
+must preserve the common `Rel_C` / `nu,K,D` fiber and define the selected
+component-combination behavior. `Rel_C`, incidence, paths, and `K,D` preserve
+correlations once views are supplied; none determines which correlated views
+are legal interpretations of a new common descriptor. The finite common
+contract join constructs a semantic support amalgam but does not realize it as
+a source-expressible type/effect descriptor. Freshening, hiding, and grafting
+transport an already supplied interpretation; grafting does not supply one.
+
+The equality-consolidation mutant remains rejected by `choose`: branch
+endpoints `{Read}` and `{Write}` can both fit a shared outward
+`{Read,Write}` allowance without being equal. This refutes equality merging,
+not the requested common allowance. The factor-cover result likewise preserves
+all unchanged clients and direct-query evidence but cannot replace the
+designated exported root with `B_common` or certify its direct query. Thus the
+main theorem remains open at formation before its established totality and
+all-view obligations:
+
+```text
+forall xi, s in S_xi. exists legal a. Q_xi(s,a)
+forall valid V,v. exists s,a. K_G(s,v) and Q(s,a)
+                   and Direct(B_common(s,a), R_V(v))
+```
+
+No additional carrier or semantic choice has been established as necessary.
+Whether defining this descriptor interpretation requires user selection is
+unverified; the next review must distinguish a source derivation using the
+existing descriptor/evidence language from a new semantic choice before any
+implementation gate.
