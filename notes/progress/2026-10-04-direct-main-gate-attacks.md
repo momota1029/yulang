@@ -534,6 +534,42 @@ missing-premise localization, not a theorem or counterexample. The next
 structural proof action is confined to proving this reflection or constructing
 the one fixed counterexample; no new carrier or encoding candidate is added.
 
+### Reviewed finite-feedback quotient theorem and exact rank residual (2026-10-04)
+
+The subsequent [finite-feedback theorem](../design/2026-10-04-structural-finite-feedback-quotients.md)
+proves a stronger finite-horizon result without closing FMP. For each fixed
+free-satisfiable normalized package and every finite `k`, there is a finite
+surjective monoid quotient whose complete closure has no conflict through
+`k` head/activation feedback rounds. Regular free-stage domain scaffolds and
+one common transition monoid preserve all stage predicates, including
+descriptor sharing and full domain/head/child coherence.
+
+The complete finite-quotient saturation makes explicit the Horn implications
+already entailed by tagged child coherence. The old free-stage liveness-only
+description cannot itself justify default completion on an arbitrary finite
+quotient. The repaired fixed-quotient completion lemma and finite-stage
+transfer passed independent review; the exact accepted finding and repair
+are in [the accompanying progress record](2026-10-04-structural-fmp-feedback-rank.md).
+
+Let `r_P(n)` be the first complete feedback round with a conflict on the
+cofinal quotient `eta_n`, formed from all finite quotients of size at most
+`n`; let it be infinity for a consistent quotient. Free finite conflict is
+equivalent to uniform finite boundedness of these ranks, and a regular
+solution is equivalent to eventual infinity. The single unproved premise is
+
+```text
+forall fixed normalized P.
+  (forall n, r_P(n) < infinity)
+    implies (exists B < infinity. forall n, r_P(n) <= B).
+```
+
+**Classification C.** A genuine negative package has every rank finite but
+tending to infinity. The fixed regular package `q=Function(x,Int), x<:q`
+does fail on all length-cutoff quotients with unbounded conflict ranks, but
+has another satisfying finite quotient. It therefore refutes only an
+unconditional bound over failing quotients. No all-horizons quotient follows
+from finite-horizon safety, and no hypothesis is added to the source fragment.
+
 ### Direct one-sided-state completion attempt (2026-10-04)
 
 An attempt to extend the reviewed two-sided constructor-bound witness by

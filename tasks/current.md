@@ -117,6 +117,16 @@ and whole-carrier evidence remain unavailable in this HIR.
 
 ## Latest main-gate results
 
+[Finite feedback quotients](../notes/design/2026-10-04-structural-finite-feedback-quotients.md)
+now proves that every fixed finite feedback horizon of a free-satisfiable
+normalized structural package has a safe finite surjective monoid quotient,
+including complete domain/head/child coherence. **Classification C:** full
+FMP is still open, now exactly conditional boundedness of first-conflict
+feedback ranks along a cofinal quotient tower. A fixed regular package shows
+that bounding all failing quotients without the all-quotients-fail premise is
+false. Proof, accepted coherence repair and independent review are in
+[the FMP progress record](../notes/progress/2026-10-04-structural-fmp-feedback-rank.md).
+
 [Two-sided constructor-bound regular completion](../notes/design/2026-10-04-preclosed-structural-regular-witness.md)
 now has an independently reviewed constructive proof and executable research
 checker. If every flattened variable has a constructor-bearing lower and
@@ -440,8 +450,16 @@ remain in the linked progress records above and
   Horn closure have a finite conflict? This is equivalent to FMP given the
   existing arbitrary-tree conflict characterization. Neither side is proved;
   a negative result requires one fixed `P` satisfying over `I*` but failing
-  every finite quotient. The complete quantifiers and why residual finiteness
-  does not suffice are in the direct record. No new encoding is advanced.
+  every finite quotient. The reviewed finite-feedback theorem now gives
+  `forall k exists mu` safe through round `k`, including complete coherence.
+  The exact residual (BR) asks whether, conditional on every finite quotient
+  of this fixed package failing, their first-conflict ranks along a cofinal
+  tower are uniformly bounded. A genuine FMP counterexample has all those
+  ranks finite but tending to infinity. This is not an exchange to
+  `exists mu forall k`; see
+  [finite feedback quotients, §5](../notes/design/2026-10-04-structural-finite-feedback-quotients.md#5-cofinal-quotient-tower-and-exact-residual-statement).
+  No new source premise, carrier, rejection rule or compiler implementation
+  is selected.
 - The standard guarded-BPA undecidability result does not directly settle
   this gate: it requires transparent parameter-changing recursive type
   constructors, which current type-declaration authority does not establish;

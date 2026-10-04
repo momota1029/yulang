@@ -16,6 +16,14 @@ This index is a navigation aid. The listed source document remains authoritative
 
 ## Active inference navigation (2026-10-04)
 
+- **Reviewed structural finite-feedback theorem; FMP remains open:**
+  [finite feedback quotients](2026-10-04-structural-finite-feedback-quotients.md)
+  preserves any fixed finite number of mutual feedback rounds on one finite
+  surjective monoid quotient, including full domain/head/child coherence.
+  The exact remaining premise (BR) excludes finite conflict ranks escaping
+  to infinity along a cofinal tower when every quotient of one fixed package
+  fails. Classification C; no FMP theorem or genuine counterexample, new
+  source-generation assumption or implementation authority.
 - **New reviewed structural existence result:**
   `notes/design/2026-10-04-preclosed-structural-regular-witness.md` proves
   arbitrary-tree/regular-tree equivalence and a terminating witness
