@@ -114,69 +114,36 @@ factorization.
 
 ## Active unrestricted proof gates
 
-**Next gate — unrestricted Pure-value callback/Function theorem.** Establish whole-carrier
-admission/domain inclusion, endpoint/profile and linked-contribution adequacy,
-and observation-bound inclusion across legal histories. Reuse existing
-`Rel_C`, `K,D`, paths, receipts, occurrence/incidence, `Flow`/`Observe`, and
-subtraction evidence. Do not add a carrier/API or independent port-subtyping
-rule without identifying a concrete unrepresentable fact and obtaining
-authority. Detailed clauses and conditional results:
-[value-entry bind/projection](../notes/progress/2026-10-04-value-entry-bind-projection.md).
-The direct main-theorem attack confirms one owning gate: source-to-endpoint
-adequacy for the original role-indexed Function query. It must construct
-checked-challenge admission independently of query success and establish both
-`D_checked ⊆ D_actual` and full observation-bound inclusion. Even granting
-equal domains and execution correspondence for a stateless terminating Pure
-identity, execution coverage does not prove that every observation admitted
-by the actual endpoint bound factors through the existing argument/body/result
-composition and linked view. The exact missing bound premise and its minimal
-logical countermodel are in
-[direct main-gate attacks](../notes/progress/2026-10-04-direct-main-gate-attacks.md).
-The source reference `Sem` is already the exact collecting relation; endpoint
-presentations `P_i` may conservatively cover it. The missing proof concerns
-factorization of that presentation's full bound, not choosing a new meaning
-for `Sem`. This is not a Yulang program counterexample, State exclusion does
-not close the bound gap, and no carrier or semantic choice follows.
-The exact owner is compositional inversion of the synthesized Function
-endpoint: core §6 yields only the `Fun(P,Result(I_body))` skeleton, while
-§§3/9 give invocation execution without a rule deriving the complete-call
-endpoint bound from it. The required theorem must recover argument-entry
-admission and factor every endpoint-bound observation through argument,
-rebind, body/result consumer, and `J_call` into linked `[b,d]` at the same
-`ν,K,D`; callback B step 6 leaves this construction open.
-The failed callback proof now isolates a non-circular sufficient generator
-premise: independently certified challenge admission plus a positive
-source-labelled relation graph whose checked lift copies whole tuples and
-binder scopes and adds only total-coordinate definitions. Inverting this
-graph proves bound inclusion even with conservative local slack; this
-excludes the root-only widening countermodel without assuming a regular
-solution or the desired inclusion. It is not claimed absolutely weakest.
-Theorem C proves the conditional result for its explicitly constructed
-typed-core relational generator. Typed-core §9 separately proves operational
-composition shape, but neither theorem identifies that graph with the
-production finite inference endpoint. Current HIR also lacks application and
-request constructors. B step 6 and the raw-source-to-endpoint correspondence
-therefore remain open; see [callback compositional premise](../notes/progress/2026-10-04-callback-compositional-premise.md).
-An attempted source-checkable constructor condition (compose only existing
-entry/body/result segments, with no independent call-bound leaf) is not yet
-sufficient: conservative slack on segment bounds still requires a proved
-monotonicity transport for latent and resumed witnesses. Shared descriptor
-identity also does not prove query-independent challenge admission. That
-weaker condition remains rejected in the direct main-gate record. Theorem C
-above closes its explicitly constructed generator's conditional claim by a
-proved conservative extension and local admission rules; the unrestricted
-source-to-endpoint correspondence and arbitrary target annotations remain
-open.
-The canonical exact semantic embedding in adequacy §4 does not supply this:
-§3 permits any conservative `P` covering `Sem`, without defining or
-identifying the syntax-generated Function endpoint. Exactness is unnecessary;
-the missing premise is its same-fiber compositional factorization. The
-non-authoritative coupled-effect draft's candidate Function contract quantifies
-over well-typed contextual calls, but the call-domain choice remains open;
-program-reached calls are vacuous for unused exports, while arbitrary runtime
-states include configurations no typed source context can construct. I asked
-which call domain should govern before deriving Function adequacy from that
-candidate; its finite principal presentation remains a separate open proof.
+**Callback adequacy proof search is complete; active gate is production design.**
+The design and its current proof boundary are recorded in
+[production callback endpoint generation](../notes/design/2026-10-04-production-callback-endpoint-generation-draft.md).
+It specifies a bounded raw/HIR application node and lowering, B step 6 role-first
+finite endpoint-generation rule, and the old-tuple-preserving total-coordinate
+checked lift. It reuses source segments, operand tuples, binder scopes,
+`nu,K,D`, occurrence/provenance, and existing Flow/Observe/path/subtraction
+evidence; it adds no carrier. Theorem C applies only to the prebuilt Pure-value
+path; inline literals keep the ordinary `F_lit <: F_cb` check.
+
+The production bridge is not proved or authorized for implementation. Its
+single Pure-path blocker is the endpoint realization law: the emitted endpoint
+and constraint trace must denote a least finite-derivation relation generated
+from source-owned local relations, with full tuples/scopes; any erased value
+dependence needs a local source certificate. The checked endpoint must be the
+total-coordinate extension of that same relation. The merged scalar saturation
+proves only a projected first-order case and does not select production
+semantics or close higher-order adequacy. The B-literal generation clause must
+independently show that all three selected occurrences and witnessed
+attachments project from the same source tuple before the ordinary query.
+The current HIR has no Apply or inline lambda, and parser recovery plus this
+source/endpoint realization remain conformance work. The design remains
+Draft; implementation is unauthorized pending closure of the endpoint
+realization premise and explicit approval. Earlier proof attempts and the
+exact repository evidence remain in the linked value-entry and direct-main-gate
+progress records.
+
+Historical callback adequacy exploration and its earlier gate descriptions
+remain in the linked progress records above and
+[callback compositional premise](../notes/progress/2026-10-04-callback-compositional-premise.md).
 
 **Other open gates:**
 
