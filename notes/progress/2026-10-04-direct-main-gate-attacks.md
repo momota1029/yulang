@@ -148,6 +148,16 @@ Yulang generator. The callback owner remains source-to-complete-Function-
 endpoint generation, whose constructor and admission rules are not yet
 defined by B step 6.
 
+The subsequent [source-generated theorem package](../design/2026-10-04-source-generated-callback-structural-theorems.md)
+§§2.4–4 supplies a stronger, explicit constructed-generator condition. It
+defines positive relation constructors, a checked lift adding only total
+definitions of fresh logical coordinates, and independent local source
+history admission. Its derivation induction proves conservative extension
+with the same complete observation and one joint `ν,K,D`, including local
+bound slack; a fresh independent callback delta review found no major gap.
+This closes that conditional shared-body lift, not the weaker AST condition
+rejected above or B's unrestricted source-to-complete-endpoint theorem.
+
 Governing sources: [callback context delivery](../design/2026-10-03-callback-context-delivery.md)
 §§2–5, 7–8; [typed computation core](../design/2026-10-02-typed-computation-core-elaboration.md)
 §§6, 8–9; [source interface adequacy](../design/2026-10-02-source-interface-adequacy-theorem.md)
@@ -551,8 +561,15 @@ construction's state count still depends on the supplied automata.
 
 ## Work boundary
 
-These are theorem findings, not completed gates. Callback closure depends on
+These are findings about the unrestricted gates. Callback closure depends on
 the one full-bound factorization premise above. Structural closure depends on
 the regular-extension premise above; no regularity proof or nonregular-only
 counterexample was found. No tests, builds, Oracle runs, measurements, compiler
 edits, or design-status changes were made.
+
+The later source-generated theorem package proves two conditional cases,
+including a structural construction with closed-anchor components and one
+open anchor per remaining component. Its separate
+[progress record](2026-10-04-source-generated-theorems.md) records its own
+reviews and focused mathematical checks. Neither conditional result closes
+the unrestricted gates or invalidates the failed proof routes retained here.
