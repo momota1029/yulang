@@ -401,7 +401,15 @@ remain in the linked progress records above and
   local-signature representative fold also fails to preserve
   `q=Fun(X,X)`'s shifted shared-root equation, despite that package already
   having a regular witness; this refutes that reconstruction step only. The
-  direct record has the exact paths and independent review.
+  direct record has the exact paths and independent review. A direct Astra
+  attack plus independent compiler-referee audit now localizes the main gate
+  exactly to finite-quotient conflict reflection: if every finite monoid
+  quotient of one complete `Γ_P` is inconsistent, must the free-address least
+  Horn closure have a finite conflict? This is equivalent to FMP given the
+  existing arbitrary-tree conflict characterization. Neither side is proved;
+  a negative result requires one fixed `P` satisfying over `I*` but failing
+  every finite quotient. The complete quantifiers and why residual finiteness
+  does not suffice are in the direct record. No new encoding is advanced.
 - The standard guarded-BPA undecidability result does not directly settle
   this gate: it requires transparent parameter-changing recursive type
   constructors, which current type-declaration authority does not establish;

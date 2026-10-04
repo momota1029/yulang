@@ -469,6 +469,40 @@ An independent spec-auditor review found the equivalence and conditional
 semidecision argument sound; its sole precision finding—that `μ` must be an
 explicit surjective monoid homomorphism—has been incorporated above.
 
+### Direct FMP attack: conflict reflection is the exact remaining premise
+
+A bounded Astra attack on the complete finite-model property, followed by an
+independent `compiler_referee` quantifier audit, establishes neither FMP nor a
+counterexample. Given the recorded characterization of free-address
+satisfiability by absence of a finite least-closure conflict, the remaining
+claim is exactly:
+
+```text
+if every finite surjective monoid quotient makes Γ_P inconsistent,
+then the free-address least Horn closure of Γ_P has a finite conflict.
+```
+
+This is the contrapositive of
+`Sat_I*(Γ_P) -> exists finite μ. Sat_μ(Γ_P)`, and is itself equivalent to
+that FMP under the established closure characterization. It is the single
+unproved conflict-reflection step; ordinary Horn compactness does not prove it.
+Quotient inconsistency can combine an activation and a head/field fact from
+distinct address words identified by `μ`; the combination need not be a
+conflict in the original free-address closure. Residual finiteness separates
+any specified finite set of words, but no finite set of separations is known
+to prevent every conflict created by quotient saturation.
+
+The quantifier boundary is material. A negative result requires one fixed
+normalized package `P` satisfying `Γ_P` over `I*` while every finite surjective
+quotient fails. A failed fold, a selected quotient conflict, or different
+failing packages for different quotients is insufficient. Existing results
+give finite conflict witnesses for arbitrary-tree unsatisfiability and
+enumerable finite quotient models, but do not show those searches cover the
+same satisfiability boundary. Independent review confirmed this is an exact
+missing-premise localization, not a theorem or counterexample. The next
+structural proof action is confined to proving this reflection or constructing
+the one fixed counterexample; no new carrier or encoding candidate is added.
+
 A direct attempt to use the information meet to construct that quotient fails
 on a small exact package. Let `F` be Function, `E={}`, `i=Int`,
 `R={f:i}`, and impose
