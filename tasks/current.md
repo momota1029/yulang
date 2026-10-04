@@ -718,6 +718,17 @@ remain in the linked progress records above and
   source-context finiteness, effective principal projection and production
   acceptance remain open. See the
   [residual-factorization playground](../notes/progress/2026-10-05-residual-factorization-playground.md).
+  A five-path synthetic guard probe checks 32 path-permission masks and
+  distinguishes `GuardFailure` from structural mismatch. It found a concrete
+  failure-precedence obstruction: an earlier deferred Function-argument
+  residual can fail its guard before a later known result mismatch, so a
+  fail-fast normalizer loses the direct comparison outcome. The checker now
+  retains ordered obligations and matches direct outcomes in this bounded
+  family. Resetting the immutable context at an open Record residual still
+  fails its one-Function/one-Record-field mutation witness. These probes test
+  context-carry and failure-order sensitivity only; they do not establish
+  production guard finiteness or lexical-scope semantics. See the
+  [guard-context probe](../notes/progress/2026-10-05-residual-guard-context-playground.md).
   The direct MSO route is still invalid, and standard ranked exact-shape
   subtyping does not directly encode mandatory Record width. Historical
   bounded results and failed scoped encodings are recorded in
