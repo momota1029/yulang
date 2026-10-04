@@ -65,6 +65,27 @@ concrete compatibility instance. It does not promote `int <: 'a` to a general
 family variance rule or infer any effect-position meaning for `never`, `Any`,
 or the empty row.
 
+### The user-named `foo` fragment
+
+The earlier user-specified type candidate explicitly says its input
+`['e, foo]` is under a capture contract admitting `foo` at that boundary. For
+that fragment, the profile premise is source-given: at the annotation's input
+effect path `p`, `Γ_b(p)` includes the named `foo` operation contract, while
+`'e` continues to denote its separate complete abstract view. Consequently,
+an event in the `'e`-derived view is eligible for a boundary-local `foo`
+handler exactly when its own typed incidence reaches `p`, its operation
+instance matches the declared `foo` contract, and the receiver/handler are
+active. Its producer may be the callback body or a caller-owned computation
+exposed by `Force`; the origin remains in `Rel_C` but does not cancel the
+explicit grant.
+
+This derives the intended local `foo` visibility clause from the user's
+example and the selected `Captureν` rule. It does not make every concrete
+effect item in every Function port a capture grant: role, input/output port,
+explicit contract, and typed path still determine the boundary profile. Nor
+does it establish the abstract/concrete row-combination or output subtraction
+rule.
+
 ## Separate subtraction obligation
 
 The capture rule establishes eligibility for one event at one active

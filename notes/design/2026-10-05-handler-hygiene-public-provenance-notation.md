@@ -101,6 +101,7 @@ Capture_b(q)        b's contract admits fam(q), and q is connected to b
                     by the source's typed flow/observation evidence
 Active_b(t)         receiver b is active at source step t
 FlowsTo(q, f, t)    q's contribution reaches output component f by step t
+MemberOf(q, f, t)    q contributes to f's ordinary effect membership at t
 ```
 
 Candidate local rule:
@@ -112,6 +113,15 @@ AtInput(q,e) ∧ Active_b(t) ∧ Capture_b(q)
      evidence select that handler.
 ```
 
+For this candidate, write `b=(r,s,Γ_b)` for the dynamic receiver `r`, static
+callback slot `s`, and its declared typed capture profile. `Capture_b(q)` is
+not a family predicate: it abbreviates the existing candidate condition that
+the operation instance is admitted at the relevant profile position, the
+request's own typed incidence reaches that position, and `r` and the candidate
+handler are active. The ordered handler search and the separate arm
+compatibility check still decide whether this eligible request is actually
+consumed. This spelling introduces no new source identity or proof object.
+
 Candidate provenance-edge reading:
 
 ```text
@@ -120,6 +130,35 @@ Edgeν(e,f)
       and evidence path in which some q satisfies AtInput(q,e) and later
       FlowsTo(q,f,t).
 ```
+
+The user's intended expiry reading adds a boundary condition to that
+candidate: the public `f` endpoint denotes a contribution after crossing the
+source exit of `r`. Let `Exit_r(t)` mean that the contribution's result path
+has crossed that exit. The intended edge claim is then `AtInput(q,e) ∧
+FlowsTo(q,f,t) ∧ Exit_r(t)` for a witness `q`. At and after this endpoint the
+contribution is interpreted under the ordinary output context; no
+`Capture_b(q)` premise is transported as authority for a later handler. This
+is a candidate endpoint convention, not a theorem of the reviewed machine.
+The intended row reading also requires `FlowsTo(q,f,t) ⇒ MemberOf(q,f,t)` in
+that execution: whenever an input-derived contribution actually reaches the
+public result, it is counted in ordinary `f` membership. The optional edge
+does not make that membership optional after the contribution has reached
+that endpoint; it says only that some admitted execution may have no such
+contribution.
+The existing machine can transport typed boundary incidence along a matching
+latent result path while `r` is still active. Consequently, an endpoint that
+is merely a result-typed path inside that active interval cannot be silently
+identified with `Exit_r`.
+
+For nested or overlapping boundaries, an execution may therefore have a
+sequence such as `b₀ → b₁ → f`. Each local subtraction candidate is checked
+against its own active boundary and typed incidence; the permission does not
+compose into a permanent grant. A single public `'e?` would existentially
+hide that path only if every such path has the same public endpoint meaning
+and the projection preserves downstream handler observations. Otherwise the
+surface marker is ambiguous, even though the existing source evidence may
+still distinguish the paths. Adding a second `?` would count punctuation,
+not state which receiver, path, or lifetime it denotes.
 
 The `?` is a candidate way to expose that a path witnessing `Edgeν(e,f)` may
 exist; it does not make a row member present-or-absent, and it does not assert
