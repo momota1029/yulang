@@ -53,23 +53,34 @@ subtraction evidence. Do not add a carrier/API or independent port-subtyping
 rule without identifying a concrete unrepresentable fact and obtaining
 authority. Detailed clauses and conditional results:
 [value-entry bind/projection](../notes/progress/2026-10-04-value-entry-bind-projection.md).
-The theorem-level attempt reaches finite immutable source graphs and
-identity-entry execution transport, but not the original Function endpoint's
-complete domain/bound interpretation. That single owning proof gate must
-construct challenge admission independently of query success and factor the
-entire actual observation bound through the linked argument/body/result view;
-exact execution equality is insufficient. See the latest adjudication in the
-linked record.
+The direct main-theorem attack confirms one owning gate: source-to-endpoint
+adequacy for the original role-indexed Function query. It must construct
+checked-challenge admission independently of query success and establish both
+`D_checked ⊆ D_actual` and full observation-bound inclusion. Even granting
+equal domains and execution correspondence for a stateless terminating Pure
+identity, execution coverage does not prove that every observation admitted
+by the actual endpoint bound factors through the existing argument/body/result
+composition and linked view. The exact missing bound premise and its minimal
+logical countermodel are in
+[direct main-gate attacks](../notes/progress/2026-10-04-direct-main-gate-attacks.md).
+This is not a Yulang program counterexample, State exclusion does not close
+the bound gap, and no carrier or semantic choice follows.
 
 **Other open gates:**
 
-- **Structural solving / Milestone 3:** source-wide comparison/context
-  closure, complete realization, and effective joint residual/projection for
-  open Records and feedback; full fibers/principality and source acceptance.
-  Bounded results and failed scoped encodings are not general impossibility:
+- **Structural solving / Milestone 3:** the finite constrained residual
+  presentation remains distinct from regular-witness decidability and
+  principal/effective projection. The exact existence boundary is regular
+  completion when descriptor equations prefix-shift addresses while active
+  comparisons descend suffixes with variance and Record-width conditions.
+  This remains open; it is not an undecidability result. The direct MSO route
+  is invalid, and standard ranked exact-shape subtyping does not directly
+  encode mandatory Record width. Bounded results and failed scoped encodings
+  are not general impossibility:
   [open residual design](../notes/design/2026-10-03-open-residual-factorization.md),
   [root-only result](../notes/progress/2026-10-04-root-only-regular-witness.md),
-  [queue probes](../notes/progress/2026-10-04-fixed-descriptor-queue-encoding.md).
+  [queue probes](../notes/progress/2026-10-04-fixed-descriptor-queue-encoding.md),
+  and [direct main-gate attacks](../notes/progress/2026-10-04-direct-main-gate-attacks.md).
 - **Source State/reference bridge:** derive dynamic ownership, read/update
   replacement, captured access, and repeated resumption; the `start!` fixture
   fixes only one observation:
