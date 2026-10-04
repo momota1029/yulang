@@ -30,18 +30,45 @@ production HIR constructs such graphs from raw Yulang input. The new finding
 does not refute Theorem C, change accepted Yulang programs, or authorize
 compiler edits.
 
+## Closed HIR-to-core subcase: unannotated identity binding
+
+There is a small source-produced subgraph that maps directly. For an admitted
+simple parameterized binding `id x = x` with no annotation or recovery, the
+lowering clauses construct `ResolvedExpr::Lambda` around a
+`ResolvedExpr::Name` whose `NameResolution::Parameter` carries the same
+`HirParameterId` created for the lambda. The occurrence and source range are
+retained on both nodes (`module.rs` lines 1159–1202, 1422–1464).
+
+The typed-core derivation is syntax-directed:
+
+```text
+P = Value(A)                         // unannotated §21 parameter
+Gamma[x := Value(A)] |- name x : Value(A)
+Gamma[x := Value(A)] |- result(name x) : Comp(empty,A)
+Gamma |- lambda(P, result(name x)) : Value(Fun(P,Comp(empty,A)))
+```
+
+The body endpoint `A` is shared through the parameter binding; HIR does not
+materialize or solve it. The source tag chooses a Pure function introduction,
+and §21 chooses its Value-entry behavior. This proves that current lowering
+can supply Theorem C's actual Pure identity **value derivation** for this
+closed form. It does not supply the known callback callee/use graph, an
+effectful whole-argument carrier, `d⁻`/`d⁺`/`b⁺` profile paths, receipt
+incidence, or the finite complete endpoint. Those remain distinct source and
+solver bridges.
+
 ## Exact next bridge
 
 To claim raw/production correspondence for the callback fragment, a later
-implementation/design gate must first identify the source forms admitted by
-that fragment and map their resolved HIR nodes to Theorem C's derivation
-constructors. For the currently represented simple forms, this includes
-proving that lambda/name/integer occurrences preserve binder identity and
-source provenance. Callback applications, effectful argument carriers,
-requests, and their `d⁻`/`d⁺`/`b⁺`, receipt, profile, and `K,D` evidence need
-production HIR constructors and a lowering theorem before they can be checked
-against the theorem generator. This is not yet evidence that a new runtime or
-solver carrier is needed; it is a source-shape gap in the HIR boundary.
+implementation/design gate must identify the source forms admitted by that
+fragment and map their resolved HIR nodes to Theorem C's derivation
+constructors. The identity-value case above closes the lambda/parameter-name
+map for its narrow binding form. Callback applications, effectful argument
+carriers, requests, and their `d⁻`/`d⁺`/`b⁺`, receipt, profile, and `K,D`
+evidence need production HIR constructors and a lowering theorem before they
+can be checked against the theorem generator. This is not yet evidence that
+a new runtime or solver carrier is needed; it is a source-shape gap in the
+HIR boundary.
 
 No compiler code or tests changed/run. `git diff --check` is the only check
 required for this record-only update.
