@@ -1034,8 +1034,12 @@ remain in the linked progress records above and
   under a clearly marked candidate live-store/restart model and minimizes
   capture-by-value and static-ID/runtime-cell conflation mutant failures. This
   is characterization only: source equations for update/restart and captured
-  re-entry remain absent. See
-  [restart playground](../notes/progress/2026-10-05-local-state-restart-playground.md).
+  re-entry remain absent. A second finite probe checks branch-local captured
+  reads under two supplied resumption states and rejects snapshot-capture and
+  shared-mutable-store mutants; it does not establish the missing State or
+  multi-shot branching equations. See the
+  [restart playground](../notes/progress/2026-10-05-local-state-restart-playground.md)
+  and [multi-shot probe](../notes/progress/2026-10-05-local-state-multishot-playground.md).
 - **Global source bridge/lifecycle:** first-class-reference/import realization,
   complete `EnvStore`/`JointWF`, source-wide acceptance/principality, and
   generalization/SCC lifecycle remain open.
