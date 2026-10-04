@@ -4,12 +4,13 @@ This index is a navigation aid. The listed source document remains authoritative
 
 ## Active workflow navigation (2026-10-04)
 
-- [Yulang question board](2026-10-04-yulang-question-board.md) — Authoritative;
-  user-approved 2026-10-04 after independent proposal review; no supersession.
-  Sections 2–4 govern the external Yulang-only board, answer-draft approval,
-  revision validation, ownership and goal/authority boundaries. The bootstrap
-  and active rule are tracked in
-  [the delivery record](../progress/2026-10-04-yulang-question-board.md).
+- [Repository question board](2026-10-04-inrepo-uncommitted-question-board.md)
+  — Authoritative; user-requested 2026-10-04 after independent scope review.
+  Sections 2–4 govern branch-local `questions/`, pending uncommitted questions,
+  approved-answer commits and exclusive primary ownership handoffs. Supersedes
+  the [external board](2026-10-04-yulang-question-board.md) in location,
+  answer integration and delivery; retains approval/revision/authority safeguards.
+  See [delivery](../progress/2026-10-04-inrepo-uncommitted-question-board.md).
 
 ## Active inference navigation (2026-10-04)
 

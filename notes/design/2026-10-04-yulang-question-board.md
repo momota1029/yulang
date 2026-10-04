@@ -1,12 +1,17 @@
 # Yulang question board
 
-Status: Authoritative
+Status: Superseded in location, answer integration and delivery; retained safeguards carried by successor
 Scope: Yulang-only file handoff between a working primary and a separate answering primary
 Approved-by: user
 Approved-at: 2026-10-04
 Drafted-by: primary with architect advisory
 Reviewed-by: spec_auditor (`question_board_review`, isolated read-only proposal review)
 Supersedes: none
+Superseded-by: 2026-10-04-inrepo-uncommitted-question-board.md (user-requested 2026-10-04)
+
+The active board is now repository-local `questions/`. The successor governs
+pending questions left uncommitted and approved-answer commits. Original text
+below preserves the earlier approved external-board design for history.
 
 ## 1. Approval and boundary
 

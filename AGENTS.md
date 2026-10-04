@@ -38,9 +38,10 @@ Inspect only the context needed for the task:
 - the owning entrypoint, tests, and call sites.
 
 For goal-driven Yulang user decisions and explicit question-board requests,
-read `rules/question-board.md` and the shared board at turn start and before
-dependent actions. The separate answering primary starts from the board's
-own `AGENTS.md`, outside the compiler worktree.
+read `rules/question-board.md` and `questions/` at turn start and before
+dependent actions. The separate answering primary reads `questions/AGENTS.md`
+in the worktree containing the uncommitted question. Hand off exclusive
+worktree writer/Git ownership before answer publication and integration.
 
 Respect confirmed facts, rejected approaches, forbidden actions, and active
 gates in handoffs. Do not restart an approved design or completed investigation
@@ -108,6 +109,12 @@ not split an atomic change or push a broken, unrelated, or unreviewed range
 merely to meet cadence. If a safe push is blocked, keep the useful coherent
 local checkpoint and record the concrete blocker; resolve it before allowing
 another large completed slice to accumulate.
+
+Pending question directories and unapproved drafts under `questions/` are
+explicitly excluded from every checkpoint commit. Keep them unstaged,
+uncommitted and visible in Git status until an explicitly approved answer
+is committed with its matching question and draft. Tracked instructions and
+blank templates are infrastructure, not pending questions.
 
 Before work, choose the lightest sufficient M0–M3 mode, set reviewer,
 verification, and measurement budgets, and state the convergence criteria. The

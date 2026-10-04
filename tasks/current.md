@@ -17,13 +17,16 @@ index is navigation only; source designs govern. See
 
 Yulang user-decision handoffs now use the approved
 [question-board workflow](../rules/question-board.md) for goal-driven work and
-explicit board requests. The shared local board is
-`/home/momota1029/.local/share/yulang/question-board/`; answer drafts require
-explicit user approval before consumption. Bootstrap delivery and verification
-are recorded in [the workflow record](../notes/progress/2026-10-04-yulang-question-board.md).
+explicit board requests. The board is `questions/` in the active worktree;
+pending questions and unapproved drafts stay unstaged/uncommitted and visible
+in Git status. The answering primary commits the selected question and answer
+after explicit draft approval and exclusive writer/Git ownership handoff.
+Consumption requires committed, unchanged, fresh approved content. Delivery
+is recorded in [the workflow record](../notes/progress/2026-10-04-inrepo-uncommitted-question-board.md).
 The next workflow action is to publish an actual unresolved question when one
 arises, or open the board's answering entrypoint in a separate thread. No live
-question is seeded by bootstrap, and board publication does not resume a goal.
+question is seeded by bootstrap. Posting a question does not pause a goal;
+continue independent authorized work. Publication does not resume a stopped goal.
 
 ## Closed decisions
 

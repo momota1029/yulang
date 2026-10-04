@@ -11,7 +11,7 @@
 - [`agent-orchestration.md`](agent-orchestration.md) — specialist roles, task routing, information isolation, review loops, and handoffs.
 - [`legacy-compatibility.md`](legacy-compatibility.md) — interpretation of historical Claude/Codex/Fable/Level terminology without reviving retired policy.
 - [`workflow.md`](workflow.md) — task context, handoffs, scoped execution, progress records, decision points, and completion reports.
-- [`question-board.md`](question-board.md) — Yulang-only goal-driven question handoffs, answer drafts, explicit user approval, revision validation, and separate-thread ownership.
+- [`question-board.md`](question-board.md) — repository-local uncommitted questions, approved-answer commits, revision validation, and primary ownership handoffs.
 - [`git-concurrency.md`](git-concurrency.md) — worktree isolation, staging, commits, branch safety, and integration ownership.
 
 ## Compiler engineering

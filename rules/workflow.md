@@ -85,10 +85,15 @@ The primary agent resolves ordinary repository ambiguity and presents only genui
 
 For goal-driven Yulang work, route genuine user decisions through
 [`question-board.md`](question-board.md). Read the shared board at turn start
-and before dependent actions. An answering primary organizes a draft in a
-separate thread; only an explicitly approved answer can be consumed. Ordinary
+and before dependent actions. The board is `questions/` in the worktree
+containing the pending question. Keep questions and drafts unstaged and
+uncommitted until explicit answer approval. An answering primary organizes a
+draft in a separate thread, then commits only the selected approved handoff
+after exclusive writer/Git ownership transfer. Consume only a fresh approved
+handoff whose matching question/draft/answer are committed and unchanged. Ordinary
 conversational clarification need not use the board. An explicit board request
-also selects this workflow. Board publication does not notify or resume a goal.
+also selects this workflow. Posting a question does not pause a goal; continue
+independent authorized work. Publication does not notify or resume a goal.
 
 ## Progress records
 

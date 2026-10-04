@@ -6,6 +6,16 @@ The primary agent owns staging, commits, branch updates, PRs, and pushes. Subage
 
 Stage explicit paths. Do not use `git add -A` in a shared or potentially dirty working tree. Before every commit, inspect the branch, `git status`, staged diff, and whether unrelated concurrent work is present.
 
+Under [`question-board.md`](question-board.md), pending question directories
+and unapproved drafts in `questions/` stay unstaged and uncommitted, including
+during ordinary checkpoint commits. Do not hide them with Git ignore rules.
+The separate answering primary may commit only the selected question, approved
+draft and finalized answer after explicit user approval and exclusive worktree
+writer/Git ownership handoff. This is primary integration, not subagent Git
+authority. Exclude all other pending questions and unrelated staged work; if
+the index or ownership conflicts, defer only affected publication and preserve
+files. Tracked board instructions and blank templates may be committed.
+
 ## Coherent commits
 
 Prefer one commit per confirmed design gate or coherent cause. Separate:
