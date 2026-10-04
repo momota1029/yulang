@@ -58,9 +58,8 @@ flowchart TD
   JOIN --> COMMON
   COMMON --> PRIN
   EXT --> PRIN
+  PRIN -.->|principal-interface gate| CUTOVER
   PROD -.->|separate soundness/conformance gate for replacement| CUTOVER
-  COMMON -.->|principality gate| CUTOVER
-  EXT -.->|all-view gate| CUTOVER
   FMP -.->|structural existence gate for this successor route; not a callback premise| CUTOVER
   EFF -.->|finite/effective residual and projection gate| CUTOVER
   STATE -.->|source-envelope adequacy gate| CUTOVER
