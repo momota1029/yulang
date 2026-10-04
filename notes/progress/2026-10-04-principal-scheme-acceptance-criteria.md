@@ -70,3 +70,13 @@ argument across source constraint generation, co-occurrence consolidation,
 concrete endpoint resolution, and generalization. In particular, branch or
 staged-call effects may share a principal public allowance without treating
 successful concrete comparisons as transitive or equating evidence owners.
+
+An independent architect audit checked whether these principal criteria could
+close the active Pure-value callback production bridge. They cannot: principal
+projection constrains the public solution family, but supplies no inversion of
+complete endpoint-bound membership into the `J_arg`, entry/rebind, body,
+designated result-consumer, and `J_call` witnesses required by the production
+crosswalk. That is an earlier source-to-endpoint realization obligation. The
+remaining premise is stated in [the production design §4](../design/2026-10-04-production-callback-endpoint-generation-draft.md)
+and [the direct main-gate audit](2026-10-04-direct-main-gate-attacks.md); this
+audit establishes neither a source counterexample nor a new semantic choice.
