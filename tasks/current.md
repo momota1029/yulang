@@ -150,6 +150,15 @@ associator preserves one-to-four parenthesized and ML-argument calls as
 left-nested one-argument stages; the remaining ordinary-call bridge is from
 those structural nodes into `ResolvedExpr` and typed-core `call`/`bind`. See
 the call-stage association probe in the HIR/source-core record.
+An additional test-only candidate now maps real associated call nodes into a
+binary `Apply` tree across bounded mixed source spellings and preserves a
+nested call argument (`f(g(a))`). It found that postfix calls can belong to an
+ML argument (`f a(b)`) and that parenthesized HIR nodes may have multiple
+children; the probe was revised to preserve both facts and now asserts the
+exact 14 recovery-free patterns among its 30 generated cases. This characterizes
+parser-to-candidate shape only. It does
+not add production Apply lowering, endpoint generation, or Theorem C
+correspondence; details are appended to the HIR/source-core record.
 
 ## Latest main-gate results
 

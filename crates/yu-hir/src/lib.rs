@@ -848,6 +848,237 @@ mod tests {
         }
     }
 
+    #[derive(Clone, Debug, Eq, PartialEq)]
+    enum ResearchApply {
+        Atom {
+            range: Range<usize>,
+        },
+        Group {
+            range: Range<usize>,
+            children: Vec<ResearchApply>,
+        },
+        Apply {
+            occurrence: u32,
+            form: SyntaxKind,
+            range: Range<usize>,
+            callee: Box<ResearchApply>,
+            argument: Box<ResearchApply>,
+        },
+    }
+
+    fn research_lower_apply(expression: &HirExpr, next: &mut u32) -> ResearchApply {
+        let HirExpr::Value {
+            kind,
+            range,
+            children,
+        } = expression
+        else {
+            panic!("the candidate handles only valid source expressions: {expression:?}");
+        };
+        match *kind {
+            SyntaxKind::MlArgument | SyntaxKind::CallTail => {
+                assert_eq!(children.len(), 2, "one target and one whole argument");
+                let occurrence = *next;
+                *next += 1;
+                ResearchApply::Apply {
+                    occurrence,
+                    form: *kind,
+                    range: range.clone(),
+                    callee: Box::new(research_lower_apply(&children[0], next)),
+                    argument: Box::new(research_lower_apply(&children[1], next)),
+                }
+            }
+            SyntaxKind::ParenthesizedExpression => ResearchApply::Group {
+                range: range.clone(),
+                children: children
+                    .iter()
+                    .map(|child| research_lower_apply(child, next))
+                    .collect(),
+            },
+            SyntaxKind::IdentifierExpression => {
+                assert!(children.is_empty(), "identifier leaf");
+                ResearchApply::Atom {
+                    range: range.clone(),
+                }
+            }
+            _ => panic!("unsupported research Apply operand: {kind:?}"),
+        }
+    }
+
+    fn research_expression_is_valid(expression: &HirExpr) -> bool {
+        match expression {
+            HirExpr::Error { .. } => false,
+            HirExpr::Value { children, .. } => children.iter().all(research_expression_is_valid),
+            HirExpr::Apply { operands, .. } => operands.iter().all(research_expression_is_valid),
+        }
+    }
+
+    fn research_apply_spine(expression: &ResearchApply) -> Vec<(SyntaxKind, Range<usize>)> {
+        match expression {
+            ResearchApply::Atom { .. } => Vec::new(),
+            ResearchApply::Group { children, .. } => {
+                children.iter().flat_map(research_apply_spine).collect()
+            }
+            ResearchApply::Apply {
+                form,
+                range,
+                callee,
+                argument,
+                ..
+            } => {
+                let mut result = research_apply_spine(callee);
+                result.push((*form, range.clone()));
+                result.extend(research_apply_spine(argument));
+                result
+            }
+        }
+    }
+
+    fn research_apply_arguments_are_atoms(expression: &ResearchApply) -> bool {
+        match expression {
+            ResearchApply::Atom { .. } => true,
+            ResearchApply::Group { children, .. } => {
+                children.iter().all(research_apply_arguments_are_atoms)
+            }
+            ResearchApply::Apply {
+                callee, argument, ..
+            } => {
+                matches!(argument.as_ref(), ResearchApply::Atom { .. })
+                    && research_apply_arguments_are_atoms(callee)
+            }
+        }
+    }
+
+    #[test]
+    fn research_apply_lowering_preserves_mixed_unary_call_spines() {
+        // This is a test-only candidate for the reviewed ResolvedExpr::Apply
+        // shape. It consumes actual parser/associator output; production HIR
+        // lowering and constraint generation remain unchanged.
+        let mut valid_cases = 0;
+        let mut valid_patterns = Vec::new();
+        for stage_count in 1..=4 {
+            for forms in 0..(1 << stage_count) {
+                let mut source = String::from("f");
+                let mut expected_forms = Vec::new();
+                for index in 0..stage_count {
+                    if forms & (1 << index) == 0 {
+                        source.push(' ');
+                        source.push(char::from(b'a' + index as u8));
+                        expected_forms.push(SyntaxKind::MlArgument);
+                    } else {
+                        if index > 0 {
+                            source = format!("({source})");
+                        }
+                        source.push('(');
+                        source.push(char::from(b'a' + index as u8));
+                        source.push(')');
+                        expected_forms.push(SyntaxKind::CallTail);
+                    }
+                }
+                let associated = parse(&source);
+                assert_eq!(associated.chains().len(), 1, "{source}");
+                if !research_expression_is_valid(associated.chains()[0].expression()) {
+                    continue;
+                }
+                valid_cases += 1;
+                valid_patterns.push((stage_count, forms));
+                let mut next = 0;
+                let candidate =
+                    research_lower_apply(associated.chains()[0].expression(), &mut next);
+                assert!(
+                    research_apply_arguments_are_atoms(&candidate),
+                    "generated grouped-spine stages keep atomic operands: {source}"
+                );
+                let spine = research_apply_spine(&candidate);
+                assert_eq!(spine.len(), stage_count, "{source}");
+                assert_eq!(
+                    spine.iter().map(|(form, _)| *form).collect::<Vec<_>>(),
+                    expected_forms,
+                    "{source}"
+                );
+                assert_eq!(spine.last().unwrap().1, *associated.chains()[0].range());
+                let mut occurrences = Vec::new();
+                fn gather_occurrences(expression: &ResearchApply, into: &mut Vec<u32>) {
+                    match expression {
+                        ResearchApply::Atom { .. } => {}
+                        ResearchApply::Group { children, .. } => {
+                            for child in children {
+                                gather_occurrences(child, into);
+                            }
+                        }
+                        ResearchApply::Apply {
+                            occurrence,
+                            callee,
+                            argument,
+                            ..
+                        } => {
+                            into.push(*occurrence);
+                            gather_occurrences(callee, into);
+                            gather_occurrences(argument, into);
+                        }
+                    }
+                }
+                gather_occurrences(&candidate, &mut occurrences);
+                occurrences.sort_unstable();
+                occurrences.dedup();
+                assert_eq!(
+                    occurrences.len(),
+                    stage_count,
+                    "unique Apply occurrence ids"
+                );
+                assert_eq!(next as usize, stage_count);
+            }
+        }
+        assert_eq!(
+            valid_cases, 14,
+            "fixed subset of generated sources is recovery-free"
+        );
+        assert_eq!(
+            valid_patterns,
+            [
+                (1, 0),
+                (1, 1),
+                (2, 0),
+                (2, 1),
+                (2, 3),
+                (3, 0),
+                (3, 1),
+                (3, 3),
+                (3, 7),
+                (4, 0),
+                (4, 1),
+                (4, 3),
+                (4, 7),
+                (4, 15),
+            ],
+            "the enumerated recovery-free subset is fixed"
+        );
+    }
+
+    #[test]
+    fn research_apply_lowering_keeps_parenthesized_call_argument_nested() {
+        let associated = parse("f(g(a))");
+        assert_eq!(associated.chains().len(), 1);
+        let mut next = 0;
+        let candidate = research_lower_apply(associated.chains()[0].expression(), &mut next);
+        let ResearchApply::Apply {
+            form: SyntaxKind::CallTail,
+            argument,
+            ..
+        } = candidate
+        else {
+            panic!("outer source step is CallTail");
+        };
+        assert!(matches!(
+            argument.as_ref(),
+            ResearchApply::Apply {
+                form: SyntaxKind::CallTail,
+                ..
+            }
+        ));
+        assert_eq!(next, 2);
+    }
+
     #[test]
     fn associates_projection_tails_as_structural_continuations() {
         let associated = parse("f.(x).{y}.field::name");

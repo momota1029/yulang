@@ -78,6 +78,9 @@ This index is a navigation aid. The listed source document remains authoritative
   boundary; a paired source probe confirms one-to-four parenthesized and
   ML-argument stages remain left-nested in pre-HIR association. See the
   [HIR/source-core audit](../progress/2026-10-04-hir-source-core-boundary.md).
+  Its test-only mixed-call candidate preserves nested application arguments
+  and exposed ML-argument/postfix and multi-child parenthesized shapes; it
+  does not close production lowering or callback endpoint generation.
   [`research_function_shadow_obstruction.py`](../../tools/research_function_shadow_obstruction.py)
   executes the finite Value-versus-Computation entry witness against the
   identical value-only Function shadow; it is not a source or endpoint-query

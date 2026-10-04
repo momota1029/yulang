@@ -137,3 +137,26 @@ assign call semantics or emit the typed-core `call`/`bind` graph. The
 source-to-core gap is now localized after operator-chain/postfix association
 and before resolved expression emission. Inline lambda parsing remains a
 separate preceding gap. The focused test passes; no compiler behavior changed.
+
+## 2026-10-05 test-only application-tree probe
+
+A separate executable candidate now lowers actual associated `MlArgument`,
+`CallTail`, parenthesized-expression, and identifier nodes into a test-only
+binary `Apply` tree. It enumerates mixed source spellings through four stages,
+checks retained application forms, source extent, and unique candidate
+occurrences, and separately verifies that `f(g(a))` retains its nested call
+as the argument subtree. The focused HIR tests pass.
+
+The first candidate exposed two concrete parser/association facts and was
+revised: ML argument parsing can absorb a following postfix call into the
+argument (`f a(b)`), and a parenthesized HIR node can contain the accumulated
+left expression plus tail children rather than exactly one child. The final
+probe checks the exact 14 recovery-free bit patterns among the 30 generated
+sources; the remaining 16 currently produce recoverable/error expressions.
+This observed subset is not a claim about language legality. It checks the
+outer source extent against the associated chain, not every internal node
+range. Its generated occurrence counter and tree are
+candidate data, not production `HirOccurrenceId` or `ResolvedExpr::Apply`.
+This is parser-to-candidate-shape evidence only: it does not establish name
+resolution, callback endpoint generation, constraint generation, or Theorem C
+correspondence, and it changes no production behavior.
