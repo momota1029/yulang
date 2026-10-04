@@ -16,6 +16,18 @@ This index is a navigation aid. The listed source document remains authoritative
 
 ## Active inference navigation (2026-10-04)
 
+- **Executable proof-search direction:**
+  [inference research playgrounds](2026-10-04-inference-research-playgrounds.md)
+  is Authoritative user direction permitting isolated executable models before
+  proof closure for structural FMP, callback bridge, and principality. Finite
+  search is evidence only; production inference routing remains gated.
+- **Completed narrow experiment:**
+  [experimental parent/use transport](2026-10-04-intrusion-experimental-transport.md)
+  is Authoritative for a `cfg(test)` graph transport prototype only. Its
+  differential tests do not establish source root classification or bound
+  adequacy. The next work item is the unrestricted structural FMP playground
+  described in the research-playground direction.
+
 - **Reviewed structural finite-feedback theorem; FMP remains open:**
   [finite feedback quotients](2026-10-04-structural-finite-feedback-quotients.md)
   preserves any fixed finite number of mutual feedback rounds on one finite

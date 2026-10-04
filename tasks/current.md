@@ -7,7 +7,9 @@ Updated: 2026-10-04. Branch: research/simple-sub-intrusion.
 Prove the SCC-intrusion successor sound, principal, and compatible with
 Oracle's final well-typed-program capability on the supported envelope, then
 implement the fully reviewed and approved inference machine. This objective
-remains active; compiler implementation is not authorized yet.
+remains active. A test-only finite parent/use transport prototype is authorized
+as an experiment; production inference-path replacement remains gated by the
+open soundness/principality obligations.
 
 Authority order is current user decisions, in-scope Authoritative designs,
 active rules, confirmed code/test invariants, then general practice. The design
@@ -60,6 +62,23 @@ Publication does not notify or resume a stopped goal.
   fields/equality, component boundaries, and non-inference artifact invalidation
   remain open. This adds no implementation authority. See the
   [Authoritative rebuild-boundary addendum](../notes/design/2026-10-04-scc-intrusion-cross-edit-rebuild-addendum.md).
+- **Experimental implementation allowance:** the user permits bounded
+  experimental implementation before complete soundness/principality proof,
+  only with no known source counterexample, explicit invariants, differential
+  tests, and rollback; this does not authorize production-path replacement.
+  The currently authorized experiment is a `cfg(test)` finite graph
+  parent/use transport model with caller-supplied identity partition. It does
+  not select production roots, solve constraints, generate source endpoints,
+  or alter `InferenceSession` behavior. Its invariants, differential tests,
+  failure conditions, and rollback are in the
+  [Authoritative experimental transport gate](../notes/design/2026-10-04-intrusion-experimental-transport.md).
+- **Research playground loop:** the user explicitly authorizes executable
+  models before proof closure and expects active conjecture/check/break/shrink/
+  revise/prove work on structural FMP, callback production bridge, and
+  principality. These models may be discarded after an obstruction is
+  recorded; passing finite searches is evidence, never theorem or production
+  authority. Production inference routing remains gated by soundness and
+  principality. See the [research-playground direction](../notes/design/2026-10-04-inference-research-playgrounds.md).
 - **Future data existential compatibility:** constructor/package internals may
   hide witness types with existential packaging; they need not all become
   public data parameters. This constrains future representation choices without
@@ -177,6 +196,16 @@ the source theorem package is Reviewed and conditional, while production
 generation remains Draft.
 
 ## Active unrestricted proof gates
+
+The test-only finite parent/use graph transport prototype is complete under
+its narrow gate. It has independent substitution-reference tests and does not
+change the production solver. The next research gate is an executable
+finite-model/search harness for the unrestricted structural finite-model
+problem, using the reviewed `Gamma_P^coh` / conflict-rank characterization.
+The harness must represent exact descriptor shifts and full domain/head/child
+coherence; a bounded pass is characterization evidence only. Callback bridge
+and principality playgrounds remain active follow-on lanes. No production
+cutover authority follows from any playground.
 
 **Callback adequacy proof search is complete; active gate is production design.**
 The design and its current proof boundary are recorded in

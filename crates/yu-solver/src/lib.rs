@@ -208,6 +208,8 @@ use yu_types::{
 
 mod scc;
 use scc::{SccComponentId, SccPlan};
+#[cfg(test)]
+mod intrusion_transport;
 mod f5c_binder_substitution;
 mod f5c_draft;
 #[allow(dead_code)] // The source-draft owner migration proceeds in staged slices.
@@ -16248,6 +16250,7 @@ mod tests {
     mod f5c_tree_analysis;
     mod f5c_value_exact_upper_route;
     mod f5c_work_meter;
+    mod intrusion_transport;
     use std::sync::Arc;
     use yu_hir::{FileId, FileKey, ModuleIdentity, SemanticImports, lower_module};
     use yu_syntax::{SourceText, SyntaxEnvironment, parse_file, scan_header};
