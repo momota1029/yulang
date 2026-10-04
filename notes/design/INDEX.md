@@ -52,8 +52,10 @@ This index is a navigation aid. The listed source document remains authoritative
   [progress record](../progress/2026-10-05-inequality-endpoint-dispatch-playground.md).
   The current HIR-backed Lambda realization candidate for `id` and `zero`
   inspects their actual Function facts and public schemes, then checks a finite
-  typed-observation lift; it does not identify this candidate with production
-  bounds. See its
+  typed-observation lift; a separate bounded state-machine test exercises two
+  `Force(D) >>= B` resumption splits while preserving the Pure value's actual
+  role under a Handler callback view. Neither test identifies its candidate
+  relation with production bounds. See its
   [progress record](../progress/2026-10-05-source-indexed-function-realization-playground.md).
   [`research_function_shadow_obstruction.py`](../../tools/research_function_shadow_obstruction.py)
   executes the finite Value-versus-Computation entry witness against the

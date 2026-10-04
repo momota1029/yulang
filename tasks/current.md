@@ -156,6 +156,11 @@ checks projected typed observations over 26 finite argument-history tuples
 per source. The old-tuple-preserving lift is exact in this candidate. Its
 remaining bridge is the key one: no production endpoint currently defines
 this complete relation, and HIR lacks application/callback invocation forms.
+A separate test-only transition probe now executes two explicit two-request
+`Force(D) >>= B` suspension/resumption splits, checking suffix order, no
+receipt/Force replay, and Pure-role preservation under a Handler slot view.
+This characterizes the source rule for those traces; it still does not connect
+production Function bounds to complete membership.
 Details and limits are in the
 [source-indexed realization playground](../notes/progress/2026-10-05-source-indexed-function-realization-playground.md).
 

@@ -53,6 +53,183 @@ struct CheckedChallenge {
     fresh_coordinate: u8,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum ReceiverRole {
+    Pure,
+    HandlerView,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum InvocationStep {
+    Receipt,
+    ForceArgument,
+    Request {
+        request: Request,
+        state: u8,
+    },
+    Resume {
+        origin: u8,
+        continuation: u8,
+        value_type: &'static str,
+        state_before: u8,
+        state_after: u8,
+    },
+    EnterBody {
+        occurrence: HirOccurrenceId,
+        binder: HirParameterId,
+    },
+    Return {
+        value_type: &'static str,
+    },
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum RequestDecision {
+    Handle { value: i32, state_after: u8 },
+    Forward,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct SuspendedInvocation {
+    trace: Vec<InvocationStep>,
+    actual_role: ReceiverRole,
+    callback_view: ReceiverRole,
+    pending: Request,
+    current_state: u8,
+    argument_value: i32,
+    suffix: Vec<Request>,
+    suffix_decisions: Vec<RequestDecision>,
+    body: BodyProgram,
+    body_occurrence: HirOccurrenceId,
+    binder: HirParameterId,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum InvocationResult {
+    Returned {
+        trace: Vec<InvocationStep>,
+        actual_role: ReceiverRole,
+        callback_view: ReceiverRole,
+        result_value: i32,
+    },
+    Suspended(SuspendedInvocation),
+}
+
+fn advance_requests(
+    mut trace: Vec<InvocationStep>,
+    mut current_state: u8,
+    mut argument_value: i32,
+    requests: Vec<Request>,
+    decisions: Vec<RequestDecision>,
+    body: BodyProgram,
+    actual_role: ReceiverRole,
+    callback_view: ReceiverRole,
+    body_occurrence: HirOccurrenceId,
+    binder: HirParameterId,
+) -> InvocationResult {
+    assert_eq!(requests.len(), decisions.len());
+    for (index, (request, decision)) in requests
+        .iter()
+        .cloned()
+        .zip(decisions.iter().cloned())
+        .enumerate()
+    {
+        trace.push(InvocationStep::Request {
+            request: request.clone(),
+            state: current_state,
+        });
+        match decision {
+            RequestDecision::Handle { value, state_after } => {
+                trace.push(InvocationStep::Resume {
+                    origin: request.origin,
+                    continuation: request.continuation,
+                    value_type: "int",
+                    state_before: current_state,
+                    state_after,
+                });
+                current_state = state_after;
+                argument_value = value;
+            }
+            RequestDecision::Forward => {
+                return InvocationResult::Suspended(SuspendedInvocation {
+                    trace,
+                    actual_role,
+                    callback_view,
+                    pending: request,
+                    current_state,
+                    argument_value,
+                    suffix: requests[index + 1..].to_vec(),
+                    suffix_decisions: decisions[index + 1..].to_vec(),
+                    body,
+                    body_occurrence,
+                    binder,
+                });
+            }
+        }
+    }
+    trace.push(InvocationStep::EnterBody {
+        occurrence: body_occurrence,
+        binder,
+    });
+    trace.push(InvocationStep::Return { value_type: "int" });
+    InvocationResult::Returned {
+        trace,
+        actual_role,
+        callback_view,
+        result_value: match body {
+            BodyProgram::Identity => argument_value,
+            BodyProgram::Constant(value) => value,
+        },
+    }
+}
+
+fn invoke_pure_value_through_handler_view(
+    artifact: &SourceArtifact,
+    requests: Vec<Request>,
+    decisions: Vec<RequestDecision>,
+) -> InvocationResult {
+    advance_requests(
+        vec![InvocationStep::Receipt, InvocationStep::ForceArgument],
+        0,
+        0,
+        requests,
+        decisions,
+        artifact.body,
+        ReceiverRole::Pure,
+        ReceiverRole::HandlerView,
+        artifact.body_occurrence.clone(),
+        artifact.binder.clone(),
+    )
+}
+
+fn resume_invocation(
+    mut suspended: SuspendedInvocation,
+    response: RequestDecision,
+) -> InvocationResult {
+    let RequestDecision::Handle { value, state_after } = response else {
+        panic!("a resumed request receives a response");
+    };
+    suspended.trace.push(InvocationStep::Resume {
+        origin: suspended.pending.origin,
+        continuation: suspended.pending.continuation,
+        value_type: "int",
+        state_before: suspended.current_state,
+        state_after,
+    });
+    advance_requests(
+        suspended.trace,
+        state_after,
+        value,
+        suspended.suffix,
+        suspended.suffix_decisions,
+        suspended.body,
+        suspended.actual_role,
+        suspended.callback_view,
+        suspended.body_occurrence,
+        suspended.binder,
+    )
+}
+
 struct SourceArtifact {
     body: BodyProgram,
     lambda_occurrence: HirOccurrenceId,
@@ -364,4 +541,196 @@ fn source_hir_function_realization_and_checked_lift_match_on_bounded_histories()
             .collect::<std::collections::HashSet<_>>();
         assert_eq!(actual, checked_projection);
     }
+}
+
+#[test]
+fn resumed_force_bind_keeps_suffix_and_underlying_pure_entry() {
+    let artifact = inspect_artifact("my id x = x", "research-id-resume.yu");
+    let requests = vec![
+        Request {
+            operation: "Read",
+            origin: 4,
+            continuation: 10,
+        },
+        Request {
+            operation: "Write",
+            origin: 5,
+            continuation: 11,
+        },
+    ];
+
+    // The first request is handled, the second is forwarded, then the same
+    // pending continuation is resumed. The source body runs only afterward.
+    let InvocationResult::Suspended(suspended) = invoke_pure_value_through_handler_view(
+        &artifact,
+        requests.clone(),
+        vec![
+            RequestDecision::Handle {
+                value: 17,
+                state_after: 20,
+            },
+            RequestDecision::Forward,
+        ],
+    ) else {
+        panic!("second argument request is forwarded");
+    };
+    assert_eq!(suspended.pending, requests[1]);
+    let InvocationResult::Returned {
+        trace,
+        actual_role,
+        callback_view,
+        result_value,
+    } = resume_invocation(
+        suspended,
+        RequestDecision::Handle {
+            value: 23,
+            state_after: 21,
+        },
+    )
+    else {
+        panic!("resuming the final request reaches the body");
+    };
+    assert_eq!(actual_role, ReceiverRole::Pure);
+    assert_eq!(callback_view, ReceiverRole::HandlerView);
+    assert_eq!(result_value, 23);
+    assert_eq!(
+        trace,
+        vec![
+            InvocationStep::Receipt,
+            InvocationStep::ForceArgument,
+            InvocationStep::Request {
+                request: requests[0].clone(),
+                state: 0,
+            },
+            InvocationStep::Resume {
+                origin: requests[0].origin,
+                continuation: requests[0].continuation,
+                value_type: "int",
+                state_before: 0,
+                state_after: 20,
+            },
+            InvocationStep::Request {
+                request: requests[1].clone(),
+                state: 20,
+            },
+            InvocationStep::Resume {
+                origin: requests[1].origin,
+                continuation: requests[1].continuation,
+                value_type: "int",
+                state_before: 20,
+                state_after: 21,
+            },
+            InvocationStep::EnterBody {
+                occurrence: artifact.body_occurrence.clone(),
+                binder: artifact.binder.clone(),
+            },
+            InvocationStep::Return { value_type: "int" },
+        ]
+    );
+
+    // The opposite split forwards the first request, resumes it once, then
+    // forwards and resumes the suffix request. Neither outer receipt nor
+    // Force is replayed when these nested continuations are resumed.
+    let InvocationResult::Suspended(first) = invoke_pure_value_through_handler_view(
+        &artifact,
+        requests.clone(),
+        vec![RequestDecision::Forward, RequestDecision::Forward],
+    ) else {
+        panic!("first request is forwarded");
+    };
+    let InvocationResult::Suspended(second) = resume_invocation(
+        first,
+        RequestDecision::Handle {
+            value: 29,
+            state_after: 22,
+        },
+    ) else {
+        panic!("suffix request is forwarded after resuming the first");
+    };
+    assert_eq!(second.pending, requests[1]);
+    assert_eq!(second.current_state, 22);
+    let InvocationResult::Returned {
+        trace,
+        actual_role,
+        callback_view,
+        result_value,
+    } = resume_invocation(
+        second,
+        RequestDecision::Handle {
+            value: 31,
+            state_after: 23,
+        },
+    )
+    else {
+        panic!("resuming both requests reaches the body");
+    };
+    assert_eq!(actual_role, ReceiverRole::Pure);
+    assert_eq!(callback_view, ReceiverRole::HandlerView);
+    assert_eq!(result_value, 31);
+    assert_eq!(
+        trace,
+        vec![
+            InvocationStep::Receipt,
+            InvocationStep::ForceArgument,
+            InvocationStep::Request {
+                request: requests[0].clone(),
+                state: 0,
+            },
+            InvocationStep::Resume {
+                origin: requests[0].origin,
+                continuation: requests[0].continuation,
+                value_type: "int",
+                state_before: 0,
+                state_after: 22,
+            },
+            InvocationStep::Request {
+                request: requests[1].clone(),
+                state: 22,
+            },
+            InvocationStep::Resume {
+                origin: requests[1].origin,
+                continuation: requests[1].continuation,
+                value_type: "int",
+                state_before: 22,
+                state_after: 23,
+            },
+            InvocationStep::EnterBody {
+                occurrence: artifact.body_occurrence.clone(),
+                binder: artifact.binder.clone(),
+            },
+            InvocationStep::Return { value_type: "int" },
+        ]
+    );
+    assert_eq!(
+        trace
+            .iter()
+            .filter(|step| matches!(step, InvocationStep::Receipt))
+            .count(),
+        1
+    );
+    assert_eq!(
+        trace
+            .iter()
+            .filter(|step| matches!(step, InvocationStep::ForceArgument))
+            .count(),
+        1
+    );
+    assert_eq!(
+        trace
+            .iter()
+            .filter(|step| matches!(step, InvocationStep::Request { .. }))
+            .count(),
+        2
+    );
+    assert_eq!(
+        trace
+            .iter()
+            .filter(|step| matches!(step, InvocationStep::EnterBody { .. }))
+            .count(),
+        1
+    );
+    assert_eq!(
+        trace.last(),
+        Some(&InvocationStep::Return { value_type: "int" })
+    );
 }

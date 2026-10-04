@@ -5,6 +5,10 @@ Status: bounded research candidate; no production denotation or implementation a
 Governing direction: [executable inference research playgrounds](../design/2026-10-04-inference-research-playgrounds.md); [source-generated callback theorem](../design/2026-10-04-source-generated-callback-structural-theorems.md) Theorem C; [production endpoint-generation draft](../design/2026-10-04-production-callback-endpoint-generation-draft.md) §§3–4.
 Review: compiler_referee and spec_auditor found no blocking or major issues;
 the compiler_referee's minor continuation-boundary note is addressed below.
+The resumption-transition probe first exposed a major gap (the model ignored
+resumed state); it now threads response state/value through the suffix and
+body and asserts the exact state-dependent trace. The compiler_referee delta
+review found no remaining issue within this bounded probe.
 
 The `cfg(test)`-only module
 [`research_function_realization.rs`](../../crates/yu-solver/src/tests/research_function_realization.rs)
@@ -38,10 +42,23 @@ identity, and one fixed opaque `nu,K,D` assignment. Request origin/continuation
 tokens come from the bounded argument-history grammar; they are not extracted
 from production HIR.
 
-The suspension token is not an executable continuation: this candidate does
-not run response/resumption transitions or the pending argument suffix. It is
-a finite terminal/suspended trace projection only, not the request/bind
-continuation correspondence required by Theorem C §2.3.
+In the finite lift-set portion above, the suspension token is not an executable
+continuation: that portion does not run response/resumption transitions or the
+pending argument suffix. It is a finite terminal/suspended trace projection
+only, not the request/bind continuation correspondence required by Theorem C
+§2.3.
+
+A separate `cfg(test)` transition probe now covers that operational seam for
+two explicit two-request histories. It splits `Force(D) >>= B` once after the
+first request and once after the second; each response updates the live state
+and forced argument value, the suffix request observes the updated state,
+and the HIR-derived Identity body returns the resumed argument value. It
+preserves the original request origin/continuation, reaches the body only after
+the final response, and does not replay receipt or Force. It also keeps the
+Pure value's actual role/Value entry separate from the Handler callback view.
+This is source-rule characterization for those traces, not production
+execution or bound membership evidence; the finite history set in the lift
+test above remains terminal/suspended only.
 
 The checked candidate copies each full old tuple and adds one total fresh
 coordinate defined from that tuple. For both bodies, the projected actual and
@@ -53,13 +70,14 @@ The model does **not** equate its generated relation with current production
 Function-bound denotation. The current code retains HIR and the four-port
 Function fact, but does not attach complete value-root, Force/entry/body/result
 history membership to that endpoint. It also has no application or callback
-invocation HIR node; responses and resumed request histories are outside this
-candidate. Thus the production actual-side factorization and checked-side
-embedding theorem remain open. No source counterexample was found, and no
+invocation HIR node. Thus the bounded transition probe is not driven by
+production HIR application nodes, and neither it nor the finite lift test
+establishes production actual-side factorization or checked-side embedding.
+Those theorems remain open. No source counterexample was found, and no
 production behavior changed.
 
 Verification: focused command
-`cargo --config 'build.rustc-wrapper=""' test -p yu-solver tests::research_function_realization::source_hir_function_realization_and_checked_lift_match_on_bounded_histories -- --exact --nocapture`.
+`cargo --config 'build.rustc-wrapper=""' test -p yu-solver tests::research_function_realization -- --nocapture`.
 The global Cargo config routes rustc through `sccache`, which failed with
 `Operation not permitted`; the per-command wrapper override let the same
 focused test run directly and pass. Python/script checks and broad suites were
