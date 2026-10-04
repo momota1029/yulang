@@ -141,7 +141,12 @@ candidate; its finite principal presentation remains a separate open proof.
   invariant shows that prefix stripping plus structural suffix descent alone
   cannot renew the unary head/presence marker needed by a direct two-sided
   counting gadget; activation feedback remains unexcluded. Neither result
-  proves FMP or refutes it.
+  proves FMP or refutes it. A concrete `Y=Fun(Y,{f:Int})`, `X <: Y` example
+  refutes regularizing one arbitrary solution by a descriptor-monoid meet:
+  literal subtree meets break child coherence, while a coherent local
+  head/mask fold removes a field required by the original bound. The package
+  itself has the regular witness `X=Y`, so FMP remains open; see the direct
+  record.
 - The standard guarded-BPA undecidability result does not directly settle
   this gate: it requires transparent parameter-changing recursive type
   constructors, which current type-declaration authority does not establish;

@@ -436,6 +436,72 @@ An independent spec-auditor review found the equivalence and conditional
 semidecision argument sound; its sole precision finding—that `μ` must be an
 explicit surjective monoid homomorphism—has been incorporated above.
 
+A direct attempt to use the information meet to construct that quotient fails
+on a small exact package. Let `F` be Function, `E={}`, `i=Int`,
+`R={f:i}`, and impose
+
+```text
+Y = F(Y,R)           X <: Y
+X0 = F(X1,R)         X1 = F(X0,E)
+```
+
+The displayed regular assignment satisfies the bound: the direct simulation
+contains `(X0,Y)` and `(Y,X1)`; Function obligations return to those pairs,
+and the extra Record obligation `R <: E` is valid by width.
+
+Take the transition monoid of the exact descriptor automaton with states
+`F,R,i,absent` and coordinates `arg,ret,f`:
+
+| state | `arg` | `ret` | `f` |
+|---|---|---|---|
+| `F` | `F` | `R` | absent |
+| `R` | absent | absent | `i` |
+| `i` | absent | absent | absent |
+| absent | absent | absent | absent |
+
+Write `A=μ(arg)`, `B=μ(ret)`, `L=μ(f)`, `T=B·L`, and `0` for the
+constant-absent map. The six transformations `1,A,B,L,T,0` have fibers
+`{ε}`, `arg+`, `arg* ret`, `{f}`, `arg* ret f`, and all remaining words,
+respectively. Thus `μ(argⁿ ret)=B` for every `n≥0`. The exact descriptor
+tracks have observations:
+
+| `·` | `1` | `A` | `B` | `L` | `T` | `0` |
+|---|---|---|---|---|---|---|
+| `1` | `1` | `A` | `B` | `L` | `T` | `0` |
+| `A` | `A` | `A` | `B` | `0` | `T` | `0` |
+| `B` | `B` | `0` | `0` | `T` | `0` | `0` |
+| `L` | `L` | `0` | `0` | `0` | `0` | `0` |
+| `T` | `T` | `0` | `0` | `0` | `0` | `0` |
+| `0` | `0` | `0` | `0` | `0` | `0` | `0` |
+
+| track | `1` | `A` | `B` | `L` | `T` | `0` |
+|---|---|---|---|---|---|---|
+| `Y` | `F` | `F` | `R` | absent | `i` | absent |
+| `R` | `R` | absent | absent | `i` | absent | absent |
+| `i` | `i` | absent | absent | absent | absent | absent |
+
+Define the attempted fold locally: a track is present at class `m` only if
+it is present at every address in `μ⁻¹(m)`; its head and Record mask are the
+information meet over that fiber; children use right multiplication by their
+coordinate. This quotient is coherent and preserves the exact equations
+`Y(A·m)=Y(m)`, `Y(B·m)=R(m)`, and `R(L·m)=i(m)` for every `m`. The folded
+`X` observations at `1,A,B,L,T,0` are `F,F,E,absent,absent,absent`: across
+the `B` fiber, the original returns alternate between `R` and `E={}`; across
+the `T` fiber, payload presence does not survive all addresses. All child
+domain and descriptor equations still hold.
+
+Nevertheless, the original bound fails at the root's covariant result:
+folded `X` has `E` at class `B`, while `Y` has `R`, and `E </: R`. The
+source assignments use different comparison orientations at alternating
+`argⁿ ret` positions, which the descriptor monoid merges. This refutes this
+coherent context-class meet fold, not the finite-model property: the package
+already has the regular witness `X=Y`. Whole-solution meet closure applies at
+corresponding roots; it does not justify merging different occurrences of
+one solution. Any FMP construction must preserve jointly activated,
+variance-directed comparisons as well as descriptors and child coherence.
+An independent compiler-referee review verified the six-element monoid, all
+descriptor/child equations, and the root-result counterexample.
+
 One tempting construction is now ruled out by a finite operator example:
 safe regular activation invariants are not closed under union. Take fixed
 descriptors `r = {f:Int}`, `t = {f:Bool}` and bounds

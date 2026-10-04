@@ -32,7 +32,9 @@ This index is a navigation aid. The listed source document remains authoritative
   the finite-model property is unproved and excludes `Guard`/`Phi/K,D`. A
   reviewed information-meet invariant blocks aperiodic tiling reductions
   under finite-depth, all-translates decoding assumptions; marker provenance
-  also blocks prefix-pop/suffix-append alone. Neither closes or refutes FMP.
+  also blocks prefix-pop/suffix-append alone. A descriptor-monoid subtree-meet
+  fold fails on a regular two-variable example but does not refute FMP.
+  Neither result closes or refutes FMP.
   See the direct-main-gate progress record.
 - **Other open gates:** source State/reference bridge and global source
   acceptance/principality/lifecycle remain open; see `tasks/current.md` for
