@@ -125,35 +125,39 @@ evidence; it adds no carrier. Theorem C applies only to the prebuilt Pure-value
 path; inline literals keep the ordinary `F_lit <: F_cb` check.
 
 The production bridge is not proved or authorized for implementation. The
-smallest Pure-path blocker is the full-bound factorization clause: every
-observation admitted by the actual synthesized endpoint's complete bound must
-factor through its existing `J_arg`, entry/rebind, body, designated result
-consumer, and `J_call` composition in the same `nu,K,D` fiber, and the linked
-checked view must admit that factorization. Checked-challenge admission must
-also be generated independently of comparison success. Source execution
-simulation and `Sem_actual ⊆ P_actual` do not prove this clause because the
-endpoint may admit extra observations. The existing source-generated theorem
-proves the lift conditionally once both sides use the same certified local
-relations; it does not identify those relations with production endpoint
-denotations. The equivalent endpoint-realization formulation therefore
-requires the emitted endpoint to denote the least finite-derivation relation
-generated from source-owned local relations, with full tuples/scopes; any
-erased value dependence needs a local source certificate, and the checked
-endpoint must be a total-coordinate extension of that same relation. The
-merged scalar saturation proves only a projected first-order case and does not
-close higher-order adequacy. The B-literal generation clause must independently
+smallest Pure-path blocker is a full-bound realization crosswalk, not
+exactness with respect to source execution. Let `D_A,D_C` and `P_A,P_C` be
+production actual/checked challenge domains and complete bounds, and let
+`D_GA,D_GC` and `P_GA,P_GC` be the corresponding source-generated Theorem C
+objects. A sufficient bridge is
+`D_C ⊆ D_GC ⊆ D_GA ⊆ D_A`, plus (1) for every `c ∈ D_C`, every
+`O ∈ P_A(c)` has a finite `G_A` witness factoring through the existing
+`J_arg`, entry/rebind, body,
+designated result consumer, and `J_call` composition under the same full
+tuple, scopes, `nu,K,D`, and occurrence evidence, and (2) every generated
+`G_C` observation at `c ∈ D_C` embeds in `P_C(c)`. Theorem C supplies bound
+transport on `D_GC`, which contains `D_C`, and the middle domain inclusion;
+the production crosswalk would then establish `D_C ⊆ D_A` and
+`P_A ⊆ P_C`, meaning `∀c ∈ D_C, P_A(c) ⊆ P_C(c)`. Its local primitive
+relations may conservatively overapproximate their executions. No equality
+among production bounds, generated relations,
+and `Sem` is required. The still-open point is the actual-side membership
+factorization: source execution simulation and `Sem_actual ⊆ P_actual` do not
+account for arbitrary extras admitted by `P_actual`. Checked-challenge
+admission must be generated independently of comparison success. The merged
+scalar saturation proves only a projected first-order case and does not close
+higher-order adequacy. The B-literal generation clause must independently
 show that all three selected occurrences and witnessed attachments project
 from the same source tuple before the ordinary query. The current HIR has no
 Apply or inline lambda, and parser recovery plus this source/endpoint
 realization remain conformance work. The design remains Draft; implementation
-is unauthorized pending closure of the endpoint-realization premise and
-explicit approval. No Yulang source counterexample or additional semantic
-choice has been established. Earlier proof attempts and the exact repository
-evidence remain in the linked value-entry and direct-main-gate progress
-records. The current `id x = x` / scalar-body owner trace confirms that HIR and
-constraint facts retain distinct source identities but do not yet define
-either the complete exact local relation or the projected `Sat_j` relation;
-see
+is unauthorized pending closure of this crosswalk premise and explicit
+approval. No Yulang source counterexample or additional semantic choice has
+been established. Earlier proof attempts and the exact repository evidence
+remain in the linked value-entry and direct-main-gate progress records. The
+current `id x = x` / scalar-body owner trace confirms that HIR and constraint
+facts retain distinct source identities but do not yet define either a
+complete bound-factoring relation or the projected `Sat_j` relation; see
 [Lambda endpoint owners](../notes/progress/2026-10-04-lambda-endpoint-owner-trace.md).
 
 Historical callback adequacy exploration and its earlier gate descriptions

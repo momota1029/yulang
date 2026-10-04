@@ -43,18 +43,23 @@ This index is a navigation aid. The listed source document remains authoritative
   occurrence/path/Flow/Observe/subtraction evidence. Theorem C remains limited
   to prebuilt Pure values; inline literals use the ordinary `F_lit <: F_cb`
   comparison. The exact unclosed Pure-path premise is full-bound factorization:
-  every observation admitted by the actual endpoint's complete bound must
-  factor through its existing `J_arg`, entry/rebind, body, designated result
-  consumer, and `J_call` composition in the same `nu,K,D` fiber, with the
-  linked checked view admitting that factorization. Checked-challenge admission
-  must be independent of comparison success. The equivalent endpoint
-  realization law requires production endpoints to denote the least finite
-  relation generated from source-owned local relations, preserve full
-  tuples/scopes, and implement the checked lift as a total-coordinate
-  extension. Source execution simulation alone does not prove this because an
-  endpoint may admit extra observations. The merged scalar local-abstraction
-  theorem only covers projected first-order observations and is not production
-  authority. B-literal
+  the production domains must sandwich Theorem C's domains
+  (`D_C ⊆ D_GC ⊆ D_GA ⊆ D_A`), every observation admitted by the actual
+  endpoint at a production checked challenge `c ∈ D_C` must factor through
+  its existing `J_arg`, entry/rebind, body,
+  designated result consumer, and `J_call` composition under one full
+  `nu,K,D` tuple, and each checked-generator observation at such a challenge
+  must embed in the production checked bound. Theorem C transports bounds
+  on `D_GC`; the domain chain therefore yields
+  `∀c ∈ D_C, P_A(c) ⊆ P_C(c)`. This crosswalk does not require exact source
+  semantics or equality between production endpoints and the generated
+  relations; Theorem C permits shared conservative local relations. The
+  actual-side membership factorization is still open because source execution
+  simulation does not account for endpoint-admitted extras. Checked-challenge
+  admission must be independent of query success. The total-coordinate lift
+  preserves the old tuple inside the generated relation. The merged scalar
+  local-abstraction theorem only covers projected first-order observations
+  and is not production authority. B-literal
   occurrence/attachment projection and
   raw/HIR parser recovery remain generation-conformance obligations. The
   design is Draft and implementation is not authorized. Historical proof

@@ -4,6 +4,9 @@ Date: 2026-10-04
 Status: Draft; design/proof gate only; no implementation authority
 Reviewed-by: independent compiler_referee and spec_auditor focused and delta
 reviews, 2026-10-04; no remaining findings
+Crosswalk correction delta review: independent compiler_referee and
+spec_auditor, 2026-10-04; prior challenge-domain quantifier finding closed;
+no remaining findings
 Scope: raw/HIR callback application, B step 6 completed Function endpoint, and
 source-to-endpoint correspondence with Theorem C
 Authority: preserves the Authoritative callback contract and reviewed
@@ -383,24 +386,48 @@ Theorem C's **mathematical** generator and yields its full-bound result for that
 relational graph. It does not, by itself, identify the denotation of a
 production `yu-types` endpoint with that graph.
 
-The one remaining production theorem is the **endpoint realization law**.
-Each owning source constructor first has its local relation `Rel_j`, either
-the exact source relation or a source-certified conservative abstraction as
-allowed by Theorem C §2.2. For every finite output of the rule above, the
-production Function endpoint/constraint trace must denote the least relation
-generated from those `Rel_j` leaves, with the same full source tuples, binder
-scopes, `nu,K,D`, occurrence incidences, and joint hiding. The checked
-Pure-value endpoint is exactly the total-coordinate extension of that same
-generated relation. A finite source audit must show that each endpoint
-constructor preserves its old operands and scope for arbitrary child
-relations in the same fiber, and that the production recursive bound contains
-exactly the finite derivations (including prefixes, latent/future-use and
-resumption developments) of that constructor graph. These are the two clauses
-of one realization law, not extra semantic constructors. If a `Rel_j`
-abstracts value dependence, its local source certificate must establish the
-admitted observation projection; endpoint shape alone cannot stand in for
-that certificate. The law cannot be inferred from printed `Fun` ports,
-binary lower/upper facts, or a successful query.
+The one remaining production theorem is a **full-bound realization
+factorization**. It does not require production endpoints to be exact source
+semantics or to equal a least presentation. Theorem C already permits
+source-certified conservative local relations `Rel_j`; its generator `G`
+composes those leaves with the positive source constructors in §2.3. Let
+`D_A,D_C` and `P_A,P_C` be the production actual/checked challenge domains
+and complete bounds, and let `D_GA,D_GC` and `P_GA,P_GC` be those of Theorem
+C's corresponding generator. A sufficient crosswalk is:
+
+```text
+D_C ⊆ D_GC ⊆ D_GA ⊆ D_A
+
+for every c ∈ D_C and O ∈ P_A(c):
+    a finite G_A derivation witnesses O under the same full source tuple,
+    binder scopes, nu,K,D, occurrence incidences, and joint hiding
+for every c ∈ D_C and O with a G_C derivation at c:
+    O ∈ P_C(c)
+```
+
+For each `c ∈ D_C`, the domain chain places `c` in `D_GC`, where Theorem C
+maps each `G_A` witness to a `G_C` witness while preserving the complete
+observation and old tuple. Thus the displayed premises yield both production
+conclusions. The `Rel_j` may admit more behaviors than their exact
+primitive executions; both generators must share each such certified local
+relation. No equality between `P_A` and exact `Sem`, between either production
+bound and `G`, or between the full endpoint denotations is needed. The first
+production premise is the irreducible open part: every observation admitted
+by `P_A(c)` for `c ∈ D_C` must factor through its existing argument,
+entry/rebind, body, designated result consumer, and `J_call` composition. The checked-side
+inclusion and both domain links must be established by the finite source
+audit, with challenge admission independent of query success.
+
+This factorization preserves the same full tuples/scopes, `nu,K,D`, occurrence
+incidences, and joint hiding; the checked generator adds only total fresh
+logical coordinates as required by Theorem C. A finite source audit must show
+that endpoint constructors preserve their old operands/scope in one fiber and
+that each selected `d-`, `d+`, and `b+` occurrence and concrete attachment is
+witnessed before the query. If a `Rel_j` abstracts value dependence, its local
+source certificate must establish the admitted observation projection;
+endpoint shape alone cannot stand in for that certificate. None of these
+facts follows from printed `Fun` ports, binary lower/upper facts, or a
+successful query.
 
 The merged [callback local-abstraction result](../progress/2026-10-04-callback-local-abstraction-boundary.md)
 sharpens this obligation. An endpoint-only denotation from grounded ports
@@ -414,16 +441,17 @@ or the relation used by this generator. This is evidence against silently
 assuming exact recipe factorization from ports, not a production
 counterexample or an approved choice of local abstraction.
 
-Under this law, the finite crosswalk above is a source-checkable certificate
-that production emitted Theorem C's generator using the same certified local
-relations on both sides. Theorem C then directly gives
-`D_checked ⊆ D_actual` and `P_actual ⊆ P_checked` for the Pure-value checked
-path, and the total-coordinate clause preserves every old tuple. Without
-this law, the source induction establishes correspondence only to the
-mathematical graph, not to a production `yu-types` endpoint. Neither
-`Force(D) >>= B` nor common `nu,K,D` alone proves the law. This is the exact
-remaining blocker; no production counterexample or additional user semantic
-choice has been found.
+Under this crosswalk, Theorem C gives `D_GC ⊆ D_GA` and
+`P_GA(c) ⊆ P_GC(c)` for every `c ∈ D_GC`; the production-domain and bound
+embeddings then give `D_C ⊆ D_A` and `P_A ⊆ P_C`, where the latter means
+`∀c ∈ D_C, P_A(c) ⊆ P_C(c)`. This proof permits conservative production
+endpoints and does not require equality with `Sem`, `G`, or each other. The
+total-coordinate clause preserves every old tuple in the middle generator.
+Without the crosswalk, the source induction establishes correspondence only
+to the mathematical graph, not to a production `yu-types` endpoint. Neither
+`Force(D) >>= B` nor common `nu,K,D` alone proves the actual-side
+factorization. This is the exact remaining blocker; no production
+counterexample or additional user semantic choice has been found.
 
 The current code does not expose this relational representation directly:
 `ResolvedExpr` contains only Lambda/Integer/Name/Error, `ConstraintStore`
