@@ -203,10 +203,10 @@ branch forms in `call`, `compose`, `twice`, `choose`, or `higher`; the listed
 schemes are successor criteria, not current production outputs. The exact
 source-generation boundary is recorded in the principal-scheme criteria.
 For the specified `compose f g x = f (g x)` case, `g`'s effect contribution
-remains in outward `c` by default hygiene; reusing its component at `f`'s
-argument port alone does not establish consumption or subtraction. Existing
-witnessed partial subtraction inside `f`'s contravariant descriptor remains
-available when actual source-owned attachment evidence supports it.
+remains in outward `c` because the annotation-free source gets full hygiene;
+reusing its inferred component at `f`'s argument port is not a written capture
+contract. Existing witnessed partial subtraction inside `f`'s contravariant
+descriptor remains governed by its current attachment evidence.
 
 Historical callback adequacy exploration and its earlier gate descriptions
 remain in the linked progress records above and
