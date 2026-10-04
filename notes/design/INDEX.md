@@ -70,9 +70,13 @@ This index is a navigation aid. The listed source document remains authoritative
   and its narrower predecessor
   `notes/progress/2026-10-04-production-f5-value-skeleton-selector.md`.
   A reviewed extension admits cross-SCC targets ending in an own-parameter
-  identity lambda or alias-only cycle. The identity scheme contributes one
-  open anchor; cycle routing contributes no value inequality. Arbitrary
-  structured schemes remain outside.
+  identity lambda, alias-only cycle, or a finite chain of ignored-parameter
+  lambdas ending at an integer. Its additional premise is source-checkable
+  one-anchor incidence after actual F5 value projection/routing/normalization;
+  simultaneous redirection proves a regular witness, preserving F5 `Top` as
+  an opaque proof token only. This is neither a semantic interpretation of
+  `Top` nor a claim that all Yulang sources meet the premise. Arbitrary
+  structured schemes, effects, and full FMP remain open.
   See `notes/progress/2026-10-04-identity-incoming-incidence-extension.md`.
   Neither result closes or refutes FMP.
   See the direct-main-gate progress record.

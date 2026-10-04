@@ -218,16 +218,22 @@ candidate; its finite principal presentation remains a separate open proof.
   [full-HIR value-skeleton incidence theorem](../notes/progress/2026-10-04-production-f5-value-skeleton-hir-incidence.md)
   and its narrower predecessor
   [selector theorem](../notes/progress/2026-10-04-production-f5-value-skeleton-selector.md).
-  The incidence premise is now extended to cross-SCC uses whose target alias
-  chain ends in an integer, an own-parameter identity lambda, or an
-  alias-only cycle. The identity target's generated
-  `forall q. Function(q,q)` scheme contributes one open anchor; cycle targets
-  contribute no value inequality in the existing incoming route, without
-  assigning semantics to polarized `Bottom`. The alias-preservation induction
-  and one-cut argument are source-checked, and the source generator satisfies
-  the premise for that fragment.
-  Arbitrary schemes, extrema-bearing function schemes, and full Function
-  effects remain outside it; see
+  The useful source-checkable premise isolated from failed unrestricted
+  searches is one-anchor incidence: after actual projection/routing and
+  normalization, each retained inequality stays within one free/free
+  component or connects it to its sole descriptor anchor, with constructor-
+  guarded child references. This is not a restatement of regular-witness
+  existence. Simultaneous redirection proves a finite regular witness; Theorem
+  S remains within its original signature. A separate HIR/SCC check now
+  establishes this premise for cross-SCC targets that are integer-ending
+  alias/ignored-parameter-lambda chains, alias chains ending at an own-
+  parameter identity lambda, or alias-only cycles. The identity target's
+  generated `forall q. Function(q,q)` scheme contributes one open anchor;
+  cycle targets contribute no value inequality in the existing incoming
+  route. Existing F5 `Top` is preserved only as an opaque proof token, without
+  assigning semantics to polarized `Bottom` or `Top`. This source criterion
+  is sufficient, not claimed absolutely weakest.
+  Arbitrary schemes, effects, and full Function adequacy remain outside it; see
   [identity-scheme incoming extension](../notes/progress/2026-10-04-identity-incoming-incidence-extension.md).
   This closes only the conditional structural witness theorem, not general
   structural regularity, source adequacy, principal solutions, or the overall
