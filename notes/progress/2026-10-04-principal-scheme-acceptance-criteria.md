@@ -44,6 +44,23 @@ does not by itself assert equality of the original source effect expressions.
 The successor must derive these presentations from its general rules and
 preserve the corresponding solution family.
 
+## Existing production value-skeleton evidence
+
+The current HIR/F5 source-generation audit covers the value projection of the
+first two definitions, but not their complete schemes. `id x = x` generates a
+positive Function descriptor whose negative argument and positive result both
+reference the same live parameter value endpoint. `zero x = 0` generates a
+distinct literal endpoint fixed to `Int`, while its parameter remains free in
+that value projection. The exact source clauses and regular-witness boundary
+are recorded in [the value-skeleton theorem](2026-10-04-production-f5-value-skeleton-selector.md).
+
+This evidence supports the requested value skeletons and confirms that the
+literal itself carries no value refinement. It does not prove that the
+successor generalizer presents the free `zero` parameter as `'a`, or that the
+full coupled Function/effect package preserves either scheme. In particular,
+the existing theorem explicitly projects away effect children and disclaims
+scheme principality; it cannot certify the full requested principal types.
+
 ## Frozen Oracle characterization
 
 Oracle at `a58eefc31e22141574b6f20c6a5748151c6d79f1` confirms the displayed
