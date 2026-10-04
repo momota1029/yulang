@@ -10,6 +10,8 @@ minor scope overclaim; the model now records explicit lexical-scope/path labels
 and says that logical quantifier scope and joint hiding remain untested. The
 primary reran the focused checker and closed that delta without another review
 round.
+The 2026-10-05 three-use row-match extension was reviewed by an independent
+spec_auditor; counts and scope matched, with no findings.
 The minor identity-coverage suggestion was closed by generating distinct
 per-occurrence evidence identities and checking preservation after lifting.
 A later bind-composition delta review found that the minimum counterexample
@@ -101,6 +103,13 @@ Each row comparison succeeds, while the client's cross-use constraint requires
 opposite choices. The mutant therefore demonstrates why the conditional
 finite presentation must retain the disjunction through independent use and
 joint restriction instead of committing a local match early.
+
+A follow-up scales the same conditional formula to three independently fresh
+uses over three ground classes. It exhausts 2,187 complete assignments: 375
+satisfy all three row constraints, and 108 remain under two cross-use client
+constraints. Direct per-use witness search agrees on every assignment. The
+eager-left mutant loses all 108 after the join. This is only a scaling check
+of the same finite equality fragment; it adds no new semantic claim.
 
 This is characterization evidence for the exact point-valued fragment in
 `coupled-effect-interface-core-draft.md` § “Finite point-row constrained

@@ -64,6 +64,36 @@ def eager_first_match_mutant(assignment: Assignment) -> bool:
     )
 
 
+def three_use_exhaustion() -> tuple[int, int, int]:
+    """Scale fresh row alternatives to three uses and three ground classes."""
+    checked = admitted = restricted = 0
+    for row in product(range(3), repeat=7):
+        receiver, a0, b0, a1, b1, a2, b2 = row
+        targets = ((a0, b0), (a1, b1), (a2, b2))
+        formula = all(receiver in pair for pair in targets)
+        direct_witness = all(
+            any(value == receiver for value in pair) for pair in targets
+        )
+        assert formula == direct_witness
+        checked += 1
+        if not formula:
+            continue
+        admitted += 1
+        # A client correlates endpoints from different fresh uses. This keeps
+        # the point-row choices conditional until after all uses are joined.
+        client = (
+            targets[0][0] != targets[1][0]
+            and targets[1][1] != targets[2][1]
+        )
+        if client:
+            restricted += 1
+            eager = all(pair[0] == receiver for pair in targets)
+            assert not eager
+    assert checked == 3**7
+    assert admitted > 0 and restricted > 0
+    return checked, admitted, restricted
+
+
 def main() -> None:
     universe = assignments()
     assert len(universe) == 32
@@ -94,11 +124,16 @@ def main() -> None:
     assert not eager_first_match_mutant(lost)
     assert row_match(lost, lost.use1_a, lost.use1_b)
     assert row_match(lost, lost.use2_a, lost.use2_b)
+    three = three_use_exhaustion()
 
     print(f"complete assignments checked: {len(universe)}")
     print(f"assignments admitted by two independently freshened row constraints: {len(admitted)}")
     print(f"assignments after correlated receiver restriction: {len(restricted)}")
     print(f"assignments retained by eager-left-match mutant after restriction: {len(mutant_restricted)}")
+    print(
+        f"three-use, three-class assignments: {three[0]}; admitted: {three[1]}; "
+        f"after client join: {three[2]}"
+    )
     print(
         "lexicographically least lost assignment in the stated binary universe "
         "(receiver, use1 targets, use2 targets): "

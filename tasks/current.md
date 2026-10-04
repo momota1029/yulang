@@ -532,7 +532,9 @@ principal-support checker verifies finite common-support factorization while
 keeping occurrence endpoints distinct. A separate point-row matcher retains
 the conditional disjunctive alternatives through two independent fresh uses
 and a correlated receiver restriction; its eager-match mutant loses all four
-surviving assignments. These models still do not represent source constructors,
+surviving assignments. A three-use, three-class extension checks 2,187
+assignments and finds 108 under a joined client constraint; direct witness
+search agrees, while eager-left matching loses all 108. These models still do not represent source constructors,
 complete Function comparison, subtraction attachment, or the full
 generalization theorem. Exact counts and limits are in
 [callback/principal playgrounds](../notes/progress/2026-10-04-callback-principal-playgrounds.md).
