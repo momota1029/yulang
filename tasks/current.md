@@ -230,11 +230,18 @@ caller-owned observations in the complete `f` call along
 `c`. Production endpoint projection and principal representability remain
 unproved; details are in the contributor-bound attempt.
 An architect cross-check found no counterexample among the seven accepted
-schemes and no demonstrated missing carrier. Their per-example evidence and
-remaining proof parts are now listed in the criteria record. The smallest
-shared open premise remains a source-generated principal common-allowance
-extension over each full `ν,K,D` solution fiber, followed by factorization of
-every valid public view through generalization.
+schemes and no demonstrated missing carrier. A direct Astra theorem attack,
+independently reviewed by a compiler referee, localized the missing definition
+within the principal-extension proof: after role-specific complete interfaces
+are available, source rules still do not interpret a scoped abstract effect
+component as a complete correlated port view and challenge domain. Thus the
+complete checked endpoint needed to define the fixed-fiber `Qξ(s,a)` is not
+source-defined, and `∀s∈Sξ. ∃a. Qξ(s,a)` is not proved. This is not a global
+earlier gate; production callback endpoint realization remains separate. The
+same audit confirms that principal factorization requires `∀V. ∃m_V`; it does
+not establish stronger uniform quantifier orders as obstructions or find a
+counterexample. Full evidence and scope qualifications are in the
+[principal scheme criteria](../notes/progress/2026-10-04-principal-scheme-acceptance-criteria.md).
 The latest user clarification accepts `Top -> int` for `zero`, with `any` as
 the surface notation, superseding the earlier `'a -> int` criterion. The prior
 negative-only quantification analysis is retained as history but creates no

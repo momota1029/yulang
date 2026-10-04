@@ -231,12 +231,34 @@ solutions while losing principal precision. Thus the exact open theorem is a
 both total representability and factorization of all valid views; the formula
 above isolates only its totality clause.
 
-An independent architect audit checked whether these principal criteria could
-close the active Pure-value callback production bridge. They cannot: principal
-projection constrains the public solution family, but supplies no inversion of
-complete endpoint-bound membership into the `J_arg`, entry/rebind, body,
-designated result-consumer, and `J_call` witnesses required by the production
-crosswalk. That is an earlier source-to-endpoint realization obligation. The
-remaining premise is stated in [the production design §4](../design/2026-10-04-production-callback-endpoint-generation-draft.md)
+### Direct attack on the principal common-allowance theorem (2026-10-04)
+
+A direct Astra attack and independent compiler-referee audit did not prove
+fiber-total representability or find a source counterexample. They localize a
+specific missing definition **within the allowance-extension proof, assuming
+role-specific complete Function interfaces have already been generated**:
+source rules do not yet interpret a scoped abstract effect component as a
+complete correlated port view, including its checked challenge domain. Without
+that, the complete checked endpoint `B_i(s,a)` required to define `Qξ(s,a)`
+is not source-defined, so the total-extension obligation
+`∀s ∈ Sξ. ∃a. Qξ(s,a)` cannot currently be discharged. The missing interpretation
+is explicitly recorded in [concrete compatibility](../design/2026-10-03-concrete-compatibility-boundary.md)
+§7; §8 makes clear that source role and complete interface elaboration precede
+port interpretation. This is not the earliest global gate: production callback
+endpoint realization remains a separate, earlier crosswalk obligation.
+
+Principality additionally requires `∀V. ∃m_V` for valid public views. The
+stronger uniform quantifier orders `∃P. ∀ξ` and `∃m. ∀V` are not established
+obstructions; they impose interpretations of one finite polymorphic scheme or
+one uniform map that the current fixed-fiber definitions do not entail. No
+failure of the fixed-fiber theorem follows from an undefined source rule.
+
+The independent architect audit also checked whether the principal criteria
+could close the active Pure-value callback production bridge. They cannot:
+principal projection constrains the public solution family, but supplies no
+inversion of complete endpoint-bound membership into the `J_arg`, entry/rebind,
+body, designated result-consumer, and `J_call` witnesses required by the
+production crosswalk. That is an earlier source-to-endpoint realization
+obligation. The remaining premise is stated in [the production design §4](../design/2026-10-04-production-callback-endpoint-generation-draft.md)
 and [the direct main-gate audit](2026-10-04-direct-main-gate-attacks.md); this
 audit establishes neither a source counterexample nor a new semantic choice.
