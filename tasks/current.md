@@ -69,6 +69,19 @@ or the original joint `(nu,K,D)` packet and does not generate the current typed
 receipt/rebind/capture/read correspondences. Oracle semantics remain
 non-authoritative. See the independently reviewed
 [historical source archaeology](../notes/progress/2026-10-06-frozen-oracle-source-producer-archaeology.md).
+The compiler-referee-reviewed [Q-independent capture source-rule attempt](../notes/progress/2026-10-06-q-independent-capture-source-rule-attempt.md)
+separates O, original query-independent contract/receipt formation, from A,
+captured evidence-environment attachment and lookup preserving the whole
+original `xi=(nu,K,D)`. `CaptureUseIncidence` anchors the lexical occurrence
+but proves neither premise. Rule inversion leaves A open even when O is
+stipulated; O remains the earlier unconditional source-formation blocker.
+The independently regression-audited [production source-path audit](../notes/progress/2026-10-06-production-nested-candidate-stop.md)
+locates the exact candidate's current Yulang3 stop: `lower_simple_chain`
+rejects the braced body as a non-atom, creates `ResolvedExpr::Error`, and F5
+collection emits no complete Lambda recipe. This is an implementation gap,
+not a rejection of the approved source meaning. Current production HIR has no
+resolved ordinary-call or capture node for this candidate, so a source/F5
+semantic differential cannot yet be claimed.
 The independently compiler-referee-reviewed conditional
 [capture-transport rule inversion](../notes/progress/2026-10-06-nested-block-capture-transport-derivation.md)
 stipulates an original certified receipt and narrows that conditional lane's
