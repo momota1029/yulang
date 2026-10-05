@@ -699,6 +699,20 @@ judgments. This does not refute basis A or establish evidence insufficiency,
 so it is not yet a new user decision. Details are in the
 [paired latent-provider probe](../notes/progress/2026-10-05-production-function-denotation-followup.md#paired-latent-provider-derivation-probe)
 and [constant-provider refinement](../notes/progress/2026-10-05-production-function-denotation-followup.md#constant-provider-certificate-refinement).
+The standalone [quiet-provider constrained derivation](../notes/progress/2026-10-05-quiet-provider-constrained-descriptor-derivation.md)
+has received scoped semantic and authority review. It sharpens the local first
+production premise to constructor typing for `G` at the retained incidences,
+while full production admission and containment remain separate and open.
+The named `higher` case now has a conditional ordinary-use construction for
+views already certified in `V_alloc,H`: it retains the same returned provider,
+resumed-state suffix, original scope tree and full joint relation, then changes
+only the fresh common effect coordinate and queries through the actual common
+export. Independent proof and authority review found no defect within that
+conditional construction. The decisive premise is still missing: the named
+source scheme has not been shown to generate a complete interface and
+admission certificate in `V_alloc,H`, and unrestricted valid views and value
+principality remain outside the derivation. See the
+[conditional `higher` view derivation](../notes/progress/2026-10-05-higher-principal-view-derivation.md).
 The independent principal-scheme lane and `P_ref`-only proof work remain active.
 
 User-directed principal-scheme acceptance examples now cover `id`, `zero`,

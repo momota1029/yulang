@@ -6,7 +6,7 @@ Branch: `research/simple-sub-intrusion`
 Baseline: `a674fcf72f4b10c0d69dc32e75e04e054fc18e53`
 Scope: the constant provider `Q = lambda(Value(Unit), result(literal Unit))`; no choice of production context quantification
 Implementation authority: none
-Review status: reviewed by compiler_referee (semantic scope) and spec_auditor (authority/scope); no blocking, major, or minor findings within their assigned scopes. Production membership and conformance remain uncertified.
+Review status: compiler_referee reviewed the conditional derivation and spec_auditor checked authority/scope. Both found no blocking or major semantic/conformance issue; they identified one minor record inconsistency, closed in this revision. Their reviews do not certify production membership, current F5 conformance, or the whole successor theorem.
 
 ## 1. Authority and fixed dependencies
 
@@ -213,9 +213,10 @@ and approval boundaries. Confirmed branch and exact baseline by read-only
 Git queries. No tests, builds, executable searches or measurements ran; zero
 measurement processes and samples. Only this leased note was written.
 
-Unverified: independent proof review; concrete production `DescMem`/`M` and
-admission rules; current F5 conformance; generalization/use transport of such
-rules; arbitrary raw-source, State/import or adapter coverage; principality
+The conditional source/reference derivation received independent review within
+the scopes stated above. Still unverified: concrete production `DescMem`/`M`
+and admission rules; current F5 conformance; generalization/use transport of
+such rules; arbitrary raw-source, State/import or adapter coverage; principality
 and source acceptance. The exact source/reference relation remains within
 Theorem C's decorated finite-client and admission-certificate envelope.
 
