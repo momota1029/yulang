@@ -38,6 +38,14 @@ judgments. The first review round caught and repaired identifier/visibility
 scope leaks; fresh spec review found no remaining issues. The 26-test HIR
 shadow-filtered check and `yu-core/shadow` feature check pass. Details:
 [nested captured-function shadow slice](../notes/progress/2026-10-06-shadow-nested-captured-function.md).
+The next default-off shadow slice records a lexical `CaptureUseIncidence`
+linking that local Lambda, the captured outer `f`, its exact callee use, and
+the retained identifier position. HIR validation and the public shadow facade
+preserve those existing identities. An independent spec review found no
+issues; focused checks pass (27 HIR shadow tests and 3 core shadow feature
+tests). This supplies no typed capture attachment, receipt, `beta`/`Slots(beta)`,
+typed path, provider/receiver realization, or semantic discharge. See the
+[capture-use incidence slice](../notes/progress/2026-10-06-shadow-capture-use-incidence.md).
 The default-off `yu-solver/shadow-f5` feature now exercises the exact common
 leaf cases `my f x = x` and `my f x = 42`: source ranges and the parameter-use
 or integer-literal structure align across shadow and current F5, and each F5

@@ -222,6 +222,7 @@ pub struct Skeleton {
     pub(crate) expressions: Vec<Expression>,
     pub(crate) uses: Vec<ExprId>,
     use_positions: Vec<PositionId>,
+    capture_uses: Vec<CaptureUseIncidence>,
     pub(crate) body: ExprId,
     pub(crate) pending: Vec<PendingPremise>,
 }
@@ -248,6 +249,30 @@ pub struct BinderId(LocalId);
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct UseId(LocalId);
+
+/// Lexical source incidence only; this is not typed capture transport or receipt.
+#[derive(Debug)]
+pub struct CaptureUseIncidence {
+    lambda: ExprId,
+    captured: BinderId,
+    occurrence: UseId,
+    position: PositionId,
+}
+
+impl CaptureUseIncidence {
+    pub fn lambda(&self) -> &ExprId {
+        &self.lambda
+    }
+    pub fn captured(&self) -> &BinderId {
+        &self.captured
+    }
+    pub fn occurrence(&self) -> &UseId {
+        &self.occurrence
+    }
+    pub fn position(&self) -> &PositionId {
+        &self.position
+    }
+}
 
 #[derive(Debug)]
 pub struct Binder {
@@ -421,6 +446,7 @@ fn build_skeleton(
         expressions: Vec::new(),
         uses: Vec::new(),
         use_positions: Vec::new(),
+        capture_uses: Vec::new(),
         pending: Vec::new(),
     };
     artifact.body = if chain
@@ -551,9 +577,43 @@ impl Skeleton {
         if matches!(self.expression(&self.body)?.form, Form::Lambda { .. }) {
             self.validate_nested_scope()?;
         }
+        self.validate_capture_uses()?;
         for pending in &self.pending {
             if !matches!(self.expression(&pending.call)?.form, Form::Apply { .. }) {
                 return Err(ShadowError::InvalidCallReference);
+            }
+        }
+        Ok(())
+    }
+
+    fn validate_capture_uses(&self) -> Result<(), ShadowError> {
+        let mut recorded = BTreeSet::new();
+        for incidence in &self.capture_uses {
+            self.check_id(&incidence.captured.0, self.binders.len())?;
+            let Form::Lambda { body, captures, .. } = &self.expression(&incidence.lambda)?.form
+            else {
+                return Err(ShadowError::InvalidExpressionReference);
+            };
+            let Form::Apply { callee, .. } = &self.expression(body)?.form else {
+                return Err(ShadowError::InvalidCallReference);
+            };
+            let Form::Use { binder, occurrence } = &self.expression(callee)?.form else {
+                return Err(ShadowError::InvalidUseReference);
+            };
+            if captures.as_slice() != std::slice::from_ref(&incidence.captured)
+                || binder != &incidence.captured
+                || occurrence != &incidence.occurrence
+                || self.use_position(&incidence.occurrence)? != &incidence.position
+                || !recorded.insert(incidence.lambda.0.index)
+            {
+                return Err(ShadowError::InvalidUseReference);
+            }
+        }
+        for (index, expression) in self.expressions.iter().enumerate() {
+            if matches!(&expression.form, Form::Lambda { captures, .. } if !captures.is_empty())
+                && !recorded.contains(&index)
+            {
+                return Err(ShadowError::InvalidUseReference);
             }
         }
         Ok(())
@@ -728,6 +788,10 @@ impl PendingPremise {
     }
 }
 impl Skeleton {
+    pub fn capture_uses(&self) -> &[CaptureUseIncidence] {
+        &self.capture_uses
+    }
+
     pub fn body(&self) -> &ExprId {
         &self.body
     }
@@ -949,12 +1013,24 @@ impl Skeleton {
             Form::Lambda {
                 binding: step.clone(),
                 parameter: x,
-                body: call,
+                body: call.clone(),
                 captures: vec![f.clone()],
                 correspondence:
                     ClosureCorrespondence::PendingTypedCaptureProviderReceiverAndSemanticDischarge,
             },
         );
+        let Form::Apply { callee, .. } = &self.expression(&call)?.form else {
+            return Err(ShadowError::InvalidCallReference);
+        };
+        let Form::Use { occurrence, .. } = &self.expression(callee)?.form else {
+            return Err(ShadowError::InvalidUseReference);
+        };
+        self.capture_uses.push(CaptureUseIncidence {
+            lambda: local_lambda.clone(),
+            captured: f.clone(),
+            occurrence: occurrence.clone(),
+            position: self.use_position(occurrence)?.clone(),
+        });
         // The recognizer requires the final use to be step; x has no use here.
         let returned = self.project(final_chain, source, positions)?;
         let bound = self.push_expression(
@@ -1236,6 +1312,19 @@ mod tests {
             panic!("f x")
         };
         assert_eq!(*source_form, SyntaxKind::MlArgument);
+        let [incidence] = skeleton.capture_uses() else {
+            panic!("one lexical capture-use incidence")
+        };
+        assert_eq!(incidence.lambda(), value);
+        assert_eq!(incidence.captured(), f);
+        let Form::Use { occurrence, .. } = skeleton.expression(callee).unwrap().form() else {
+            panic!("callee use")
+        };
+        assert_eq!(incidence.occurrence(), occurrence);
+        assert_eq!(
+            incidence.position(),
+            skeleton.use_position(occurrence).unwrap()
+        );
         for (id, expected_binder, expected_range) in [
             (callee, f, 27..28),
             (argument, x, 29..30),
@@ -1277,6 +1366,36 @@ mod tests {
             other.skeleton().unwrap().binder(f).unwrap_err(),
             ShadowError::ForeignArtifact
         );
+    }
+
+    #[test]
+    fn selected_capture_use_incidence_rejects_inconsistent_links() {
+        let artifact = ShadowArtifact::from_parsed(parsed(NESTED)).unwrap();
+        let mut skeleton = artifact.into_skeleton().unwrap();
+        let other = ShadowArtifact::from_parsed(parsed(NESTED)).unwrap();
+        let other = other.skeleton().unwrap();
+        let saved_lambda = skeleton.capture_uses[0].lambda.clone();
+        skeleton.capture_uses[0].lambda = other.capture_uses[0].lambda.clone();
+        assert_eq!(skeleton.validate(), Err(ShadowError::ForeignArtifact));
+        skeleton.capture_uses[0].lambda = saved_lambda;
+
+        let saved_binder = skeleton.capture_uses[0].captured.clone();
+        skeleton.capture_uses[0].captured = BinderId(skeleton.id(1));
+        assert_eq!(skeleton.validate(), Err(ShadowError::InvalidUseReference));
+        skeleton.capture_uses[0].captured = saved_binder;
+
+        let saved_use = skeleton.capture_uses[0].occurrence.clone();
+        skeleton.capture_uses[0].occurrence = UseId(skeleton.id(1));
+        assert_eq!(skeleton.validate(), Err(ShadowError::InvalidUseReference));
+        skeleton.capture_uses[0].occurrence = saved_use;
+
+        let saved_position = skeleton.capture_uses[0].position.clone();
+        skeleton.capture_uses[0].position = skeleton.use_positions[1].clone();
+        assert_eq!(skeleton.validate(), Err(ShadowError::InvalidUseReference));
+        skeleton.capture_uses[0].position = saved_position;
+        skeleton.validate().unwrap();
+        skeleton.capture_uses.clear();
+        assert_eq!(skeleton.validate(), Err(ShadowError::InvalidUseReference));
     }
 
     #[test]
