@@ -1,7 +1,7 @@
 # Fresh Int slot/view construction: exact missing formation judgment
 
 Date: 2026-10-06 (assigned artifact date)
-Status: frozen unreviewed research-only premise reduction and conditional derivation
+Status: independently reviewed research-only premise reduction and conditional derivation; `Form_Int` remains open
 Baseline: `d2837d34026c262280e19e66085992bf480f7cf2`
 Exclusive lease: this file only
 Implementation authority: none
@@ -243,15 +243,17 @@ supplied. No enumeration, timeout or uncovered search shard is hidden.
 Omitted: raw-source slot/profile generation, complete production Function
 interpretation/admission, arbitrary original-fiber satisfiability, actual
 filling execution, nonempty histories, resumption, nested latent values,
-adapters, State/imports, soundness and principality. Independent review is
-pending. Writing stops before submitting this frozen artifact.
+adapters, State/imports, soundness and principality. Independent review by
+`int_slot_construction_review` found no blocking, major or minor findings in
+the stated conditional scope. Production source formation and unconditional
+Initial remain open.
 
 ## Commit packet
 
 - Exact leased path: `notes/progress/2026-10-06-function-int-slot-view-construction.md` only.
 - Baseline SHA: `d2837d34026c262280e19e66085992bf480f7cf2`.
 - Changed dependency hashes: none among the six baseline dependencies in §2; the separately supplied frozen predecessor has HEAD blob `ba1703d3a23b5bea829c9f1dd86798b5369c8a47` and SHA-256 `44cc91c9ec9e924ed48e0ecee63f17f30f35ff8225ca8274e686cefbc6c887c3`, unchanged during this assignment.
-- Claim/review status: frozen unreviewed bounded premise reduction and conditional source-reference Initial derivation; complete `chi_Int` and unconditional Initial remain open.
+- Claim/review status: independently reviewed bounded premise reduction and conditional source-reference Initial derivation; complete `chi_Int` and unconditional Initial remain open.
 - Checks already run: exact governing-section reads, baseline/HEAD/worktree equality for six dependencies, frozen predecessor hash, lease absence and final narrow scope/reference/hash recheck; no executable checks.
 - Proposed one-line research-checkpoint commit message: `research: isolate Int slot-view formation premise for Initial admission`.
 - Shared-record deltas intentionally left for primary/curator: record `Form_Int` as the exact remaining source-elaboration input; preserve the conditional map result and open full production/admission gates. No task, theory, design/index, question-board or predecessor file changed.
