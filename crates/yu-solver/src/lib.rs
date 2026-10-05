@@ -16251,6 +16251,7 @@ mod tests {
     mod f5c_value_exact_upper_route;
     mod f5c_work_meter;
     mod intrusion_transport;
+    mod legacy_identity_differential;
     mod research_function_realization;
     use std::sync::Arc;
     use yu_hir::{FileId, FileKey, ModuleIdentity, SemanticImports, lower_module};

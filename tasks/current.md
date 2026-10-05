@@ -30,12 +30,14 @@ The default-off `yu-solver/shadow-f5` feature now exercises the exact common
 leaf cases `my f x = x` and `my f x = 42`: source ranges and the parameter-use
 or integer-literal structure align across shadow and current F5, and each F5
 body occurrence survives collection/solve provenance. The shadow records
-integer spelling/range without assigning a value, type, or effect. This
-compares source incidence only; it does not compare types, schemes, or Apply
-behavior. A frozen Yulang2 Oracle runner was rebuilt from the exact source
-commit and probed on identity, compose, and captured-step examples, but there
-is still no successor scheme comparison or current production Apply path. See
-the [frozen Oracle rebuild and probes](../notes/progress/2026-10-06-frozen-oracle-rebuild-and-source-probes.md).
+integer spelling/range without assigning a value, type, or effect. That
+shadow/F5 lane compares source incidence only. A separate internal unit test
+compares the current F5 closed identity shape to the frozen legacy printer's
+one-variable arrow shape; it does not establish full-scheme equivalence or
+successor-shadow parity. A frozen Yulang2 Oracle runner was rebuilt from the
+exact source commit and probed on identity, compose, and captured-step
+examples. See the [identity differential](../notes/progress/2026-10-06-legacy-identity-differential.md)
+and [frozen Oracle rebuild and probes](../notes/progress/2026-10-06-frozen-oracle-rebuild-and-source-probes.md).
 Next implementation gates may add only settled premise/evidence structure;
 continue the source bridge, soundness, principality, and adequacy research
 without relaxing their proof interfaces. One untouched HIR test has an observed
@@ -642,19 +644,22 @@ source-to-application skeleton for `my compose f g x = f (g x)`. It was then
 promoted behind the default-off `yu-core::shadow` API with iterative raw-CST
 retention and artifact-branded positions; the promotion gate's M2 reviews found
 no blocking or major issue. The structural comparison remains against an
-existing test-only scoped candidate over their shared parser envelope, not
-old-infer differential evidence. The frozen Oracle runner has now been rebuilt
-from the exact Yulang2 source commit and emits baseline schemes for identity,
-compose, and captured-step; see the
+existing test-only scoped candidate over their shared parser envelope. A
+separate internal current-F5/legacy differential now compares the displayed
+identity arrow/variable shape for `my f x = x`, with no complete-scheme or
+successor-parity claim; see the
+[identity differential record](../notes/progress/2026-10-06-legacy-identity-differential.md).
+The frozen Oracle runner has been rebuilt from the exact Yulang2 source commit
+and emits baseline schemes for identity, compose, and captured-step; see the
 [Oracle rebuild and probes](../notes/progress/2026-10-06-frozen-oracle-rebuild-and-source-probes.md).
 Current production HIR still rejects ordinary application before inference,
 and the successor shadow has no solved scheme, so semantic parity remains
-unavailable on those inputs. The current
-shadow/F5 differential now covers the shared leaves `my f x = x` and
+unavailable for application and captured-step. The current shadow/F5
+differential covers the shared leaves `my f x = x` and
 `my f x = 42`: it compares source identity/ranges and confirms each F5 body
-occurrence reaches collection/solve provenance. It compares no inferred type or
-scheme. Each shadow formal binder and resolved use now also retains its exact,
-artifact-branded raw-CST position; repeated uses stay distinct, and ambiguous
+occurrence reaches collection/solve provenance, without comparing a solved
+shadow type. Each shadow formal binder and resolved use now also retains its
+exact, artifact-branded raw-CST position; repeated uses stay distinct, and ambiguous
 zero-width node keys reject projection. The F5 differential compares the
 supported `x` leaf positions, while repeated-application identity is checked
 only structurally because current F5 has no Apply path. Callable role, complete
@@ -679,9 +684,11 @@ generalized SCC interface. (7) recursive Q/R
 identity and use-time freshening are absent. (8) callable role, Function
 membership and call-view realization are explicit pending premises. (9) the
 Apply comparison is structural against an existing test-only candidate; the
-F5 differential covers only the two leaf sources above. The frozen Oracle now
-provides old-side baselines for compose and captured-step, but there is no
-current successor scheme result to compare with them. Thus the slices
+F5 differential covers only the two leaf sources above; the separate
+current-F5/legacy differential covers only the displayed identity arrow
+shape. The frozen Oracle provides old-side baselines for compose and
+captured-step, but there is no current successor scheme result to compare with
+them. Thus the slices
 establish identity-preserving syntax plumbing and honest unresolved obligations
 only. The first uses `my compose f g x = f (g x)`;
 the second uses clean parser fixtures to distinguish a leading row from an
@@ -1370,6 +1377,17 @@ joint scope coordinates and fair late replay. A three-atom abstract trace
 shows empty-queue publication can miss a constraint without replay. The first
 source association rule and those premises' source correspondence remain
 unproved; neither protocol has been selected.
+The exact nested-block candidate now has a separate proof-tree/evaluation
+trace: approved lexical retention and ordinary `Value` name skeletons reach
+the conditional execution prefix, but no Q-independent original
+contract/profile formation derivation has been established. Supplying that
+receipt still leaves typed capture
+transport at closure construction, followed by a distinct later
+profile-to-active-receiver obligation. A two-valuation discriminator rejects
+equating providers across returned closures that retain different outer
+values; its admission assumptions are conditional, so it is not an accepted
+source counterexample. See the [source trace](../notes/progress/2026-10-06-latent-callback-receiver-source-trace.md)
+and [provider-fidelity falsification](../notes/progress/2026-10-06-latent-callback-receiver-falsification.md).
 
 Four reviewed source-derivation attempts refine the dependency order without
 closing these gates. The [`call` source-rule audit](../notes/progress/2026-10-06-call-view-source-rule-derivation-attempt.md)
