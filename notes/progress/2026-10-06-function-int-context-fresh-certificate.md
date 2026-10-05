@@ -1,7 +1,7 @@
 # Fresh Int context: partial construction stops before Initial
 
 Date: 2026-10-06 (assigned artifact date)
-Status: frozen unreviewed partial conditional source derivation; decorated context open
+Status: frozen partial conditional source derivation; independent review found no issues; decorated context open
 Baseline: `7cdc4e47f162ed6afe7d41a26e5ebbeea5e4f2ac`
 Exclusive lease: this file only
 Implementation authority: none
@@ -206,7 +206,13 @@ There is no executable oracle. The partial proof uses the selected source
 role/reification decisions and explicitly bounded conditional kernel rules;
 it does not validate them with a checker assuming their transitions.
 No models, seeds/ranges, mutations, tests, builds, benchmarks, formatters,
-code edits or Git mutations ran. Independent review remains pending.
+code edits or Git mutations ran.
+
+Independent review: `invocation_bridge_review`, 2026-10-06. No blocking,
+major or minor findings. Reviewed this artifact and its nine pinned dependency
+blobs; omitted scope remains the construction of the missing correspondence/
+profile, complete context/fiber formation, source acceptance, later histories,
+production extras/conformance and principality.
 
 Coverage: fresh scalar/literal construction, declared callable context,
 whole-argument delay, generation status of every Initial decoration, and the
