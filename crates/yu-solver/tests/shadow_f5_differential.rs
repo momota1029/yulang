@@ -14,7 +14,7 @@ use yu_hir::{
     shadow::{Form, ShadowArtifact},
 };
 use yu_solver::{ConstraintBatch, SolvedModule};
-use yu_syntax::{SourceText, SyntaxEnvironment, parse_file, scan_header};
+use yu_syntax::{SourceText, SyntaxEnvironment, SyntaxKind, parse_file, scan_header};
 
 #[test]
 fn shadow_and_current_f5_preserve_leaf_parameter_source_and_resolution() {
@@ -91,6 +91,14 @@ fn shadow_and_current_f5_preserve_leaf_parameter_source_and_resolution() {
     assert_eq!(parameter.name().range(), shadow_parameter.range());
     assert_eq!(name.spelling(), shadow_parameter.name());
     assert_eq!(name.range(), shadow_body.range());
+    let binder_position = shadow.position(shadow_parameter.position()).unwrap();
+    assert_eq!(binder_position.kind(), SyntaxKind::IdentifierPattern);
+    assert_eq!(binder_position.range(), parameter.name().range());
+    let use_position = shadow
+        .position(skeleton.use_position(occurrence).unwrap())
+        .unwrap();
+    assert_eq!(use_position.kind(), SyntaxKind::IdentifierExpression);
+    assert_eq!(use_position.range(), name.range());
     assert_eq!(body.range(), shadow_body.range());
 
     let body_occurrence = body.occurrence().clone();

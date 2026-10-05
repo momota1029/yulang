@@ -642,8 +642,13 @@ before inference, so semantic parity is unavailable on that input. The current
 shadow/F5 differential now covers the shared leaves `my f x = x` and
 `my f x = 42`: it compares source identity/ranges and confirms each F5 body
 occurrence reaches collection/solve provenance. It compares no inferred type or
-scheme. Callable role, complete Function membership, call-view realization,
-annotation-to-typed-profile correspondence and theorem gates remain open. See
+scheme. Each shadow formal binder and resolved use now also retains its exact,
+artifact-branded raw-CST position; repeated uses stay distinct, and ambiguous
+zero-width node keys reject projection. The F5 differential compares the
+supported `x` leaf positions, while repeated-application identity is checked
+only structurally because current F5 has no Apply path. Callable role, complete
+Function membership, call-view realization, annotation-to-typed-profile
+correspondence and theorem gates remain open. See
 the [shadow promotion and leaf differential gate](../notes/progress/2026-10-06-shadow-core-promotion-gate.md),
 `crates/yu-hir/src/tests/shadow_source_core.rs`, and
 `crates/yu-hir/src/tests/shadow_annotation_positions.rs`.
@@ -1332,6 +1337,18 @@ registration theorem; source generation, later receiver activation, admission,
 origin/guard, soundness, principality and source adequacy remain open. See the
 [constructive attempt](../notes/progress/2026-10-06-captured-provider-registration-constructive-attempt.md)
 and [falsification audit](../notes/progress/2026-10-06-captured-provider-registration-falsification.md).
+
+A reviewed non-authoritative candidate now separates allocation of a shared
+symbolic association from certification of its original profile, typed
+incidences, scope and active provider clauses. Its `PROPOSE`/`REGISTER` split
+leaves all five certificates open; a conditional bookkeeping result gives no
+source formation, soundness, principality or adequacy theorem. A paired
+spec-audited ambiguity note distinguishes two partial input/staging protocols
+but finds no two certified complete rules and no accepted-source
+counterexample. The exact first association-producing judgment remains the
+gate; durable rule adoption still needs proof and recorded approval. See the
+[candidate route](../notes/progress/2026-10-06-source-registration-candidate-route.md)
+and [ambiguity audit](../notes/progress/2026-10-06-source-registration-ambiguity-audit.md).
 
 Four reviewed source-derivation attempts refine the dependency order without
 closing these gates. The [`call` source-rule audit](../notes/progress/2026-10-06-call-view-source-rule-derivation-attempt.md)

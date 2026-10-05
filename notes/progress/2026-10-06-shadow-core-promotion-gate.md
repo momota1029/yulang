@@ -185,3 +185,37 @@ Verification was:
 No production inference path changed. This closes only the actual leaf-overlap
 comparison seam; ordinary application inference remains absent from F5 and is
 still an open successor/source-adequacy gate.
+
+## Binder/use occurrence-position follow-up
+
+The shadow API now links each retained formal binder and resolved use to its
+exact raw-CST `PositionId`. Binder positions identify `IdentifierPattern`
+nodes; each use has its own `IdentifierExpression` position, even when two
+same-spelled uses resolve to one binder. These IDs share the artifact brand,
+and access through another artifact fails. The structural test reconstructs
+the parent/ordinal path into the original parse tree rather than treating
+spelling or byte range as the identity.
+
+The implementation builds a temporary linear index during the existing
+iterative retention pass and uses it while projecting the one-binding shadow
+skeleton. Rowan's green-node-plus-offset key may collide for synthetic
+zero-width duplicates, so such ambiguous keys reject projection instead of
+choosing an occurrence. No type, role, annotation profile, `beta`, typed path,
+receiver, or provenance judgment is introduced. The F5 differential adds
+checks for exact binder/use CST kinds and confirms its existing `x` leaf
+correspondence; repeated-application identity is tested structurally in the
+shadow because production F5 has no application path.
+
+`compiler_referee` found no BLOCKING, major, or minor issue in the three-file
+delta. Focused verification passed:
+
+- `RUSTC_WRAPPER= CARGO_BUILD_JOBS=2 cargo test -p yu-hir --features shadow shadow -- --test-threads=1`
+  (20 unit tests and 1 integration test);
+- `RUSTC_WRAPPER= CARGO_BUILD_JOBS=2 cargo test -p yu-solver --features shadow-f5 --test shadow_f5_differential`
+  (2 tests);
+- `rustfmt --edition 2024 --check` on the three changed Rust files;
+- `git diff --check`.
+
+This extends source identity plumbing only. It does not close typed annotation
+correspondence, call-view registration, old-infer parity, soundness,
+principality, source adequacy, or production cutover.

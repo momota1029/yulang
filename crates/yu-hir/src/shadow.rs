@@ -1,7 +1,7 @@
 //! Opt-in immutable source artifact. Syntax provenance carries no type or role judgment.
 use crate::{range_of, range_of_token};
 use std::{
-    collections::{BTreeMap, BTreeSet},
+    collections::{BTreeMap, BTreeSet, HashMap},
     ops::Range,
     sync::Arc,
 };
@@ -41,8 +41,8 @@ impl ShadowArtifact {
             annotations: Vec::new(),
             skeleton: Err(ShadowError::MalformedSource),
         };
-        artifact.retain(root);
-        artifact.skeleton = build_skeleton(&artifact.parsed, identity);
+        let positions = artifact.retain(root.clone());
+        artifact.skeleton = build_skeleton(&artifact.parsed, identity, root, &positions);
         Ok(artifact)
     }
     pub fn parsed(&self) -> &ParsedFile {
@@ -78,10 +78,27 @@ impl ShadowArtifact {
             index,
         })
     }
-    fn retain(&mut self, root: SyntaxNode) {
+    fn retain(&mut self, root: SyntaxNode) -> HashMap<SyntaxNode, Option<PositionId>> {
+        // CST handles identify occurrences in this exact root, including equal text.
+        // This temporary index is dropped once lexical projection is complete.
+        let mut nodes = HashMap::new();
         let mut stack = vec![(RawElement::Node(root), None, 0)];
         while let Some((element, parent, ordinal)) = stack.pop() {
             let id = self.position_id(self.positions.len());
+            if let Some(node) = element.as_node()
+                && matches!(
+                    node.kind(),
+                    SyntaxKind::IdentifierPattern | SyntaxKind::IdentifierExpression
+                )
+            {
+                // Rowan keys include a green handle and offset. Synthetic zero-width
+                // duplicate nodes can share that key: reject ambiguous projection
+                // rather than selecting one retained structural occurrence.
+                nodes
+                    .entry(node.clone())
+                    .and_modify(|position| *position = None)
+                    .or_insert(Some(id.clone()));
+            }
             let range = element.range();
             let children = element
                 .as_node()
@@ -111,6 +128,7 @@ impl ShadowArtifact {
                 stack.push((child, Some(id.clone()), ordinal));
             }
         }
+        nodes
     }
 }
 
@@ -190,6 +208,7 @@ pub struct Skeleton {
     pub(crate) binders: Vec<Binder>,
     pub(crate) expressions: Vec<Expression>,
     pub(crate) uses: Vec<ExprId>,
+    use_positions: Vec<PositionId>,
     pub(crate) body: ExprId,
     pub(crate) pending: Vec<PendingPremise>,
 }
@@ -219,6 +238,7 @@ pub struct UseId(LocalId);
 
 #[derive(Debug)]
 pub struct Binder {
+    position: PositionId,
     pub(crate) name: String,
     pub(crate) range: Range<usize>,
 }
@@ -288,9 +308,13 @@ pub enum ShadowError {
     InvalidExpressionReference,
 }
 
-fn build_skeleton(parsed: &ParsedFile, identity: Arc<()>) -> Result<Skeleton, ShadowError> {
+fn build_skeleton(
+    parsed: &ParsedFile,
+    identity: Arc<()>,
+    root: SyntaxNode,
+    positions: &HashMap<SyntaxNode, Option<PositionId>>,
+) -> Result<Skeleton, ShadowError> {
     let source = parsed.source();
-    let root = SyntaxNode::new_root(parsed.green().clone());
     // The shared envelope is one direct root binding. Root trivia (the four
     // syntax trivia kinds) and the root parser's semicolon separators may
     // surround it; no sibling or enclosing semantic node is discarded.
@@ -338,7 +362,15 @@ fn build_skeleton(parsed: &ParsedFile, identity: Arc<()>) -> Result<Skeleton, Sh
         if !names.insert(name.clone()) {
             return Err(ShadowError::DuplicateBinder { range });
         }
-        binders.push(Binder { name, range });
+        binders.push(Binder {
+            name,
+            range,
+            position: positions
+                .get(&binder_node)
+                .and_then(Option::as_ref)
+                .cloned()
+                .ok_or(ShadowError::MalformedSource)?,
+        });
     }
     let body = only_child(statement, SyntaxKind::BindingBody)?;
     let chain = only_child(&body, SyntaxKind::OperatorChain)?;
@@ -351,9 +383,10 @@ fn build_skeleton(parsed: &ParsedFile, identity: Arc<()>) -> Result<Skeleton, Sh
         binders,
         expressions: Vec::new(),
         uses: Vec::new(),
+        use_positions: Vec::new(),
         pending: Vec::new(),
     };
-    artifact.body = artifact.project(chain, source)?;
+    artifact.body = artifact.project(chain, source, positions)?;
     artifact.validate()?;
     Ok(artifact)
 }
@@ -510,6 +543,10 @@ impl ShadowArtifact {
     }
 }
 impl Binder {
+    /// Exact retained IdentifierPattern occurrence; no typed slot is implied.
+    pub fn position(&self) -> &PositionId {
+        &self.position
+    }
     pub fn name(&self) -> &str {
         &self.name
     }
@@ -553,6 +590,13 @@ impl Skeleton {
         self.check_id(&id.0, self.binders.len())?;
         Ok(&self.binders[id.0.index])
     }
+    /// Exact retained IdentifierExpression occurrence for this resolved use.
+    pub fn use_position(&self, id: &UseId) -> Result<&PositionId, ShadowError> {
+        self.check_id(&id.0, self.uses.len())?;
+        self.use_positions
+            .get(id.0.index)
+            .ok_or(ShadowError::InvalidUseReference)
+    }
     pub fn use_expression(&self, id: &UseId) -> Result<&Expression, ShadowError> {
         self.check_id(&id.0, self.uses.len())?;
         self.expression(&self.uses[id.0.index])
@@ -593,7 +637,12 @@ impl Skeleton {
         self.expressions.push(Expression { range, form });
         id
     }
-    fn project(&mut self, root: SyntaxNode, source: &str) -> Result<ExprId, ShadowError> {
+    fn project(
+        &mut self,
+        root: SyntaxNode,
+        source: &str,
+        positions: &HashMap<SyntaxNode, Option<PositionId>>,
+    ) -> Result<ExprId, ShadowError> {
         // Tasks/results hold IDs and CST handles, never recursively owned expressions.
         enum Task {
             Visit(SyntaxNode),
@@ -647,6 +696,12 @@ impl Skeleton {
                                 .ok_or_else(|| ShadowError::UnboundName {
                                     range: range.clone(),
                                 })?;
+                        let position = positions
+                            .get(&node)
+                            .and_then(Option::as_ref)
+                            .cloned()
+                            .ok_or(ShadowError::MalformedSource)?;
+                        self.use_positions.push(position);
                         let occurrence = UseId(self.id(self.uses.len()));
                         let binder = BinderId(self.id(index));
                         results.push(self.push_expression(range, Form::Use { binder, occurrence }));
@@ -755,6 +810,29 @@ mod tests {
     }
 
     #[test]
+    fn occurrence_index_rejects_ambiguous_zero_width_cst_handles() {
+        let parsed = parsed("my f x = x");
+        let root = SyntaxNode::new_root(parsed.green().clone());
+        let leaf = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::IdentifierExpression)
+            .unwrap();
+        let green = leaf.green().into_owned();
+        let empty = green.splice_children(0..green.children().count(), []);
+        let root_green = root.green().into_owned();
+        let synthetic = SyntaxNode::new_root(root_green.splice_children(
+            0..root_green.children().count(),
+            [empty.clone().into(), empty.into()],
+        ));
+        let mut artifact = ShadowArtifact::from_parsed(parsed).unwrap();
+        let positions = artifact.retain(synthetic.clone());
+        let leaves = synthetic.children().collect::<Vec<_>>();
+        assert_eq!(leaves.len(), 2);
+        assert_eq!(leaves[0], leaves[1]); // Rowan's shared green handle and offset.
+        assert!(positions.get(&leaves[0]).unwrap().is_none());
+    }
+
+    #[test]
     fn raw_preflight_accepts_exact_depth_and_rejects_one_more() {
         // Synthetic CST tests the adapter's structural boundary independently
         // of grammar nesting and parser resource limits. Root depth is zero.
@@ -830,14 +908,14 @@ mod tests {
         let source = format!("f{}", " x".repeat(4_000));
         assert_eq!(synthetic.to_string(), source);
         assert_eq!(preflight(&synthetic), Ok(()));
-        let mut skeleton = ShadowArtifact::from_parsed(parsed)
-            .unwrap()
-            .into_skeleton()
-            .unwrap();
+        let mut retained = ShadowArtifact::from_parsed(parsed).unwrap();
+        let positions = retained.retain(synthetic.clone());
+        let mut skeleton = retained.into_skeleton().unwrap();
         skeleton.expressions.clear();
         skeleton.uses.clear();
+        skeleton.use_positions.clear();
         skeleton.pending.clear();
-        skeleton.body = skeleton.project(synthetic, &source).unwrap();
+        skeleton.body = skeleton.project(synthetic, &source, &positions).unwrap();
         skeleton.validate().unwrap();
         assert_eq!(skeleton.expressions().len(), 8_001);
         assert_eq!(skeleton.pending().len(), 12_000);

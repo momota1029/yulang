@@ -195,3 +195,80 @@ fn shadow_source_core_requires_one_direct_root_binding() {
     let source = format!(" \n;{COMPOSE};\n ");
     assert!(shadow_from_source(&source).is_ok());
 }
+
+#[test]
+fn shadow_source_core_links_distinct_uses_to_exact_retained_positions() {
+    let source = "my repeated x = x x";
+    let first = ShadowArtifact::from_parsed(parsed(source)).unwrap();
+    let second = ShadowArtifact::from_parsed(parsed(source)).unwrap();
+    let skeleton = first.skeleton().unwrap();
+    let uses = skeleton
+        .uses()
+        .iter()
+        .map(|id| {
+            let Form::Use { binder, occurrence } = skeleton.expression(id).unwrap().form() else {
+                panic!("resolved use")
+            };
+            (
+                binder,
+                occurrence,
+                skeleton.use_position(occurrence).unwrap(),
+            )
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(uses.len(), 2);
+    assert_eq!(uses[0].0, uses[1].0);
+    assert_ne!(uses[0].1, uses[1].1);
+    assert_ne!(uses[0].2, uses[1].2);
+    let binder = skeleton.binder(uses[0].0).unwrap();
+    let position = first.position(binder.position()).unwrap();
+    assert_eq!(position.kind(), SyntaxKind::IdentifierPattern);
+    assert!(position.is_node());
+    assert_eq!(position.range(), &(12..13));
+    // Reconstruct CST occurrence paths using parent/ordinal identity, independently
+    // of spelling and ranges (both uses have the same spelling).
+    let root = SyntaxNode::new_root(first.parsed().green().clone());
+    for (index, (_, _, id)) in uses.iter().enumerate() {
+        let position = first.position(id).unwrap();
+        assert_eq!(position.kind(), SyntaxKind::IdentifierExpression);
+        assert_eq!(position.range(), &(16 + index * 2..17 + index * 2));
+        let mut path = Vec::new();
+        let mut current = *id;
+        while let Some(parent) = first.position(current).unwrap().parent() {
+            path.push(first.position(current).unwrap().ordinal());
+            current = parent;
+        }
+        let mut node = root.clone();
+        for ordinal in path.into_iter().rev() {
+            node = node
+                .children_with_tokens()
+                .nth(ordinal)
+                .unwrap()
+                .into_node()
+                .unwrap();
+        }
+        assert_eq!(node.kind(), position.kind());
+        assert_eq!(range_of(&node), *position.range());
+        assert_eq!(node.to_string(), "x");
+        assert_eq!(
+            second.position(id).unwrap_err(),
+            ShadowError::ForeignArtifact
+        );
+        assert_eq!(
+            second
+                .skeleton()
+                .unwrap()
+                .use_position(uses[index].1)
+                .unwrap_err(),
+            ShadowError::ForeignArtifact
+        );
+    }
+    assert_eq!(
+        second.position(binder.position()).unwrap_err(),
+        ShadowError::ForeignArtifact
+    );
+    assert_eq!(
+        second.skeleton().unwrap().binder(uses[0].0).unwrap_err(),
+        ShadowError::ForeignArtifact
+    );
+}
