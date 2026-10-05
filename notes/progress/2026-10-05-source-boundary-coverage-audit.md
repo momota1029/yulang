@@ -16,9 +16,12 @@ the production constraint solver as a concrete compatibility query.
   `type_annotation_tail_normalized`, constructs `TypeAnnotationTail` and
   parses a required full `TypeExpression` after `as`.
 - `crates/yu-hir/src/lib.rs`, `ChainParser::expression` and
-  `structural_continuation`, preserve the annotation as an outer HIR value
-  whose first child is the preceding expression and whose remaining children
-  retain the annotation target.
+  `structural_continuation`, preserve the annotation wrapper/range and the
+  preceding expression as its first HIR child. The generic collector drops
+  ordinary type nodes and tokens, so the target remains in the parser CST but
+  does not appear as ordinary annotation-target children in associated HIR;
+  see the [pinned source correspondence audit](2026-10-05-mixed-effect-source-correspondence-audit.md)
+  for the collector trace and recovery-free scope.
 - `direct_atom` admits only one integer-literal or identifier-expression
   child. `crates/yu-hir/src/module.rs`, `lower_simple_chain`, maps other
   associated chains to `SimpleChainLowering::Unsupported`; the binding-body
