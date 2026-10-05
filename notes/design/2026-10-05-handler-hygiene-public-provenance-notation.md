@@ -131,14 +131,15 @@ Edgeν(e,f)
       FlowsTo(q,f,t).
 ```
 
-The user's intended expiry reading adds a boundary condition to that
-candidate: the public `f` endpoint denotes a contribution after crossing the
-source exit of `r`. Let `Exit_r(t)` mean that the contribution's result path
-has crossed that exit. The intended edge claim is then `AtInput(q,e) ∧
-FlowsTo(q,f,t) ∧ Exit_r(t)` for a witness `q`. At and after this endpoint the
-contribution is interpreted under the ordinary output context; no
-`Capture_b(q)` premise is transported as authority for a later handler. This
-is a candidate endpoint convention, not a theorem of the reviewed machine.
+The user's intended expiry reading fixes the public endpoint as the cutoff:
+when an input-derived contribution materializes in ordinary output component
+`f`, the input capture restriction is over. The candidate edge claim is
+`AtInput(q,e) ∧ FlowsTo(q,f,t)` for a witness `q`; at that output endpoint,
+`Capture_b(q)` is not transported as authority for a later handler. This is an
+intended surface rule, not yet a theorem of the reviewed source machine. In
+particular, it must not be weakened into an exit-only rule that keeps the
+restriction attached merely because a corresponding latent path is still
+observed while `r` remains active.
 The intended row reading also requires `FlowsTo(q,f,t) ⇒ MemberOf(q,f,t)` in
 that execution: whenever an input-derived contribution actually reaches the
 public result, it is counted in ordinary `f` membership. The optional edge
@@ -146,9 +147,11 @@ does not make that membership optional after the contribution has reached
 that endpoint; it says only that some admitted execution may have no such
 contribution.
 The existing machine can transport typed boundary incidence along a matching
-latent result path while `r` is still active. Consequently, an endpoint that
-is merely a result-typed path inside that active interval cannot be silently
-identified with `Exit_r`.
+latent result path while `r` is still active. The source-to-public projection
+must therefore show how that incidence is represented at the public output
+materialization point, and prove that the intended cutoff is preserved even
+when the source path remains active. This is a correspondence obligation;
+receiver exit is not an alternative surface meaning.
 
 For nested or overlapping boundaries, an execution may therefore have a
 sequence such as `b₀ → b₁ → f`. Each local subtraction candidate is checked
@@ -177,20 +180,16 @@ open whether the public edge denotes an upper-bound permission or an exact
 may-flow fact. Those choices affect scheme generality and are not resolved by
 the punctuation itself.
 
-There is also a boundary-alignment obligation. The ordinary-computation
-candidate defines callback capture relative to an active receiver and carries
-the typed boundary profile along corresponding result paths to later latent
-views while that receiver remains active. The proposed public reading instead
-says that a contribution represented in output component `'f` is ordinary
-there and no longer carries the input capture restriction. These statements
-agree when `'f` denotes a result outside the capture boundary (for example,
-after the receiver returns). They do not yet establish that merely reaching a
-result-typed path cuts capture authority if that path is still observed inside
-the active receiver. Thus the projection theorem must say whether the public
-`'f` endpoint denotes boundary exit, or prove that materialization at that
-endpoint itself ends the callback incidence. This note preserves the user's
-intended cutoff as the candidate surface reading; it does not silently amend
-the reviewed source-machine rule.
+There is a boundary-alignment obligation. The ordinary-computation candidate
+defines callback capture relative to an active receiver and carries the typed
+boundary profile along corresponding result paths to later latent views while
+that receiver remains active. The user's public reading is already fixed:
+once a contribution materializes in `'f`, it is ordinary output and the input
+capture restriction has ended. The reviewed source candidate does not yet
+prove how that cutoff aligns with incidence transported along an active latent
+path. The projection theorem must reconcile the source path with the public
+materialization point; it must not defer the cutoff itself as a semantic
+choice or silently amend the existing source-machine rule.
 
 The candidate must be interpreted per event and path. It cannot replace
 `q`, `ν`, typed `Flow`, `Observe`, `Path`, occurrence/incidence, or the shared
@@ -283,15 +282,16 @@ run : 'a ['e, foo] -> ['e?, 'f] 'b
 ```
 
 The receiver may subtract an eligible `foo` event during this invocation.
-Another event from `'e` may flow to `'f`; if so, it is ordinary output at the
-result boundary. A later handler may consume it under its own normal contract.
+Another event from `'e` may flow to `'f`; when it materializes there, it is
+ordinary output and a later handler may consume it under its own normal
+contract.
 The notation does not say that the callback always emits, that all of `'e`
-flows, or that `'f` inherits permission to subtract `foo`. This example assumes
-the `'f` endpoint lies beyond the capture boundary. If the corresponding
-returned latent value is executed again while the receiver remains active,
-the current reviewed source candidate retains incidence along that matching
-result path; whether the public scheme marks that as the same `'e?` edge, a
-second edge, or an already ordinary `'f` contribution is unresolved.
+flows, or that `'f` inherits permission to subtract `foo`. The unresolved point
+for a returned latent value executed again while the receiver remains active is
+how the source candidate's retained incidence corresponds to public output
+materialization under the fixed cutoff rule. The public semantics does not
+preserve the input restriction past the point where a contribution enters
+ordinary `'f`.
 
 ### Nested handlers
 
@@ -442,10 +442,10 @@ ports does not establish an edge or capture permission.
 4. What exact source position is the boundary in the higher-order type, and
    how does it compose with an explicit annotation and expected callback
    boundary when both are present?
-5. Does reaching the public result component `'f` itself end capture authority,
-   or does the edge denote only flows that have crossed the receiver's
-   source-level exit? How should a returned latent value invoked again while
-   the receiver is still active be projected?
+5. Can the source-to-public projection prove that a contribution is ordinary
+   once it materializes in `'f`, including when a returned latent value is
+   invoked again while the source receiver remains active? The intended
+   cutoff is fixed; its correspondence to retained source incidence is open.
 6. How are two independent same-family contributions represented when one
    is captured and the other is not, especially after canonical flat-row
    normalization?
@@ -499,7 +499,8 @@ generalized cases. Nor is the edge's quantifier or principal order fixed.
 The appropriate assessment is **(B) additional semantic organization is
 needed, but the candidate is promising**. The narrow missing result is a
 source-to-public-projection theorem that maps the optional input-to-result
-contribution relation to `'e?`, proves capture authority expires at the
-declared boundary, and preserves the scheme solution set without merging
-same-family origins. Only a concrete counterexample to that mapping would
-justify proposing additional internal evidence.
+contribution relation to `'e?`, proves the fixed materialization cutoff against
+the source machine's retained active-path incidence, and preserves the scheme
+solution set without merging same-family origins. Only a concrete
+counterexample to that mapping would justify proposing additional internal
+evidence.
