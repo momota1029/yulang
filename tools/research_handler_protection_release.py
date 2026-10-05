@@ -2,9 +2,12 @@
 """Finite characterization of protection-only release at a typed slot.
 
 This is a research model, not a source attribution rule.  Source component,
-event lineage, row support, typed paths, and protection witnesses are supplied
-as separate coordinates.  A marked output slot changes only whether its
-matching protection witness participates in later handler eligibility.
+emission from the marked slot, event lineage, row support, typed paths, and
+protection witnesses are supplied as separate evidence.  Event identity is
+only a key used to join this toy evidence; it is not the meaning of ``?``.
+The marker's intended effect is protection release for a qualifying emitted
+contribution.  The particular witness-level filter below is a conditional
+probe hypothesis, not that meaning or a source rule.
 """
 
 from dataclasses import dataclass
@@ -30,6 +33,7 @@ class Protection:
 @dataclass(frozen=True)
 class Case:
     contributions: tuple[Contribution, ...]
+    emitted_from_slot: frozenset[tuple[str, str]]
     protections: tuple[Protection, ...]
     marked_slot: str
     marked_component: str
@@ -51,6 +55,7 @@ def eligible(case: Case, contribution: Contribution, handler: str) -> bool:
         return False
     release_applies = (
         contribution.source_component == case.marked_component
+        and (contribution.event, case.marked_slot) in case.emitted_from_slot
     )
     still_protected = any(
         p.event == contribution.event
@@ -107,7 +112,9 @@ def main() -> None:
             Protection("same-family", "receiver", "out"),
         )
         active = frozenset({"receiver"}) if handler_active else frozenset()
-        case = Case(contributions, protections, "out", "e", active,
+        case = Case(contributions,
+                    frozenset({("input", "out"), ("same-family", "out")}),
+                    protections, "out", "e", active,
                     frozenset({"foo"}))
         after = release(case)
         assert_frame(case, after)
@@ -128,6 +135,17 @@ def main() -> None:
             assert not eligible(case, local_event, "receiver")
         checked += 1
 
+    # Attribution alone is insufficient: the marker affects the contribution
+    # only when a separate supplied emission fact names its slot.
+    not_emitted = Case(
+        (Contribution("input", "e", "foo", ("origin-e",), ("arg",)),),
+        frozenset(),
+        (Protection("input", "receiver", "out"),),
+        "out", "e", frozenset({"receiver"}), frozenset({"foo"}),
+    )
+    not_emitted_event = not_emitted.contributions[0]
+    assert not eligible(not_emitted, not_emitted_event, "receiver")
+
     # Resumed/shallow and higher-order latent cases are distinct dynamic
     # contributions that retain the same source lineage and typed result path.
     original = Contribution("q0", "e", "foo", ("source-e",), ("result", "latent"))
@@ -140,6 +158,7 @@ def main() -> None:
     # Mutation checks make the preservation boundary executable.
     witness = Case(
         (original, Contribution("local", "local", "foo", ("local",), ("body",))),
+        frozenset({("q0", "out"), ("local", "out")}),
         (Protection("q0", "receiver", "out"), Protection("local", "receiver", "out")),
         "out", "e", frozenset({"receiver"}), frozenset({"foo"}),
     )
@@ -161,7 +180,7 @@ def main() -> None:
     print("same-family local contribution remains protected and unchanged: confirmed")
     print("resumed event identity and source lineage remain separate: confirmed")
     print("family-wide and sticky-protection mutants rejected: confirmed")
-    print("scope: one protection witness per event, supplied attribution/path evidence; no nested composition or Rel_C adequacy")
+    print("scope: supplied attribution/emission/path evidence and one protection witness per event; no nested composition or Rel_C adequacy")
 
 
 if __name__ == "__main__":

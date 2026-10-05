@@ -57,10 +57,12 @@ contribution q
   handler protection at slot s: released
 ```
 
-The contribution retains its source component, event identity, family and
-arguments, typed paths, origin/lineage, and the existing `K,D` dependencies.
-These are frame invariants/evidence, not the marker's meaning. Only its
-handler-protection status changes. Once released, later handling follows the
+The contribution retains its source component, family and arguments, typed
+paths, origin/lineage, and the existing `K,D` dependencies. These are separate
+evidence/frame facts, not the marker's meaning. In particular, event identity
+may help existing evidence join observations, but `'e?` is not defined by an
+event identity or lineage. Only handler protection changes. Once released,
+later handling follows the
 ordinary handler search and eligibility rules. Release does not itself select
 a handler, guarantee consumption, erase the contribution, or authorize a
 handler whose ordinary source rules do not apply.
@@ -78,10 +80,13 @@ assert that a contribution reaches the output or another row component.
 
 ## Small-step / relational interpretation candidate
 
-Use existing source observations and event evidence to identify a contribution
-`q` independently established as originating from `'e` and emitted from
-marked slot `s`. Let `ProtectedAt(q,s)` mean that handler protection applies to
-`q` at that slot before emission. Let `Ord(q)` be the same contribution,
+Use existing source observations and evidence to identify a contribution `q`
+independently established as originating from `'e` and emitted from marked
+slot `s`. Attribution and emission are separate premises; a protection
+witness, event identity, family equality, or path alone does not establish
+either premise. Let `ProtectedAt(q,s)` denote the handler-protection state
+that the source rule associates with `q` at this marked slot. Its exact
+attachment and lifetime are open. Let `Ord(q)` be the same contribution,
 without changing its identity, type, provenance, or membership. These are
 metatheoretic names for this candidate, not new compiler fields. Attribution,
 emission, and prior protection are premises supplied by their own
@@ -97,11 +102,13 @@ AttributedTo(q, 'e)  and  ProtectedAt(q, s)
 ReleaseProtection(q, s) = (Ord(q), unprotected-for-handlers-at-s)
 ```
 
-`EmittedFrom` and `AttributedTo` must be established by existing source and
+`EmittedFrom` and `AttributedTo` must be established by their own source and
 occurrence/path evidence. The marker creates neither fact. This does not
 equate source attribution with effect-family equality; unrelated contributions
 in the same output row do not satisfy the rule merely because they share a
-family.
+family. The equation is a protection-state change for the already identified
+contribution; it does not define how contribution identity, lineage, or the
+emission relation is represented.
 
 Its frame condition is essential:
 
