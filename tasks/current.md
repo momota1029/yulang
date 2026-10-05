@@ -27,8 +27,11 @@ leaf cases `my f x = x` and `my f x = 42`: source ranges and the parameter-use
 or integer-literal structure align across shadow and current F5, and each F5
 body occurrence survives collection/solve provenance. The shadow records
 integer spelling/range without assigning a value, type, or effect. This
-compares source incidence only; it does not compare types, schemes, Apply
-behavior, or old infer. No executable old-infer runner exists.
+compares source incidence only; it does not compare types, schemes, or Apply
+behavior. A frozen Yulang2 Oracle runner was rebuilt from the exact source
+commit and probed on identity, compose, and captured-step examples, but there
+is still no successor scheme comparison or current production Apply path. See
+the [frozen Oracle rebuild and probes](../notes/progress/2026-10-06-frozen-oracle-rebuild-and-source-probes.md).
 Next implementation gates may add only settled premise/evidence structure;
 continue the source bridge, soundness, principality, and adequacy research
 without relaxing their proof interfaces. One untouched HIR test has an observed
@@ -636,9 +639,13 @@ promoted behind the default-off `yu-core::shadow` API with iterative raw-CST
 retention and artifact-branded positions; the promotion gate's M2 reviews found
 no blocking or major issue. The structural comparison remains against an
 existing test-only scoped candidate over their shared parser envelope, not
-old-infer differential evidence. The current workspace has no executable
-frozen-Oracle runner, and current production HIR rejects ordinary application
-before inference, so semantic parity is unavailable on that input. The current
+old-infer differential evidence. The frozen Oracle runner has now been rebuilt
+from the exact Yulang2 source commit and emits baseline schemes for identity,
+compose, and captured-step; see the
+[Oracle rebuild and probes](../notes/progress/2026-10-06-frozen-oracle-rebuild-and-source-probes.md).
+Current production HIR still rejects ordinary application before inference,
+and the successor shadow has no solved scheme, so semantic parity remains
+unavailable on those inputs. The current
 shadow/F5 differential now covers the shared leaves `my f x = x` and
 `my f x = 42`: it compares source identity/ranges and confirms each F5 body
 occurrence reaches collection/solve provenance. It compares no inferred type or
@@ -666,8 +673,9 @@ generalized SCC interface. (7) recursive Q/R
 identity and use-time freshening are absent. (8) callable role, Function
 membership and call-view realization are explicit pending premises. (9) the
 Apply comparison is structural against an existing test-only candidate; the
-F5 differential covers only the two leaf sources above, and there is no
-executable frozen-legacy/old-infer runner on the Apply input. Thus the slices
+F5 differential covers only the two leaf sources above. The frozen Oracle now
+provides old-side baselines for compose and captured-step, but there is no
+current successor scheme result to compare with them. Thus the slices
 establish identity-preserving syntax plumbing and honest unresolved obligations
 only. The first uses `my compose f g x = f (g x)`;
 the second uses clean parser fixtures to distinguish a leading row from an
@@ -1349,6 +1357,13 @@ counterexample. The exact first association-producing judgment remains the
 gate; durable rule adoption still needs proof and recorded approval. See the
 [candidate route](../notes/progress/2026-10-06-source-registration-candidate-route.md)
 and [ambiguity audit](../notes/progress/2026-10-06-source-registration-ambiguity-audit.md).
+The separate [schedule-equivalence derivation](../notes/progress/2026-10-06-source-registration-schedule-equivalence.md)
+proves only that two schedules yield the same finite symbolic closure if they
+already share a complete finite monotone source rule set, all relevant roots,
+joint scope coordinates and fair late replay. A three-atom abstract trace
+shows empty-queue publication can miss a constraint without replay. The first
+source association rule and those premises' source correspondence remain
+unproved; neither protocol has been selected.
 
 Four reviewed source-derivation attempts refine the dependency order without
 closing these gates. The [`call` source-rule audit](../notes/progress/2026-10-06-call-view-source-rule-derivation-attempt.md)

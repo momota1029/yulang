@@ -60,8 +60,12 @@ Readers are focused shadow tests and explicit experimental consumers compiled
 with the feature. The existing compose check remains a structural differential
 against the test-only scoped candidate. The raw-source check compares the
 artifact projection with its exact retained CST. Neither is old-infer semantic
-parity. No executable frozen-legacy/old-infer Apply runner exists in this
-workspace. On the common leaf-only supported subset, tests may inspect existing
+parity. At this gate's original freeze, no provenance-verified frozen-legacy
+runner had been provisioned. A later exact-source rebuild and CLI
+characterization is recorded in the
+[frozen Oracle probe note](2026-10-06-frozen-oracle-rebuild-and-source-probes.md);
+it supplies old-side baselines but not successor parity. On the common
+leaf-only supported subset, tests may inspect existing
 F5 output, but may not claim equivalence outside actual overlap.
 
 Expected added storage is linear in retained CST elements and supported
@@ -168,8 +172,10 @@ This is a source-incidence differential with actual current-F5 execution, not
 inferred-type equality: IDs remain artifact-local, and no `SolvedProjection`
 is claimed for either body. It covers no Apply, callable role, Function
 membership, call-view realization, annotations, soundness, principality, or
-old-infer parity. No executable frozen-old-infer runner exists in the current
-workspace. `compiler_referee` found no issue in the integer structural/API and
+old-infer parity. At this slice's original freeze, no provenance-verified
+frozen Oracle runner had been provisioned; the later exact-source rebuild and
+probe is recorded in the [Oracle note](2026-10-06-frozen-oracle-rebuild-and-source-probes.md).
+`compiler_referee` found no issue in the integer structural/API and
 differential delta; the earlier `compiler_referee` and `regression_auditor`
 reviews found no issue in the original one-case feature/test artifact.
 Verification was:
