@@ -215,6 +215,18 @@ clean. This still establishes no endpoint constraints, expected schemes, or
 source-to-core theorem. Production headers reject multi-parameter declarations
 and resolved HIR still has no application node. See the HIR/source-core
 progress record for exact checks and scope.
+The test-only scoped synthesis candidate now mirrors typed-core §6 for these
+actual declarations: plain binders become Value endpoints, lambdas retain
+`Result(I_body)`, and each application records a distinct occurrence with its
+whole `Result(I_arg)` plus fresh symbolic call-effect/result endpoints. The
+`compose` check rejects a mutant that drops the inner call effect from the
+outer argument. This is structural characterization under an opaque fiber
+label, not actual `(ν,K,D)` satisfaction, Function membership, execution
+adequacy, or principal inference. The next concrete attack is an independent
+source/core execution comparison for `compose`'s
+`Force(D_g) >>= rebind >>= B_f` suffix, retaining request/resumption state and
+receipt identity; that still would not close complete production Function
+membership or common-allowance principality.
 
 ## Latest main-gate results
 

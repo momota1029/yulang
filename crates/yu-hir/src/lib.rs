@@ -1435,6 +1435,235 @@ mod tests {
         }
     }
 
+    // Structural §6 characterization only: these symbolic endpoints and lambda
+    // bodies neither define complete Function membership nor solve effects,
+    // comparison direction, principal schemes, or source/core execution adequacy.
+    #[derive(Clone, Debug, Eq, PartialEq)]
+    enum ResearchScopedValue {
+        Endpoint {
+            fiber: u32,
+            binder: u32,
+        },
+        CallEndpoint {
+            fiber: u32,
+            occurrence: u32,
+        },
+        Function {
+            parameter: Box<ResearchScopedValue>,
+            result: Box<ResearchScopedResult>,
+        },
+    }
+
+    #[derive(Clone, Debug, Eq, PartialEq)]
+    struct ResearchScopedResult {
+        // None is the empty effect of Result(Value(A)); Some is symbolic E_call.
+        effect: Option<(u32, u32)>,
+        value: ResearchScopedValue,
+    }
+
+    #[derive(Clone, Debug, Eq, PartialEq)]
+    enum ResearchScopedData {
+        Name(u32),
+        Lambda {
+            binder: u32,
+            parameter: ResearchScopedValue,
+            body: Box<ResearchScopedCore>,
+        },
+        ReifiedCall {
+            occurrence: u32,
+            callee: Box<ResearchScopedCore>,
+            argument: Box<ResearchScopedCore>,
+        },
+    }
+
+    #[derive(Clone, Debug, Eq, PartialEq)]
+    struct ResearchScopedCore {
+        result: ResearchScopedResult,
+        data: ResearchScopedData,
+        // false denotes result(d), true denotes eliminate_p(d). This records
+        // construction of consumption, never execution of the derivation.
+        eliminate: bool,
+    }
+
+    #[derive(Clone, Debug, Eq, PartialEq)]
+    struct ResearchScopedCallEvidence {
+        occurrence: u32,
+        scope: Vec<u32>,
+        argument: ResearchScopedResult,
+        result: ResearchScopedResult,
+    }
+
+    fn research_synthesize_scoped(
+        expression: &ResearchScopedExpr,
+        fiber: u32,
+        scope: &mut Vec<u32>,
+        calls: &mut Vec<ResearchScopedCallEvidence>,
+    ) -> ResearchScopedCore {
+        match expression {
+            ResearchScopedExpr::Variable { binder } => {
+                assert!(
+                    scope.contains(binder),
+                    "name must resolve in its lambda scope"
+                );
+                ResearchScopedCore {
+                    result: ResearchScopedResult {
+                        effect: None,
+                        value: ResearchScopedValue::Endpoint {
+                            fiber,
+                            binder: *binder,
+                        },
+                    },
+                    data: ResearchScopedData::Name(*binder),
+                    eliminate: false,
+                }
+            }
+            ResearchScopedExpr::Lambda { binder, body } => {
+                assert!(!scope.contains(binder));
+                let parameter = ResearchScopedValue::Endpoint {
+                    fiber,
+                    binder: *binder,
+                };
+                scope.push(*binder);
+                let body = research_synthesize_scoped(body, fiber, scope, calls);
+                assert_eq!(scope.pop(), Some(*binder));
+                ResearchScopedCore {
+                    result: ResearchScopedResult {
+                        effect: None,
+                        value: ResearchScopedValue::Function {
+                            parameter: Box::new(parameter.clone()),
+                            result: Box::new(body.result.clone()),
+                        },
+                    },
+                    data: ResearchScopedData::Lambda {
+                        binder: *binder,
+                        parameter,
+                        body: Box::new(body),
+                    },
+                    eliminate: false,
+                }
+            }
+            ResearchScopedExpr::Apply {
+                occurrence,
+                callee,
+                argument,
+            } => {
+                let callee = research_synthesize_scoped(callee, fiber, scope, calls);
+                let argument = research_synthesize_scoped(argument, fiber, scope, calls);
+                let result = ResearchScopedResult {
+                    effect: Some((fiber, *occurrence)),
+                    value: ResearchScopedValue::CallEndpoint {
+                        fiber,
+                        occurrence: *occurrence,
+                    },
+                };
+                assert!(!calls.iter().any(|call| call.occurrence == *occurrence));
+                calls.push(ResearchScopedCallEvidence {
+                    occurrence: *occurrence,
+                    scope: scope.clone(),
+                    argument: argument.result.clone(),
+                    result: result.clone(),
+                });
+                ResearchScopedCore {
+                    result,
+                    data: ResearchScopedData::ReifiedCall {
+                        occurrence: *occurrence,
+                        callee: Box::new(callee),
+                        argument: Box::new(argument),
+                    },
+                    eliminate: true,
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn research_scoped_source_synthesizes_lambda_result_skeletons() {
+        let mut compose = None;
+        for (source, binders, call_count) in [
+            ("my call f x = f x", 2, 1),
+            ("my compose f g x = f (g x)", 3, 2),
+            ("my compose f g x = f(g(x))", 3, 2),
+        ] {
+            let parsed = parsed(source);
+            let root = SyntaxNode::new_root(parsed.green().clone());
+            let statement = root
+                .descendants()
+                .find(|node| node.kind() == SyntaxKind::BindingStatement)
+                .unwrap();
+            let (_, candidate) = research_lower_binding_candidate(&statement, &parsed, source);
+            let mut scope = Vec::new();
+            let mut calls = Vec::new();
+            let core = research_synthesize_scoped(&candidate, 17, &mut scope, &mut calls);
+            assert!(scope.is_empty());
+            assert_eq!(calls.len(), call_count);
+            let mut body = &core;
+            for binder in 0..binders {
+                assert!(!body.eliminate);
+                assert_eq!(body.result.effect, None);
+                let ResearchScopedData::Lambda {
+                    binder: actual,
+                    parameter,
+                    body: inner,
+                } = &body.data
+                else {
+                    panic!("source parameter must generate a lambda")
+                };
+                assert_eq!(*actual, binder);
+                assert_eq!(
+                    *parameter,
+                    ResearchScopedValue::Endpoint { fiber: 17, binder }
+                );
+                assert_eq!(
+                    body.result.value,
+                    ResearchScopedValue::Function {
+                        parameter: Box::new(parameter.clone()),
+                        result: Box::new(inner.result.clone()),
+                    }
+                );
+                body = inner;
+            }
+            assert!(body.eliminate);
+            for call in &calls {
+                assert_eq!(call.scope, (0..binders).collect::<Vec<_>>());
+                assert_eq!(call.result.effect, Some((17, call.occurrence)));
+                assert_eq!(
+                    call.result.value,
+                    ResearchScopedValue::CallEndpoint {
+                        fiber: 17,
+                        occurrence: call.occurrence,
+                    }
+                );
+            }
+            assert_eq!(calls[0].argument.effect, None);
+            assert_eq!(
+                calls[0].argument.value,
+                ResearchScopedValue::Endpoint {
+                    fiber: 17,
+                    binder: binders - 1,
+                }
+            );
+            if call_count == 2 {
+                let ResearchScopedData::ReifiedCall { argument, .. } = &body.data else {
+                    panic!("compose body must reify its outer call")
+                };
+                assert!(argument.eliminate);
+                assert_eq!(calls[1].argument, calls[0].result);
+                assert_eq!(calls[1].argument, argument.result);
+                assert_ne!(calls[0].result, calls[1].result);
+                // Destructively projecting Result(I_arg) to A erases the inner
+                // call's symbolic E. Generated outer-call evidence rejects it.
+                let mut mutant = argument.result.clone();
+                mutant.effect = None;
+                assert_ne!(calls[1].argument, mutant);
+                if let Some(expected) = &compose {
+                    assert_eq!(expected, &(core.clone(), calls.clone()));
+                } else {
+                    compose = Some((core.clone(), calls.clone()));
+                }
+            }
+        }
+    }
+
     #[test]
     fn research_multi_parameter_declarations_form_nested_scoped_candidates() {
         for (source, expected_parameters, expected_shape, expected_calls) in [

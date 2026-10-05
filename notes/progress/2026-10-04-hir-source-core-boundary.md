@@ -351,3 +351,40 @@ git diff --check
 ```
 
 No broad syntax/HIR suite or production inference suite was run.
+
+## 2026-10-05 test-only scoped typed-core result skeleton
+
+`research_synthesize_scoped` now consumes the actual test-only scoped
+declaration candidates for `my call f x = f x` and both parenthesized spellings
+of `my compose f g x = f (g x)`. Using only typed-core §6's result/lambda/
+application rows and charter §21's unannotated `Value(A)` parameter role, it
+constructs the nested lambda body-result skeleton. Each application retains its
+source occurrence and active binder scope, gets fresh symbolic effect/value
+endpoints, and records the entire argument computation as `Result(I_arg)`.
+In `compose`, the outer argument is the inner `g x` computation, including its
+symbolic effect endpoint; a value-only projection mutant fails the assertion.
+The two accepted `compose` spellings yield the same generated skeleton/evidence.
+
+This model's `fiber` integer is only an opaque same-model label; it does not
+instantiate or satisfy a real `(ν,K,D)` relation. It defines no complete
+Function membership, comparison direction, effect resolution, principal
+scheme, receipt/entry execution, or source/core adequacy. In particular it
+does not prove either accepted principal type. It is a source-shape to symbolic
+result-skeleton bridge only, with no production HIR or inference changes.
+
+The focused test was independently reviewed against §6 and §21 with no
+findings. Exact verification:
+
+```text
+RUSTC_WRAPPER= cargo test -p yu-hir --lib research_scoped_source_synthesizes_lambda_result_skeletons
+  1 passed; 22 filtered out
+rustfmt --edition 2024 --check crates/yu-hir/src/lib.rs
+  passed
+git diff --check
+  passed
+```
+
+The next operational bridge attack is a differential source/core execution
+model for `compose`, where `g x` may request and resume under changing state
+before `f` receives the rebound value. The full Function-membership and
+common-allowance principality gates remain independent and open.

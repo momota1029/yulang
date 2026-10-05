@@ -168,11 +168,16 @@ This index is a navigation aid. The listed source document remains authoritative
   body, and has no resolved Apply node. See the same HIR/source-core audit.
   A test-only scoped candidate now turns the actual `call` and `higher`
   declaration CSTs into nested lambda/application shapes with parameter-index
-  resolution. Production still rejects multi-parameter headers; the exact
-  `compose` acceptance spelling also currently has an `Error(Missing)` in its
-  parenthesized argument. These are parser/HIR bridge observations only, not
-  grammar or typing decisions. See the HIR/source-core audit for scope and
-  verification limits.
+  resolution. The parenthesized same-line addendum closes the `compose`
+  argument parse error, and its exact declaration now reaches the scoped
+  candidate. Production still rejects multi-parameter headers. A test-only
+  scoped synthesis now builds typed-core §6 lambda/result skeletons from the
+  actual `call` and `compose` candidates; its mutant check detects loss of the
+  inner computation effect from `compose`'s whole argument. It uses only an
+  opaque fiber label, not a real `(ν,K,D)` interpretation or complete Function
+  query, and proves no principal scheme or execution adequacy. See the
+  [HIR/source-core audit](../progress/2026-10-04-hir-source-core-boundary.md)
+  for scope and verification limits.
   [`research_function_shadow_obstruction.py`](../../tools/research_function_shadow_obstruction.py)
   executes the finite Value-versus-Computation entry witness against the
   identical value-only Function shadow; it is not a source or endpoint-query
