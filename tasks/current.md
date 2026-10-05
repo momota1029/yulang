@@ -571,6 +571,27 @@ and [reachable-state audit](../notes/progress/2026-10-06-rec-name-return-level-p
 
 ## Active unrestricted proof gates
 
+**User-approved shadow lane; production cutover remains gated.** The user's
+2026-10-06 direction authorizes experimental implementation of settled source
+structure and identity/evidence plumbing while soundness, principality and
+source adequacy research continues. It does not authorize replacing or routing
+production inference through the shadow. Unresolved semantic judgments must
+remain explicit premises/stubs, and new rules cannot be inferred from the
+prototype. The first reviewed vertical slice is a detached, `cfg(test)` HIR
+source-to-application skeleton for `my compose f g x = f (g x)`: it retains
+application nodes, binder/use/expression identities and source extents, and
+leaves callable role, complete Function membership and call-view realization
+pending. The focused structural comparison is against the existing test-only
+scoped candidate over their shared parser envelope; it is not old-infer
+differential evidence. The current workspace has no executable frozen-Oracle
+runner, and current production HIR rejects ordinary application before
+inference, so semantic parity is not available on this input. Four focused
+tests pass; the source-envelope rejection repair received compiler-referee
+PASS. This closes only the prototype's local structural gate. It leaves the
+durable opt-in `yu-core::shadow` API, broader differential harness, all semantic
+judgments, theorem gates and production cutover open. See the isolated source
+module at `crates/yu-hir/src/tests/shadow_source_core.rs`.
+
 The test-only finite parent/use graph transport prototype is complete under
 its narrow gate. It has independent substitution-reference tests and does not
 change the production solver. The pure structural FMP gate is now closed by

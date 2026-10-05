@@ -690,6 +690,8 @@ fn range_of_token(token: &SyntaxToken) -> Range<usize> {
 
 #[cfg(test)]
 mod tests {
+    mod shadow_source_core;
+
     use std::{collections::HashMap, sync::Arc};
 
     use super::*;
