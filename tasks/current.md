@@ -845,6 +845,13 @@ root. Source/query completeness and descriptor realization remain unproved;
 classification is C. Full proofs, source applicability, and independent
 reviews are in the linked certified-callback/constrained-use theorem and
 residual attack record.
+The conditional unequal-grammar extension allows finite local inclusion
+certificates when complete common/view abstraction grammars are independently
+licensed. A bounded source audit found no existing source judgment licensing a
+concrete unequal `Z/W` pair, including the required exhaustive alternatives
+and independent admission/future-use contracts. Strict source-class
+enlargement remains unestablished; the conditional simulation itself remains
+available. See the [unequal grammar source-license audit](../notes/progress/2026-10-06-all-view-unequal-grammar-source-pair-audit.md).
 The direct formation audit narrows the first missing source clause: one legal
 abstract effect descriptor must have a complete correlated view at every
 original typed Function path, preserving the common `Rel_C` / `nu,K,D` fiber
