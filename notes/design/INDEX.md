@@ -186,6 +186,16 @@ This index is a navigation aid. The listed source document remains authoritative
   primitives are supplied and finite; this does not parse source, interpret
   `(nu,K,D)`, solve Function effects, or establish callback/production
   adequacy. See its [progress record](../progress/2026-10-05-scoped-call-compose-execution-probe.md).
+  The focused test
+  [`research_parsed_scoped_call_compose_execution_bridge`](../../crates/yu-hir/src/lib.rs#L1582)
+  now starts from the actual parsed declaration CSTs, applies the existing
+  scoped candidate/skeleton builders, then compares recursive source
+  evaluation with an independent stack evaluator. It checks 128 bounded
+  configurations and kills receipt-order and stale-state mutants. The
+  environment, primitives, and one-request behavior are supplied; no
+  production HIR, typed-flow solving, handler semantics, Function membership,
+  or adequacy theorem is established. See its
+  [progress record](../progress/2026-10-05-parsed-scoped-execution-bridge.md).
   [`research_function_shadow_obstruction.py`](../../tools/research_function_shadow_obstruction.py)
   executes the finite Value-versus-Computation entry witness against the
   identical value-only Function shadow; it is not a source or endpoint-query

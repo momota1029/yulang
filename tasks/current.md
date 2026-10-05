@@ -633,6 +633,15 @@ nor `(nu,K,D)`, Function membership, capture, effect solving, or principal
 schemes are modeled. The exact Function membership/admission interpretation
 and actual-to-checked containment remain the next callback theorem gate. See
 the [execution probe record](../notes/progress/2026-10-05-scoped-call-compose-execution-probe.md).
+A follow-up Rust research test starts from the actual parsed `call` and
+`compose` declaration CSTs, passes them through the scoped candidate and
+typed-core skeleton builders, then compares recursive evaluation with an
+independent stack evaluator over 128 supplied finite configurations. It checks
+the pending outer-call suffix and resumed state, and kills receipt-order and
+stale-state mutants. This does not run production lowering or inference and
+does not model typed receipt identity, handler capture, `(nu,K,D)`, or the
+separate operation-result consumer. See the
+[parsed-source execution record](../notes/progress/2026-10-05-parsed-scoped-execution-bridge.md).
 The design remains Draft; no production
 implementation is authorized. The current `id x = x` / scalar-body owner
 trace confirms source identities are retained but complete membership is not

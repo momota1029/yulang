@@ -1576,6 +1576,308 @@ mod tests {
         }
     }
 
+    // Finite operational characterization only: supplied Int -> Int primitives,
+    // one possible request, no inference, typed-flow solving, or handler semantics.
+    #[test]
+    fn research_parsed_scoped_call_compose_execution_bridge() {
+        #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+        enum Value {
+            Int(i32),
+            Function(bool, bool),
+        }
+        #[derive(Clone, Debug, Eq, PartialEq)]
+        enum Event {
+            Construct(u32),
+            Receipt(u32),
+            Force(u32),
+            Rebind(u32, i32),
+            Body(u32),
+            Result(u32, i32),
+            Request(u32, i32),
+            Resume(i32, i32),
+            Suffix(i32),
+        }
+        #[derive(Clone, Debug, Eq, PartialEq)]
+        struct Run {
+            state: i32,
+            trace: Vec<Event>,
+            // Request snapshots expose the exact pending outer-call suffix.
+            pending: Vec<(u32, i32, Vec<u32>)>,
+        }
+        fn source(
+            e: &ResearchScopedExpr,
+            env: &[Value],
+            run: &mut Run,
+            response: (i32, i32),
+            outer: &mut Vec<u32>,
+        ) -> Value {
+            match e {
+                ResearchScopedExpr::Variable { binder } => env[*binder as usize],
+                ResearchScopedExpr::Lambda { .. } => panic!("entry binders stripped"),
+                ResearchScopedExpr::Apply {
+                    occurrence,
+                    callee,
+                    argument,
+                } => {
+                    let Value::Function(observe, request) =
+                        source(callee, env, run, response, outer)
+                    else {
+                        panic!("bounded callee is Int -> Int")
+                    };
+                    run.trace.push(Event::Construct(*occurrence));
+                    run.trace.push(Event::Receipt(*occurrence));
+                    run.trace.push(Event::Force(*occurrence));
+                    outer.push(*occurrence);
+                    let Value::Int(arg) = source(argument, env, run, response, outer) else {
+                        panic!("typed Int rebind")
+                    };
+                    assert_eq!(outer.pop(), Some(*occurrence));
+                    run.trace.push(Event::Rebind(*occurrence, arg));
+                    run.trace.push(Event::Body(*occurrence));
+                    let value = if request {
+                        run.trace.push(Event::Request(*occurrence, run.state));
+                        run.pending.push((*occurrence, run.state, outer.clone()));
+                        run.state = response.1;
+                        run.trace.push(Event::Resume(response.0, run.state));
+                        response.0
+                    } else if observe {
+                        run.state
+                    } else {
+                        arg ^ run.state
+                    };
+                    run.trace.push(Event::Result(*occurrence, value));
+                    Value::Int(value)
+                }
+            }
+        }
+        #[derive(Clone, Copy)]
+        enum Instruction<'a> {
+            Eval(&'a ResearchScopedCore),
+            Enter(u32, &'a ResearchScopedCore),
+            Force(u32),
+            Receipt(u32),
+            Finish(u32, Value),
+            Suffix,
+        }
+        fn machine(
+            core: &ResearchScopedCore,
+            env: &[Value],
+            initial: i32,
+            response: (i32, i32),
+            mutant: u8,
+        ) -> (Value, Run) {
+            let mut run = Run {
+                state: initial,
+                trace: vec![],
+                pending: vec![],
+            };
+            let mut stack = vec![Instruction::Suffix, Instruction::Eval(core)];
+            let mut values = Vec::new();
+            while let Some(instruction) = stack.pop() {
+                match instruction {
+                    Instruction::Eval(core) => match &core.data {
+                        ResearchScopedData::Name(binder) => {
+                            assert!(!core.eliminate);
+                            assert_eq!(core.result.effect, None);
+                            values.push(env[*binder as usize]);
+                        }
+                        ResearchScopedData::Lambda { .. } => panic!("entry binders stripped"),
+                        ResearchScopedData::ReifiedCall {
+                            occurrence,
+                            callee,
+                            argument,
+                        } => {
+                            assert!(core.eliminate);
+                            assert_eq!(core.result.effect, Some((17, *occurrence)));
+                            stack.push(Instruction::Enter(*occurrence, argument));
+                            stack.push(Instruction::Eval(callee));
+                        }
+                    },
+                    Instruction::Enter(id, argument) => {
+                        let function = values.pop().unwrap();
+                        run.trace.push(Event::Construct(id));
+                        stack.push(Instruction::Finish(id, function));
+                        stack.push(Instruction::Eval(argument));
+                        if mutant == 1 {
+                            stack.push(Instruction::Receipt(id));
+                            stack.push(Instruction::Force(id));
+                        } else {
+                            stack.push(Instruction::Force(id));
+                            stack.push(Instruction::Receipt(id));
+                        }
+                    }
+                    Instruction::Receipt(id) => run.trace.push(Event::Receipt(id)),
+                    Instruction::Force(id) => run.trace.push(Event::Force(id)),
+                    Instruction::Finish(id, function) => {
+                        let Value::Int(arg) = values.pop().unwrap() else {
+                            panic!("typed Int rebind")
+                        };
+                        let Value::Function(observe, request) = function else {
+                            panic!("Int -> Int")
+                        };
+                        run.trace.push(Event::Rebind(id, arg));
+                        run.trace.push(Event::Body(id));
+                        let result = if request {
+                            assert!(run.pending.is_empty(), "at most one request");
+                            run.trace.push(Event::Request(id, run.state));
+                            let suffix = stack
+                                .iter()
+                                .filter_map(|instruction| {
+                                    if let Instruction::Finish(id, _) = instruction {
+                                        Some(*id)
+                                    } else {
+                                        None
+                                    }
+                                })
+                                .collect();
+                            run.pending.push((id, run.state, suffix));
+                            if mutant != 2 {
+                                run.state = response.1;
+                            }
+                            run.trace.push(Event::Resume(response.0, run.state));
+                            response.0
+                        } else if observe {
+                            run.state
+                        } else {
+                            arg ^ run.state
+                        };
+                        run.trace.push(Event::Result(id, result));
+                        values.push(Value::Int(result));
+                    }
+                    Instruction::Suffix => run.trace.push(Event::Suffix(run.state)),
+                }
+            }
+            assert_eq!(values.len(), 1);
+            (values[0], run)
+        }
+        let mut comparisons = 0;
+        let mut pending = 0;
+        let mut witnesses = [None, None];
+        for (source_text, arity) in [("my call f x = f x", 2), ("my compose f g x = f (g x)", 3)] {
+            let parsed = parsed(source_text);
+            let root = SyntaxNode::new_root(parsed.green().clone());
+            let statement = root
+                .descendants()
+                .find(|n| n.kind() == SyntaxKind::BindingStatement)
+                .unwrap();
+            let (_, expression) =
+                research_lower_binding_candidate(&statement, &parsed, source_text);
+            let mut scope = vec![];
+            let mut calls = vec![];
+            let core = research_synthesize_scoped(&expression, 17, &mut scope, &mut calls);
+            assert!(scope.is_empty());
+            assert_eq!(calls.len(), arity - 1);
+            assert_eq!(
+                calls
+                    .iter()
+                    .map(|c| c.occurrence)
+                    .collect::<std::collections::HashSet<_>>()
+                    .len(),
+                calls.len()
+            );
+            for call in &calls {
+                assert_eq!(call.scope, (0..arity as u32).collect::<Vec<_>>());
+            }
+            let mut expression_body = &expression;
+            let mut core_body = &core;
+            for binder in 0..arity as u32 {
+                let ResearchScopedExpr::Lambda {
+                    binder: actual,
+                    body,
+                } = expression_body
+                else {
+                    panic!("lambda")
+                };
+                assert_eq!(*actual, binder);
+                expression_body = body;
+                let ResearchScopedData::Lambda {
+                    binder: actual,
+                    parameter,
+                    body,
+                } = &core_body.data
+                else {
+                    panic!("lambda")
+                };
+                assert_eq!(*actual, binder);
+                assert_eq!(
+                    *parameter,
+                    ResearchScopedValue::Endpoint { fiber: 17, binder }
+                );
+                core_body = body;
+            }
+            // Lexicographic exhaustive shrinking inside this declared six-bit domain.
+            for input in 0..=1 {
+                for initial in 0..=1 {
+                    for observe in [false, true] {
+                        for request in [false, true] {
+                            for returned in 0..=1 {
+                                for resumed in 0..=1 {
+                                    let env = if arity == 2 {
+                                        vec![Value::Function(observe, false), Value::Int(input)]
+                                    } else {
+                                        vec![
+                                            Value::Function(observe, false),
+                                            Value::Function(false, request),
+                                            Value::Int(input),
+                                        ]
+                                    };
+                                    let mut expected = Run {
+                                        state: initial,
+                                        trace: vec![],
+                                        pending: vec![],
+                                    };
+                                    let value = source(
+                                        expression_body,
+                                        &env,
+                                        &mut expected,
+                                        (returned, resumed),
+                                        &mut vec![],
+                                    );
+                                    expected.trace.push(Event::Suffix(expected.state));
+                                    let actual =
+                                        machine(core_body, &env, initial, (returned, resumed), 0);
+                                    assert_eq!(
+                                        actual,
+                                        (value, expected.clone()),
+                                        "{source_text} {env:?}"
+                                    );
+                                    comparisons += 1;
+                                    pending += expected.pending.len();
+                                    if !expected.pending.is_empty() {
+                                        assert_eq!(
+                                            expected.pending[0].2,
+                                            vec![calls[1].occurrence]
+                                        );
+                                    }
+                                    for mutant in 1..=2 {
+                                        if witnesses[mutant - 1].is_none()
+                                            && machine(
+                                                core_body,
+                                                &env,
+                                                initial,
+                                                (returned, resumed),
+                                                mutant as u8,
+                                            ) != actual
+                                        {
+                                            witnesses[mutant - 1] = Some((
+                                                arity, input, initial, observe, request, returned,
+                                                resumed,
+                                            ));
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        assert_eq!(comparisons, 128);
+        assert_eq!(pending, 32);
+        assert_eq!(witnesses[0], Some((2, 0, 0, false, false, 0, 0)));
+        assert_eq!(witnesses[1], Some((3, 0, 0, false, true, 0, 1)));
+    }
+
     #[test]
     fn research_scoped_source_synthesizes_lambda_result_skeletons() {
         let mut compose = None;
