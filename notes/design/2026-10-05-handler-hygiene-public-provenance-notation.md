@@ -31,11 +31,14 @@ The proposed notation is:
 
 The `?` marks a change in **handler protection** for contributions
 independently established as originating from `'e` and emitted from the
-marked output slot. Their provenance remains `'e`. The notation says nothing
-about whether a contribution flows, whether an effect row contains a member,
-or whether a provenance edge exists. Source attribution and emission are
-separate premises: the marker changes protection only after those facts have
-been established by the source/evidence rules.
+marked output slot. The `'e` attribution identifies which output contribution
+the annotation applies to; it is not a relation from input `'e` to output
+`'f`. The contribution remains attributed to `'e` after its handler
+protection is removed. The notation says nothing about whether a contribution
+flows, whether an effect row contains a member, or whether a provenance edge
+exists. Source attribution and emission are separate premises: the marker
+changes protection only after those facts have been established by the
+source/evidence rules.
 
 ## Intended reading
 
@@ -49,20 +52,22 @@ emitted from the marked slot, the proposed protection transition is:
 
 ```text
 contribution q
-  provenance/source component: 'e
-  handler protection at slot s: protected
+  source attribution: 'e
+  handler protection: on
        -- emitted from the marked 'e? slot -->
   contribution q
-  provenance/source component: 'e
-  handler protection at slot s: released
+  source attribution: 'e
+  handler protection: off
 ```
 
-The contribution retains its source component, family and arguments, typed
-paths, origin/lineage, and the existing `K,D` dependencies. These are separate
+The two source-attribution labels above are the same existing attribution
+fact; the two protection labels are the only semantic difference. The
+contribution retains its source component, family and arguments, typed paths,
+origin/lineage, and the existing `K,D` dependencies. These are separate
 evidence/frame facts, not the marker's meaning. In particular, event identity
 may help existing evidence join observations, but `'e?` is not defined by an
-event identity or lineage. Only handler protection changes. Once released,
-later handling follows the
+event identity or lineage. Only handler protection changes. Once protection
+is off, later handling follows the
 ordinary handler search and eligibility rules. Release does not itself select
 a handler, guarantee consumption, erase the contribution, or authorize a
 handler whose ordinary source rules do not apply.
@@ -92,22 +97,23 @@ Use existing source observations and evidence to identify a contribution `q`
 independently established as originating from `'e` and emitted from marked
 slot `s`. Attribution and emission are separate premises; a protection
 witness, event identity, family equality, or path alone does not establish
-either premise. Let `ProtectedAt(q,s)` denote the handler-protection state
-that the source rule associates with `q` at this marked slot. Its exact
-attachment and lifetime are open. Let `Ord(q)` be the same contribution,
-without changing its identity, type, provenance, or membership. These are
-metatheoretic names for this candidate, not new compiler fields. Attribution,
-emission, and prior protection are premises supplied by their own
-source/evidence rules; event identity, lineage, path, and provenance do not
-define the meaning of `?`.
+either premise. The annotation changes the handler-protection status of that
+qualifying contribution from on to off. How that status is represented by
+existing typed-boundary witnesses, and its exact attachment and lifetime, are
+open. `q` denotes the same contribution on both sides: its source attribution,
+identity, type, provenance, and membership are unchanged. These are
+metatheoretic descriptions, not new compiler fields. Attribution, emission,
+and prior protection are premises supplied by their own source/evidence
+rules; event identity, lineage, path, and provenance do not define the meaning
+of `?`.
 
 The proposed local release rule is:
 
 ```text
 Marked(s, 'e?)  and  EmittedFrom(q, s)  and
-AttributedTo(q, 'e)  and  ProtectedAt(q, s)
+AttributedTo(q, 'e)  and  ProtectionOn(q, s)
 -----------------------------------------------------------------------
-ReleaseProtection(q, s) = (Ord(q), protection-removed-at-s)
+ProtectionState(q, s): on -> off
 ```
 
 `EmittedFrom` and `AttributedTo` must be established by their own source and
@@ -133,7 +139,7 @@ If no contribution from `'e` is present in a particular source observation,
 the rule has nothing to transform. That absence does not make `'e` membership
 optional and is not encoded by `?`.
 
-After release, the contribution is considered by the usual active-handler
+After protection is turned off, the contribution is considered by the usual active-handler
 search and source-defined eligibility judgment, with its original `'e`
 attribution intact. `PassQuestion` neither
 performs subtraction nor changes a handler image or residual support. Any

@@ -146,7 +146,7 @@ Locations refer to the frozen `crates/yu-solver/src/lib.rs` dependency.
 | `apply_value_task`, :12071, row/row | Store direct lower/upper adjacency; transmit exact lowers of lower row and exact uppers of upper row | `l≤v≤w` gives `l≤w`; `v≤w≤u` gives `v≤u` |
 | Same owner, non-variable/row | Store `l≤v`; replay all current exact uppers and direct upper rows | `l≤v≤u` gives `l≤u`; `l≤v≤w` gives `l≤w` |
 | Same owner, row/non-variable | Store `v≤u`; replay all current exact lowers and direct lower rows | `l≤v≤u` gives `l≤u`; `w≤v≤u` gives `w≤u` |
-| `extrude`, :10670 | Traverse both stored bound sides, both adjacencies and all Function fields; lower reachable younger row levels | No inequality or row identity changes; extensional evaluation unchanged; admissibility remains separate |
+| `extrude`, :10670 | Descend through a row's stored bounds and adjacencies only after its generation/level guard passes; skip an already-marked or already-aged row (`level <= target_level`) before that traversal; traverse encountered Function fields | No inequality or row identity changes; level changes remain irrelevant to extensional evaluation; source permission preservation remains unproved |
 | `instantiate_and_route_closed_inner`, :14527 | Restore lower, then upper, then exact predicate below occurrence row | Three root inequalities; one shared fresh coordinate |
 | `route`, :15008 | Admit provenance fact, constrain key, retain routed-use provenance | Additional ownership information; no replacement of the occurrence coordinate |
 
@@ -232,10 +232,14 @@ note's result is (I), not a new calculation of that isolated projection.
 ## Extrusion, source permissions and diagnostic ownership remain explicit
 
 The static extrusion read shows changes to levels, marks, generation and
-scratch, with journaling before row-level changes. It allocates no new carrier
-row and alters no exact bound or direct edge. Therefore (C) is valid for the
-declared level-independent candidate interpretation. This does **not** prove
-that source admissibility is level independent.
+scratch, with journaling before row-level changes. Traversal descends through
+a row only when its generation/level guard passes. An already-marked row or
+an already-aged row (`level <= target_level`) is skipped before its bounds
+and adjacencies are traversed; unrestricted reachability closure is not
+claimed. Extrusion allocates no new carrier row and alters no exact bound or
+direct edge. Level changes remain irrelevant to the declared extensional
+evaluation, so (C) remains valid for that candidate interpretation. Source
+permission preservation is still unproved.
 
 Let `A_alloc(σ,d)` mean permitted realization immediately after fresh
 allocation at the use level, and `A_final(σ,d)` mean permitted realization

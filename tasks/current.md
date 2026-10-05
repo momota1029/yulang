@@ -462,6 +462,20 @@ and checked-bound embedding. Compiler implementation remains unauthorized;
 the source theorem package is Reviewed and conditional, while production
 generation remains Draft.
 
+The SCC candidate's two-member worked graph now has corrected `Apply` operand
+directions for `f x = g x; g y = f y`; its satisfying assignment was recomputed
+and independently reviewed. A separate compiler review now also closes the
+narrow conditional adequacy proof for a monomorphic preorder `RecGroup` rule,
+with all SCC-created identities local and outer anchors fixed. It does not
+establish that this is intended Yulang semantics. Production lowers supported
+mutual name-return bodies into shared SCC plans but rejects the application
+body before callee-use identities or application constraints exist. Intended
+source rules, nested let-polymorphism, mixed `Local`/`Free` boundaries, effects,
+and production adequacy remain open; neither candidate note grants
+implementation authority. See the [corrected SCC candidate](../notes/progress/2026-09-30-intrusion-scc-constraint-scheme-rules.md#two-member-sharing-witness),
+[reviewed conditional adequacy proof](../notes/progress/2026-09-30-intrusion-pure-recursive-group-adequacy.md),
+and [HIR application-body rejection](../crates/yu-hir/src/module.rs#L1402).
+
 The two-member recursive name-return analysis now separates its observations.
 A reviewed conditional result proves that each independently observed candidate
 member-use relation equals its finalized incoming-scheme relation under H1–H4,
@@ -476,7 +490,7 @@ adequacy, or intended semantics. See the [member-use bridge](../notes/progress/2
 [joint-root separator](../notes/progress/2026-10-06-rec-name-return-root-relation-separator.md),
 and [pure production reduction](../notes/progress/2026-10-06-rec-name-return-purefun-production-reduction.md).
 
-The reviewed regular-tree candidate computes the isolated one-row projection as
+A reviewed regular-tree candidate computes the isolated one-row projection as
 `P(U) iff Ω≤U` within that explicitly unselected carrier. Separate hand
 countermodels show that independently interpreting the two polarities or
 omitting one caller constraint invalidates weakened projections; they do not
@@ -822,16 +836,17 @@ caller-owned observations in the complete `f` call along
 unproved; details are in the contributor-bound attempt.
 The user's selected local reading of `'e?` (recorded in a Draft) is: for an
 effect contribution independently established as originating from `'e` and
-emitted from the marked slot, remove handler protection. This changes only
-protection: provenance/source component and row membership remain unchanged;
-event identity, lineage, attachment and `K,D` are separate evidence, not the
-marker meaning. The marker itself does not establish source attribution or
-emission; a protection witness, event identity, family equality, or path alone
-does not establish either premise. It does not encode optional
-membership, an input-to-output provenance edge, handler selection, or
-subtraction. Release removes only the protection-based barrier to ordinary
-handler eligibility; ordinary handler matching/search still applies, and
-release does not grant capture or guarantee consumption. Still open:
+emitted from the marked slot, turn off handler protection. The `'e`
+attribution selects the contribution; it is not a relation to `'f` and remains
+unchanged after protection is turned off. Row membership also remains
+unchanged. Event identity, lineage, attachment and `K,D` are separate
+evidence, not the marker meaning. The marker itself does not establish source
+attribution or emission; a protection witness, event identity, family
+equality, or path alone does not establish either premise. It does not encode
+optional membership, an input-to-output provenance edge, handler selection,
+or subtraction. Turning protection off removes only that protection-based
+barrier to ordinary handler eligibility; ordinary handler matching/search
+still applies, and this does not grant capture or guarantee consumption. Still open:
 (1) which source/evidence rule identifies a contribution emitted from this
 slot as `'e`-derived; (2) exactly when its protection ends; (3) how it
 re-enters ordinary handler search; (4) how protection lifetime behaves across
@@ -1009,7 +1024,6 @@ source reference domain; Option 2 also permits an independent containment
 proof. Current HIR emits no callback Apply node. No new carrier or source
 counterexample is established. See the
 [inlet/admission audit](../notes/progress/2026-10-05-production-function-inlet-admission-audit.md).
-Two isolated characterization models now exercise narrower pieces of the
 The approved `function-call-view-formation/a2` handoff now selects a source
 formation direction: infer one shared role-indexed call contract from related
 declarations, definitions, uses and relevant recursive components; form
@@ -1044,6 +1058,20 @@ realization evidence to a specific original effect-profile position, while
 preserving the shared `nu,K,D`. Both remain conditional research only; neither
 supplies a complete inference rule, accepted-program witness, or implementation
 authority.
+
+The callback admission work now has a reviewed conditional identity derivation
+whose candidate `Adm`/`Sat` signatures explicitly keep admission-live witness
+coordinates coupled across each observation; hiding them still requires
+Coverage or another proved lemma. For the fresh Int Initial subcase, the
+Force-result/Int-binding path map is available conditionally from
+typed-boundary §6, but the independently formed compatible slot/view/profile
+certificate (`Form_Int`) remains missing. The bounded slot/view construction
+review confirms that the named typed rules consume this certificate rather
+than generate it. Neither result closes production `Admit_F`/`Sat_F`, Option 2
+extras, source adequacy or the full `D_C ⊆ D_A`, `P_A ⊆ P_C` proof; see the
+[reviewed admission derivation](../notes/progress/2026-10-06-function-independent-admission-derivation.md),
+[reviewed conditional Int map attempt](../notes/progress/2026-10-06-function-int-source-initial-certificate.md),
+and [Form_Int reduction](../notes/progress/2026-10-06-function-int-slot-view-construction.md).
 
 A reviewed source-registration suite now separates endpoint/name derivation,
 necessary identity/scope invariants, and the source-to-HIR/solver bridge. It
@@ -1415,7 +1443,7 @@ remain in the linked progress records above and
   table before one static plan is built. Broader successor source coverage and
   solve-discovered dependency ownership remain open. See the
   [current definition-use coverage audit](../notes/progress/2026-10-06-current-scc-definition-use-coverage.md).
-  A separate source-grounded count now bounds one live constrain_live drain:
+  A separate source-grounded count now bounds one live `constrain_live` drain:
   admitted typed pairs, persistent bound additions, duplicate queue emissions,
   extrusion and diagnostic work are finite under explicit root-inventory,
   finite-initial-bounds, immutable inventory, and constructor-DAG assumptions.

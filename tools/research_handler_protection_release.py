@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
-"""Finite characterization of protection-only release at a typed slot.
+"""Finite characterization of turning handler protection off at a typed slot.
 
 This is a research model, not a source attribution rule.  Source component,
 emission from the marked slot, event lineage, row support, typed paths, and
 protection witnesses are supplied as separate evidence.  Event identity is
 only a key used to join this toy evidence; it is not the meaning of ``?``.
-The marker's intended effect is protection release for a qualifying emitted
-contribution.  The particular witness-level filter below is a conditional
-probe hypothesis, not that meaning or a source rule.
+The ``'e`` attribution selects the contribution on which the marker acts; it
+does not describe a flow to another row component.  The marker's intended
+effect is to turn off handler protection for that qualifying emitted
+contribution while retaining its attribution and membership.  The particular
+witness-level filter below is a conditional probe hypothesis, not that
+meaning or a source rule.
 """
 
 from dataclasses import dataclass
@@ -44,7 +47,7 @@ class Case:
 def release(case: Case) -> tuple[Contribution, ...]:
     """Compute the contribution view; this function never rewrites inputs."""
     # No contribution field or evidence is modified. The marker changes only
-    # how an existing protection witness participates in eligibility.
+    # the protection status considered by this conditional eligibility query.
     return case.contributions
 
 
