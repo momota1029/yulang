@@ -9,12 +9,14 @@ Supersedes: none; withdraws this draft's prior optional-provenance-edge interpre
 
 This note records the user's selected local meaning for `'e?` and identifies
 the remaining source-to-public interpretation work. That local reading is
-settled: `?` releases the protection associated with the marked slot while
-preserving provenance and membership. The note does not yet define general
-source attribution/elaboration, grammar, or implementation. The earlier edge
-interpretation in this draft is withdrawn. Its finite probe remains an
-independent provenance/support characterization only; it is not evidence for
-the meaning of `'e?`.
+settled: for an effect contribution independently established as originating
+from `'e` and emitted from the marked slot, `?` removes handler protection
+from that contribution. Its provenance and row membership are unchanged. The
+marker does not define attribution, event identity, lineage, or a flow
+relation. The note does not yet define general source attribution/elaboration,
+grammar, or implementation. The earlier edge interpretation in this draft
+is withdrawn. Its finite probe remains an independent provenance/support
+characterization only; it is not evidence for the meaning of `'e?`.
 
 ## Motivation
 
@@ -27,33 +29,38 @@ The proposed notation is:
 'a ['e, foo] -> ['e?, 'f] 'b
 ```
 
-The `?` marks a change in **handler protection** for contributions attributed
-to `'e` as they pass through the output slot. Their provenance remains `'e`.
-The notation says nothing about whether a contribution flows, whether an
-effect row contains a member, or whether a provenance edge exists.
+The `?` marks a change in **handler protection** for contributions
+independently established as originating from `'e` and emitted from the
+marked output slot. Their provenance remains `'e`. The notation says nothing
+about whether a contribution flows, whether an effect row contains a member,
+or whether a provenance edge exists. Source attribution and emission are
+separate premises: the marker changes protection only after those facts have
+been established by the source/evidence rules.
 
 ## Intended reading
 
 Read `'e?` as:
 
-> For an `'e`-derived effect contribution leaving this slot, stop protecting
-> that contribution from handlers.
+> For an effect contribution from this slot that is independently established
+> as `'e`-derived, stop protecting that contribution from handlers.
 
-The proposed transition is:
+Given separate source evidence that contribution `q` is from `'e` and is
+emitted from the marked slot, the proposed protection transition is:
 
 ```text
 contribution q
   provenance/source component: 'e
-  handler protection: active
-       -- passes through the 'e? slot -->
-contribution q
+  handler protection at slot s: protected
+       -- emitted from the marked 'e? slot -->
+  contribution q
   provenance/source component: 'e
-  handler protection from this slot: released
+  handler protection at slot s: released
 ```
 
 The contribution retains its source component, event identity, family and
 arguments, typed paths, origin/lineage, and the existing `K,D` dependencies.
-Only its protection status changes. Once released, later handling follows the
+These are frame invariants/evidence, not the marker's meaning. Only its
+handler-protection status changes. Once released, later handling follows the
 ordinary handler search and eligibility rules. Release does not itself select
 a handler, guarantee consumption, erase the contribution, or authorize a
 handler whose ordinary source rules do not apply.
@@ -61,44 +68,40 @@ handler whose ordinary source rules do not apply.
 In the example, the input's concrete `foo` capture contract and the output
 marker answer different questions. The concrete contract can make a matching
 contribution eligible for the receiver-local handler under the existing
-source rules. `'e?` says that the protection associated with the `'e` slot is
-released when that contribution leaves this slot. It does not copy `foo` into
-`'f`, and it does not make `'f` equal to `'e`.
+source rules. `'e?` says that handler protection is removed from the qualifying
+`'e`-origin contribution when it is emitted from this slot. It does not copy
+`foo` into `'f`, and it does not make `'f` equal to `'e`.
 
-Thus:
-
-```text
-['e?, 'f]  -- same 'e-derived contributions, with slot protection released
-['e,  'f]  -- ordinary unmodified row components; no release is stated
-```
-
-The difference is protection state, not row membership or provenance. `?` is
-not an optional-flow quantifier.
+The difference between `'e?` and `'e` is protection state only, not row
+membership or provenance. `?` is not an optional-flow quantifier and does not
+assert that a contribution reaches the output or another row component.
 
 ## Small-step / relational interpretation candidate
 
 Use existing source observations and event evidence to identify a contribution
-`q` at a typed slot `s`. Let `Prov(q)` stand for its already established
-provenance, including its source component; let `Prot(q,s)` mean that source
-evidence associates handler protection at slot `s` with `q`. Let `Ord(q)` be
-the ordinary event contribution, without changing its identity or type.
-These are metatheoretic names for this candidate, not new compiler fields.
-Attribution and protection are premises supplied by their own source/evidence
-rules; event identity, lineage, path, and provenance do not define the meaning
-of `?`.
+`q` independently established as originating from `'e` and emitted from
+marked slot `s`. Let `ProtectedAt(q,s)` mean that handler protection applies to
+`q` at that slot before emission. Let `Ord(q)` be the same contribution,
+without changing its identity, type, provenance, or membership. These are
+metatheoretic names for this candidate, not new compiler fields. Attribution,
+emission, and prior protection are premises supplied by their own
+source/evidence rules; event identity, lineage, path, and provenance do not
+define the meaning of `?`.
 
 The proposed local release rule is:
 
 ```text
-MarkedReleaseSlot(s, 'e)  and  AttributedTo(q, 'e, s)  and  Prot(q, s)
+Marked(s, 'e?)  and  EmittedFrom(q, s)  and
+AttributedTo(q, 'e)  and  ProtectedAt(q, s)
 -----------------------------------------------------------------------
-ReleaseProtection(q, s) = (Ord(q), release Prot(q, s))
+ReleaseProtection(q, s) = (Ord(q), unprotected-for-handlers-at-s)
 ```
 
-`AttributedTo` must be established by the existing source/occurrence/path
-evidence. The marker does not create that attribution; unrelated
-contributions in the same output row do not satisfy this rule merely because
-they share a family.
+`EmittedFrom` and `AttributedTo` must be established by existing source and
+occurrence/path evidence. The marker creates neither fact. This does not
+equate source attribution with effect-family equality; unrelated contributions
+in the same output row do not satisfy the rule merely because they share a
+family.
 
 Its frame condition is essential:
 
@@ -108,7 +111,7 @@ FamilyAndArguments(after) = FamilyAndArguments(before)
 EventAndOrigin(after) = EventAndOrigin(before)
 TypedPathAndDependencies(after) = TypedPathAndDependencies(before)
 RowSupport(after) = RowSupport(before)
-OnlyProtectionForThisSlot(after) differs
+OnlyHandlerProtection(after) differs
 ```
 
 If no contribution from `'e` is present in a particular source observation,
@@ -121,12 +124,13 @@ performs subtraction nor changes a handler image or residual support. Any
 interaction with shallow/deep handling, attached subtraction, or row support
 must follow from a separate theorem connecting those existing judgments.
 
-For nested boundaries, the candidate target is the protection associated
-with the slot where `?` appears. Other independently justified protections
-must remain distinguishable in the existing scope/path/evidence relation. A
-single marker should not be read as a counter that counts protection layers;
-the exact attribution and composition rule must be established before this
-candidate can claim that `??` is unnecessary in every case.
+For nested boundaries, the candidate operation applies to the qualifying
+contribution emitted from the slot where `?` appears. This local reading does
+not decide how nested boundaries establish or sequence protection, nor the
+contribution's post-release lifetime across them. A single marker should not
+be read as a counter that counts protection layers; the exact attribution and
+composition rule must be established before this candidate can claim that
+`??` is unnecessary in every case.
 
 ## Relation to current directed-weight machinery
 
@@ -140,7 +144,7 @@ evidence only under the SCC charter.
 |---|---|---|
 | Which contribution came through `'e` | Source event/origin, typed `Flow`/`Observe`, `Path`, occurrence/incidence, shared `Rel_C` and `K,D` | Family equality and row support alone cannot identify this contribution. |
 | Whether it is protected at this slot | Callback boundary, typed boundary/profile transport, active scope, receipt and occurrence evidence | Current source material does not yet define the complete annotation-to-output-slot protection judgment. |
-| Where protection is released | The public slot bearing `?` in this candidate | Source typing/elaboration has not shown how that marker maps to the source slot or to nested/latent views. |
+| What the marker changes | Handler protection on a contribution independently attributed to `'e` and emitted from the marked slot | The marker changes neither attribution/provenance nor membership; source typing/elaboration has not shown how it maps to the source slot or nested/latent views. |
 | What happens afterward | Existing ordered handler search and source eligibility | Release does not itself grant a capture contract or consume an event. |
 | What stays invariant | Existing event identity, origin, typed path, attachment, and `K,D` evidence | No theorem yet proves the frame condition through every Function endpoint transformation. |
 
@@ -172,22 +176,23 @@ or new typing rules.
 run : 'a ['e, foo] -> ['e?, 'f] 'b
 ```
 
-A `foo` contribution attributed to `'e` may be handled at the input boundary
-when the concrete contract and ordinary dispatch permit it. If that same
-contribution reaches the output slot, its provenance remains `'e` and its
-protection from this slot is released. An unrelated body contribution in
-`'f` is unchanged. No input-to-output flow is asserted, and `'f` receives no
-`'e` provenance by this notation.
+A `foo` contribution separately established as originating from `'e` may be
+handled at the input boundary when the concrete contract and ordinary
+dispatch permit it. If evidence independently establishes that this
+contribution is emitted from the marked output slot, its provenance remains
+`'e` while handler protection is removed. An unrelated body contribution in
+`'f` is unchanged. The notation asserts no input-to-output flow, and `'f`
+receives no `'e` provenance by this notation.
 
 ### Nested handlers
 
-If an `'e`-derived contribution crosses the marked output slot while inner and
-outer handlers are active, `?` does not choose either handler. It releases the
-protection associated with this slot; then the normal ordered search and
-eligibility rules decide whether an active handler can handle the contribution.
-Any distinct protection from another boundary must remain represented by its
-own existing scope/path evidence. The marker does not remove a family from the
-handler image.
+If a contribution independently established as originating from `'e` is
+emitted from the marked output slot while inner and outer handlers are active,
+`?` does not choose either handler. Once the contribution is unprotected,
+normal ordered search and eligibility rules decide whether an active handler
+can handle it. How nested boundaries establish protection and how that state
+survives or ends across them remains open. The marker does not remove a family
+from the handler image.
 
 ### Shallow handler and resumed continuation
 

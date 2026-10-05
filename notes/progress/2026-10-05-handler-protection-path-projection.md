@@ -8,8 +8,10 @@ Probe: [`research_handler_protection_path_projection.py`](../../tools/research_h
 This follow-up tests one possible query-time projection of the corrected
 `'e?` meaning over the existing evidence vocabulary. The meaning itself is
 the local protection-only change: for an already attributed contribution
-leaving the marked slot, stop protecting it from handlers while preserving its
-provenance and all other evidence. The probe does not define that operation.
+emitted from the marked slot, stop protecting it from handlers while
+preserving its provenance and all other evidence. The probe does not define
+that operation or establish that route crossing identifies which contribution
+was emitted from that slot.
 In particular, the hypothesis that a typed route must cross a marked slot is
 only one candidate for locating where the operation applies. It keeps the
 following distinction explicit:
