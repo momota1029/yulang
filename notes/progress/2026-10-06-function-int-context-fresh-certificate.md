@@ -1,7 +1,7 @@
 # Fresh Int context: partial construction stops before Initial
 
 Date: 2026-10-06 (assigned artifact date)
-Status: frozen partial conditional source derivation; independent review found no issues; decorated context open
+Status: reviewed partial conditional source derivation; decorated context formation remains open
 Baseline: `7cdc4e47f162ed6afe7d41a26e5ebbeea5e4f2ac`
 Exclusive lease: this file only
 Implementation authority: none
@@ -10,11 +10,13 @@ Method: construct fresh source operands, then audit generation of each required 
 ## 1. Outcome and exact first missing premise
 
 A fresh Int literal/result/delay construction is available without any Unit
-transport. The supplied rules do not complete a fresh `chi_Int`: the first
-unproved decorated incidence is the typed correspondence joining the whole
-carrier's designated result port to the receiver's parameter/rebind path.
-That correspondence is an input to `Receive` and `RebindResultPath`, not an
-output established merely by naming the two Int endpoints.
+transport. Typed-boundary §6 conditionally supplies the correspondence shape:
+Force removes the computation-result prefix, then same-type Int binding uses
+identity on the suffix. The supplied rules still do not complete a fresh
+`chi_Int`. The open premise is an independently admitted typed/decorated
+source port and compatible slot/view/receiver context that instantiates this
+map and its original profile and joint predicates. Naming two Int endpoints
+alone does not supply that certificate.
 
 The kernel follow-up makes this boundary explicit. Source-role §10 writes
 `Receive(u,parameter,t,typed correspondence)`. Typed-boundary §6 says a
@@ -27,7 +29,8 @@ retains admitted annotation/typed-flow premises at receipt paths. Theorem C
 The construction therefore stops before Initial. No `chi_Int`, valid
 complete fresh fiber, or admitted challenge is claimed. There is no assumed
 cross-form check, borrowed Unit witness, or assumption that the pending
-Function comparison succeeds.
+Function comparison succeeds. The missing item is decorated source-context
+formation, not a new map rule.
 
 ## 2. Fixed baseline and source identities
 
@@ -44,7 +47,7 @@ to certify this construction.
 | `notes/design/2026-09-29-scc-intrusion-redesign-charter.md` | §21 unannotated Value parameter and whole inert argument | `4a6db32d07ae23a18669a62b5ea25d1d19383c14` |
 | `notes/design/2026-10-02-ordinary-computation-semantics-package.md` | §3, lines 91–179: delay, invocation frame, receipt before entry, result rebinding | `640bbfa85630d1dd496a3fd1ccb757536385d720` |
 | `notes/design/2026-10-02-source-computation-role-elaboration.md` | §1 supplied positions/profiles; §4 incomplete profile elaboration; §10, lines 573–613: Invoke/Receive/Rebind | `10775573537d8b56423f796db3c7ac6bb427e252` |
-| `notes/design/2026-10-02-typed-boundary-realization-draft.md` | §6, lines 665–754, 792–832, 1020–1027: profile introduction, supplied maps, ledger transport and receipt | `5e0499e43b3dbf04de0bcdb6c0fa5994224d8a87` |
+| `notes/design/2026-10-02-typed-boundary-realization-draft.md` | §6, lines 665–754, 763–789, 792–832, 1020–1027: profile introduction, conditional identity/prefix-removal correspondence, ledger transport and receipt | `5e0499e43b3dbf04de0bcdb6c0fa5994224d8a87` |
 | `questions/2026-10-05-production-function-inlet-context-domain/approved-answer.md` | d1 decisions 1–5: independent contexts, direct whole-carrier/callable inputs, retained original evidence | `e3c0dada3036e23c2929c5af9775e7490998a210` |
 | `questions/2026-10-05-production-function-denotation/approved-answer.md` | d1 decisions 1–5: original complete `Rel_C`, independent predicates, concrete clauses open | `a3aa2e5c1b37547e2c6272b97849a0a5b5fcb365` |
 | `questions/2026-10-05-production-function-bound-membership/approved-answer.md` | d1 decisions 1–4: Option 2 extras; source certificates not exhaustive production membership | `fb4a169a2d748422490cc74c026338587290e90c` |
@@ -109,7 +112,7 @@ Where a field is open, giving it a name does not generate its witness.
 | Callable hole | `H`, independently declared parameter `Value(Int)` and terminal Int result skeleton | Theorem C §3 permits the declared hole interface without proving filling satisfaction. | It does not derive a complete compatible known-slot profile/view from that skeleton. |
 | Argument provider/result port | Local source node `c_1`, result type Int, source result path `p_1` at that node | Typed-core §6 literal/result rules generate the local provider and its result interface; §3 retains its code under Delay. | No receiver correspondence is generated just by the local port. |
 | Whole argument | The inert carrier `t_1` of the entire `c_1` | Typed-core §3 and ordinary-computation §3 prescribe Delay without execution prefix or state snapshot. | Its complete typed receipt/view packet at the receiver is not derived by allocating the delay. |
-| Parameter/rebind path | A receiver parameter-result/value path `p_H`, typed Int, to be related to `p_1` | Value entry requires a designated Force followed by typed result rebinding (charter §21; typed-core §6). | **First non-derivable incidence:** the actual typed correspondence `M_Int(p_1,p_H)` and its relation to the carrier's designated Force port have not been generated. Equal Int endpoints alone do not supply it. |
+| Parameter/rebind path | A receiver parameter-result/value path `p_H`, typed Int, to be related to `p_1` | Typed-boundary §6 conditionally gives `M_Int` as Force result-prefix removal followed by same-type binding identity, provided the source ports and binding are independently typed. | The map expression is available, but its instantiation inside a valid decorated punctured context is not established. The compatible known slot/view, source profile, receiver relation and original joint predicates remain open; equal Int endpoints alone do not supply them. |
 | Receiver and invocation | A fresh invocation occurrence `u_H` when the hole filling is actually invoked; receiver role remains the filling's actual role | Ordinary-computation §3 and source-role §10 prescribe entering one invocation under the current configuration. | This operational allocation schema is not an independently valid punctured-context/typed-receiver certificate before filling. It does not supply `M_Int`. |
 | Argument receipt | Required `Receive(u_H,parameter,t_1,M_Int)` | Typed-boundary §6 records receipt when a invocation obtains a view at a typed binding; it creates ownership of that use and no contract. | The rule requires the typed correspondence. Recording the receipt with an unknown map would assume the missing field. |
 | Known slot/view | Reserve a fresh slot label `beta_Int` belonging to this context only | Source certificates require an independently known instantiated slot/view. A proof label may be fresh. | No rule here turns the reserved label and scalar declarations into that compatible typed slot/view. |
@@ -151,10 +154,11 @@ that Theorem C's imported decorations must remain unexplained forever:
   §3 Initial requires the independently typed carrier's declared result port,
   profile and path in the compatible punctured context.
 
-Consequently no inspected rule supplies the missing `M_Int` and associated
-profile/context certificate from just the declared hole and local literal.
-This is a bounded missing-premise finding in these named sources, not a proof
-that no such source derivation can exist or that a richer carrier is needed.
+Consequently the conditional `M_Int` path rule is available, but no inspected
+rule supplies the missing compatible slot/view and associated profile/context
+certificate from just the declared hole and local literal. This is a bounded
+missing-premise finding in these named sources, not a proof that no such
+source derivation can exist or that a richer carrier is needed.
 
 ## 6. Actual identity side and independence of `Q`
 
@@ -187,14 +191,14 @@ membership and source/production conformance remain separate open gates.
 
 ## 7. Exact next obligation, checks and omissions
 
-Recommended next action: require a source-generation lemma for the fresh
-typed correspondence from the Int literal carrier's designated computation/
-result port to the declared Value(Int) receiver/result-binding path, including
-its original profile and joint `K,D` incidence. Its input must be the
-independent source declarations/derivations, not a preexisting compatible
-`chi_Int` or Function comparison success. If those rules require a new
-durable interpretation, return the exact missing clause for the primary's
-authority gate.
+Recommended next action: derive an independent source formation certificate
+for the compatible Int callable slot/executing view, including its original
+profile, receiver scope, typed ports and joint `K,D` predicates. Then instantiate
+the existing conditional Force-prefix-removal plus Int-identity map and apply
+Initial. Inputs must be independent source declarations/derivations, not a
+preexisting compatible `chi_Int` or Function comparison success. If those
+rules require a durable new interpretation, return the exact missing clause
+for the primary's authority gate.
 
 Checks: exact baseline resolution; committed section reads listed in §2;
 kernel searches for Invoke/Receive/Flow/profile premises; nine direct
@@ -208,10 +212,12 @@ it does not validate them with a checker assuming their transitions.
 No models, seeds/ranges, mutations, tests, builds, benchmarks, formatters,
 code edits or Git mutations ran.
 
-Independent review: `invocation_bridge_review`, 2026-10-06. No blocking,
-major or minor findings. Reviewed this artifact and its nine pinned dependency
-blobs; omitted scope remains the construction of the missing correspondence/
-profile, complete context/fiber formation, source acceptance, later histories,
+Independent review: `invocation_bridge_review` found no findings on the
+original partial derivation. A focused follow-up by `int_initial_review`
+confirmed the precision repair; its one minor source-scope locator finding
+was closed here by adding typed-boundary §6 lines 763–789 to the input table.
+No blocking or major findings remain. The reviewed claim still stops before
+decorated context/fiber formation, source acceptance, later histories,
 production extras/conformance and principality.
 
 Coverage: fresh scalar/literal construction, declared callable context,
@@ -233,7 +239,7 @@ before submission. Previous artifacts and all shared records remain untouched.
 - Exact leased path: `notes/progress/2026-10-06-function-int-context-fresh-certificate.md` only.
 - Baseline SHA: `7cdc4e47f162ed6afe7d41a26e5ebbeea5e4f2ac`.
 - Changed dependency hashes: none at baseline verification; all nine direct Git blobs are pinned in §2 and rechecked at handoff.
-- Claim/review status: frozen research-only unreviewed partial conditional source derivation and bounded field-generation audit; no `chi_Int` or Initial admission established.
+- Claim/review status: reviewed research-only partial conditional source derivation and bounded field-generation audit; no `chi_Int` or Initial admission established.
 - Checks already run: baseline resolution, committed source/authority/kernel reads, nine dependency identities, output lease absence and final scope/hash/dependency recheck; zero tests/builds/models.
 - Proposed one-line checkpoint commit message: `research: stop fresh Int inlet certificate at typed receipt correspondence`.
-- Shared-record deltas intentionally deferred to primary/curator: record generated fresh literal/result/delay operands and the first open receipt/rebind path-map/profile formation premise; preserve exhaustive admission, Option 2 and production-conformance gates. No task/index/theory/authority/question file changed.
+- Shared-record deltas intentionally deferred to primary/curator: record generated fresh literal/result/delay operands, the available conditional Force-prefix-removal plus Int-identity map, and the open compatible slot/view/profile/receiver formation premise; preserve exhaustive admission, Option 2 and production-conformance gates. No task/index/theory/authority/question file changed.
