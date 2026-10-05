@@ -58,6 +58,12 @@ lookup correspondence for `u_f`. It does not prove the attachment, replace the
 earlier Q-independent source-formation blocker, or resolve later receiver
 activation, direct-query completeness, principality, adequacy, or production
 conformance.
+The separate reviewed
+[attachment-deletion mutation](../notes/progress/2026-10-06-capture-evidence-attachment-falsification.md)
+shows that removing evidence from the private captured binding violates the
+typed packet-image preservation rule when the matching correspondences are
+supplied. It does not derive those correspondences from source; producer
+formation remains open.
 Next implementation gates may add only settled premise/evidence structure;
 continue the source bridge, soundness, principality, and adequacy research
 without relaxing their proof interfaces. One untouched HIR test has an observed

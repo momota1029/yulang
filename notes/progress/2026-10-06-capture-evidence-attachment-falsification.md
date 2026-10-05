@@ -1,7 +1,7 @@
 # Capture attachment: finite deletion mutation and its obstruction
 
 Date: 2026-10-06
-Status: Frozen, unreviewed conditional research; no implementation authority
+Status: Frozen, independently compiler-referee-reviewed (no findings); conditional preservation result only, no implementation authority
 Assigned source baseline: `90eee6c2a686394e669d0361d825977f82a74f8a`
 Primary-reported current HEAD at dispatch: `e2ea106ff`
 Exclusive lease: this file only
@@ -215,9 +215,10 @@ filesystem values matched before use and at freeze. Git was not invoked.
   HEAD `e2ea106ff` was reported by primary, not independently queried.
 - Changed dependency hashes: none; ten filesystem hashes matched the pinned
   values supplied by primary.
-- Review status: frozen unreviewed research-only conditional failed mutation;
+- Review status: frozen, independently compiler-referee-reviewed with no
+  findings; conditional preservation result and failed deletion mutation only;
   no accepted-program counterexample, new attachment producer, lifetime rule
-  or gate closure. Writes stop before submission for review.
+  or gate closure.
 - Checks already run: governing/direct-dependency clause reads, dependency
   hash comparisons, lease absence and final path/whitespace inspection.
   No semantic executable checks, tests, builds or Git.
