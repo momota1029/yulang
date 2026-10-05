@@ -580,6 +580,15 @@ certificate suffices for finite-trace composition without blanket O; this is
 a conditional proof interface, not an adopted rule or completed full A/(L).
 Full source formation, coverage, source realization and production adequacy
 remain open. See the [reviewed closure and exact residual](../notes/progress/2026-10-06-recursive-origin-guard-closure-review.md).
+Two independent 2026-10-06 source-stage attacks now sharpen this frontier without
+changing it: last-rule inversion finds no inspected recursive `Form(S)` discharge
+rule, while separately identifying missing §22 origin/level evidence for fresh
+parameter endpoints; an eight-stage falsification finds no source counterexample
+or unconditional discriminator. The level-one prefix excludes higher
+introduction levels only conditionally on its source realization, not globally.
+These are bounded open results, not rejection or theorem closure. See the
+[constructive discharge audit](../notes/progress/2026-10-06-recursive-origin-form-discharge-constructive.md)
+and [source-stage falsification](../notes/progress/2026-10-06-recursive-origin-discharge-falsification.md).
 See the [source guard derivation](../notes/progress/2026-10-06-rec-name-return-source-guard-derivation-attempt.md),
 [constructive O-classification attempt](../notes/progress/2026-10-06-rec-name-return-o-classification-constructive-attempt.md),
 [relative O falsification attempt](../notes/progress/2026-10-06-rec-name-return-o-classification-falsification-attempt.md),
