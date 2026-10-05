@@ -1,8 +1,11 @@
 # Handler release evidence at the production boundary
 
-Date: 2026-10-06  
-Status: bounded source-to-production audit; research only  
-Baseline: `310a4b7bf568316daa315709c8fbf108bc343a49`  
+Date: 2026-10-06
+
+Status: bounded source-to-production audit; research only
+
+Baseline: `310a4b7bf568316daa315709c8fbf108bc343a49`
+
 Implementation authority: none
 
 ## Result
