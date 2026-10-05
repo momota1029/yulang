@@ -1,7 +1,7 @@
 # Source bridge for protection release: exact local obstruction
 
 Date: 2026-10-05
-Status: unreviewed source-artifact audit and conditional derivation; no semantic selection or implementation authority
+Status: independently reviewed source-artifact audit and conditional derivation; no semantic selection or implementation authority
 Baseline: `dfd49d1b14a9aba922bb0278ca7c1bfac8061058`
 Scope: one supplied typed callback boundary and one marked output slot; independent of API and production Function-inlet work
 Method: constructive correspondence with the existing profile, transport, observation, and visibility judgments
@@ -208,7 +208,13 @@ blob IDs are:
 | Approved mixed-row answer | `77e28d7826634421a98e556a0023b29c762420ad` |
 
 Verification budget: output-only whitespace check. No builds, tests, executable
-probes or performance measurements; no independent review claimed.
+probes or performance measurements. Independent `spec_auditor` review found
+no conformance findings within the conditional artifact scope. It verified
+both reductions against the seven pinned direct dependencies; production code,
+broader source safety/principality, and later elaboration decisions remain
+outside review. The packet's reported 40-character value was the Git blob ID,
+not SHA-256; the frozen file SHA-256 is
+`b997d22947aae1dd2d625595a7088accfad57210166c383ee2bb3580b246e592`.
 No production/source/design/test file was changed. No pending question or
 uncommitted handler artifact was consumed as authority.
 

@@ -2,7 +2,7 @@
 
 Date: 2026-10-05. Baseline: `dfd49d1b14a9aba922bb0278ca7c1bfac8061058`.
 Branch: `research/simple-sub-intrusion`.
-Status: unreviewed research characterization; no implementation authority.
+Status: independently reviewed research characterization; no implementation authority.
 Method: pinned source call graph and ownership analysis, compared with the
 public API disposition inventory. No production edits, builds, tests, or
 measurements.
@@ -175,8 +175,13 @@ are cited only as inventory evidence, not rerun or claimed as proof.
 
 Exclusive changed path:
 `notes/progress/2026-10-05-cutover-migration-seam-audit.md`.
-Research checkpoint status: unreviewed characterization, ready for primary
-scope/dependency adjudication; independent review remains separate.
+Research checkpoint status: independently reviewed characterization. A
+`regression_auditor` found no blocking, major, or minor findings. Review covered
+this note, the committed API inventory, pinned solver ownership/dispatch/query
+dependencies, workspace consumer search, and the scoped claim that no
+independently approved production cutover slice exists at this baseline.
+External consumers, Oracle compatibility, source adequacy and principality
+certification remain unreviewed.
 Suggested commit: `research: audit production inference cutover ownership seam`.
 Shared `tasks/current.md`, theory/design index/status and pending questions are
 intentionally deferred to the primary's integration lane. No Git mutation was
