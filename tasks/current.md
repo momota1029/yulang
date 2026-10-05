@@ -1015,6 +1015,28 @@ realization evidence to a specific original effect-profile position, while
 preserving the shared `nu,K,D`. Both remain conditional research only; neither
 supplies a complete inference rule, accepted-program witness, or implementation
 authority.
+
+Four reviewed source-derivation attempts refine the dependency order without
+closing these gates. The [`call` source-rule audit](../notes/progress/2026-10-06-call-view-source-rule-derivation-attempt.md)
+derives the ordinary Value tag but finds that the complete inferred formal
+view needs source registration before the separate provisional-Handler seed
+discharge. The [`production-admission attempt`](../notes/progress/2026-10-06-production-function-admission-constructor-attempt.md)
+names the missing independent initial hole-context judgment `PCInit`; typed
+call/receive and reference admission consume such a context rather than
+constructing production admission. The [`compose` principal-factorization
+attempt](../notes/progress/2026-10-06-compose-principality-source-attempt.md)
+derives the selected per-view `m_V` conditionally from complete source,
+formation, allocation, admission, Option 2 abstraction and actual-root
+certificates, while identifying the missing effectful `f (g x)` source
+certificate. None of these notes supplies the missing premises or promotes a
+Draft rule to authority. Separately, the approved
+[`handler-protection-release-crossing/q1 d1`](../questions/2026-10-05-handler-protection-release-crossing/approved-answer.md)
+already fixes actual outward crossing and same-target-view/original-receiver
+lifetime. The reviewed [source bridge attempt](../notes/progress/2026-10-06-protection-release-source-bridge-attempt.md)
+now treats those as selected constraints; attribution and typed source
+realization remain open. All four results are conditional/research-only and
+grant no production implementation authority.
+
 Two isolated characterization models now exercise narrower pieces of the
 open callback/principality gates: the callback lift checker preserves old
 tuples and distinct `d-`/`d+`/`b+` identities under total-coordinate extension,
