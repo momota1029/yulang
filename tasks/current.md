@@ -967,6 +967,18 @@ the ordinary-value role step lacks a binder/use-indexed seed-elimination
 clause, and the `[io]` permission lacks its annotation-occurrence-to-profile
 mapping. They select neither rule; see the [role-resolution skeleton](../notes/progress/2026-10-05-handler-function-role-resolution-skeleton.md)
 and [annotation protection audit](../notes/progress/2026-10-05-annotation-scoped-effect-protection-boundary.md).
+Follow-up reviewed derivations narrow those two open judgments. The
+[seed-elimination derivation](../notes/progress/2026-10-06-function-formal-seed-elimination-derivation.md)
+shows that the approved `apply` instance does not determine eligibility or
+use-aggregation for other calls; literal and mixed Value/Computation use
+records distinguish candidate triggers without selecting one. The
+[annotation/profile bridge audit](../notes/progress/2026-10-06-annotation-occurrence-profile-bridge.md)
+identifies the missing link from admitted annotation occurrence and local
+realization evidence to a specific original effect-profile position, while
+preserving the shared `nu,K,D`. Both remain conditional research only; neither
+supplies a complete inference rule, accepted-program witness, or implementation
+authority.
+Two isolated characterization models now exercise narrower pieces of the
 open callback/principality gates: the callback lift checker preserves old
 tuples and distinct `d-`/`d+`/`b+` identities under total-coordinate extension,
 exhaustively checks 65,536 bind-shaped relation pairs under two metadata

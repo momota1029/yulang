@@ -127,6 +127,8 @@ and finite alphabet argument are recorded in the
 
 `FVIEW` records the user-approved direction in [inferred Function call views](../design/2026-10-05-inferred-function-call-views.md): infer the shared role-indexed contract, source slot/profile identity, typed paths/owners and original joint `nu,K,D` from declarations and uses; for unannotated `f`, connect provisional full effect protection with later ordinary-value role evidence; keep annotation-scoped `[io]` removal permission distinct from actual removal. This is a source-formation target, not a completed theorem edge. Its exact judgments, principality proof, source adequacy and production implementation remain open. `PROD` still separately admits Option 2 observations without requiring a source-constructor witness and needs exhaustive membership/admission plus checked containment.
 
+The [seed-elimination derivation](../progress/2026-10-06-function-formal-seed-elimination-derivation.md) leaves the binder/use eligibility and aggregation rule open; the [annotation/profile audit](../progress/2026-10-06-annotation-occurrence-profile-bridge.md) leaves admitted annotation to original typed position correspondence open. Both are reviewed conditional artifacts and supply no completed `SRC` rule or production authority.
+
 ## Node ledger
 
 | Node | Classification and exact scope | Depends on | Supersedes / strengthens | Production authority and retained implementation information |
