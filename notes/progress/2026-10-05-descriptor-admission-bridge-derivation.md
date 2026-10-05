@@ -1,7 +1,7 @@
 # Descriptor admission: the retained Function inlet incidence
 
 Date: 2026-10-05
-Status: unreviewed source/code correspondence and conditional local bridge obligation
+Status: independently reviewed source/code correspondence and conditional local bridge obligation
 Baseline: `dfd49d1b14a9aba922bb0278ca7c1bfac8061058`
 Branch: `research/simple-sub-intrusion`
 Scope: one ordinary unannotated lambda's retained Function fact and one separately supplied typed invocation; no production context-domain quantifier
@@ -239,8 +239,12 @@ lease; this note changes no compiler or checker.
 
 Verification performed: committed source/owner inspection, exact committed
 draft embedding and explicit approval-marker comparison for both answer
-bundles, and output-only whitespace checking of this note. No independent
-review is claimed. Tests, builds, executable searches and measurements: zero.
+bundles, and output-only whitespace checking of this note. Independent
+`compiler_referee` review found no blocking, major, or minor findings. Review
+verified the code incidence, pointwise Value-entry discriminator, approval
+identity, and authority boundary. Exhaustive production membership/admission,
+callback containment, and principality remain outside review. Tests, builds,
+executable searches and measurements: zero.
 No Git mutations or shared-record writes were performed.
 
 Frozen direct dependency SHA-256 values:
@@ -264,9 +268,10 @@ questions/2026-10-05-production-function-bound-membership/approved-answer.md
   d9ddea04a44d2307cf587bc4ae9b2a1c50d062c4077306a5bf9ea9da00eca179
 ```
 
-Checkpoint path: this note only. Claim status: unreviewed research, exact
-code incidence plus conditional local proposition/shortcut falsifier; no gate
-closure. Proposed commit message: `Isolate retained Function inlet admission bridge`.
+Checkpoint path: this note only. Claim status: independently reviewed
+research, exact code incidence plus conditional local proposition/shortcut
+falsifier; no gate closure. Proposed commit message: `Isolate retained
+Function inlet admission bridge`.
 No frozen dependency was modified by this lane. Primary integration should
 recheck those dependencies before checkpointing. Shared changes to
 `tasks/current.md`, design/index/theory records are intentionally deferred to
