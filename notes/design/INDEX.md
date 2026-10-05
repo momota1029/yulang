@@ -150,6 +150,12 @@ This index is a navigation aid. The listed source document remains authoritative
   complete existence test; it does not define general replay policy or a
   complete solver. See its
   [progress record](../progress/2026-10-05-inequality-endpoint-dispatch-playground.md).
+  The optional-record nontransitivity witness also refutes lifting the
+  candidate pure source/recursive-group preorder adequacy proofs by treating
+  local concrete successes as a transitive relation: a `Sub` chain through
+  `{}` derives a type that the direct Name endpoint comparison rejects. The
+  conditional preorder proofs remain valid in their stated structural
+  fragment. See the [source-adequacy obstruction](../progress/2026-10-05-source-adequacy-concrete-transitivity-obstruction.md).
   The current HIR-backed Lambda realization candidate for `id` and `zero`
   inspects their actual Function facts and public schemes, then checks a finite
   typed-observation lift; a separate bounded state-machine test exercises two

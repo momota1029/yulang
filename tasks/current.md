@@ -1023,6 +1023,16 @@ remain in the linked progress records above and
   complete Yulang generation: the candidate source rules' arbitrary preorder
   is not identified with the structural graph carrier, and callbacks,
   annotations, imports, effects, records and guards are outside the fragment.
+  A separate direct audit now shows why the preorder source-generation
+  completeness proof cannot be lifted by merely replacing `≤` with successful
+  endpoint-dependent comparisons: for `x : {foo?: string}`, two valid local
+  checks through `{}` derive a type rejected by the direct comparison, while
+  Name generation retains only the original anchor. This is a counterexample
+  to that proof interface for complete Yulang compatibility, not to its
+  preorder fragment. The required source bridge must preserve intermediate
+  comparisons/evidence or establish a transitive structural restriction for
+  the relevant source envelope; neither is selected. See the
+  [concrete-transitivity obstruction](../notes/progress/2026-10-05-source-adequacy-concrete-transitivity-obstruction.md).
   The source-fragment result and exact boundaries are in
   [empty-Record source fragment](../notes/progress/2026-10-04-empty_record_source_fragment.md).
   A separate audit now proves the same `Λ = ∅` incidence premise for the
