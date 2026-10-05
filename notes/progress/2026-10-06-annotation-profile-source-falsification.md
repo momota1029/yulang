@@ -93,12 +93,13 @@ The lemma is a conditional refutation of that key. Adding the full syntax
 address or exact occurrence extent defeats this collision; neither addition
 alone proves the typed association.
 
-This control is structurally minimal for this specific collision: one enclosing
-Function arrow, its input/output atom, one leading row and one arrow-owned row,
-each with one member. Deleting either row removes the two-occurrence collision;
-deleting the arrow removes the distinct arrow owner. Byte minimality, alternate
-lexical spellings and an exhaustive smaller-program search were not checked.
-It is a type-fragment witness, not an accepted complete typed definition.
+This is the minimal two-row/one-arrow ownership pattern under row/arrow
+deletion: deleting either row removes the two-occurrence collision, and deleting
+the arrow removes the distinct arrow owner. The number of row members is
+irrelevant to the key collision; one member per row suffices. Byte minimality,
+alternate lexical spellings and an exhaustive smaller-program search were not
+checked. It is a type-fragment witness, not an accepted complete typed
+definition.
 
 The attack is on occurrence identity rather than equality of public types or
 family names. It does not claim the rows denote unequal solved effects, or that
