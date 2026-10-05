@@ -314,7 +314,7 @@ children, Git mutations, question-board writes or shared-file edits.
 - Proposed one-line research-checkpoint commit message:
   `research: propose suspended source registration association`.
 - Shared-record deltas intentionally left for primary/curator: link this
-  candidate as an unreviewed constructive route; retain the missing U1–U5
-  producer proofs and all registration, protection, principality, adequacy,
-  production and lifecycle gates as open. No theorem edge or design status is
+  independently reviewed, non-authoritative constructive route; retain the
+  missing U1–U5 producer proofs and all registration, protection, principality,
+  adequacy, production and lifecycle gates as open. No theorem edge or design status is
   promoted; no task/index/authority/question-board file was changed.
