@@ -224,13 +224,15 @@ core correspondence. The focused `research_` filter passed all six
 characterization tests, and the existing one-parameter admission integration
 test passed separately.
 
-An attempted inclusion of the exact acceptance source
-`my compose f g x = f (g x)` reached an `Error(Missing)` inside its nested
-parenthesized `g x` CST, so it is not counted as a valid candidate case. This
-is a current parser-shape observation only; it does not select a grammar
-change. The exact source spelling's raw parsing is now an additional earlier
-conformance gap to resolve before a complete source-to-HIR theorem can cover
-`compose`.
+An early candidate iteration attempted to include the exact acceptance source
+`my compose f g x = f (g x)` but did not count it as valid after finding an
+`Error(Missing)` in the nested parenthesized `g x` CST. This parser-shape
+observation was later superseded by the 2026-10-05 parenthesized-application
+section below: the approved addendum changed the expression-element mode,
+the recovery-free scoped-candidate test now accepts both `f (g x)` and
+`f(g(x))`, and the raw parser gap is closed for those spellings. The historical
+failed candidate remains evidence for the pre-fix behavior, not a current
+conformance gap.
 
 The exact checks for this slice were:
 
