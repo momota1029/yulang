@@ -86,6 +86,12 @@ or the original joint `(nu,K,D)` packet and does not generate the current typed
 receipt/rebind/capture/read correspondences. Oracle semantics remain
 non-authoritative. See the independently reviewed
 [historical source archaeology](../notes/progress/2026-10-06-frozen-oracle-source-producer-archaeology.md).
+Focused follow-up traced the old annotation-to-function-frame chain and the
+formal-`DefId` keyed, frame-local unannotated-call subtraction mechanism.
+These are concrete historical producer shapes, but neither constructs the
+missing complete original relation/profile or selects current Handler,
+annotation, receipt, or admission rules. See the
+[annotation/call mechanism archaeology](../notes/progress/2026-10-06-frozen-oracle-annotation-call-producer-archaeology.md).
 The compiler-referee-reviewed [Q-independent capture source-rule attempt](../notes/progress/2026-10-06-q-independent-capture-source-rule-attempt.md)
 separates O, original query-independent contract/receipt formation, from A,
 captured evidence-environment attachment and lookup preserving the whole
