@@ -944,6 +944,29 @@ proof. Current HIR emits no callback Apply node. No new carrier or source
 counterexample is established. See the
 [inlet/admission audit](../notes/progress/2026-10-05-production-function-inlet-admission-audit.md).
 Two isolated characterization models now exercise narrower pieces of the
+The approved `function-call-view-formation/a2` handoff now selects a source
+formation direction: infer one shared role-indexed call contract from related
+declarations, definitions, uses and relevant recursive components; form
+`beta`/`Slots(beta)`, typed paths and owner/receiver relations from typed
+elaboration; and preserve one original joint `nu,K,D`, with admission
+independent of `Q`. For unannotated `apply f x = f x`, `f` is provisionally a
+fully protected Handler Function and ordinary-value evidence later determines
+that inferred formal is not a Handler. Annotation absence causes full
+protection; the stated `[io]` annotation permits `io` removal but does not
+assert that removal occurs. The scope is recorded in the
+[Authoritative addendum](../notes/design/2026-10-05-inferred-function-call-views.md)
+and [integration receipt](../questions/2026-10-05-function-call-view-formation/receipt.md).
+The concrete role-resolution and annotation-to-profile rules, uniqueness or
+principality, source adequacy, exhaustive Option 2 membership/admission and
+containment, and production implementation remain open. Current HIR/solver
+still lacks callback Apply, role/profile views, annotation-protection metadata,
+typed call/Force/bind/request evidence, and complete joint source `nu,K,D` formation;
+these are current implementation limits, not source rejection rules.
+Two independently reviewed conditional audits locate immediate rule holes:
+the ordinary-value role step lacks a binder/use-indexed seed-elimination
+clause, and the `[io]` permission lacks its annotation-occurrence-to-profile
+mapping. They select neither rule; see the [role-resolution skeleton](../notes/progress/2026-10-05-handler-function-role-resolution-skeleton.md)
+and [annotation protection audit](../notes/progress/2026-10-05-annotation-scoped-effect-protection-boundary.md).
 open callback/principality gates: the callback lift checker preserves old
 tuples and distinct `d-`/`d+`/`b+` identities under total-coordinate extension,
 exhaustively checks 65,536 bind-shaped relation pairs under two metadata

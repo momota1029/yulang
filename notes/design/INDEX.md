@@ -28,7 +28,7 @@ This index is a navigation aid. The listed source document remains authoritative
   [HIR/source-core progress record](../progress/2026-10-04-hir-source-core-boundary.md)
   for the focused parser-to-candidate evidence and remaining production bridge.
 
-## Active inference navigation (2026-10-04)
+## Active inference navigation (2026-10-05)
 
 - **Exploratory handler-protection notation:**
   [handler protection-release notation](2026-10-05-handler-hygiene-public-provenance-notation.md)
@@ -75,6 +75,18 @@ This index is a navigation aid. The listed source document remains authoritative
 
 - **Executable proof-search direction:**
   [inference research playgrounds](2026-10-04-inference-research-playgrounds.md)
+- **Authoritative source-formation direction — inferred Function call views:**
+  [inferred Function call views](2026-10-05-inferred-function-call-views.md)
+  records the approved direction to infer one shared role-indexed callback
+  contract from declarations, uses and relevant recursive components, with
+  stable slot/profile identity, typed paths and one correlated `nu,K,D`.
+  Unannotated `f` receives a provisional fully protected Handler view whose
+  later non-Handler determination must use ordinary-value evidence; an
+  annotation on `[io]` permits only its specified removal. The concrete
+  rules, principality/source-adequacy proofs, production conformance and
+  implementation remain open. The document preserves callback-literal B and
+  does not rewrite actual callable roles.
+
   is Authoritative user direction permitting isolated executable models before
   proof closure for structural FMP, callback bridge, and principality. Finite
   search is evidence only; production inference routing remains gated.
@@ -554,6 +566,7 @@ the source design documents and explicit user decisions.
 | `notes/design/2026-10-03-callback-context-delivery.md` | Authoritative bounded source contract; no compiler/API implementation authority | **Closed source contract:** callback literal context selects Handler/boundary before body constraints; endpoints are independently synthesized; completed interface checked by ordinary `F_lit <: F_cb`. B is normative/reference generation. A is permitted only as B-equivalent scheduling/partial evaluation; it preserves accepted programs, principal solutions, method/adapter choices, and residual/evidence semantics. Existing Pure values retain actual role and §21 entry; callback slot supplies a typed invocation view. | §§2–2.1 and 4. Expected-context delivery, independent endpoints, and ordinary inequality were already in the Authoritative contract. The user’s 2026-10-04 clarification explicitly names B as normative and A as an optimization subject to observational/solution equivalence. No API or optimized algorithm is selected. | The latest user request reopened direct proof attacks; the limited reference-realization result is in `notes/design/2026-10-04-source-indexed-callback-realization.md`. Production endpoint conformance and the B port-construction bridge remain tracked in `notes/design/2026-10-04-production-callback-endpoint-generation-draft.md`; earlier countermodels and proof attempts remain historical in `notes/progress/2026-10-04-direct-main-gate-attacks.md` and `notes/progress/2026-10-04-value-entry-bind-projection.md`. |
 | `notes/design/2026-10-02-parametric-component-linking.md` | Draft; prior linking/binder and §7 executable-linking packages independently reviewed; no implementation authority | graph grafting, joint relational linking and contextual recertification | §7 constructs a merged kernel from finite supplied open templates before query lowering and joint safety/image saturation | general Function comparison, source-template generation, effective complete checking, instance completeness and lifecycle remain open |
 | `notes/design/2026-10-02-heap-backed-client-interactions.md` | Draft; M3 semantic/conformance package reviewed; no implementation authority | finite command driver and heap carrier for a template-closed interaction signature | typed packet pool covers unbounded retained handles without supplied finite client code; conditional command-prefix and weak-store simulation | source interface encapsulation, command/fault refinement, finite predicates and acceptance bridge remain open; no class-3 witness |
+| `notes/design/2026-10-05-inferred-function-call-views.md` | Authoritative user-approved source-formation direction; no complete inference rule or implementation authority | Shared role-indexed callback contract from relevant declarations, definitions, uses, and recursive components; stable slot/profile, typed paths, owner/receiver and one original joint `nu,K,D`; Q-independent admission | Unannotated `f` in the approved `apply f x = f x` pattern starts with a fully protected Handler view and is resolved from ordinary-value evidence; absence of annotation causes full protection, while the specified `[io]` annotation permits only that effect's removal | Exact source judgments, role-resolution and annotation-to-profile rules, uniqueness/principality, source adequacy, exhaustive Option 2 conformance and inference implementation remain open; callback B and actual callable roles remain unchanged. See the [approved handoff](../../questions/2026-10-05-function-call-view-formation/receipt.md). |
 | `notes/design/2026-10-02-counting-aware-row-projection.md` | Draft; M3 semantic/conformance package reviewed; no implementation authority | row membership plus correlated request capacities | finite exact projection with residual threshold at most `b 2^h`; separate finite-row and arbitrary-subset interpretations | type/domain predicates, full invocation checking and source principality remain open; no source row-domain choice |
 | `notes/design/2026-10-03-scoped-structural-projection.md` | Draft; M3 theorem and invariant/closed-import delta independently reviewed; no implementation authority | scoped checking and symbolic projection in a regular structural fragment | best visible comparators; declared variance/invariant support; five-profile closed-import transformer retaining original coordinates | flexible constraint solving, declared bounds, complete effectful/family interfaces and lifecycle remain open; no source-envelope restriction |
 | `notes/design/2026-10-03-scoped-constraint-solving.md` | Draft; M3 equality/closed-saturation theorem package independently reviewed; no implementation authority | scoped rational equality quotient and closed structural subtype solving | relative most-general quotient with arbitrary lexical permission-set propagation; finite greatest-relation saturation after fixed quotient | open-head/Record-extension residual factorization, source generation, effectful/family interfaces and lifecycle remain open; no non-finite witness or source-envelope restriction |
