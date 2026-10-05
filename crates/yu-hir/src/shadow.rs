@@ -100,6 +100,8 @@ impl ShadowArtifact {
                         | SyntaxKind::ParenthesizedExpression
                         | SyntaxKind::MlArgument
                         | SyntaxKind::CallTail
+                        | SyntaxKind::BindingStatement
+                        | SyntaxKind::BracedStatementBlockExpression
                 )
             {
                 // Rowan keys include a green handle and offset. Synthetic zero-width
@@ -263,6 +265,21 @@ pub struct Expression {
 
 #[derive(Debug)]
 pub enum Form {
+    /// Header/body correspondence only; captures are resolved lexical identities.
+    /// Neither this node nor its source binding selects a runtime closure policy.
+    Lambda {
+        binding: BinderId,
+        parameter: BinderId,
+        body: ExprId,
+        captures: Vec<BinderId>,
+        correspondence: ClosureCorrespondence,
+    },
+    /// The selected block's sequential local binding and final expression.
+    Bind {
+        binder: BinderId,
+        value: ExprId,
+        body: ExprId,
+    },
     IntegerLiteral {
         spelling: String,
     },
@@ -278,6 +295,13 @@ pub enum Form {
         callee: ExprId,
         argument: ExprId,
     },
+}
+
+/// Structural lexical retention does not discharge typed capture transport,
+/// provider/receiver realization, or source/semantic adequacy.
+#[derive(Debug, Eq, PartialEq)]
+pub enum ClosureCorrespondence {
+    PendingTypedCaptureProviderReceiverAndSemanticDischarge,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -399,7 +423,14 @@ fn build_skeleton(
         use_positions: Vec::new(),
         pending: Vec::new(),
     };
-    artifact.body = artifact.project(chain, source, positions)?;
+    artifact.body = if chain
+        .children()
+        .any(|node| node.kind() == SyntaxKind::BracedStatementBlockExpression)
+    {
+        artifact.project_selected_nested(statement, chain, source, positions)?
+    } else {
+        artifact.project(chain, source, positions)?
+    };
     artifact.validate()?;
     artifact.validate_positions(raw_positions)?;
     Ok(artifact)
@@ -475,6 +506,29 @@ impl Skeleton {
         self.expression(&self.body)?;
         for (index, expression) in self.expressions.iter().enumerate() {
             match &expression.form {
+                Form::Lambda {
+                    binding,
+                    parameter,
+                    body,
+                    captures,
+                    ..
+                } => {
+                    self.check_id(&binding.0, self.binders.len())?;
+                    self.check_id(&parameter.0, self.binders.len())?;
+                    for capture in captures {
+                        self.check_id(&capture.0, self.binders.len())?;
+                    }
+                    self.check_child(body, index)?;
+                }
+                Form::Bind {
+                    binder,
+                    value,
+                    body,
+                } => {
+                    self.check_id(&binder.0, self.binders.len())?;
+                    self.check_child(value, index)?;
+                    self.check_child(body, index)?;
+                }
                 Form::IntegerLiteral { .. } => {}
                 Form::Use { binder, occurrence } => {
                     self.check_id(&binder.0, self.binders.len())?;
@@ -494,9 +548,69 @@ impl Skeleton {
                 }
             }
         }
+        if matches!(self.expression(&self.body)?.form, Form::Lambda { .. }) {
+            self.validate_nested_scope()?;
+        }
         for pending in &self.pending {
             if !matches!(self.expression(&pending.call)?.form, Form::Apply { .. }) {
                 return Err(ShadowError::InvalidCallReference);
+            }
+        }
+        Ok(())
+    }
+
+    fn validate_nested_scope(&self) -> Result<(), ShadowError> {
+        // Only the selected structural slice introduces explicit lexical scope.
+        // The existing ordinary projector retains its formal-only envelope.
+        let mut tasks = vec![(self.body.clone(), BTreeSet::<usize>::new())];
+        while let Some((id, scope)) = tasks.pop() {
+            match &self.expression(&id)?.form {
+                Form::Use { binder, .. } => {
+                    if !scope.contains(&binder.0.index) {
+                        return Err(ShadowError::InvalidExpressionReference);
+                    }
+                }
+                Form::Lambda {
+                    binding,
+                    parameter,
+                    body,
+                    captures,
+                    ..
+                } => {
+                    if binding == parameter {
+                        return Err(ShadowError::InvalidExpressionReference);
+                    }
+                    let mut local = BTreeSet::from([parameter.0.index]);
+                    for capture in captures {
+                        if !scope.contains(&capture.0.index) || !local.insert(capture.0.index) {
+                            return Err(ShadowError::InvalidExpressionReference);
+                        }
+                    }
+                    tasks.push((body.clone(), local));
+                }
+                Form::Bind {
+                    binder,
+                    value,
+                    body,
+                } => {
+                    if !matches!(&self.expression(value)?.form,
+                        Form::Lambda { binding, .. } if binding == binder)
+                    {
+                        return Err(ShadowError::InvalidExpressionReference);
+                    }
+                    let mut after = scope.clone();
+                    after.insert(binder.0.index);
+                    tasks.push((body.clone(), after));
+                    tasks.push((value.clone(), scope));
+                }
+                Form::Apply {
+                    callee, argument, ..
+                } => {
+                    tasks.push((argument.clone(), scope.clone()));
+                    tasks.push((callee.clone(), scope));
+                }
+                Form::Group { inner } => tasks.push((inner.clone(), scope)),
+                Form::IntegerLiteral { .. } => {}
             }
         }
         Ok(())
@@ -507,6 +621,8 @@ impl Skeleton {
             self.check_id(&expression.position.0, positions.len())?;
             let position = &positions[expression.position.0.index];
             let kind = match &expression.form {
+                Form::Lambda { .. } => SyntaxKind::BindingStatement,
+                Form::Bind { .. } => SyntaxKind::BracedStatementBlockExpression,
                 Form::IntegerLiteral { .. } => SyntaxKind::IntegerLiteral,
                 Form::Use { occurrence, .. } => {
                     if self.use_position(occurrence)? != &expression.position {
@@ -681,6 +797,188 @@ impl Skeleton {
             form,
         });
         id
+    }
+    fn project_selected_nested(
+        &mut self,
+        outer: &SyntaxNode,
+        chain: SyntaxNode,
+        source: &str,
+        positions: &HashMap<SyntaxNode, Option<PositionId>>,
+    ) -> Result<ExprId, ShadowError> {
+        // This recognizer owns only the approved lambda/bind/lambda/call/use
+        // correspondence. It is not a general interpretation of brace blocks.
+        let blocks = chain.children().collect::<Vec<_>>();
+        let Some(block) = blocks
+            .iter()
+            .find(|node| node.kind() == SyntaxKind::BracedStatementBlockExpression)
+        else {
+            return Err(unsupported(&chain));
+        };
+        let reject = || unsupported(block);
+        if blocks.len() != 1 || self.binders.len() != 1 {
+            return Err(reject());
+        }
+        let children = block.children().collect::<Vec<_>>();
+        let [local_statement, separator, final_statement] = children.as_slice() else {
+            return Err(reject());
+        };
+        if local_statement.kind() != SyntaxKind::Statement
+            || separator.kind() != SyntaxKind::BlockStatementSeparator
+            || final_statement.kind() != SyntaxKind::Statement
+            || separator.children().next().is_some()
+        {
+            return Err(reject());
+        }
+        let separator_tokens = separator
+            .children_with_tokens()
+            .filter(|element| !matches!(element.kind(), SyntaxKind::Whitespace))
+            .collect::<Vec<_>>();
+        if separator_tokens.len() != 1 || separator_tokens[0].kind() != SyntaxKind::Semicolon {
+            return Err(reject());
+        }
+        let local =
+            only_child(local_statement, SyntaxKind::BindingStatement).map_err(|_| reject())?;
+        if local_statement.children().count() != 1 || final_statement.children().count() != 1 {
+            return Err(reject());
+        }
+        let header_nodes =
+            |statement: &SyntaxNode| -> Result<(SyntaxNode, SyntaxNode), ShadowError> {
+                let children = statement
+                    .children()
+                    .map(|node| node.kind())
+                    .collect::<Vec<_>>();
+                if children != [SyntaxKind::BindingHeader, SyntaxKind::BindingBody] {
+                    return Err(reject());
+                }
+                let header = only_child(statement, SyntaxKind::BindingHeader)?;
+                let header_elements = header
+                    .children_with_tokens()
+                    .filter(|element| {
+                        !matches!(
+                            element.kind(),
+                            SyntaxKind::Whitespace
+                                | SyntaxKind::Newline
+                                | SyntaxKind::LineComment
+                                | SyntaxKind::BlockComment
+                        )
+                    })
+                    .map(|element| element.kind())
+                    .collect::<Vec<_>>();
+                if header_elements != [SyntaxKind::MyKw, SyntaxKind::Pattern, SyntaxKind::Equals] {
+                    return Err(reject());
+                }
+                let pattern = only_child(&header, SyntaxKind::Pattern)?;
+                let nodes = pattern.children().collect::<Vec<_>>();
+                let [name, tail] = nodes.as_slice() else {
+                    return Err(reject());
+                };
+                identifier(name, source)?;
+                if tail.kind() != SyntaxKind::PatternMlApplicationTail {
+                    return Err(reject());
+                }
+                let parameter = only_child(tail, SyntaxKind::Pattern)?;
+                let parameter = only_child(&parameter, SyntaxKind::IdentifierPattern)?;
+                Ok((name.clone(), parameter))
+            };
+        let (outer_name, _) = header_nodes(outer).map_err(|_| reject())?;
+        let (local_name, local_parameter) = header_nodes(&local).map_err(|_| reject())?;
+        let local_body = only_child(&local, SyntaxKind::BindingBody).map_err(|_| reject())?;
+        let local_chain =
+            only_child(&local_body, SyntaxKind::OperatorChain).map_err(|_| reject())?;
+        let call_nodes = local_chain.children().collect::<Vec<_>>();
+        let [callee, argument] = call_nodes.as_slice() else {
+            return Err(reject());
+        };
+        if callee.kind() != SyntaxKind::IdentifierExpression
+            || argument.kind() != SyntaxKind::MlArgument
+        {
+            return Err(reject());
+        }
+        let argument_chain =
+            only_child(argument, SyntaxKind::OperatorChain).map_err(|_| reject())?;
+        let arguments = argument_chain.children().collect::<Vec<_>>();
+        let final_chain =
+            only_child(final_statement, SyntaxKind::OperatorChain).map_err(|_| reject())?;
+        let returns = final_chain.children().collect::<Vec<_>>();
+        let ([argument_use], [returned_use]) = (arguments.as_slice(), returns.as_slice()) else {
+            return Err(reject());
+        };
+        if argument_use.kind() != SyntaxKind::IdentifierExpression
+            || returned_use.kind() != SyntaxKind::IdentifierExpression
+        {
+            return Err(reject());
+        }
+        let (step_name, _) = identifier(&local_name, source)?;
+        let (x_name, _) = identifier(&local_parameter, source)?;
+        let f_name = &self.binders[0].name;
+        // Admission is deliberately bounded to the approved named source
+        // candidate. These spellings select no inference or runtime behavior.
+        if identifier(&outer_name, source)?.0 != "apply"
+            || f_name != "f"
+            || step_name != "step"
+            || x_name != "x"
+            || source.get(range_of(callee)) != Some(f_name.as_str())
+            || source.get(range_of(argument_use)) != Some(x_name.as_str())
+            || source.get(range_of(returned_use)) != Some(step_name.as_str())
+            || x_name == *f_name
+            || step_name == *f_name
+            || step_name == x_name
+        {
+            return Err(reject());
+        }
+        let add_binder =
+            |artifact: &mut Self, node: &SyntaxNode| -> Result<BinderId, ShadowError> {
+                let (name, range) = identifier(node, source)?;
+                let id = BinderId(artifact.id(artifact.binders.len()));
+                artifact.binders.push(Binder {
+                    name,
+                    range,
+                    position: retained_position(positions, node)?,
+                });
+                Ok(id)
+            };
+        let f = BinderId(self.id(0));
+        let x = add_binder(self, &local_parameter)?;
+        // Project the local initializer before publishing the sequential local
+        // binder: step is unavailable in its own body. Only f and x are in scope.
+        let call = self.project(local_chain, source, positions)?;
+        let step = add_binder(self, &local_name)?;
+        let local_lambda = self.push_expression(
+            retained_position(positions, &local)?,
+            range_of(&local),
+            Form::Lambda {
+                binding: step.clone(),
+                parameter: x,
+                body: call,
+                captures: vec![f.clone()],
+                correspondence:
+                    ClosureCorrespondence::PendingTypedCaptureProviderReceiverAndSemanticDischarge,
+            },
+        );
+        // The recognizer requires the final use to be step; x has no use here.
+        let returned = self.project(final_chain, source, positions)?;
+        let bound = self.push_expression(
+            retained_position(positions, block)?,
+            range_of(block),
+            Form::Bind {
+                binder: step,
+                value: local_lambda,
+                body: returned,
+            },
+        );
+        let apply = add_binder(self, &outer_name)?;
+        Ok(self.push_expression(
+            retained_position(positions, outer)?,
+            range_of(outer),
+            Form::Lambda {
+                binding: apply,
+                parameter: f,
+                body: bound,
+                captures: Vec::new(),
+                correspondence:
+                    ClosureCorrespondence::PendingTypedCaptureProviderReceiverAndSemanticDischarge,
+            },
+        ))
     }
     fn project(
         &mut self,
@@ -878,6 +1176,197 @@ mod tests {
         let source: Arc<SourceText> = Arc::from(source);
         let header = Arc::new(scan_header(source.clone()));
         parse_file(source, header, Arc::new(SyntaxEnvironment::empty()))
+    }
+
+    const NESTED: &str = "my apply f = { my step x = f x; step }";
+
+    #[test]
+    fn selected_nested_source_preserves_binders_scope_return_and_pending_boundary() {
+        let artifact = ShadowArtifact::from_parsed(parsed(NESTED)).unwrap();
+        let skeleton = artifact.skeleton().unwrap();
+        let Form::Lambda {
+            binding: apply,
+            parameter: f,
+            body: block,
+            captures,
+            correspondence,
+        } = skeleton.expression(skeleton.body()).unwrap().form()
+        else {
+            panic!("outer lambda")
+        };
+        assert!(captures.is_empty());
+        assert_eq!(
+            *correspondence,
+            ClosureCorrespondence::PendingTypedCaptureProviderReceiverAndSemanticDischarge
+        );
+        assert_eq!(skeleton.binder(apply).unwrap().name(), "apply");
+        assert_eq!(skeleton.binder(f).unwrap().name(), "f");
+        let Form::Bind {
+            binder: step,
+            value,
+            body: returned,
+        } = skeleton.expression(block).unwrap().form()
+        else {
+            panic!("sequential bind")
+        };
+        let Form::Lambda {
+            binding,
+            parameter: x,
+            body: call,
+            captures,
+            correspondence,
+        } = skeleton.expression(value).unwrap().form()
+        else {
+            panic!("local lambda")
+        };
+        assert_eq!(binding, step);
+        assert_eq!(captures, &vec![f.clone()]);
+        assert_eq!(
+            *correspondence,
+            ClosureCorrespondence::PendingTypedCaptureProviderReceiverAndSemanticDischarge
+        );
+        assert_eq!(skeleton.binder(x).unwrap().name(), "x");
+        assert_eq!(skeleton.binder(step).unwrap().name(), "step");
+        let Form::Apply {
+            callee,
+            argument,
+            source_form,
+        } = skeleton.expression(call).unwrap().form()
+        else {
+            panic!("f x")
+        };
+        assert_eq!(*source_form, SyntaxKind::MlArgument);
+        for (id, expected_binder, expected_range) in [
+            (callee, f, 27..28),
+            (argument, x, 29..30),
+            (returned, step, 32..36),
+        ] {
+            let expression = skeleton.expression(id).unwrap();
+            let Form::Use { binder, occurrence } = expression.form() else {
+                panic!("resolved use")
+            };
+            assert_eq!(binder, expected_binder);
+            assert_eq!(*expression.range(), expected_range);
+            assert_eq!(
+                skeleton.use_position(occurrence).unwrap(),
+                expression.position()
+            );
+            assert_eq!(
+                artifact.position(expression.position()).unwrap().kind(),
+                SyntaxKind::IdentifierExpression
+            );
+        }
+        assert_eq!(skeleton.uses().len(), 3);
+        assert_eq!(skeleton.pending().len(), 3);
+        for (pending, expected) in skeleton.pending().iter().zip([
+            Premise::CallableRole,
+            Premise::FullFunctionMembership,
+            Premise::CallViewRealization,
+        ]) {
+            assert_eq!(pending.call(), call);
+            assert_eq!(pending.premise(), expected);
+        }
+        for binder in skeleton.binders() {
+            let position = artifact.position(binder.position()).unwrap();
+            assert_eq!(position.kind(), SyntaxKind::IdentifierPattern);
+            assert_eq!(position.range(), binder.range());
+        }
+        // A separately parsed artifact must never share identities.
+        let other = ShadowArtifact::from_parsed(parsed(NESTED)).unwrap();
+        assert_eq!(
+            other.skeleton().unwrap().binder(f).unwrap_err(),
+            ShadowError::ForeignArtifact
+        );
+    }
+
+    #[test]
+    fn selected_nested_scope_accepts_formatting_with_approved_names_and_modifiers() {
+        let source = "my  apply f  =  { my  step x  =  f  x;  step  }";
+        let artifact = ShadowArtifact::from_parsed(parsed(source)).unwrap();
+        let skeleton = artifact.skeleton().unwrap();
+        assert_eq!(skeleton.expressions().len(), 7);
+        assert_eq!(skeleton.uses().len(), 3);
+        assert_eq!(skeleton.pending().len(), 3);
+        assert_eq!(
+            skeleton
+                .binders()
+                .iter()
+                .map(Binder::name)
+                .collect::<Vec<_>>(),
+            ["f", "x", "step", "apply"]
+        );
+    }
+
+    #[test]
+    fn selected_nested_scope_rejects_missing_capture_and_escaped_local_parameter() {
+        let mut skeleton = ShadowArtifact::from_parsed(parsed(NESTED))
+            .unwrap()
+            .into_skeleton()
+            .unwrap();
+        let local = skeleton.expressions.iter().position(|expression| {
+            matches!(&expression.form, Form::Lambda { captures, .. } if !captures.is_empty())
+        }).unwrap();
+        let Form::Lambda {
+            captures,
+            parameter,
+            ..
+        } = &mut skeleton.expressions[local].form
+        else {
+            panic!("local lambda")
+        };
+        let x = parameter.clone();
+        let saved = std::mem::take(captures);
+        assert_eq!(
+            skeleton.validate(),
+            Err(ShadowError::InvalidExpressionReference)
+        );
+        let Form::Lambda { captures, .. } = &mut skeleton.expressions[local].form else {
+            panic!("local lambda")
+        };
+        *captures = saved;
+        skeleton.validate().unwrap();
+        let returned = skeleton.uses.last().unwrap().0.index;
+        let Form::Use { binder, .. } = &mut skeleton.expressions[returned].form else {
+            panic!("returned step")
+        };
+        *binder = x;
+        assert_eq!(
+            skeleton.validate(),
+            Err(ShadowError::InvalidExpressionReference)
+        );
+    }
+
+    #[test]
+    fn selected_nested_recognizer_rejects_adjacent_brace_forms() {
+        for source in [
+            "my wrapper callback = { my local input = callback input; local }",
+            "my wrapper f = { my step x = f x; step }",
+            "my apply callback = { my step x = callback x; step }",
+            "my apply f = { my local x = f x; local }",
+            "my apply f = { my step input = f input; step }",
+            "our apply f = { my step x = f x; step }",
+            "pub apply f = { my step x = f x; step }",
+            "my apply f = { our step x = f x; step }",
+            "my apply f = { pub step x = f x; step }",
+            "my apply f = {}",
+            "my apply f = { f }",
+            "my apply f = { my step x = f x; step x }",
+            "my apply f = { my step x = f x; x }",
+            "my apply f = { my step x = step x; step }",
+            "my apply f = { my step x = f(x); step }",
+            "my apply f g = { my step x = f x; step }",
+            "my apply f = { my step x y = f x; step }",
+            "my apply f = { my step x = f x; my other y = f y; step }",
+        ] {
+            let artifact = ShadowArtifact::from_parsed(parsed(source)).unwrap();
+            assert!(
+                matches!(artifact.skeleton(), Err(ShadowError::UnsupportedExpression {
+                kind: SyntaxKind::BracedStatementBlockExpression, range,
+            }) if *range == (source.find('{').unwrap()..source.len())),
+                "{source}"
+            );
+            assert_eq!(artifact.source(), source);
+        }
     }
 
     #[test]

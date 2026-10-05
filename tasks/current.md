@@ -26,6 +26,18 @@ discharge is implemented. Production F5 remains untouched. See the
 [expression occurrence identity record](../notes/progress/2026-10-06-shadow-expression-occurrence-identity.md).
 Gate and review/check evidence:
 [shadow-core promotion](../notes/progress/2026-10-06-shadow-core-promotion-gate.md).
+The next exact-candidate vertical cut now projects only
+`my apply f = { my step x = f x; step }` into outer `Lambda`, sequential
+`Bind`, local `Lambda`, `Apply(f,x)`, and returned `Use(step)` structure. It
+retains artifact-branded binder/use/source positions and records the same
+outer `f` as the local closure's lexical capture. Name-renamed variants,
+`our`/`pub` bindings, and neighboring brace forms reject. Typed capture
+transport, provider/receiver realization, callable role, Function membership,
+call-view realization, and semantic discharge remain explicit pending
+judgments. The first review round caught and repaired identifier/visibility
+scope leaks; fresh spec review found no remaining issues. The 26-test HIR
+shadow-filtered check and `yu-core/shadow` feature check pass. Details:
+[nested captured-function shadow slice](../notes/progress/2026-10-06-shadow-nested-captured-function.md).
 The default-off `yu-solver/shadow-f5` feature now exercises the exact common
 leaf cases `my f x = x` and `my f x = 42`: source ranges and the parameter-use
 or integer-literal structure align across shadow and current F5, and each F5

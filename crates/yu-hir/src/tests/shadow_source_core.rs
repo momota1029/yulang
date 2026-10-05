@@ -11,6 +11,14 @@ fn scoped_candidate(
     occurrence: &mut u32,
 ) -> Result<ResearchScopedExpr, ShadowError> {
     match &artifact.expression(id)?.form {
+        Form::Lambda { .. } | Form::Bind { .. } => Err(ShadowError::UnsupportedExpression {
+            kind: if matches!(artifact.expression(id)?.form, Form::Lambda { .. }) {
+                SyntaxKind::BindingStatement
+            } else {
+                SyntaxKind::BracedStatementBlockExpression
+            },
+            range: artifact.expression(id)?.range.clone(),
+        }),
         Form::IntegerLiteral { .. } => Err(ShadowError::UnsupportedExpression {
             kind: SyntaxKind::IntegerLiteral,
             range: artifact.expression(id)?.range.clone(),
