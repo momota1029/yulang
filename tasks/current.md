@@ -504,12 +504,21 @@ refute the exact shared-valuation relation. A source audit also shows that the
 incoming target `cu` is an existing occurrence row with caller connections,
 and predicate insertion replays against its existing uppers/direct upper rows
 ([collection and routing owners](../crates/yu-solver/src/lib.rs#L1120),
-[scheme instantiation](../crates/yu-solver/src/lib.rs#L14527)). The next proof
-must preserve the complete caller assignment through row polarity, cyclic
-lower/upper replay, extrusion and diagnostics, and specify the admitted target
-class. Candidate carrier results do not establish this production bridge.
-See the [candidate fiber](../notes/progress/2026-10-06-rec-name-return-one-row-candidate-model.md)
-and [weakened-premise falsification](../notes/progress/2026-10-06-rec-name-return-one-row-falsification.md).
+[scheme instantiation](../crates/yu-solver/src/lib.rs#L14527)). A jointly
+reviewed successful-owner invariant now proves that exact-payload dependencies
+are no younger than their owner and direct neighbors share a level; this
+justifies the guarded extrusion skip on installed owner-reachable graphs. The
+actual collected production path also allocates every row/use at level one,
+although that is not a selected support limit. The remaining gate is a
+source-derived admissibility judgment `A`, preservation of every derived
+comparison guard for the exact admitted target class (law `(L)`), plus
+diagnostic/failure ownership and production realization. P2's arbitrary
+extensional inventories remain unrestricted, and the regular-tree carrier is
+still unselected source meaning. See the [candidate fiber](../notes/progress/2026-10-06-rec-name-return-one-row-candidate-model.md),
+[weakened-premise falsification](../notes/progress/2026-10-06-rec-name-return-one-row-falsification.md),
+[contextual valuation](../notes/progress/2026-10-06-live-row-contextual-valuation-attempt.md),
+[constructive level invariant](../notes/progress/2026-10-06-rec-name-return-level-permission-constructive-attempt.md),
+and [reachable-state audit](../notes/progress/2026-10-06-rec-name-return-level-permission-reachability-falsification.md).
 
 ## Active unrestricted proof gates
 
