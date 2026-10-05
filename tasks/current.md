@@ -54,6 +54,15 @@ discharged by Q. Capture attachment A remains separate in the pending closure
 correspondence. Pre-write and post-write spec review found no blocking issues;
 focused HIR/core shadow checks pass. See the
 [pending source-formation premise slice](../notes/progress/2026-10-06-shadow-pending-qind-source-formation.md).
+The exact candidate now also has a test-only CST/shadow lexical differential:
+it derives binding/use locators from direct CST ownership and parent/ordinal
+paths, resolves names in an independent lexical environment, and compares the
+outer Lambda, sequential Bind, local Lambda, ordinary Apply, returned Use, and
+capture-use incidence against shadow. The one focused test passes and an
+independent spec review found no issues. Both closures and all four call
+premises remain pending; this is not production inference parity or proof of
+O/A, receipt transport, joint `(nu,K,D)`, soundness, principality, or adequacy.
+See the [nested source-core differential](../notes/progress/2026-10-06-shadow-nested-source-core-differential.md).
 The default-off `yu-solver/shadow-f5` feature now exercises the exact common
 leaf cases `my f x = x` and `my f x = 42`: source ranges and the parameter-use
 or integer-literal structure align across shadow and current F5, and each F5

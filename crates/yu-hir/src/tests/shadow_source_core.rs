@@ -283,3 +283,352 @@ fn shadow_source_core_links_distinct_uses_to_exact_retained_positions() {
         ShadowError::ForeignArtifact
     );
 }
+
+// Private exact-candidate projection: locators identify raw CST occurrences,
+// while spelling is used only by the ordinary lexical environment.
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct NestedLocator {
+    path: Vec<usize>,
+    kind: SyntaxKind,
+    range: Range<usize>,
+}
+
+fn nested_source_locator(node: &SyntaxNode) -> NestedLocator {
+    let mut path = Vec::new();
+    let mut current = node.clone();
+    while let Some(parent) = current.parent() {
+        path.push(
+            parent
+                .children_with_tokens()
+                .position(|child| child.as_node() == Some(&current))
+                .unwrap(),
+        );
+        current = parent;
+    }
+    path.reverse();
+    NestedLocator {
+        path,
+        kind: node.kind(),
+        range: range_of(node),
+    }
+}
+
+fn nested_shadow_locator(artifact: &ShadowArtifact, id: &PositionId) -> NestedLocator {
+    let position = artifact.position(id).unwrap();
+    let mut current = id.clone();
+    let mut path = Vec::new();
+    while let Some(parent) = artifact.position(&current).unwrap().parent() {
+        path.push(artifact.position(&current).unwrap().ordinal());
+        current = parent.clone();
+    }
+    path.reverse();
+    NestedLocator {
+        path,
+        kind: position.kind(),
+        range: position.range().clone(),
+    }
+}
+
+#[derive(Debug, Eq, PartialEq)]
+enum NestedSourceExpr {
+    Lambda {
+        position: NestedLocator,
+        binding: NestedLocator,
+        parameter: NestedLocator,
+        captures: Vec<NestedLocator>,
+        body: Box<Self>,
+    },
+    Bind {
+        position: NestedLocator,
+        binder: NestedLocator,
+        value: Box<Self>,
+        body: Box<Self>,
+    },
+    Apply {
+        position: NestedLocator,
+        range: Range<usize>,
+        callee: Box<Self>,
+        argument: Box<Self>,
+    },
+    Use {
+        position: NestedLocator,
+        binder: NestedLocator,
+    },
+}
+
+fn nested_normalize_shadow(artifact: &ShadowArtifact, id: &ExprId) -> NestedSourceExpr {
+    let skeleton = artifact.skeleton().unwrap();
+    let expression = skeleton.expression(id).unwrap();
+    let position = nested_shadow_locator(artifact, expression.position());
+    let binder = |id| nested_shadow_locator(artifact, skeleton.binder(id).unwrap().position());
+    match expression.form() {
+        Form::Lambda {
+            binding,
+            parameter,
+            captures,
+            body,
+            correspondence,
+        } => {
+            assert_eq!(
+                *correspondence,
+                ClosureCorrespondence::PendingTypedCaptureProviderReceiverAndSemanticDischarge
+            );
+            NestedSourceExpr::Lambda {
+                position,
+                binding: binder(binding),
+                parameter: binder(parameter),
+                captures: captures.iter().map(binder).collect(),
+                body: Box::new(nested_normalize_shadow(artifact, body)),
+            }
+        }
+        Form::Bind {
+            binder: bound,
+            value,
+            body,
+        } => NestedSourceExpr::Bind {
+            position,
+            binder: binder(bound),
+            value: Box::new(nested_normalize_shadow(artifact, value)),
+            body: Box::new(nested_normalize_shadow(artifact, body)),
+        },
+        Form::Apply {
+            source_form,
+            callee,
+            argument,
+        } => {
+            assert_eq!(*source_form, SyntaxKind::MlArgument);
+            NestedSourceExpr::Apply {
+                position,
+                range: expression.range().clone(),
+                callee: Box::new(nested_normalize_shadow(artifact, callee)),
+                argument: Box::new(nested_normalize_shadow(artifact, argument)),
+            }
+        }
+        Form::Use {
+            binder: bound,
+            occurrence,
+        } => {
+            assert_eq!(
+                nested_shadow_locator(artifact, skeleton.use_position(occurrence).unwrap()),
+                position
+            );
+            NestedSourceExpr::Use {
+                position,
+                binder: binder(bound),
+            }
+        }
+        _ => panic!("only the approved nested candidate structure"),
+    }
+}
+
+#[test]
+fn shadow_source_core_nested_candidate_matches_independent_cst_projection() {
+    const SOURCE: &str = "my apply f = { my step x = f x; step }";
+    let parsed = parsed(SOURCE);
+    let root = SyntaxNode::new_root(parsed.green().clone());
+    let child = |node: &SyntaxNode, kind| {
+        let matches = node
+            .children()
+            .filter(|node| node.kind() == kind)
+            .collect::<Vec<_>>();
+        assert_eq!(matches.len(), 1);
+        matches[0].clone()
+    };
+    let header = |binding: &SyntaxNode| {
+        let pattern = child(
+            &child(binding, SyntaxKind::BindingHeader),
+            SyntaxKind::Pattern,
+        );
+        let name = child(&pattern, SyntaxKind::IdentifierPattern);
+        let tail = child(&pattern, SyntaxKind::PatternMlApplicationTail);
+        let parameter = child(
+            &child(&tail, SyntaxKind::Pattern),
+            SyntaxKind::IdentifierPattern,
+        );
+        (name, parameter)
+    };
+    let outer = child(&root, SyntaxKind::BindingStatement);
+    let (apply, f) = header(&outer);
+    let block = child(
+        &child(
+            &child(&outer, SyntaxKind::BindingBody),
+            SyntaxKind::OperatorChain,
+        ),
+        SyntaxKind::BracedStatementBlockExpression,
+    );
+    let statements = block
+        .children()
+        .filter(|node| node.kind() == SyntaxKind::Statement)
+        .collect::<Vec<_>>();
+    assert_eq!(statements.len(), 2);
+    let separator = child(&block, SyntaxKind::BlockStatementSeparator);
+    assert_eq!(separator.to_string().trim(), ";");
+    let local = child(&statements[0], SyntaxKind::BindingStatement);
+    let (step, x) = header(&local);
+    let call_chain = child(
+        &child(&local, SyntaxKind::BindingBody),
+        SyntaxKind::OperatorChain,
+    );
+    let callee = child(&call_chain, SyntaxKind::IdentifierExpression);
+    let call_tail = child(&call_chain, SyntaxKind::MlArgument);
+    let argument = child(
+        &child(&call_tail, SyntaxKind::OperatorChain),
+        SyntaxKind::IdentifierExpression,
+    );
+    let returned = child(
+        &child(&statements[1], SyntaxKind::OperatorChain),
+        SyntaxKind::IdentifierExpression,
+    );
+    for (node, kind, range) in [
+        (&outer, SyntaxKind::BindingStatement, 0..38),
+        (&apply, SyntaxKind::IdentifierPattern, 3..8),
+        (&f, SyntaxKind::IdentifierPattern, 9..10),
+        (&block, SyntaxKind::BracedStatementBlockExpression, 13..38),
+        (&local, SyntaxKind::BindingStatement, 15..30),
+        (&step, SyntaxKind::IdentifierPattern, 18..22),
+        (&x, SyntaxKind::IdentifierPattern, 23..24),
+        (&callee, SyntaxKind::IdentifierExpression, 27..28),
+        (&call_tail, SyntaxKind::MlArgument, 29..30),
+        (&argument, SyntaxKind::IdentifierExpression, 29..30),
+        (&returned, SyntaxKind::IdentifierExpression, 32..36),
+    ] {
+        assert_eq!(node.kind(), kind);
+        assert_eq!(range_of(node), range);
+    }
+    let associated = associate_chain_owned(&parsed, call_chain)
+        .unwrap()
+        .into_hir();
+    let ResearchApply::Apply {
+        form,
+        range,
+        callee: associated_callee,
+        argument: associated_argument,
+        ..
+    } = research_lower_apply(&associated, SOURCE, &mut 0)
+    else {
+        panic!("one ordinary call")
+    };
+    assert_eq!(form, SyntaxKind::MlArgument);
+    assert_eq!(range, 27..30);
+    for (expression, node) in [
+        (&*associated_callee, &callee),
+        (&*associated_argument, &argument),
+    ] {
+        let ResearchApply::Atom { name, range } = expression else {
+            panic!("identifier operand")
+        };
+        assert_eq!(*range, range_of(node));
+        assert_eq!(name, &node.to_string());
+    }
+    let mut environment = vec![(f.to_string(), nested_source_locator(&f))];
+    let resolve = |node: &SyntaxNode, environment: &[(String, NestedLocator)]| {
+        let binder = environment
+            .iter()
+            .rev()
+            .find(|(name, _)| name == &node.to_string())
+            .unwrap()
+            .1
+            .clone();
+        NestedSourceExpr::Use {
+            position: nested_source_locator(node),
+            binder,
+        }
+    };
+    environment.push((x.to_string(), nested_source_locator(&x)));
+    let resolved_callee = resolve(&callee, &environment);
+    let NestedSourceExpr::Use {
+        binder: captured, ..
+    } = &resolved_callee
+    else {
+        panic!("captured callee use")
+    };
+    let captured = captured.clone();
+    assert_ne!(captured, nested_source_locator(&x));
+    let call = NestedSourceExpr::Apply {
+        position: nested_source_locator(&call_tail),
+        range,
+        callee: Box::new(resolved_callee),
+        argument: Box::new(resolve(&argument, &environment)),
+    };
+    environment.pop();
+    let local_lambda = NestedSourceExpr::Lambda {
+        position: nested_source_locator(&local),
+        binding: nested_source_locator(&step),
+        parameter: nested_source_locator(&x),
+        captures: vec![captured],
+        body: Box::new(call),
+    };
+    // Publish step only after its initializer; x ends with the local lambda.
+    environment.push((step.to_string(), nested_source_locator(&step)));
+    let candidate = NestedSourceExpr::Lambda {
+        position: nested_source_locator(&outer),
+        binding: nested_source_locator(&apply),
+        parameter: nested_source_locator(&f),
+        captures: vec![],
+        body: Box::new(NestedSourceExpr::Bind {
+            position: nested_source_locator(&block),
+            binder: nested_source_locator(&step),
+            value: Box::new(local_lambda),
+            body: Box::new(resolve(&returned, &environment)),
+        }),
+    };
+    let artifact = ShadowArtifact::from_parsed(parsed).unwrap();
+    let skeleton = artifact.skeleton().unwrap();
+    assert_eq!(
+        nested_normalize_shadow(&artifact, skeleton.body()),
+        candidate
+    );
+    assert_eq!(skeleton.expressions().len(), 7);
+    assert_eq!(skeleton.binders().len(), 4);
+    assert_eq!(skeleton.uses().len(), 3);
+    let [incidence] = skeleton.capture_uses() else {
+        panic!("one capture-use incidence")
+    };
+    assert_eq!(
+        nested_shadow_locator(
+            &artifact,
+            skeleton.expression(incidence.lambda()).unwrap().position()
+        ),
+        nested_source_locator(&local)
+    );
+    assert_eq!(
+        nested_shadow_locator(
+            &artifact,
+            skeleton.binder(incidence.captured()).unwrap().position()
+        ),
+        nested_source_locator(&f)
+    );
+    assert_eq!(
+        nested_shadow_locator(
+            &artifact,
+            skeleton
+                .use_expression(incidence.occurrence())
+                .unwrap()
+                .position()
+        ),
+        nested_source_locator(&callee)
+    );
+    assert_eq!(
+        nested_shadow_locator(&artifact, incidence.position()),
+        nested_source_locator(&callee)
+    );
+    assert_eq!(skeleton.pending().len(), 4);
+    for (pending, premise) in skeleton.pending().iter().zip([
+        Premise::CallableRole,
+        Premise::FullFunctionMembership,
+        Premise::CallViewRealization,
+        Premise::QIndependentSourceCallViewFormation,
+    ]) {
+        assert_eq!(pending.premise(), premise);
+        assert_eq!(
+            nested_shadow_locator(
+                &artifact,
+                skeleton.expression(pending.call()).unwrap().position()
+            ),
+            nested_source_locator(&call_tail)
+        );
+    }
+    // This differential supplies lexical source structure only. Typed capture,
+    // provider/receiver, receipt, O/A, Q registration and nu/K/D remain open;
+    // it claims neither a semantic theorem nor production-infer parity.
+}
