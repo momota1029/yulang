@@ -214,18 +214,37 @@ public projection theorem:
 | Capture authority expires | Source activation/receiver exit in the ordinary semantics | A public row variable alone has no lifetime or activation identity. |
 | Same-family origins stay distinct | Event IDs, source origins, occurrence/incidence and `K,D` | Canonical row support intentionally may collapse repeated family membership. |
 
-Frozen Oracle observations and retained research notes use names such as
-`StackWeight`, `SubtractId`, `All`, `AllExcept(...)`, weighted
-`PosId`/`TypeVar` bounds, and split/residual records. A historical Oracle
-trace records residual weights such as `AllExcept(signal)` and
-`SubtractId(0)`. These are characterization evidence, not successor
-semantics. Repository search finds no live Yulang3 production carrier named
-`PWeight`, `AllExcept`, `#u[Empty]`, or `StackWeight`; `StackWeight`,
-`SubtractId`, and `AllExcept` occur in historical research records, while the
-exact spellings `PWeight` and `#u[Empty]` are not present in this checkout.
-This note therefore does not assign those last two spellings an internal
-meaning, interpret `#u[Empty]` as an optional edge, or identify it with
-public absence.
+Frozen Oracle material uses `PWeight(L,T)` for a positive occurrence
+projected with a directed left weight; its negative counterpart projects a
+right pop as `NWeight(R,T)`. The historical weight specification distinguishes
+left weights, which can retain ordered `pop` and active `take(F)` steps, from
+right weights, which retain pure pops. In that notation `@u[Empty]` is an
+active `take(Empty)` push for subtraction id `u`, giving zero consumable-family
+budget. Frozen public documentation prints occurrence-local evidence such as
+`#id[Empty]` for a protected/non-subtractable occurrence. These forms concern
+subtraction eligibility at a weighted occurrence; none by itself records that
+an input contribution flowed to a result or when that flow reached the public
+result boundary. `AllExcept(S)` records a residual family filter in those
+weights, not source-event identity or an input-to-output edge. These are
+historical characterization artifacts, not successor semantics.
+The exact frozen spellings are `@u[Empty]` in the weight specification and
+`#id[Empty]` in public-reference prose; `#u[Empty]` is not that specification's
+literal spelling.
+
+These names and reductions are from frozen Yulang2 `main` at
+`a58eefc31e22141574b6f20c6a5748151c6d79f1`,
+`spec/2026-05-31-effect-variable-subtractable.md` (“Compact / finalize” and
+the directed-weight notation), and its public reference text. The current
+successor charter explicitly treats them as characterization evidence only;
+the [Oracle investigation](../progress/2026-09-30-intrusion-oracle-latent-effects.md)
+records observed routes and their limits.
+
+The current Yulang3 production crates have no live carrier named `PWeight`,
+`NWeight`, `StackWeight`, `SubtractId`, or `AllExcept`, and no carrier for
+`@u[Empty]` / `#id[Empty]`. This absence is an implementation fact, not a
+claim that the spellings are absent from frozen Oracle specifications or
+public documentation. The candidate therefore does not identify a historical
+weight, filter, or protected occurrence with an optional provenance edge.
 
 The directed-weight/subtraction work may account for a *witnessed local
 subtraction* and its attachment. It does not presently prove that it can
@@ -240,11 +259,11 @@ The repository layers must also stay distinct when describing this possible
 reuse. The SCC charter and the Oracle investigation record directed left/right
 weight routing and `StackWeight`/`SubtractId` as frozen-Oracle
 characterization; they explicitly do not grant those transformations a
-successor denotation. `AllExcept(S)` can characterize a residual family
-filter in those traces, but by itself it says neither that an input
-contribution reached a result nor when a receiver's authority expired. The
-spellings `PWeight` and `#u[Empty]` do not occur in this checkout, so this
-note cannot map them to a current Yulang3 object or infer their meaning.
+successor denotation. `PWeight(L,T)` and `@u[Empty]` have the historical
+meanings above, but those meanings do not establish a mapping to the successor
+source relation. In particular, neither `AllExcept(S)` nor an empty-budget
+occurrence says that an input contribution reached a result or that its
+capture authority ended at public materialization.
 
 The current Yulang3 solver is a separate fact: its `TermView` exposes
 positive/negative Function nodes with four endpoints, while F5 generalization

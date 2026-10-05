@@ -43,6 +43,15 @@ It does not justify a new carrier or select whether the edge is exact,
 may-flow, or a permission. The earlier note's **(B)** recommendation and
 open source-to-public projection theorem remain unchanged.
 
+User clarification fixes the intended public cutoff: once an input-derived
+contribution materializes in ordinary output component `'f`, the input capture
+restriction ends, even if corresponding latent source incidence remains under
+an active receiver. The playground's post-exit observation was only a finite
+modeling choice; it is not an alternative cutoff semantics. The remaining
+obligation is to prove that the source-to-public projection represents the
+retained incidence without carrying that authority into `'f`, preserving
+downstream handler observations.
+
 Verification:
 
 ```text

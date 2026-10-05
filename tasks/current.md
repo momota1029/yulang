@@ -682,9 +682,12 @@ provenance edge from a capture-constrained input component to an ordinary
 output component. It keeps row membership separate from provenance and
 proposes that capture authority ends at the public result boundary. The
 reviewed ordinary-computation candidate transports callback incidence along
-matching result paths while the receiver is still active, so whether `'f`
-means receiver exit or whether materialization itself ends incidence remains
-an explicit projection obligation. Existing `Flow`/`Observe`,
+matching result paths while the receiver is still active. The intended public
+cutoff is fixed: materializing a contribution in `'f` ends its input capture
+restriction even if a corresponding latent source path remains active. The
+projection theorem must represent retained source incidence without carrying
+that authority into ordinary `'f`, while preserving downstream observations.
+Existing `Flow`/`Observe`,
 occurrence/incidence, `Rel_C`, `K,D`, directed-weight and subtraction evidence
 are the candidate projection substrate; no concrete failure showing a
 missing carrier is established. The edge quantifier, principal order, syntax

@@ -37,8 +37,10 @@ This index is a navigation aid. The listed source document remains authoritative
   separately approved mixed-row direction applies only to its stated
   deep-handler fragment and does not select this notation. The
   reviewed ordinary-computation candidate transports callback incidence along
-  matching result paths while the receiver remains active, so this note marks
-  the endpoint/receiver-exit alignment as an open projection obligation. It
+  matching result paths while the receiver remains active. The intended cutoff
+  at public result materialization is fixed; the open projection obligation is
+  to represent retained source incidence without carrying capture authority
+  into ordinary output, while preserving downstream observations. It
   selects no syntax, semantics, carrier, or implementation and does not alter
   the Authoritative callback-context contract or existing proof gates.
   [`research_handler_provenance_projection.py`](../../tools/research_handler_provenance_projection.py)
