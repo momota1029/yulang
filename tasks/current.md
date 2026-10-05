@@ -227,12 +227,18 @@ source/core execution comparison for `compose`'s
 `Force(D_g) >>= rebind >>= B_f` suffix, retaining request/resumption state and
 receipt identity. That comparison is now recorded in the parsed-source
 execution bridge below; it does not close complete production Function
-membership or common-allowance principality. The cutover audit identifies the
-next independent lifecycle contract: one SCC producer/consumer boundary plus
-its enclosing live context. The current F5 implementation supplies schedule,
-fresh-use, and rollback evidence but does not prove successor source-boundary
-adequacy. See the [SCC generalized-boundary contract](../notes/progress/2026-10-05-scc-generalized-boundary-contract.md)
-for the exact source premise and consumer-preservation statement.
+membership or common-allowance principality. The cutover audit identified a
+lifecycle contract at one SCC producer/consumer boundary plus its enclosing
+live context. A reviewed conditional theorem now shows that a complete
+simultaneous boundary interface can support downstream inference reuse across
+SCC split/merge when factorization, unchanged inputs, scope/use correspondence,
+valid freshening and atomic publication all hold. It constructs no such
+interface or equality procedure. Complete interface construction, production
+soundness/principality, cache-reference validity, source adequacy and
+non-inference invalidation remain open. Current F5 scheduling, fresh-use and
+rollback evidence does not establish those successor premises. See the
+[SCC generalized-boundary contract](../notes/progress/2026-10-05-scc-generalized-boundary-contract.md)
+and the [conditional lifecycle theorem](../notes/progress/2026-10-05-inference-lifecycle-interface-conditional.md).
 
 ## Latest main-gate results
 
