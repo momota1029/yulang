@@ -1379,6 +1379,13 @@ remain in the linked progress records above and
   rechecking, and resource bounds remain open. See the
   [current SCC correspondence](../notes/progress/2026-10-06-current-scc-copy-closure-correspondence.md)
   and the [abstract premise separation](../notes/progress/2026-10-05-source-scc-copy-closure-falsification.md).
+  A separate source-to-plan audit establishes complete collection only for the
+  current narrow lowering envelope: identifier headers with at most one
+  parameter and direct integer/name bodies or retained errors. It confirms
+  pending resolved module uses are closed against the complete definition
+  table before one static plan is built. Broader successor source coverage and
+  solve-discovered dependency ownership remain open. See the
+  [current definition-use coverage audit](../notes/progress/2026-10-06-current-scc-definition-use-coverage.md).
 
 The conditional results do not close these unrestricted gates or authorize
 compiler implementation.
