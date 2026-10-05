@@ -548,6 +548,18 @@ scheme as `L_h <: c_h`, and replays `L_h <: R_h`; this matches the reviewed
 four-shape account. The bridge is conditional on source-origin realization,
 generalized-interface/use provenance for `r0/ρ_h`, and §22/23 preservation.
 See the [Name-row origin transport attempt](../notes/progress/2026-10-06-rec-name-return-name-row-origin-transport-attempt.md).
+The next bounded bridge now factors the missing source derivation into
+origin-bearing recursive formation, joint generalization/member-use
+preservation, and an origin-complete realization of the retained `r0` and
+fresh `rho_h`. The selected Name rule copies the interface supplied by that
+open member-use judgment; it does not derive the judgment or classify
+`rho_h`. An independent compiler-referee PASS found the note conditional and
+authority-aligned. Ordinary universal-scheme freshening is separately
+unclassified by §22: `my id x = x; id(1)` remains a compatibility discriminator
+only, since both the source-origin and variable/extrusion paths are still
+missing. No successor rejection or implementation rule follows. See the
+[generalized alias bridge](../notes/progress/2026-10-06-rec-name-return-generalized-alias-source-bridge.md)
+and [universal-use audit](../notes/progress/2026-10-06-universal-scheme-use-origin-audit.md).
 See the [source guard derivation](../notes/progress/2026-10-06-rec-name-return-source-guard-derivation-attempt.md),
 [constructive O-classification attempt](../notes/progress/2026-10-06-rec-name-return-o-classification-constructive-attempt.md),
 [relative O falsification attempt](../notes/progress/2026-10-06-rec-name-return-o-classification-falsification-attempt.md),
