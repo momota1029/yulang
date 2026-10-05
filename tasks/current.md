@@ -1370,6 +1370,15 @@ remain in the linked progress records above and
 - **Global source bridge/lifecycle:** first-class-reference/import realization,
   complete `EnvStore`/`JointWF`, source-wide acceptance/principality, and
   generalization/SCC lifecycle remain open.
+  The SCC copy/closure/update audit now maps the prior abstract witnesses to
+  current owners: finalized constructor graphs are acyclic before postorder
+  instantiation, canonical typed-pair keys are binary, and retained row-bound
+  changes receive symmetric synchronous replay. This excludes those exact
+  failure patterns only within the current pure-scheme and row-replay paths;
+  successor source/context closure, admission completeness, general versioned
+  rechecking, and resource bounds remain open. See the
+  [current SCC correspondence](../notes/progress/2026-10-06-current-scc-copy-closure-correspondence.md)
+  and the [abstract premise separation](../notes/progress/2026-10-05-source-scc-copy-closure-falsification.md).
 
 The conditional results do not close these unrestricted gates or authorize
 compiler implementation.
