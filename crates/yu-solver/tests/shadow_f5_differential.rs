@@ -111,3 +111,84 @@ fn shadow_and_current_f5_preserve_leaf_parameter_source_and_resolution() {
             .any(|edge| { edge.cause().occurrence().occurrence() == &body_occurrence })
     );
 }
+
+#[test]
+fn shadow_and_current_f5_preserve_integer_leaf_source_and_provenance() {
+    let source: Arc<SourceText> = Arc::from("my f x = 42");
+    let header = Arc::new(scan_header(source.clone()));
+    let parsed = parse_file(source, header, Arc::new(SyntaxEnvironment::empty()));
+    let hir = Arc::new(
+        lower_module(
+            ModuleIdentity::source_root(FileId::new(FileKey::new(
+                "shadow-f5-differential",
+                "integer.yu",
+            ))),
+            &parsed,
+            SemanticImports::empty(),
+        )
+        .expect("current F5 HIR is available for the common integer leaf input"),
+    );
+    let shadow = ShadowArtifact::from_parsed(parsed).expect("shadow artifact is available");
+    let skeleton = shadow
+        .skeleton()
+        .expect("integer leaf skeleton is supported");
+    assert!(skeleton.pending().is_empty());
+    assert_eq!(skeleton.binders().len(), 1);
+    assert!(skeleton.uses().is_empty());
+    let shadow_parameter = &skeleton.binders()[0];
+    assert_eq!(shadow_parameter.name(), "x");
+    assert_eq!(shadow_parameter.range(), &(5..6));
+    let shadow_body = skeleton.expression(skeleton.body()).unwrap();
+    assert_eq!(shadow_body.range(), &(9..11));
+    let Form::IntegerLiteral { spelling } = shadow_body.form() else {
+        panic!("shadow body must retain the integer literal");
+    };
+    assert_eq!(spelling, "42");
+
+    assert!(hir.errors().is_empty());
+    assert!(hir.diagnostics().is_empty());
+    let [HirItem::Binding(binding)] = hir.items() else {
+        panic!("current F5 must retain the single binding");
+    };
+    let [parameter] = binding.parameters() else {
+        panic!("current F5 must retain the single formal parameter");
+    };
+    let ResolvedExpr::Lambda {
+        parameter: lambda_parameter,
+        body,
+        ..
+    } = binding.value()
+    else {
+        panic!("current F5 must lower the binding to a lambda");
+    };
+    let ResolvedExpr::Integer {
+        spelling, range, ..
+    } = body.as_ref()
+    else {
+        panic!("current F5 integer leaf must remain an integer");
+    };
+    assert_eq!(lambda_parameter, parameter.id());
+    assert_eq!(parameter.name().spelling(), shadow_parameter.name());
+    assert_eq!(parameter.name().range(), shadow_parameter.range());
+    assert_eq!(spelling, "42");
+    assert_eq!(range, shadow_body.range());
+    assert_eq!(body.range(), shadow_body.range());
+
+    let body_occurrence = body.occurrence().clone();
+    let batch = ConstraintBatch::collect(hir).expect("current F5 collection is available");
+    assert!(
+        batch
+            .occurrences()
+            .iter()
+            .any(|constraint| { constraint.cause().occurrence().occurrence() == &body_occurrence })
+    );
+    let solved = SolvedModule::solve(batch).expect("current F5 solving is available");
+    assert!(solved.errors().is_empty());
+    assert!(
+        solved
+            .store()
+            .provenance()
+            .iter()
+            .any(|edge| edge.cause().occurrence().occurrence() == &body_occurrence)
+    );
+}

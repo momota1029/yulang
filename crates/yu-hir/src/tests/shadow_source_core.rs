@@ -11,6 +11,10 @@ fn scoped_candidate(
     occurrence: &mut u32,
 ) -> Result<ResearchScopedExpr, ShadowError> {
     match &artifact.expression(id)?.form {
+        Form::IntegerLiteral { .. } => Err(ShadowError::UnsupportedExpression {
+            kind: SyntaxKind::IntegerLiteral,
+            range: artifact.expression(id)?.range.clone(),
+        }),
         Form::Use { binder, .. } => Ok(ResearchScopedExpr::Variable {
             binder: artifact.binder_index(binder)? as u32,
         }),
@@ -29,6 +33,23 @@ fn scoped_candidate(
     }
 }
 const COMPOSE: &str = "my compose f g x = f (g x)";
+
+#[test]
+fn shadow_source_core_retains_integer_spelling_and_range_without_judgment() {
+    let artifact = shadow_from_source("my f x = 42").expect("bounded integer source skeleton");
+    assert_eq!(artifact.binders.len(), 1);
+    assert_eq!(artifact.binders[0].name, "x");
+    assert_eq!(artifact.binders[0].range, 5..6);
+    let body = artifact.expression(&artifact.body).unwrap();
+    assert_eq!(body.range, 9..11);
+    let Form::IntegerLiteral { spelling } = &body.form else {
+        panic!("integer literal")
+    };
+    assert_eq!(spelling, "42");
+    assert_eq!(artifact.expressions.len(), 1);
+    assert!(artifact.uses.is_empty());
+    assert!(artifact.pending.is_empty());
+}
 
 #[test]
 fn shadow_source_core_retains_compose_structure_and_pending_premises() {

@@ -231,6 +231,9 @@ pub struct Expression {
 
 #[derive(Debug)]
 pub enum Form {
+    IntegerLiteral {
+        spelling: String,
+    },
     Use {
         binder: BinderId,
         occurrence: UseId,
@@ -425,6 +428,7 @@ impl Skeleton {
         self.expression(&self.body)?;
         for (index, expression) in self.expressions.iter().enumerate() {
             match &expression.form {
+                Form::IntegerLiteral { .. } => {}
                 Form::Use { binder, occurrence } => {
                     self.check_id(&binder.0, self.binders.len())?;
                     self.check_id(&occurrence.0, self.uses.len())?;
@@ -607,6 +611,24 @@ impl Skeleton {
         while let Some(task) = tasks.pop() {
             match task {
                 Task::Visit(node) => match node.kind() {
+                    SyntaxKind::IntegerLiteral => {
+                        if node.children().next().is_some() {
+                            return Err(unsupported(&node));
+                        }
+                        let range = range_of(&node);
+                        let spelling =
+                            source
+                                .get(range.clone())
+                                .ok_or_else(|| ShadowError::InvalidRange {
+                                    range: range.clone(),
+                                })?;
+                        results.push(self.push_expression(
+                            range,
+                            Form::IntegerLiteral {
+                                spelling: spelling.to_owned(),
+                            },
+                        ));
+                    }
                     SyntaxKind::IdentifierExpression => {
                         if node.children().next().is_some() {
                             return Err(unsupported(&node));
@@ -641,7 +663,9 @@ impl Skeleton {
                         };
                         if !matches!(
                             first.kind(),
-                            SyntaxKind::IdentifierExpression | SyntaxKind::ParenthesizedExpression
+                            SyntaxKind::IdentifierExpression
+                                | SyntaxKind::ParenthesizedExpression
+                                | SyntaxKind::IntegerLiteral
                         ) {
                             return Err(unsupported(first));
                         }
@@ -843,12 +867,12 @@ mod tests {
 
     #[test]
     fn unsupported_expression_keeps_raw_source_without_a_success_fallback() {
-        let source = "my constant x = 1";
+        let source = "my constant x = \"unsupported\"";
         let artifact = ShadowArtifact::from_parsed(parsed(source)).unwrap();
         assert!(matches!(
             artifact.skeleton(),
             Err(ShadowError::UnsupportedExpression {
-                kind: SyntaxKind::IntegerLiteral,
+                kind: SyntaxKind::StringLiteral,
                 ..
             })
         ));

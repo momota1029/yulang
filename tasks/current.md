@@ -23,10 +23,12 @@ solver, or semantic discharge is implemented. Production F5 remains untouched.
 Gate and review/check evidence:
 [shadow-core promotion](../notes/progress/2026-10-06-shadow-core-promotion-gate.md).
 The default-off `yu-solver/shadow-f5` feature now exercises the exact common
-leaf case `my f x = x`: source ranges and lexical binding align across shadow
-and current F5, and the F5 body occurrence survives collection/solve
-provenance. This compares source incidence only; it does not compare types,
-schemes, Apply behavior, or old infer. No executable old-infer runner exists.
+leaf cases `my f x = x` and `my f x = 42`: source ranges and the parameter-use
+or integer-literal structure align across shadow and current F5, and each F5
+body occurrence survives collection/solve provenance. The shadow records
+integer spelling/range without assigning a value, type, or effect. This
+compares source incidence only; it does not compare types, schemes, Apply
+behavior, or old infer. No executable old-infer runner exists.
 Next implementation gates may add only settled premise/evidence structure;
 continue the source bridge, soundness, principality, and adequacy research
 without relaxing their proof interfaces. One untouched HIR test has an observed
@@ -628,37 +630,41 @@ structure and identity/evidence plumbing while soundness, principality and
 source adequacy research continues. It does not authorize replacing or routing
 production inference through the shadow. Unresolved semantic judgments must
 remain explicit premises/stubs, and new rules cannot be inferred from the
-prototype. The first reviewed vertical slice is a detached, `cfg(test)` HIR
-source-to-application skeleton for `my compose f g x = f (g x)`: it retains
-application nodes, binder/use/expression identities and source extents, and
-leaves callable role, complete Function membership and call-view realization
-pending. The focused structural comparison is against the existing test-only
-scoped candidate over their shared parser envelope; it is not old-infer
-differential evidence. The current workspace has no executable frozen-Oracle
-runner, and current production HIR rejects ordinary application before
-inference, so semantic parity is not available on this input. Four focused
-tests pass; the source-envelope rejection repair received compiler-referee
-PASS. This closes only the prototype's local structural gate. It leaves the
-durable opt-in `yu-core::shadow` API, broader differential harness, all semantic
-judgments, theorem gates and production cutover open. See the isolated source
-module at `crates/yu-hir/src/tests/shadow_source_core.rs`.
+prototype. The first reviewed vertical slice was a test-only HIR
+source-to-application skeleton for `my compose f g x = f (g x)`. It was then
+promoted behind the default-off `yu-core::shadow` API with iterative raw-CST
+retention and artifact-branded positions; the promotion gate's M2 reviews found
+no blocking or major issue. The structural comparison remains against an
+existing test-only scoped candidate over their shared parser envelope, not
+old-infer differential evidence. The current workspace has no executable
+frozen-Oracle runner, and current production HIR rejects ordinary application
+before inference, so semantic parity is unavailable on that input. The current
+shadow/F5 differential now covers the shared leaves `my f x = x` and
+`my f x = 42`: it compares source identity/ranges and confirms each F5 body
+occurrence reaches collection/solve provenance. It compares no inferred type or
+scheme. Callable role, complete Function membership, call-view realization,
+annotation-to-typed-profile correspondence and theorem gates remain open. See
+the [shadow promotion and leaf differential gate](../notes/progress/2026-10-06-shadow-core-promotion-gate.md),
+`crates/yu-hir/src/tests/shadow_source_core.rs`, and
+`crates/yu-hir/src/tests/shadow_annotation_positions.rs`.
 
-Candidate disposition for the next experimental steps: (1) ordinary Apply is
-preserved only at this detached parsed-source/HIR test seam; production
-`ResolvedExpr` still drops it. (2) source occurrence, binder and use identities
-are present in the prototype, branded to one artifact. (3) a second `cfg(test)`
-source shadow now retains every raw CST node/token, full owner path, range and
-annotation occurrence identity; each annotation's typed-port/profile link stays
-pending. The first shadow still has no typed source boundary. (4)
+Current candidate disposition: (1) ordinary Apply is preserved in the
+default-off parsed-source/HIR shadow API; production `ResolvedExpr` still drops
+it. (2) source occurrence, binder, use and expression identities are branded
+to one artifact. (3) the raw-CST shadow retains every node/token, full owner
+path, range and annotation occurrence identity; integer leaves additionally
+retain exact spelling/range only. Each annotation's typed-port/profile link
+stays pending, and there is no typed source boundary. (4)
 `beta`/`Slots(beta)` are absent. (5) typed paths, owner/receiver and provenance
 are absent; retained CST paths are syntax provenance only. (6) there is no
 generalized SCC interface. (7) recursive Q/R
 identity and use-time freshening are absent. (8) callable role, Function
 membership and call-view realization are explicit pending premises. (9) the
-only comparison is structural against an existing test-only candidate; there
-is no executable frozen-legacy/old-infer runner on the Apply input. Thus the
-slices establish identity-preserving syntax plumbing and honest unresolved
-obligations only. The first uses `my compose f g x = f (g x)`;
+Apply comparison is structural against an existing test-only candidate; the
+F5 differential covers only the two leaf sources above, and there is no
+executable frozen-legacy/old-infer runner on the Apply input. Thus the slices
+establish identity-preserving syntax plumbing and honest unresolved obligations
+only. The first uses `my compose f g x = f (g x)`;
 the second uses clean parser fixtures to distinguish a leading row from an
 arrow-owned row and keeps two nested call stages distinct. A whole-CST
 comparison confirms retention against the parser tree; neither slice compares
@@ -676,12 +682,10 @@ precision repair does not change either result. The new annotation shadow is
 only raw-CST retention, not the missing typed association. See the
 [certificate attempt](../notes/progress/2026-10-06-annotation-position-profile-certificate-attempt.md)
 and the [reviewed falsification](../notes/progress/2026-10-06-annotation-profile-source-falsification.md).
-The next bounded implementation candidate is to
-promote that product behind an opt-in `yu-core::shadow` API, retaining the
-current HIR ownership boundary and adding no production consumer; this requires
-its own M2 review before implementation. The theory lane continues
-independently from the open recursive source-origin/Form(S) and guard/source
-bridges.
+The opt-in structural API promotion is complete. Further shadow slices may add
+only source structure or evidence plumbing justified by settled rules, while
+the theory lane continues on the open recursive source-origin/Form(S),
+guard/source, callback admission, soundness, principality and adequacy gates.
 
 The test-only finite parent/use graph transport prototype is complete under
 its narrow gate. It has independent substitution-reference tests and does not
@@ -1312,6 +1316,22 @@ containment, soundness, principality and source adequacy remain open; the
 approved basis and proof seams are unchanged. See the
 [construction attempt](../notes/progress/2026-10-06-pcinit-source-construction-attempt.md)
 and [falsification audit](../notes/progress/2026-10-06-pcinit-source-falsification.md).
+
+A further reviewed attack on the exact returned-`step` source candidate
+separates three premises: the approved lexical capture; the decorated source
+envelope consumed by source-contract §3.2 emission; and call-view §2 formation
+of `beta`/`Slots(beta)` from position plus contract. The ordinary core skeleton
+and typed transport preserve supplied endpoints/profile evidence but do not
+introduce that registration anchor from lexical capture alone. Even with a
+decorated envelope supplied, §3.2 retention is not slot/profile formation and
+§3.5 still requires local descriptor typing and finite conformance. The
+complementary constructive and premise-inversion notes received
+compiler-referee review with no findings. This is bounded rule-interface
+evidence, not an accepted-source counterexample, impossibility result, or
+registration theorem; source generation, later receiver activation, admission,
+origin/guard, soundness, principality and source adequacy remain open. See the
+[constructive attempt](../notes/progress/2026-10-06-captured-provider-registration-constructive-attempt.md)
+and [falsification audit](../notes/progress/2026-10-06-captured-provider-registration-falsification.md).
 
 Four reviewed source-derivation attempts refine the dependency order without
 closing these gates. The [`call` source-rule audit](../notes/progress/2026-10-06-call-view-source-rule-derivation-attempt.md)
