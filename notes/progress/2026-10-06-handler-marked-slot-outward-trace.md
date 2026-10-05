@@ -82,6 +82,11 @@ receipt and profile evidence making `Visible(q,h_i,C_i)` true, and compatible
 contract can satisfy this premise. The argument does not require the outer
 query to accept, reject, or be changed by release.
 
+For the separate raw-resume/deep-reapplication trace below, choose `h_i`'s
+value arm to return its input `Unit` with unchanged state. This extra premise
+ensures the displayed deep reapplication returns; it is not used in trace A
+or B.
+
 The public annotation occurrence `s:'e?` is intended to designate `(T,p)`.
 That designation, attribution to `'e`, and its relation to a protection witness
 are **not** consequences of the supplied executing context. They remain the
@@ -185,10 +190,11 @@ the original handled event in this minimal instance.
 
 Explicit deep expansion uses `wrap_i(k) = lambda a. D_i[Resume(k,a)]` and
 `D_i[c] = S_i-with-wrapped-continuations[c]` (ordinary §5). With this pure
-`k0`, one reapplication still returns without re-emitting `epsilon`. With an
-effectful suffix it installs a fresh shallow occurrence and uses its actual
-source ownership/contracts. It does not reinstall the old handler or copy
-release to a new receiver. No deep wrapper is inserted into traces A or B.
+`k0` and the identity `Unit` value arm stipulated above, one reapplication
+returns without re-emitting `epsilon`. With an effectful suffix it installs a
+fresh shallow occurrence and uses its actual source ownership/contracts. It
+does not reinstall the old handler or copy release to a new receiver. No deep
+wrapper is inserted into traces A or B.
 
 ## Exact association and transition blocker
 
@@ -207,7 +213,8 @@ current activity. Their definitions contain neither marker occurrence `s`
 nor an attribution judgment `AttributedTo(q,'e)`. They cannot identify which
 complete protection evidence belongs to that public output marker merely
 from equal effect-family heads. Even choosing identity `Flow` eliminates no
-such obligation. In A the full witness exists without an outward request;
+such obligation. In A the supplied profile/observation/receipt witness exists
+without an outward request;
 in B the outward request exists without a derived annotation association.
 
 The precise missing premise is a source/elaboration rule associating the
