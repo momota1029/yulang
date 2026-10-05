@@ -33,14 +33,55 @@ A commit is a reviewable and bisectable checkpoint, not merely a progress timest
 
 ## Parallel work
 
-Independent read-only review may run in parallel and reports stay isolated until all reviewers finish.
+Independent producers, experiments, and read-only reviewers may run in parallel.
+This user-directed policy replaces the former blanket same-worktree child-writer
+ban. It does not permit concurrent writers to one file or several Git integrators.
+Use the scheduling and resource budgets in [`research-lab.md`](research-lab.md).
 
-Do not run two write-capable agents in the same working tree. Use a distinct git
-worktree and branch for each concurrent writer. The narrow question-board exception
-permits questioning/answering primaries on disjoint owned files under
-`question-board.md`; the answerer never mutates Git, so only the questioning
-primary owns the index. This exception does not permit concurrent write-capable
-child agents. Do not use one shared index from several sessions.
+### Disjoint-file mode
+
+The primary may run concurrent write-capable children in one worktree only when:
+
+1. Each has an explicit, non-overlapping lease of exact output paths, plus a
+   pinned source/authority baseline and a bounded read/dependency set. Different
+   functions or sections in one file are not disjoint leases. Leases are
+   coordination contracts, not a claim of sandbox-enforced file permissions.
+2. No worker depends on another worker's unfinished edits. Read stable shared
+   inputs from the pinned revision or a frozen copy. Generated files, reports,
+   temporary output, caches with unsafe writers, and formatting writes are part
+   of the write set, not exceptions. Unknown side effects require isolation.
+3. `AGENTS.md`, `rules/`, `.codex/`, manifests/lockfiles, `tasks/current.md`,
+   `notes/design/INDEX.md`, and the shared lane queue have one coordinating
+   primary writer. Theory-map files may have one explicitly leased curator.
+   Other workers report proposed changes instead of editing these hotspots.
+4. Exactly one primary owns the worktree's index, refs, worktree administration,
+   stage/commit/push and integration. Children perform no Git mutation. Distinct
+   active primaries must coordinate exact ownership before sharing a worktree;
+   the existing question-board handoff remains separate and unchanged.
+5. Before review/integration, freeze the leased artifact and its dependency
+   snapshot, inspect its complete diff and output list, and run focused checks
+   on that exact combination. Revalidate changed dependencies before accepting
+   a result. Do not certify a mixed live worktree as a reviewed snapshot.
+
+A primary must not edit a child's leased path until the worker acknowledges
+handoff/completion or its writes have actually stopped. Unrelated work remains
+untouched. Scope/lease changes are explicit and invalidate only affected results.
+
+### Isolated mode and shared builds
+
+Use a separate worktree/branch or frozen scratch copy for alternative edits to
+the same file, coupled interface changes, uncertain tool side effects, or reads
+that cannot remain stable. The primary creates and integrates isolated outputs;
+children still do not commit or switch branches. Do not resolve collisions by
+blanket stashing, resetting, cleaning, or overwriting another worker's changes.
+
+Separate worktrees isolate files, not CPU/RAM. Heavy builds are coordinated by
+one verification owner by default. Shared manifests, lockfiles, build targets,
+and snapshot writers are not independent just because source paths differ.
+Allocate unique small experiment outputs; broaden build concurrency only after
+an aggregate resource check. Integrate one coherent dependency set at a time,
+while unrelated lanes keep working. If safe isolation is unavailable, serialize
+only the conflicting write/build seam, not every read/proof/experiment.
 
 ## Branch safety
 

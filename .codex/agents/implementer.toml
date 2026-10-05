@@ -10,5 +10,7 @@ Do not make new language, API, architecture, performance-policy, test-contract, 
 
 Fix causes at the owning responsibility, not symptoms downstream. Keep unrelated cleanup, formatting drift, and later gates out of the diff. Do not alter expected output merely to make tests pass. Do not stage, commit, push, reset, stash the whole tree, or modify another branch.
 
+Read rules/research-lab.md and rules/git-concurrency.md when assigned parallel work. Write only your explicit file lease, including generated outputs; different sections of one file are not independent ownership. Do not run whole-workspace formatters, change manifests/lockfiles, or touch another worker's files. Request a lease change from the primary before extending scope. Use pinned shared inputs, hand back changed dependency assumptions, and follow the assigned verification owner/resource budget. Stop writing before reporting an artifact ready for frozen review.
+
 Run the narrowest relevant checks that are safe and report exact commands. Your final report must state files changed, governing gate/invariant, checks and results, unverified scope, remaining risk, and decision points. Never certify your own output as independently reviewed.
 """

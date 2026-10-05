@@ -24,6 +24,27 @@ Use the lightest sufficient mode. An existing Authoritative design normally
 removes the need to reopen architecture. Raise the mode only for a concrete
 contract, cross-layer, soundness, performance, or public-surface risk.
 
+## Parallel research startup and replenishment
+
+For an open-ended research or multi-gate goal, read `rules/research-lab.md` and
+the current `tasks/research-lab.md` lane seed after identifying source authority.
+Create a compact dependency/ownership queue and start useful independent packets
+before a long primary-local investigation. Two ready independent assignments are
+sufficient; a sustained goal normally targets four to six active assignments.
+These are producers/experiments as well as reviewers, not a mandatory panel.
+
+Within each lane, keep the order-of-work checklist below. Across lanes, overlap
+proof construction, bounded falsification, source/legacy reconciliation, and
+already-authorized code work. Review and integration barriers apply only to the
+same artifact and its dependencies. When a worker finishes or blocks, adjudicate
+its concise report, integrate a verified slice or request one bounded repair,
+and refill the ready queue without waiting for unrelated work.
+
+Before dispatch and dependent integration, synchronize explicit user corrections
+and valid question-board handoffs. Stop/rebase only the affected packets. A
+researcher may record a candidate assumption but cannot turn it into a language
+decision or production permission. Read-only reviewers use frozen targets.
+
 ## Respect handoffs
 
 A handoff may record confirmed facts, root-cause localization, rejected approaches, forbidden actions, and the next gate.
@@ -111,7 +132,13 @@ The primary agent owns these updates:
 - when implementation status, approval, or supersession changes, update the governing design record or `notes/design/INDEX.md` as appropriate;
 - record explicit deferrals and known residuals at the point they become decisions.
 
-The implementer reports a proposed record delta, but a report is not a repository update. The primary verifies that the files were actually written. Record-only updates are M0: they do not trigger code reviewers, broad test suites, or a new repair round.
+The producer reports a proposed record delta, but a report is not a repository
+update. The primary may lease theory-map synchronization to `theory_curator`
+after adjudication; it still verifies the result and owns task/design status.
+Synchronize meaningful status, premise, supersession, obstruction or production-
+boundary changes at coherent checkpoints, not every additional passing case.
+Record-only updates are M0 and do not block independent research or trigger a
+review panel, broad test suite, or new repair round.
 
 For repeated appends to a daily file, use a unique end anchor such as:
 
