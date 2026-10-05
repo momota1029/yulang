@@ -5,6 +5,14 @@ Status: conditional proof for a narrow declarative fragment; not independently r
 Scope: pure `Var`/`Int`/`Lambda`/`Apply` expressions and one recursive SCC
 Governing records: `2026-09-30-intrusion-pure-source-typing-rules.md`, `2026-09-30-intrusion-scc-constraint-scheme-rules.md`, and the SCC-intrusion redesign charter
 
+The `≤` relation used below is the fixed transitive preorder from the
+declared fragment. Do not instantiate it as the set of all individually
+successful concrete resolutions in Yulang's endpoint-dependent solver. The
+completeness proof composes assigned-value comparisons; optional Records give
+a source `Sub` chain that cannot be compressed to the generated direct edge.
+See the exact counterexample and minimum bridge in the
+[concrete-transitivity obstruction](2026-10-05-source-adequacy-concrete-transitivity-obstruction.md).
+
 ## Declarative group rule
 
 Fix a preorder carrier `D` with the Function subtyping law from the pure

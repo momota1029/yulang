@@ -118,6 +118,15 @@ effects, rows, roles, diagnostics, and runtime entrypoint checks. Consequently
 it establishes neither whole-program well-typedness nor Oracle-capability
 equivalence.
 
+The preorder premise is essential to the stated completeness theorem. Its
+`Sub` rule and generation proof cannot be read as allowing arbitrary successful
+concrete `A <: B` resolutions to chain: optional-record compatibility admits
+`{foo?: string} <: {}` and `{}` `<:` `{foo?: int}` while rejecting the direct
+comparison. With such anchors, the source term `x` can be widened twice but
+Name generation retains only its original anchor. The exact counterexample
+and the source-bridge obligation are recorded in the
+[concrete-transitivity obstruction](2026-10-05-source-adequacy-concrete-transitivity-obstruction.md).
+
 ## Next extension
 
 Add recursive definition groups with a monomorphic self placeholder per member

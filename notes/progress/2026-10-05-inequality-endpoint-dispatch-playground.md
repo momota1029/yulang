@@ -59,6 +59,28 @@ replay eligibility, substitution, structural witness generation, or what a
 complete inequality solver does when the finite concrete table has no middle
 witness. It selects no new rule and is not a complete solver.
 
+## Legacy source-generation completeness counterexample (2026-10-05)
+
+The same finite optional-record table now instantiates the candidate pure
+source typing rules' `Name` and `Sub` cases. Starting from the Name anchor
+`A={foo?: string}`, the declarative source derivation can apply the two
+successful local checks `A <: B={}` and `B <: C={foo?: int}`. The candidate
+Name generator returns `A` with no constraints, so its completeness conclusion
+for `x:C` requires the failed direct check `A <: C`. The recursive-group
+instance likewise sets body type `T=B` and recursive/exposed endpoints
+`S=R=C`: its two local group premises succeed, while the generated direct
+`A <: S/R` edges fail. This exactly exercises the transitive concrete-value
+step in the old adequacy proof; it does not refute the theorem over its
+declared global-preorder structural fragment or define successor source
+typing.
+
+The model asserts those derivation and generation steps directly. It is a
+small executable characterization of the paper counterexample, not source
+execution or compiler behavior. The evidence supports the narrow conclusion
+that the old generation completeness interface cannot be reused for arbitrary
+endpoint-local Yulang comparisons without preserving the intermediate source
+checks/evidence or proving a transitive restriction.
+
 Verification: `python3 tools/research_inequality_endpoint_dispatch.py`,
 `python3 -m py_compile tools/research_inequality_endpoint_dispatch.py`, and
 `git diff --check` passed. A focused

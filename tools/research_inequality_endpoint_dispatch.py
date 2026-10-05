@@ -11,7 +11,9 @@ The script intentionally does not specify lower/upper replay eligibility,
 general record compatibility, casts/adapters, or a complete solver. A separate
 finite check enumerates concrete witnesses for one variable between a lower
 and upper payload; it rejects direct lower-to-upper composition as a complete
-existence test but does not select a solver replay policy.
+existence test but does not select a solver replay policy. It also instantiates
+the legacy Name/Sub generation theorem on the optional-record counterexample
+to expose the exact gap caused by compressing a source Sub chain.
 
 Run: python3 tools/research_inequality_endpoint_dispatch.py
 """
@@ -249,12 +251,45 @@ def lower_upper_exhaustion() -> tuple[int, int, int, tuple[Record, Record, tuple
     )
 
 
+def source_subsumption_compression_counterexample() -> tuple[Record, Record, Record]:
+    """Show a source Sub chain that Name generation cannot compress directly."""
+    source = OPT_STRING
+    middle = EMPTY
+    exposed = OPT_INT
+
+    # Candidate declarative typing can apply Sub twice, resolving each direct
+    # concrete comparison locally. These successes are not a third comparison.
+    assert resolve_concrete(source, middle)
+    assert resolve_concrete(middle, exposed)
+    assert not resolve_concrete(source, exposed)
+
+    # The legacy Name rule returns its environment anchor and no constraints.
+    generated_name_endpoint = source
+    generated_constraints: tuple[Inequality, ...] = ()
+    assert not generated_constraints
+    # Its completeness conclusion for the two-Sub typing would need this
+    # direct endpoint check, which fails in the selected compatibility table.
+    assert not resolve_concrete(generated_name_endpoint, exposed)
+
+    # Recursive-group adequacy compresses the same chain at its group edge:
+    # T=B is below S=R=C locally, but the generated A <: S/R edges fail.
+    body_type = middle
+    recursive_assumption = exposed
+    root_type = exposed
+    assert resolve_concrete(body_type, recursive_assumption)
+    assert resolve_concrete(body_type, root_type)
+    assert not resolve_concrete(generated_name_endpoint, recursive_assumption)
+    assert not resolve_concrete(generated_name_endpoint, root_type)
+    return source, middle, exposed
+
+
 def main() -> None:
     matrix = dispatch_matrix()
     graph_families, graph_checks = variable_graph_exhaustion()
     concrete_success_count, chain_length = concrete_witness()
     subsets = concrete_successes_are_not_edges()
     interval_cases, inhabited_intervals, missed_intervals, minimum_interval = lower_upper_exhaustion()
+    source, middle, exposed = source_subsumption_compression_counterexample()
     print(f"endpoint dispatch cases: {matrix}/4")
     print(f"variable-edge graphs: {graph_families}; oracle comparisons: {graph_families}; composition checks: {graph_checks}")
     print(f"successful concrete cells in bounded table: {concrete_success_count}")
@@ -269,6 +304,11 @@ def main() -> None:
     print(
         "minimum retained-middle witness: "
         f"{lower} <: X <: {upper} with X in {middles}; direct endpoint query fails"
+    )
+    print(
+        "legacy Name/Sub completeness counterexample: "
+        f"{source} <: {middle} <: {exposed} succeeds stepwise; "
+        "Name generation retains the first endpoint and its direct query fails"
     )
     print("scope: endpoint dispatch and finite interval witnesses only; no replay policy or complete solver")
 
