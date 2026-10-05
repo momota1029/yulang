@@ -1,7 +1,7 @@
 # Frozen Oracle source producer: bounded mechanism archaeology
 
 Date: 2026-10-06
-Status: Frozen, unreviewed research-only historical characterization
+Status: Frozen, independently compiler-referee-reviewed (no findings); research-only historical characterization
 Yulang3 baseline: `c4a4515739cf120b708d269726da2f46cdd7f97d`
 Historical source: `a58eefc31e22141574b6f20c6a5748151c6d79f1`
 Exclusive lease: this file only
@@ -319,9 +319,9 @@ Historical source SHA-256; every file matched the frozen commit blob:
   primary-authorized review-status synchronization only. Other named current
   dependencies matched baseline; historical direct source files matched their
   commit blobs.
-- Review status: frozen, unreviewed bounded historical characterization;
-  no independent review, current theorem closure, or implementation authority.
-  Writes stop before submission for frozen review.
+- Review status: frozen, independently compiler-referee-reviewed with no
+  findings; bounded historical characterization only; no current theorem
+  closure or implementation authority.
 - Checks already run: revision/status reads; ten bounded frozen-source reads/
   searches; source/blob equality and SHA-256 checks; current dependency/blob
   comparisons and narrow authorized status-delta inspection; lease/path and

@@ -50,6 +50,17 @@ successor-shadow parity. A frozen Yulang2 Oracle runner was rebuilt from the
 exact source commit and probed on identity, compose, and captured-step
 examples. See the [identity differential](../notes/progress/2026-10-06-legacy-identity-differential.md)
 and [frozen Oracle rebuild and probes](../notes/progress/2026-10-06-frozen-oracle-rebuild-and-source-probes.md).
+Read-only archaeology of frozen Oracle revision
+`a58eefc31e22141574b6f20c6a5748151c6d79f1` traced a concrete historical
+producer path: resolved local `DefId` and live formal `TypeVar`, application
+constraints, environment-aware local generalization, coordinated use-time
+freshening with provenance routes, and a separately scoped evidence-VM
+closure environment. It supplies mechanism evidence only. It has no identified
+equivalent of current persistent `beta`/`Slots(beta)`, Q-independent admission,
+or the original joint `(nu,K,D)` packet and does not generate the current typed
+receipt/rebind/capture/read correspondences. Oracle semantics remain
+non-authoritative. See the independently reviewed
+[historical source archaeology](../notes/progress/2026-10-06-frozen-oracle-source-producer-archaeology.md).
 The independently compiler-referee-reviewed conditional
 [capture-transport rule inversion](../notes/progress/2026-10-06-nested-block-capture-transport-derivation.md)
 stipulates an original certified receipt and narrows that conditional lane's
