@@ -49,4 +49,49 @@ No current evidence proves that `Rel_C`, `K,D`, typed paths, occurrence/incidenc
 
 Derive the local interpretation from the source typing/Function-role rules, beginning with the smallest complete `CallView` and retaining B's independent endpoint generation and final ordinary inequality. Check the recursive latent-provider and whole-history clauses against `Rel_C`, `K,D`, paths, receipts and subtraction evidence. If the exact endpoint or context rule is absent from source authority, isolate the concrete rule alternatives before asking for any new semantic choice. Keep production adoption gated until that judgment and the actual-to-checked containment theorem close.
 
+## Paired latent-provider derivation probe
+
+The smallest useful discriminator is a returned quiet provider versus a
+returned provider whose body invokes a captured operation. At one fixed
+`xi = (nu,K,D)`, let `G = Fun(Value(Unit), Comp(E,Unit))`, let `Q` be a quiet
+provider, and consider the source-core shapes:
+
+```text
+Fq = lambda(Value(G), result(name f))
+Fe = lambda(Value(G),
+       result(lambda(Value(Unit),
+         call(result(operation op), result(Unit)))))
+```
+
+Both outer values can have the same skeleton
+`Fun(Value(G), Comp(empty,G))`. The quiet lane returns its supplied provider;
+the other constructs a closure that captures the original `op` declaration.
+Construction is inert. One later invocation of the returned provider yields
+`Return(Unit)` on the quiet lane and exposes the typed `op` request on the
+captured lane. The observation projection erases concrete data identity but
+retains the request, origin, continuation, authority and typed dependencies.
+These source/reference steps follow the ordinary-computation package §§2–4,
+typed-computation core §§3, 6 and 9, Theorem C §§2–3, and the source-indexed
+realization §§3–4.
+
+The common-interface witness is conditional: `Q` has an empty latent result
+row, so admitting it at `G` requires an independently established complete
+certificate and the fixed-domain guarantee weakening of typed-core §8. That
+conditional rule does not derive the certificate or general Function
+subtyping. Even after supplying it, the first missing production judgment is
+whether the actual returned descriptor admits the complete observation and
+retained latent provider, and how that membership persists through the later
+invocation. Source-contracts §2.2 calls for this independent `DescMem`
+interpretation and a constructor typing lemma; it does not define the former.
+Section 3.7's conditional abstraction grammar is not selected and cannot fill
+the missing judgment.
+
+This probe therefore does not refute approved denotation basis A or establish
+that the current relation/evidence is insufficient. It sharpens the next proof
+task to a constructor-typing/descriptor-membership bridge for one latent
+provider, after its source certificate is stated. A user decision is not yet
+isolated; continue this derivation against the original source typing rules
+before publishing another question. No compiler code, tests, builds or
+measurements were changed or run.
+
 No tests, builds, finite searches, or implementation changes were made in this audit. The previous production membership audit remains a correct record of the pre-answer state; this follow-up records the newly selected basis and the narrower remaining premise.

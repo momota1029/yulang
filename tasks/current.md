@@ -684,6 +684,16 @@ contexts over existing `Rel_C` evidence. No insufficiency of that evidence or
 source counterexample has been established. See the
 [approved-basis follow-up](../notes/progress/2026-10-05-production-function-denotation-followup.md)
 and its [integration receipt](../questions/2026-10-05-production-function-denotation/receipt.md).
+The next local derivation is narrowed to a returned latent provider: compare a
+quiet supplied closure with a closure capturing an operation, then invoke each
+once under the same complete interface. The conditional common interface
+requires an independently supplied certificate for the quiet closure; after
+that, the unresolved bridge is production `DescMem` for the full returned
+observation and retained provider across the later invocation. Existing source
+rules establish the source/reference traces but do not define that production
+judgment. This does not refute basis A or show the current evidence is
+insufficient, so it is not yet a new user decision. Details are in the
+[paired latent-provider probe](../notes/progress/2026-10-05-production-function-denotation-followup.md#paired-latent-provider-derivation-probe).
 The independent principal-scheme lane and `P_ref`-only proof work remain active.
 
 User-directed principal-scheme acceptance examples now cover `id`, `zero`,
