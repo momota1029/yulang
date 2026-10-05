@@ -462,6 +462,20 @@ and checked-bound embedding. Compiler implementation remains unauthorized;
 the source theorem package is Reviewed and conditional, while production
 generation remains Draft.
 
+The two-member recursive name-return analysis now separates its observations.
+A reviewed conditional result proves that each independently observed candidate
+member-use relation equals its finalized incoming-scheme relation under H1–H4,
+while a separate reviewed result retains strictness of the joint exposed-root
+relation under its own hypotheses. The production audit fixes the negative
+Function port order and reduces each pure incoming use to the exact cyclic
+obligations `F²(ρ)≤ρ`, `ρ≤Top`, and `F²(ρ)≤U`; pure effect leaves discharge
+without row mutation. The remaining gate is the one-row existential valuation
+meaning for that live cyclic bound graph and its allowed target class. These
+conditional artifacts do not establish production denotation, source
+adequacy, or intended semantics. See the [member-use bridge](../notes/progress/2026-10-06-rec-name-return-member-scheme-bridge.md),
+[joint-root separator](../notes/progress/2026-10-06-rec-name-return-root-relation-separator.md),
+and [pure production reduction](../notes/progress/2026-10-06-rec-name-return-purefun-production-reduction.md).
+
 ## Active unrestricted proof gates
 
 The test-only finite parent/use graph transport prototype is complete under
