@@ -83,6 +83,9 @@ provenance, including its source component; let `Prot(q,s)` mean that source
 evidence associates handler protection at slot `s` with `q`. Let `Ord(q)` be
 the ordinary event contribution, without changing its identity or type.
 These are metatheoretic names for this candidate, not new compiler fields.
+Attribution and protection are premises supplied by their own source/evidence
+rules; event identity, lineage, path, and provenance do not define the meaning
+of `?`.
 
 The proposed local release rule is:
 

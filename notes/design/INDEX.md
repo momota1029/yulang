@@ -52,6 +52,12 @@ This index is a navigation aid. The listed source document remains authoritative
   boundary evidence realize the release; nested boundaries and actual
   resumption remain open. See its
   [progress record](../progress/2026-10-05-handler-protection-release-playground.md).
+  [`research_handler_protection_path_projection.py`](../../tools/research_handler_protection_path_projection.py)
+  checks one candidate query-time projection over supplied typed-path
+  evidence. Route crossing is only a hypothesis for locating the release
+  point, not the meaning of `'e?`; it does not establish source attribution,
+  release lifetime, or adequacy. See its
+  [progress record](../progress/2026-10-05-handler-protection-path-projection.md).
 
 - **Executable proof-search direction:**
   [inference research playgrounds](2026-10-04-inference-research-playgrounds.md)

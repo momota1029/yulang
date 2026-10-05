@@ -740,10 +740,18 @@ mutants are rejected. This does not derive source attribution or show that the
 existing typed-boundary `χ`/`Path`/`Inc_C` evidence can realize the release.
 The probe uses one protection witness per event and does not cover nested
 overlap, actual resumed execution, or higher-order latent invocation. The next
-concrete gate is to reconcile slot-local release with the existing rule that
-result-path profiles remain live while their receiver is active, preserving
-provenance/transport independently from protection. See the
-[protection-release probe record](../notes/progress/2026-10-05-handler-protection-release-playground.md).
+typed-path projection probe tests one candidate route-crossing query over
+supplied `Profile`/`Flow`/`Observe`/`Receive` evidence. Route crossing is only a
+hypothesis for locating the slot-local release point; it is not the meaning of
+`'e?` and is not established source semantics. It keeps raw `Path`/`Inc_C`
+evidence independent from the protection query and characterizes overlapping
+paths, latent observations, expiry, and cycles, but proves neither the source
+attribution nor that this path predicate is the correct release lifetime.
+The next concrete gate is to derive what makes a contribution leave the
+annotated slot, when only its handler protection is removed, and how ordinary
+handler eligibility resumes while provenance and transport remain intact.
+See the [protection-release probe record](../notes/progress/2026-10-05-handler-protection-release-playground.md)
+and the [candidate path-projection record](../notes/progress/2026-10-05-handler-protection-path-projection.md).
 An architect cross-check found no counterexample among the seven accepted
 schemes and no demonstrated missing carrier. A direct Astra theorem attack,
 independently reviewed by a compiler referee and architect, distinguishes the

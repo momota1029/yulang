@@ -11,7 +11,9 @@ protection witness `(event, boundary, slot)`. The marker is applied only in the
 handler-eligibility query for a contribution attributed to the marked source
 component. It does not rewrite the contribution or evidence tuple. Attribution
 and protection witnesses are inputs: this does not derive them from source,
-`Rel_C`, `K,D`, occurrence/incidence, or typed-path rules.
+`Rel_C`, `K,D`, occurrence/incidence, or typed-path rules. Identity, lineage,
+and path are frame coordinates here, not the meaning of `?`; the probe only
+models the local protection-only change after attribution is supplied.
 
 The bounded check covers four combinations of selected versus unrelated source
 component and active versus inactive receiver handler. A same-family local
