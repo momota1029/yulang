@@ -32,10 +32,11 @@ This index is a navigation aid. The listed source document remains authoritative
 
 - **Exploratory handler-protection notation:**
   [handler protection-release notation](2026-10-05-handler-hygiene-public-provenance-notation.md)
-  is Draft only. The user's corrected meaning for `'e?` is to release handler
-  protection from an already `'e`-attributed contribution leaving that slot,
-  preserving its provenance/source component and row facts. Event identity and
-  lineage are preserved evidence, not the marker's meaning. It is neither an
+  is Draft only. The user's corrected meaning for `'e?` is: for a contribution
+  independently established as originating from `'e` and emitted from that
+  slot, remove handler protection while preserving provenance/source component
+  and row membership. Event identity and lineage are preserved evidence, not
+  the marker's meaning. It is neither an
   optional-flow marker nor a provenance edge, and it does not perform handler
   subtraction. Attribution, release timing, ordinary post-release eligibility,
   overlap composition and projection from current evidence remain open. It
@@ -47,11 +48,13 @@ This index is a navigation aid. The listed source document remains authoritative
   it does not derive source incidence or establish a principal projection.
   See its [progress record](../progress/2026-10-05-handler-provenance-projection-playground.md).
   [`research_handler_protection_release.py`](../../tools/research_handler_protection_release.py)
-  separately checks the local protection-only frame under supplied attribution
-  and protection evidence, rejecting family-wide and sticky-protection
-  mutants. It does not derive attribution or establish that `Rel_C` and typed
-  boundary evidence realize the release; nested boundaries and actual
-  resumption remain open. See its
+  separately checks a finite post-attribution/post-emission frame under
+  supplied source-component and protection evidence, rejecting family-wide
+  and sticky-protection mutants. It supplies emission as a coordinate
+  separate from attribution and protection; event identity is only a toy
+  evidence join key. It does not derive attribution/emission or establish
+  that `Rel_C` and typed-boundary evidence realize the release; nested
+  boundaries and actual resumption remain open. See its
   [progress record](../progress/2026-10-05-handler-protection-release-playground.md).
   [`research_handler_protection_path_projection.py`](../../tools/research_handler_protection_path_projection.py)
   checks one candidate query-time projection over supplied typed-path
@@ -156,6 +159,12 @@ This index is a navigation aid. The listed source document remains authoritative
   `{}` derives a type that the direct Name endpoint comparison rejects. The
   conditional preorder proofs remain valid in their stated structural
   fragment. See the [source-adequacy obstruction](../progress/2026-10-05-source-adequacy-concrete-transitivity-obstruction.md).
+  A current HIR coverage audit finds surface `as` syntax retained through
+  association only as wrapper/range (the target type subtree is dropped) and
+  rejected before constraint generation, so the witness is
+  not an accepted production cast-chain bug and current rejection selects no
+  successor source restriction. See the
+  [source-boundary coverage characterization](../progress/2026-10-05-source-boundary-coverage-audit.md).
   The current HIR-backed Lambda realization candidate for `id` and `zero`
   inspects their actual Function facts and public schemes, then checks a finite
   typed-observation lift; a separate bounded state-machine test exercises two
@@ -250,6 +259,14 @@ This index is a navigation aid. The listed source document remains authoritative
   residual. Two independent reviews are clean; no extra source premise or
   compiler implementation is selected. See
   [proof/review record](../progress/2026-10-04-structural-fmp-proof.md).
+- **Reviewed effective-search corollary:** under finite fixed-head/label
+  input, decidable identity for the finitely many input primitive/rigid atoms,
+  and decidable membership checks for input rigid atoms, FMP's `8^N` witness
+  bound yields a terminating exhaustive satisfiability procedure for this pure
+  package. It does not decide residuals
+  with `Guard`, `Phi`, `K,D`, effects or source admission and has no production
+  authority. See the
+  [corollary derivation](../progress/2026-10-05-pure-structural-effective-decision-corollary.md).
 - **Executable finite-fence research candidate:**
   [`check_structural_fence_completion.py`](../../tools/check_structural_fence_completion.py)
   runs the reviewed profile construction outside production. Its initial
@@ -395,6 +412,19 @@ This index is a navigation aid. The listed source document remains authoritative
   HIR/F5 owners; it records the exact premise without selecting `W`/`Z`, a
   carrier, or implementation. See the
   [interpretation audit](../progress/2026-10-05-production-complete-function-interpretation-audit.md).
+  Typed-core §6 is Draft and proposes a whole-carrier source-application
+  obligation with typed path/contract evidence; it does not specify the
+  endpoint/path translation into an ordinary `A <: B` query or a complete
+  source-admission rule. The required gate is exhaustive, comparison-
+  independent production admission/satisfaction and `D_C ⊆ D_A`,
+  `P_A ⊆ P_C` containment over the approved basis. Source-generation
+  correspondence is one sufficient route for bounded reference members;
+  Option 2 permits independent containment proofs and production-only members.
+  Current HIR emits no callback application node. No new carrier is
+  established. Concrete-success noncomposition follows from the existing
+  optional-record witness; adapter-evidence composition remains a source proof
+  obligation. See the [inlet/admission audit](../progress/2026-10-05-production-function-inlet-admission-audit.md)
+  and [endpoint-dispatch characterization](../progress/2026-10-05-inequality-endpoint-dispatch-playground.md).
 - **User-approved production Function-denotation basis (A):**
   [the q1/d1 handoff](../../questions/2026-10-05-production-function-denotation/approved-answer.md)
   selects the existing complete typed-observation `Rel_C` fiber, constrained
@@ -508,6 +538,7 @@ the source design documents and explicit user decisions.
 
 | Document | Status | Authority scope | Approved / state | Useful locator or gate |
 |---|---|---|---|---|
+| `notes/progress/2026-10-05-residual-admission-source-premise-audit.md` | Read-only design-source characterization; no source or implementation authority | Which source premise remains for the reviewed conditional canonical-graft membership theorem | Structural upper/permission transport is already proved; primitive Guards/Phi/K,D interpretation over the changing endpoint and derived-comparison context remains unspecified. No source counterexample is established; preserve existential original assignments. |
 | `notes/design/2026-10-05-source-contracts-and-common-allowance.md` | Reviewed conditional theorem package; base compiler/spec/repair and Option 2 mathematical/conformance reviews closed | Additional source-generated assumptions permitted; approved Option 2 allows conservative root extras; concrete formation/abstraction clauses remain Draft; no implementation authority | Local source-base correspondence; guarantee-only common extension; actual-export allocation-view factorization; finite complete-query calculus; guarded positive abstraction with unanchored extras; 648 absorption and 648 allocation cases plus 884,736 finite abstraction comparisons | Concrete membership/abstract primitives and query rules remain proposed. Current production conformance, unrestricted source/value/capture/view coverage, all full principal schemes and residual/lifecycle gates remain open. |
 | `notes/design/2026-10-05-source-factor-cover-and-query-preservation.md` | Reviewed limited mathematical theorems; two independent clean reviews | Source-local decomposition of existing complete relations; no representation or implementation decision | Complete factor coverage proves exact reconstruction and preservation of every unchanged client/direct-evidence relation; sharp uniform necessity on nontrivial products; fixed observable parity route counterexample; 148,224-case research checker | Full production membership, legal common-component formation/typed-path interpretation and all-valid-view extension through the designated export remain open. Classification C; structural FMP remains A. |
 | `notes/design/2026-10-04-source-indexed-callback-realization.md` | Reviewed limited mathematical construction; no implementation authority | Source-associated reference endpoints in Theorem C's decorated immutable envelope | Finite root membership/admission clauses give a bidirectional constructor correspondence with generated bounds. Whole-observation typed projection preserves all finite latent and resumption histories. Two independent reviews closed with one minor owner-name correction. | Option 2 permits production-only observations under an exhaustive rule; it does not make `P_ref` mandatory production semantics. Exact production membership, actual-to-checked containment, and all-source B decoration generation remain open. |

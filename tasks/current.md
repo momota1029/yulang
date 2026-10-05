@@ -225,8 +225,14 @@ label, not actual `(ν,K,D)` satisfaction, Function membership, execution
 adequacy, or principal inference. The next concrete attack is an independent
 source/core execution comparison for `compose`'s
 `Force(D_g) >>= rebind >>= B_f` suffix, retaining request/resumption state and
-receipt identity; that still would not close complete production Function
-membership or common-allowance principality.
+receipt identity. That comparison is now recorded in the parsed-source
+execution bridge below; it does not close complete production Function
+membership or common-allowance principality. The cutover audit identifies the
+next independent lifecycle contract: one SCC producer/consumer boundary plus
+its enclosing live context. The current F5 implementation supplies schedule,
+fresh-use, and rollback evidence but does not prove successor source-boundary
+adequacy. See the [SCC generalized-boundary contract](../notes/progress/2026-10-05-scc-generalized-boundary-contract.md)
+for the exact source premise and consumer-preservation statement.
 
 ## Latest main-gate results
 
@@ -749,53 +755,43 @@ caller-owned observations in the complete `f` call along
 `Force(D_g) >>= B_f`; its candidate Function contract places them in outward
 `c`. Production endpoint projection and principal representability remain
 unproved; details are in the contributor-bound attempt.
-The user-selected local reading of `'e?` (recorded in a Draft) is: stop
-protecting an already `'e`-attributed effect contribution when it leaves the
-marked slot. Only that slot's handler protection changes; provenance, source
-component, row support, and `K,D` remain unchanged. The contribution then
-returns to ordinary handler search and eligibility. Event identity and
-lineage are preserved evidence, not the meaning of the marker. This is not
-optional membership, may-flow, a provenance edge, handler selection, or
-subtraction. Still open: (1) the source evidence that attributes a leaving
-contribution to `'e`; (2) the exact protection-release point; (3) its return to
-ordinary handler eligibility; (4) protection lifetime across nested, shallow,
-deep, resumed, and higher-order execution; and (5) whether existing
-`Rel_C`, occurrence/incidence, typed paths, and attachment/evidence represent
-the change. No new carrier or production change is selected.
+The user's selected local reading of `'e?` (recorded in a Draft) is: for an
+effect contribution independently established as originating from `'e` and
+emitted from the marked slot, remove handler protection. This changes only
+protection: provenance/source component and row membership remain unchanged;
+event identity, lineage, attachment and `K,D` are separate evidence, not the
+marker meaning. The marker itself does not establish source attribution or
+emission; a protection witness, event identity, family equality, or path alone
+does not establish either premise. It does not encode optional
+membership, an input-to-output provenance edge, handler selection, or
+subtraction. After release, ordinary handler search/eligibility applies, but
+release does not guarantee capture. Still open: (1) which source/evidence rule
+identifies a contribution emitted from this slot as `'e`-derived; (2) exactly
+when its protection ends; (3) how it re-enters ordinary handler search; (4)
+how protection lifetime behaves across nested, shallow, deep, resumed, and
+higher-order execution; and (5) whether `Rel_C`, occurrence/incidence, typed
+paths, attachment/evidence can express the change. Provenance must persist;
+only protection is removed. No new carrier or production change is selected.
 The previous provenance-edge probe is retained as independent finite
 support/provenance characterization only; it is not evidence for `'e?`. See
 the [historical probe record](../notes/progress/2026-10-05-handler-provenance-projection-playground.md)
 and corrected [Draft notation note](../notes/design/2026-10-05-handler-hygiene-public-provenance-notation.md).
-The separate protection-release probe checks the local frame under supplied
-attribution/protection evidence: `'e` attribution releases only the qualifying
-event's handler protection, while same-family local support, provenance,
-lineage, and typed path remain unchanged; family-wide and sticky-protection
-mutants are rejected. This does not derive source attribution or show that the
-existing typed-boundary `χ`/`Path`/`Inc_C` evidence can realize the release.
-The probe uses one protection witness per event and does not cover nested
-overlap, actual resumed execution, or higher-order latent invocation. The next
-typed-path projection probe tests one candidate route-crossing query over
-supplied `Profile`/`Flow`/`Observe`/`Receive` evidence. Route crossing is only a
-hypothesis for locating the slot-local release point; it is not the meaning of
-`'e?` and is not established source semantics. It keeps raw `Path`/`Inc_C`
-evidence independent from the protection query and characterizes overlapping
-paths, latent observations, expiry, and cycles, but proves neither the source
-attribution nor that this path predicate is the correct release lifetime. Its graph query agrees with bounded raw-walk enumeration on 37,124 graph/marker/source/target configurations across 530 directed `Flow` graphs through three typed positions. This is algorithmic exactness for supplied graphs, not a semantic result.
-The conditional relation can be evaluated over full typed-path derivation
-witnesses: define `Protected?` there, leave raw `Inc_C` and `Grant` unchanged,
-then use the existing `Visible`/ordered-search rule. Whether current source
-generation/query records retain or reconstruct all required witnesses remains
-unproved. Filtering `Inc_C` from both protection and grant is wrong: a
-released receiver-local grant may still discharge an independent inherited
-protection. A single static `Γ_b(p)` bit is also too coarse when the same
-profile reaches marked and unmarked alias routes. The finite checker covers
-4,096 witness/activity combinations and rejects both mutants. The remaining
-source premise is one slot-indexed rule that selects which full typed-flow
-witness stops applying, and when, before projecting to `Path`/`Inc_C`. It must
-preserve other protections and every raw provenance/transport fact. Neither
-lineage nor route crossing by itself supplies this rule. The available
-evidence graph may support a computed query; no new persistent carrier is
-justified by current evidence. See the
+The separate protection-release probe checks only the local frame under
+supplied attribution, emission, and protection evidence. It now has a distinct
+supplied emission fact; event identity is only its toy evidence join key, and
+the protection witness does not stand in for emission. It confirms the local
+protection-only frame and rejects family-wide/sticky mutants, but derives none
+of those source premises or shows that existing typed-boundary evidence
+realizes release. The route-crossing/path-filter probes are separate
+conditional characterizations over supplied evidence. They may help test
+candidate queries, but route crossing does not define `'e?` or establish its
+release lifetime. The filter algebra keeps raw `Inc_C` and `Grant` intact and
+changes only a supplied protection predicate; its finite checks reject
+deleting incidences from both queries and a single static `Γ_b(p)` bit for
+aliased paths. These results do not identify which source contribution exits
+the marked slot or when protection is removed. Preserve them as research
+characterization only, not as semantic evidence for `'e?`; no new persistent
+carrier is justified by them. See the
 [conditional filter derivation](../notes/progress/2026-10-05-handler-protection-filter-derivation.md).
 See the [protection-release probe record](../notes/progress/2026-10-05-handler-protection-release-playground.md)
 and the [candidate path-projection record](../notes/progress/2026-10-05-handler-protection-path-projection.md).
@@ -926,6 +922,19 @@ The current HIR/F5 collector does not yet admit the application, block, and
 branch forms in `call`, `compose`, `twice`, `choose`, or `higher`; the listed
 schemes are successor criteria, not current production outputs. The exact
 source-generation boundary is recorded in the principal-scheme criteria.
+Typed-core §6 is a Draft that proposes relating the whole `Result(I_a)` carrier
+to the Function parameter interface with typed path/contract obligations; it
+does not specify the endpoint/path translation that would realize this as an
+ordinary `A <: B` query or a complete source admission rule. Section 9
+separately proposes Value-entry Force/rebind versus retained-Computation entry.
+The required production gate is exhaustive, comparison-independent
+`Admit_F`/`Sat_F` over the approved `Rel_C` / `(nu,K,D)` basis and proofs of
+`D_C ⊆ D_A` and `P_A ⊆ P_C`, including Option 2 members. Source-generation
+correspondence from the §6 candidate is one sufficient route for the bounded
+source reference domain; Option 2 also permits an independent containment
+proof. Current HIR emits no callback Apply node. No new carrier or source
+counterexample is established. See the
+[inlet/admission audit](../notes/progress/2026-10-05-production-function-inlet-admission-audit.md).
 Two isolated characterization models now exercise narrower pieces of the
 open callback/principality gates: the callback lift checker preserves old
 tuples and distinct `d-`/`d+`/`b+` identities under total-coordinate extension,
@@ -970,8 +979,15 @@ remain in the linked progress records above and
 - **Structural solving / Milestone 3:** regular-witness existence for the
   normalized pure package is now closed by finite fence completion, including
   shifted descriptors and variance/width-directed descent. The finite
-  constrained residual presentation, principal/effective projection and
-  production source/effect correspondence remain distinct obligations.
+  theorem's `8^N` witness bound also gives a reviewed exhaustive decision
+  corollary for this pure package when its finite fixed-head/label signature,
+  input atom identities, and rigid-permission membership queries are
+  effective. This is not a practical algorithm and does not cover `Guard`,
+  `Phi`, `K,D`, effects,
+  source admission, or principal projection. The finite constrained residual
+  presentation, joint principal/effective projection and production
+  source/effect correspondence remain distinct obligations. See the
+  [pure finite-search derivation](../notes/progress/2026-10-05-pure-structural-effective-decision-corollary.md).
   An isolated finite checker now compares direct structural satisfaction with
   open-head residual normalization over 2,025 endpoint pairs (1,800 contain
   variables), then carries 2,048 generated joint packages and supplied finite
@@ -982,6 +998,16 @@ remain in the linked progress records above and
   source-context finiteness, effective principal projection and production
   acceptance remain open. See the
   [residual-factorization playground](../notes/progress/2026-10-05-residual-factorization-playground.md).
+  The canonical-graft membership theorem is independently reviewed under
+  total bisimulation-extensional admission plus same-witness one-way
+  retraction. This remains conditional evidence, not a source restriction:
+  the source documents do not specify primitive Guards/Phi/K,D clauses over
+  the changing endpoint, so Theorem C's old-operand-preserving lift cannot
+  imply graft admission. No source counterexample is established. Retain
+  existential original assignments until those primitive clauses and their
+  comparison-context transitions are defined. See the
+  [source-premise audit](../notes/progress/2026-10-05-residual-admission-source-premise-audit.md)
+  and [conditional theorem](../notes/progress/2026-10-05-residual-admission-retraction-proof.md).
   A five-path synthetic guard probe checks 32 path-permission masks and
   distinguishes `GuardFailure` from structural mismatch. It found a concrete
   failure-precedence obstruction: an earlier deferred Function-argument
@@ -1033,6 +1059,17 @@ remain in the linked progress records above and
   comparisons/evidence or establish a transitive structural restriction for
   the relevant source envelope; neither is selected. See the
   [concrete-transitivity obstruction](../notes/progress/2026-10-05-source-adequacy-concrete-transitivity-obstruction.md).
+  A source-coverage audit of `x as Int` finds that current syntax parses and
+  HIR association preserves the annotation wrapper/range but drops the
+  target's ordinary type subtree; semantic lowering reports
+  `UnsupportedExpression` before solver constraints are generated; current
+  `ResolvedExpr` and `yu-core` have no annotation/cast realization. Thus the
+  optional-record chain is a proof-interface counterexample, not an accepted
+  production cast-sequence bug. Current rejection does not decide successor
+  source acceptance. The missing premise remains the source rule for which
+  boundaries generate local inequalities, their exported endpoints, and any
+  evidence-preserving adapter composition. See the
+  [source-boundary coverage audit](../notes/progress/2026-10-05-source-boundary-coverage-audit.md).
   The source-fragment result and exact boundaries are in
   [empty-Record source fragment](../notes/progress/2026-10-04-empty_record_source_fragment.md).
   A separate audit now proves the same `Λ = ∅` incidence premise for the

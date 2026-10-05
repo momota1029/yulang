@@ -84,3 +84,29 @@ gate is to replace the global-preorder completeness interface for the claimed
 source envelope with an evidence-preserving endpoint-query correspondence, or
 to establish a source restriction that makes the old theorem applicable. No
 such restriction is selected here.
+
+## Current compiler coverage characterization
+
+A read-only source audit of the surface form `x as Int` narrows the
+implementation side of this gap. The parser constructs a `TypeAnnotationTail`
+containing the required target `TypeExpression`. HIR association retains the
+annotation kind/range and preceding expression as an outer structural
+continuation, but drops the target's ordinary type nodes and tokens from the
+associated `HirExpr`; the original target survives only in the parser CST.
+The current semantic lowering does not admit it: `direct_atom` recognizes
+only one integer or identifier child, and `lower_simple_chain` converts the
+associated annotation chain into `UnsupportedExpression`. `ResolvedExpr` has
+no annotation/check/cast variant, and `ConstraintBatch::collect` has no branch
+that emits the corresponding local endpoint query. `yu-core` currently has
+no typed adaptation representation.
+
+Thus this syntax is lexically/structurally represented, but `x as Int` does
+not currently exercise two successful concrete comparisons in the compiler.
+The optional-record `A <: B <: C` example remains a counterexample to the
+proof's global-preorder substitution; it is not evidence that current
+production HIR accepts an equivalent cast sequence or erases its evidence.
+The source audit does not choose whether annotations/casts should be accepted,
+what each boundary exports, or how executable adapters compose. It identifies
+that exact source-to-solver rule as still missing. See the
+[source-boundary coverage audit](2026-10-05-source-boundary-coverage-audit.md)
+for the inspected owners and existing tests.
