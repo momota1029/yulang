@@ -1,7 +1,7 @@
 # Pure recursive-group generation adequacy
 
 Date: 2026-09-30
-Status: conditional proof for a narrow declarative fragment; not independently reviewed
+Status: independently reviewed conditional proof for a narrow declarative fragment; not intended Yulang semantics or implementation authority
 Scope: pure `Var`/`Int`/`Lambda`/`Apply` expressions and one recursive SCC
 Governing records: `2026-09-30-intrusion-pure-source-typing-rules.md`, `2026-09-30-intrusion-scc-constraint-scheme-rules.md`, and the SCC-intrusion redesign charter
 
@@ -136,3 +136,19 @@ It must derive the free-variable/generalization partition from a declarative
 typing rule and establish how constraints crossing that boundary are retained.
 Only after that should the model admit different member fetch boundaries and
 test whether a component-wide `C_G` lens remains complete.
+
+## Independent review
+
+On 2026-10-06, a `compiler_referee` independently reviewed both directions of
+the adequacy theorem, the shared fresh body assignments, root projection, and
+the all-local/fixed-anchor transport argument. It found no correctness issue
+under the stated preorder and declarative `RecGroup` premises. The review also
+checked the two-member `Apply` directions against the pure expression rule.
+A `spec_auditor` independently confirmed that the artifact remains a
+conditional candidate result and does not claim intended Yulang semantics,
+Oracle equivalence, nested let-polymorphism, or implementation authority.
+
+This review closes only the stated narrow conditional proof. It does not
+derive the declarative `RecGroup` rule from intended Yulang behavior or address
+mixed member boundaries, effects, production source generation, or operational
+soundness.
