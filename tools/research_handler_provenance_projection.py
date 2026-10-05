@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Finite probe for projecting handler-local provenance to an `'e?` edge.
+"""Historical finite characterization of support and input provenance.
 
 Two same-family events have distinct provenance: one arrives through input
 component `e`, the other is an independent contribution. The fixed
@@ -12,10 +12,13 @@ visibility, shallow activation exit/unwind, and resumed suffix execution are
 not modeled. The checker stipulates that the remaining support is observed
 after receiver exit as ordinary output.
 
-This checks whether family support alone determines the input-to-result edge,
-and whether retaining that edge separates the finite cases. It is a
-characterization of the Draft `'e?` reading, not source-machine proof,
-principal-scheme semantics, or production code.
+This checks whether family support alone determines the input-to-result
+provenance fact, and whether retaining that independent fact separates these
+finite cases. The user's corrected reading of `'e?` is protection release,
+not an edge or may-flow marker. This probe is therefore not evidence for
+`'e?`; it remains a standalone characterization of family-support loss in
+this finite model, not source-machine proof, principal-scheme semantics, or
+production code.
 
 Run: python3 tools/research_handler_provenance_projection.py
 """
@@ -180,7 +183,7 @@ def main() -> None:
     print(f"                                      and {single_rh.events} -> {single_r}")
     print(f"minimal support collision: {left_h.events} -> {left}")
     print(f"                       and {right_h.events} -> {right}")
-    print("retaining the candidate edge separates these histories: confirmed")
+    print("retaining the independent provenance coordinate separates these histories: confirmed")
     print("scope: two same-family events, two ordered incidence filters, one fixed fiber; "
           "no grammar, production evidence, solver, or principality theorem")
 

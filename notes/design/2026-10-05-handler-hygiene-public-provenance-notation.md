@@ -1,298 +1,167 @@
-# Public notation candidate for handler hygiene provenance
+# Public notation candidate for releasing handler protection
 
-Date: 2026-10-05
-Status: Draft / Exploratory; no semantic, syntax, or implementation authority
-Scope: candidate public type notation for a capture contract and optional
-effect-provenance flow across a Function boundary
-Governing sources: [ordinary computation semantics](2026-10-02-ordinary-computation-semantics-package.md),
-[callback context delivery](2026-10-03-callback-context-delivery.md),
-[concrete compatibility boundary](2026-10-03-concrete-compatibility-boundary.md),
-[production callback endpoint generation](2026-10-04-production-callback-endpoint-generation-draft.md),
-and the [SCC-intrusion redesign charter](2026-09-29-scc-intrusion-redesign-charter.md)
+Date: 2026-10-05; corrected 2026-10-05
+Status: Draft / Exploratory; records the user's selected local meaning of `?`; slot attribution/elaboration, grammar, broader source projection, and implementation remain open
+Scope: candidate public meaning of postfix `?` on an effect component in a Function type
+Governing sources: [ordinary computation semantics](2026-10-02-ordinary-computation-semantics-package.md), [typed-boundary realization](2026-10-02-typed-boundary-realization-draft.md), [callback context delivery](2026-10-03-callback-context-delivery.md), [concrete compatibility](2026-10-03-concrete-compatibility-boundary.md), [production callback endpoint generation](2026-10-04-production-callback-endpoint-generation-draft.md), and the [SCC-intrusion redesign charter](2026-09-29-scc-intrusion-redesign-charter.md)
 Implementation authority: none
-Supersedes: none
+Supersedes: none; withdraws this draft's prior optional-provenance-edge interpretation of `'e?`
 
-This note records a surface-notation candidate. It does not revise the
-governing source semantics, select a new solver carrier, or authorize changes
-to parsing, inference, or the production path. The governing documents remain
-authoritative within their stated scope; this note is a projection question
-for future design review.
+This note records the user's selected local meaning for `'e?` and identifies
+the remaining source-to-public interpretation work. That local reading is
+settled: `?` releases the protection associated with the marked slot while
+preserving provenance and membership. The note does not yet define general
+source attribution/elaboration, grammar, or implementation. The earlier edge
+interpretation in this draft is withdrawn. Its finite probe remains an
+independent provenance/support characterization only; it is not evidence for
+the meaning of `'e?`.
 
 ## Motivation
 
-Handler hygiene distinguishes an effect's family from the source path that
-made a particular contribution visible to a handler. A concrete callback
-capture contract may authorize a receiver-local handler to consume matching
-requests while that receiver is active. That authority expires with the
-receiver. If a request contribution also reaches a result effect, the result
-effect is ordinary output at its new boundary; the input annotation must not
-remain a permanent restriction on later handlers.
-
-The candidate notation is:
+Handler hygiene can protect an effect contribution associated with an input
+component from being handled while it passes through a particular typed slot.
+Some Function interfaces need to say where that protection stops applying.
+The proposed notation is:
 
 ```text
 'a ['e, foo] -> ['e?, 'f] 'b
 ```
 
-The design question is whether `'e?` can expose the optional provenance
-connection from input component `'e` to result component `'f`, while keeping
-the capture permission attached only to the input boundary. This is motivated
-by a boundary-lifetime fact, not by a need to make effect-row membership
-optional.
+The `?` marks a change in **handler protection** for contributions attributed
+to `'e` as they pass through the output slot. Their provenance remains `'e`.
+The notation says nothing about whether a contribution flows, whether an
+effect row contains a member, or whether a provenance edge exists.
 
 ## Intended reading
 
-The intended reading of the example is:
+Read `'e?` as:
 
-- The input side supplies component `'e` under a capture contract that admits
-  `foo` at this boundary.
-- At this boundary, a request contributed through `'e` may be subtracted when
-  the source handler and its existing subtraction evidence justify it.
-- The output marker `'e?` proposes an optional provenance edge from the input
-  component to output component `'f`.
-- The edge does not require `'e` to contribute at all. If a contribution from
-  `'e` does reach this result position, it is accounted for in ordinary output
-  component `'f`.
-- The capture permission attached to `'e` ends at the boundary. A contribution
-  represented in `'f` has ordinary output eligibility; any later handler uses
-  its own active boundary, contract, and ordered search.
+> For an `'e`-derived effect contribution leaving this slot, stop protecting
+> that contribution from handlers.
 
-The intended distinction is therefore:
+The proposed transition is:
 
 ```text
-['e?, 'f]  -- optional source-provenance edge into f
-['e,  'f]  -- two ordinary effect-row members/components
+contribution q
+  provenance/source component: 'e
+  handler protection: active
+       -- passes through the 'e? slot -->
+contribution q
+  provenance/source component: 'e
+  handler protection from this slot: released
 ```
 
-The first is not shorthand for the second. The punctuation is evidence about
-possible flow, not an optional-membership operator on the row variable.
+The contribution retains its source component, event identity, family and
+arguments, typed paths, origin/lineage, and the existing `K,D` dependencies.
+Only its protection status changes. Once released, later handling follows the
+ordinary handler search and eligibility rules. Release does not itself select
+a handler, guarantee consumption, erase the contribution, or authorize a
+handler whose ordinary source rules do not apply.
 
-The prior sketch `'f ['e]` could be read as attaching a lasting capture
-authority to `'f` or as saying that `'f` can capture `'e`. The proposed `'e?`
-placement instead names the source endpoint of a possible flow edge and makes
-the intended authority cutoff at the result position easier to state. This
-comparison is about candidate readings only; neither spelling has selected
-semantics.
+In the example, the input's concrete `foo` capture contract and the output
+marker answer different questions. The concrete contract can make a matching
+contribution eligible for the receiver-local handler under the existing
+source rules. `'e?` says that the protection associated with the `'e` slot is
+released when that contribution leaves this slot. It does not copy `foo` into
+`'f`, and it does not make `'f` equal to `'e`.
 
-The user has separately selected a polarity-sensitive mixed-row fragment for
-a deep handler: the shared abstract component may appear contravariantly and
-covariantly, with the targeted concrete contribution removed at the shared
-covariant position when the complete source image and attachment evidence
-justify it. That decision is recorded in the
-[concrete-compatibility addendum](2026-10-03-concrete-compatibility-boundary.md#9-user-directed-mixed-effect-row-fragment-2026-10-05).
-It does not select `'e?`, define its optional-edge quantifier, or prove that
-this spelling projects that mixed-row relation. The tentative shallow-handler
-scheme remains only a candidate.
+Thus:
+
+```text
+['e?, 'f]  -- same 'e-derived contributions, with slot protection released
+['e,  'f]  -- ordinary unmodified row components; no release is stated
+```
+
+The difference is protection state, not row membership or provenance. `?` is
+not an optional-flow quantifier.
 
 ## Small-step / relational interpretation candidate
 
-The following is one candidate relation for discussing the notation. It is
-not a new implementation carrier or a replacement for the existing source
-relations.
+Use existing source observations and event evidence to identify a contribution
+`q` at a typed slot `s`. Let `Prov(q)` stand for its already established
+provenance, including its source component; let `Prot(q,s)` mean that source
+evidence associates handler protection at slot `s` with `q`. Let `Ord(q)` be
+the ordinary event contribution, without changing its identity or type.
+These are metatheoretic names for this candidate, not new compiler fields.
 
-Let `q` range over distinct request events, `fam(q)` be the operation family
-of `q`, `e` and `f` be source effect components, and `b` be the active
-receiver boundary. Under one fixed source assignment `ν` and one admissible
-source execution, define:
-
-```text
-AtInput(q, e)       q is contributed through the input component e
-Capture_b(q)        b's contract admits fam(q), and q is connected to b
-                    by the source's typed flow/observation evidence
-Active_b(t)         receiver b is active at source step t
-FlowsTo(q, f, t)    q's contribution reaches output component f by step t
-MemberOf(q, f, t)    q contributes to f's ordinary effect membership at t
-```
-
-Candidate local rule:
+The proposed local release rule is:
 
 ```text
-AtInput(q,e) ∧ Active_b(t) ∧ Capture_b(q)
-  => a handler installed by b may subtract q at t,
-     but only when ordinary ordered dispatch and existing subtraction
-     evidence select that handler.
+MarkedReleaseSlot(s, 'e)  and  AttributedTo(q, 'e, s)  and  Prot(q, s)
+-----------------------------------------------------------------------
+ReleaseProtection(q, s) = (Ord(q), release Prot(q, s))
 ```
 
-For this candidate, write `b=(r,s,Γ_b)` for the dynamic receiver `r`, static
-callback slot `s`, and its declared typed capture profile. `Capture_b(q)` is
-not a family predicate: it abbreviates the existing candidate condition that
-the operation instance is admitted at the relevant profile position, the
-request's own typed incidence reaches that position, and `r` and the candidate
-handler are active. The ordered handler search and the separate arm
-compatibility check still decide whether this eligible request is actually
-consumed. This spelling introduces no new source identity or proof object.
+`AttributedTo` must be established by the existing source/occurrence/path
+evidence. The marker does not create that attribution; unrelated
+contributions in the same output row do not satisfy this rule merely because
+they share a family.
 
-Candidate provenance-edge reading:
+Its frame condition is essential:
 
 ```text
-Edgeν(e,f)
-  iff under this fixed admissible assignment ν, there is a source execution
-      and evidence path in which some q satisfies AtInput(q,e) and later
-      FlowsTo(q,f,t).
+Prov(after) = Prov(before)
+FamilyAndArguments(after) = FamilyAndArguments(before)
+EventAndOrigin(after) = EventAndOrigin(before)
+TypedPathAndDependencies(after) = TypedPathAndDependencies(before)
+RowSupport(after) = RowSupport(before)
+OnlyProtectionForThisSlot(after) differs
 ```
 
-The user's intended expiry reading fixes the public endpoint as the cutoff:
-when an input-derived contribution materializes in ordinary output component
-`f`, the input capture restriction is over. The candidate edge claim is
-`AtInput(q,e) ∧ FlowsTo(q,f,t)` for a witness `q`; at that output endpoint,
-`Capture_b(q)` is not transported as authority for a later handler. This is an
-intended surface rule, not yet a theorem of the reviewed source machine. In
-particular, it must not be weakened into an exit-only rule that keeps the
-restriction attached merely because a corresponding latent path is still
-observed while `r` remains active.
-The intended row reading also requires `FlowsTo(q,f,t) ⇒ MemberOf(q,f,t)` in
-that execution: whenever an input-derived contribution actually reaches the
-public result, it is counted in ordinary `f` membership. The optional edge
-does not make that membership optional after the contribution has reached
-that endpoint; it says only that some admitted execution may have no such
-contribution.
-The existing machine can transport typed boundary incidence along a matching
-latent result path while `r` is still active. The source-to-public projection
-must therefore show how that incidence is represented at the public output
-materialization point, and prove that the intended cutoff is preserved even
-when the source path remains active. This is a correspondence obligation;
-receiver exit is not an alternative surface meaning.
+If no contribution from `'e` is present in a particular source observation,
+the rule has nothing to transform. That absence does not make `'e` membership
+optional and is not encoded by `?`.
 
-For nested or overlapping boundaries, an execution may therefore have a
-sequence such as `b₀ → b₁ → f`. Each local subtraction candidate is checked
-against its own active boundary and typed incidence; the permission does not
-compose into a permanent grant. A single public `'e?` would existentially
-hide that path only if every such path has the same public endpoint meaning
-and the projection preserves downstream handler observations. Otherwise the
-surface marker is ambiguous, even though the existing source evidence may
-still distinguish the paths. Adding a second `?` would count punctuation,
-not state which receiver, path, or lifetime it denotes.
+After release, the contribution is considered by the usual active-handler
+search and source-defined eligibility judgment. `PassQuestion` neither
+performs subtraction nor changes a handler image or residual support. Any
+interaction with shallow/deep handling, attached subtraction, or row support
+must follow from a separate theorem connecting those existing judgments.
 
-The `?` is a candidate way to expose that a path witnessing `Edgeν(e,f)` may
-exist; it does not make a row member present-or-absent, and it does not assert
-that every execution takes the edge. If `q` is represented in `f`,
-`Capture_b(q)` is not copied to `f`.
-After the source step that exits `b`, `Active_b` is false, and any subsequent
-handler eligibility is computed from the then-current ordinary source
-context. The output component retains its type/effect contribution, not the
-expired permission.
-
-This fixed-`ν` relation is only a local candidate. The public scheme still
-needs a quantifier across admitted assignments: for example, whether its edge
-means a may-flow in some admitted assignment, a permission available in every
-assignment, or an exact relation indexed by the assignment. It also remains
-open whether the public edge denotes an upper-bound permission or an exact
-may-flow fact. Those choices affect scheme generality and are not resolved by
-the punctuation itself.
-
-There is a boundary-alignment obligation. The ordinary-computation candidate
-defines callback capture relative to an active receiver and carries the typed
-boundary profile along corresponding result paths to later latent views while
-that receiver remains active. The user's public reading is already fixed:
-once a contribution materializes in `'f`, it is ordinary output and the input
-capture restriction has ended. The reviewed source candidate does not yet
-prove how that cutoff aligns with incidence transported along an active latent
-path. The projection theorem must reconcile the source path with the public
-materialization point; it must not defer the cutoff itself as a semantic
-choice or silently amend the existing source-machine rule.
-
-The candidate must be interpreted per event and path. It cannot replace
-`q`, `ν`, typed `Flow`, `Observe`, `Path`, occurrence/incidence, or the shared
-`K,D` witnesses by a family-set test. In particular, two requests with the
-same family may have different source origins and different capture
-incidences.
+For nested boundaries, the candidate target is the protection associated
+with the slot where `?` appears. Other independently justified protections
+must remain distinguishable in the existing scope/path/evidence relation. A
+single marker should not be read as a counter that counts protection layers;
+the exact attribution and composition rule must be established before this
+candidate can claim that `??` is unnecessary in every case.
 
 ## Relation to current directed-weight machinery
 
-The source contract is split across authority levels: callback-context
-delivery and the Pure-value invocation-view rule are Authoritative; the
-ordinary computation/capture package is a reviewed Draft source candidate;
-the SCC charter makes frozen Oracle weights characterization evidence only.
-The current theory provides a plausible evidence substrate, but no proven
-public projection theorem:
+The available design material has different authority levels. Callback
+expected-context delivery and the Pure-value invocation-view rule are
+Authoritative. The ordinary-computation and typed-boundary packages are
+reviewed Draft source candidates. Frozen Oracle weights are characterization
+evidence only under the SCC charter.
 
-| Needed fact | Existing source/evidence candidate | Limit of current result |
+| Needed fact | Existing candidate evidence | Limit |
 |---|---|---|
-| A particular input contribution is visible at a boundary | `Flow`, `Observe`, `Path`, occurrence/incidence, and the common `ν,K,D` relation | Family equality or row support alone does not establish incidence. |
-| A handler may consume that contribution | Active receiver/handler scope, the concrete capture contract, ordered shallow dispatch, and existing directed-weight/subtraction evidence | A weight is not by itself the source rule; each transformation needs a meaning-preservation argument. |
-| A contribution may reach a result | Source result/consumer relation and its `d⁺` / `b⁺` occurrences, with typed paths and shared witnesses | Current production endpoint generation has not completed this source-to-endpoint correspondence. |
-| Capture authority expires | Source activation/receiver exit in the ordinary semantics | A public row variable alone has no lifetime or activation identity. |
-| Same-family origins stay distinct | Event IDs, source origins, occurrence/incidence and `K,D` | Canonical row support intentionally may collapse repeated family membership. |
+| Which contribution came through `'e` | Source event/origin, typed `Flow`/`Observe`, `Path`, occurrence/incidence, shared `Rel_C` and `K,D` | Family equality and row support alone cannot identify this contribution. |
+| Whether it is protected at this slot | Callback boundary, typed boundary/profile transport, active scope, receipt and occurrence evidence | Current source material does not yet define the complete annotation-to-output-slot protection judgment. |
+| Where protection is released | The public slot bearing `?` in this candidate | Source typing/elaboration has not shown how that marker maps to the source slot or to nested/latent views. |
+| What happens afterward | Existing ordered handler search and source eligibility | Release does not itself grant a capture contract or consume an event. |
+| What stays invariant | Existing event identity, origin, typed path, attachment, and `K,D` evidence | No theorem yet proves the frame condition through every Function endpoint transformation. |
 
-Frozen Oracle material uses `PWeight(L,T)` for a positive occurrence
-projected with a directed left weight; its negative counterpart projects a
-right pop as `NWeight(R,T)`. The historical weight specification distinguishes
-left weights, which can retain ordered `pop` and active `take(F)` steps, from
-right weights, which retain pure pops. In that notation `@u[Empty]` is an
-active `take(Empty)` push for subtraction id `u`, giving zero consumable-family
-budget. Frozen public documentation prints occurrence-local evidence such as
-`#id[Empty]` for a protected/non-subtractable occurrence. These forms concern
-subtraction eligibility at a weighted occurrence; none by itself records that
-an input contribution flowed to a result or when that flow reached the public
-result boundary. `AllExcept(S)` records a residual family filter in those
-weights, not source-event identity or an input-to-output edge. These are
-historical characterization artifacts, not successor semantics.
-The exact frozen spellings are `@u[Empty]` in the weight specification and
-`#id[Empty]` in public-reference prose; `#u[Empty]` is not that specification's
-literal spelling.
+Frozen Oracle uses `PWeight(L,T)` and `NWeight(R,T)` for projected positive
+and negative occurrences. Directed left weights can retain ordered `pop` and
+active `take(F)` steps; right weights retain pure pops. The historical weight
+spec uses `@u[Empty]` for an active `take(Empty)` push with zero consumable
+family budget. Frozen public-reference prose uses occurrence-local
+`#id[Empty]` for protected/non-subtractable evidence. `AllExcept(S)` records a
+residual family filter. These are subtraction/weight facts; none alone means
+“release handler protection while retaining provenance.” They are not
+successor semantics.
 
-These names and reductions are from frozen Yulang2 `main` at
-`a58eefc31e22141574b6f20c6a5748151c6d79f1`,
-`spec/2026-05-31-effect-variable-subtractable.md` (“Compact / finalize” and
-the directed-weight notation), and its public reference text. The current
-successor charter explicitly treats them as characterization evidence only;
-the [Oracle investigation](../progress/2026-09-30-intrusion-oracle-latent-effects.md)
-records observed routes and their limits.
-
-The current Yulang3 production crates have no live carrier named `PWeight`,
-`NWeight`, `StackWeight`, `SubtractId`, or `AllExcept`, and no carrier for
-`@u[Empty]` / `#id[Empty]`. This absence is an implementation fact, not a
-claim that the spellings are absent from frozen Oracle specifications or
-public documentation. The candidate therefore does not identify a historical
-weight, filter, or protected occurrence with an optional provenance edge.
-
-The directed-weight/subtraction work may account for a *witnessed local
-subtraction* and its attachment. It does not presently prove that it can
-project the complete relation `Edgeν(e,f)`, quantify the optionality
-over all admitted source assignments, or distinguish all same-family source
-origins after row normalization. The concrete compatibility design expressly
-requires a source/component-to-existing-evidence bridge before treating the
-frozen weight rules as successor evidence. No duplicated regional,
-attachment, or provenance ledger is proposed here.
-
-The repository layers must also stay distinct when describing this possible
-reuse. The SCC charter and the Oracle investigation record directed left/right
-weight routing and `StackWeight`/`SubtractId` as frozen-Oracle
-characterization; they explicitly do not grant those transformations a
-successor denotation. `PWeight(L,T)` and `@u[Empty]` have the historical
-meanings above, but those meanings do not establish a mapping to the successor
-source relation. In particular, neither `AllExcept(S)` nor an empty-budget
-occurrence says that an input contribution reached a result or that its
-capture authority ended at public materialization.
-
-The current Yulang3 solver is a separate fact: its `TermView` exposes
-positive/negative Function nodes with four endpoints, while F5 generalization
-recognizes only its existing pure-effect endpoint forms. The current code has
-no carrier named `StackWeight`, `SubtractId`, `PWeight`, or `AllExcept`, and
-no source-level input-to-result provenance edge. These facts describe the
-implementation boundary only. They do not make four Function ports
-independent effect subtyping judgments, nor establish that a new carrier is
-needed: the successor projection should first be derived from `Rel_C`,
-`K,D`, typed paths, occurrence/incidence, and existing witnessed subtraction
-evidence.
-
-The most economical candidate is to derive `'e?` as a public view over
-existing source evidence when that evidence already determines the edge. If
-there is a production case where the edge is required but not recoverable
-from current `Rel_C`, `K,D`, occurrence/incidence, typed paths, and existing
-subtraction evidence, that exact lost fact must be shown before considering
-any richer internal representation.
+The current Yulang3 production crates have no live `PWeight`, `NWeight`,
+`StackWeight`, `SubtractId`, or `AllExcept` carrier. That implementation fact
+does not show that a new carrier is needed. First test whether the release
+operation is a public projection of `Rel_C`, typed paths, occurrence/incidence,
+attachment, and existing source protection evidence. Do not duplicate the
+regional, attachment, or provenance machinery under new names.
 
 ## Examples
 
-These sketches illustrate questions for the candidate relation. They are not
-accepted source programs or new typing rules.
-
-The approved mixed-row fragment distinguishes a deep-handler removal from
-primitive shallow resumption. It does not settle the public provenance edge in
-the examples below; each `'e?` reading remains exploratory, and targeted
-removal still requires the complete source image rather than family-wide
-cancellation.
+These examples are semantic probes for the candidate, not accepted programs
+or new typing rules.
 
 ### Higher-order callback
 
@@ -300,226 +169,174 @@ cancellation.
 run : 'a ['e, foo] -> ['e?, 'f] 'b
 ```
 
-The receiver may subtract an eligible `foo` event during this invocation.
-Another event from `'e` may flow to `'f`; when it materializes there, it is
-ordinary output and a later handler may consume it under its own normal
-contract.
-The notation does not say that the callback always emits, that all of `'e`
-flows, or that `'f` inherits permission to subtract `foo`. The unresolved point
-for a returned latent value executed again while the receiver remains active is
-how the source candidate's retained incidence corresponds to public output
-materialization under the fixed cutoff rule. The public semantics does not
-preserve the input restriction past the point where a contribution enters
-ordinary `'f`.
+A `foo` contribution attributed to `'e` may be handled at the input boundary
+when the concrete contract and ordinary dispatch permit it. If that same
+contribution reaches the output slot, its provenance remains `'e` and its
+protection from this slot is released. An unrelated body contribution in
+`'f` is unchanged. No input-to-output flow is asserted, and `'f` receives no
+`'e` provenance by this notation.
 
 ### Nested handlers
 
-Suppose an outer receiver has capture permission for `foo`, and an inner
-handler is installed while the outer receiver remains active. The inner
-handler's eligibility is decided by ordinary ordered dispatch and the
-incidence for that event. If a matching event escapes the inner handler and
-reaches the outer result, the outer capture relation may remain active only
-while the outer receiver remains active. Once the result is represented by
-`'f` outside that boundary, neither inner nor expired outer capture permission
-is carried by the output marker.
-
-This case needs the event's boundary path. A single family entry `foo` cannot
-say whether the event was captured by the inner contract, the outer contract,
-or neither.
+If an `'e`-derived contribution crosses the marked output slot while inner and
+outer handlers are active, `?` does not choose either handler. It releases the
+protection associated with this slot; then the normal ordered search and
+eligibility rules decide whether an active handler can handle the contribution.
+Any distinct protection from another boundary must remain represented by its
+own existing scope/path evidence. The marker does not remove a family from the
+handler image.
 
 ### Shallow handler and resumed continuation
 
-A handler may consume a request and resume its raw continuation outside that
-selected activation. The continuation may emit a distinct event of the same
-family. That later event can reach `'f`, but it is not automatically evidence
-for an edge from `'e`: the candidate relation above requires input and output
-incidence for the same event `q`. The edge may cover the later event only if
-the existing typed-flow/provenance evidence independently connects it to the
-input component. Causal succession or family equality alone does not provide
-that connection. This is a discriminating case for the projection theorem:
-either the public edge summarizes a broader source contribution lineage than
-one event, with that lineage already recoverable from current evidence, or
-this example lies outside what one `'e?` can express. The note selects neither
-interpretation.
+A shallow handler may handle one `foo` event and resume its raw continuation,
+which may produce another `foo` event. `'e?` does not merge these events or
+delete either one. For each event, existing provenance evidence decides
+whether it is an `'e` contribution; only then can the slot release rule apply
+to its protection. The handler's subtraction/residual result is computed by
+the separate shallow-handler semantics.
+
+### Deep handler
+
+The marker is not a deep-handler rule. If a deep handler recursively handles
+requests, the source handler semantics determines which requests it handles.
+The `?` marker only changes the protection state of an `'e`-derived
+contribution at its typed output slot; it does not express attached
+subtraction, deep re-entry, or row-support projection.
 
 ### Recursive handler
 
-A recursive callback can produce several distinct `foo` events on successive
-entries. The candidate edge is about possible provenance from `'e` to `'f`,
-not multiplicity. If the public effect row is set-like, repeated family
-membership may collapse in `'f`, while event IDs and source paths remain
-distinct in the derivation. The surface marker cannot claim that one event,
-all events, or a fixed number of recursive iterations contributes.
+Repeated recursive entries may produce many dynamic events of one family.
+Each event retains its event identity, origin and `'e` attribution where
+established. The marker changes protection for qualifying contributions at
+the slot, not event multiplicity, recursive behavior, or family membership.
 
 ### Existing Pure value in a Handler callback slot
 
-An already constructed Pure function passed to a Handler-capable slot keeps
-its underlying Pure role and original entry semantics. The slot provides a
-typed invocation view, as fixed by the Authoritative callback-context design.
-Any input/output provenance edge must be derived for that view and its
-invocation evidence; `'e?` cannot rewrite the stored Pure scheme or turn the
-value into a Handler. Capture authority ends at the slot's receiver boundary
-according to the source execution, not at a permanent property of the value.
+An existing Pure function passed through a Handler callback slot keeps its
+underlying Pure role and original entry semantics. The slot's typed invocation
+view remains governed by the Authoritative callback-context contract. If the
+view carries an `'e?` output slot, the candidate release applies to its
+`'e`-attributed contributions there; it does not rewrite the stored value or
+turn it into a Handler.
+
+### Same family, distinct origins
+
+Suppose `q₁` is attributed to `'e` and `q₂` is an independent local `foo`
+event. Shared family support does not merge them. At the marked slot the
+release can affect `q₁` only if the existing source evidence attributes it to
+`'e`; it does not change `q₂` merely because `family(q₁) = family(q₂)`. Both
+events still contribute to ordinary family support according to the source
+execution.
 
 ## Counterexamples / ambiguity tests
 
-The following tests separate the candidate from tempting readings:
-
-1. **Optional membership mutant:** interpret `'e?` as “the row may omit `e`.”
-   This changes the row domain and fails to say whether any `e`-origin event
-   reached `'f`.
-2. **Mandatory-flow mutant:** interpret `'e?` as “`e` must occur in output.”
-   This rejects the intended no-contribution execution.
-3. **Ordinary-union mutant:** replace `['e?, 'f]` with `['e, 'f]`. This turns
-   provenance into unconditional row membership and erases the boundary
-   relation.
-4. **Sticky-authority mutant:** carry the input `foo` capture permission into
-   `'f`. This allows a later handler to use an expired receiver's contract.
-5. **Family-set mutant:** merge two `foo` events from different origins and
-   let one event borrow the other's capture incidence. Existing hygiene rules
-   reject family equality as authority.
-6. **Shallow-resumption mutant:** remove `foo` from output merely because one
-   event was handled. A resumed raw continuation may emit a distinct `foo`
-   event after the selected handler.
+1. **Optional-membership mutant:** read `'e?` as a row member that may be
+   absent. This changes membership rather than protection.
+2. **May-flow mutant:** read `?` as “some contribution may flow from `'e` to
+   `'f`.” No such edge or flow fact is stated.
+3. **Provenance-erasure mutant:** delete the `'e` origin after release. This
+   violates the frame condition.
+4. **Family-wide release mutant:** release every `foo` event because one
+   `'e`-derived `foo` was released. Same-family origins remain distinct.
+5. **Subtraction mutant:** remove a handled event from output support merely
+   because it passed through `?`. Protection release is not handler
+   subtraction.
+6. **Handler-selection mutant:** interpret `?` as selecting the next active
+   handler or guaranteeing consumption. Ordinary ordered search remains in
+   control.
 7. **Role-rewrite mutant:** use the marker to convert an existing Pure value
-   into a Handler value. This violates the slot-view/underlying-value
-   distinction.
-8. **Persistent-edge mutant:** interpret `'f ['e]` as a standing right for
-   future handlers to capture `'e`. That is not the proposed cutoff behavior.
-
-For overlapping scopes, a surface spelling such as `e??` should not be
-introduced merely to count boundaries. The candidate would instead derive
-the path through the existing nested source scopes and emit one `'e?` only if
-the public type boundary exposes one unambiguous source component and result
-component. If two independent paths from the same `'e` to `'f` have different
-capture histories, one unindexed marker cannot state which path the edge
-summarizes. This is a genuine ambiguity to test, not a license to add a
-second marker or carrier preemptively.
+   into a Handler. The callback slot only supplies its typed invocation view.
+8. **Sticky-protection mutant:** retain the protection released at this slot
+   as if `?` described provenance rather than its protection state.
+9. **Layer-count mutant:** require `??` to release two nested protections.
+   The candidate instead assigns the one marker to its typed slot; whether
+   current evidence identifies that slot-local protection is an open proof
+   obligation, not permission to add repeated punctuation.
 
 ## Principal-type implications
 
-Let a public scheme denote a set of admitted source/evidence models, ordered
-by reverse constraint strength: a scheme is more general when its
-interpretation admits every model admitted by the other scheme. Under one
-candidate reading, an optional edge records a *may-flow allowance*. Adding
-an edge then admits additional provenance paths and is at least as general;
-removing an edge is valid only when those paths are impossible or observationally
-irrelevant at the public boundary. The effect row itself remains subject to
-its ordinary row constraints.
+`'e?` changes a protection annotation, not the set of effect-family members
+and not the contribution's source identity. Therefore principal comparison
+must compare the accepted protection behavior along with ordinary row
+membership and the complete typed observations. It cannot order schemes by
+adding or deleting may-flow edges.
 
-That order is not yet established. If the marker instead asserts an exact
-possible-flow fact or summarizes existential witnesses over solver models,
-adding/removing it may change the constraint rather than merely widen an
-allowance. Principal-scheme comparison therefore needs a defined edge
-interpretation and quantification before it can compare schemes containing
-different edge sets.
-
-Projection to an ordinary row variable may be possible when removing the edge
-preserves both the set of public instantiations and every downstream
-handler-eligibility judgment. A sufficient candidate condition is that all
-admitted models agree that the edge is unreachable, or that the edge is
-unobservable after its authority has expired and all downstream decisions
-depend only on ordinary effect membership. This is not yet a proven
-criterion. Projection is unsafe if it merges two same-family origins before
-their local capture decisions or erases a correlation required by the
-complete Function inequality or generalization.
-
-The input capture list and the output provenance edge answer different
-questions: the former restricts which contribution may be consumed at the
-current boundary; the latter describes whether an input contribution can
-reach a result. Neither can be inferred from the other by ordinary row
-inclusion. In particular, shared spelling of an effect variable across
-ports does not establish an edge or capture permission.
+Potentially, the marker can be projected away when a theorem proves that the
+released and unreleased protections yield identical ordinary handler
+eligibility and downstream observations for every admitted source execution.
+That condition is not established by equal family support. Projection is
+unsafe if it lets a handler consume a contribution that the unreleased scheme
+protects, blocks a handler that the released scheme permits, merges same-family
+origins, or changes a later typed dependency. No principal-scheme order for
+protection annotations is selected here.
 
 ## What this notation does not mean
 
 `'e?` does not mean:
 
-- that `'e` is an optional type/effect variable;
-- that `'e` may or may not be a member of an effect row;
-- that `'e` necessarily appears in the output;
-- that `['e?, 'f]` is equivalent to `['e, 'f]`;
-- that a capture restriction attached to `'e` is copied into `'f`;
-- that every event of the named family has the same origin or eligibility;
-- that `Force`, a shared type variable, family equality, or a public row
-  creates capture authority;
-- that `never`, `Any`, an empty effect row, polarized solver bounds, or an
-  Oracle fallback has any special role in this notation;
-- that Function effect ports are independent structural subtype checks; or
-- that a new solver relation/carrier is selected.
+- optional membership of `'e`;
+- a may-flow or provenance edge from `'e` to `'f`;
+- loss, creation, or relabeling of `'e` provenance;
+- automatic subtraction from an effect row or handler image;
+- a new shallow/deep handler rule;
+- automatic handler selection or guaranteed event consumption;
+- a change to the underlying Pure/Handler role of a callback value;
+- a special meaning for `never`, `Any`, an empty effect row, or a polarized
+  solver bound; or
+- authorization to add a solver carrier or change production inference.
 
 ## Open questions
 
-1. What is the quantifier for “may flow”: executions, source assignments,
-   valid solver solutions, or a combination?
-2. Does an omitted edge mean impossible flow, untracked flow, or an edge
-   erased by a proved projection? These meanings have different principal
-   orders.
-3. Can the edge be projected from existing `Rel_C`, `K,D`, source segments,
-   operand tuples, binder scopes, occurrence/incidence, `Flow`/`Observe`,
-   directed weights, and subtraction evidence for every required source case?
-4. What exact source position is the boundary in the higher-order type, and
-   how does it compose with an explicit annotation and expected callback
-   boundary when both are present?
-5. Can the source-to-public projection prove that a contribution is ordinary
-   once it materializes in `'f`, including when a returned latent value is
-   invoked again while the source receiver remains active? The intended
-   cutoff is fixed; its correspondence to retained source incidence is open.
-6. How are two independent same-family contributions represented when one
-   is captured and the other is not, especially after canonical flat-row
-   normalization?
-7. When two capture scopes overlap on one input/output component pair, can
-   the existing source path relation distinguish them without a public
-   multiplicity marker? If not, what is the smallest source example showing
-   the lost fact?
-8. Under which exact principal-scheme equivalence can `'e?` be erased to an
-   ordinary row variable?
-9. What parser precedence and token ownership should apply to postfix `?`, if
-   the notation proceeds beyond a design candidate?
+1. What exact source relation says that a dynamic contribution leaving this
+   slot is attributed to `'e`, across higher-order values and typed latent
+   paths?
+2. What is the precise source step at which the slot releases protection,
+   especially if a returned latent value is invoked again while an enclosing
+   receiver remains active?
+3. How does a released contribution re-enter ordinary ordered handler search
+   without treating release as a capture grant or subtraction?
+4. Across nested, shallow, deep, recursive and resumed executions, which
+   protection belongs to this slot, and how are other independent protections
+   preserved?
+5. Can the required attribution and protection state be derived from existing
+   `Rel_C`, occurrence/incidence, typed paths, attachments, and evidence, or
+   is a specific source fact missing? No missing fact is established yet.
+6. Can one slot-local `?` express release when multiple boundaries overlap,
+   without a `??` syntax? If not, show the smallest source case that loses a
+   distinction before considering richer internal representation.
+7. Does the protection marker survive in the final public scheme, or can it
+   be projected away while preserving every handler observation and principal
+   solution?
+8. What principal generality order compares schemes that differ only in
+   protection state?
+9. How should postfix `?` be tokenized in type context without changing its
+   meaning?
 
 ## Syntax observation
 
-The syntax reference defines effect rows with the adjacent opener `'[ ... ]`
-and standalone `'e` as a sigil identifier. The lexer delegates the sigil's
-suffix to `scan_identifier`, which consumes an optional trailing `?` or `!`.
-Therefore `'e?` currently collides lexically with an existing sigil-identifier
-spelling; the `?` is not a separate token in this form. The type-expression
-grammar admits `SigilIdentifier` as a type atom but defines no separate
-provenance suffix. The expression grammar's dynamic suffix operators are an
-additional contextual use of suffix punctuation, not a resolution of this
-type-level ownership. A future syntax gate must decide whether the sigil
-identifier suffix is reinterpreted, escaped, or replaced in type context, and
-inspect tokenization, operator-table interaction, and adjacent type forms.
-That syntax decision must not infer or alter the relational meaning of the
-optional provenance edge. This is confirmed by the current lexer
-(`crates/yu-syntax/src/lexical/lexer.rs`, `scan_identifier` and
-`scan_identifier_suffix`) and type-starter scan in
-`crates/yu-syntax/src/declaration/type_decl.rs`; this note does not select a
-grammar workaround.
+The type reference admits `SigilIdentifier` as a type atom. The apostrophe
+sigil scanner delegates to `scan_identifier`, which consumes one optional
+trailing `?` or `!`. Thus `'e?` is currently one sigil identifier token, not
+an identifier followed by a distinct type-level suffix. The effect-row
+introducer `'[` is a separate adjacent-token grammar and does not resolve
+this collision. A future syntax gate must choose token ownership/precedence or
+another spelling. Syntax preference cannot redefine the protection-release
+semantics recorded here.
 
 ## Recommendation
 
-Treat `'e?` as a useful **public-projection candidate**, not as a new effect
-algebra. Its intended boundary-lifetime reading is compatible in shape with
-the existing event-specific hygiene theory: capture permission is local to an
-active receiver, while typed paths and event evidence may relate an input
-contribution to a result. The existing evidence avoids a reason to add a
-parallel carrier at this stage.
+Treat `'e?` as a **protection-release annotation candidate** on an effect
+component. The corrected meaning is coherent with the general idea that
+protection is attached to typed slot paths while provenance and event identity
+are retained independently. Existing `Rel_C`, occurrence/incidence, typed
+path and attachment evidence are the first projection substrate to inspect;
+no duplicate carrier is justified by current evidence.
 
-The user's later polarity-sensitive deep-handler decision narrows one
-mixed-row case and is recorded in the governing compatibility addendum. It
-does not close the separate question of whether an optional provenance marker
-is a public projection of that case, especially while the receiver remains
-active along a returned latent path.
-
-However, the current work has not proved that the edge is derivable from the
-existing evidence across higher-order, nested, shallow, recursive, and
-generalized cases. Nor is the edge's quantifier or principal order fixed.
-The appropriate assessment is **(B) additional semantic organization is
-needed, but the candidate is promising**. The narrow missing result is a
-source-to-public-projection theorem that maps the optional input-to-result
-contribution relation to `'e?`, proves the fixed materialization cutoff against
-the source machine's retained active-path incidence, and preserves the scheme
-solution set without merging same-family origins. Only a concrete
-counterexample to that mapping would justify proposing additional internal
-evidence.
+The current source packages do not yet define the complete slot-to-event
+attribution relation or prove that one `?` releases exactly the intended
+protection while preserving all other source observations. The candidate is
+therefore **(B) additional semantic organization is needed, but the direction
+is promising**. The minimal missing result is a source-to-public projection
+theorem for slot-local protection release, including nested/latent lifetime,
+ordinary post-release eligibility, and the frame condition preserving
+provenance, row support, and `K,D`.

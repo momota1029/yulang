@@ -30,25 +30,20 @@ This index is a navigation aid. The listed source document remains authoritative
 
 ## Active inference navigation (2026-10-04)
 
-- **Exploratory public-projection candidate:**
-  [handler hygiene provenance notation](2026-10-05-handler-hygiene-public-provenance-notation.md)
-  is Draft only. It studies `'e?` as a possible input-to-result provenance
-  edge with capture authority ending at the public result boundary. The
-  separately approved mixed-row direction applies only to its stated
-  deep-handler fragment and does not select this notation. The
-  reviewed ordinary-computation candidate transports callback incidence along
-  matching result paths while the receiver remains active. The intended cutoff
-  at public result materialization is fixed; the open projection obligation is
-  to represent retained source incidence without carrying capture authority
-  into ordinary output, while preserving downstream observations. It
-  selects no syntax, semantics, carrier, or implementation and does not alter
-  the Authoritative callback-context contract or existing proof gates.
+- **Exploratory handler-protection notation:**
+  [handler protection-release notation](2026-10-05-handler-hygiene-public-provenance-notation.md)
+  is Draft only. The user's corrected meaning for `'e?` is to release handler
+  protection from `'e`-derived contributions at that slot while preserving
+  provenance, row support, event identity and dependencies. It is neither an
+  optional-flow marker nor a provenance edge, and it does not perform handler
+  subtraction. Attribution, release timing, ordinary post-release eligibility,
+  overlap composition and projection from current evidence remain open. It
+  selects no grammar, carrier, or implementation and does not alter the
+  Authoritative callback-context contract or existing proof gates.
   [`research_handler_provenance_projection.py`](../../tools/research_handler_provenance_projection.py)
-  finds a one-event cross-origin collision and exhausts 16 two-event/two-boundary
-  incidence assignments; flat family support can agree despite different
-  input-to-result provenance edges, which the candidate edge separates. The
-  checker does not derive incidence from source evidence or establish a
-  principal projection.
+  remains a historical independent support/provenance characterization. Its
+  finite edge result is not evidence for `'e?`'s protection-release meaning;
+  it does not derive source incidence or establish a principal projection.
   See its [progress record](../progress/2026-10-05-handler-provenance-projection-playground.md).
 
 - **Executable proof-search direction:**
@@ -94,6 +89,11 @@ This index is a navigation aid. The listed source document remains authoritative
   request/resumption composition and derives `d-`/`d+`/`b+` occurrence views
   from the composed trace; it does not interpret production bounds. See the
   [consumer-factorization record](../progress/2026-10-05-callback-consumer-factorization-playground.md).
+  [`research_callback_endpoint_source_join.py`](../../tools/research_callback_endpoint_source_join.py)
+  joins those finite source observations to the existing B endpoint trace,
+  checking the event-derived `d-`/`d+`/`b+` identities. It does not derive
+  production source evidence or descriptor membership; see its
+  [progress record](../progress/2026-10-05-callback-source-endpoint-join.md).
   [`research_mixed_effect_subtraction.py`](../../tools/research_mixed_effect_subtraction.py)
   characterizes 96 fixed histories under selected-first shallow handling,
   one raw-suffix resumption, and a terminal outer-family filter. Its minimized

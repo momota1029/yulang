@@ -642,6 +642,17 @@ stale-state mutants. This does not run production lowering or inference and
 does not model typed receipt identity, handler capture, `(nu,K,D)`, or the
 separate operation-result consumer. See the
 [parsed-source execution record](../notes/progress/2026-10-05-parsed-scoped-execution-bridge.md).
+The next small operational-to-endpoint evidence join now composes existing
+Force/body/result-consumer observations with the existing B endpoint-trace
+records for one supplied identity-valued Handler-literal skeleton. Six rows
+(two pending body requests, four complete histories) preserve the same Force
+event under distinct `d-`/`d+` occurrence identities; `b+` is accepted only
+when an observed body request supplies it. An independent review found and
+closed an incidence-copying hole with event-derived projection checks and a
+ghost-incidence mutant; all five identity/incidence mutants now reject. This
+connects two finite models only: it supplies no production `Rel_C`/`nu,K,D`,
+Function membership/admission, subtraction, containment, or principality rule.
+See the [source/endpoint join record](../notes/progress/2026-10-05-callback-source-endpoint-join.md).
 The design remains Draft; no production
 implementation is authorized. The current `id x = x` / scalar-body owner
 trace confirms source identities are retained but complete membership is not
@@ -709,29 +720,18 @@ caller-owned observations in the complete `f` call along
 `Force(D_g) >>= B_f`; its candidate Function contract places them in outward
 `c`. Production endpoint projection and principal representability remain
 unproved; details are in the contributor-bound attempt.
-An exploratory Draft records candidate public spelling `'e?` for an optional
-provenance edge from a capture-constrained input component to an ordinary
-output component. It keeps row membership separate from provenance and
-proposes that capture authority ends at the public result boundary. The
-reviewed ordinary-computation candidate transports callback incidence along
-matching result paths while the receiver is still active. The intended public
-cutoff is fixed: materializing a contribution in `'f` ends its input capture
-restriction even if a corresponding latent source path remains active. The
-projection theorem must represent retained source incidence without carrying
-that authority into ordinary `'f`, while preserving downstream observations.
-Existing `Flow`/`Observe`,
-occurrence/incidence, `Rel_C`, `K,D`, directed-weight and subtraction evidence
-are the candidate projection substrate; no concrete failure showing a
-missing carrier is established. The edge quantifier, principal order, syntax
-behavior, and source-to-public projection theorem remain open, so the note
-adds no semantic or implementation authority. Its **(B)** assessment is
-exploratory. A finite checker finds the same flat support for histories with
-different input-to-result provenance edges, including a one-event
-cross-origin pair and a mixed-origin two-event pair; the edge separates both
-modeled cases. This supports keeping provenance distinct from row membership,
-but does not prove that `'e?` is a principal public projection. See the
-[playground record](../notes/progress/2026-10-05-handler-provenance-projection-playground.md)
-and [design note](../notes/design/2026-10-05-handler-hygiene-public-provenance-notation.md).
+The current exploratory reading of `'e?` is a handler-protection release for
+`'e`-derived contributions at that slot. Provenance, event identity, row
+support and `K,D` remain unchanged; after release, ordinary handler search and
+eligibility apply. This is not optional membership, may-flow, a provenance
+edge, or subtraction. Attribution of an output contribution to `'e`, the exact
+release point, nested/latent protection composition, and the proof that
+existing `Rel_C`, occurrence/incidence, typed paths and attachments represent
+the transition remain open. No new carrier or production change is selected.
+The previous provenance-edge probe is retained as independent finite
+support/provenance characterization only; it is not evidence for `'e?`. See
+the [historical probe record](../notes/progress/2026-10-05-handler-provenance-projection-playground.md)
+and corrected [Draft notation note](../notes/design/2026-10-05-handler-hygiene-public-provenance-notation.md).
 An architect cross-check found no counterexample among the seven accepted
 schemes and no demonstrated missing carrier. A direct Astra theorem attack,
 independently reviewed by a compiler referee and architect, distinguishes the

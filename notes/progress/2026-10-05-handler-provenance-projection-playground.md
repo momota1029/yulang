@@ -1,8 +1,8 @@
-# Handler provenance edge projection playground
+# Historical handler provenance/support projection playground
 
 Date: 2026-10-05
 Status: finite characterization only; no semantic, grammar, solver, or implementation authority
-Governing candidate: [handler hygiene provenance notation](../design/2026-10-05-handler-hygiene-public-provenance-notation.md)
+Historical association: [former handler hygiene public-notation draft](../design/2026-10-05-handler-hygiene-public-provenance-notation.md)
 Review: compiler_referee found no blocking/major issue; two minor scope descriptions were clarified in the script and this record
 
 [`tools/research_handler_provenance_projection.py`](../../tools/research_handler_provenance_projection.py)
@@ -39,18 +39,16 @@ It assumes one concrete operation instance, and its stipulated post-exit
 projection sees only ordinary family support. It therefore does not show that a public `'e?`
 scheme preserves distinct type-family assignments or downstream dependencies,
 that `Rel_C` projects to the edge, or that the edge semantics is principal.
-It does not justify a new carrier or select whether the edge is exact,
-may-flow, or a permission. The earlier note's **(B)** recommendation and
-open source-to-public projection theorem remain unchanged.
+It does not justify a new carrier or select whether the provenance fact is
+exact, may-flow, or a permission.
 
-User clarification fixes the intended public cutoff: once an input-derived
-contribution materializes in ordinary output component `'f`, the input capture
-restriction ends, even if corresponding latent source incidence remains under
-an active receiver. The playground's post-exit observation was only a finite
-modeling choice; it is not an alternative cutoff semantics. The remaining
-obligation is to prove that the source-to-public projection represents the
-retained incidence without carrying that authority into `'f`, preserving
-downstream handler observations.
+**Semantic status correction (2026-10-05):** the user withdrew the premise
+that `'e?` denotes an optional provenance edge or may-flow. It means release
+of handler protection for an `'e`-derived contribution at the marked slot,
+while keeping its provenance. This probe's support/edge results remain
+independent characterization of this toy projection only; they are not
+evidence for `'e?`, its release point, or handler protection. See the corrected
+[Draft notation candidate](../design/2026-10-05-handler-hygiene-public-provenance-notation.md).
 
 Verification:
 
