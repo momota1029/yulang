@@ -522,7 +522,27 @@ conditional on an unprovided source-origin premise classifying the collected
 rows and current fresh `R` instance as not §22-introduced existentials; full
 `A` and `(L)` remain open. P2's arbitrary extensional inventories remain
 unrestricted, and the regular-tree carrier is still unselected source meaning.
+The paired constructive/falsification attempts for the missing origin premise
+passed compiler-referee review: the selected schemas do not provide binding
+origin B, generalization provenance G, or external-use classification U, so
+only conditional `B ∧ G ∧ U ⇒ O` is established. The origin-free graph admits
+relative completions differing only on the current fresh `R`; distinct guard
+outcomes additionally require hypothetical non-authoritative structural
+coverage K. This is not a selected-semantics counterexample and does not close
+O, full `A/(L)`, or production adequacy.
+Further source inventory located Authoritative result-synthesis §4's
+`Synth(name x) = Γ(x)`: under its supplied-interface premise, the Name step
+adds no source binder. This does not classify the separately allocated live
+occurrence row; F5's Q/R representation is historical and does not supply the
+successor origin rule. An independent §20–23 audit also confirms that
+existential guard re-entry and variable-only levels are selected, while the
+candidate Cartesian nested support-pair coverage K is not. The witness
+`B(z) <: c` remains unresolved pending both source-origin transport and the
+ordinary variable/extrusion obligation. See the [origin-rule inventory](../notes/progress/2026-10-06-rec-name-return-origin-rule-inventory.md)
+and [guard-coverage audit](../notes/progress/2026-10-06-rec-name-return-guard-coverage-authority-audit.md).
 See the [source guard derivation](../notes/progress/2026-10-06-rec-name-return-source-guard-derivation-attempt.md),
+[constructive O-classification attempt](../notes/progress/2026-10-06-rec-name-return-o-classification-constructive-attempt.md),
+[relative O falsification attempt](../notes/progress/2026-10-06-rec-name-return-o-classification-falsification-attempt.md),
 [candidate fiber](../notes/progress/2026-10-06-rec-name-return-one-row-candidate-model.md),
 [weakened-premise falsification](../notes/progress/2026-10-06-rec-name-return-one-row-falsification.md),
 [contextual valuation](../notes/progress/2026-10-06-live-row-contextual-valuation-attempt.md),
