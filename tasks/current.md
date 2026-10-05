@@ -40,6 +40,23 @@ Publication does not notify or resume a stopped goal.
   be composed. Casts/adapters are evidence or realizations from concrete
   inequality resolution. Optional-record compatibility is not transitive
   structural subtyping.
+- **Written annotations, inferred public types, and internal views:** these are
+  distinct layers. Source forms such as `_`, `[_]`, and
+  `f: _ -> [io] _` are annotation/contracts that contribute constraints,
+  holes and scoped permissions; they are not required to be the literal final
+  inferred scheme or canonical internal type syntax. Inferred public schemes
+  may contain structure not directly source-writable (for example inferred
+  unions/intersections), while internal inference additionally carries
+  role/protection/path/owner evidence that need not be public type syntax.
+  Therefore the provisional fully protected Handler treatment of unannotated
+  `f` is an internal inference seed/view. Its later non-Handler determination
+  refines/discharges that seed on the shared inferred interface; it does not
+  rewrite a written type or the actual role/entry of a supplied callable.
+  Annotation-to-profile work must map the source occurrence to the completed
+  inferred view rather than identify the two representations. See the
+  [Authoritative call-view clarification](../notes/design/2026-10-05-inferred-function-call-views.md#11-source-annotations-inferred-public-types-and-internal-views-are-distinct)
+  and the pre-existing [type reference](../web/docs/reference/types.md) /
+  [inference reference](../web/docs/reference/type-theory.md).
 - **Function/effects:** source introduction/context selects Pure or Handler
   before Function-port interpretation. Effects are coupled ports, not
   independently-subtyped Types. Covariant rows are canonical flat forms;
