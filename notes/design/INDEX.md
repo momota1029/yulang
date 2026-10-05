@@ -178,6 +178,14 @@ This index is a navigation aid. The listed source document remains authoritative
   query, and proves no principal scheme or execution adequacy. See the
   [HIR/source-core audit](../progress/2026-10-04-hir-source-core-boundary.md)
   for scope and verification limits.
+  [`research_scoped_compose_execution.py`](../../tools/research_scoped_compose_execution.py)
+  differentially checks bounded recursive-source versus generated-core
+  execution for canonical `call`/`compose` Value-entry trees. It exercises
+  delayed arguments, receipt/Force/rebind ordering, resumed state, occurrence
+  identity, and pending suffixes, killing four deliberate mutants. The
+  primitives are supplied and finite; this does not parse source, interpret
+  `(nu,K,D)`, solve Function effects, or establish callback/production
+  adequacy. See its [progress record](../progress/2026-10-05-scoped-call-compose-execution-probe.md).
   [`research_function_shadow_obstruction.py`](../../tools/research_function_shadow_obstruction.py)
   executes the finite Value-versus-Computation entry witness against the
   identical value-only Function shadow; it is not a source or endpoint-query

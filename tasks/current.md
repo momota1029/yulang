@@ -622,6 +622,17 @@ also absent. These are separate parser/HIR generation-conformance gaps, not a
 selected production design. Details are in the
 [HIR/source-core boundary record](../notes/progress/2026-10-04-hir-source-core-boundary.md).
 Parser recovery plus source/endpoint realization remain open.
+An isolated execution probe now compares recursive-source and generated-core
+evaluators for the canonical `call` and `compose` Value-entry trees. Its
+bounded 32-case search checks 64 response paths, pending prefixes and
+completed traces; eager-force, receipt-replay, occurrence-collapse and
+dropped-suffix mutants are all rejected. This strengthens only the operational
+`Force(D) >>= rebind >>= body` characterization: inputs are hard-coded
+canonical trees, primitive relations are supplied, and neither production HIR
+nor `(nu,K,D)`, Function membership, capture, effect solving, or principal
+schemes are modeled. The exact Function membership/admission interpretation
+and actual-to-checked containment remain the next callback theorem gate. See
+the [execution probe record](../notes/progress/2026-10-05-scoped-call-compose-execution-probe.md).
 The design remains Draft; no production
 implementation is authorized. The current `id x = x` / scalar-body owner
 trace confirms source identities are retained but complete membership is not
