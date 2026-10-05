@@ -1,9 +1,10 @@
 # Effective finite search for the pure structural package
 
 Date: 2026-10-05
-Status: unreviewed derivation from a Reviewed theorem; proof-search result only
+Status: Reviewed mathematical corollary; no implementation authority
 Governing result: [finite-fence completion](../design/2026-10-04-structural-fmp-fence-completion.md), Theorem FMP and §§2, 6, 9–11
 Implementation authority: none
+Review: compiler_referee and spec_auditor; an omitted-primitive-atom major finding was repaired, and the scoped delta review found no remaining issues
 
 ## Claim and input boundary
 
@@ -12,8 +13,10 @@ decidable by finite search under this effective-input condition:
 
 1. the package explicitly lists its finite roots, flat descriptor terms,
    descriptor equations, and structural bounds;
-2. constructor heads appearing in those terms have a finite, decidable
-   signature (arity and variance), and Record labels have decidable equality;
+2. fixed constructor heads appearing in those terms have finite, decidable
+   signatures (arity and variance); identity/equality for the finitely many
+   primitive and rigid atoms in the input, and equality for input Record
+   labels, are decidable;
 3. for each root permission set and each rigid identity syntactically present
    in `P`, membership in that permission set is decidable.
 
@@ -25,10 +28,11 @@ effectivity claim for that encoding.
 
 Let `N` be the finite flat-term universe size from FMP §2. The search need
 only enumerate deterministic constructor graphs with at most `8^N` states.
-Each graph node is labelled by an input constructor head, an input rigid atom,
-or a Record whose field mask is a subset of the finite set of input Record
-labels; include the empty Record. Child edges match the selected head's arity.
-Assign each package root to a graph state.
+Each graph node is labelled by an input fixed constructor head, an input
+primitive atom, an input rigid atom, or a Record whose field mask is a subset
+of the finite set of input Record labels; include the empty Record. Child
+edges match the selected fixed head's arity. Assign each package root to a
+graph state.
 
 For each candidate, check descriptor equations and original inequalities on
 the graph's regular-tree unfolding, check root permissions by reachability,
@@ -51,11 +55,11 @@ permitted solution of `P`.
 **Completeness of the bounded search.** If `P` has any permitted assignment
 of arbitrary proper trees, Theorem FMP constructs a permitted simultaneous
 regular solution with at most `8^N` states. The construction labels each
-state with a fixed head or atom selected from a finite input anchor, or with
-a Record mask formed by union of masks of input Record anchors; an
-unanchored state uses the existing empty Record. Its recursive successor
-profiles still range over the same finite term universe. Thus this witness
-is among the enumerated candidates. Permission preservation is part of
+state with a fixed head or atom (primitive or rigid) selected from a finite
+input anchor, or with a Record mask formed by union of masks of input Record
+anchors; an unanchored state uses the existing empty Record. Its recursive
+successor profiles still range over the same finite term universe. Thus this
+witness is among the enumerated candidates. Permission preservation is part of
 Theorem FMP's same-address shadow proof, and the enumerator independently
 checks the resulting reachable rigid identities against each original root
 permission set. Therefore every satisfiable package is accepted by some
@@ -77,8 +81,11 @@ separate `RES`, `EFF`, callback, and principality gates. In particular, this
 result does not turn the open residual-factorization candidate into an
 effective joint solver.
 
-This derivation has not received independent review. The key conformance
-check for review is that every label in the FMP witness construction is
-indeed drawn from the finite input anchor signature described above, while
-scope preservation continues to use the theorem's root-specific shadow
-argument rather than a new global permission assumption.
+The independent reviews checked the finite candidate alphabet against FMP's
+anchor construction, the exact structural relation on finite graphs, and
+root-specific permission preservation. The initial omission of primitive
+atoms from the written alphabet was repaired; without that repair, the
+single-root package `q = Int` was a counterexample to search completeness.
+Review did not reprove the finite-distance algebra or quotient bridge inside
+FMP, and did not inspect production code, the executable playground, or the
+wider residual/effect/source/principality gates.
