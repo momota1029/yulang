@@ -239,14 +239,17 @@ argument types and `u,v` the application results. The candidate source rules
 generate:
 
 ```text
-a ≤ Fun(s_g,u)       Fun(a,u) ≤ s_f       Fun(a,u) ≤ r_f
-b ≤ Fun(s_f,v)       Fun(b,v) ≤ s_g       Fun(b,v) ≤ r_g
+s_g ≤ Fun(a,u)       Fun(a,u) ≤ s_f       Fun(a,u) ≤ r_f
+s_f ≤ Fun(b,v)       Fun(b,v) ≤ s_g       Fun(b,v) ≤ r_g
 ```
 
 The first member's use of `g` points to the same live `s_g` that the second
 member's body constrains; it is not a separately instantiated scheme. The
-group graph is nonempty in the tagged powerset carrier by assigning
-`a=b=u=v=Bottom` and `s_f=s_g=r_f=r_g=Top`.
+application constraints put the operators `g` and `f` below Function types
+whose inputs are `a` and `b`, respectively. The group graph is nonempty in
+the tagged powerset carrier by assigning `a=b=u=v=Bottom` and
+`s_f=s_g=r_f=r_g=Fun(Bottom,Bottom)`: every displayed obligation then reduces
+to `Fun(Bottom,Bottom) ≤ Fun(Bottom,Bottom)` and holds by reflexivity.
 
 After the SCC closes, `H_f` and `H_g` are separate root views with their own
 member-specific boundaries. A use of `f` freshens `Local_f` through its map;
