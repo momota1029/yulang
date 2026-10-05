@@ -867,6 +867,151 @@ mod tests {
         },
     }
 
+    #[derive(Clone, Debug, Eq, PartialEq)]
+    enum ResearchScopedExpr {
+        Lambda {
+            binder: u32,
+            body: Box<ResearchScopedExpr>,
+        },
+        Variable {
+            binder: u32,
+        },
+        Apply {
+            occurrence: u32,
+            callee: Box<ResearchScopedExpr>,
+            argument: Box<ResearchScopedExpr>,
+        },
+    }
+
+    fn research_identifier(node: &SyntaxNode, source: &str) -> (String, Range<usize>) {
+        assert_eq!(node.kind(), SyntaxKind::IdentifierPattern);
+        let tokens = node
+            .children_with_tokens()
+            .filter_map(|element| element.into_token())
+            .collect::<Vec<_>>();
+        let [token] = tokens.as_slice() else {
+            panic!("research binder is one identifier token")
+        };
+        assert_eq!(token.kind(), SyntaxKind::Identifier);
+        let range = range_of_token(token);
+        (source[range.clone()].to_owned(), range)
+    }
+
+    fn research_binding_parameters(
+        statement: &SyntaxNode,
+        source: &str,
+    ) -> Vec<(String, Range<usize>)> {
+        let headers = statement
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::BindingHeader)
+            .collect::<Vec<_>>();
+        assert_eq!(headers.len(), 1);
+        let targets = headers[0]
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::Pattern)
+            .collect::<Vec<_>>();
+        assert_eq!(targets.len(), 1);
+        let parts = targets[0].children().collect::<Vec<_>>();
+        assert!(parts.len() >= 2, "research case has a name and parameters");
+        assert_eq!(parts[0].kind(), SyntaxKind::IdentifierPattern);
+
+        let mut parameters = Vec::new();
+        for tail in &parts[1..] {
+            assert_eq!(tail.kind(), SyntaxKind::PatternMlApplicationTail);
+            let arguments = tail.children().collect::<Vec<_>>();
+            let [argument] = arguments.as_slice() else {
+                panic!("each bounded source tail has one pattern")
+            };
+            assert_eq!(argument.kind(), SyntaxKind::Pattern);
+            let binders = argument.children().collect::<Vec<_>>();
+            let [binder] = binders.as_slice() else {
+                panic!("each bounded parameter pattern is atomic")
+            };
+            parameters.push(research_identifier(binder, source));
+        }
+        assert!(!parameters.is_empty());
+        assert_eq!(
+            parameters
+                .iter()
+                .map(|(name, _)| name)
+                .collect::<std::collections::HashSet<_>>()
+                .len(),
+            parameters.len(),
+            "the bounded candidates use distinct parameter names"
+        );
+        parameters
+    }
+
+    fn research_resolve_scoped_apply(
+        expression: &ResearchApply,
+        environment: &[(String, u32)],
+    ) -> ResearchScopedExpr {
+        match expression {
+            ResearchApply::Atom { name, .. } => ResearchScopedExpr::Variable {
+                binder: environment
+                    .iter()
+                    .rev()
+                    .find_map(|(bound, binder)| (bound == name).then_some(*binder))
+                    .unwrap_or_else(|| panic!("unbound research name {name}")),
+            },
+            ResearchApply::Group { children, .. } => {
+                let [inner] = children.as_slice() else {
+                    panic!("one grouped research expression")
+                };
+                research_resolve_scoped_apply(inner, environment)
+            }
+            ResearchApply::Apply {
+                occurrence,
+                callee,
+                argument,
+                ..
+            } => ResearchScopedExpr::Apply {
+                occurrence: *occurrence,
+                callee: Box::new(research_resolve_scoped_apply(callee, environment)),
+                argument: Box::new(research_resolve_scoped_apply(argument, environment)),
+            },
+        }
+    }
+
+    fn research_lower_binding_candidate(
+        statement: &SyntaxNode,
+        parsed: &ParsedFile,
+        source: &str,
+    ) -> (Vec<(String, Range<usize>)>, ResearchScopedExpr) {
+        let parameters = research_binding_parameters(statement, source);
+        let bodies = statement
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::BindingBody)
+            .collect::<Vec<_>>();
+        assert_eq!(bodies.len(), 1);
+        let chains = bodies[0]
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::OperatorChain)
+            .collect::<Vec<_>>();
+        assert_eq!(chains.len(), 1);
+        let associated = associate_chain_owned(parsed, chains[0].clone())
+            .expect("use the source's retained operator environment")
+            .into_hir();
+        assert!(
+            research_expression_is_valid(&associated),
+            "{source}: {associated:#?}"
+        );
+        let mut next_occurrence = 0;
+        let body = research_lower_apply(&associated, source, &mut next_occurrence);
+        let mut environment = Vec::new();
+        for (binder, (name, _)) in parameters.iter().enumerate() {
+            environment.push((name.clone(), binder as u32));
+        }
+        let mut expression = research_resolve_scoped_apply(&body, &environment);
+        for binder in (0..parameters.len()).rev() {
+            expression = ResearchScopedExpr::Lambda {
+                binder: binder as u32,
+                body: Box::new(expression),
+            };
+        }
+        (parameters, expression)
+    }
+
     fn research_lower_apply(expression: &HirExpr, source: &str, next: &mut u32) -> ResearchApply {
         let HirExpr::Value {
             kind,
@@ -1262,6 +1407,73 @@ mod tests {
                 }),
             }
         );
+    }
+
+    fn research_scoped_shape(expression: &ResearchScopedExpr) -> String {
+        match expression {
+            ResearchScopedExpr::Lambda { binder, body } => {
+                format!("λ{binder}.{}", research_scoped_shape(body))
+            }
+            ResearchScopedExpr::Variable { binder } => format!("v{binder}"),
+            ResearchScopedExpr::Apply {
+                callee, argument, ..
+            } => format!(
+                "({} {})",
+                research_scoped_shape(callee),
+                research_scoped_shape(argument)
+            ),
+        }
+    }
+
+    fn research_scoped_call_count(expression: &ResearchScopedExpr) -> usize {
+        match expression {
+            ResearchScopedExpr::Lambda { body, .. } => research_scoped_call_count(body),
+            ResearchScopedExpr::Variable { .. } => 0,
+            ResearchScopedExpr::Apply {
+                callee, argument, ..
+            } => 1 + research_scoped_call_count(callee) + research_scoped_call_count(argument),
+        }
+    }
+
+    #[test]
+    fn research_multi_parameter_declarations_form_nested_scoped_candidates() {
+        for (source, expected_parameters, expected_shape, expected_calls) in [
+            ("my call f x = f x", vec!["f", "x"], "λ0.λ1.(v0 v1)", 1),
+            (
+                "my higher f g x = f g x",
+                vec!["f", "g", "x"],
+                "λ0.λ1.λ2.((v0 v1) v2)",
+                2,
+            ),
+        ] {
+            let parsed = parsed(source);
+            let root = SyntaxNode::new_root(parsed.green().clone());
+            let statements = root
+                .descendants()
+                .filter(|node| node.kind() == SyntaxKind::BindingStatement)
+                .collect::<Vec<_>>();
+            assert_eq!(statements.len(), 1, "{source}");
+            let (parameters, expression) =
+                research_lower_binding_candidate(&statements[0], &parsed, source);
+            assert_eq!(
+                parameters
+                    .iter()
+                    .map(|(name, _)| name.as_str())
+                    .collect::<Vec<_>>(),
+                expected_parameters,
+                "{source}"
+            );
+            assert_eq!(
+                research_scoped_shape(&expression),
+                expected_shape,
+                "{source}"
+            );
+            assert_eq!(
+                research_scoped_call_count(&expression),
+                expected_calls,
+                "{source}"
+            );
+        }
     }
 
     #[test]

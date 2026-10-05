@@ -203,6 +203,16 @@ argument. This notation model omits actual port profiles, `K,D`, invocation/
 subtraction evidence, and full constraints, so it is not executable core or
 complete Function comparison. Production Apply lowering and principal
 acceptance schemes remain open.
+The actual declarations `my call f x = f x` and `my higher f g x = f g x`
+now also produce test-only nested lambda/application candidates with lexical
+binder indices. Independent compiler-referee review found no issue in that
+bounded shape probe, and its focused filter passes. This does not establish
+source recovery-freedom, endpoint constraints, or the expected schemes. The
+exact principal source `my compose f g x = f (g x)` currently yields an
+`Error(Missing)` inside the parenthesized argument, so it cannot yet enter the
+same bridge; this is a parser characterization and makes no grammar decision.
+The production header still rejects multi-parameter declarations, and resolved
+HIR still has no application node.
 
 ## Latest main-gate results
 

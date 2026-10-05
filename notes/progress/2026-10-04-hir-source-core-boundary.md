@@ -206,12 +206,48 @@ production stage accept the declaration. It proves neither name resolution,
 currying/lambda elaboration, Function constraints, nor a typed-core source
 correspondence. No compiler behavior changed.
 
-Focused verification passed for `research_binding_body_cst_flows_to_apply_candidate`
-and the existing `only_one_recovery_free_identifier_parameter_is_admitted`
-integration test. `rustfmt --check crates/yu-hir/src/lib.rs` and
-`git diff --check` passed. `cargo fmt --check` was also attempted but fails on
-pre-existing formatting differences across unrelated `yu-solver` files; it
-did not modify them.
+The later bounded candidate `research_multi_parameter_declarations_form_nested_scoped_candidates`
+extends this raw-CST path for the actual principal examples `call` and
+`higher`. It extracts every distinct identifier parameter, nests research
+lambda nodes in source order, resolves body names to those lexical binder
+indices, and checks the resulting curried application shapes:
+`λ0.λ1.(v0 v1)` and `λ0.λ1.λ2.((v0 v1) v2)`. This is a generic candidate
+construction over the parsed parameter/application trees, not a type rule or
+production HIR implementation. It does not establish effect ports,
+co-occurrence, endpoint constraints, or principal schemes.
+
+Independent compiler-referee review found no blocking, major, or minor issue
+within this bounded candidate. Its scope remains deliberately narrow: the
+candidate does not assert recovery-freedom for every header/body node, verify
+parameter-to-binder source ranges as a separate invariant, or establish typed-
+core correspondence. The focused `research_` filter passed all six
+characterization tests, and the existing one-parameter admission integration
+test passed separately.
+
+An attempted inclusion of the exact acceptance source
+`my compose f g x = f (g x)` reached an `Error(Missing)` inside its nested
+parenthesized `g x` CST, so it is not counted as a valid candidate case. This
+is a current parser-shape observation only; it does not select a grammar
+change. The exact source spelling's raw parsing is now an additional earlier
+conformance gap to resolve before a complete source-to-HIR theorem can cover
+`compose`.
+
+The exact checks for this slice were:
+
+```text
+env RUSTC_WRAPPER= cargo test -p yu-hir research_ -- --nocapture
+  6 passed; 16 filtered out
+env RUSTC_WRAPPER= cargo test -p yu-hir --test simple_module_resolution only_one_recovery_free_identifier_parameter_is_admitted -- --nocapture
+  1 passed; 21 filtered out
+rustfmt --edition 2024 --check crates/yu-hir/src/lib.rs
+  passed
+git diff --check
+  passed
+```
+
+`cargo fmt --check` was also attempted earlier but fails on pre-existing
+formatting differences across unrelated `yu-solver` files; it did not modify
+them. No production HIR behavior changed.
 
 ### Test-only raw-source callback Apply candidate (2026-10-05)
 

@@ -150,6 +150,13 @@ This index is a navigation aid. The listed source document remains authoritative
   `my call f x = f x` and builds the existing Apply candidate; production
   lowering still rejects the multi-parameter header before reaching that
   body, and has no resolved Apply node. See the same HIR/source-core audit.
+  A test-only scoped candidate now turns the actual `call` and `higher`
+  declaration CSTs into nested lambda/application shapes with parameter-index
+  resolution. Production still rejects multi-parameter headers; the exact
+  `compose` acceptance spelling also currently has an `Error(Missing)` in its
+  parenthesized argument. These are parser/HIR bridge observations only, not
+  grammar or typing decisions. See the HIR/source-core audit for scope and
+  verification limits.
   [`research_function_shadow_obstruction.py`](../../tools/research_function_shadow_obstruction.py)
   executes the finite Value-versus-Computation entry witness against the
   identical value-only Function shadow; it is not a source or endpoint-query
