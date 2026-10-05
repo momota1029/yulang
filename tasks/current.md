@@ -770,14 +770,16 @@ marker meaning. The marker itself does not establish source attribution or
 emission; a protection witness, event identity, family equality, or path alone
 does not establish either premise. It does not encode optional
 membership, an input-to-output provenance edge, handler selection, or
-subtraction. After release, ordinary handler search/eligibility applies, but
-release does not guarantee capture. Still open: (1) which source/evidence rule
-identifies a contribution emitted from this slot as `'e`-derived; (2) exactly
-when its protection ends; (3) how it re-enters ordinary handler search; (4)
-how protection lifetime behaves across nested, shallow, deep, resumed, and
-higher-order execution; and (5) whether `Rel_C`, occurrence/incidence, typed
-paths, attachment/evidence can express the change. Provenance must persist;
-only protection is removed. No new carrier or production change is selected.
+subtraction. Release removes only the protection-based barrier to ordinary
+handler eligibility; ordinary handler matching/search still applies, and
+release does not grant capture or guarantee consumption. Still open:
+(1) which source/evidence rule identifies a contribution emitted from this
+slot as `'e`-derived; (2) exactly when its protection ends; (3) how it
+re-enters ordinary handler search; (4) how protection lifetime behaves across
+nested, shallow, deep, resumed, and higher-order execution; and (5) whether
+`Rel_C`, occurrence/incidence, typed paths, attachment/evidence can express the
+change. Provenance must persist; only protection is removed. No new carrier or
+production change is selected.
 The previous provenance-edge probe is retained as independent finite
 support/provenance characterization only; it is not evidence for `'e?`. See
 the [historical probe record](../notes/progress/2026-10-05-handler-provenance-projection-playground.md)

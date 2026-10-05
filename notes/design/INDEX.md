@@ -38,7 +38,9 @@ This index is a navigation aid. The listed source document remains authoritative
   and row membership. Event identity and lineage are preserved evidence, not
   the marker's meaning. It is neither an
   optional-flow marker nor a provenance edge, and it does not perform handler
-  subtraction. Attribution, release timing, ordinary post-release eligibility,
+  subtraction. It removes the protection-based barrier to ordinary handler
+  eligibility, without granting capture or changing ordinary matching.
+  Attribution, release timing, ordinary post-release eligibility,
   overlap composition and projection from current evidence remain open. It
   selects no grammar, carrier, or implementation and does not alter the
   Authoritative callback-context contract or existing proof gates.

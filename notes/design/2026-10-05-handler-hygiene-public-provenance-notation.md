@@ -78,6 +78,14 @@ The difference between `'e?` and `'e` is protection state only, not row
 membership or provenance. `?` is not an optional-flow quantifier and does not
 assert that a contribution reaches the output or another row component.
 
+The invariant is: attribution to `'e` and departure through this slot are
+established independently; crossing the marked slot removes only the
+handler-protection state carried by that contribution. The same `'e`
+attribution remains available afterward. Removing protection removes that
+protection-based barrier to ordinary handler eligibility; it does not itself
+grant capture eligibility, choose a handler, or change the handler's ordinary
+matching rules.
+
 ## Small-step / relational interpretation candidate
 
 Use existing source observations and evidence to identify a contribution `q`
@@ -99,7 +107,7 @@ The proposed local release rule is:
 Marked(s, 'e?)  and  EmittedFrom(q, s)  and
 AttributedTo(q, 'e)  and  ProtectedAt(q, s)
 -----------------------------------------------------------------------
-ReleaseProtection(q, s) = (Ord(q), unprotected-for-handlers-at-s)
+ReleaseProtection(q, s) = (Ord(q), protection-removed-at-s)
 ```
 
 `EmittedFrom` and `AttributedTo` must be established by their own source and
@@ -126,7 +134,8 @@ the rule has nothing to transform. That absence does not make `'e` membership
 optional and is not encoded by `?`.
 
 After release, the contribution is considered by the usual active-handler
-search and source-defined eligibility judgment. `PassQuestion` neither
+search and source-defined eligibility judgment, with its original `'e`
+attribution intact. `PassQuestion` neither
 performs subtraction nor changes a handler image or residual support. Any
 interaction with shallow/deep handling, attached subtraction, or row support
 must follow from a separate theorem connecting those existing judgments.
