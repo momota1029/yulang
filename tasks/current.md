@@ -512,9 +512,18 @@ actual collected production path also allocates every row/use at level one,
 although that is not a selected support limit. The remaining gate is a
 source-derived admissibility judgment `A`, preservation of every derived
 comparison guard for the exact admitted target class (law `(L)`), plus
-diagnostic/failure ownership and production realization. P2's arbitrary
-extensional inventories remain unrestricted, and the regular-tree carrier is
-still unselected source meaning. See the [candidate fiber](../notes/progress/2026-10-06-rec-name-return-one-row-candidate-model.md),
+diagnostic/failure ownership and production realization. A compiler-reviewed
+source-generation attempt now identifies a narrower production envelope:
+the exact recursive name-return group plus finite bare aliases `my h = f` or
+`g`, with no alias uses. Its incoming route adds exactly the three root value
+comparisons and one `L <: R_h` caller replay; there is no Function/Function
+decomposition or derived `ρ <: v` in that envelope. Guard preservation is
+conditional on an unprovided source-origin premise classifying the collected
+rows and current fresh `R` instance as not §22-introduced existentials; full
+`A` and `(L)` remain open. P2's arbitrary extensional inventories remain
+unrestricted, and the regular-tree carrier is still unselected source meaning.
+See the [source guard derivation](../notes/progress/2026-10-06-rec-name-return-source-guard-derivation-attempt.md),
+[candidate fiber](../notes/progress/2026-10-06-rec-name-return-one-row-candidate-model.md),
 [weakened-premise falsification](../notes/progress/2026-10-06-rec-name-return-one-row-falsification.md),
 [contextual valuation](../notes/progress/2026-10-06-live-row-contextual-valuation-attempt.md),
 [constructive level invariant](../notes/progress/2026-10-06-rec-name-return-level-permission-constructive-attempt.md),
