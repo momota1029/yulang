@@ -1,7 +1,7 @@
 # PCInit source construction: adversarial transfer audit
 
 Date: 2026-10-06
-Status: unreviewed research; no source or production falsifier established
+Status: compiler-referee-reviewed research; no source or production falsifier established
 Implementation authority: none
 Baseline: `aa7c796bb80acee436d19e790d2f7084b7d1be57`
 Exclusive lease: this file only
@@ -146,6 +146,16 @@ falsification lane its concrete judgment and rejection conditions so it can
 test deletion, annotation and recursive environment cases without guessing a
 language meaning.
 
+## Independent review
+
+`compiler_referee` reviewed this note together with the constructive attempt
+and found no blocking, major, or minor issue. The review confirms that the
+single-Name example is only a premise discriminator under a visibly
+hypothetical ordinary-environment assumption; it establishes no accepted-source
+or production counterexample. The selected Option 2, Q-independent admission,
+source scope, and later production-root/history obligations remain unchanged.
+This remains a reviewed unsuccessful falsification audit, not a theorem.
+
 ## 6. Checks, resources and dependency snapshot
 
 Read-only commands inspected HEAD/status, named sections and dependency bytes.
@@ -181,12 +191,15 @@ stability are returned in the handoff. The artifact is frozen on submission.
 - Baseline SHA: `aa7c796bb80acee436d19e790d2f7084b7d1be57`.
 - Changed dependency hashes: none at the recorded check; primary rechecks
   dependency stability before integration.
-- Claim/review status: research-only unsuccessful falsification with a minimal
-  premise discriminator; independent review pending; no gate closure.
+- Claim/review status: compiler-referee-reviewed unsuccessful falsification
+  with a minimal premise discriminator; no gate closure.
 - Checks run: named-section inspection, HEAD/status inspection, dependency
-  SHA-256 and pinned-byte comparison; no executable semantic checks.
+  SHA-256 and pinned-byte comparison, plus independent review; no executable
+  semantic checks.
 - Proposed commit message: `research: record PCInit falsification blocker`.
-- Shared-record deltas left for primary/curator: record no established
+- At producer handoff, shared-record deltas were left for primary/curator:
+  record no established
   falsifier and the missing independent hole/environment Initial rule; retain
-  production-root/history closure and Option 2 coverage as open. Do not promote
-  source acceptance, candidate rule validity or implementation authority.
+  production-root/history closure and Option 2 coverage as open. The accepted
+  map synchronization now records these limits. Do not promote source
+  acceptance, candidate rule validity or implementation authority.

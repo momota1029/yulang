@@ -1,7 +1,7 @@
 # PCInit: source construction stops after the open call skeleton
 
 Date: 2026-10-06
-Status: unreviewed research; bounded source-rule derivation and premise localization
+Status: compiler-referee-reviewed research; bounded source-rule derivation and premise localization
 Implementation authority: none
 Baseline: `aa7c796bb80acee436d19e790d2f7084b7d1be57`, `research/simple-sub-intrusion`
 Exclusive lease: this file only
@@ -252,23 +252,36 @@ instrumented; exact aggregate process count and wall time are unknown. The
 work stopped within the 30-minute assignment limit. No numerical correctness
 or performance envelope is inferred from the resource observations.
 
-The artifact is frozen at handoff; independent review is pending. The producer
-does not certify it, and shared record changes are returned to the primary.
+The artifact was frozen at handoff; shared record changes were returned to the
+primary.
+
+## Independent review
+
+`compiler_referee` reviewed this note together with the bounded falsification
+note and found no blocking, major, or minor issue. The review confirms that
+`Gamma_H` supplies only a syntactic Name skeleton from an already supplied
+interface; the whole-carrier Call/path/context discharge and filling-independent
+semantic hole initialization remain open. This is reviewed characterization,
+not a PCInit theorem or production-conformance result. The reviewer did not
+inspect compiler behavior, tests, exhaustive rule absence, or a production
+counterexample.
 
 ## Commit packet
 
 - Exact leased path: `notes/progress/2026-10-06-pcinit-source-construction-attempt.md`.
 - Baseline SHA: `aa7c796bb80acee436d19e790d2f7084b7d1be57`.
 - Changed dependency hashes: none at prewrite/final checks; snapshot above.
-- Claim/review: bounded source-rule derivation and premise localization;
-  frozen unreviewed research; no production closure or implementation authority.
+- Claim/review: compiler-referee-reviewed bounded source-rule derivation and
+  premise localization; no production closure or implementation authority.
 - Checks already run: pinned source comparison, targeted source-rule inspection,
-  dependency byte/hash equality, exact lease and whitespace inspection, artifact
-  hash. No tests/builds/executable experiments.
+  dependency byte/hash equality, exact lease and whitespace inspection, and
+  independent review. No tests/builds/executable experiments.
 - Proposed one-line research-checkpoint commit message:
   `Record PCInit open-name skeleton and unresolved Call initialization premise`.
-- Shared-record deltas intentionally left for primary/curator: distinguish
+- At producer handoff, shared-record deltas were returned for primary/curator:
+  distinguish
   available hypothetical name synthesis from missing semantic hole/environment
   interpretation; keep whole-carrier/current-endpoint Call discharge before
-  production initialization/embedding and history closure. No task/index/theory
-  status promotion or selected new semantics is requested.
+  production initialization/embedding and history closure. The accepted map
+  synchronization now records that distinction; no selected new semantics
+  follows.

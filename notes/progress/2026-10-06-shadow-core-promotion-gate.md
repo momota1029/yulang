@@ -146,3 +146,32 @@ flat-chain lengths.
 
 This record closes only opt-in structural artifact promotion. It does not
 close any theorem or authorize production inference replacement.
+
+## Current-F5 leaf differential follow-up
+
+The default-off `yu-solver/shadow-f5` feature forwards only to
+`yu-hir/shadow`. Its integration check parses one shared snapshot for
+`my f x = x`, then compares the shadow binder/use spelling, byte ranges and
+lexical relation with current F5's parameter and `ResolvedExpr::Name`. It also
+checks that the body occurrence enters collected constraints and solved
+provenance. Feature-off discovery runs zero tests; feature-on runs this one
+case. Both pass.
+
+This is a source-incidence differential with an actual current-F5 execution,
+not inferred-type equality: IDs remain artifact-local, and no `SolvedProjection`
+is claimed for the body. It covers no Apply, callable role, Function
+membership, call-view realization, annotations, soundness, principality, or
+old-infer parity. No executable frozen-old-infer runner exists in the current
+workspace. Independent `compiler_referee` and `regression_auditor` reviews
+found no issue in the narrow test/feature artifact. Verification was:
+
+- `RUSTC_WRAPPER= cargo test -p yu-solver --features shadow-f5 --test shadow_f5_differential`
+  (1 passed);
+- `RUSTC_WRAPPER= cargo test -p yu-solver --test shadow_f5_differential`
+  (0 feature-off tests);
+- `RUSTC_WRAPPER= cargo xtask check-graph`, `rustfmt --check` on the new test,
+  and `git diff --check`.
+
+No production inference path changed. This closes only the actual leaf-overlap
+comparison seam; ordinary application inference remains absent from F5 and is
+still an open successor/source-adequacy gate.

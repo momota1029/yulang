@@ -22,10 +22,14 @@ snapshot. No role/method selection, typed path/profile, `beta`/`Slots(beta)`,
 solver, or semantic discharge is implemented. Production F5 remains untouched.
 Gate and review/check evidence:
 [shadow-core promotion](../notes/progress/2026-10-06-shadow-core-promotion-gate.md).
-Next implementation gate: add only newly proved rules as explicit premise
-dischargers, with a differential harness for the exact overlap; continue the
-source bridge, soundness, principality, and adequacy research without relaxing
-their proof interfaces. One untouched HIR test has an observed
+The default-off `yu-solver/shadow-f5` feature now exercises the exact common
+leaf case `my f x = x`: source ranges and lexical binding align across shadow
+and current F5, and the F5 body occurrence survives collection/solve
+provenance. This compares source incidence only; it does not compare types,
+schemes, Apply behavior, or old infer. No executable old-infer runner exists.
+Next implementation gates may add only settled premise/evidence structure;
+continue the source bridge, soundness, principality, and adequacy research
+without relaxing their proof interfaces. One untouched HIR test has an observed
 `30`-versus-`14` count mismatch under the full package test command; keep its
 expected value unchanged and audit it separately.
 
@@ -1294,6 +1298,20 @@ formal/profile to the captured provider and later active receiver under joint
 No implementation authority follows. See the [conditional core derivation](../notes/progress/2026-10-06-nested-block-function-conditional-core-derivation.md),
 [activation-prefix audit](../notes/progress/2026-10-06-nested-block-capture-evidence-falsification.md),
 and [registration attempt](../notes/progress/2026-10-06-nested-block-callview-registration-attempt.md).
+
+For the separate `PCInit` admission seam, typed-core §6 does derive a
+syntactic `H:Value(F)` Name skeleton from an already supplied interface, then
+emits an open whole-carrier Call/path obligation. It does not interpret that
+obligation at the original current endpoint or initialize a filling-independent
+semantic hole/context. A complementary attack reduced the proposed transfer
+to one Name occurrence and established no source or production counterexample.
+Both bounded notes passed compiler-referee review with no findings. The open
+premise is narrower than “no hypothetical Name rule”: it is the independent
+Call/context initialization judgment. `PCInit`, full production admission,
+containment, soundness, principality and source adequacy remain open; the
+approved basis and proof seams are unchanged. See the
+[construction attempt](../notes/progress/2026-10-06-pcinit-source-construction-attempt.md)
+and [falsification audit](../notes/progress/2026-10-06-pcinit-source-falsification.md).
 
 Four reviewed source-derivation attempts refine the dependency order without
 closing these gates. The [`call` source-rule audit](../notes/progress/2026-10-06-call-view-source-rule-derivation-attempt.md)
