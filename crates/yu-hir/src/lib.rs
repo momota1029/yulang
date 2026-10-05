@@ -690,6 +690,7 @@ fn range_of_token(token: &SyntaxToken) -> Range<usize> {
 
 #[cfg(test)]
 mod tests {
+    mod shadow_annotation_positions;
     mod shadow_source_core;
 
     use std::{collections::HashMap, sync::Arc};
