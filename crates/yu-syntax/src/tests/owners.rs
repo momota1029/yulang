@@ -541,16 +541,76 @@ fn delimited_owner_consumes_wrong_closes_before_settling_its_own_close() {
 }
 
 #[test]
-fn parenthesized_items_recover_a_same_line_missing_separator_without_ml() {
-    let (green, exit) = run("(a b)");
-    assert_eq!(green.to_string(), "(a b)");
-    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+fn parenthesized_items_accept_same_line_ml_application() {
+    for source in ["(a b)", "f (g x)"] {
+        let (green, exit) = run(source);
+        assert_eq!(green.to_string(), source);
+        assert!(matches!(exit, Some(Err(Either::Right(_)))));
 
+        let root = SyntaxNode::new_root(green);
+        let group = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::ParenthesizedExpression)
+            .expect("parenthesized expression");
+        let elements = group
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::OperatorChain)
+            .collect::<Vec<_>>();
+        assert_eq!(elements.len(), 1);
+        let start = source.find('(').unwrap() + 1;
+        assert_ml_children(
+            &elements[0],
+            &[
+                (SyntaxKind::IdentifierExpression, start..start + 1),
+                (SyntaxKind::Whitespace, start + 1..start + 2),
+                (SyntaxKind::MlArgument, start + 2..start + 3),
+            ],
+        );
+        let argument = elements[0].children().last().unwrap();
+        assert_ml_children(
+            &argument,
+            &[(SyntaxKind::OperatorChain, start + 2..start + 3)],
+        );
+        assert_ml_children(
+            &argument.children().next().unwrap(),
+            &[(SyntaxKind::IdentifierExpression, start + 2..start + 3)],
+        );
+        if source == "f (g x)" {
+            let outer_chain = root.children().next().unwrap();
+            assert_ml_children(
+                &outer_chain,
+                &[
+                    (SyntaxKind::IdentifierExpression, 0..1),
+                    (SyntaxKind::Whitespace, 1..2),
+                    (SyntaxKind::MlArgument, 2..7),
+                ],
+            );
+            let outer_argument = group.parent().unwrap().parent().unwrap();
+            assert_eq!(outer_argument.kind(), SyntaxKind::MlArgument);
+            assert_ml_children(&outer_argument, &[(SyntaxKind::OperatorChain, 2..7)]);
+            assert_ml_children(
+                &outer_argument.children().next().unwrap(),
+                &[(SyntaxKind::ParenthesizedExpression, 2..7)],
+            );
+        }
+        assert!(!root.descendants_with_tokens().any(|element| matches!(
+            element.kind(),
+            SyntaxKind::Missing | SyntaxKind::Error | SyntaxKind::Invalid
+        )));
+    }
+}
+
+#[test]
+fn parenthesized_comma_separates_expression_elements() {
+    let source = "(a, b)";
+    let (green, exit) = run(source);
+    assert_eq!(green.to_string(), source);
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
     let root = SyntaxNode::new_root(green);
     let group = root
         .descendants()
         .find(|node| node.kind() == SyntaxKind::ParenthesizedExpression)
-        .expect("parenthesized expression");
+        .unwrap();
     assert_eq!(
         group
             .children()
@@ -558,20 +618,10 @@ fn parenthesized_items_recover_a_same_line_missing_separator_without_ml() {
             .count(),
         2
     );
-    assert_eq!(
-        group
-            .children()
-            .filter(|node| node.kind() == SyntaxKind::Missing)
-            .count(),
-        1
-    );
-    assert_eq!(
-        group
-            .descendants()
-            .filter(|node| node.kind() == SyntaxKind::MlArgument)
-            .count(),
-        0
-    );
+    assert!(!group.descendants_with_tokens().any(|element| matches!(
+        element.kind(),
+        SyntaxKind::MlArgument | SyntaxKind::Missing | SyntaxKind::Error | SyntaxKind::Invalid
+    )));
 }
 
 #[test]
@@ -586,25 +636,25 @@ fn block_comment_internal_newlines_are_not_parenthesized_layout() {
         .descendants()
         .find(|node| node.kind() == SyntaxKind::ParenthesizedExpression)
         .expect("parenthesized expression");
-    assert_eq!(
-        group
-            .children()
-            .filter(|node| node.kind() == SyntaxKind::OperatorChain)
-            .count(),
-        2
+    let elements = group
+        .children()
+        .filter(|node| node.kind() == SyntaxKind::OperatorChain)
+        .collect::<Vec<_>>();
+    assert_eq!(elements.len(), 1);
+    assert_ml_children(
+        &elements[0],
+        &[
+            (SyntaxKind::IdentifierExpression, 1..2),
+            (SyntaxKind::Whitespace, 2..3),
+            (SyntaxKind::BlockComment, 3..21),
+            (SyntaxKind::Whitespace, 21..22),
+            (SyntaxKind::MlArgument, 22..23),
+        ],
     );
-    assert_eq!(
-        group
-            .children()
-            .filter(|node| node.kind() == SyntaxKind::Missing)
-            .count(),
-        1
-    );
-    assert!(
-        !group
-            .descendants()
-            .any(|node| node.kind() == SyntaxKind::MlArgument)
-    );
+    assert!(!group.descendants_with_tokens().any(|element| matches!(
+        element.kind(),
+        SyntaxKind::Missing | SyntaxKind::Error | SyntaxKind::Invalid | SyntaxKind::Newline
+    )));
 }
 
 #[test]

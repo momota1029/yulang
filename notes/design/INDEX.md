@@ -14,6 +14,20 @@ This index is a navigation aid. The listed source document remains authoritative
   unchanged approval/revision/freshness/authority safeguards remain.
   See [delivery](../progress/2026-10-04-questioner-integrated-answer-handoff.md).
 
+## Active syntax navigation (2026-10-05)
+
+- [Parenthesized same-line ML application](2026-10-05-parenthesized-ml-application-addendum.md)
+  — Authoritative; the explicit principal-scheme source
+  `my compose f g x = f (g x)` requires `(g x)` to parse as one grouped
+  expression containing same-line ML application. `(a b)` is therefore one
+  application element, superseding the older Gate 3b E6 missing-comma witness
+  and the parenthesized `LayoutOnly` implementation choice. Comma and
+  equal/deeper-newline ownership remain as specified by the existing grammar.
+  See the [recovery inventory](2026-09-02-yumark-gate3b-recovery-adoption-matrix.md)
+  for the retained historical E6 row and the
+  [HIR/source-core progress record](../progress/2026-10-04-hir-source-core-boundary.md)
+  for the focused parser-to-candidate evidence and remaining production bridge.
+
 ## Active inference navigation (2026-10-04)
 
 - **Exploratory public-projection candidate:**

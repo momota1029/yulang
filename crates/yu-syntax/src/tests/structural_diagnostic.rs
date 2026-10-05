@@ -326,15 +326,6 @@ fn trivia_between_a_missing_and_its_ordered_sibling_keeps_the_slot() {
             slot(SyntaxKind::ParenthesizedExpression, GrammarSlotRole::Item),
         ),
         (
-            "(1 x)",
-            SyntaxKind::ParenthesizedExpression,
-            2,
-            slot(
-                SyntaxKind::ParenthesizedExpression,
-                GrammarSlotRole::Separator,
-            ),
-        ),
-        (
             "f( ,a)",
             SyntaxKind::CallTail,
             2,

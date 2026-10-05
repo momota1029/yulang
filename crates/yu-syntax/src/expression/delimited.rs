@@ -62,7 +62,7 @@ pub(crate) fn parenthesized_nud_normalized(
         DelimitedOwner::Parenthesized,
         stops,
         baseline,
-        MlMode::LayoutOnly,
+        MlMode::All,
         line_handoff,
         item_origin,
         line_entry,

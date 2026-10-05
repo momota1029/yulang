@@ -17,7 +17,6 @@ pub(super) type TailExit = Result<(), Either<Item, End>>;
 #[derive(Clone, Copy)]
 pub(super) enum MlMode {
     All,
-    LayoutOnly,
     None,
 }
 

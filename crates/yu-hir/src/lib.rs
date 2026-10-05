@@ -1445,6 +1445,18 @@ mod tests {
                 "λ0.λ1.λ2.((v0 v1) v2)",
                 2,
             ),
+            (
+                "my compose f g x = f(g(x))",
+                vec!["f", "g", "x"],
+                "λ0.λ1.λ2.(v0 (v1 v2))",
+                2,
+            ),
+            (
+                "my compose f g x = f (g x)",
+                vec!["f", "g", "x"],
+                "λ0.λ1.λ2.(v0 (v1 v2))",
+                2,
+            ),
         ] {
             let parsed = parsed(source);
             let root = SyntaxNode::new_root(parsed.green().clone());

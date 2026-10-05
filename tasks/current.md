@@ -203,16 +203,18 @@ argument. This notation model omits actual port profiles, `K,D`, invocation/
 subtraction evidence, and full constraints, so it is not executable core or
 complete Function comparison. Production Apply lowering and principal
 acceptance schemes remain open.
-The actual declarations `my call f x = f x` and `my higher f g x = f g x`
-now also produce test-only nested lambda/application candidates with lexical
-binder indices. Independent compiler-referee review found no issue in that
-bounded shape probe, and its focused filter passes. This does not establish
-source recovery-freedom, endpoint constraints, or the expected schemes. The
-exact principal source `my compose f g x = f (g x)` currently yields an
-`Error(Missing)` inside the parenthesized argument, so it cannot yet enter the
-same bridge; this is a parser characterization and makes no grammar decision.
-The production header still rejects multi-parameter declarations, and resolved
-HIR still has no application node.
+The actual declarations `my call f x = f x`, `my higher f g x = f g x`, and
+the exact principal source `my compose f g x = f (g x)` now produce test-only
+nested lambda/application candidates with lexical binder indices. The
+parenthesized same-line ML parser gap is closed under the new Authoritative
+addendum; `(g x)` is one grouped application and its candidate shape is
+`λ0.λ1.λ2.(v0 (v1 v2))`. The full `yu-syntax` package suite passes after one
+stale same-line separator expectation was removed under the approved contract;
+the exact scoped-candidate test passes and independent specification review is
+clean. This still establishes no endpoint constraints, expected schemes, or
+source-to-core theorem. Production headers reject multi-parameter declarations
+and resolved HIR still has no application node. See the HIR/source-core
+progress record for exact checks and scope.
 
 ## Latest main-gate results
 

@@ -23,6 +23,12 @@ The historical cells remain for traceability; their aggregate evidence
 obligations remain open. Recovery equality follows the 2026-09-08
 recovery-authority amendment, not a legacy malformed-output oracle.
 
+Current status: expression cell E6's `R((a b))` missing-comma expectation is
+superseded by the user-approved
+[parenthesized ML-application addendum](2026-10-05-parenthesized-ml-application-addendum.md).
+The row remains below as historical recovery inventory only. Other E-cells and
+the separate Pattern / Type delimiter contracts are unaffected.
+
 ## 1. Conventions and common assertions
 
 `R(p)` means `\ref(` + `p` + `)`; payload-local ranges shift by `+5`.

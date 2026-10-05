@@ -763,7 +763,6 @@ fn is_ml_argument(item: &Item, baseline: usize, mode: MlMode) -> bool {
     let indentation = indentation_after_newline(item.leading_view());
     match mode {
         MlMode::All => indentation.is_none_or(|indentation| indentation > baseline),
-        MlMode::LayoutOnly => indentation.is_some_and(|indentation| indentation > baseline),
         MlMode::None => false,
     }
 }

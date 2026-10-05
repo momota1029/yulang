@@ -297,3 +297,57 @@ objects are test notation, not an executable typed-core API; name resolution
 is supplied by the finite research `Gamma`. No production HIR, collector,
 solver, or endpoint generation changed, and the test does not establish the
 callback Theorem C bridge or principal-scheme preservation.
+
+## 2026-10-05 parenthesized same-line application and exact `compose` source
+
+The accepted principal source `my compose f g x = f (g x)` exposed that
+parenthesized expression elements used `MlMode::LayoutOnly`, causing `(g x)`
+to be parsed as two elements with a missing separator. The approved
+[parenthesized ML addendum](../design/2026-10-05-parenthesized-ml-application-addendum.md)
+now governs the expression-element owner: same-line ML application is allowed,
+comma still separates elements, equal-or-shallower newlines still separate,
+and deeper newlines still continue the item. Parenthesized Pattern and Type
+owners are separate and were not changed. `(a b)` and nested `f (g x)` CSTs
+are checked directly; `(a, b)` remains two elements, and the block-comment
+case confirms its internal newline remains opaque with exact surrounding
+trivia ownership.
+
+The exact `compose` source now also enters the test-only scoped declaration
+candidate alongside `call` and `higher`, producing
+`λ0.λ1.λ2.(v0 (v1 v2))` with two application nodes. This closes the parser-to-
+research-candidate shape for this spelling. It does not make the production
+header accept three parameters, add an Apply node to resolved HIR, generate
+Function endpoints, or prove the expected principal scheme.
+
+The now-unused production `MlMode::LayoutOnly` arm was removed after the
+focused build exposed its dead-code warning. The generic delimited-recovery
+harness now uses `MlMode::All` for parenthesized expressions, and its old
+`x y)` missing-separator expectation was updated under the approved contract.
+The first full package run then exposed one more stale structural-diagnostic
+expectation: `(1 x)` expected a separator `Missing`, although the same-line ML
+rule now admits it as an application. A prewrite spec audit confirmed the
+expectation was superseded and recommended removing only that row, retaining
+the other trivia/slot witnesses and the adjacent `(1x)` separator case. The
+focused repair and a delta review both passed with no remaining findings. No
+production HIR or inference claim is made.
+
+Exact verification:
+
+```text
+RUSTC_WRAPPER= cargo test -p yu-syntax tests::owners -- --test-threads=1
+  34 passed; 0 failed
+RUSTC_WRAPPER= cargo test -p yu-syntax tests::delimited_recovery -- --test-threads=1
+  15 passed; 0 failed
+RUSTC_WRAPPER= cargo test -p yu-syntax structural_diagnostic -- --test-threads=1
+  9 passed; 0 failed
+RUSTC_WRAPPER= cargo test -p yu-syntax -- --test-threads=1
+  1387 passed; 0 failed; 1 ignored; doc-tests: 0
+RUSTC_WRAPPER= cargo test -p yu-hir tests::research_multi_parameter_declarations_form_nested_scoped_candidates -- --exact --nocapture
+  1 passed; 0 failed
+rustfmt --edition 2024 --check <seven touched Rust files>
+  passed
+git diff --check
+  passed
+```
+
+No broad syntax/HIR suite or production inference suite was run.

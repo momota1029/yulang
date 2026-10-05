@@ -36,11 +36,7 @@ fn parse<'s>(
         },
         0,
         0,
-        if matches!(form, Form::Group) {
-            MlMode::LayoutOnly
-        } else {
-            MlMode::All
-        },
+        MlMode::All,
         StatementLineHandoff::OrdinaryLayout,
         origin,
         LineEntry::InLine,
@@ -106,11 +102,7 @@ fn parenthesized_semicolon_is_a_separator_error_in_every_phase() {
     check(";x)", Form::Group, vec![error(0..1)]);
     check(";;)", Form::Group, vec![error(0..1), error(1..2)]);
     check("x;)", Form::Group, vec![error(1..2)]);
-    check(
-        "x y)",
-        Form::Group,
-        vec![structural_fact(StructuralKind::Missing, 1..1)],
-    );
+    check("x y)", Form::Group, vec![]);
 }
 
 #[test]
