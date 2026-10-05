@@ -540,6 +540,14 @@ candidate Cartesian nested support-pair coverage K is not. The witness
 `B(z) <: c` remains unresolved pending both source-origin transport and the
 ordinary variable/extrusion obligation. See the [origin-rule inventory](../notes/progress/2026-10-06-rec-name-return-origin-rule-inventory.md)
 and [guard-coverage audit](../notes/progress/2026-10-06-rec-name-return-guard-coverage-authority-audit.md).
+For one unused alias `my h = f`, the compiler-reviewed occurrence bridge
+confirms `Synth(name f)=Γ(f)` copies its supplied interface without opening a
+source binder, while the allocated occurrence row `c_h` remains
+unclassified. Production generates `c_h <: R_h`, routes the external `f`
+scheme as `L_h <: c_h`, and replays `L_h <: R_h`; this matches the reviewed
+four-shape account. The bridge is conditional on source-origin realization,
+generalized-interface/use provenance for `r0/ρ_h`, and §22/23 preservation.
+See the [Name-row origin transport attempt](../notes/progress/2026-10-06-rec-name-return-name-row-origin-transport-attempt.md).
 See the [source guard derivation](../notes/progress/2026-10-06-rec-name-return-source-guard-derivation-attempt.md),
 [constructive O-classification attempt](../notes/progress/2026-10-06-rec-name-return-o-classification-constructive-attempt.md),
 [relative O falsification attempt](../notes/progress/2026-10-06-rec-name-return-o-classification-falsification-attempt.md),
