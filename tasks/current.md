@@ -1,6 +1,6 @@
 # Current task: replace Yulang type inference with SCC-intrusion inference
 
-Updated: 2026-10-05. Branch: research/simple-sub-intrusion.
+Updated: 2026-10-06. Branch: research/simple-sub-intrusion.
 
 ## Objective and authority
 
@@ -1015,6 +1015,36 @@ realization evidence to a specific original effect-profile position, while
 preserving the shared `nu,K,D`. Both remain conditional research only; neither
 supplies a complete inference rule, accepted-program witness, or implementation
 authority.
+
+A reviewed source-registration suite now separates endpoint/name derivation,
+necessary identity/scope invariants, and the source-to-HIR/solver bridge. It
+finds the first semantic hole at the Q-independent link from resolved
+binder/use/annotation occurrences to one shared role-indexed inferred
+contract carrying `beta`/`Slots(beta)`, typed incidences and joint `nu,K,D`;
+ordinary `Value` tags and branded HIR identities do not construct that link.
+The falsification witnesses violate approved identity/protection/scope
+requirements, but are not accepted-source or principality counterexamples.
+See the [constructive derivation](../notes/progress/2026-10-06-source-registration-constructive-derivation.md),
+[invariant audit](../notes/progress/2026-10-06-source-registration-falsification.md),
+and [source/HIR bridge](../notes/progress/2026-10-06-source-registration-source-bridge.md).
+
+The approved `apply f x = f x` is an illustrative source shape; its approval
+does not itself establish literal source acceptance. An existing grammar
+candidate avoids the two-formal header:
+`my apply f = { my step x = f x; step }`. The nested headers and inner `f x`
+are covered by the later Authoritative Pattern expansion. Frozen legacy
+references and the Oracle ledger support the intended final-expression block
+value/currying behavior and static capture identity for a nearby accepted
+closure, but not its operational lifetime or this candidate's current
+raw-block-to-core translation. The
+[encoding audit](../notes/progress/2026-10-06-source-registration-existing-encoding-audit.md)
+and [legacy correspondence audit](../notes/progress/2026-10-06-source-registration-block-value-legacy-audit.md)
+keep those claims separate from typed acceptance and shared call-view
+registration. Current HIR rejects composite bodies and application; solver
+collection also leaves nested Lambda bodies incomplete. Next: derive the
+source-to-core block/capture correspondence under the supported Yulang/Oracle
+semantics, then formalize the independent registration premise. No grammar or
+role-semantics change is authorized here.
 
 Four reviewed source-derivation attempts refine the dependency order without
 closing these gates. The [`call` source-rule audit](../notes/progress/2026-10-06-call-view-source-rule-derivation-attempt.md)
