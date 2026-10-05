@@ -1028,6 +1028,19 @@ See the [constructive derivation](../notes/progress/2026-10-06-source-registrati
 [invariant audit](../notes/progress/2026-10-06-source-registration-falsification.md),
 and [source/HIR bridge](../notes/progress/2026-10-06-source-registration-source-bridge.md).
 
+The reviewed Hinst factorization derives the original profile incidence at the
+dynamic boundary and its tagged contribution through typed transport, given a
+source-certified activation of the resolved callback use under the same
+`nu,K,D`. The complementary authority audit finds that invocation elaboration
+§10 names `establish its source boundary instances` but starts its expansion
+after that step; it does not construct the original `beta`/profile-to-receiver
+binding. `Receive` remains ownership evidence, not a boundary constructor.
+Constructing that binding for one resolved callback-receiving application is
+still open; neither conditional note closes source adequacy, principality, or
+production replacement. See the [reviewed factorization](../notes/progress/2026-10-06-erow-hinst-source-factorization.md),
+[shortcut audit](../notes/progress/2026-10-06-erow-hinst-falsification.md),
+and [activation-premise audit](../notes/progress/2026-10-06-erow-hinst-boundary-activation.md).
+
 The approved `apply f x = f x` is an illustrative source shape; its approval
 does not itself establish literal source acceptance. An existing grammar
 candidate avoids the two-formal header:
