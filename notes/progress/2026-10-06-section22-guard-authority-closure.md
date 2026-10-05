@@ -1,7 +1,10 @@
 # Section 22 guard coverage: origin-relative structural insertion
 
 Date: 2026-10-06
-Status: Draft / unreviewed research / no authority
+Status: Reviewed research-only deductions and conditional reduction / no authority
+Review: independent compiler_referee and spec_auditor; no BLOCKING or major findings;
+one MINOR authority-attribution clarification repaired by the primary.
+Review record: [closure review](2026-10-06-recursive-origin-guard-closure-review.md).
 Method: constructive Authority-only consequences and minimal local residual
 Baseline: `ee9bc4bdf03bfe76be2d56aed86844f7a38e73cd` (primary supplied)
 Branch: `research/simple-sub-intrusion` (primary supplied)
@@ -145,7 +148,10 @@ Forward preservation alone would not prove the trace lemma below.
 If instead it performs a
 forbidden equal/older comparison or specialization, reject before committing
 it, including any actual variable/extrusion consequences. This is the
-authority-required behavioral proof interface, not an algorithm or an
+chosen sufficient conditional research obligation for the trace lemma, not a
+selected definition of source permission or a necessary formulation of the
+authority. Uniformity, retained correspondence and rejection of forbidden
+comparisons are the selected requirements. M specifies no algorithm or
 instruction to inspect a Cartesian product. It introduces no extra subtype
 edge merely because a binder occurs in B.
 
@@ -212,7 +218,8 @@ b7a6f86a625bb7e6047433da3512a7eda96833d0f57a124eae2d76c09295c10e  name-row-origi
 - Lease: `notes/progress/2026-10-06-section22-guard-authority-closure.md` only.
 - Baseline: `ee9bc4bdf03bfe76be2d56aed86844f7a38e73cd`; primary revalidation
   against integration HEAD is required. No changed dependency was observed.
-- Claim/review: Draft, unreviewed Authority characterization/conditional reduction; no closed semantic gate.
+- Initial checkpoint: Draft/unreviewed. Final review: research-only deductions
+  and conditional reduction, as recorded above; no closed semantic gate.
 - Proposed commit: `research: reduce section22 coverage to origin-relative insertion`.
 - Deferred records: origin realization, K's ground incompleteness, q1's lower/equality distinction,
   and weaker local M instead of requiring blanket O. No shared record edited.
@@ -220,4 +227,5 @@ b7a6f86a625bb7e6047433da3512a7eda96833d0f57a124eae2d76c09295c10e  name-row-origi
   realization; resolve q2's source endpoint meaning. Reuse q4 by preservation
   if justified rather than introducing another support model.
 
-Writing stops at this frozen handoff; any repair requires a renewed lease.
+The producer froze its handoff before review. The primary made the recorded
+minor wording/status changes after both independent reviews completed.

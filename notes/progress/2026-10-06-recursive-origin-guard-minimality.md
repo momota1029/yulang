@@ -1,7 +1,9 @@
 # Recursive Name origin: guard discriminator and residual minimality
 
 Date: 2026-10-06
-Status: Draft; frozen unreviewed research-only analysis
+Status: Reviewed research-only partial-completion analysis
+Review: independent compiler_referee and spec_auditor, no findings on this note.
+Review record: [closure review](2026-10-06-recursive-origin-guard-closure-review.md).
 Baseline: `ee9bc4bdf03bfe76be2d56aed86844f7a38e73cd`
 Branch: `research/simple-sub-intrusion`
 Exclusive lease: this file only
@@ -201,8 +203,9 @@ lightweight read processes and one leased-note write were used.
 | candidate SCC rules | `78d3a34508b7771701044b7b66d423ed0e7278cb52c9f9f368734bfb524cbdda` |
 
 Commit packet: exact lease is this note; baseline SHA is the header value;
-dependency hashes unchanged; Draft/unreviewed research-only; checks above;
+dependency hashes unchanged; initial Draft/unreviewed research checkpoint,
+followed by the independent review recorded above; checks above;
 proposed message `research: minimize recursive-origin guard discriminator`.
 Primary/curator owns any shared-record synthesis, review promotion or full
-gate status. All such edits are intentionally deferred. Writing stops at
-submission for frozen review.
+gate status. Those changes were deferred at the producer's frozen handoff;
+the primary subsequently synchronized status in the linked review record.

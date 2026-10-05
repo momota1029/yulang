@@ -1,7 +1,9 @@
 # Recursive Name origin: authority closure and the interface-supply frontier
 
 Date: 2026-10-06
-Status: Draft research derivation / not independently reviewed / no authority change
+Status: Reviewed research-only deductions and conditional reduction / no authority change
+Review: independent compiler_referee and spec_auditor, no findings on this note.
+Review record: [closure review](2026-10-06-recursive-origin-guard-closure-review.md).
 Baseline: `ee9bc4bdf03bfe76be2d56aed86844f7a38e73cd`
 Branch: `research/simple-sub-intrusion`
 Exclusive lease: this file only; no implementation authority
@@ -236,12 +238,14 @@ acceptance remain unverified. One lightweight process at a time; CPU/RAM
 unmeasured; 20-minute initial budget.
 
 Commit packet: exact path is this note; baseline is the SHA above; direct inputs
-were read from that revision, not concurrent edits; review status is unreviewed
-Draft research. Proposed commit: `research: reduce recursive Name origins to interface supply`.
+were read from that revision, not concurrent edits; the initial checkpoint was
+unreviewed Draft research. Independent review is recorded above. Proposed
+checkpoint commit: `research: reduce recursive Name origins to interface supply`.
 Deferred shared-record delta: record supplied-interface conservation, finite
 grounded-copy closure and its non-least-semantics limit; replace repeated global
 N/B/G/U requests with the exact `Supply22` origin-policy and demanded guard
 certificate. Keep source adequacy and variable/extrusion coverage open. No
 task, theory map, design index or other writer's file was changed.
 
-Writes stop at submission; this path is frozen for independent review.
+The producer stopped writing at submission. Public-reference supplementation
+preceded the frozen reviews; the primary updated status after their completion.

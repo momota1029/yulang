@@ -560,6 +560,26 @@ only, since both the source-origin and variable/extrusion paths are still
 missing. No successor rejection or implementation rule follows. See the
 [generalized alias bridge](../notes/progress/2026-10-06-rec-name-return-generalized-alias-source-bridge.md)
 and [universal-use audit](../notes/progress/2026-10-06-universal-scheme-use-origin-audit.md).
+The Authority-only closure pass now has independent compiler-referee and
+spec-auditor review, with no remaining blocking/major finding. Selected
+Name/Result copying conserves supplied origins; finite grounded copy paths
+add no origin, but no least recursive origin semantics or empty-origin
+conclusion follows. The direct collected `c_h <: R_h` guard is determined
+once source introduction certificates are supplied; current level one is
+not an introduction certificate. K alone cannot implement full §22 coverage,
+because it misses the selected `kappa <: Int` rejection. The earliest
+remaining structural case is the one-variable `B(z) <: z`, a directed lower
+bound rather than a recursive equality. A hypothetical rejection there gives
+a smaller conditional discriminator without K, not a selected rejection.
+The immediate source frontier is `Supply22`: ground the member-use interface
+and its occurrence/root/recursive-variable realization, retaining binder mode,
+introduction levels, declared bounds versus new obligations, and joint
+dependencies. Then prove origin-relative permission for `B(z) <: v` at
+`v=z,c_h,R_h` and the `z <: Top` terminal. A local two-way preservation
+certificate suffices for finite-trace composition without blanket O; this is
+a conditional proof interface, not an adopted rule or completed full A/(L).
+Full source formation, coverage, source realization and production adequacy
+remain open. See the [reviewed closure and exact residual](../notes/progress/2026-10-06-recursive-origin-guard-closure-review.md).
 See the [source guard derivation](../notes/progress/2026-10-06-rec-name-return-source-guard-derivation-attempt.md),
 [constructive O-classification attempt](../notes/progress/2026-10-06-rec-name-return-o-classification-constructive-attempt.md),
 [relative O falsification attempt](../notes/progress/2026-10-06-rec-name-return-o-classification-falsification-attempt.md),
