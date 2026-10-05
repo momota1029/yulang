@@ -50,6 +50,14 @@ successor-shadow parity. A frozen Yulang2 Oracle runner was rebuilt from the
 exact source commit and probed on identity, compose, and captured-step
 examples. See the [identity differential](../notes/progress/2026-10-06-legacy-identity-differential.md)
 and [frozen Oracle rebuild and probes](../notes/progress/2026-10-06-frozen-oracle-rebuild-and-source-probes.md).
+The independently compiler-referee-reviewed conditional
+[capture-transport rule inversion](../notes/progress/2026-10-06-nested-block-capture-transport-derivation.md)
+stipulates an original certified receipt and narrows that conditional lane's
+missing judgment to evidence-environment introduction and captured-name
+lookup correspondence for `u_f`. It does not prove the attachment, replace the
+earlier Q-independent source-formation blocker, or resolve later receiver
+activation, direct-query completeness, principality, adequacy, or production
+conformance.
 Next implementation gates may add only settled premise/evidence structure;
 continue the source bridge, soundness, principality, and adequacy research
 without relaxing their proof interfaces. One untouched HIR test has an observed

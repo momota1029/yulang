@@ -1,7 +1,7 @@
 # Typed capture transport with an independently supplied original receipt
 
 Date: 2026-10-06
-Status: frozen unreviewed research-only rule-inversion result
+Status: frozen, independently compiler-referee-reviewed (no findings); conditional research-only rule-inversion result
 Initial baseline: `90eee6c2a686394e669d0361d825977f82a74f8a`
 Branch: `research/simple-sub-intrusion`
 Exclusive lease: this file only
@@ -250,9 +250,10 @@ Whole-file SHA-256 of the read inputs at this assignment's initial baseline:
 - Changed dependency hashes: none observed; snapshot above. No Git-based
   committed-byte comparison was permitted in this assignment; primary owns
   revalidation if HEAD moves or before integration.
-- Claim/review status: frozen unreviewed research-only rule inversion;
-  original certification stipulated, capture attachment underived; no
-  independent review, theorem closure or production authority.
+- Claim/review status: frozen, independently compiler-referee-reviewed with
+  no findings; conditional research-only rule inversion; original
+  certification stipulated, capture attachment underived; no theorem closure
+  or production authority.
 - Checks already run: filesystem HEAD/ref and leased-path absence reads,
   bounded governing/prior-evidence reads, nine input SHA-256 calculations.
   No tests/builds/probes/Git commands.
@@ -262,4 +263,6 @@ Whole-file SHA-256 of the read inputs at this assignment's initial baseline:
   retain later active receiver realization and adequacy as separate gates.
   No shared record or authority change was written.
 
-The artifact is submitted frozen. Writing stops before independent review.
+The artifact was submitted frozen for independent review. The current
+adjudicated status is recorded above; no theorem or production authority is
+promoted.
