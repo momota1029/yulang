@@ -340,6 +340,19 @@ preserves existing test-only source evidence and adds no production carrier;
 the application/callback endpoint and full bound-membership gates remain open.
 See the [source-indexed realization playground](../notes/progress/2026-10-05-source-indexed-function-realization-playground.md#retained-function-artifact-reconstruction).
 
+The production replacement seam is broader than the generalizer: current
+`SolvedModule::solve` collects a narrow resolved-HIR subset, builds a frozen
+SCC plan, runs a mutable `InferenceSession` worklist, generalizes and
+instantiates closed schemes across components, then publishes coarse public
+root projections while keeping rich schemes private. No external crate
+consumer or backend-neutral typed-core reconstruction consumer is wired yet;
+replacing only F5 generalization would leave collection, live solving,
+instantiation, retained evidence and publication in place. The code-level
+mapping is in `crates/yu-hir/src/module.rs:426,783`,
+`crates/yu-solver/src/lib.rs:762,815,7200,9178,9731,12884,13893,14527,15419,15665`
+and `crates/yu-solver/src/scc.rs:212`; the cutover still waits on soundness,
+principality, source adequacy and the reviewed interface/invalidation gate.
+
 **Classification A: normalized pure structural FMP is proved.**
 [Finite fence completion](../notes/design/2026-10-04-structural-fmp-fence-completion.md)
 constructs a regular solution of the same fixed package from any arbitrary
