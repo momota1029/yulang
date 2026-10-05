@@ -1,7 +1,7 @@
 # Admission transport depends on live primitive operands
 
 Date: 2026-10-05
-Status: unreviewed conditional derivation, extensional countermodel and bounded production correspondence
+Status: independently reviewed conditional derivation, extensional countermodel and bounded production correspondence
 Assignment baseline: `0ab7620e167f190691a9ec50fde507d039265aa4`
 Branch supplied by primary: `research/simple-sub-intrusion`
 Implementation authority: none
@@ -322,9 +322,10 @@ do not constitute independent review.
 
 Proposed checkpoint message: `research: isolate residual admission operand transport`.
 Exact output path: `notes/progress/2026-10-05-residual-admission-live-operand-transport.md`.
-Claim/review class: unreviewed conditional research and abstract extensional
-obstruction, with bounded code correspondence; no source counterexample or
-production gate closure claimed.
+Claim/review class: conditional research and abstract extensional obstruction,
+with bounded code correspondence; independently reviewed by
+`compiler_referee` with no findings in the assigned scope. No source
+counterexample or production gate closure is claimed.
 
 Shared record changes to `tasks/current.md`, `tasks/research-lab.md`,
 `notes/design/INDEX.md` and `notes/theory/` are deliberately deferred to the
