@@ -1,7 +1,7 @@
 # One-hidden-required-Record projection: source boundary
 
-Status: research-only source characterization; unreviewed checkpoint; no
-implementation authority.
+Status: independently reviewed source characterization; no implementation
+authority.
 Baseline: `f65d68c5d43623f0d8a02194142828ec144755ab`.
 Method: committed-source correspondence and exhaustive downstream-algebra
 inspection, independently of the conditional proof and executable model lanes.
@@ -85,5 +85,12 @@ none of them.
 Verification: baseline locator validation; comparison of the eight cited
 production source files against current working source; whitespace check only
 on this output. No tests, builds, measurements or Git mutations were performed.
-No independent review is claimed. Shared task/theory/index synchronization is
+Independent `regression_auditor` review found no substantive findings. It
+checked the semantic admission boundary, downstream algebras, apparent CST/
+stable-core Record evidence, and diagnostic fixture scope. The reviewer could
+not itself compare every pinned source blob because of packed-object access;
+the primary confirmed the eight cited production files, HIR test directory and
+two cited fixtures have no differences from the baseline through the current
+branch, and are clean in the worktree. Review did not run tests or prove a
+source-generation theorem. Shared task/theory/index synchronization is
 deferred to the primary; this artifact changes only its leased progress path.
