@@ -1,7 +1,7 @@
 # Protection release: source attribution and crossing audit
 
 Date: 2026-10-06
-Status: bounded source-correspondence audit; conditional derivation only; unreviewed
+Status: reviewed bounded source-correspondence audit; conditional derivation only
 Baseline: `38de8cb146ba0f08fd034f8a6657d68879c9a5d4`
 Branch: `research/simple-sub-intrusion`
 Method: inspect the existing introduction, annotation, transport and control judgments; stop at the first missing source premise
@@ -24,6 +24,19 @@ attribution, emission, flow, capture grant, selection or subtraction fact.
 The pinned notation Draft records this meaning; the supplied decision also
 fixes that the retained `'e` attribution is not a relation to `'f`.
 
+The integrated approved answer
+[`handler-protection-release-crossing/q1 d1`](../../questions/2026-10-05-handler-protection-release-crossing/approved-answer.md)
+also selects timing 2 / lifetime A: release occurs when the qualifying
+contribution actually crosses outward through the marked slot after intervening
+computation and handler processing. Dispatch observation alone does not
+release it. The released state follows the same marked target view while the
+original receiver remains live and typed result/latent transport is proved;
+it does not transfer automatically to a new receiver or view. The
+[`integration receipt`](../../questions/2026-10-05-handler-protection-release-crossing/receipt.md)
+records that this choice is integrated and that executable source realization
+remains open. These are selected constraints, not an open timing/lifetime
+decision.
+
 Exact governing sections inspected:
 
 - `tasks/current.md`: closed Function/effects bullet; protection-release gate
@@ -44,6 +57,10 @@ Exact governing sections inspected:
   profiles and executable decorations.
 - Corrected notation: intended reading, local relational candidate, and
   directed-weight correspondence limits.
+- Approved crossing answer q1/d1 clauses 1–7 and its receipt: actual outward
+  crossing, same-target-view/original-receiver lifetime, retained attribution
+  and evidence, and no automatic transfer to a new receiver/view. The answer
+  selects the meaning; it does not itself provide the typed source derivation.
 
 The reviewed release-bridge note's two reductions and the conditional-filter
 note are retained dependencies. This attempt does not repeat their
@@ -114,13 +131,14 @@ it selects no update mechanism, pop count or carrier.
 | Typed result transport and later force | Matching result positions retain actual-value and callee-result evidence; the later event receives its own observation | No source clause deciding whether the earlier marker applies to that later contribution |
 | Receiver/handler expiry | Current incidence, protection and grant are filtered by exact inactive identities | No release rule while the same receiver and candidate remain active |
 
-This table audits the displayed transition conclusions. It does not choose
-before-search, forwarding, delimiter-exit or result-return as the meaning of
-the crossing. Several enclosing views can observe a single emission, and
-resumption can reconstruct only a crossed subset; existing control evidence
-must be joined to the original annotation occurrence before it can establish
-a specific marked crossing. Removing an executing observer frame does not
-erase the event's recorded observation witnesses.
+This table audits the displayed transition conclusions against the already
+selected actual-outward-crossing meaning. Several enclosing views can observe
+a single emission, and resumption can reconstruct only a crossed subset;
+existing control evidence must be joined to the original annotation occurrence
+before it can establish that this contribution crossed this marked slot.
+Removing an executing observer frame does not erase the event's recorded
+observation witnesses. The remaining question is source realization of the
+selected transition, not which timing alternative to choose.
 
 The production correspondence is weaker still at the targeted entrypoints:
 `yu-hir/src/lib.rs` retains generic associated syntax and the annotation
@@ -196,16 +214,19 @@ its output cap; the relevant clauses were recovered through targeted reads.
 One lexer search used an absent path and returned an error; no lexer/syntax
 conclusion depends on it. No exhaustive source search is claimed.
 
-Raw-source acceptance, complete profile generation, nested/latent release
-lifetime, full frame preservation, shallow/deep image subtraction, principal
-scheme ordering and production conformance remain unverified.
+Raw-source acceptance, complete profile generation, and derivation of the
+selected nested/latent release lifetime from typed source transitions remain
+unverified, as do full frame preservation, shallow/deep image subtraction,
+principal scheme ordering and production conformance.
 
-Recommended next action: require one comparison-independent source derivation
-that maps the original component/marked occurrence to its contribution and
-designates the same contribution's outward control crossing and retained
-protection scope. If the governing clauses do not determine that judgment,
-the primary should isolate that exact design decision. Another supplied-rule
-path checker would leave this premise untouched.
+Recommended next action: derive a comparison-independent source rule that maps
+the original component/marked occurrence to its attributed contribution, then
+proves that same contribution crosses outward through that slot and transports
+the selected released state through the same target view while its original
+receiver remains active. This must preserve the approved distinction between
+dispatch observation and actual crossing. A new timing/lifetime decision is
+not required; another supplied-rule path checker would leave the source join
+unproved.
 
 ## Commit packet
 
@@ -214,12 +235,15 @@ path checker would leave this premise untouched.
 - Changed dependency hashes: the three concurrent blobs listed above;
   baseline source rules remain the semantic snapshot, with the explicit
   primary-supplied user decision governing wording.
-- Claim/review status: frozen, unreviewed bounded audit and conditional
-  derivation; no established source-release theorem or implementation gate.
+- Claim/review status: bounded audit and conditional derivation; independently
+  reviewed with no blocking/major finding and one minor authority-context
+  correction, now closed by this record update. No established source-release
+  theorem or implementation gate.
 - Checks already run: source-clause reads, explicit baseline diff/blob
   inspection, targeted HIR definition inspection; no builds/tests/probes.
 - Proposed checkpoint message: `research: audit source attribution and crossing for protection release`.
 - Shared deltas left to primary/curator: record the first missing
-  component-to-contribution judgment and the subsequent same-target
-  crossing/lifetime obligation; preserve existing conditional filter status.
+  component-to-contribution judgment and source realization of the selected
+  same-target crossing/lifetime contract; preserve existing conditional filter
+  status.
   No task, index, authority, question or theory record was edited.
