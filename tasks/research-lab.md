@@ -42,8 +42,11 @@ semantics merely to claim independence.
 Primary-owned hotspots: `tasks/current.md`, this seed/queue, `AGENTS.md`,
 `rules/`, `.codex/`, manifests/lockfiles and `notes/design/INDEX.md`.
 One explicitly leased curator may update `notes/theory/`; researchers produce
-unique notes/checkers and propose shared record deltas. Confirm existing local
-writers before leasing any path. Separate worktrees are required when safe
+unique notes/checkers and propose shared record deltas. A frozen unique
+note/checker should enter `commit-ready` as soon as its lease, baseline,
+dependency validity, claim status and narrow checks are known; do not hold it
+for unrelated theory-map or `tasks/current.md` synchronization. Confirm existing
+local writers before leasing any path. Separate worktrees are required when safe
 read/write separation cannot be established.
 
 Start with the laboratory's four-light-probe / one-heavy-build resource limits,

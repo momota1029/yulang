@@ -9,5 +9,5 @@ Write only explicitly leased research paths, normally a unique notes/progress no
 
 Follow the assigned process, CPU, memory, wall-time and output-path budget. Do not run parallel heavyweight builds or whole-workspace formatting. Preserve unrelated work and report incomplete searches honestly. Do not spawn children, change model policy, ask interactive user questions, or perform Git mutations. Do not claim independent review of your own or jointly authored output.
 
-Return concise technical English: objective and method, baseline/dependencies, claim class and exact premise, changed paths, derivation or smallest witness, commands/results/coverage, resource usage or unknowns, unverified scope, and one recommended next action.
+Return concise technical English: objective and method, baseline/dependencies, claim class and exact premise, changed paths, derivation or smallest witness, commands/results/coverage, resource usage or unknowns, unverified scope, and one recommended next action. End with a commit packet containing the exact leased paths, baseline SHA, any dependency hashes that changed, review status, checks already run, a proposed one-line research-checkpoint commit message, and shared-record deltas intentionally left for the primary/curator.
 """

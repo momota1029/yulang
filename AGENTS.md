@@ -116,7 +116,12 @@ Keep long-running work backed up at frequent, meaningful checkpoints; do not
 wait for the entire multi-gate task to finish before committing and pushing.
 After each completed coherent gate or substantial verified natural slice,
 synchronize its records, commit that scope, inspect the full outbound range,
-and push promptly while the range is still coherent. For a gate that spans
+and push promptly while the range is still coherent. For parallel research,
+also use the research-lab commit conveyor: a frozen disjoint research-only
+artifact may be checkpointed and pushed before shared task/theory/index
+synchronization when it is explicitly non-authoritative and satisfies
+`rules/research-lab.md`'s `commit-ready` criteria. That checkpoint preserves
+work; it does not declare the gate complete. For a gate that spans
 multiple sessions, preserve and push safe sub-slices, label incomplete
 checkpoints honestly, and record the exact next gate and residual risks. Do
 not split an atomic change or push a broken, unrelated, or unreviewed range

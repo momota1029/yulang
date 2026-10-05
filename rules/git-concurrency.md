@@ -31,6 +31,31 @@ Prefer one commit per confirmed design gate or coherent cause. Separate:
 
 A commit is a reviewable and bisectable checkpoint, not merely a progress timestamp.
 
+### Research-only checkpoint fast path
+
+For the parallel laboratory, a primary may commit and push a frozen,
+self-contained research artifact before `tasks/current.md`, theory maps, or
+design indexes are synchronized, when the artifact satisfies the
+`commit-ready` criteria in `research-lab.md`. This is intentionally a
+two-phase flow: preserve the research result first, then integrate its accepted
+meaning into shared records.
+
+Such a checkpoint:
+
+- contains only the exact completed lease paths and no unrelated shared-file
+  edits;
+- records its actual claim class and pending review honestly;
+- may be unreviewed only when it remains explicitly research-only and claims no
+  closed theorem, production conformance, or authority;
+- receives focused follow-up commits for review repairs or curation rather than
+  waiting in a dirty tree for unrelated lanes;
+- does not satisfy a gate-completion requirement by itself.
+
+The normal requirement to synchronize shared records still applies before a
+gate is declared complete or a production/authoritative change is integrated.
+Do not squash away a useful honest checkpoint solely because later curation or
+review refined its claim.
+
 ## Parallel work
 
 Independent producers, experiments, and read-only reviewers may run in parallel.

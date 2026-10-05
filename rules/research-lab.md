@@ -57,7 +57,7 @@ queue, not a new scheduling framework. Each job needs only:
 
 `id | gate/method | baseline | owner | write lease | dependency | state | next evidence`
 
-Use `ready / running / review / blocked / done / superseded`. These are observed
+Use `ready / running / review / commit-ready / blocked / done / superseded`. These are observed
 states: a proposed lane is not running until a launch actually succeeds.
 `tasks/research-lab.md` is an inference startup seed, not proof of running workers.
 Persist the compact queue at coherent checkpoints or handoff, not after every
@@ -73,6 +73,54 @@ Do not wait for all lanes to finish before reviewing one frozen artifact or
 starting another independent calculation. A review/repair barrier applies only
 to that artifact and its dependency component. Batch its findings once; do not
 start one repair worker per finding or restart clean unrelated reviews.
+
+## Commit conveyor and two-phase integration
+
+Parallel research must not accumulate indefinitely in the working tree while
+waiting for unrelated curation or theorem-map reconciliation. A frozen,
+self-contained research artifact may enter `commit-ready` and be checkpointed
+before shared status records are synchronized.
+
+The primary may immediately commit and push a research-only checkpoint when all
+of the following hold:
+
+1. The exact changed paths are under one completed lease and are research-only
+   artifacts such as a unique `notes/progress/` note or `tools/research_*`
+   checker. The checkpoint does not modify production code, authoritative
+   semantics, public grammar/API, expected outputs, manifests/lockfiles,
+   `questions/`, `tasks/current.md`, `notes/design/INDEX.md`, or other
+   shared coordination files.
+2. The artifact is frozen, its baseline and direct dependencies are rechecked
+   against current HEAD, and unrelated branch movement does not invalidate its
+   assumptions.
+3. Its status is honest in the artifact and report: e.g. exploratory,
+   characterization, conditional derivation, or unreviewed research checkpoint.
+   A checkpoint must not claim independent review, theorem closure, production
+   conformance, or implementation authority that has not occurred.
+4. Any executable artifact has its narrow deterministic check recorded, and the
+   primary has inspected the exact path list/diff for lease and scope integrity.
+5. No accepted blocking/major finding already applies to that exact frozen
+   artifact. Review may still be pending if the checkpoint is explicitly
+   research-only and makes no reviewed/authoritative claim.
+
+Do not batch unrelated ready artifacts into one commit merely to reduce Git
+operations. Drain each coherent artifact independently, preferably as soon as it
+becomes `commit-ready`. If two or more frozen research artifacts are waiting,
+the primary should drain at least one checkpoint before beginning another long
+primary-local investigation or adding more write-producing backlog, unless a
+concrete dependency or Git-safety blocker prevents it.
+
+Shared integration is a second phase. `tasks/current.md`, theory maps, design
+indexes, reviewed-status promotion, and cross-lane synthesis may follow in
+separate commits after adjudication. Those later records refer to the already
+checkpointed artifact commit. A later review repair is another focused commit;
+it need not rewrite or squash the honest research checkpoint.
+
+This fast path is not available for production implementation, test-contract
+changes, authoritative design/semantic changes, question-board bundles, shared
+configuration/policy, or any artifact whose safe interpretation depends on
+simultaneously updating a shared contract. Those keep their existing review and
+integration gates.
 
 ## One semantic baseline, explicit dependency invalidation
 
@@ -113,6 +161,9 @@ Verification owner, commands, CPU/process/RAM/wall-time limits:
 Stop condition and escalation boundary:
 Report: claim class, derivation or minimized witness, exact checks,
         changed paths, dependency changes, omissions, next action.
+Commit packet: exact leased paths, baseline SHA and changed dependency hashes,
+        claim/review status, verification already run, proposed one-line commit
+        message, and shared-record deltas intentionally deferred.
 ```
 
 Use `fork_turns: "none"` whenever the actual spawn schema supports it.
