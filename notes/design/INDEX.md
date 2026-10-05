@@ -73,8 +73,6 @@ This index is a navigation aid. The listed source document remains authoritative
   the source release predicate. See its
   [derivation record](../progress/2026-10-05-handler-protection-filter-derivation.md).
 
-- **Executable proof-search direction:**
-  [inference research playgrounds](2026-10-04-inference-research-playgrounds.md)
 - **Authoritative source-formation direction — inferred Function call views:**
   [inferred Function call views](2026-10-05-inferred-function-call-views.md)
   records the approved direction to infer one shared role-indexed callback
@@ -87,6 +85,18 @@ This index is a navigation aid. The listed source document remains authoritative
   implementation remain open. The document preserves callback-literal B and
   does not rewrite actual callable roles.
 
+- **Authoritative candidate source interpretation — nested block result and capture:**
+  [nested-block Function source realization addendum](2026-10-06-nested-block-function-source-realization-addendum.md)
+  records the approved sequential binding, final-expression return, lexical
+  resolution and retained outer capture for exactly
+  `my apply f = { my step x = f x; step }`. It resolves the syntax
+  architecture's deferred block-value interpretation only for that candidate;
+  current production acceptance, source adequacy, call-view registration and
+  inference implementation remain gated. Approval provenance is the integrated
+  [`nested-block-function-source-realization/q1 a1`](../../questions/2026-10-05-nested-block-function-source-realization/receipt.md).
+
+- **Executable proof-search direction:**
+  [inference research playgrounds](2026-10-04-inference-research-playgrounds.md)
   is Authoritative user direction permitting isolated executable models before
   proof closure for structural FMP, callback bridge, and principality. Finite
   search is evidence only; production inference routing remains gated.

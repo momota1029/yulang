@@ -1071,22 +1071,22 @@ production replacement. See the [reviewed factorization](../notes/progress/2026-
 and [activation-premise audit](../notes/progress/2026-10-06-erow-hinst-boundary-activation.md).
 
 The approved `apply f x = f x` is an illustrative source shape; its approval
-does not itself establish literal source acceptance. An existing grammar
-candidate avoids the two-formal header:
-`my apply f = { my step x = f x; step }`. The nested headers and inner `f x`
-are covered by the later Authoritative Pattern expansion. Frozen legacy
-references and the Oracle ledger support the intended final-expression block
-value/currying behavior and static capture identity for a nearby accepted
-closure, but not its operational lifetime or this candidate's current
-raw-block-to-core translation. The
+does not itself establish literal source acceptance. The exact candidate
+`my apply f = { my step x = f x; step }` now has an Authoritative scoped
+interpretation: sequential local binding, final-expression function return,
+lexical resolution of `f`/`x`, and retention of the outer `f` capture. The
+[source interpretation addendum](../notes/design/2026-10-06-nested-block-function-source-realization-addendum.md)
+resolves the syntax architecture's deferred block-value meaning only for this
+candidate. Frozen legacy references remain compatibility evidence, not proof
+of current production acceptance or operational implementation. The
 [encoding audit](../notes/progress/2026-10-06-source-registration-existing-encoding-audit.md)
 and [legacy correspondence audit](../notes/progress/2026-10-06-source-registration-block-value-legacy-audit.md)
-keep those claims separate from typed acceptance and shared call-view
-registration. Current HIR rejects composite bodies and application; solver
-collection also leaves nested Lambda bodies incomplete. Next: derive the
-source-to-core block/capture correspondence under the supported Yulang/Oracle
-semantics, then formalize the independent registration premise. No grammar or
-role-semantics change is authorized here.
+continue to locate the production gaps: current HIR rejects composite bodies
+and application, and solver collection leaves nested Lambda bodies incomplete.
+Next: derive the conditional source-to-core block/capture correspondence under
+the approved semantics and existing typed-core rules, preserving typed-call
+and evidence-transport premises; then formalize the independent call-view
+registration premise. No implementation authority follows.
 
 Four reviewed source-derivation attempts refine the dependency order without
 closing these gates. The [`call` source-rule audit](../notes/progress/2026-10-06-call-view-source-rule-derivation-attempt.md)
