@@ -13,8 +13,9 @@ from itertools import product
 
 @dataclass(frozen=True)
 class IncidenceWitness:
-    # A proof-witness index, not a semantic event/provenance identity.
+    # A proof-witness index/route, not a semantic event/provenance identity.
     witness: int
+    route: str
     boundary: str
     profile_position: str
     incident: bool
@@ -50,12 +51,26 @@ def wrong_filter_both_sides(active_handler: bool, active_owner: bool,
             and (not protected(remaining) or grant(remaining)))
 
 
+def wrong_global_profile_bit(witnesses: tuple[IncidenceWitness, ...]) -> tuple[IncidenceWitness, ...]:
+    """Deliberately wrong: one marked route flips every alias of (b,p)."""
+    released_profiles = {(w.boundary, w.profile_position)
+                         for w in witnesses if w.released}
+    return tuple(
+        IncidenceWitness(w.witness, w.route, w.boundary, w.profile_position,
+                         w.incident,
+                         (w.boundary, w.profile_position) in released_profiles,
+                         w.explicitly_admits, w.receiver_is_candidate_owner)
+        for w in witnesses
+    )
+
+
 def main() -> None:
     checked = 0
     for states in product(product((False, True), repeat=3), repeat=3):
         witnesses = tuple(
             IncidenceWitness(
                 witness=i,
+                route=f"r{i}",
                 boundary=f"b{i}",
                 profile_position=f"p{i}",
                 incident=incident,
@@ -82,7 +97,7 @@ def main() -> None:
 
             # Toggling release status cannot alter the grant relation.
             flipped = tuple(
-                IncidenceWitness(w.witness, w.boundary, w.profile_position,
+                IncidenceWitness(w.witness, w.route, w.boundary, w.profile_position,
                                  w.incident, not w.released,
                                  w.explicitly_admits, w.receiver_is_candidate_owner)
                 for w in witnesses
@@ -95,8 +110,10 @@ def main() -> None:
     # Releasing protection must retain the local grant so it can discharge the
     # inherited protection under the existing no-origin-veto rule.
     overlap = (
-        IncidenceWitness(0, "local", "marked-output", True, True, True, True),
-        IncidenceWitness(1, "inherited", "input", True, False, False, False),
+        IncidenceWitness(0, "local-route", "local", "marked-output",
+                         True, True, True, True),
+        IncidenceWitness(1, "inherited-route", "inherited", "input",
+                         True, False, False, False),
     )
     assert protected(overlap)
     assert grant(overlap)
@@ -107,16 +124,20 @@ def main() -> None:
     # in whether they are selected by the source release rule. Keep the
     # unreleased proof witness; don't erase the tuple after one route qualifies.
     same_projection = (
-        IncidenceWitness(0, "b", "p", True, True, False, False),
-        IncidenceWitness(1, "b", "p", True, False, False, False),
+        IncidenceWitness(0, "route-marked", "b", "p", True, True, False, False),
+        IncidenceWitness(1, "route-unmarked", "b", "p", True, False, False, False),
     )
     assert protected(same_projection)
     assert not visible(True, True, True, same_projection)
+    global_bit = wrong_global_profile_bit(same_projection)
+    assert all(w.released for w in global_bit)
+    assert visible(True, True, True, global_bit)
 
     print(f"existing Inc_C witness combinations checked: {checked}")
     print("protection-only filtering preserves Grant and ordinary eligibility: confirmed")
     print("filtering released witnesses from both Protected and Grant is rejected: confirmed")
-    print("overlapping proof witnesses retain unreleased protection independently: confirmed")
+    print("overlapping and aliased route witnesses retain unreleased protection: confirmed")
+    print("one global Γ protection bit for sibling routes is rejected: confirmed")
     print("scope: supplied Inc_C/release/admission evidence; no source attribution or timing derivation")
 
 
