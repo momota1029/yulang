@@ -476,6 +476,21 @@ adequacy, or intended semantics. See the [member-use bridge](../notes/progress/2
 [joint-root separator](../notes/progress/2026-10-06-rec-name-return-root-relation-separator.md),
 and [pure production reduction](../notes/progress/2026-10-06-rec-name-return-purefun-production-reduction.md).
 
+The reviewed regular-tree candidate computes the isolated one-row projection as
+`P(U) iff Ω≤U` within that explicitly unselected carrier. Separate hand
+countermodels show that independently interpreting the two polarities or
+omitting one caller constraint invalidates weakened projections; they do not
+refute the exact shared-valuation relation. A source audit also shows that the
+incoming target `cu` is an existing occurrence row with caller connections,
+and predicate insertion replays against its existing uppers/direct upper rows
+([collection and routing owners](../crates/yu-solver/src/lib.rs#L1120),
+[scheme instantiation](../crates/yu-solver/src/lib.rs#L14527)). The next proof
+must preserve the complete caller assignment through row polarity, cyclic
+lower/upper replay, extrusion and diagnostics, and specify the admitted target
+class. Candidate carrier results do not establish this production bridge.
+See the [candidate fiber](../notes/progress/2026-10-06-rec-name-return-one-row-candidate-model.md)
+and [weakened-premise falsification](../notes/progress/2026-10-06-rec-name-return-one-row-falsification.md).
+
 ## Active unrestricted proof gates
 
 The test-only finite parent/use graph transport prototype is complete under
