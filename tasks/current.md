@@ -100,6 +100,14 @@ instantiation, then stops at the unsupplied original typed-relation
 introduction. Independent compiler-referee review found no issues in this
 bounded inversion. No source-rule impossibility, O closure, or change to A is
 claimed.
+The reviewed [Q-independent generation judgment candidate](../notes/progress/2026-10-06-qind-source-generation-judgment-candidate.md)
+names the missing producer interface and separates static relation generation,
+entry-event receipt instantiation, and later capture attachment/lookup. A
+review clarification now requires generation to retain the relation over its
+admissible fibers; receipt instantiation receives a source-derived satisfying
+admitted `xi`, never a valuation selected while generating the relation. This
+is a research proposal only: its constructor clauses and preservation proofs
+remain open, and it adds no implementation authority.
 The independently regression-audited [production source-path audit](../notes/progress/2026-10-06-production-nested-candidate-stop.md)
 locates the exact candidate's current Yulang3 stop: `lower_simple_chain`
 rejects the braced body as a non-atom, creates `ResolvedExpr::Error`, and F5
