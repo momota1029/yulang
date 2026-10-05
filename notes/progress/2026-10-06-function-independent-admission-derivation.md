@@ -1,7 +1,8 @@
 # Identity Function: independent admission and same-fiber derivation
 
 Date: 2026-10-06 (assigned artifact date)
-Status: frozen unreviewed research; candidate predicates and conditional derivation
+Status: independently reviewed conditional research; candidate predicates remain incomplete
+Reviewed-by: compiler_referee, spec_auditor
 Implementation authority: none
 Baseline: `0ca3add326c0683971c8e6af2dc1d8b13e0ab123`
 Exclusive lease: this file only
@@ -92,6 +93,27 @@ Adm_A^cand(h;xi) iff there exist pi,eta,w at their original scopes such that
   and LegalHistory(pi; h.history,w,xi)
   and Joint(K,D; h,eta,w,xi).
 ```
+
+The existential tuple is schematic and must remain coupled across admission
+and observation whenever a coordinate can affect admission. More explicitly,
+the eventual production interpretation must split a witness into admission-
+live coordinates `alpha` and output-local coordinates `beta`, then relate
+observations using the same admitted `alpha`:
+
+```text
+Adm_A(h;xi,alpha)
+Sat_A(h,O;xi,alpha,beta)
+P_A(h;xi) = { Pi_xi(O) | exists alpha,beta.
+              Adm_A(h;xi,alpha) and Sat_A(h,O;xi,alpha,beta) }
+```
+
+This is a scoping obligation, not a completed production rule or proof that
+the split exists. A source-theorem comparison must hold the old admission-live
+tuple fixed with `xi,h` and transport it coherently to the checked side. If a
+proof instead hides any such coordinate, it needs the fixed-fiber `Coverage`
+condition or another proved hiding lemma; independent existential choices
+for admission and observation are unsound. The ground source subcase below
+uses one linked old witness. The total production split remains open.
 
 The intended independent premises are precise:
 
@@ -272,7 +294,10 @@ forall h in D_C(xi). P_A(h;xi) subseteq P_C(h;xi).
 Both inclusions retain complete joint tuples and histories. No witness can
 be selected independently per effect row, result value, resumption segment
 or future call. Only legal local witnesses are hidden at original scopes,
-and one whole-observation `Pi_xi` is applied afterwards. In particular,
+and one whole-observation `Pi_xi` is applied afterwards. Admission-live
+coordinates stay fixed across the linked actual/checked derivation; any proof
+that projects them away must establish Coverage or an equivalent hiding
+condition. In particular,
 `forall h exists w` cannot be replaced by an unrelated choice for every
 projected coordinate, and changing `nu` between the two sides is invalid.
 
@@ -375,19 +400,24 @@ instrumented. No partial enumeration or timeout result is presented as
 complete. Invalidations include changed direct dependencies, a proved
 existing total inlet rule omitted by the bounded reads, failure of the
 independent source certificates, or a changed endpoint-incidence map.
-Independent review remains pending.
+Independent review found no BLOCKING/major defect and one minor scoping
+clarification. The clarification above makes explicit that admission-live
+witness coordinates must be fixed across each linked observation or hidden
+only under Coverage (or an equivalent proved lemma). The candidate schemas,
+production split, production predicates and every broader claim remain open.
 
 Recommended next action: have the primary isolate and adjudicate the total
 whole-carrier inlet/path clause for this Int identity, together with its
 retained-evidence interpretation and completeness scope. Until that clause
-is fixed, preserve this result as an unreviewed conditional source subcase.
+is fixed, preserve this result only as an independently reviewed conditional
+source subcase.
 
 ## Commit packet
 
 - Exact leased paths: `notes/progress/2026-10-06-function-independent-admission-derivation.md` only.
 - Baseline SHA: `0ca3add326c0683971c8e6af2dc1d8b13e0ab123`.
 - Dependency hashes changed: none; nine direct input Git blobs are pinned in §2. The primary must recheck them before integration.
-- Claim/review status: frozen, research-only, unreviewed candidate predicate decomposition and conditional identity reduction; no production gate closure or implementation authority.
+- Claim/review status: independently reviewed conditional research; candidate predicate decomposition and identity reduction only; no production gate closure or implementation authority.
 - Checks already run: committed source/authority reads, nine baseline dependency-identity checks, final leased-note scope and dependency recheck at handoff; zero tests/builds/probes.
 - Proposed one-line research-checkpoint commit message: `research: derive identity carrier admission premises on fixed Function fibers`.
 - Shared-record deltas intentionally left for primary/curator: link this note from the production Function inlet/admission task and theory dependency entry; record the total inlet/path interpretation as the first unresolved premise and Theorem C as a sufficient source subcase. No task/index/authority/question or theory-map file was edited; no theorem status promotion is proposed.
