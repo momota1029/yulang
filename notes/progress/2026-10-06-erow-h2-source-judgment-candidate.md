@@ -1,7 +1,7 @@
 # H2 source judgment: occurrence, permission and explicit admission
 
 Date: 2026-10-06
-Status: Frozen research-only candidate obligation interface and bounded obstruction; unreviewed
+Status: Reviewed research-only candidate obligation interface and bounded obstruction
 Baseline assigned by primary: `35561bce7f0fcfb194978b7002331b3b1bd65787`
 Branch assigned: `research/simple-sub-intrusion`
 Exclusive lease: this file only
@@ -149,23 +149,40 @@ handler image remain additional obligations even with A.
 ## Conditional derivation and failure boundary
 
 Assume Hloc+Hclause+Hmatch at one p/xi. T retains the original profile entry
-and A establishes that it explicitly admits o. They satisfy the local
-occurrence/profile/admission part of H2 for this instance. Any abstract
-input/output correlations also required by H2 remain additional retained
-Hloc/delta_comp facts; one operation instance does not manufacture them.
+and A establishes that its original clause g explicitly admits o. They
+satisfy the local occurrence/profile/admission part of H2 for this instance.
+Any abstract input/output correlations also required by H2 remain additional
+retained Hloc/delta_comp facts; one operation instance does not manufacture
+them.
 
-Separately supply a dynamic boundary b, typed correspondence M, matching
-receipt/Flow, event-specific Observe for q with q.operation=o, and original
-ownership/current-activity premises. Typed-boundary §6 yields
-`chi_v=M_*chi_original`, `D_v=M_*D_original`, shared K under the same nu,
-then Path and Inc_C. A and `b.receiver=owner(h)` satisfy Grant's explicit
-admission conjunct. This instantiates supplied Draft rules; it proves no
-source construction, handler selection, attachment or actual removal.
+The dynamic Grant derivation needs one more explicit premise, **Hinst**:
 
-With T alone, the derivation stops exactly at Grant's conjunct
-`Gamma_b explicitly admits q.operation at p under nu`. Providing `[io]`
-permission without its source-to-original-clause bridge leaves that conjunct
-open. This identifies the producer blocker without another toy model.
+```text
+Hinst_xi(beta,p,g,b,p0,M):
+  b is introduced from this same original beta/profile at xi,
+  the same scoped clause g and its predicate identity are present at p in
+  Gamma_b under the same nu, chi_original(p,b) holds, and M is the
+  source-certified typed correspondence that maps p to p0 and transports
+  the original evidence under xi
+```
+
+Hinst is a supplied profile-instantiation/transport witness, not a rule
+derived from equal shape, family, source spelling or receiver identity. Its
+source producer remains open. Separately supply matching receipt/Flow,
+event-specific Observe for q at p0 with q.operation=o, and original
+ownership/current-activity premises. Hinst and Hmatch give the explicit
+`Gamma_b` admission conjunct for q.operation at p under the same nu.
+Typed-boundary §6 then supplies the transported `chi_v=M_*chi_original`,
+`D_v=M_*D_original`, shared K, Path and Inc_C. Together with
+`b.receiver=owner(h)`, these premises satisfy Grant. This instantiates
+supplied Draft rules; it proves no source construction, handler selection,
+attachment or actual removal.
+
+Without Hinst, even Hloc+Hclause+Hmatch only establish admission in the
+original profile, not in `Gamma_b`; an active same-owner boundary with a
+different or wildcard profile can have Path and Inc_C while Grant is false.
+With T alone, the derivation stops earlier: `[io]` permission has not
+generated Hclause/Hmatch. Both producer gaps stay explicit.
 
 Callback B is retained: known expected Handler context before literal body
 generation, independent parameter/body/result endpoints, then one completed
@@ -177,9 +194,9 @@ an unannotated inferred formal's provisional Handler seed is outside this lane.
 ## Claims, independence, omissions and next action
 
 Claim classes: selected formation/protection direction; candidate T/A proof
-interfaces; conditional local transport/Grant derivation; bounded textual
-obstruction. No executed characterization, accepted-source counterexample,
-established new theorem, independent review, gate closure or production authority.
+interfaces; reviewed conditional local transport/Grant derivation; bounded
+textual obstruction. No executed characterization, accepted-source
+counterexample, established new theorem, gate closure or production authority.
 
 No execution oracle is used. Positive facts come from approved answer/source
 texts. The conditional derivation shares their supplied G, admitted boundary,
@@ -189,10 +206,11 @@ proving those source constructors. Seeds/ranges, samples, shards and executed
 semantic mutations: none. The prior Q/depth models are not rerun.
 
 Failure conditions: invalid boundary evidence; empty/incoherent xi; p from
-another slot/alias/scope; replaced predicate identities; body/call confusion;
-Q-selected completions; family equality or permission substituted for
-Hclause/Hmatch. Even valid T+A needs event/receipt/owner/activity evidence
-for Grant; Grant alone does not prove complete-image disappearance.
+another slot/alias/scope; profile-instantiation mismatch; changed clause or
+predicate identity/scope; body/call confusion; Q-selected completions; family
+equality or permission substituted for Hclause/Hmatch/Hinst. Even valid
+T+A+Hinst needs event/receipt/owner/activity evidence for Grant; Grant alone
+does not prove complete-image disappearance.
 
 Omitted: raw grammar/CST/HIR acceptance, arbitrary annotations, unknown
 formals, annotation/context overlap, recursive/polymorphic completion,
@@ -230,6 +248,12 @@ Some combined captures were truncated. Governing conclusions use subsequent
 complete narrow sections and complete short authority documents. No exhaustive
 repository search/absence claim is made. One failed add-file patch was rejected
 before writing; the succeeding add-file operation wrote only this lease.
+Independent spec review found no conformance issue. Compiler-referee review
+identified a missing premise connecting the dynamic boundary to the same
+original scoped profile clause and typed correspondence. The primary added
+Hinst and its profile mapping; the referee's delta review closed that finding.
+Review covers only the conditional Grant derivation. Hinst's source producer
+and source adequacy remain open.
 
 At most one lightweight command process ran at a time; heavyweight process
 count zero. No tests/builds/probes, children, formatters, scratch outputs,
