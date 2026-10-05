@@ -1,7 +1,7 @@
 # Production correspondence for the literal Int Initial context
 
 Date: 2026-10-06 (assigned artifact date)
-Status: frozen research-only source audit; independent review pending
+Status: reviewed bounded research-only source audit; production `chi` formation remains open
 Baseline: `33df8d3c708f8c73f1515ce80c5651cfcae642b7`
 Lease: this file only
 Implementation authority: none
@@ -139,7 +139,7 @@ recovery-free acceptance claim for either spelling was measured here.
 | Lambda collection | `yu-solver/lib.rs:1041–1051` calls `emit_lambda`; `:1557–1617` records `LambdaRecipe` | Recipe fields retain parameter position, body/root/effect components and insertion position. They contain no call operand or executing slot/profile. |
 | Identity Function endpoint | `admit_lambda_fact` at `:10539–10579` constructs a positive Function from parameter/body terms and records its root fact | The identity case shares one parameter ordinal with its result. Its negative EmptyEffect and body-effect fields are structural terms, not a proof of incoming carrier purity or a complete invocation view. |
 | Literal endpoint | `emit_integer` at `:1454–1498` records Int lower/upper and bottom/empty effect facts | A separately lowered scalar leaf has these facts. Theorem C §2.2 forbids deriving receipts/paths/grants from a scalar relation alone. |
-| Scheme-use transport | `route_internal_inner` at `:13990` connects definition-root/use rows; `route_incoming_inner` at `:14877–14963` selects a closed scheme and invokes `instantiate_and_route_closed_inner` at `:14527` | Fresh quantified variables, restored recursive bounds and routed positive predicate facts preserve type-use structure. A definition use is not an invocation or independently admitted punctured context. |
+| Scheme-use transport | `route_internal_inner` at `:13990` connects definition-root/use rows; `route_incoming_inner` at `:14877–14963` routes nontrivial predicates through `instantiate_and_route_closed_inner` at `:14527`, alongside direct Bottom-provenance (`:14903`) and Int (`:14937`) branches | Fresh quantified variables, restored recursive bounds and routed positive predicate facts preserve type-use structure. A definition use is not an invocation or independently admitted punctured context. |
 | Closed type views | `yu-types/lib.rs:585–620` defines positive/negative Function views with four polarized type/effect handles; `ClosedValueSchemeView` at `:638` references an arena and scheme; `:798–807` projects stored fields | These `View` names describe arena lookup. They contain no current receiver activation, carrier path, invocation receipt, history or slot boundary. No constructor inspected interprets them as the complete executing CallView. |
 | Solver admission receipt | `AdmissionReceipt` at `yu-solver/lib.rs:2858` has store token, serial, constraint occurrence, cause, fact and delta; `:3559` mints it; `record_provenance` at `:3273` checks exact store/fact/cause and consumes it | Its certified event is a constraint-store transaction. The actual receiver/invocation receipt in typed core §9 is a different obligation; matching the noun does not establish a correspondence. |
 | Retained solve result | `SolvedModule` at `:7168` retains HIR, schemes, arena, routed-use provenance and store; `:15665` enters `InferenceSession::run` (`:9731`) | Retention could support a future reconstruction proof. Its existing field map/public queries (`:15668`, `:15677`, `:15729`) do not themselves form that proof. |
@@ -224,8 +224,15 @@ Resources: one worker, zero children, zero build/test processes; lightweight
 commands completed in under one second each. At most two independent read
 commands ran together once; all later inspections were sequential. CPU,
 aggregate wall time and peak RAM were not instrumented. No enumeration or
-long-running process remains incomplete. Research evidence is unreviewed;
-this producer does not certify its own output.
+long-running process remains incomplete. This is bounded correspondence
+evidence; it does not certify a universal absence claim or the semantic
+authority of the conditional source rules.
+
+Independent review by `production_view_bridge_review` confirmed the bounded
+HIR/lowering obstruction and found no blocking or major findings. One minor
+dispatch wording issue was closed by qualifying the generic incoming scheme
+route and naming the direct Bottom-provenance and Int branches in §4. The
+review did not execute the parser or audit every production/legacy path.
 
 Recommended next action: isolate formation/interpretation of `chi` for this
 one independently declared Int hole and literal carrier in the existing
@@ -239,7 +246,7 @@ close this missing premise.
 - Exact leased path: `notes/progress/2026-10-06-function-production-initial-view-bridge.md` only.
 - Baseline SHA: `33df8d3c708f8c73f1515ce80c5651cfcae642b7`.
 - Dependency changes: none at the 17-blob HEAD/worktree equality check; pins above. Final recheck accompanies handoff.
-- Review status: frozen unreviewed research-only production correspondence audit; no theorem closure or production conformance certification.
+- Review status: independently reviewed bounded research-only production correspondence audit; no theorem closure or production conformance certification.
 - Checks already run: committed section reads, bounded symbol/call-site searches, six-file baseline diff, 17 dependency identity/byte checks, lease absence and final scope/dependency check; zero tests/builds/models.
 - Proposed one-line research-checkpoint commit message: `research: audit production bridge for literal Int Initial view`.
 - Shared-record deltas left for primary/curator: retain independent `chi` formation/endpoint conformance as open; distinguish closed type views and store receipts from execution decoration; record the pre-collection call seam only for the inspected path. `tasks/current.md`, design index/authority, theory maps and question bundles are intentionally untouched.
