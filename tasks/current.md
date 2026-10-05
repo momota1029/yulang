@@ -1386,6 +1386,14 @@ remain in the linked progress records above and
   table before one static plan is built. Broader successor source coverage and
   solve-discovered dependency ownership remain open. See the
   [current definition-use coverage audit](../notes/progress/2026-10-06-current-scc-definition-use-coverage.md).
+  A separate source-grounded count now bounds one live constrain_live drain:
+  admitted typed pairs, persistent bound additions, duplicate queue emissions,
+  extrusion and diagnostic work are finite under explicit root-inventory,
+  finite-initial-bounds, immutable inventory, and constructor-DAG assumptions.
+  The multiplicity-aware form counts duplicate enqueues and does not bound
+  source-size expansion, whole-program generalization, or successor semantics.
+  See the independently reviewed
+  [live closure work bound](../notes/progress/2026-10-06-bounded-live-closure-work-count.md).
 
 The conditional results do not close these unrestricted gates or authorize
 compiler implementation.
