@@ -92,6 +92,14 @@ captured evidence-environment attachment and lookup preserving the whole
 original `xi=(nu,K,D)`. `CaptureUseIncidence` anchors the lexical occurrence
 but proves neither premise. Rule inversion leaves A open even when O is
 stipulated; O remains the earlier unconditional source-formation blocker.
+The follow-up [original registration source-producer attempt](../notes/progress/2026-10-06-original-call-registration-source-producer-attempt.md)
+uses the concrete CST/shadow lexical incidence and again reaches only shared
+symbolic endpoints and call constraints. It separates the missing static
+contract/profile and receipt schema from event-specific typed receipt
+instantiation, then stops at the unsupplied original typed-relation
+introduction. Independent compiler-referee review found no issues in this
+bounded inversion. No source-rule impossibility, O closure, or change to A is
+claimed.
 The independently regression-audited [production source-path audit](../notes/progress/2026-10-06-production-nested-candidate-stop.md)
 locates the exact candidate's current Yulang3 stop: `lower_simple_chain`
 rejects the braced body as a non-atom, creates `ResolvedExpr::Error`, and F5
