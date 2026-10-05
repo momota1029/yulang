@@ -612,6 +612,25 @@ durable opt-in `yu-core::shadow` API, broader differential harness, all semantic
 judgments, theorem gates and production cutover open. See the isolated source
 module at `crates/yu-hir/src/tests/shadow_source_core.rs`.
 
+Candidate disposition for the next experimental steps: (1) ordinary Apply is
+preserved only at this detached parsed-source/HIR test seam; production
+`ResolvedExpr` still drops it. (2) source occurrence, binder and use identities
+are present in the prototype, branded to one artifact. (3) source ranges are
+present, but annotation occurrences and typed source boundaries are not. (4)
+`beta`/`Slots(beta)` are absent. (5) typed paths, owner/receiver and provenance
+are absent. (6) there is no generalized SCC interface. (7) recursive Q/R
+identity and use-time freshening are absent. (8) callable role, Function
+membership and call-view realization are explicit pending premises. (9) the
+only comparison is structural against an existing test-only candidate; there
+is no executable frozen-legacy/old-infer runner on the Apply input. Thus the
+first slice establishes identity-preserving syntax plumbing and honest
+unresolved obligations only. The next bounded implementation candidate is to
+promote that product behind an opt-in `yu-core::shadow` API, retaining the
+current HIR ownership boundary and adding no production consumer; this requires
+its own M2 review before implementation. The theory lane continues
+independently from the open recursive source-origin/Form(S) and guard/source
+bridges.
+
 The test-only finite parent/use graph transport prototype is complete under
 its narrow gate. It has independent substitution-reference tests and does not
 change the production solver. The pure structural FMP gate is now closed by
