@@ -6,6 +6,9 @@ use yu_syntax::{ParsedFile, SyntaxKind, SyntaxNode, SyntaxToken};
 
 mod module;
 
+#[cfg(any(feature = "shadow", test))]
+pub mod shadow;
+
 pub use module::{
     DefId, DefinitionRootId, FileId, FileKey, HirAvailabilityError, HirBinding, HirDiagnostic,
     HirDiagnosticId, HirError, HirErrorAttachment, HirErrorId, HirErrorKind, HirErrorOrigin,

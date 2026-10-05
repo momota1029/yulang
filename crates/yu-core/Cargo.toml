@@ -4,4 +4,10 @@ version = "0.1.0"
 edition = "2024"
 publish = false
 
+[features]
+default = []
+shadow = ["dep:yu-hir", "dep:yu-syntax", "yu-hir/shadow"]
+
 [dependencies]
+yu-hir = { path = "../yu-hir", default-features = false, optional = true }
+yu-syntax = { path = "../yu-syntax", optional = true }

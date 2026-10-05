@@ -306,7 +306,14 @@ mod tests {
                     ("yu-types", DependencyKind::Normal),
                 ],
             ),
-            ("yu-core", &[("yu-solver", DependencyKind::Normal)]),
+            (
+                "yu-core",
+                &[
+                    ("yu-hir", DependencyKind::Normal),
+                    ("yu-solver", DependencyKind::Normal),
+                    ("yu-syntax", DependencyKind::Normal),
+                ],
+            ),
             ("yu-backend-vm", &[("yu-core", DependencyKind::Normal)]),
             ("yu-backend-native", &[("yu-core", DependencyKind::Normal)]),
         ]);

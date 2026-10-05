@@ -11,6 +11,24 @@ remains active. A test-only finite parent/use transport prototype is authorized
 as an experiment; production inference-path replacement remains gated by the
 open soundness/principality obligations.
 
+The shadow lane is now active alongside theory research. The first opt-in
+successor-core slice promotes one immutable HIR-owned `ParsedFile` snapshot,
+artifact-branded source positions, a narrow ordinary-application/binder/use
+arena, raw annotation ownership, and explicit pending call judgments behind a
+default-off `yu-core/shadow` facade. Its builder avoids recursive HIR
+association; the 4,000-tail stack-safety test targets the projector with
+synthetic CST because existing `parse_file` overflows before producing such a
+snapshot. No role/method selection, typed path/profile, `beta`/`Slots(beta)`,
+solver, or semantic discharge is implemented. Production F5 remains untouched.
+Gate and review/check evidence:
+[shadow-core promotion](../notes/progress/2026-10-06-shadow-core-promotion-gate.md).
+Next implementation gate: add only newly proved rules as explicit premise
+dischargers, with a differential harness for the exact overlap; continue the
+source bridge, soundness, principality, and adequacy research without relaxing
+their proof interfaces. One untouched HIR test has an observed
+`30`-versus-`14` count mismatch under the full package test command; keep its
+expected value unchanged and audit it separately.
+
 Authority order is current user decisions, in-scope Authoritative designs,
 active rules, confirmed code/test invariants, then general practice. The design
 index is navigation only; source designs govern. See

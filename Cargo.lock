@@ -789,6 +789,10 @@ dependencies = [
 [[package]]
 name = "yu-core"
 version = "0.1.0"
+dependencies = [
+ "yu-hir",
+ "yu-syntax",
+]
 
 [[package]]
 name = "yu-hir"
