@@ -1,7 +1,8 @@
 # Fresh Int Initial attempt: conditional map available, slot/view still open
 
 Date: 2026-10-06 (assigned artifact date)
-Status: frozen unreviewed partial conditional source proof and proposed precision repair
+Status: independently reviewed partial conditional source proof; `Form_Int` remains open
+Reviewed-by: spec_auditor
 Baseline: `d2837d34026c262280e19e66085992bf480f7cf2`
 Exclusive lease: this file only
 Implementation authority: none
@@ -11,9 +12,11 @@ Method: constructive premise enumeration using the existing typed-structure corr
 
 Typed-boundary §6 already supplies the conditional rule for `M_Int`:
 same-type binding uses identity and Force/return removes the computation's
-result prefix. No new semantic map rule is required. The earlier fresh-Int
-record needs a precision repair where it treats this correspondence itself
-as the first missing source rule.
+result prefix. No new semantic map rule is required. At this artifact's pinned
+baseline, the earlier fresh-Int record treated this correspondence itself as
+the first missing source rule. That precision repair was later applied in
+`43c16bd56`; this note preserves the independent conditional derivation and
+its separate `Form_Int` blocker.
 
 The corrected construction generates the literal/result/delay and derives
 the path-map form **conditional on the independently typed source port and
@@ -31,8 +34,8 @@ an empty environment. The construction stops before assuming that extension.
 ## 2. Exact inputs and authority boundary
 
 Only committed objects at the full assigned baseline were consumed. The
-previous note is inspected solely to propose a repair, not to certify this
-attempt. The selected domain, Option A and Option 2 remain unchanged.
+previous note is inspected as baseline context, not as a proof premise. The
+selected domain, Option A and Option 2 remain unchanged.
 
 | Input | Exact governing/comparison scope | Git blob |
 | --- | --- | --- |
@@ -243,10 +246,13 @@ benchmark, production edit or Git mutation ran. The correspondence proof
 shares the selected conditional typed-source premises with its governing
 transport package; it does not independently validate source typing or
 profile formation. The local scalar/profile reasoning is not an oracle
-for whole Function admission. Independent review of this note is pending.
+for whole Function admission. An independent spec review found no
+conformance finding in the conditional `M_Int` correction or the stated
+`Form_Int` boundary. This does not certify decorated source formation,
+complete `chi_Int`, Initial admission, or broader production conformance.
 
 Coverage: fresh scalar/result/delay, conditional typed map, all Initial
-premises, local-versus-complete empty profile, and exact repair proposal.
+premises, local-versus-complete empty profile, and the `Form_Int` boundary.
 Omitted: the stopped decorated slot/view formation, full admissible context
 fiber, raw syntax-to-decoration generation, actual filling behavior,
 arbitrary histories/adapters/state, production-only extras, complete
@@ -262,7 +268,7 @@ submission for frozen review. Prior files and shared records remain intact.
 - Exact leased path: `notes/progress/2026-10-06-function-int-source-initial-certificate.md` only.
 - Baseline SHA: `d2837d34026c262280e19e66085992bf480f7cf2`.
 - Changed dependency hashes: none at baseline verification; all ten direct Git blobs are pinned in §2 and rechecked at handoff.
-- Claim/review status: frozen unreviewed research-only partial conditional source proof; `M_Int` rule instantiated conditionally, no complete `chi_Int` or Initial admission claimed.
+- Claim/review status: independently reviewed research-only partial conditional source proof; `M_Int` rule instantiated conditionally, no complete `chi_Int` or Initial admission claimed.
 - Checks already run: committed governing/authority/previous-record reads, ten blob identities, lease absence and final scope/hash/dependency recheck; zero tests/builds/models.
 - Proposed one-line checkpoint commit message: `research: derive conditional Int path map and isolate Initial view premise`.
-- Shared-record deltas intentionally deferred to primary/curator: the exact prior-note precision repair in §7 and corresponding task/theory premise wording; retain decorated certificate, Option 2, exhaustive admission and production gates. No shared or prior artifact was modified.
+- Shared-record deltas intentionally deferred to primary/curator: record that the typed `M_Int` map is available conditionally and `Form_Int` remains the source-formation blocker; retain decorated certificate, Option 2, exhaustive admission and production gates. No shared or prior artifact was modified.
