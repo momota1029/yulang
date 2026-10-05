@@ -66,6 +66,14 @@ impl ShadowArtifact {
     pub fn annotations(&self) -> &[AnnotationOccurrence] {
         &self.annotations
     }
+    pub fn annotation(&self, id: &AnnotationId) -> Result<&AnnotationOccurrence, ShadowError> {
+        if !Arc::ptr_eq(&self.identity, &id.0.artifact) {
+            return Err(ShadowError::ForeignArtifact);
+        }
+        self.annotations
+            .get(id.0.index)
+            .ok_or(ShadowError::MissingReference { index: id.0.index })
+    }
     /// Structural/lexical result only; success makes no semantic judgment.
     pub fn skeleton(&self) -> Result<&Skeleton, &ShadowError> {
         self.skeleton.as_ref()
@@ -133,6 +141,10 @@ impl ShadowArtifact {
                 SyntaxKind::PatternTypeAnnotation | SyntaxKind::TypeAnnotationTail
             ) {
                 self.annotations.push(AnnotationOccurrence {
+                    id: AnnotationId(LocalId {
+                        artifact: self.identity.clone(),
+                        index: self.annotations.len(),
+                    }),
                     position: id.clone(),
                     correspondence: Correspondence::PendingTypedPortAndProfile,
                 });
@@ -167,6 +179,11 @@ fn preflight(root: &SyntaxNode) -> Result<(), ShadowError> {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PositionId(LocalId);
+
+/// Artifact-local source-occurrence identity only, distinct from raw syntax identity.
+/// This is not beta, a typed port/profile, permission, owner, or evidence.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct AnnotationId(LocalId);
 
 #[derive(Debug)]
 pub struct Position {
@@ -204,10 +221,14 @@ pub enum Correspondence {
 }
 #[derive(Debug)]
 pub struct AnnotationOccurrence {
+    id: AnnotationId,
     position: PositionId,
     correspondence: Correspondence,
 }
 impl AnnotationOccurrence {
+    pub fn id(&self) -> &AnnotationId {
+        &self.id
+    }
     pub fn position(&self) -> &PositionId {
         &self.position
     }
@@ -1261,6 +1282,20 @@ mod tests {
     }
 
     const NESTED: &str = "my apply f = { my step x = f x; step }";
+
+    #[test]
+    fn shadow_annotation_positions_rejects_missing_annotation_reference() {
+        let artifact = ShadowArtifact::from_parsed(parsed("x as int")).unwrap();
+        let index = artifact.annotations().len();
+        let invalid = AnnotationId(LocalId {
+            artifact: artifact.identity.clone(),
+            index,
+        });
+        assert_eq!(
+            artifact.annotation(&invalid).unwrap_err(),
+            ShadowError::MissingReference { index }
+        );
+    }
 
     #[test]
     fn selected_nested_source_preserves_binders_scope_return_and_pending_boundary() {

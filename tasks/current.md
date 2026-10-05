@@ -108,6 +108,22 @@ admissible fibers; receipt instantiation receives a source-derived satisfying
 admitted `xi`, never a valuation selected while generating the relation. This
 is a research proposal only: its constructor clauses and preservation proofs
 remain open, and it adds no implementation authority.
+The independently compiler-referee-reviewed [exact-candidate relation
+construction](../notes/progress/2026-10-06-source-formal-relation-constructive-attempt.md)
+derives the conditional Name/Call/Lambda/Bind composition and shows the block
+returns a closure without invoking its latent call, while retaining one
+supplied correlated `xi`. It stops at the independently interpreted whole-call
+relation `T_c` and admissible fiber envelope `Omega_S`; neither is source
+generated. A separate reviewed [mixed-use relation attack](../notes/progress/2026-10-06-source-formal-relation-mixed-use-falsification.md)
+proves only the conditional set premise for safe discharge restriction; it
+does not distinguish completed source rules or establish a valid mixed-use
+program. Eligibility/aggregation and source formation remain open.
+The default-off shadow artifact now assigns separate branded identities to
+retained annotation occurrences, while preserving their raw CST positions and
+pending typed-port/profile links. Focused shadow HIR tests and `yu-core` checks
+with the feature on and off pass; both exact-conformance and regression review
+found no issues. This adds no profile identity or production inference path.
+See the [annotation occurrence identity slice](../notes/progress/2026-10-06-shadow-annotation-occurrence-id.md).
 The independently regression-audited [production source-path audit](../notes/progress/2026-10-06-production-nested-candidate-stop.md)
 locates the exact candidate's current Yulang3 stop: `lower_simple_chain`
 rejects the braced body as a non-atom, creates `ResolvedExpr::Error`, and F5

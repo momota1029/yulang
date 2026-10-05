@@ -2,7 +2,7 @@
 
 Date: 2026-10-06
 Baseline: `cf4ffa4484d701ab85b4f5f9be429a71fe482c33`
-Status: frozen, unreviewed research checkpoint; conditional construction and reduced unproved leaf
+Status: independently compiler-referee-reviewed research attempt; conditional construction and reduced unproved leaf
 Lease: this note only
 Objective/method: compositional proof construction for `my apply f = { my step x = f x; step }`; evaluate a symbolic relation through Name, Call, Lambda, Bind and Result rather than invert a completed registration consequence.
 Implementation authority: none
@@ -104,8 +104,13 @@ actual callable consuming its carrier has Pure role or value entry.
 
 This section constructs a relative relation, with its unproved leaves visible.
 Let `xi=(nu,K,D)` retain the original source scopes. Let `z` collect the
-original shared tuple (environments, source/capture incidences and proof
-witnesses); it is not a new source existential type. Introduce two leaves:
+original static tuple references (source environments, incidences and proof
+coordinates); it is not a new source existential type. For a row
+`rho=(xi,z,A_f,A_x,E_c,A_c,r,e)` of `R_c`, let `Dyn(rho)` denote only dynamic
+environment/state instances compatible with that row and its local typing and
+capture certificates. This compatibility is a supplied premise of the
+conditional construction, not an independently derived relation. Introduce
+two leaves:
 
 * `Omega_S(xi,z)`: the independently source-derived admissible fiber envelope,
   including scope and active original dependencies. This is **unproved** for
@@ -131,9 +136,11 @@ All admissible fibers are retained by this comprehension; there is no
 This does not prove that Omega_S is complete or that T_c has an independent
 interpretation. Their source derivation is exactly the missing premise.
 
-For a row of this relation, keep the **same** xi,z and original environment
-`eta`. Denote `eta[b_f]` by `f`, and an inner rebound value by `x`. The
-Name/Result constructor expressions are
+For each row `rho` and each compatible `(eta,C,x) in Dyn(rho)`, keep the
+**same** `xi,z` and original environment `eta`; dynamic extension/rebinding
+does not alter their static source scope or tuple references. Denote
+`eta[b_f]` by `f`, and the inner rebound value by `x`. The Name/Result
+constructor expressions are
 
 ```text
 N_f(xi,z,eta,C) = Return(eta[b_f],C)
@@ -176,9 +183,11 @@ R_block(xi,z,eta,C)
 R_apply = ClosureTemplate(L_apply,Value(A_f),R_block,capture=Gamma_0).
 ```
 
-The conditional equality is pointwise at every retained row of R_c. No
-existential elimination occurs on xi,z, so the returned template contains the
-same latent callee root and full correlated fiber. Outer value entry later
+The conditional equality is pointwise at every retained row of `R_c` and each
+compatible dynamic instance in `Dyn(rho)`, not at arbitrary environments,
+arguments or states. No existential elimination occurs on `xi,z`, so the
+returned template contains the same latent callee root and full correlated
+fiber. Outer value entry later
 receives/forces/rebinds its actual argument before R_block, while inner entry
 receives/forces/rebinds its own argument before J_c; closure construction
 executes neither. This evaluation establishes composition and the return
@@ -267,6 +276,17 @@ These are analytical mutations; no executable mutation campaign is claimed.
 Even an interpreter agreeing with this expression would share the supplied
 primitive assumptions and would not prove them.
 
+## 6. Independent review
+
+An independent compiler-referee review found no blocking or major defect in
+the bounded conditional construction. The reviewer identified one precision
+issue: the dynamic environment, argument and continuation state needed to
+instantiate a static relation row were not explicitly quantified as compatible
+instances. The primary repair adds `Dyn(rho)` as an explicit conditional
+compatibility premise and restricts the pointwise Return/Bind equality to
+those instances. Delta review confirmed the clarification; it supplies no new
+source-generation, receipt or capture-transport proof.
+
 The single exact source graph is the coverage envelope. Omitted: repeated or
 mixed callee uses, recursion, annotation-present removal, generalization and
 fresh-use preservation, implicit adapters, handler images, production Option
@@ -290,7 +310,7 @@ fiber scope and the approved seed/refinement operator; test its proposed
 clauses against a distinct source pattern before adopting it. Beta/profile
 completion and later event/A evidence remain subsequent obligations.
 
-## 6. Frozen dependencies and commit packet
+## 7. Frozen dependencies and commit packet
 
 The live dependencies matched the pinned baseline in the pre-write path-scoped
 diff; integration receipts identify accepted commits `61a3651376166346a5baa03ec6679c310b0edbdb`
@@ -313,7 +333,7 @@ Commit packet:
 * Exact leased/changed path: `notes/progress/2026-10-06-source-formal-relation-constructive-attempt.md` only.
 * Baseline SHA: `cf4ffa4484d701ab85b4f5f9be429a71fe482c33`.
 * Changed dependency hashes: none observed; revalidate the table before integration.
-* Claim/review status: frozen unreviewed conditional research construction; author self-inspection is not independent review. No gate promotion or authority.
+* Claim/review status: frozen independently compiler-referee-reviewed conditional research construction; one minor quantifier-clarity repair passed delta review. No gate promotion or authority.
 * Checks: narrow source reads; baseline-scoped dependency diff; SHA-256 capture; original-scope symbolic substitution and Return/Bind calculation by derivation. No tests/builds/Oracle/Git mutations.
 * Proposed commit message: `research: compose exact candidate open formal relation conditionally`.
 * Shared-record deltas left for primary/curator: optional locator in `tasks/current.md`; record that ordinary Name/Call/Lambda/Bind composition preserves a supplied single joint relation, while independently interpreted source formal Call, admissible fiber generation, role seed/refinement, static profile and typed receipt/A transport remain open. No shared-file edits or design-status promotion proposed.

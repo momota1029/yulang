@@ -176,3 +176,46 @@ fn shadow_annotation_positions_keeps_utf8_trivia_in_byte_ranges() {
         .unwrap();
     assert_eq!(token.range().start, source.find("x as").unwrap());
 }
+
+#[test]
+fn shadow_annotation_positions_ids_preserve_each_retained_annotation_occurrence() {
+    let source = "my x: T = value; my y: T = value; x as T; y as T";
+    assert!(parsed(source).syntax_diagnostics().unwrap().is_empty());
+    let artifact = from_source(source).unwrap();
+    let retained = artifact
+        .positions()
+        .iter()
+        .filter(|position| {
+            matches!(
+                position.kind(),
+                SyntaxKind::PatternTypeAnnotation | SyntaxKind::TypeAnnotationTail
+            )
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(artifact.annotations().len(), 4);
+    assert_eq!(artifact.annotations().len(), retained.len());
+    for (index, (annotation, position)) in artifact.annotations().iter().zip(retained).enumerate() {
+        let looked_up = artifact.annotation(annotation.id()).unwrap();
+        assert_eq!(looked_up.id(), annotation.id());
+        assert_eq!(looked_up.position(), annotation.position());
+        assert!(std::ptr::eq(
+            artifact.position(looked_up.position()).unwrap(),
+            position
+        ));
+        assert_eq!(
+            looked_up.correspondence(),
+            &Correspondence::PendingTypedPortAndProfile
+        );
+        for previous in &artifact.annotations()[..index] {
+            assert_ne!(previous.id(), annotation.id());
+        }
+    }
+    let other = from_source(source).unwrap();
+    assert_ne!(artifact.annotations()[0].id(), other.annotations()[0].id());
+    assert_eq!(
+        artifact
+            .annotation(other.annotations()[0].id())
+            .unwrap_err(),
+        ShadowError::ForeignArtifact
+    );
+}
