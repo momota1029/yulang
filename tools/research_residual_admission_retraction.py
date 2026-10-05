@@ -269,7 +269,7 @@ def check():
         if premise:
             passing += 1
             assert before == after
-    return {"baseline": BASELINE, "claim": "bounded conditional characterization; unreviewed research",
+    return {"baseline": BASELINE, "claim": "independently reviewed bounded conditional characterization; no implementation authority",
             "omega_count_per_predicate": len(omega), "visible_upper_queries": len(qs),
             "subtype_reference_comparisons": total_comparisons,
             "ranges": result, "arbitrary_three_point_admission_masks": 8,
