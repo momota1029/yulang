@@ -684,16 +684,21 @@ contexts over existing `Rel_C` evidence. No insufficiency of that evidence or
 source counterexample has been established. See the
 [approved-basis follow-up](../notes/progress/2026-10-05-production-function-denotation-followup.md)
 and its [integration receipt](../questions/2026-10-05-production-function-denotation/receipt.md).
-The next local derivation is narrowed to a returned latent provider: compare a
-quiet supplied closure with a closure capturing an operation, then invoke each
-once under the same complete interface. The conditional common interface
-requires an independently supplied certificate for the quiet closure; after
-that, the unresolved bridge is production `DescMem` for the full returned
-observation and retained provider across the later invocation. Existing source
-rules establish the source/reference traces but do not define that production
-judgment. This does not refute basis A or show the current evidence is
-insufficient, so it is not yet a new user decision. Details are in the
-[paired latent-provider probe](../notes/progress/2026-10-05-production-function-denotation-followup.md#paired-latent-provider-derivation-probe).
+The constant quiet-provider source relation is now derived parametrically for
+finite client graphs within Theorem C §§2.1–2.2, with its source-label,
+immutable-subgraph, local-relation, and §3 admission-certificate premises.
+Within that envelope, `d-`, complete-call argument contribution `d+`, and
+body/result contribution `b+` remain distinct, including Force requests and
+resumed suffixes. The conditional fixed-domain theorem
+can widen only the genuine body/result guarantee, while retaining `d+`; it
+does not identify this source certificate with production `G`. The remaining
+production bridge is the independent challenge inclusion `D_C subset D_A`
+and joint `DescMem_A` interpretation of `d-`, `d+`, `b+`, and future use for
+the returned latent provider. Existing sources do not define those production
+judgments. This does not refute basis A or establish evidence insufficiency,
+so it is not yet a new user decision. Details are in the
+[paired latent-provider probe](../notes/progress/2026-10-05-production-function-denotation-followup.md#paired-latent-provider-derivation-probe)
+and [constant-provider refinement](../notes/progress/2026-10-05-production-function-denotation-followup.md#constant-provider-certificate-refinement).
 The independent principal-scheme lane and `P_ref`-only proof work remain active.
 
 User-directed principal-scheme acceptance examples now cover `id`, `zero`,

@@ -94,4 +94,71 @@ isolated; continue this derivation against the original source typing rules
 before publishing another question. No compiler code, tests, builds or
 measurements were changed or run.
 
+## Constant-provider certificate refinement
+
+For the quiet leaf itself, the reviewed conditional source machinery gives
+more than one-run characterization but less than production membership. Let
+`Q = lambda(Value(Unit), result(literal Unit))`. Typed-core §6 generates its
+inert closure and `Comp(empty,Unit)` **body/result skeleton**. For each
+challenge carrier `t` and compatible context represented by a finite client
+graph satisfying Theorem C §§2.1–2.2, Theorem C §§2–3 generates the parametric
+complete call. This restriction includes monomorphic preallocated recursive
+references, source labels for every exposed provider/consumer, immutable
+records/captures, and independently certified whole-tuple primitive relations.
+It excludes mutable cells, opaque imports, implicit adapters, and handler-image
+nodes inside the offered subgraphs. The initial call and every
+response/resumption/future-use history must also have the separate admission
+certificate from Theorem C §3; independent source typing alone is insufficient.
+
+Within that envelope, the call relation is:
+
+```text
+actual receiver and receipt;
+Force_argument(t) >>= lambda (v,C1).
+  typed rebind;
+  Return(Unit,C1) >>= ReturnFromInvocation.
+```
+
+The argument view and its contribution to the whole `CallView` remain
+separate (`d-` and `d+`); the constant body/result contribution is `b+`.
+`d+` is retained even when it contains requests from `t`. When Force returns,
+the suffix returns Unit. When Force requests, the source bind equation keeps
+the original request witness and appends rebind/body/return to its raw
+continuation. Induction over the §3-admitted finite responses, resumptions and
+divergence prefixes stays under the original `nu,K,D` and scopes.
+Thus Q has a parametric **source/reference** certificate; it does not claim
+that the complete call is effect-free.
+
+Conditionally applying typed-core §8 permits widening the genuine
+covariant **body/result guarantee** `empty` to `E` when the challenge domain,
+entry profile, endpoints, paths, receipts, scopes and dependencies stay
+fixed and `empty` is included in `E`. This preserves the argument contribution
+in `d+`; it cannot be used to erase incoming effects or to treat the complete
+`CallView` as an empty row. The result is a conditional source/reference
+certificate for the weakened body guarantee, not a derivation that a
+production descriptor `G` means that certificate.
+
+The remaining production proof now starts at two explicit judgments:
+
+1. `A_A(G)` must admit the source-typed challenge domain independently of the
+   pending comparison, so `D_C subset D_A` can be checked.
+2. `DescMem_A(G,O,w;xi)` must interpret the full observation with `d-`, `d+`
+   and `b+` jointly, preserving the incoming contribution while applying the
+   body/result guarantee to its proper occurrence.
+
+Neither follows from the four endpoint children or from the source/reference
+certificate. The paired quiet/captured-provider example still supplies the
+useful future-use discriminator. No Oracle fixture inspected so far proves a
+pure provider at a fixed nonempty effect row; abstract-row examples can
+instantiate that row to empty. No new user decision is isolated, and no
+compiler code, tests, builds or measurements were changed or run.
+
+Independent delta review of this refinement (compiler_referee and
+spec_auditor) closed one major scope finding by restricting the challenge
+quantifier to Theorem C's decorated source envelope and independent §3
+admission certificates. Both reviewers also found and closed the same minor
+locator defect (`§3.3` corrected to `§3`). They found no remaining finding in
+the conditional source/reference claim; production-domain inclusion and
+`DescMem_A` remain explicitly open.
+
 No tests, builds, finite searches, or implementation changes were made in this audit. The previous production membership audit remains a correct record of the pre-answer state; this follow-up records the newly selected basis and the narrower remaining premise.
