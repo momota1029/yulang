@@ -732,6 +732,18 @@ The previous provenance-edge probe is retained as independent finite
 support/provenance characterization only; it is not evidence for `'e?`. See
 the [historical probe record](../notes/progress/2026-10-05-handler-provenance-projection-playground.md)
 and corrected [Draft notation note](../notes/design/2026-10-05-handler-hygiene-public-provenance-notation.md).
+The separate protection-release probe checks the local frame under supplied
+attribution/protection evidence: `'e` attribution releases only the qualifying
+event's handler protection, while same-family local support, provenance,
+lineage, and typed path remain unchanged; family-wide and sticky-protection
+mutants are rejected. This does not derive source attribution or show that the
+existing typed-boundary `χ`/`Path`/`Inc_C` evidence can realize the release.
+The probe uses one protection witness per event and does not cover nested
+overlap, actual resumed execution, or higher-order latent invocation. The next
+concrete gate is to reconcile slot-local release with the existing rule that
+result-path profiles remain live while their receiver is active, preserving
+provenance/transport independently from protection. See the
+[protection-release probe record](../notes/progress/2026-10-05-handler-protection-release-playground.md).
 An architect cross-check found no counterexample among the seven accepted
 schemes and no demonstrated missing carrier. A direct Astra theorem attack,
 independently reviewed by a compiler referee and architect, distinguishes the

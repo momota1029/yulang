@@ -45,6 +45,13 @@ This index is a navigation aid. The listed source document remains authoritative
   finite edge result is not evidence for `'e?`'s protection-release meaning;
   it does not derive source incidence or establish a principal projection.
   See its [progress record](../progress/2026-10-05-handler-provenance-projection-playground.md).
+  [`research_handler_protection_release.py`](../../tools/research_handler_protection_release.py)
+  separately checks the local protection-only frame under supplied attribution
+  and protection evidence, rejecting family-wide and sticky-protection
+  mutants. It does not derive attribution or establish that `Rel_C` and typed
+  boundary evidence realize the release; nested boundaries and actual
+  resumption remain open. See its
+  [progress record](../progress/2026-10-05-handler-protection-release-playground.md).
 
 - **Executable proof-search direction:**
   [inference research playgrounds](2026-10-04-inference-research-playgrounds.md)
