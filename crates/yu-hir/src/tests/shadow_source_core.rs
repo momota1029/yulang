@@ -108,7 +108,9 @@ fn shadow_source_core_retains_compose_structure_and_pending_premises() {
         assert_eq!(artifact.binder_index(binder).unwrap(), index);
         assert_eq!(artifact.use_index(occurrence).unwrap(), index);
     }
-    assert_eq!(artifact.pending.len(), 6);
+    // FVIEW §§2,5 require unresolved shared-component source formation; counting
+    // its per-call reference records that obligation without semantic acceptance.
+    assert_eq!(artifact.pending.len(), 8);
     for call in [&artifact.body, inner] {
         let premises = artifact
             .pending
@@ -121,7 +123,8 @@ fn shadow_source_core_retains_compose_structure_and_pending_premises() {
             vec![
                 Premise::CallableRole,
                 Premise::FullFunctionMembership,
-                Premise::CallViewRealization
+                Premise::CallViewRealization,
+                Premise::QIndependentSourceCallViewFormation
             ]
         );
     }

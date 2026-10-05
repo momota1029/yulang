@@ -334,6 +334,11 @@ pub enum Premise {
     CallableRole,
     FullFunctionMembership,
     CallViewRealization,
+    /// Unmet source producer obligation: original query-independent shared-component
+    /// contract/receipt formation, referenced by this call. Typed capture attachment
+    /// is a separate obligation. Pending `Q`/comparison success cannot discharge
+    /// this premise; recording it supplies no fact or semantic acceptance.
+    QIndependentSourceCallViewFormation,
 }
 
 #[derive(Debug)]
@@ -845,6 +850,7 @@ impl Skeleton {
                 Premise::CallableRole,
                 Premise::FullFunctionMembership,
                 Premise::CallViewRealization,
+                Premise::QIndependentSourceCallViewFormation,
             ] {
                 self.pending.push(PendingPremise {
                     call: id.clone(),
@@ -1346,11 +1352,12 @@ mod tests {
             );
         }
         assert_eq!(skeleton.uses().len(), 3);
-        assert_eq!(skeleton.pending().len(), 3);
+        assert_eq!(skeleton.pending().len(), 4);
         for (pending, expected) in skeleton.pending().iter().zip([
             Premise::CallableRole,
             Premise::FullFunctionMembership,
             Premise::CallViewRealization,
+            Premise::QIndependentSourceCallViewFormation,
         ]) {
             assert_eq!(pending.call(), call);
             assert_eq!(pending.premise(), expected);
@@ -1405,7 +1412,7 @@ mod tests {
         let skeleton = artifact.skeleton().unwrap();
         assert_eq!(skeleton.expressions().len(), 7);
         assert_eq!(skeleton.uses().len(), 3);
-        assert_eq!(skeleton.pending().len(), 3);
+        assert_eq!(skeleton.pending().len(), 4);
         assert_eq!(
             skeleton
                 .binders()
@@ -1644,7 +1651,7 @@ mod tests {
         let artifact = ShadowArtifact::from_parsed(parsed(&source)).unwrap();
         let skeleton = artifact.skeleton().unwrap();
         assert_eq!(skeleton.expressions().len(), 17);
-        assert_eq!(skeleton.pending().len(), 24);
+        assert_eq!(skeleton.pending().len(), 32);
         assert_eq!(skeleton.uses().len(), 9);
         drop(artifact);
     }
@@ -1685,7 +1692,7 @@ mod tests {
         skeleton.body = skeleton.project(synthetic, &source, &positions).unwrap();
         skeleton.validate().unwrap();
         assert_eq!(skeleton.expressions().len(), 8_001);
-        assert_eq!(skeleton.pending().len(), 12_000);
+        assert_eq!(skeleton.pending().len(), 16_000);
         assert_eq!(skeleton.uses().len(), 4_001);
         drop(skeleton);
     }
@@ -1707,7 +1714,7 @@ mod tests {
             skeleton.expression(argument).unwrap().form(),
             Form::Use { .. }
         ));
-        assert_eq!(skeleton.pending().len(), 3);
+        assert_eq!(skeleton.pending().len(), 4);
     }
 
     #[test]

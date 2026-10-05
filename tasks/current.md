@@ -46,6 +46,14 @@ issues; focused checks pass (27 HIR shadow tests and 3 core shadow feature
 tests). This supplies no typed capture attachment, receipt, `beta`/`Slots(beta)`,
 typed path, provider/receiver realization, or semantic discharge. See the
 [capture-use incidence slice](../notes/progress/2026-10-06-shadow-capture-use-incidence.md).
+The shadow `Apply` inventory now also carries an explicit pending
+`QIndependentSourceCallViewFormation` premise for O, the shared component's
+original contract/receipt formation. It is only a per-call reference to the
+unresolved shared producer; it creates no contract or receipt and cannot be
+discharged by Q. Capture attachment A remains separate in the pending closure
+correspondence. Pre-write and post-write spec review found no blocking issues;
+focused HIR/core shadow checks pass. See the
+[pending source-formation premise slice](../notes/progress/2026-10-06-shadow-pending-qind-source-formation.md).
 The default-off `yu-solver/shadow-f5` feature now exercises the exact common
 leaf cases `my f x = x` and `my f x = 42`: source ranges and the parameter-use
 or integer-literal structure align across shadow and current F5, and each F5
