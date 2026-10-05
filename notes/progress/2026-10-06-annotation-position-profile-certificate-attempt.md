@@ -1,7 +1,7 @@
 # Raw callback annotation to original position: stopped certificate attempt
 
 Date: 2026-10-06
-Status: unreviewed research-only obstruction; no source-generation theorem
+Status: compiler-referee reviewed research-only obstruction; no source-generation theorem
 Assigned baseline: `37739d7fc6e7e2cbe90a81812b735f8526a707e9`
 Assigned branch: `research/simple-sub-intrusion`
 Exclusive lease: this file only
@@ -196,7 +196,7 @@ No compiler edit, test, probe, build, formatter, child process wave or Git
 mutation was performed. Only short read/hash commands and this note's write
 were used; aggregate CPU, peak RSS and total wall time were not instrumented.
 No numeric process/CPU/RAM/wall-time budget was supplied in the assignment.
-The note is frozen upon handoff, with producer review only.
+The note was frozen on handoff before independent review.
 
 ## Recommended next evidence
 
@@ -213,8 +213,10 @@ decision to the primary rather than supplying a profile by assumption.
 - Baseline SHA: `37739d7fc6e7e2cbe90a81812b735f8526a707e9`.
 - Changed dependency hashes: none; snapshot above. Artifact hash is returned
   separately to avoid a self-referential file hash.
-- Review status: unreviewed research-only obstruction; producer inspection
-  does not count as independent review; no authority or closed gate claimed.
+- Review status: compiler-referee found no blocking, major or minor issue in
+  the bounded derivation; no authority or closed gate claimed. Review covered
+  the certificate boundary and its cited formation contracts, not source
+  adequacy or production elaboration.
 - Checks already run: baseline/branch, dependency diff, committed question
   bundle equality and semantic/provenance hashes; no tests/builds/probes.
 - Proposed message: `research: record raw annotation position certificate blocker`.

@@ -624,16 +624,37 @@ module at `crates/yu-hir/src/tests/shadow_source_core.rs`.
 Candidate disposition for the next experimental steps: (1) ordinary Apply is
 preserved only at this detached parsed-source/HIR test seam; production
 `ResolvedExpr` still drops it. (2) source occurrence, binder and use identities
-are present in the prototype, branded to one artifact. (3) source ranges are
-present, but annotation occurrences and typed source boundaries are not. (4)
+are present in the prototype, branded to one artifact. (3) a second `cfg(test)`
+source shadow now retains every raw CST node/token, full owner path, range and
+annotation occurrence identity; each annotation's typed-port/profile link stays
+pending. The first shadow still has no typed source boundary. (4)
 `beta`/`Slots(beta)` are absent. (5) typed paths, owner/receiver and provenance
-are absent. (6) there is no generalized SCC interface. (7) recursive Q/R
+are absent; retained CST paths are syntax provenance only. (6) there is no
+generalized SCC interface. (7) recursive Q/R
 identity and use-time freshening are absent. (8) callable role, Function
 membership and call-view realization are explicit pending premises. (9) the
 only comparison is structural against an existing test-only candidate; there
 is no executable frozen-legacy/old-infer runner on the Apply input. Thus the
-first slice establishes identity-preserving syntax plumbing and honest
-unresolved obligations only. The next bounded implementation candidate is to
+slices establish identity-preserving syntax plumbing and honest unresolved
+obligations only. The first uses `my compose f g x = f (g x)`;
+the second uses clean parser fixtures to distinguish a leading row from an
+arrow-owned row and keeps two nested call stages distinct. A whole-CST
+comparison confirms retention against the parser tree; neither slice compares
+inferred semantics with old infer. The second slice received compiler-referee
+PASS after a minor wording repair in its parallel discriminator note. See
+`crates/yu-hir/src/tests/shadow_annotation_positions.rs` and the
+[annotation-profile falsification](../notes/progress/2026-10-06-annotation-profile-source-falsification.md).
+The constructive source derivation still stops before mapping the raw
+annotation occurrence to its completed typed endpoint/profile under the shared
+`(nu,K,D)` assignment. A distinct retained-parser control falsifies occurrence
+keys using only enclosing `TypeExpression` plus Function depth: the leading row
+and arrow-owned row collide on both coordinates. The source-profile attack and
+certificate boundary received compiler-referee review; the one minor wording
+precision repair does not change either result. The new annotation shadow is
+only raw-CST retention, not the missing typed association. See the
+[certificate attempt](../notes/progress/2026-10-06-annotation-position-profile-certificate-attempt.md)
+and the [reviewed falsification](../notes/progress/2026-10-06-annotation-profile-source-falsification.md).
+The next bounded implementation candidate is to
 promote that product behind an opt-in `yu-core::shadow` API, retaining the
 current HIR ownership boundary and adding no production consumer; this requires
 its own M2 review before implementation. The theory lane continues

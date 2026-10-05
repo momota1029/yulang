@@ -1,7 +1,7 @@
 # Annotation/profile source preservation: bounded falsification
 
 Date: 2026-10-06
-Status: Frozen unreviewed research-only evidence; no semantic or implementation authority
+Status: Independently reviewed conditional occurrence-key discriminator; source semantics remain open
 Assigned baseline: `37739d7fc6e7e2cbe90a81812b735f8526a707e9`
 Exclusive lease: this file only
 Method: adversarial premise inversion and retained parser-contract inspection
@@ -184,8 +184,11 @@ subtraction, dynamic activation, or membership result is inferred.
 Omitted: running the existing syntax controls, whole-definition acceptance,
 raw resolution, production HIR/profile construction, recursion/generalization,
 inference/principality, full Option A/Option 2 membership/admission, dynamic
-protection lifetime and production conformance. The artifact freezes before
-review and does not certify itself.
+protection lifetime and production conformance. Independent compiler-referee
+review found no blocking or major issue and one minor precision issue; the
+primary narrowed the deletion-minimality claim to row/arrow deletion without
+changing the result. The review certifies only this bounded artifact, not
+source semantics or production conformance.
 
 Recommended next action: require the constructive occurrence/profile certificate
 to retain the arrow-versus-leading-row owner as well as nesting depth, and
@@ -200,8 +203,9 @@ derivation; do not enlarge a transport checker that assumes that association.
   call-view hash differs because its baseline preceded §1.1, which this artifact
   explicitly uses. Current call-view SHA-256 is
   `4b3363b79901e84b87cc8e02b59b023ff82c33e76d0be6d255e2b7bbab1a65c1`.
-- Review status: frozen unreviewed research-only bounded falsification; no
-  independent review, semantic theorem closure or implementation authority.
+- Review status: compiler-referee PASS on bounded claim; one minor precision
+  repair recorded in `3fbeab78c`; no semantic theorem closure or implementation
+  authority.
 - Checks already run: narrow selected-rule/parser-contract inspection and
   direct dependency byte/hash check. Final lease/hash recheck is returned to
   the primary without a self-referential artifact hash in this file.
