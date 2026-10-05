@@ -58,6 +58,12 @@ This index is a navigation aid. The listed source document remains authoritative
   point, not the meaning of `'e?`; it does not establish source attribution,
   release lifetime, or adequacy. See its
   [progress record](../progress/2026-10-05-handler-protection-path-projection.md).
+  [`research_handler_protection_filter.py`](../../tools/research_handler_protection_filter.py)
+  checks a conditional filter over supplied `Inc_C` witnesses. It keeps raw
+  incidence and `Grant` intact while filtering only protection, and rejects a
+  mutant that removes released witnesses from both queries. It does not derive
+  the source release predicate. See its
+  [derivation record](../progress/2026-10-05-handler-protection-filter-derivation.md).
 
 - **Executable proof-search direction:**
   [inference research playgrounds](2026-10-04-inference-research-playgrounds.md)

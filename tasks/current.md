@@ -747,9 +747,18 @@ hypothesis for locating the slot-local release point; it is not the meaning of
 evidence independent from the protection query and characterizes overlapping
 paths, latent observations, expiry, and cycles, but proves neither the source
 attribution nor that this path predicate is the correct release lifetime.
-The next concrete gate is to derive what makes a contribution leave the
-annotated slot, when only its handler protection is removed, and how ordinary
-handler eligibility resumes while provenance and transport remain intact.
+The conditional relation can reuse existing evidence without a new carrier:
+define `Protected?` by keeping only unreleased `Inc_C` witnesses, leave raw
+`Inc_C` and `Grant` unchanged, then use the existing `Visible`/ordered-search
+rule. Filtering `Inc_C` from both protection and grant is wrong: a released
+receiver-local grant may still discharge an independent inherited protection.
+The finite checker covers 4,096 witness/activity combinations and shrinks this
+overlap failure. The remaining source premise is one slot-indexed rule that
+selects exactly which existing protection witnesses stop applying, and when,
+for an already `'e`-attributed contribution leaving the marked slot. It must
+preserve other protections and every raw provenance/transport fact. Neither
+lineage nor route crossing supplies this rule. See the
+[conditional filter derivation](../notes/progress/2026-10-05-handler-protection-filter-derivation.md).
 See the [protection-release probe record](../notes/progress/2026-10-05-handler-protection-release-playground.md)
 and the [candidate path-projection record](../notes/progress/2026-10-05-handler-protection-path-projection.md).
 An architect cross-check found no counterexample among the seven accepted
