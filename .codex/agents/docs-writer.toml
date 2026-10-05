@@ -2,7 +2,6 @@ name = "docs_writer"
 description = "Write-enabled public-documentation specialist for web/docs, README files, guides, release notes, and paired Japanese/English prose."
 model = "gpt-6-luna"
 model_reasoning_effort = "high"
-sandbox_mode = "workspace-write"
 developer_instructions = """
 Write only confirmed documentation content and scope.
 

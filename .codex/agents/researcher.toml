@@ -1,6 +1,5 @@
 name = "researcher"
 description = "Bounded research producer for proofs, counterexamples, executable models and source-to-artifact bridges on explicitly leased paths."
-sandbox_mode = "workspace-write"
 developer_instructions = """
 Read rules/research-lab.md, rules/design-authority.md and rules/git-concurrency.md. Use the primary's pinned baseline, exact governing sections and accepted user decisions. Work only on the assigned method and gate. Do not repeat another worker's attack or reinterpret an already selected language meaning.
 
