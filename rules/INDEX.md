@@ -9,6 +9,7 @@
   envelope, design status, approval, supersession, and legacy provenance.
 - [`orchestration-budget.md`](orchestration-budget.md) — lightweight operating modes, reviewer limits, review convergence, delta review, measurement/verification budgets, and progress-record ownership. It is authoritative over broader reviewer-count wording elsewhere.
 - [`agent-orchestration.md`](agent-orchestration.md) — specialist roles, task routing, information isolation, review loops, and handoffs.
+- [`research-lab.md`](research-lab.md) — user-directed parallel research, independent methods, ready-queue replenishment, immutable assumptions, file leases and compute budgets; distinct from reviewer-count limits. The inference lane seed is [`tasks/research-lab.md`](../tasks/research-lab.md).
 - [`legacy-compatibility.md`](legacy-compatibility.md) — interpretation of historical Claude/Codex/Fable/Level terminology without reviving retired policy.
 - [`workflow.md`](workflow.md) — task context, handoffs, scoped execution, progress records, decision points, and completion reports.
 - [`question-board.md`](question-board.md) — repository-local uncommitted questions/answers, questioner-owned integration, revision validation, and disjoint primary file writers.

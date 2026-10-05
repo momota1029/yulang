@@ -32,6 +32,7 @@ replacement for the source document.
 Inspect only the context needed for the task:
 
 - `tasks/current.md`;
+- `tasks/research-lab.md` for an active multi-gate inference research goal;
 - `notes/design/INDEX.md` and the governing section;
 - relevant `spec/` material;
 - a relevant handoff or daily record;
@@ -62,16 +63,23 @@ come from `.codex/`, not historical tier names. Only the primary spawns or
 contacts subagents. Children return evidence and recommended handoffs; they do
 not inherit primary orchestration, approval, or Git duties.
 
-Proactively delegate bounded work when task classification identifies a concrete
-role-shaped unit for exploration, production, or independent review; do not
-wait for the user to request delegation. Keep every assignment within the
-selected M0–M3 reviewer budget and convergence criteria, and give it an
-explicit objective, scope, inputs, stop condition, and required report.
-Proactive use is not automatic fan-out: invoke only roles justified by required
-production or a named risk, parallelize only independent read-only work, and
-never run more than one write-capable child agent in the same working tree.
-The question-board exception for disjoint questioning/answering primary writers
-is defined in `rules/question-board.md`.
+Use `rules/research-lab.md` for proactive parallel research. When two useful
+assignments have independent inputs and safe ownership, dispatch them in
+parallel instead of completing one before starting the other. A sustained
+multi-gate research goal normally targets four to six useful active assignments,
+subject to actual runtime capacity, resource budgets, and integration capacity.
+Keep proof construction, counterexample search, executable experiments, and
+source/legacy correspondence as distinct methods rather than duplicate prompts.
+M0–M3 reviewer limits apply per coherent artifact; they are not a cap of one
+research producer for the whole goal. Small mechanical tasks stay small.
+
+Concurrent write-capable children are allowed on explicitly leased disjoint
+files under `rules/git-concurrency.md`. Overlapping writes or unstable shared
+dependencies require separate worktrees or serialization of only that seam.
+One primary owns each worktree's Git integration. Each packet fixes authority,
+baseline, inputs, owned outputs, resource budget, checks, and stop conditions.
+Do not expand language semantics or production implementation authority merely
+because more workers are available.
 
 Use subagents as the primary working mechanism for bounded exploration,
 implementation, and independent review whenever a role-shaped unit exists.
@@ -82,6 +90,8 @@ subagent does not transfer those responsibilities.
 - Use built-in `explorer` for read-heavy repository mapping.
 - Use `architect` for unresolved decisions or behavior, including cross-layer questions not already settled by an Authoritative gate.
 - Use `implementer` for confirmed code changes.
+- Use `researcher` for bounded proof, counterexample, and executable-model production on leased research paths.
+- Use `theory_curator` for meaningful theory-status/dependency synchronization, not new proofs or per-probe bookkeeping.
 - Use `compiler_referee` for semantics, root cause, soundness, recovery, and IR invariants.
 - Use `spec_auditor` for exact design/spec/test-contract conformance.
 - Use `regression_auditor` for sibling paths, fixtures, diagnostics, parity, and public surfaces.
@@ -123,8 +133,11 @@ blank templates are infrastructure, not pending questions.
 
 Before work, choose the lightest sufficient M0–M3 mode, set reviewer,
 verification, and measurement budgets, and state the convergence criteria. The
-role catalog is not a mandatory panel. Adjudicate all assigned findings before
-sending one batched repair bundle to one implementer.
+role catalog is not a mandatory panel. Separate the research concurrency budget
+from each artifact's reviewer budget. Adjudicate all reviews assigned to that
+artifact before one batched repair; unrelated lanes keep running. The primary
+coordinates the critical path and integrates evidence rather than personally
+performing every proof, probe, and record update in sequence.
 
 The primary's own reread does not count as independent review. A producer never
 certifies its own output. Subagents do not stage, commit, push, rewrite history,
@@ -157,10 +170,11 @@ work, makes safe integration impossible, or requires a genuine user decision.
 - Do not run an unfamiliar broad or heavy test suite before checking its current resource behavior.
 - Do not repeat broad checks after record-only or comment-only updates.
 - Do not blanket-stash, hard-reset, or clean a working tree that may contain valuable concurrent work.
-- Do not run two write-capable agents in the same working tree. The sole
-  question-board exception permits questioning/answering primaries on disjoint
-  owned paths under `rules/question-board.md`; it does not permit concurrent
-  write-capable child agents.
+- Never assign simultaneous writers to the same file or shared mutable output.
+  Disjoint-file child writers require explicit leases and stable read inputs
+  under `rules/git-concurrency.md`; otherwise use separate worktrees or serialize
+  the overlapping seam. Children never mutate the Git index or branch refs.
+  Keep the question-board's separate primary-only approval/integration duties.
 - The primary must explicitly set `fork_turns: "none"` on every
   supported `spawn_agent` call. Children do not re-delegate. Do not inherit parent
   conversation history. Supply the required task scope, governing sources,
@@ -174,6 +188,7 @@ work, makes safe integration impossible, or requires a genuine user decision.
 - overall rule index: `rules/INDEX.md`
 - operating modes, reviewer limits, review convergence, delta review,
   measurement and record budgets: `rules/orchestration-budget.md`
+- parallel research, assignment packets, replenishment, and compute budgets: `rules/research-lab.md`
 - workflow and handoffs: `rules/workflow.md`
 - goal-driven questions and approved answer handoffs: `rules/question-board.md`
 - compiler structure and diagnostics: `rules/compiler-engineering.md`

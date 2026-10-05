@@ -16,6 +16,23 @@ an agent role is not a reason to invoke it. Uncertainty must be tied to a named
 semantic, conformance, regression, performance, or public-surface risk before
 it raises the mode.
 
+## Research concurrency is a separate budget
+
+The user-directed small-laboratory policy is in [`research-lab.md`](research-lab.md).
+Independent research producers and experiments are not reviewers. The limits
+below govern review of one coherent artifact/repair dependency component, not
+all useful work in a multi-gate goal. Keep one writer/repair pass per leased
+file set; other independent file sets may progress concurrently under
+[`git-concurrency.md`](git-concurrency.md). Do not divide one inseparable change
+into artificial artifacts to bypass its review budget.
+
+Launch independent work once two useful packets are ready; sustained research
+normally targets four to six active assignments, bounded by runtime and compute
+capacity. A critical open gate should normally receive different proof,
+falsification, and source/implementation-conformance attacks before another
+serial round of similar probes. This does not require a larger review panel,
+more expensive models, or parallel heavyweight builds.
+
 ## Operating modes
 
 ### M0 — mechanical / records
@@ -126,9 +143,11 @@ The active matrix in `rules/agent-orchestration.md` is narrowed as follows.
 - **Expected output:** pre-write `spec_auditor` remains mandatory. Post-write,
   use one relevant closure reviewer unless the approved contract change is M2
   or M3.
-- **Internal progress records:** primary updates them under M0. Do not invoke
-  `docs_writer`, code reviewers, broad tests, or a new review round merely for
-  bookkeeping.
+- **Internal progress records:** the primary owns synchronization under M0.
+  A `theory_curator` may own explicitly leased theory-map files and report
+  status/dependency changes; the primary adjudicates and integrates them.
+  Do not invoke `docs_writer`, a review panel, or broad tests for bookkeeping.
+  Do not block another research lane while a record-only update completes.
 
 ## Delta review
 
@@ -150,8 +169,11 @@ review honest without paying for a complete reread.
 
 ## Finding batching and convergence control
 
-- Wait for all assigned reviewers, adjudicate their findings, then send one
-  repair bundle to one fresh `implementer`.
+- For the same frozen artifact, wait for its assigned reviewers, adjudicate
+  their findings, then send one repair bundle to one fresh producer. Use
+  `implementer` for confirmed code and `researcher` for research-only artifacts.
+  This barrier is artifact-local: do not wait for unrelated lanes, experiments,
+  or reviews before starting their next safe work or integrating a ready slice.
 - Do not start one implementer session per finding.
 - Minor findings may be closed with a reason.
 - A minor-only textual/test-comment repair that changes no semantics can close
@@ -193,7 +215,8 @@ coherent gate or task complete, it updates as applicable:
   approval, or supersession changed;
 - review/finding records when the task has one.
 
-The implementer should report the proposed record delta, but the primary agent
-must ensure it is actually written. Record updates are M0 and do not trigger a
+The producer should report the proposed record delta. The primary may delegate
+an explicitly leased record set to `theory_curator`, but must adjudicate status
+changes and ensure the files are actually synchronized. Record updates are M0 and do not trigger a
 new code-review panel or broad verification. If synchronization is intentionally
 deferred, the final report names the exact path and reason.

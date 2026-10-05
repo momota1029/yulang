@@ -6,6 +6,8 @@ selection (normally Luna), with bounded specialists for the named risks below.
 `rules/orchestration-budget.md` controls activation, reviewer counts, convergence,
 verification and measurement budgets. This file defines responsibilities, not a
 second mandatory panel. `rules/design-authority.md` controls product authority.
+[`research-lab.md`](research-lab.md) controls proactive producer parallelism,
+method diversity, dependency-scoped scheduling, and compute coordination.
 
 ## Primary responsibility
 
@@ -15,6 +17,10 @@ reports isolated, adjudicates evidence, batches accepted repairs, and owns user
 questions, progress-record synchronization, staging, commits, PRs, and pushes.
 Only the primary spawns or contacts subagents. Children execute their assigned
 role and recommend handoffs; they do not inherit orchestration or Git duties.
+The primary normally keeps independent ready research packets running rather
+than executing every investigation itself. Maintain a small ready/running/
+review/blocked queue and refill useful capacity after a result arrives. A
+blocked semantic question pauses its dependent packets, not the entire lab.
 
 Resolve routine choices from the request, Authoritative gate, and repository
 before asking the user. A settled implementation does not need approval again.
@@ -28,7 +34,9 @@ The primary's reread and a producer's self-review do not count as independent re
 |---|---|---|
 | built-in `explorer` | read-only | map files, symbols, entrypoints, call paths, and current state |
 | `architect` | read-only | unresolved design, invariants, gates, rollback and decisions |
-| `implementer` | workspace-write | implement confirmed design or accepted findings |
+| `implementer` | workspace-write | implement confirmed design or accepted findings on leased files |
+| `researcher` | workspace-write | construct proofs, counterexamples, checkers and bounded prototypes on leased research-only paths; no semantic adoption or self-certification |
+| `theory_curator` | workspace-write | synchronize leased theory maps after meaningful adjudicated changes; no new proofs or semantic decisions |
 | `compiler_referee` | read-only | adversarial semantics, root cause, soundness and invariant review |
 | `spec_auditor` | read-only | exact design/spec/test-contract conformance |
 | `regression_auditor` | read-only | sibling paths, public surfaces, fixtures, diagnostics and parity |
@@ -93,12 +101,16 @@ budget's M2 rule rather than treating `scope = cross-layer` as an automatic gate
 
 The review column lists eligible risk coverage under the selected M0–M3 budget,
 not reviewers to start together. M0 normally has zero; M1 normally one; M2 at
-most two; M3 at most three. The expected-output pre-write gate below is retained.
+most two; M3 at most three, per coherent artifact. These are not producer or
+whole-goal concurrency limits. The expected-output pre-write gate is retained.
 
 | task | pre-write | producer | review selection under the budget |
 |---|---|---|---|
 | file/symbol/current-state lookup | primary or built-in `explorer` | — | none |
 | read-only root cause | focused exploration; `architect` only for unresolved design | — | `compiler_referee` for difficult semantics |
+| open proof/conjecture or production bridge | freeze statement, source assumptions and exclusions | parallel `researcher` packets with different methods; `explorer`/`architect` for read-only source work | fresh `compiler_referee` for closure; add `spec_auditor` only for a distinct conformance risk |
+| exhaustive/differential/mutation experiment | named hypothesis, independent oracle scope and resource envelope | `researcher` on unique research paths | review the model's assumptions and independence, not only green counts |
+| theory status/supersession/dependency change | adjudicated result and exact evidence | `theory_curator` on leased maps | M0 synchronization; disputed mathematical implication returns to review |
 | typo/format/fully specified rename or internal records | — | primary or one producer | M0 deterministic checks; optional integrity review only for a named risk |
 | existing Authoritative gate | reuse settled design | `implementer` | `spec_auditor` or `regression_auditor`; both only for independent exposed risks |
 | pure refactor/module split | `architect` only if design is insufficient | `implementer` | normally `regression_auditor`; exact topology contract may need `spec_auditor` |
@@ -115,7 +127,9 @@ most two; M3 at most three. The expected-output pre-write gate below is retained
 Use concise technical English for child instructions and reports. Give the
 question/deliverable, revision and worktree, governing sources, allowed reads and
 owned write paths, confirmed decisions, non-goals, checks and one verification
-owner, budget, and stop condition. Prefer exact file/section locators over full
+owner, budget, and stop condition. Research packets also name the method,
+expected falsifier, dependency version, output lease, and promotion boundary;
+use the compact packet in `rules/research-lab.md`. Prefer exact locators over full
 chat histories and raw logs; retain all necessary semantic assumptions.
 
 Every native spawn explicitly uses `fork_turns: "none"` when the schema supports
@@ -137,12 +151,21 @@ assigned; a producer reports the proposed record delta.
 - `performance_auditor`: changed path, call frequency, loops/worklists, ownership
   and measurements; a producer's performance claim is not evidence.
 
-Keep reviewer reports mutually hidden until all assigned reviewers finish.
-Parallelize independent read-only child work only. Never run two write-capable
-child agents in one working tree. The question-board exception for disjoint
-questioning/answering primary writers follows `rules/question-board.md` and
-grants no child Git or concurrency rights. Preserve role permissions regardless
-of model.
+Keep reports of reviewers assigned to the same frozen artifact mutually hidden
+until they finish. Producers may work concurrently under explicit disjoint-file
+leases or in separate worktrees, as specified in `rules/git-concurrency.md`.
+Reviewers read a pinned revision or frozen artifact/dependency snapshot, not a
+moving live diff. A different research author is not automatically an independent
+reviewer of a result they helped construct. Preserve role permissions regardless
+of model. The question-board workflow remains primary-only; research children
+neither edit its answer bundles nor acquire Git rights.
+
+`researcher` may explore an explicitly labeled candidate or added hypothesis
+without adopting it. Production code remains the `implementer`'s confirmed-scope
+work; a research packet does not authorize bypassing existing inference gates.
+`theory_curator` receives accepted conclusions and locators, never authority to
+promote a bounded probe to a theorem. Neither role edits another worker's files,
+spawns children, changes model policy, or integrates Git.
 
 ## Findings and repair loop
 
