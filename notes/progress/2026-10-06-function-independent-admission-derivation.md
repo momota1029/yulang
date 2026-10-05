@@ -176,13 +176,15 @@ effect denotation. This derivation uses the inventory as a committed bounded
 source characterization; it does not independently re-audit its code paths.
 
 Supply a decorated, independently typed direct-call context with callable
-and carrier holes, no other free values and no eligible handler. Let `B`
-be the initial configuration and let `r_id` be its actual receiver receipt.
-Use two inert carriers:
+and carrier holes, no other free values and no eligible handler. Let `B_0`
+be the caller's configuration before entry. Establishing the invocation creates
+its actual receiver activation, complete executing view and receipt `r_id`,
+yielding current entry configuration `B_e`. Use two inert carriers, whose
+designated `Force_argument` executions occur only after this entry step:
 
 ```text
-t_0 : designated execution Return(0,B), result path Int
-t_q : designated execution Request(q,Unit,B,k), result path Int
+t_0 : designated Force_argument execution Return(0,B_e), result path Int
+t_q : designated Force_argument execution Request(q,Unit,B_e,k), result path Int
 k(z,B') = Return(z,B') for a response z : Int.
 ```
 
@@ -223,13 +225,16 @@ S(z,B') = RebindResultPath(t,z,B'); result(x=z); ReturnFromInvocation.
 The two reductions under the supplied premises are:
 
 ```text
-Invoke(id,t_0,B)
-  = establish r_id; Force_argument(t_0) >>= S
-  = establish r_id; S(0,B).
+Invoke(id,t_0,B_0)
+  = enter from B_0, establishing (r_id,B_e);
+    Force_argument(t_0,B_e) >>= S
+  = enter from B_0, establishing (r_id,B_e); S(0,B_e).
 
-Invoke(id,t_q,B)
-  = establish r_id; Force_argument(t_q) >>= S
-  = establish r_id; Request(q,Unit,B, lambda(z,B'). k(z,B') >>= S).
+Invoke(id,t_q,B_0)
+  = enter from B_0, establishing (r_id,B_e);
+    Force_argument(t_q,B_e) >>= S
+  = enter from B_0, establishing (r_id,B_e);
+    Request(q,Unit,B_e, lambda(z,B'). k(z,B') >>= S).
 ```
 
 The second follows directly from typed-core §9 and Theorem C §2.3's bind
