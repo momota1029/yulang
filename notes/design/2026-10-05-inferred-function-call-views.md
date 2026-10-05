@@ -6,6 +6,7 @@ Approved-by: user, through integrated `function-call-view-formation/q1` answer `
 Approved-at: 2026-10-05
 Drafted-by: primary
 Reviewed-by: `spec_auditor` (pre-write scope audit and closure conformance review; no findings)
+Clarified-by: user, 2026-10-05 — written/source annotation types, inferred public types, and internal evidence-rich views are distinct layers
 Supersedes: none; narrows the open formation obligation in callback-context delivery §2 without changing its B contract
 
 This document makes authoritative only the user-approved direction and scope
@@ -37,6 +38,54 @@ approved annotation-boundary behavior, and all other recorded user decisions
 remain in force. This document supplies no production-only membership rule and
 does not identify production membership with a source-generated reference
 relation.
+
+## 1.1 Source annotations, inferred public types, and internal views are distinct
+
+Yulang does not identify a type written in source with either the inferred
+public scheme or the solver's internal evidence-rich view. This distinction is
+part of the existing language model and is reaffirmed here for the current
+Function-call-view work.
+
+There are at least three layers:
+
+1. **Source annotation / written contract.** Forms such as `_`, `[_]`, and
+   `f: _ -> [io] _` are source-level annotation syntax. They contribute
+   constraints, holes, visibility/capture permissions, and boundary contracts.
+   They are not required to be canonical internal type constructors or the
+   literal final inferred scheme.
+2. **Inferred public type / scheme.** Inference may produce normalized public
+   types that cannot be written directly with the same source syntax. Existing
+   documentation already permits inferred unions/intersections without stable
+   source annotation syntax, and treats `_` / `[_]` as annotation
+   placeholders rather than underlying type constructors.
+3. **Internal inference view and evidence.** Role candidates, handler
+   protection, directed stack/visibility evidence, typed paths, source
+   occurrences, owner/receiver relationships, and related proof coordinates
+   may refine an inferred occurrence internally. They are neither source-level
+   type syntax nor necessarily part of the ordinary printed public scheme.
+
+Consequently, an annotation such as `f: _ -> [io] _` must not be read as
+asserting that the inferred type of `f` is literally the written surface
+form. It supplies a source contract whose occurrence must be related to the
+completed inferred call view; its `io` clause grants the approved scoped
+permission at the corresponding original position. Likewise, the provisional
+fully protected Handler treatment of unannotated `f` is an **internal
+inference seed/view**, not a user-written type and not an actual callable-role
+fact.
+
+The later `NonHandlerFormal` result therefore refines or discharges that
+internal provisional inference state on the shared inferred interface. It does
+not rewrite a source annotation, does not rewrite the public type by textual
+substitution, and does not change the actual role/entry of a supplied callable.
+Candidate seed-elimination rules must be judged by the constraints and
+principality of the shared inferred relation, not by pretending that source
+type syntax itself is being rewritten.
+
+This separation is consistent with the pre-existing public references
+[Values & Types](../../web/docs/reference/types.md) and
+[Type Inference Theory](../../web/docs/reference/type-theory.md), which
+explicitly distinguish annotation placeholders, inferred-only type structure,
+and private/internal handler-hygiene evidence.
 
 ## 2. Source formation direction
 
