@@ -1,7 +1,8 @@
 # Exact nested-block candidate: conditional typed-core derivation
 
 Date: 2026-10-06
-Status: frozen conditional derivation; unreviewed research checkpoint; no implementation authority
+Status: frozen, independently reviewed conditional derivation; no implementation authority
+Independent review: compiler_referee found no BLOCKING, major, or minor findings; source generation and production acceptance remain open.
 Baseline: `81ceae2804d66142245384db298b8dfb3d0813a8`
 Branch: `research/simple-sub-intrusion`
 Exclusive lease: this file only

@@ -1,7 +1,8 @@
 # Returned `step`: static registration and later source-call activation
 
 Date: 2026-10-06
-Status: Frozen unreviewed conditional research derivation; no implementation authority
+Status: Frozen, independently reviewed conditional research derivation; no implementation authority
+Independent review: compiler_referee found no BLOCKING, major, or minor findings; source registration and production generation remain open.
 Baseline: `81ceae2804d66142245384db298b8dfb3d0813a8`
 Branch supplied by primary: `research/simple-sub-intrusion`
 Exclusive lease: this file only

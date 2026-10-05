@@ -1,7 +1,8 @@
 # Contextual valuation preservation for the exact recursive incoming row
 
 Date: 2026-10-06
-Status: frozen, unreviewed, research-only conditional derivation
+Status: frozen, independently reviewed, research-only conditional derivation
+Independent review: compiler_referee found no BLOCKING or major findings; the one MINOR source-precision finding on extrusion's guard was repaired below. Source permission preservation and source realization remain open.
 Baseline: `81ceae2804d66142245384db298b8dfb3d0813a8`
 Branch: `research/simple-sub-intrusion`
 Exclusive lease: this file only

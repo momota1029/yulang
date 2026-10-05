@@ -1,7 +1,8 @@
 # Nested block capture: deferred activation and evidence obligations
 
 Date: 2026-10-06
-Status: Frozen unreviewed research-only conditional derivation and shortcut audit
+Status: Frozen, independently reviewed research-only conditional derivation and shortcut audit
+Independent review: compiler_referee found no BLOCKING, major, or minor findings; activation transport and all-view adequacy remain open.
 Baseline: `81ceae2804d66142245384db298b8dfb3d0813a8`
 Branch: `research/simple-sub-intrusion`
 Exclusive lease: this file only

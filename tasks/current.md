@@ -483,12 +483,18 @@ while a separate reviewed result retains strictness of the joint exposed-root
 relation under its own hypotheses. The production audit fixes the negative
 Function port order and reduces each pure incoming use to the exact cyclic
 obligations `F²(ρ)≤ρ`, `ρ≤Top`, and `F²(ρ)≤U`; pure effect leaves discharge
-without row mutation. The remaining gate is the one-row existential valuation
-meaning for that live cyclic bound graph and its allowed target class. These
-conditional artifacts do not establish production denotation, source
-adequacy, or intended semantics. See the [member-use bridge](../notes/progress/2026-10-06-rec-name-return-member-scheme-bridge.md),
+without row mutation. The reviewed regular-tree carrier gives the isolated
+fiber projection, and a contextual completed-transition derivation now
+preserves the entire caller assignment, occurrence row, direct edges, and
+memo-owned mismatch marker under P1–P4. An independent compiler review found
+one minor omission in the extrusion guard description; that wording is
+repaired without changing the conditional result. The source permission law
+`(L)`, source realization, and selected target class remain open, so these
+artifacts do not establish production denotation, source adequacy, or intended
+semantics. See the [member-use bridge](../notes/progress/2026-10-06-rec-name-return-member-scheme-bridge.md),
 [joint-root separator](../notes/progress/2026-10-06-rec-name-return-root-relation-separator.md),
-and [pure production reduction](../notes/progress/2026-10-06-rec-name-return-purefun-production-reduction.md).
+[pure production reduction](../notes/progress/2026-10-06-rec-name-return-purefun-production-reduction.md),
+and [contextual live-row valuation](../notes/progress/2026-10-06-live-row-contextual-valuation-attempt.md).
 
 A reviewed regular-tree candidate computes the isolated one-row projection as
 `P(U) iff Ω≤U` within that explicitly unselected carrier. Separate hand
@@ -1106,15 +1112,22 @@ lexical resolution of `f`/`x`, and retention of the outer `f` capture. The
 [source interpretation addendum](../notes/design/2026-10-06-nested-block-function-source-realization-addendum.md)
 resolves the syntax architecture's deferred block-value meaning only for this
 candidate. Frozen legacy references remain compatibility evidence, not proof
-of current production acceptance or operational implementation. The
-[encoding audit](../notes/progress/2026-10-06-source-registration-existing-encoding-audit.md)
+of current production acceptance or operational implementation. A conditional
+typed-core derivation, activation-prefix falsifier, and call-view registration
+obligation extraction now have independent no-finding compiler reviews. They
+retain separate open premises: construction of the complete typed call and
+capture evidence, comparison-independent registration of the original
+formal/profile with the captured provider, and later receiver activation
+under the same joint `nu,K,D`. The [encoding audit](../notes/progress/2026-10-06-source-registration-existing-encoding-audit.md)
 and [legacy correspondence audit](../notes/progress/2026-10-06-source-registration-block-value-legacy-audit.md)
-continue to locate the production gaps: current HIR rejects composite bodies
-and application, and solver collection leaves nested Lambda bodies incomplete.
-Next: derive the conditional source-to-core block/capture correspondence under
-the approved semantics and existing typed-core rules, preserving typed-call
-and evidence-transport premises; then formalize the independent call-view
-registration premise. No implementation authority follows.
+locate the production gaps: current HIR rejects composite bodies and
+application, and solver collection leaves nested Lambda bodies incomplete.
+Next: derive or refute one Q-independent producer linking the original typed
+formal/profile to the captured provider and later active receiver under joint
+`nu,K,D`; preserve complete typed-call and all-view adequacy as separate gates.
+No implementation authority follows. See the [conditional core derivation](../notes/progress/2026-10-06-nested-block-function-conditional-core-derivation.md),
+[activation-prefix audit](../notes/progress/2026-10-06-nested-block-capture-evidence-falsification.md),
+and [registration attempt](../notes/progress/2026-10-06-nested-block-callview-registration-attempt.md).
 
 Four reviewed source-derivation attempts refine the dependency order without
 closing these gates. The [`call` source-rule audit](../notes/progress/2026-10-06-call-view-source-rule-derivation-attempt.md)
