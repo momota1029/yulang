@@ -124,6 +124,12 @@ generated. A separate reviewed [mixed-use relation attack](../notes/progress/202
 proves only the conditional set premise for safe discharge restriction; it
 does not distinguish completed source rules or establish a valid mixed-use
 program. Eligibility/aggregation and source formation remain open.
+The source-call boundary is now factored more narrowly: typed-core and
+source-contracts conditionally specify the complete `J_call` constructor once
+its decorated inputs are supplied. The missing producer is the source-to-typed
+incidence map and joint admissible fiber, not an absent operational constructor;
+this does not derive `F_cb`, `beta`/profile, receipt, `Phi_C`, or `Omega_S`.
+See the [conditional call-image boundary record](../notes/progress/2026-10-06-source-call-image-producer-boundary.md).
 The default-off shadow artifact now assigns separate branded identities to
 retained annotation occurrences, while preserving their raw CST positions and
 pending typed-port/profile links. Focused shadow HIR tests and `yu-core` checks
