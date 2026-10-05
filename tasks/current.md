@@ -1013,6 +1013,17 @@ reusing its inferred component at `f`'s argument port is not a written capture
 contract. Existing witnessed partial subtraction inside `f`'s contravariant
 descriptor remains governed by its current attachment evidence.
 
+The returned-provider membership subgate now has an independently reviewed,
+conditional source/reference derivation and a separate production-oracle
+blocker. A quiet provider and an operation-capturing returned closure are
+distinguished only after future invocation; both the comparison-independent
+`A_A` admission bridge and recursive `DescMem_A` constructor bridge remain
+underived. The finite projection audit supplies no separate product-of-port-
+marginals counterexample, and the pure-carrier pair cannot test dropping `d+`.
+Neither artifact selects production clauses or closes Option 2 conformance:
+[returned-provider derivation](../notes/progress/2026-10-06-descmem-provider-derivation.md),
+[projection blocker](../notes/progress/2026-10-06-descmem-projection-falsification.md).
+
 Historical callback adequacy exploration and its earlier gate descriptions
 remain in the linked progress records above and
 [callback compositional premise](../notes/progress/2026-10-04-callback-compositional-premise.md).
