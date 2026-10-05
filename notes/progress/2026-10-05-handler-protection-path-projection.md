@@ -35,6 +35,21 @@ Family-wide release, sticky protection, and provenance/Path erasure mutants
 are rejected. Product-state reachability tracks whether a typed path crossed
 the exact marker without making raw path or incidence depend on that marker.
 
+The graph-query implementation also has a finite exactness check independent
+of those hand-selected cases. Its state space is `(typed-position,
+crossed-marker)` with at most `2|V|` states. Worklist reachability is sound by
+construction of each transition from one supplied `Flow` edge; it is complete
+because every finite marked/unmarked walk induces a path in this product graph.
+Any reachable state has a simple product-state witness of at most
+`2|V|-1` edges, so bounded raw-walk enumeration to that length is a complete
+oracle even when the input graph is cyclic. Differential comparison checked
+all 37,124 graph/marker/source/target configurations across 530 directed
+`Flow` graph structures through three typed positions. This validates the query against the
+supplied graph only; it exercises `graph_release_states`, not the full
+`release_route_states` path-filter layer. It does not establish that route
+crossing is the meaning of `'e?` or identify the source-selected release
+lifetime.
+
 The result suggests that a protection-only query projection could reuse
 `Rel_C`-shaped `Profile`/`Flow`/`Observe`/`Receive`/`Path`/`Inc_C` evidence
 without rewriting event provenance or adding a persistent carrier, provided
@@ -53,6 +68,7 @@ Verification:
 ```text
 PYTHONDONTWRITEBYTECODE=1 python3 tools/research_handler_protection_path_projection.py
   pass: 17 bounded evidence cases; three mutants rejected
+  pass: 37,124 graph/marker/source/target configurations across 530 Flow graphs agree with bounded raw walks
 git diff --check
   pass
 ```

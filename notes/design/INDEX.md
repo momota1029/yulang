@@ -33,8 +33,9 @@ This index is a navigation aid. The listed source document remains authoritative
 - **Exploratory handler-protection notation:**
   [handler protection-release notation](2026-10-05-handler-hygiene-public-provenance-notation.md)
   is Draft only. The user's corrected meaning for `'e?` is to release handler
-  protection from `'e`-derived contributions at that slot while preserving
-  provenance, row support, event identity and dependencies. It is neither an
+  protection from an already `'e`-attributed contribution leaving that slot,
+  preserving its provenance/source component and row facts. Event identity and
+  lineage are preserved evidence, not the marker's meaning. It is neither an
   optional-flow marker nor a provenance edge, and it does not perform handler
   subtraction. Attribution, release timing, ordinary post-release eligibility,
   overlap composition and projection from current evidence remain open. It
@@ -54,9 +55,11 @@ This index is a navigation aid. The listed source document remains authoritative
   [progress record](../progress/2026-10-05-handler-protection-release-playground.md).
   [`research_handler_protection_path_projection.py`](../../tools/research_handler_protection_path_projection.py)
   checks one candidate query-time projection over supplied typed-path
-  evidence. Route crossing is only a hypothesis for locating the release
-  point, not the meaning of `'e?`; it does not establish source attribution,
-  release lifetime, or adequacy. See its
+  evidence. Its product-state query agrees with bounded raw-walk enumeration
+  on 37,124 graph/marker/source/target configurations across 530 directed graphs through three typed positions. Route crossing
+  is only a hypothesis for locating the release point, not the meaning of
+  `'e?`; it does not establish source attribution, release lifetime, or
+  adequacy. See its
   [progress record](../progress/2026-10-05-handler-protection-path-projection.md).
   [`research_handler_protection_filter.py`](../../tools/research_handler_protection_filter.py)
   checks a conditional filter over supplied `Inc_C` witnesses. It keeps raw

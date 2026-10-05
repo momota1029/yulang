@@ -142,6 +142,54 @@ def release_route_states(case: Case, witness: PathWitness) -> frozenset[bool]:
     return frozenset(outcomes)
 
 
+def graph_release_states(size: int, edges: frozenset[tuple[int, int]],
+                         marks: frozenset[int], source: int,
+                         target: int) -> frozenset[bool]:
+    """Product-graph reachability for a finite typed Flow graph."""
+    adjacency = {node: [] for node in range(size)}
+    for left, right in edges:
+        adjacency[left].append(right)
+    initial = (source, source in marks)
+    queue = deque([initial])
+    seen = {initial}
+    outcomes: set[bool] = set()
+    while queue:
+        node, crossed = queue.popleft()
+        if node == target:
+            outcomes.add(crossed)
+        for nxt in adjacency[node]:
+            state = (nxt, crossed or nxt in marks)
+            if state not in seen:
+                seen.add(state)
+                queue.append(state)
+    return frozenset(outcomes)
+
+
+def bounded_walk_release_states(size: int, edges: frozenset[tuple[int, int]],
+                                marks: frozenset[int], source: int,
+                                target: int) -> frozenset[bool]:
+    """Independent bounded-walk reference for the finite product query.
+
+    The product graph has 2*size states, so any reachable outcome has a
+    simple product-state witness of at most 2*size-1 edges.
+    """
+    adjacency = {node: [] for node in range(size)}
+    for left, right in edges:
+        adjacency[left].append(right)
+    outcomes: set[bool] = set()
+
+    def walk(node: int, crossed: bool, remaining: int) -> None:
+        if node == target:
+            outcomes.add(crossed)
+        if remaining == 0:
+            return
+        for nxt in adjacency[node]:
+            walk(nxt, crossed or nxt in marks, remaining - 1)
+
+    walk(source, source in marks, 2 * size - 1)
+    return frozenset(outcomes)
+
+
 def path_witnesses(case: Case, event: str, handler: str) -> frozenset[PathWitness]:
     owner = dict(case.handler_owners)[handler]
     receives = {(r.receiver, r.view, r.path) for r in case.receives}
@@ -412,7 +460,29 @@ def main() -> None:
                        "receiver-handler")
     checked += 1
 
+    # Exhaust all directed typed-Flow graphs through three positions, every
+    # marker subset, and every source/observation pair. Compare the worklist
+    # product query with bounded raw walks, which includes cycle-then-return
+    # paths that a node-simple walk would miss.
+    graph_graphs = 0
+    graph_configurations = 0
+    for size in range(1, 4):
+        possible_edges = tuple(product(range(size), repeat=2))
+        for edge_bits in range(1 << len(possible_edges)):
+            graph_graphs += 1
+            edges = frozenset(edge for index, edge in enumerate(possible_edges)
+                              if edge_bits & (1 << index))
+            for mark_bits in range(1 << size):
+                marks = frozenset(node for node in range(size)
+                                  if mark_bits & (1 << node))
+                for source, target in product(range(size), repeat=2):
+                    assert graph_release_states(size, edges, marks, source, target) == \
+                        bounded_walk_release_states(size, edges, marks, source, target)
+                    graph_configurations += 1
+
     print(f"typed-path projection cases checked: {checked}")
+    print(f"finite Flow graph structures checked: {graph_graphs} (all through 3 positions)")
+    print(f"Flow graph/mark/source/target configurations checked: {graph_configurations}")
     print("candidate slot-location query preserves raw Path/Incidence: confirmed")
     print("same-family local path and independent overlapping protection survive: confirmed")
     print("latent/resumed paths, receiver/owner expiry, and cyclic Flow characterized: confirmed")

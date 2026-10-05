@@ -720,14 +720,19 @@ caller-owned observations in the complete `f` call along
 `Force(D_g) >>= B_f`; its candidate Function contract places them in outward
 `c`. Production endpoint projection and principal representability remain
 unproved; details are in the contributor-bound attempt.
-The current exploratory reading of `'e?` is a handler-protection release for
-`'e`-derived contributions at that slot. Provenance, event identity, row
-support and `K,D` remain unchanged; after release, ordinary handler search and
-eligibility apply. This is not optional membership, may-flow, a provenance
-edge, or subtraction. Attribution of an output contribution to `'e`, the exact
-release point, nested/latent protection composition, and the proof that
-existing `Rel_C`, occurrence/incidence, typed paths and attachments represent
-the transition remain open. No new carrier or production change is selected.
+The user-selected local reading of `'e?` (recorded in a Draft) is: stop
+protecting an already `'e`-attributed effect contribution when it leaves the
+marked slot. Only that slot's handler protection changes; provenance, source
+component, row support, and `K,D` remain unchanged. The contribution then
+returns to ordinary handler search and eligibility. Event identity and
+lineage are preserved evidence, not the meaning of the marker. This is not
+optional membership, may-flow, a provenance edge, handler selection, or
+subtraction. Still open: (1) the source evidence that attributes a leaving
+contribution to `'e`; (2) the exact protection-release point; (3) its return to
+ordinary handler eligibility; (4) protection lifetime across nested, shallow,
+deep, resumed, and higher-order execution; and (5) whether existing
+`Rel_C`, occurrence/incidence, typed paths, and attachment/evidence represent
+the change. No new carrier or production change is selected.
 The previous provenance-edge probe is retained as independent finite
 support/provenance characterization only; it is not evidence for `'e?`. See
 the [historical probe record](../notes/progress/2026-10-05-handler-provenance-projection-playground.md)
@@ -746,7 +751,7 @@ hypothesis for locating the slot-local release point; it is not the meaning of
 `'e?` and is not established source semantics. It keeps raw `Path`/`Inc_C`
 evidence independent from the protection query and characterizes overlapping
 paths, latent observations, expiry, and cycles, but proves neither the source
-attribution nor that this path predicate is the correct release lifetime.
+attribution nor that this path predicate is the correct release lifetime. Its graph query agrees with bounded raw-walk enumeration on 37,124 graph/marker/source/target configurations across 530 directed `Flow` graphs through three typed positions. This is algorithmic exactness for supplied graphs, not a semantic result.
 The conditional relation can be evaluated over full typed-path derivation
 witnesses: define `Protected?` there, leave raw `Inc_C` and `Grant` unchanged,
 then use the existing `Visible`/ordered-search rule. Whether current source
