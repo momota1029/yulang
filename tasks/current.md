@@ -11,15 +11,19 @@ remains active. A test-only finite parent/use transport prototype is authorized
 as an experiment; production inference-path replacement remains gated by the
 open soundness/principality obligations.
 
-The shadow lane is now active alongside theory research. The first opt-in
+The shadow lane is now active alongside theory research. The opt-in
 successor-core slice promotes one immutable HIR-owned `ParsedFile` snapshot,
 artifact-branded source positions, a narrow ordinary-application/binder/use
 arena, raw annotation ownership, and explicit pending call judgments behind a
 default-off `yu-core/shadow` facade. Its builder avoids recursive HIR
 association; the 4,000-tail stack-safety test targets the projector with
 synthetic CST because existing `parse_file` overflows before producing such a
-snapshot. No role/method selection, typed path/profile, `beta`/`Slots(beta)`,
-solver, or semantic discharge is implemented. Production F5 remains untouched.
+snapshot. Each projected expression now also retains its exact source node
+identity, with each `Apply` linked to its own argument/call-tail occurrence;
+the compiler-referee-reviewed slice passed focused HIR checks. No role/method
+selection, typed path/profile, `beta`/`Slots(beta)`, solver, or semantic
+discharge is implemented. Production F5 remains untouched. See the
+[expression occurrence identity record](../notes/progress/2026-10-06-shadow-expression-occurrence-identity.md).
 Gate and review/check evidence:
 [shadow-core promotion](../notes/progress/2026-10-06-shadow-core-promotion-gate.md).
 The default-off `yu-solver/shadow-f5` feature now exercises the exact common
@@ -663,10 +667,12 @@ the [shadow promotion and leaf differential gate](../notes/progress/2026-10-06-s
 Current candidate disposition: (1) ordinary Apply is preserved in the
 default-off parsed-source/HIR shadow API; production `ResolvedExpr` still drops
 it. (2) source occurrence, binder, use and expression identities are branded
-to one artifact. (3) the raw-CST shadow retains every node/token, full owner
-path, range and annotation occurrence identity; integer leaves additionally
-retain exact spelling/range only. Each annotation's typed-port/profile link
-stays pending, and there is no typed source boundary. (4)
+to one artifact; every projected expression resolves to its exact raw-CST node
+and each Apply points to its own argument/call-tail occurrence. (3) the
+raw-CST shadow retains every node/token, full owner path, range and annotation
+occurrence identity; integer leaves additionally retain exact spelling/range
+only. Each annotation's typed-port/profile link stays pending, and there is no
+typed source boundary. (4)
 `beta`/`Slots(beta)` are absent. (5) typed paths, owner/receiver and provenance
 are absent; retained CST paths are syntax provenance only. (6) there is no
 generalized SCC interface. (7) recursive Q/R

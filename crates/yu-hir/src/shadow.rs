@@ -42,7 +42,13 @@ impl ShadowArtifact {
             skeleton: Err(ShadowError::MalformedSource),
         };
         let positions = artifact.retain(root.clone());
-        artifact.skeleton = build_skeleton(&artifact.parsed, identity, root, &positions);
+        artifact.skeleton = build_skeleton(
+            &artifact.parsed,
+            identity,
+            root,
+            &positions,
+            &artifact.positions,
+        );
         Ok(artifact)
     }
     pub fn parsed(&self) -> &ParsedFile {
@@ -88,7 +94,12 @@ impl ShadowArtifact {
             if let Some(node) = element.as_node()
                 && matches!(
                     node.kind(),
-                    SyntaxKind::IdentifierPattern | SyntaxKind::IdentifierExpression
+                    SyntaxKind::IdentifierPattern
+                        | SyntaxKind::IdentifierExpression
+                        | SyntaxKind::IntegerLiteral
+                        | SyntaxKind::ParenthesizedExpression
+                        | SyntaxKind::MlArgument
+                        | SyntaxKind::CallTail
                 )
             {
                 // Rowan keys include a green handle and offset. Synthetic zero-width
@@ -245,6 +256,7 @@ pub struct Binder {
 
 #[derive(Debug)]
 pub struct Expression {
+    position: PositionId,
     pub(crate) range: Range<usize>,
     pub(crate) form: Form,
 }
@@ -313,6 +325,7 @@ fn build_skeleton(
     identity: Arc<()>,
     root: SyntaxNode,
     positions: &HashMap<SyntaxNode, Option<PositionId>>,
+    raw_positions: &[Position],
 ) -> Result<Skeleton, ShadowError> {
     let source = parsed.source();
     // The shared envelope is one direct root binding. Root trivia (the four
@@ -388,6 +401,7 @@ fn build_skeleton(
     };
     artifact.body = artifact.project(chain, source, positions)?;
     artifact.validate()?;
+    artifact.validate_positions(raw_positions)?;
     Ok(artifact)
 }
 fn only_child(node: &SyntaxNode, kind: SyntaxKind) -> Result<SyntaxNode, ShadowError> {
@@ -488,6 +502,28 @@ impl Skeleton {
         Ok(())
     }
 
+    fn validate_positions(&self, positions: &[Position]) -> Result<(), ShadowError> {
+        for expression in &self.expressions {
+            self.check_id(&expression.position.0, positions.len())?;
+            let position = &positions[expression.position.0.index];
+            let kind = match &expression.form {
+                Form::IntegerLiteral { .. } => SyntaxKind::IntegerLiteral,
+                Form::Use { occurrence, .. } => {
+                    if self.use_position(occurrence)? != &expression.position {
+                        return Err(ShadowError::InvalidUseReference);
+                    }
+                    SyntaxKind::IdentifierExpression
+                }
+                Form::Group { .. } => SyntaxKind::ParenthesizedExpression,
+                Form::Apply { source_form, .. } => *source_form,
+            };
+            if !position.is_node || position.kind != kind {
+                return Err(ShadowError::InvalidExpressionReference);
+            }
+        }
+        Ok(())
+    }
+
     fn check_child(&self, child: &ExprId, parent: usize) -> Result<(), ShadowError> {
         self.expression(child)?;
         // Construction publishes children first. This rejects cyclic or forward
@@ -555,6 +591,11 @@ impl Binder {
     }
 }
 impl Expression {
+    /// Exact retained source node; applications identify their CST call tail.
+    /// This syntax occurrence carries no typed slot or call-view judgment.
+    pub fn position(&self) -> &PositionId {
+        &self.position
+    }
     pub fn range(&self) -> &Range<usize> {
         &self.range
     }
@@ -617,7 +658,7 @@ impl Skeleton {
             .map(|i| BinderId(self.id(i)))
             .collect()
     }
-    fn push_expression(&mut self, range: Range<usize>, form: Form) -> ExprId {
+    fn push_expression(&mut self, position: PositionId, range: Range<usize>, form: Form) -> ExprId {
         let id = ExprId(self.id(self.expressions.len()));
         if matches!(form, Form::Apply { .. }) {
             for premise in [
@@ -634,7 +675,11 @@ impl Skeleton {
         if matches!(form, Form::Use { .. }) {
             self.uses.push(id.clone());
         }
-        self.expressions.push(Expression { range, form });
+        self.expressions.push(Expression {
+            position,
+            range,
+            form,
+        });
         id
     }
     fn project(
@@ -646,8 +691,8 @@ impl Skeleton {
         // Tasks/results hold IDs and CST handles, never recursively owned expressions.
         enum Task {
             Visit(SyntaxNode),
-            Group(Range<usize>),
-            Chain(Vec<(SyntaxKind, Range<usize>)>),
+            Group(PositionId, Range<usize>),
+            Chain(Vec<(PositionId, SyntaxKind, Range<usize>)>),
         }
         let names = self
             .binders
@@ -659,92 +704,104 @@ impl Skeleton {
         let mut results = Vec::<ExprId>::new();
         while let Some(task) = tasks.pop() {
             match task {
-                Task::Visit(node) => match node.kind() {
-                    SyntaxKind::IntegerLiteral => {
-                        if node.children().next().is_some() {
-                            return Err(unsupported(&node));
-                        }
-                        let range = range_of(&node);
-                        let spelling =
-                            source
-                                .get(range.clone())
-                                .ok_or_else(|| ShadowError::InvalidRange {
-                                    range: range.clone(),
-                                })?;
-                        results.push(self.push_expression(
-                            range,
-                            Form::IntegerLiteral {
-                                spelling: spelling.to_owned(),
-                            },
-                        ));
-                    }
-                    SyntaxKind::IdentifierExpression => {
-                        if node.children().next().is_some() {
-                            return Err(unsupported(&node));
-                        }
-                        let range = range_of(&node);
-                        let name =
-                            source
-                                .get(range.clone())
-                                .ok_or_else(|| ShadowError::InvalidRange {
-                                    range: range.clone(),
-                                })?;
-                        let index =
-                            names
-                                .get(name)
-                                .copied()
-                                .ok_or_else(|| ShadowError::UnboundName {
-                                    range: range.clone(),
-                                })?;
-                        let position = positions
-                            .get(&node)
-                            .and_then(Option::as_ref)
-                            .cloned()
-                            .ok_or(ShadowError::MalformedSource)?;
-                        self.use_positions.push(position);
-                        let occurrence = UseId(self.id(self.uses.len()));
-                        let binder = BinderId(self.id(index));
-                        results.push(self.push_expression(range, Form::Use { binder, occurrence }));
-                    }
-                    SyntaxKind::ParenthesizedExpression => {
-                        let inner = nested_chain(&node)?;
-                        tasks.push(Task::Group(range_of(&node)));
-                        tasks.push(Task::Visit(inner));
-                    }
-                    SyntaxKind::OperatorChain => {
-                        let children = node.children().collect::<Vec<_>>();
-                        let Some((first, tails)) = children.split_first() else {
-                            return Err(unsupported(&node));
-                        };
-                        if !matches!(
-                            first.kind(),
-                            SyntaxKind::IdentifierExpression
-                                | SyntaxKind::ParenthesizedExpression
-                                | SyntaxKind::IntegerLiteral
-                        ) {
-                            return Err(unsupported(first));
-                        }
-                        let mut arguments = Vec::new();
-                        let mut forms = Vec::new();
-                        for tail in tails {
-                            if !matches!(tail.kind(), SyntaxKind::MlArgument | SyntaxKind::CallTail)
-                            {
-                                return Err(unsupported(tail));
+                Task::Visit(node) => {
+                    match node.kind() {
+                        SyntaxKind::IntegerLiteral => {
+                            if node.children().next().is_some() {
+                                return Err(unsupported(&node));
                             }
-                            arguments.push(nested_chain(tail)?);
-                            forms.push((tail.kind(), range_of(tail)));
+                            let range = range_of(&node);
+                            let spelling = source.get(range.clone()).ok_or_else(|| {
+                                ShadowError::InvalidRange {
+                                    range: range.clone(),
+                                }
+                            })?;
+                            results.push(self.push_expression(
+                                retained_position(positions, &node)?,
+                                range,
+                                Form::IntegerLiteral {
+                                    spelling: spelling.to_owned(),
+                                },
+                            ));
                         }
-                        tasks.push(Task::Chain(forms));
-                        for argument in arguments.into_iter().rev() {
-                            tasks.push(Task::Visit(argument));
+                        SyntaxKind::IdentifierExpression => {
+                            if node.children().next().is_some() {
+                                return Err(unsupported(&node));
+                            }
+                            let range = range_of(&node);
+                            let name = source.get(range.clone()).ok_or_else(|| {
+                                ShadowError::InvalidRange {
+                                    range: range.clone(),
+                                }
+                            })?;
+                            let index = names.get(name).copied().ok_or_else(|| {
+                                ShadowError::UnboundName {
+                                    range: range.clone(),
+                                }
+                            })?;
+                            let position = positions
+                                .get(&node)
+                                .and_then(Option::as_ref)
+                                .cloned()
+                                .ok_or(ShadowError::MalformedSource)?;
+                            self.use_positions.push(position.clone());
+                            let occurrence = UseId(self.id(self.uses.len()));
+                            let binder = BinderId(self.id(index));
+                            results.push(self.push_expression(
+                                position,
+                                range,
+                                Form::Use { binder, occurrence },
+                            ));
                         }
-                        tasks.push(Task::Visit(first.clone()));
+                        SyntaxKind::ParenthesizedExpression => {
+                            let inner = nested_chain(&node)?;
+                            tasks.push(Task::Group(
+                                retained_position(positions, &node)?,
+                                range_of(&node),
+                            ));
+                            tasks.push(Task::Visit(inner));
+                        }
+                        SyntaxKind::OperatorChain => {
+                            let children = node.children().collect::<Vec<_>>();
+                            let Some((first, tails)) = children.split_first() else {
+                                return Err(unsupported(&node));
+                            };
+                            if !matches!(
+                                first.kind(),
+                                SyntaxKind::IdentifierExpression
+                                    | SyntaxKind::ParenthesizedExpression
+                                    | SyntaxKind::IntegerLiteral
+                            ) {
+                                return Err(unsupported(first));
+                            }
+                            let mut arguments = Vec::new();
+                            let mut forms = Vec::new();
+                            for tail in tails {
+                                if !matches!(
+                                    tail.kind(),
+                                    SyntaxKind::MlArgument | SyntaxKind::CallTail
+                                ) {
+                                    return Err(unsupported(tail));
+                                }
+                                arguments.push(nested_chain(tail)?);
+                                forms.push((
+                                    retained_position(positions, tail)?,
+                                    tail.kind(),
+                                    range_of(tail),
+                                ));
+                            }
+                            tasks.push(Task::Chain(forms));
+                            for argument in arguments.into_iter().rev() {
+                                tasks.push(Task::Visit(argument));
+                            }
+                            tasks.push(Task::Visit(first.clone()));
+                        }
+                        _ => return Err(unsupported(&node)),
                     }
-                    _ => return Err(unsupported(&node)),
-                },
-                Task::Group(range) => {
+                }
+                Task::Group(position, range) => {
                     let inner = results.pop().ok_or(ShadowError::MalformedSource)?;
-                    results.push(self.push_expression(range, Form::Group { inner }));
+                    results.push(self.push_expression(position, range, Form::Group { inner }));
                 }
                 Task::Chain(forms) => {
                     let start = results
@@ -754,10 +811,13 @@ impl Skeleton {
                     let operands = results.split_off(start);
                     let mut operands = operands.into_iter();
                     let mut callee = operands.next().ok_or(ShadowError::MalformedSource)?;
-                    for ((source_form, tail_range), argument) in forms.into_iter().zip(operands) {
+                    for ((position, source_form, tail_range), argument) in
+                        forms.into_iter().zip(operands)
+                    {
                         let range = self.expression(&callee)?.range.start.min(tail_range.start)
                             ..self.expression(&callee)?.range.end.max(tail_range.end);
                         callee = self.push_expression(
+                            position,
                             range,
                             Form::Apply {
                                 source_form,
@@ -776,6 +836,17 @@ impl Skeleton {
         Ok(results.pop().expect("one projection"))
     }
 }
+fn retained_position(
+    positions: &HashMap<SyntaxNode, Option<PositionId>>,
+    node: &SyntaxNode,
+) -> Result<PositionId, ShadowError> {
+    positions
+        .get(node)
+        .and_then(Option::as_ref)
+        .cloned()
+        .ok_or(ShadowError::MalformedSource)
+}
+
 fn unsupported(node: &SyntaxNode) -> ShadowError {
     ShadowError::UnsupportedExpression {
         kind: node.kind(),
@@ -830,6 +901,94 @@ mod tests {
         assert_eq!(leaves.len(), 2);
         assert_eq!(leaves[0], leaves[1]); // Rowan's shared green handle and offset.
         assert!(positions.get(&leaves[0]).unwrap().is_none());
+    }
+
+    #[test]
+    fn expression_positions_resolve_exact_source_nodes_and_call_tails() {
+        let source = "my call f x = f (x) 7(x)";
+        let artifact = ShadowArtifact::from_parsed(parsed(source)).unwrap();
+        let skeleton = artifact.skeleton().unwrap();
+        let mut kinds = Vec::new();
+        let root = SyntaxNode::new_root(artifact.parsed().green().clone());
+        let retained = artifact.positions();
+        let tails = root
+            .descendants()
+            .filter(|node| matches!(node.kind(), SyntaxKind::MlArgument | SyntaxKind::CallTail))
+            .map(|node| {
+                let matches = retained
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, position)| {
+                        position.is_node()
+                            && position.kind() == node.kind()
+                            && *position.range() == range_of(&node)
+                    })
+                    .map(|(index, _)| artifact.position_id(index))
+                    .collect::<Vec<_>>();
+                assert_eq!(matches.len(), 1);
+                matches.into_iter().next().unwrap()
+            })
+            .collect::<Vec<_>>();
+        let mut calls = Vec::new();
+        for expression in skeleton.expressions() {
+            let position = artifact.position(expression.position()).unwrap();
+            assert!(position.is_node());
+            kinds.push(position.kind());
+            match expression.form() {
+                Form::Apply { source_form, .. } => {
+                    assert_eq!(position.kind(), *source_form);
+                    calls.push(expression.position().clone());
+                }
+                Form::Use { occurrence, .. } => {
+                    assert_eq!(
+                        skeleton.use_position(occurrence).unwrap(),
+                        expression.position()
+                    );
+                }
+                _ => assert_eq!(position.range(), expression.range()),
+            }
+        }
+        assert!(kinds.contains(&SyntaxKind::IntegerLiteral));
+        assert!(kinds.contains(&SyntaxKind::ParenthesizedExpression));
+        assert_eq!(calls.len(), tails.len());
+        for tail in tails {
+            assert_eq!(
+                calls.iter().filter(|position| **position == tail).count(),
+                1
+            );
+        }
+    }
+
+    #[test]
+    fn expression_position_validation_rejects_foreign_missing_and_wrong_nodes() {
+        let mut first = ShadowArtifact::from_parsed(parsed("my call f x = f x")).unwrap();
+        let second = ShadowArtifact::from_parsed(parsed("my call f x = f x")).unwrap();
+        let foreign = second.skeleton().unwrap().expressions()[0]
+            .position()
+            .clone();
+        let missing = first.position_id(first.positions.len());
+        let wrong = first.root();
+        let skeleton = first.skeleton.as_mut().unwrap();
+        let original = skeleton.expressions[0].position.clone();
+        skeleton.expressions[0].position = foreign;
+        assert_eq!(
+            skeleton.validate_positions(&first.positions),
+            Err(ShadowError::ForeignArtifact)
+        );
+        skeleton.expressions[0].position = missing;
+        assert_eq!(
+            skeleton.validate_positions(&first.positions),
+            Err(ShadowError::MissingReference {
+                index: first.positions.len()
+            })
+        );
+        skeleton.expressions[0].position = wrong;
+        assert_eq!(
+            skeleton.validate_positions(&first.positions),
+            Err(ShadowError::InvalidUseReference)
+        );
+        skeleton.expressions[0].position = original;
+        skeleton.validate_positions(&first.positions).unwrap();
     }
 
     #[test]
