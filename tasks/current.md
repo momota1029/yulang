@@ -383,6 +383,15 @@ assuming recursive member validity. The bounded compiler-referee review found
 and closed one scope finding; delta review has no remaining findings.
 REC-DESC remains open.
 
+The compiler-referee-reviewed [REC_INIT first-read boundary](../notes/progress/2026-10-09-rec-init-boundary-attack.md)
+uses the conditional singleton `my f = f` candidate to expose the earliest
+publication obligation. Under explicit strict-initialization premises, a
+successful provider publication would require an earlier successful lookup
+of that same unavailable member. The source envelope and initialization
+admissibility rule are not selected by the inspected clauses, so this derives
+no actual divergence, rejection or source counterexample. REC_INIT remains
+open for an independently authorized singleton initialization/read clause.
+
 Then construct those pointwise local/member/world checks and source
 comparison/permission certificates. Generalize must choose its actual
 semantically eligible view/binder/anchor arrangement; lexical identity, empty
