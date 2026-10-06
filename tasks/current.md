@@ -383,6 +383,21 @@ assuming recursive member validity. The bounded compiler-referee review found
 and closed one scope finding; delta review has no remaining findings.
 REC-DESC remains open.
 
+Two further bounded REC-DESC attempts are now recorded. The compiler-referee-
+reviewed [constructor proof cut](../notes/progress/2026-10-07-rec-desc-fh-constructor-attempt.md)
+shows that the proposed clause-by-clause reflection proof cannot start from
+the current source-contract package: exhaustive ordinary `DescMem` failure
+inversion is absent, while C-realization assumes local descriptor typing. The
+review confirms this cut for that proof method, not impossibility of another
+proof. The independently compiler-referee-reviewed [pointwise-extension
+attack](../notes/progress/2026-10-07-rec-desc-fh-adversarial-attempt.md)
+gives a valid abstract uncountable partial-injection obstruction to finite
+joint witness completion, even though every finite passing assignment extends
+pointwise. Its required joint binder/domain is not grounded in an actual
+descriptor clause, so it is not an FH or Yulang countermodel. Both results
+preserve the original scope and keep `DESC_CLAUSES`, `ADMISSION_CLAUSES`,
+`SEM_JOINT` and `REC-DESC` open.
+
 The compiler-referee-reviewed [REC_INIT first-read boundary](../notes/progress/2026-10-09-rec-init-boundary-attack.md)
 uses the conditional singleton `my f = f` candidate to expose the earliest
 publication obligation. Under explicit strict-initialization premises, a
