@@ -40,6 +40,31 @@ semantic choice or implementation authority is claimed. The
 [Oracle crosswalk](../notes/progress/2026-10-06-main-source-generation-oracle-crosswalk.md)
 remains historical mechanism evidence only.
 
+Two reviewed follow-ups further bound this stop. The conditional local
+seed/refinement theorem preserves an independently supplied original relation
+iff the staged relation has both coverage and soundness over whole
+`xi=(nu,K,D)` rows; it therefore preserves any unchanged downstream predicate
+but does not generate `U_c` or the original relation. A two-fiber abstract
+witness shows the singleton role conclusion alone does not determine residual
+whole-fiber membership; it is not a pair of source-valid completed Yulang
+semantics. See the [conditional interface](../notes/progress/2026-10-06-uc-conditional-interface-constructive.md)
+and [bounded separation](../notes/progress/2026-10-06-uc-relation-underdetermination-attack.md).
+
+For P, a conditional tagged-profile normal form and receiving-preservation
+result hold under H1 complete source applicability, H2 original contribution
+incidence and H3 same-root receiving correspondence. The exact-candidate
+constructors do not generate those premises; `p_0` does not map to a returned
+`latent.effect` by ordinary result projection. A separate inversion confirms
+that decorated Call consumes a supplied profile certificate rather than
+constructing full `Slots(beta)`. P and independent admission A remain open.
+For A, a conditional cut lemma derives the exact returning-Name carrier after
+the outer and returned closures enter. It does not cover all independently
+compatible contexts or construct `OpenInit`; compiler-referee review found no
+findings. See the [admission attempt](../notes/progress/2026-10-06-admission-A-exact-candidate-attempt.md).
+The construction and bounded inversion are linked here:
+[profile construction](../notes/progress/2026-10-06-profile-P-exact-candidate-construction.md),
+[profile stop](../notes/progress/2026-10-06-profile-P-completeness-falsification.md).
+
 The shadow lane is now active alongside theory research. The opt-in
 successor-core slice promotes one immutable HIR-owned `ParsedFile` snapshot,
 artifact-branded source positions, a narrow ordinary-application/binder/use
@@ -268,7 +293,7 @@ the four original call premises and this additional premise remain unresolved,
 and integer/grouped/computed callees do not receive this stub. Spec review and
 focused shadow/core checks pass. This is source-producer plumbing only, with
 production routing untouched.
-See the [shadow formal-use stub](../notes/progress/2026-10-06-shadow-formal-use-applicability-stub.md).
+See the [shadow formal-use stub](../notes/progress/2026-10-06-shadow-formal-use-applicability-stub.md). A bounded baseline audit records which source references can be joined from the existing artifact and which semantic coordinates are still absent; its recommendation predates the stub and remains a baseline-limited inventory, not current design authority. See the [shadow U_c input audit](../notes/progress/2026-10-06-shadow-uc-premise-interface-audit.md).
 The conditional principality note on strict input-domain views finds that
 typed-core Function inclusion can validate a narrower target under explicit
 same-scope admission and observation premises, while the displayed A-allocation

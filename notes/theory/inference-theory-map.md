@@ -91,6 +91,48 @@ the [two-review record](../progress/2026-10-06-source-call-generation-review.md)
 The [Oracle crosswalk](../progress/2026-10-06-main-source-generation-oracle-crosswalk.md)
 and newer frame/producer traces remain historical mechanism evidence.
 
+**Reviewed conditional criterion and abstract separation — local Uc.** The
+[exact-extension criterion](../progress/2026-10-06-uc-conditional-interface-constructive.md#4-a-precise-conditional-preservation-criterion)
+proves `erase(R_U)=B_S` iff whole-row coverage and soundness hold, and then
+preserves every unchanged downstream predicate. Its independently defined
+original source relation `B_S`, typed coordinates and stage coupling `R_U`
+remain premises; it does not define `U_c`. The reviewed
+[two-fiber result](../progress/2026-10-06-uc-relation-underdetermination-attack.md#minimized-witness-and-conditional-separation)
+separates residual membership under a supplied abstract envelope, without
+exhibiting two completed Yulang meanings or a source counterexample.
+Compiler-referee review found no findings in the criterion and no
+blocking/major findings in the separation; the remaining membership cut is
+P/A, rather than canonical `Role_0` generation.
+
+**Reviewed conditional P preservation; source obligations remain open.** For
+the exact captured-step component, the
+[profile normal form](../progress/2026-10-06-profile-P-exact-candidate-construction.md#3-a-source-tagged-normal-form-with-its-unknown-operand-exposed)
+and [receiving preservation](../progress/2026-10-06-profile-P-exact-candidate-construction.md#4-same-root-receiving-interpretation-the-exact-preservation-premise)
+require H1 (complete source applicability), H2 (complete original contribution
+incidence) and H3 (same-root receiving correspondence). All three source
+obligations remain unconstructed. H3 is a sufficient witness correspondence;
+the exact live-witness test concerns this contribution's candidate protection,
+with other grants or uncovered handlers able to mask differences in program
+observations. The reviewed
+[bounded P inversion](../progress/2026-10-06-profile-P-completeness-falsification.md#3-restricted-last-rule-derivation)
+consumes the decorated profile it extracts. Its
+[inherited-result pair](../progress/2026-10-06-profile-P-completeness-falsification.md#4-minimal-typed-pair-inherited-result-evidence)
+distinguishes supplied evidence origins, not two original slot inventories.
+Compiler-referee review found no findings in either P note; the
+spec-auditor's minor quantifier/component wording repair passed delta review.
+P remains open.
+
+**Reviewed conditional A cut; independent admission remains open.** The
+[exact-cut derivation](../progress/2026-10-06-admission-A-exact-candidate-attempt.md#2-construct-the-exact-source-cuts-before-asking-admission)
+passed compiler-referee review with no findings. Given P and independently
+typed realization inputs, it retains the same captured provider and inner
+returning-Name carrier after the two external Value entries. Its
+[OpenInit premise](../progress/2026-10-06-admission-A-exact-candidate-attempt.md#5-the-minimal-remaining-independent-judgment-on-this-route),
+an original two-hole context/environment and whole-inlet judgment, remains
+unconstructed. Reached source cuts do not exhaust broad admission or Option 2
+extras. A, source inversion/adequacy, principality and production remain open;
+no theorem edge or implementation authority follows.
+
 **Conditional theorem — source adequacy target.** The source-interface adequacy draft defines fiberwise forward coverage from source executions into a complete interface, under the same `nu` and retained joint `K,D`, including future uses, latent closures/thunks, requests and resumptions. Its exact complete-interface embedding is a semantic reference construction, not a finite solver or proof that current HIR generation emits such a presentation. See [source-to-complete-interface adequacy](../design/2026-10-02-source-interface-adequacy-theorem.md) and [typed source owner realization](../design/2026-10-02-typed-source-owner-realization.md).
 
 **Contract — callback literal B.** Expected context chooses Handler/boundary before visiting the inline literal body. Parameter, body, and result endpoints are synthesized independently; the completed Function is checked once by ordinary `F_lit <: F_cb`. Endpoint copying/equality is not permitted. A is allowed only as B-equivalent constraint scheduling/partial evaluation preserving acceptance, principal solutions, method/adapter choice, and residual/evidence behavior. Prebuilt Pure values take their distinct actual-role path. This is a source contract, not a claim that current HIR implements Apply or inline lambdas. See [callback context delivery](../design/2026-10-03-callback-context-delivery.md) §2 and [production callback endpoint-generation draft](../design/2026-10-04-production-callback-endpoint-generation-draft.md).

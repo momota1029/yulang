@@ -31,6 +31,44 @@ records two clean independent reviews and their bounded scope. The
 [Oracle crosswalk](../progress/2026-10-06-main-source-generation-oracle-crosswalk.md)
 and later frame/producer continuations remain historical evidence only.
 
+The reviewed [local Uc criterion](../progress/2026-10-06-uc-conditional-interface-constructive.md#4-a-precise-conditional-preservation-criterion)
+proves `erase(R_U)=B_S` iff whole-row coverage and soundness hold, preserving
+every unchanged downstream predicate under independently defined original
+`B_S`, typed coordinates and stage coupling `R_U`. It does not define `U_c`
+or construct those source operands. The reviewed
+[two-fiber separation](../progress/2026-10-06-uc-relation-underdetermination-attack.md#minimized-witness-and-conditional-separation)
+distinguishes residual fiber membership under a supplied abstract envelope;
+it exhibits neither two completed Yulang meanings nor a source counterexample.
+The compiler-referee review found no findings in the criterion and no
+blocking/major findings in the separation. The residual membership cut is
+P/A, not the already constructed canonical `Role_0` records.
+
+For the exact captured-step component, the reviewed conditional
+[P construction](../progress/2026-10-06-profile-P-exact-candidate-construction.md#3-a-source-tagged-normal-form-with-its-unknown-operand-exposed)
+requires H1 (complete source applicability), H2 (complete original
+contribution incidence), and
+[H3 (same-root receiving correspondence)](../progress/2026-10-06-profile-P-exact-candidate-construction.md#4-same-root-receiving-interpretation-the-exact-preservation-premise)
+for profile/protection preservation. All three source obligations remain
+unconstructed; H1 does not imply H2, and H1/H2 do not supply H3. H3 is a
+sufficient witness correspondence; the stated live-witness equality tests
+this contribution's candidate protection, not all program observations.
+The reviewed [bounded inversion](../progress/2026-10-06-profile-P-completeness-falsification.md#3-restricted-last-rule-derivation)
+extracts a supplied decorated profile; its
+[inherited-result discriminator](../progress/2026-10-06-profile-P-completeness-falsification.md#4-minimal-typed-pair-inherited-result-evidence)
+does not generate an extra original slot. The compiler-referee found no
+findings in either P note; the spec-auditor's minor quantifier/component
+wording finding was repaired and closed by delta review. P remains open.
+
+The [A cut derivation](../progress/2026-10-06-admission-A-exact-candidate-attempt.md#2-construct-the-exact-source-cuts-before-asking-admission)
+is now compiler-referee-reviewed with no findings. It conditionally retains
+the captured provider and inner returning-Name carrier after the two external
+Value entries, given P and independent typed realization inputs. It does not
+construct [OpenInit](../progress/2026-10-06-admission-A-exact-candidate-attempt.md#5-the-minimal-remaining-independent-judgment-on-this-route),
+the original two-hole context/environment and whole-inlet judgment. Reached
+source cuts do not exhaust the selected broad admission domain or Option 2
+extras. A remains open. These results promote no theorem edge, source
+constructor, source adequacy, principality or production authority.
+
 ```mermaid
 flowchart TD
   SEM[Semantic core: one A <: B; complete Function and coupled effects]
