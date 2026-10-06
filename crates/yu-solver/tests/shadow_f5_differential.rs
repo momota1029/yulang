@@ -1,10 +1,10 @@
 #![cfg(feature = "shadow-f5")]
 
-//! Structural differential for the exact common leaf-only input `my f x = x`.
+//! Structural differential between bounded shadow applications and current F5.
 //! Parsing is shared; shadow projection and current production F5 lowering are
 //! separate paths. Compare source spelling/ranges and lexical resolution within
 //! each artifact, never IDs across artifacts. This does not establish old-infer
-//! parity, scheme equality, Apply support, callable roles, Function membership,
+//! parity, scheme equality, Apply typing, callable roles, Function membership,
 //! call views, soundness, or principality.
 
 use std::sync::Arc;
@@ -207,7 +207,17 @@ fn shadow_and_current_f5_preserve_integer_leaf_source_and_provenance() {
 
 #[test]
 fn pending_solver_applications_join_exact_shadow_call_and_use_occurrences() {
-    let source: Arc<SourceText> = Arc::from("my apply x = x(x 1)");
+    for text in [
+        "my apply x = x(x 1)",
+        "my apply x = x (x 1)",
+        "my apply x = x (x(1,))",
+    ] {
+        assert_pending_solver_application_source_join(text);
+    }
+}
+
+fn assert_pending_solver_application_source_join(text: &str) {
+    let source: Arc<SourceText> = Arc::from(text);
     let header = Arc::new(scan_header(source.clone()));
     let parsed = parse_file(source, header, Arc::new(SyntaxEnvironment::empty()));
     let identity = ModuleIdentity::source_root(FileId::new(FileKey::new(
@@ -233,6 +243,17 @@ fn pending_solver_applications_join_exact_shadow_call_and_use_occurrences() {
             .any(|diagnostic| { diagnostic.kind() == HirErrorKind::UnsupportedExpression })
     );
 
+    let current_batch = ConstraintBatch::collect(Arc::new(current_hir)).unwrap();
+    assert!(current_batch.pending_applications().is_empty());
+    assert!(
+        SolvedModule::solve(current_batch)
+            .unwrap()
+            .hir()
+            .errors()
+            .iter()
+            .any(|error| error.kind() == HirErrorKind::UnsupportedExpression)
+    );
+
     let shadow = ShadowArtifact::from_parsed(parsed).expect("shared parse shadow artifact");
     let skeleton = shadow.skeleton().expect("nested application skeleton");
     let crosswalk = shadow.skeleton_source_crosswalk();
@@ -248,6 +269,24 @@ fn pending_solver_applications_join_exact_shadow_call_and_use_occurrences() {
     );
     assert!(batch.occurrences().is_empty());
 
+    if text.contains("x (x") {
+        let [HirItem::Binding(binding)] = shadow_hir.items() else {
+            panic!("binding");
+        };
+        let ResolvedExpr::Lambda { body, .. } = binding.value() else {
+            panic!("lambda");
+        };
+        let ResolvedExpr::Apply { argument, .. } = body.as_ref() else {
+            panic!("outer Apply");
+        };
+        let ResolvedExpr::Group { inner, .. } = argument.as_ref() else {
+            panic!("retained Group");
+        };
+        assert_eq!(&rows[0].argument.occurrence, argument.occurrence());
+        assert!(rows[0].argument.direct_name_resolution.is_none());
+        assert_eq!(&rows[1].occurrence, inner.occurrence());
+    }
+    let mut parameter_ids = Vec::new();
     let mut use_ids = Vec::new();
     for row in rows {
         let application_position = shadow
@@ -289,6 +328,7 @@ fn pending_solver_applications_join_exact_shadow_call_and_use_occurrences() {
         else {
             panic!("the source callee resolves to the formal parameter");
         };
+        parameter_ids.push(parameter.clone());
         let parameter_position = shadow
             .parameter_source_position(&shadow_hir, parameter)
             .expect("formal parameter identity belongs to this HIR artifact");
@@ -328,4 +368,13 @@ fn pending_solver_applications_join_exact_shadow_call_and_use_occurrences() {
         use_ids.push(use_id);
     }
     assert_ne!(use_ids[0], use_ids[1]);
+    assert_eq!(parameter_ids[0], parameter_ids[1]);
+    assert!(
+        SolvedModule::solve(batch)
+            .unwrap()
+            .hir()
+            .errors()
+            .iter()
+            .any(|error| error.kind() == HirErrorKind::UnsupportedExpression)
+    );
 }

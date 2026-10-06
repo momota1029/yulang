@@ -117,6 +117,19 @@ finds no association introduction in its displayed inventory, without proving
 repository-wide nonderivability. These reviewed localizations sharpen the
 existing open nodes and close no gate.
 
+The reviewed [conditional Call coverage lift](../notes/progress/2026-10-07-original-association-conditional-call-lift.md)
+proves a narrow transport lemma: for any already existing original
+slot/contribution witness with an independently typed complete receiver
+coverage certificate, the exact source Return/Bind equation lifts coverage to
+the complete `f x` Call while retaining that witness and original `X/xi`.
+It then isolates the still-missing jointly sorted introduction of original
+slot ownership and contribution typing. The reviewed [uniform-witness
+discriminator](../notes/progress/2026-10-07-original-association-uniform-witness-discriminator.md)
+shows conditionally that pointwise incidence coverage need not imply one
+uniform complete-family witness; the candidate models are not certified as
+original Yulang kernels. Neither note supplies the disputed source rule or
+closes `CALL_TYPE`, `SIG_RULES`, `ORIGINAL_ASSOC`, licensing, or admission.
+
 The independently reviewed [Frozen Oracle selection-incidence trace](../notes/progress/2026-10-07-frozen-oracle-selection-incidence-producer.md)
 adds a distinct historical source-to-hidden-port mechanism: a dot-selection
 occurrence is registered before resolution, retained with separate receiver,
@@ -372,6 +385,18 @@ UseId, typed endpoints, a callable role, `beta`/`Slots(beta)`, or any semantic
 judgment. This is source identity plumbing, not successor/current-infer parity
 or application inference. See the
 [pending solver application identity record](../notes/progress/2026-10-07-shadow-solver-pending-application-identity.md).
+
+The grouped nested-call slice now retains the approved ordinary source shape
+`f (f 1)` through an explicit Group occurrence and both Apply occurrences in
+the opt-in HIR/solver structural path. The differential joins exact Group,
+UseId, shared formal Binder and parameter identities across source, HIR, core
+and pending solver rows. Each application remains
+`ApplicationTypingRuleUnresolved`; ordinary lowering and inference still
+refuse it. Outer one-tuples, malformed groups, deeper nesting and other
+unsupported shapes remain rejected. This adds source correspondence only, not
+typing, call-view formation, role resolution, `beta`/`Slots(beta)`, or original
+association. See `crates/yu-hir/tests/shadow_application_resolution.rs` and
+`crates/yu-solver/tests/shadow_f5_differential.rs`.
 
 The nested `f(f 1)` test now joins each pending solver row through the raw
 core call registration to the same source Apply, callee UseId, Binder and

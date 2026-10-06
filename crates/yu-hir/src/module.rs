@@ -435,6 +435,12 @@ pub enum ResolvedExpr {
         errors: Box<[HirErrorId]>,
         range: Range<usize>,
     },
+    /// Opt-in grouped source structure; no semantic grouping rule is supplied.
+    Group {
+        occurrence: HirOccurrenceId,
+        inner: Box<ResolvedExpr>,
+        range: Range<usize>,
+    },
     Lambda {
         occurrence: HirOccurrenceId,
         parameter: HirParameterId,
@@ -463,7 +469,8 @@ impl ResolvedExpr {
     pub fn occurrence(&self) -> &HirOccurrenceId {
         match self {
             Self::Apply { occurrence, .. } => occurrence,
-            Self::Lambda { occurrence, .. }
+            Self::Group { occurrence, .. }
+            | Self::Lambda { occurrence, .. }
             | Self::Integer { occurrence, .. }
             | Self::Name { occurrence, .. }
             | Self::Error { occurrence, .. } => occurrence,
@@ -473,7 +480,8 @@ impl ResolvedExpr {
     pub fn range(&self) -> &Range<usize> {
         match self {
             Self::Apply { range, .. } => range,
-            Self::Lambda { range, .. }
+            Self::Group { range, .. }
+            | Self::Lambda { range, .. }
             | Self::Integer { range, .. }
             | Self::Name { range, .. }
             | Self::Error { range, .. } => range,
@@ -511,6 +519,18 @@ impl PartialEq for ResolvedExpr {
                     && left_errors == right_errors
                     && left_range == right_range
             }
+            (
+                Self::Group {
+                    inner: left,
+                    range: left_range,
+                    ..
+                },
+                Self::Group {
+                    inner: right,
+                    range: right_range,
+                    ..
+                },
+            ) => left == right && left_range == right_range,
             (
                 Self::Lambda {
                     parameter: left_parameter,
@@ -593,7 +613,7 @@ pub struct HirBinding {
 
 fn evaluation_class(value: &ResolvedExpr) -> Option<EvaluationClass> {
     match value {
-        ResolvedExpr::Apply { .. } => None,
+        ResolvedExpr::Apply { .. } | ResolvedExpr::Group { .. } => None,
         ResolvedExpr::Lambda { body, .. }
             if matches!(body.as_ref(), ResolvedExpr::Apply { .. }) =>
         {
@@ -1567,6 +1587,7 @@ struct ShadowApplicationPlan {
     tail: SyntaxNode,
     argument: SyntaxNode,
     nested: Option<Box<ShadowApplicationPlan>>,
+    grouped: bool,
     range: Range<usize>,
 }
 
@@ -1609,7 +1630,13 @@ fn shadow_application_plan(
     if tail.kind() != source_form || range_of(callee_node) != *callee_shape.range() {
         return Ok(None);
     }
-    let argument_kind = if leaf(argument_shape) {
+    let grouped = allow_nested
+        && source_form == SyntaxKind::MlArgument
+        && matches!(argument_shape, HirExpr::Value { kind: SyntaxKind::ParenthesizedExpression, children, .. }
+            if matches!(children.as_slice(), [HirExpr::Value { kind: SyntaxKind::MlArgument | SyntaxKind::CallTail, .. }]));
+    let argument_kind = if grouped {
+        SyntaxKind::ParenthesizedExpression
+    } else if leaf(argument_shape) {
         match argument_shape {
             HirExpr::Value { kind, .. } => *kind,
             _ => unreachable!(),
@@ -1635,8 +1662,36 @@ fn shadow_application_plan(
     let [argument_node] = argument_nodes.as_slice() else {
         return Ok(None);
     };
-    let nested = if argument_kind == SyntaxKind::OperatorChain {
-        let Some(plan) = shadow_application_plan(parsed, argument_node, false)? else {
+    // Association retains element expressions but omits tuple punctuation.
+    // A direct trailing comma still makes a one-tuple, rather than a Group.
+    if grouped
+        && argument_node.children_with_tokens().any(|element| {
+            element
+                .into_token()
+                .is_some_and(|token| token.kind() == SyntaxKind::Comma)
+        })
+    {
+        return Ok(None);
+    }
+    let nested = if grouped || argument_kind == SyntaxKind::OperatorChain {
+        let nested_chain = if grouped {
+            let mut stack = argument_node.children().collect::<Vec<_>>();
+            let mut chains = Vec::new();
+            while let Some(node) = stack.pop() {
+                if node.kind() == SyntaxKind::OperatorChain {
+                    chains.push(node);
+                } else {
+                    stack.extend(node.children());
+                }
+            }
+            let [chain] = chains.as_slice() else {
+                return Ok(None);
+            };
+            chain.clone()
+        } else {
+            argument_node.clone()
+        };
+        let Some(plan) = shadow_application_plan(parsed, &nested_chain, false)? else {
             return Ok(None);
         };
         Some(Box::new(plan))
@@ -1648,6 +1703,7 @@ fn shadow_application_plan(
         tail: tail.clone(),
         argument: argument_node.clone(),
         nested,
+        grouped,
         range,
     }))
 }
@@ -1669,6 +1725,7 @@ fn lower_shadow_application_plan(
         tail,
         argument: argument_node,
         nested,
+        grouped,
         range,
     } = plan;
     let source_form = tail.kind();
@@ -1713,12 +1770,17 @@ fn lower_shadow_application_plan(
     let callee = lower_operand(&callee_node)?;
     let argument = if let Some(nested) = nested {
         let child_occurrence = next_occurrence(&occurrence.artifact, next_occurrence_ordinal)?;
+        let nested_occurrence = if grouped {
+            next_occurrence(&occurrence.artifact, next_occurrence_ordinal)?
+        } else {
+            child_occurrence.clone()
+        };
         let argument = lower_shadow_application_plan(
             parsed,
             *nested,
             namespace,
             counters,
-            child_occurrence,
+            nested_occurrence,
             scope,
             next_occurrence_ordinal,
             sink,
@@ -1731,7 +1793,25 @@ fn lower_shadow_application_plan(
         {
             errors.extend(nested_errors.iter().copied());
         }
-        argument
+        if grouped {
+            let key = counters
+                .source_nodes
+                .get(&argument_node)
+                .ok_or(HirAvailabilityError::StructuralProjection)?
+                .clone();
+            counters
+                .source_identity
+                .as_mut()
+                .expect("shadow route retains source identity")
+                .record_occurrence(child_occurrence.clone(), key);
+            ResolvedExpr::Group {
+                occurrence: child_occurrence,
+                inner: Box::new(argument),
+                range: range_of(&argument_node),
+            }
+        } else {
+            argument
+        }
     } else {
         lower_operand(&argument_node)?
     };

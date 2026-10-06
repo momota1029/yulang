@@ -325,10 +325,114 @@ fn nested_callee_trivia_preserves_parameter_resolution() {
 }
 
 #[test]
+fn grouped_nested_argument_retains_exact_source_structure() {
+    assert_grouped_nested_source_structure(
+        "my invoke f = f (f 1)",
+        21,
+        SyntaxKind::MlArgument,
+        19..20,
+    );
+    assert_grouped_nested_source_structure(
+        "my invoke f = f (f(1,))",
+        23,
+        SyntaxKind::CallTail,
+        18..22,
+    );
+}
+
+fn assert_grouped_nested_source_structure(
+    source: &str,
+    group_end: usize,
+    inner_kind: SyntaxKind,
+    inner_range: std::ops::Range<usize>,
+) {
+    let parsed = parsed(source);
+    assert!(parsed.syntax_diagnostics().unwrap().is_empty());
+    assert_normal_paths_unchanged(&parsed, 0);
+    let hir = shadow(&parsed);
+    let artifact = ShadowArtifact::from_parsed(parsed).unwrap();
+    let outer = value(&hir, 0);
+    let ResolvedExpr::Apply {
+        callee,
+        argument,
+        errors,
+        ..
+    } = outer
+    else {
+        panic!("outer structural application");
+    };
+    let ResolvedExpr::Group { inner, .. } = argument.as_ref() else {
+        panic!("one retained Group argument");
+    };
+    let ResolvedExpr::Apply {
+        callee: inner_callee,
+        errors: inner_errors,
+        ..
+    } = inner.as_ref()
+    else {
+        panic!("inner structural application");
+    };
+    assert_eq!(errors.len(), 2);
+    assert_eq!(inner_errors.len(), 1);
+    for error in errors {
+        assert_eq!(
+            hir.errors()[error.index() as usize].kind(),
+            HirErrorKind::UnsupportedExpression
+        );
+    }
+    for (expression, kind, range) in [
+        (outer, SyntaxKind::MlArgument, 16..group_end),
+        (
+            argument.as_ref(),
+            SyntaxKind::ParenthesizedExpression,
+            16..group_end,
+        ),
+        (inner.as_ref(), inner_kind, inner_range),
+        (callee.as_ref(), SyntaxKind::IdentifierExpression, 14..15),
+        (
+            inner_callee.as_ref(),
+            SyntaxKind::IdentifierExpression,
+            17..18,
+        ),
+    ] {
+        let position = artifact
+            .occurrence_source_position(&hir, expression.occurrence())
+            .unwrap();
+        assert_eq!(artifact.position(&position).unwrap().kind(), kind);
+        assert_eq!(*artifact.position(&position).unwrap().range(), range);
+    }
+    let expressions = [
+        outer,
+        argument.as_ref(),
+        inner.as_ref(),
+        callee.as_ref(),
+        inner_callee.as_ref(),
+    ];
+    for (index, expression) in expressions.iter().enumerate() {
+        assert!(hir.owns_occurrence(expression.occurrence()));
+        for other in &expressions[..index] {
+            assert_ne!(expression.occurrence(), other.occurrence());
+        }
+    }
+    let HirItem::Binding(binding) = &hir.items()[0] else {
+        panic!("binding");
+    };
+    for expression in [callee.as_ref(), inner_callee.as_ref()] {
+        let ResolvedExpr::Name {
+            resolution: NameResolution::Parameter(parameter),
+            ..
+        } = expression
+        else {
+            panic!("callee resolves to formal parameter");
+        };
+        assert_eq!(parameter, binding.parameters()[0].id());
+    }
+}
+
+#[test]
 fn unsupported_applications_are_rejected_atomically() {
     for source in [
         "my invoke f = f 1 2",
-        "my invoke f = f (f 1)",
         "my invoke f = (f) 1",
         "my invoke f = f (1)",
         "my invoke f = f(1, 2)",
@@ -336,6 +440,9 @@ fn unsupported_applications_are_rejected_atomically() {
         "my invoke f = { f 1 }",
         "my invoke f = f[1] 2",
         "my invoke f = f(f(f 1))",
+        "my invoke f = f (f (f 1))",
+        "my invoke f = f (f 1, 2)",
+        "my invoke f = f (f 1,)",
         "my invoke f = f(f 1 2)",
         "my invoke f = f((f) 1)",
         "my invoke f = f(f (1))",
@@ -345,6 +452,9 @@ fn unsupported_applications_are_rejected_atomically() {
         "my invoke f = f(f[1] 2)",
     ] {
         let parsed = parsed(source);
+        if source == "my invoke f = f (f 1,)" {
+            assert!(parsed.syntax_diagnostics().unwrap().is_empty());
+        }
         let hir = shadow(&parsed);
         assert!(
             matches!(value(&hir, 0), ResolvedExpr::Error { .. }),
@@ -363,4 +473,18 @@ fn unsupported_applications_are_rejected_atomically() {
         assert_eq!(hir, ordinary, "{source}");
         assert_eq!(hir.diagnostics(), ordinary.diagnostics(), "{source}");
     }
+}
+
+#[test]
+fn malformed_grouped_application_does_not_publish_shadow_structure() {
+    let parsed = parsed("my invoke f = f (f 1");
+    assert!(!parsed.syntax_diagnostics().unwrap().is_empty());
+    let ordinary = lower_module(identity(), &parsed, SemanticImports::empty()).unwrap();
+    let identity_only =
+        lower_module_with_source_identity(identity(), &parsed, SemanticImports::empty()).unwrap();
+    assert_eq!(ordinary, identity_only);
+    assert!(matches!(value(&ordinary, 0), ResolvedExpr::Error { .. }));
+    let shadow = shadow(&parsed);
+    assert!(matches!(value(&shadow, 0), ResolvedExpr::Error { .. }));
+    assert_eq!(shadow.diagnostics(), ordinary.diagnostics());
 }

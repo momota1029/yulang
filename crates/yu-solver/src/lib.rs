@@ -993,10 +993,14 @@ impl ConstraintBatch {
                             ResolvedExpr::Lambda { .. } | ResolvedExpr::Error { .. } => {
                                 CollectedBodyStatus::Error
                             }
-                            ResolvedExpr::Apply { .. } => CollectedBodyStatus::Error,
+                            ResolvedExpr::Apply { .. } | ResolvedExpr::Group { .. } => {
+                                CollectedBodyStatus::Error
+                            }
                         },
                         ResolvedExpr::Error { .. } => CollectedBodyStatus::Error,
-                        ResolvedExpr::Apply { .. } => CollectedBodyStatus::Error,
+                        ResolvedExpr::Apply { .. } | ResolvedExpr::Group { .. } => {
+                            CollectedBodyStatus::Error
+                        }
                     };
                     match body_status {
                         CollectedBodyStatus::Complete => {
@@ -1317,6 +1321,7 @@ impl ConstraintBatch {
                     pending.push(callee);
                 }
                 ResolvedExpr::Lambda { body, .. } => pending.push(body),
+                ResolvedExpr::Group { inner, .. } => pending.push(inner),
                 ResolvedExpr::Integer { .. }
                 | ResolvedExpr::Name { .. }
                 | ResolvedExpr::Error { .. } => {}
