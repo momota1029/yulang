@@ -252,6 +252,14 @@ licensing, observations, receipts, liveness, grants or release. Its event-key
 and zero-sized-token findings were repaired. The four new tests and the repaired compiler/spec reviews passed; final
 remote-integration checks are recorded in the full-attack review.
 
+The [current-inference shadow correspondence](../notes/progress/2026-10-07-shadow-current-inference-correspondence.md)
+joins admitted unary Name/Integer leaves through exact source sidecar keys and
+characterizes the present HIR support boundary for applications. Production
+HIR currently emits `UnsupportedExpression`/`UnsupportedTarget` on the tested
+application shapes; the separate shadow rows are structural retention only.
+This adds no typing or old-inference parity claim and leaves production support
+and all semantic gates open.
+
 Production `SolvedModule`/collector/live solver/F5/generalizer/instantiator/
 publisher and consumers remain separate correspondence work. A final scheme
 projection is not a complete generalized SCC interface. Feature-gated shadow
