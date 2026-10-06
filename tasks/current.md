@@ -1,6 +1,6 @@
 # Current task: SCC-intrusion inference replacement
 
-Updated: 2026-10-06, after independently reviewed directional whole-relation research and fragment factorization.
+Updated: 2026-10-06, after independently reviewed receipt/prefix construction and recursive-origin/complete-source normalization.
 Branch: `research/simple-sub-intrusion`.
 
 ## Objective and authority
@@ -116,18 +116,13 @@ inferred public types and internal evidence-rich views remain distinct.
 
 The separately compiler-referee-reviewed DFRAG follow-up has no findings.
 It factors full-profile completion out of this fragment's transport proof.
-The conditional [SourceViewInst construction](../notes/progress/2026-10-06-directional-source-view-instantiation-construction.md)
-is now independently compiler-referee and spec-auditor reviewed with no
-findings. Given an independently typed original invocation, one compatible
-complete original profile containing the fragment, and the source-slot/Call
-premises, it constructs the formal receipt and derives
-`SourceViewInst(r_A,d_f,e_f; k,beta,u,p0,sigma)` only at an actual result/rebind
-transition; it preserves Pending evidence for suspension and divergence. The
-same conditional source transitions attach and read the captured evidence
-environment. This does not produce the compatible profile or its existence,
-independent admission, full source-solution coverage, or unrestricted receiver
-liveness. It closes no full `FVIEW -> SRC` edge. All derivations retain one
-original joint relation and packets.
+At that checkpoint the first source cut was the exact association
+`SourceViewInst(r_A,d_f,e_f; k,beta,u,p0,sigma)` between the original formal
+receipt, its received/rebound evidence view and the original upper occurrence.
+It is a source judgment, not a new flag or a derivation from value identity.
+The continuation below constructs that selected association and its following
+environment/read association on original typed rows. All completions and uses
+retain the same original joint relation and packets.
 
 For A/admission, the all-world domain remains independently defined; the new
 transport is uniform over an already supplied domain, including contexts not
@@ -144,6 +139,59 @@ were retained. Their `P_output` cut is consistent with the typed-fragment
 realization frontier; their independent reviews and conditional negative
 premises retain their own scopes.
 
+### Receipt, complete-source role and origin suppliers: new reviewed closure
+
+Baseline: `38dab1fb926f819d1b2a25835d990d32b3915038`. The new
+[review record](../notes/progress/2026-10-06-directional-receipt-supplier-review.md)
+contains independent compiler-referee and spec-auditor results. Both detected
+one major gap in the first SV proof: it promised a rebound formal for admitted
+carriers that could suspend or diverge before returning. The repaired proof
+keeps Pending evidence and the original suffix until actual Return/rebind;
+both delta reviews closed the finding with no remaining issue in scope.
+
+| Result | Newly closed scope | Premise not discharged |
+| --- | --- | --- |
+| [SV source receipt/result/capture](../notes/progress/2026-10-06-directional-source-view-instantiation-construction.md) | For the exact `apply/step` source, the source-formed slot's existing invocation law constructs prospective `argument.result.(u,p0)` evidence at receipt, rebound `SourceViewInst` at actual result/rebind, and typed capture/read at their actual transitions. Extension/erasure covers original admitted finite prefixes and raw resumptions, including suspension and divergence, on the same original `xi` | Independently typed original rows, one compatible complete profile and original admission/response semantics remain premises; their raw-source formation/nonemptiness and full coverage are not proved |
+| [RS/RS-active/RS-use](../notes/progress/2026-10-06-directional-recursive-generalization-supplier.md) | A finite actual rule-occurrence derivation generates its whole provenance ledger and canonical per-use identity action, preserving original scopes, shared roots, upper/lower occurrence direction, comparison premises, rigid captures and all active original predicates | Actual recursive environment discharge, semantic generalized-view/binder eligibility, §22 introduction classification and complete comparison/permission coverage remain source obligations |
+| LX lexical source correspondence | Resolved binder ancestry and retained environment references determine lexical ownership/import identity, including recursive references. The closed `{f,g}` component has no captured outer value roots; individual member lambdas can still capture each other | Local source origin does not determine semantic freshening eligibility, generalized-view selection or binder placement; missing source-to-coordinate correspondence remains explicit |
+| SC-normalization | For the exact completed `apply f x = f x` relation, substitute the source-entailed formal `rho_f=NonHandlerFormal` into every original active kernel. Coverage/reflection retains the same whole `xi,w`, provider/result packets and original scopes; recursion uses the retained selected fiber/carrier correspondence | Not incomplete-prefix-to-complete coverage, replacement-kernel equivalence, an algorithm discarding provisional constraints, or generic mixed-use role selection |
+| [Factory path discriminator](../notes/progress/2026-10-06-directional-source-view-falsification.md) and [checker](../tools/research_directional_source_view.py) | Distinguishes the argument computation's effect from its returned Function's output; rejects flattening the formal fragment onto `argument.effect`, including equal endpoint values | One supplied source-path fixture; no parser, source admission, dynamic handler or production acceptance result |
+
+The source-slot law, not successful `Q`, supplies SV's boundary introduction.
+The original upper and lower/provider packets remain independently indexed;
+actual callable role, entry and own profile are unchanged. A prospective
+result path is not an executing observation. Repeated resumptions retain the
+original receipt and receiver; a fresh execution owner does not revive that
+receiver. Event protection still requires matching `Observe`/`Receive` and
+the actual live receiver/handler. No capture is fabricated from lexical
+identity alone.
+
+For a fixed source derivation, registration logically precedes its own body
+use even when the lower constraint or upper decoration is processed first.
+Late delivery of an already justified seed is therefore covered without a
+new source replay rule. A genuinely later source introduction still needs
+an applicability rule for the earlier exposure; sharing a final component
+or endpoint supplies none. The selected result chooses no general late-seed
+policy.
+
+The [direct recursive source audit](../notes/progress/2026-10-06-directional-recursive-generalization-supplier.md#71-bounded-authority-delta-the-exact-two-residual-source-clauses)
+narrows the next constructive clauses to validation/discharge of the same
+simultaneous body/member assumptions and semantic eligible-binder placement
+at actual generalized views. Source resolution already supplies lexical
+imports. Preallocation and §22 guard coverage do not generate the missing
+body/member comparison rule. This identifies remaining proof work; it does
+not establish language underspecification or justify a new user question.
+
+These results remove the selected opaque receipt/capture and whole-origin
+certificate premises, and one complete-source DREL-2 normalization instance.
+They do not establish the unrestricted source producer. Q-independent A is
+preserved over the already independently admitted domain; constructing that
+domain and its all-world closure remains open. No `V_alloc` view-class
+expansion, all-view principality, or production inclusion is inferred.
+`D_C subseteq D_A` and `P_A subseteq P_C` remain separate Option A/2 obligations,
+with independently licensed production-only members allowed without reference
+source constructors.
+
 <a id="open-gates-at-this-snapshot"></a>
 
 ## Active unrestricted proof gates
@@ -157,21 +205,20 @@ converse as a prerequisite. Instead:
    original scope through recursive formation, generalization and use. The
    new rule does not choose all variable-to-variable, nested-result or late-seed
    propagation policies by analogy.
-2. Continue from the [reviewed one-Apply output-link derivation](../notes/progress/2026-10-06-directional-event-output-link-construction.md#3-proof-tree-and-first-unproved-source-judgment): execution preserves a reached request, but does not connect it to original `p_0`. The [conditional two-event discriminator](../notes/progress/2026-10-06-directional-event-output-link-falsification.md#explicit-conditional-hypotheses) shows static output/capture/row data cannot determine `Path` once typed observation/receipt premises vary; its universal negative premise is supplied and unproved from source. DFRAG plus conditional SourceViewInst supply the fragment's typed receipt/rebind/capture/read constructors when a compatible original typed row is given. Still derive the upstream source producer for complete-profile formation and admitted typed invocation rows, the `P_output` contribution-to-executing-view incidence, actual event observation and same-view receipt, and the source conditions for a live original receiver. Lexical capture and equal endpoint shapes alone establish none of those upstream or event-observation facts.
-
-   Under the reviewed conditional typed-source envelope, SourceViewInst and
-   the actual capture/read attachment have constructors. The remaining source
-   producer gap is upstream: generate/admit the compatible complete original
-   profile and typed invocation rows, and show the approved source program
-   realizes those premises while preserving the original whole solution
-   relation. Outside that supplied envelope, the source-certified association
-   cannot be inferred from endpoint/type equality, `VIncl` success or the
-   static fragment alone. No incompatible approved meanings or need for a new
-   user decision have been shown. The structural
-   `captured_call_input()` shadow join remains only an input locator and
-   discharges none of the profile/admission premises.
-3. Preserve the full seed/refined source solution relation, not just its
-   deterministic record extension. Keep one original `xi=(nu,K,D)` throughout.
+2. Use the reviewed SV constructor for the selected source's prospective
+   receipt and actual-transition result/capture/read correspondence. Generate
+   its independent complete original profile, typed source rows and admission,
+   and extend coverage to the required source forms. The earlier
+   [one-Apply output link](../notes/progress/2026-10-06-directional-event-output-link-construction.md#3-proof-tree-and-first-unproved-source-judgment)
+   and [conditional event discriminator](../notes/progress/2026-10-06-directional-event-output-link-falsification.md#explicit-conditional-hypotheses)
+   retain their scopes: a particular event still requires actual matching
+   typed observation/receipt and liveness. Do not leave selected SV as an
+   opaque missing premise, or derive generic `P_output` from lexical capture,
+   equal shapes or the absence of a returned value.
+3. Extend full seed/refined preservation beyond SC-normalization's completed
+   singleton and unchanged active kernels. Generate the complete original
+   source relation and justify any actual semantic refinement or mixed-use
+   decision, keeping one original `xi=(nu,K,D)` and original binder scopes.
 4. Complete independently interpreted descriptor/context/world admission,
    all-view adequacy/principality, finite effective presentation and production
    Option A/2 containment. Do not infer admission from Q or require all
@@ -189,13 +236,7 @@ Pure normalized structural FMP is already closed in its reviewed pure scope;
 do not reprove it or treat it as full effect/source inference. General guarded
 joint residual solving/projection, common allowance/all-view extension,
 complete Function admission and production conformance remain distinct gates.
-The [bounded recursive-generalization supplier construction](../notes/progress/2026-10-06-directional-recursive-generalization-supplier.md)
-is now independently compiler-referee and spec-auditor reviewed with no
-findings: for its declared source/proof inputs, it preserves the whole active
-relation under one coherent generalization action and normalizes the exact
-approved completed-source singleton. This does not supply recursive source
-formation or guard discharge. General recursive `Supply22`/origin/generalized-
-use coverage, effective residual presentation and actual guard coverage remain
+Recursive `Supply22`/origin/generalized-use and actual guard coverage remain
 open as recorded in the preserved ledger. State/reference/world realization,
 SCC generalized-interface equality/lifecycle and the later effect/handler and
 method-resolution requirements are unchanged.
@@ -224,8 +265,6 @@ and [SCC source identity checkpoint](../notes/progress/2026-10-06-shadow-scc-sou
 
 The [frozen legacy Apply structural differential](../notes/progress/2026-10-06-shadow-legacy-apply-structure-differential.md) now checks the selected nested source's ordered Lambda/Bind/Apply/Use tree and lexical identity edges against a provenance-pinned Oracle expression dump. It preserves the outer binder, all seven expression identities and three distinct uses, while keeping every call-view/event/output premise pending. It is structural retention evidence only: no type/effect, typed capture, inference parity, source adequacy or Oracle semantic claim.
 
-The independently reviewed [shadow captured-call input join](../notes/progress/2026-10-06-shadow-captured-call-input-join.md) exposes the exact structural chain from the outer parameter through the captured callee use and ordinary Apply to the returned local function. Its borrowed IDs are checked against the selected tree and all pending premises remain unchanged. This is source identity plumbing only; it creates no `SourceViewInst`, typed evidence association, role/applicability, receiver or semantic result.
-
 The reviewed [SCC-to-skeleton crosswalk](../crates/yu-solver/src/shadow_scc.rs)
 provides checked borrowed lookups from current F0–F2 definition/use identities
 into already represented shadow Lambda/Bind/Use identities. Unsupported
@@ -242,19 +281,11 @@ Q-independent admission, joint `xi`, or typed source receipt/capture
 correspondence. Oracle semantics remain non-authoritative and current
 source/proof gates remain open.
 
-The independently compiler-referee-reviewed [Frozen Oracle parameter/capture archaeology](../notes/progress/2026-10-06-frozen-oracle-source-view-producer-archaeology.md)
-adds a separate historical route: adapter invocation can introduce runtime
-guard markers on an argument, and DefId-derived environment slots preserve the
-post-adaptation wrapper through simple parameter binding, nested closure
-capture and local read. This explains evidence introduction and structural
-preservation separately. It does not construct the current original
-upper-occurrence/formal-receipt association or produce the profile/admitted
-typed rows required by conditional SourceViewInst. Oracle remains historical
-evidence only; no current proof gate closes from this correspondence.
-
 The bounded [solved-output observation trace](../notes/progress/2026-10-06-frozen-oracle-solved-output-observation.md) finds another downstream historical mechanism: after solving, ordinary `App` sites can retain callee/argument expression IDs, solved actual/consumer types and slot-linked solver evidence. This may inform a later typed-observation join, but it consumes solved endpoints and cannot produce the current pre-query source relation. It supplies no original `beta`/`Slots(beta)`, Q-independent admission or typed receipt/receiver correspondence. The characterization is primary-authored and independent review is pending. Oracle remains non-authoritative, and all current proof and production gates remain open.
 
 The independently spec-reviewed [Frozen Oracle producer follow-up](../notes/progress/2026-10-06-frozen-oracle-missing-producer-followup.md) adds historical formal-keyed annotation markers, guarded call-upper feedback into Function construction, and sparse structural occurrence provenance. It also records the Defined-frame qualification for the prior annotation/frame trace. These mechanisms sharpen historical correspondence only; none supplies the current complete Q-independent profile, typed capture/read association, or original correlated `(nu,K,D)`. Oracle remains non-authoritative, and all source/proof gates remain open.
+
+The independently compiler-referee-reviewed [Frozen Oracle parameter/capture archaeology](../notes/progress/2026-10-06-frozen-oracle-source-view-producer-archaeology.md) identifies a separate post-solving route: adapter invocation can introduce runtime guard markers and mark an argument; DefId-derived environment slots then preserve the post-adaptation wrapper through simple parameter binding, nested closure capture and a matching Local read. This explains evidence introduction and structural preservation separately. It does not produce the original upper-occurrence/formal-receipt association or the compatible complete profile and admitted typed rows required by conditional SourceViewInst. Oracle remains historical evidence only; no current proof gate closes from this correspondence.
 
 One primary owns Git integration. Preserve all parallel work; stage or publish
 only exact intended paths, inspect the expected remote head and complete diff,

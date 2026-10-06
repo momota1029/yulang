@@ -3,7 +3,7 @@
 Date: 2026-10-06
 Baseline: `38dab1fb926f819d1b2a25835d990d32b3915038`
 Branch supplied by primary: `research/simple-sub-intrusion`
-Status: initial RS/SC construction and bounded lexical-ownership delta independently reviewed by compiler referee and spec auditor; no findings
+Status: RS/SC construction and bounded lexical-ownership delta independently reviewed
 Initial published version: `5b6cd9b594b297954f73eb1cdb36b05b0f28ac1c`
 Initial accepted SHA-256: `f50ab22c2e0c17776e7db4f2e31e553e2de42d7fb0c86aad01f3cb340e58f2a2`
 Delta scope: structural lexical ownership/import derivation and exact residual source clauses;
@@ -12,6 +12,11 @@ Method: syntax/rule-directed proof decoration; full-tuple relational derivation;
         source-entailed singleton role substitution; no executable search
 Semantic/implementation authority: none
 Exclusive write lease: this note only
+
+Independent compiler-referee and spec-auditor reviews, including the LX
+delta, are recorded in the
+[receipt/supplier review](2026-10-06-directional-receipt-supplier-review.md).
+No blocking, major or minor finding remains within the stated envelopes.
 
 ## 1. Result and the separation that matters
 
@@ -757,15 +762,16 @@ The bounded delta adds seven directly inspected source/receipt dependencies
 and records their baseline fingerprints below. All 25 inputs matched their
 baseline bytes at the final delta recheck. Its final checks and frozen
 artifact hash are supplied in the delta submission packet. The primary owns
-independent delta review and status/Git integration. No independent review of
-this delta or full gate closure is claimed. An omitted in-scope source formation/refinement
+independent delta review and status/Git integration. Both independent delta
+reviews subsequently accepted LX and the narrowed residual clauses; no full
+gate closure is claimed. An omitted in-scope source formation/refinement
 rule, a changed dependency, or proof that the actual retained graph already
 contains the full §3.1 derivation would require a dependency-scoped update.
 
-Recommended next action: independently delta-review LX, its relation to the
+The completed independent delta reviews covered LX, its relation to the
 already accepted RS action, the closed-component capture distinction and the
-exact authoritative residual clauses. Carry the unchanged accepted RS/SC
-proof scopes forward. Then construct or audit the actual complete source
+exact authoritative residual clauses, retaining the accepted RS/SC scopes.
+The next action is to construct or audit the actual complete source
 generation against those presentations. Keep raw-source recursive discharge
 and eligible-binder selection separate from derived lexical imports and origin transport;
 do not block transport on blanket §22 classification, and do not certify source
@@ -805,9 +811,7 @@ Commit packet:
 
 - Exact path: `notes/progress/2026-10-06-directional-recursive-generalization-supplier.md`.
 - Baseline: `38dab1fb926f819d1b2a25835d990d32b3915038`.
-- Claim/review: accepted initial RS/SC scope at `5b6cd9b5`; this lexical-ownership
-  derivation and direct-authority residual delta are independently reviewed;
-  no implementation authority.
+- Claim/review at delta freeze: accepted initial RS/SC scope at `5b6cd9b5`, with the lexical-ownership delta awaiting review; both delta reviews subsequently accepted its bounded scope, as recorded above. No implementation authority.
 - Proposed delta commit: `research: derive lexical imports and narrow recursive source residual clauses`.
 - Shared-record delta intentionally deferred: replace the opaque whole-origin
   map prerequisite by RS's constructive derivation-level result where its

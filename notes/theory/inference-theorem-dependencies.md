@@ -31,10 +31,28 @@ directional delta for exact claim classes and the 5,040-schedule finite model.
 
 The independently reviewed [DFRAG factorization](../progress/2026-10-06-directional-profile-completion-factorization.md)
 is uniform over independently compatible original profile completions at one
-joint row; it leaves `SourceViewInst`, typed capture attachment, completion
-existence and full-profile coverage open. Those source associations are
-premises of the fragment proof. Completion of unrelated profile positions is
-not a dependency of its tagged transport lemma. No full gate is promoted.
+joint row. Its selected source associations are now supplied by SV below;
+completion existence and full-profile coverage remain open. Completion of
+unrelated profile positions is not a dependency of the tagged transport lemma.
+
+**Reviewed receipt/source-rule continuation:** [SV](../progress/2026-10-06-directional-source-view-instantiation-construction.md)
+composes the source-formed slot's invocation law with the known Value-result
+prefix to construct receipt, actual result/rebind and reached capture/read
+association. Its paired original-row proof includes Pending prefixes,
+suspension, divergence and typed raw resumptions, preserving the same original
+receiver and `xi`. Both independent delta reviewers closed the original
+Return-only coverage finding. [RS/SC](../progress/2026-10-06-directional-recursive-generalization-supplier.md)
+constructs the whole provenance ledger on actual rule occurrences and gives
+one completed-singleton DREL-2 entailed-role substitution through every active
+original primitive. No opaque origin certificate or selected receipt/capture
+association is needed in those envelopes. See the [new review ledger](../progress/2026-10-06-directional-receipt-supplier-review.md).
+The separately reviewed LX delta derives lexical imports from resolved binder
+ancestry while leaving semantic eligibility and generalized-view placement
+distinct; the closed component's lack of outer captures does not erase
+captures between its individual member closures.
+Actual recursive discharge, semantic generalized-view/binder eligibility,
+complete original profile/source/admission coverage, changed refinement kernels
+and all-view/production gates remain open. No full graph edge is promoted.
 
 The independently compiler-referee and spec-auditor-reviewed [conditional
 SourceViewInst construction](../progress/2026-10-06-directional-source-view-instantiation-construction.md)

@@ -26,9 +26,30 @@ They close no unrestricted source/admission/principality/production node.
 The independently reviewed [DFRAG follow-up](../progress/2026-10-06-directional-profile-completion-factorization.md)
 factors unrelated full-profile completion out of this directional fragment's
 conditional realization/transport proof. Original source-view/receipt and
-typed capture association, compatible-completion existence and full-profile
-coverage remain open; one original joint row and shared-contract completion
-serve all uses. This is no equality of full profiles or handler visibility.
+typed capture association were its remaining selected premises; SV below now
+supplies those on original typed prefix/resumption rows. Compatible-completion
+existence and full-profile coverage remain open; one original joint row and
+shared-contract completion serve all uses. This is no equality of full profiles
+or handler visibility.
+
+**Reviewed selected source constructors:** [SV](../progress/2026-10-06-directional-source-view-instantiation-construction.md)
+derives prospective receipt/result-path evidence and actual-transition
+rebind/capture/read, with paired erasure/extension for admitted finite prefixes
+and raw resumptions, including suspension and divergence. It uses the existing
+source-slot invocation law on the exact inferred slot, without changing actual
+callable role/entry. [RS and SC-normalization](../progress/2026-10-06-directional-recursive-generalization-supplier.md)
+construct whole derivation provenance/fresh-use actions and substitute the
+entailed formal-role constant throughout the exact completed singleton's
+original active relation. The [new independent reviews](../progress/2026-10-06-directional-receipt-supplier-review.md)
+closed the initial SV Return-only gap; no issue remains in the reviewed scopes.
+The separately reviewed LX delta derives lexical import identity from resolved
+binding ancestry; it does not select eligible semantic generalized binders.
+Complete raw-source formation, recursive/generalization source rules,
+full profiles, initial/world admission, changed seed/refined kernels,
+all-view principality and production containment are not proved by these
+results. Earlier open-premise prose below retains its historical/general scope;
+the selected SV and completed-source normalization instances should not be
+reopened as opaque certificate obligations.
 
 This is a snapshot of a fast-moving research branch. “Current” below means supported by the cited reviewed/Authoritative source as of the date above, not that every upstream compiler path conforms to it. Bounded checkers and finite probes remain characterization evidence. Drafts, failed routes, and older progress descriptions are retained in place as research history.
 
