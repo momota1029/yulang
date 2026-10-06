@@ -562,6 +562,66 @@ fn closed_scheme_join_rejects_recollected_equal_roots_and_missing_identity() {
 
 #[cfg(feature = "shadow-f5")]
 #[test]
+fn use_closed_scheme_join_rejects_foreign_collection_and_missing_identities() {
+    use crate::shadow_scc::SccClosedSchemeLookupError;
+    let parsed = parsed("my f x = x; my a = f");
+    let batch = source_batch(&parsed);
+    let foreign = collect(batch.hir().clone());
+    let solved = crate::SolvedModule::solve(batch.clone()).unwrap();
+    let foreign_solved = crate::SolvedModule::solve(foreign.clone()).unwrap();
+    let topology = batch.shadow_scc_topology();
+    let occurrence = topology
+        .components()
+        .flat_map(|c| c.incoming_uses())
+        .next()
+        .unwrap();
+    let foreign_topology = foreign.shadow_scc_topology();
+    let foreign_use = foreign_topology
+        .components()
+        .flat_map(|c| c.incoming_uses())
+        .next()
+        .unwrap();
+    let before = batch.counters();
+    let solved_before = solved.counters();
+    assert!(matches!(
+        topology.use_closed_scheme(&foreign_solved, occurrence),
+        Err(SccClosedSchemeLookupError::ForeignCollection)
+    ));
+    assert!(matches!(
+        topology.use_closed_scheme(&solved, foreign_use),
+        Err(SccClosedSchemeLookupError::ForeignCollection)
+    ));
+    assert!(matches!(
+        foreign_topology.use_closed_scheme(&solved, occurrence),
+        Err(SccClosedSchemeLookupError::ForeignCollection)
+    ));
+    let mut missing_use = batch.clone();
+    missing_use
+        .definition_use_positions
+        .remove(occurrence.collection_identity());
+    assert!(matches!(
+        missing_use
+            .shadow_scc_topology()
+            .use_closed_scheme(&solved, occurrence),
+        Err(SccClosedSchemeLookupError::MissingIdentity)
+    ));
+    let target = &batch.definition_uses
+        [batch.definition_use_positions[occurrence.collection_identity()]]
+    .target;
+    let mut missing_target = batch.clone();
+    missing_target.definition_positions.remove(target);
+    assert!(matches!(
+        missing_target
+            .shadow_scc_topology()
+            .use_closed_scheme(&solved, occurrence),
+        Err(SccClosedSchemeLookupError::MissingIdentity)
+    ));
+    assert_eq!(before, batch.counters());
+    assert_eq!(solved_before, solved.counters());
+}
+
+#[cfg(feature = "shadow-f5")]
+#[test]
 fn closed_scheme_join_does_not_supply_absent_mutual_recursive_skeleton() {
     let parsed = parsed("my a = b; my b = a");
     let batch = source_batch(&parsed);
@@ -585,6 +645,23 @@ fn closed_scheme_join_does_not_supply_absent_mutual_recursive_skeleton() {
                 .definition_shadow_ref(&crosswalk, definition)
                 .unwrap()
                 .is_none()
+        );
+    }
+    for occurrence in topology
+        .components()
+        .flat_map(|component| component.internal_uses())
+    {
+        let record = &batch.definition_uses
+            [batch.definition_use_positions[occurrence.collection_identity()]];
+        let target = topology
+            .definitions()
+            .find(|definition| definition.collection_identity() == &record.target)
+            .unwrap();
+        assert!(
+            topology
+                .use_closed_scheme(&solved, occurrence)
+                .unwrap()
+                .same_identity(topology.definition_closed_scheme(&solved, target).unwrap())
         );
     }
     assert_eq!(before, batch.counters());

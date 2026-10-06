@@ -316,6 +316,11 @@ production route, or theorem follows. See the [directional pending
 obligation](../notes/progress/2026-10-06-shadow-directional-protection-obligation.md),
 [F5 freshening capture](../notes/progress/2026-10-06-shadow-f5-test-freshening-trace.md),
 and [SCC source identity checkpoint](../notes/progress/2026-10-06-shadow-scc-source-identity-join.md).
+The follow-up [SCC use/scheme/freshening join](../notes/progress/2026-10-06-shadow-scc-use-scheme-freshening-join.md)
+now links exact current incoming-use identities and the same-session captured
+Q/R-to-fresh-row observations to their current target schemes. This retains
+the existing solver route only; it does not identify these observations with
+successor binders or source call-view semantics.
 
 The [frozen legacy Apply structural differential](../notes/progress/2026-10-06-shadow-legacy-apply-structure-differential.md) now checks the selected nested source's ordered Lambda/Bind/Apply/Use tree and lexical identity edges against a provenance-pinned Oracle expression dump. It preserves the outer binder, all seven expression identities and three distinct uses, while keeping every call-view/event/output premise pending. It is structural retention evidence only: no type/effect, typed capture, inference parity, source adequacy or Oracle semantic claim.
 

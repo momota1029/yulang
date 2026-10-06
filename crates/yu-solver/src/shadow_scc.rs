@@ -16,6 +16,27 @@ pub struct SccTopology<'a> {
 }
 
 impl<'a> SccTopology<'a> {
+    /// Join an exact retained use to its target's finalized current-local scheme.
+    #[cfg(all(feature = "shadow-f5", feature = "shadow-scc-observer"))]
+    pub fn use_closed_scheme<'s>(
+        &self,
+        solved: &'s crate::SolvedModule,
+        occurrence: SccUseRef<'_>,
+    ) -> Result<crate::shadow_f5::ClosedSchemeRef<'s>, SccClosedSchemeLookupError> {
+        if !std::sync::Arc::ptr_eq(&self.batch.collection_artifact, &occurrence.id.artifact)
+            || !std::sync::Arc::ptr_eq(&self.batch.collection_artifact, &solved.collection_artifact)
+        {
+            return Err(SccClosedSchemeLookupError::ForeignCollection);
+        }
+        let record = self
+            .batch
+            .definition_use_positions
+            .get(occurrence.id)
+            .and_then(|&position| self.batch.definition_uses.get(position))
+            .ok_or(SccClosedSchemeLookupError::MissingIdentity)?;
+        self.definition_closed_scheme(solved, SccDefinitionRef { id: &record.target })
+    }
+
     /// Join a current member to its exact finalized current-local scheme.
     /// This does not identify Q/R with successor interfaces or source slots.
     #[cfg(all(feature = "shadow-f5", feature = "shadow-scc-observer"))]

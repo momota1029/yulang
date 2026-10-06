@@ -227,6 +227,83 @@ fn fresh_capture_source_repeated_uses_and_enabled_disabled_agree() {
     }
 }
 
+#[cfg(feature = "shadow-scc-observer")]
+#[test]
+fn fresh_capture_routes_join_exact_scc_use_target_scheme_in_same_session() {
+    for source in [
+        "my f x = x; my a = f; my b = f",
+        "my f x = g; my g y = f; my a = f; my b = f",
+    ] {
+        let batch = collect(source_hir(&parsed(source)));
+        let retained = batch.clone();
+        let mut session = InferenceSession::new(batch);
+        session.shadow_fresh_capture = Some(ShadowFreshCapture::default());
+        session.admit_all_collected_facts().unwrap();
+        session.execute_scc_plan().unwrap();
+        let capture = session.shadow_fresh_capture.take().unwrap();
+        assert!(capture.pending.is_none());
+        assert_eq!(capture.routes.len(), 2);
+        let row_count = session.bounds.len();
+        let solved = session.finish().unwrap();
+        let topology = retained.shadow_scc_topology();
+        let uses = topology
+            .components()
+            .flat_map(|component| component.incoming_uses())
+            .collect::<Vec<_>>();
+        let before = retained.counters();
+        let solved_before = solved.counters();
+        for (index, route) in capture.routes.iter().enumerate() {
+            let matches = uses
+                .iter()
+                .filter(|occurrence| occurrence.collection_identity() == &route.use_id)
+                .collect::<Vec<_>>();
+            assert_eq!(matches.len(), 1);
+            let occurrence = *matches[0];
+            let use_record = &retained.definition_uses
+                [retained.definition_use_positions[occurrence.collection_identity()]];
+            assert_eq!(route.target, use_record.target);
+            let target = topology
+                .definitions()
+                .find(|definition| definition.collection_identity() == &use_record.target)
+                .unwrap();
+            let scheme = topology.use_closed_scheme(&solved, occurrence).unwrap();
+            assert!(
+                scheme.same_identity(topology.definition_closed_scheme(&solved, target).unwrap())
+            );
+            assert_eq!(
+                scheme.owner(),
+                &retained.definitions[retained.definition_positions[&route.target]].root
+            );
+            let expected = scheme
+                .quantifiers()
+                .map(|binder| (ShadowFreshBinderKind::Quantified, binder.ordinal()))
+                .chain(
+                    scheme
+                        .recursive_binders()
+                        .map(|binder| (ShadowFreshBinderKind::Recursive, binder.ordinal())),
+                )
+                .collect::<Vec<_>>();
+            let actual = route
+                .rows
+                .iter()
+                .map(|&(kind, ordinal, _)| (kind, ordinal))
+                .collect::<Vec<_>>();
+            assert!(!expected.is_empty());
+            assert_eq!(actual, expected);
+            // Fresh rows are compared only inside the session that captured them.
+            for &(_, _, row) in &route.rows {
+                assert!((row as usize) < row_count);
+                for previous in &capture.routes[..index] {
+                    assert_ne!(route.use_id, previous.use_id);
+                    assert!(previous.rows.iter().all(|&(_, _, prior)| row != prior));
+                }
+            }
+        }
+        assert_eq!(before, retained.counters());
+        assert_eq!(solved_before, solved.counters());
+    }
+}
+
 #[test]
 fn fresh_capture_synthetic_mixed_binders_preserves_both_bound_relationships() {
     let (mut session, routes) = f5c_shared_closed_incoming_fixture("shadow-f5-mixed");
