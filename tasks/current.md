@@ -127,6 +127,15 @@ itself invert that introduction. This is historical characterization only;
 dot selection does not construct the original `(s,c)` fiber for the fixed
 ordinary `f x` Call, and `ORIGINAL_ASSOC` remains open.
 
+The bounded [Frozen Oracle resolved-use/SCC trace](../notes/progress/2026-10-07-frozen-oracle-scc-use-association.md)
+adds the historical lexical-use association path: a source `RefId` retains its
+parent and use endpoint, then resolution joins that endpoint to a target
+`DefId` and the SCC lifecycle retains it through an open use or later scheme
+instantiation. The SCC payload drops the `RefId` and contains no Call identity,
+static slot, typed position, complete contribution, or original joint
+`(nu,K,D)`. This is a useful identity/lifecycle analogue only; it constructs
+no `H_assoc`, grants no Oracle authority, and leaves `ORIGINAL_ASSOC` open.
+
 The bounded [Specializer2 call-consumer reconstruction](../notes/progress/2026-10-07-frozen-oracle-specializer-call-consumer-reconstruction.md)
 traces a separate downstream historical mechanism: a retained App rebuilds a
 typed Function consumer from materialized callee/argument views and keys its
