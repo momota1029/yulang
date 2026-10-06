@@ -151,18 +151,21 @@ remains open. One boundary introduction can carry several original positions;
 transport, capture and endpoint substitution do not settle that inventory.
 Full original receiving-view preservation remains conditional.
 
-**Unreviewed conditional interface — original formal-profile formation.** The
+**Reviewed conditional interface — original formal-profile formation.** The
 [rule-interface attempt](../progress/2026-10-06-formal-profile-formation-rule-attempt.md#3-formation-interface-before-choosing-missing-rules)
 retains positive `Intro-Call-0`; `I-formal`, `I-call-rest` and `I-exhaust`
 remain unknown. Its [completeness argument](../progress/2026-10-06-formal-profile-formation-rule-attempt.md#4-conditional-completeness-theorem-and-its-premise)
 assumes independent original-source introduction soundness/inversion and
-matched whole-scope transport. It closes no P obligation. The accepted
+matched whole-scope transport. Compiler-referee and spec-auditor reviews found
+no findings within this conditional scope. H1 (source-introduction soundness)
+and H2 (`I-exhaust`) remain unproved; review does not establish these source
+premises, complete P or certify production. The accepted
 [architect assessment](../progress/2026-10-06-source-generation-pa-review.md#4-smallest-remaining-source-introduction-clause)
 retains the singleton converse as a proof/design-completion obligation:
 approved formation/protection does not entail it, while incompatible
 conformant alternatives and a necessary user decision remain unestablished.
 
-**Unreviewed bounded characterization — adjacent formal uses.** Under the
+**Reviewed bounded characterization — adjacent formal uses.** Under the
 explicit Hroot/Hdirect hypotheses, the
 [repeated-call derivation](../progress/2026-10-06-profile-adjacent-use-source-falsification.md#4-repeated-direct-calls-smallest-counting-discriminator)
 allows distinct direct Call occurrences to share static `p_0`, preserving
@@ -171,8 +174,11 @@ multi-use extension of singleton `Role_0` refinement. The
 [annotation case](../progress/2026-10-06-profile-adjacent-use-source-falsification.md#5-annotation-boundary-a-genuine-extra-input-not-a-slot-count)
 and [computed-result call](../progress/2026-10-06-profile-adjacent-use-source-falsification.md#6-later-higher-order-calls-two-different-source-routes)
 need separate source correspondence; later calling returned `step` reuses
-its original body Call. No exact-candidate counterexample, complete profile
-rule, theorem edge or implementation authority follows.
+its original body Call. Regression-auditor review found no findings within
+its explicit Hroot/Hdirect/Htransport/Hresult scope. Review does not prove
+those source hypotheses or certify production; the P converse remains open.
+No exact-candidate counterexample, complete profile rule, theorem edge or
+implementation authority follows.
 
 **Reviewed conditional A cut; independent admission remains open.** The
 [exact-cut derivation](../progress/2026-10-06-admission-A-exact-candidate-attempt.md#2-construct-the-exact-source-cuts-before-asking-admission)

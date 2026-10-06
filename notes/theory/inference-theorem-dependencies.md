@@ -83,26 +83,30 @@ must show every original applicable position is elimination-introduced at
 transport and finite syntax inventory do not prove that converse. P remains
 open, including full original receiving-view preservation.
 
-The unreviewed [formal-profile interface attempt](../progress/2026-10-06-formal-profile-formation-rule-attempt.md#3-formation-interface-before-choosing-missing-rules)
+The reviewed conditional [formal-profile interface attempt](../progress/2026-10-06-formal-profile-formation-rule-attempt.md#3-formation-interface-before-choosing-missing-rules)
 retains positive `Intro-Call-0` but leaves `I-formal`, `I-call-rest` and
 `I-exhaust` unknown. Its [conditional completeness argument](../progress/2026-10-06-formal-profile-formation-rule-attempt.md#4-conditional-completeness-theorem-and-its-premise)
 assumes independent original-source introduction soundness/inversion and
-matched whole-scope transport; it does not construct those premises or close
-P. The [architect assessment](../progress/2026-10-06-source-generation-pa-review.md#4-smallest-remaining-source-introduction-clause)
+matched whole-scope transport. Compiler-referee and spec-auditor reviews found
+no findings within this conditional scope. H1 (source-introduction soundness)
+and H2 (`I-exhaust`) remain unproved; review does not establish these source
+premises, complete P or certify production. The [architect assessment](../progress/2026-10-06-source-generation-pa-review.md#4-smallest-remaining-source-introduction-clause)
 classifies the converse as a proof/design-completion obligation: approved
 formation and protection do not entail it, and no incompatible conformant
 alternatives or necessary user decision have been established.
 
-The unreviewed [adjacent-use audit](../progress/2026-10-06-profile-adjacent-use-source-falsification.md#4-repeated-direct-calls-smallest-counting-discriminator)
+The reviewed bounded [adjacent-use audit](../progress/2026-10-06-profile-adjacent-use-source-falsification.md#4-repeated-direct-calls-smallest-counting-discriminator)
 shows conditionally under Hroot/Hdirect that repeated direct calls can share
 static `p_0` while retaining distinct occurrence/elimination witnesses. This
 does not extend singleton `Role_0` refinement or establish full source typing.
 [Annotation mapping](../progress/2026-10-06-profile-adjacent-use-source-falsification.md#5-annotation-boundary-a-genuine-extra-input-not-a-slot-count)
 and [computed-result calls](../progress/2026-10-06-profile-adjacent-use-source-falsification.md#6-later-higher-order-calls-two-different-source-routes)
 require their separate source correspondences; later execution of returned
-`step` instead reuses its original body Call. None is an exact-candidate
-counterexample or a complete profile rule. No theorem edge or authority is
-promoted by these bounded attempts.
+`step` instead reuses its original body Call. Regression-auditor review found
+no findings within its explicit Hroot/Hdirect/Htransport/Hresult scope; this
+does not prove those source hypotheses or certify production. The P converse
+remains open. None is an exact-candidate counterexample or a complete profile
+rule. No theorem edge or authority is promoted by these bounded results.
 
 The [A cut derivation](../progress/2026-10-06-admission-A-exact-candidate-attempt.md#2-construct-the-exact-source-cuts-before-asking-admission)
 is now compiler-referee-reviewed with no findings. It conditionally retains
