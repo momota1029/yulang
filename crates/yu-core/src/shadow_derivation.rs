@@ -167,11 +167,21 @@ pub struct PendingCall<'a> {
 }
 
 /// Raw retained structure only; no value/computation or typing judgment is made.
-#[derive(Debug)]
 pub struct RawStructuralArena<'a> {
+    skeleton: &'a Skeleton,
     body: &'a ExprId,
     nodes: Vec<RawNode<'a>>,
     annotations: Vec<RawAnnotation<'a>>,
+}
+
+impl std::fmt::Debug for RawStructuralArena<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("RawStructuralArena")
+            .field("body", &self.body)
+            .field("nodes", &self.nodes)
+            .field("annotations", &self.annotations)
+            .finish()
+    }
 }
 
 impl<'a> RawStructuralArena<'a> {
@@ -335,6 +345,7 @@ impl<'a> RawStructuralArena<'a> {
             raw_call.captured_input = Some(input);
         }
         Some(Self {
+            skeleton,
             body: skeleton.body(),
             nodes,
             annotations,
@@ -351,6 +362,124 @@ impl<'a> RawStructuralArena<'a> {
 
     pub fn annotations(&self) -> &[RawAnnotation<'a>] {
         &self.annotations
+    }
+
+    /// Borrows candidate bookkeeping positions for one exact retained Apply.
+    /// Foreign identities and retained expressions of other forms are rejected.
+    /// This performs no typing, inference, semantic association or admission.
+    pub fn pending_apply_endpoint_skeleton(
+        &self,
+        source: &ExprId,
+    ) -> Option<PendingApplyEndpointSkeleton<'_, 'a>> {
+        let offset = self.skeleton.expression_offset(source).ok()?;
+        let node = self.nodes.get(offset)?;
+        let expression = self.skeleton.expression(source).ok()?;
+        if node.source != *source || !std::ptr::eq(node.form, expression.form()) {
+            return None;
+        }
+        let Form::Apply {
+            callee, argument, ..
+        } = node.form
+        else {
+            return None;
+        };
+        let call = node.call.as_ref()?;
+        Some(PendingApplyEndpointSkeleton {
+            source: &node.source,
+            callee,
+            argument,
+            call,
+            addresses: ApplyStructuralPosition::ALL.map(|position| ApplyStructuralAddress {
+                application: &node.source,
+                position,
+            }),
+        })
+    }
+}
+
+/// Candidate bookkeeping labels only. They assert no typed port, endpoint
+/// equality, path, Function applicability, semantics, role, beta/Slots/profile,
+/// owner/receiver, original xi, inference result or admission.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ApplyStructuralPosition {
+    CalleeValue,
+    CalleeEffect,
+    ArgumentValue,
+    ArgumentEffect,
+    CandidateFunctionReturnEffect,
+    CandidateFunctionResult,
+    WholeApplyValue,
+    WholeApplyEffect,
+}
+
+impl ApplyStructuralPosition {
+    const ALL: [Self; 8] = [
+        Self::CalleeValue,
+        Self::CalleeEffect,
+        Self::ArgumentValue,
+        Self::ArgumentEffect,
+        Self::CandidateFunctionReturnEffect,
+        Self::CandidateFunctionResult,
+        Self::WholeApplyValue,
+        Self::WholeApplyEffect,
+    ];
+}
+
+/// Derived address in retained syntax bookkeeping, not a minted endpoint ID.
+/// Equality compares only the existing Apply identity and structural label;
+/// it asserts no typed endpoint equality or any judgment listed on the label.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct ApplyStructuralAddress<'view> {
+    application: &'view ExprId,
+    position: ApplyStructuralPosition,
+}
+
+impl<'view> ApplyStructuralAddress<'view> {
+    pub fn application(&self) -> &'view ExprId {
+        self.application
+    }
+
+    pub fn position(&self) -> ApplyStructuralPosition {
+        self.position
+    }
+}
+
+/// Immutable, incomplete view over a validated retained ordinary Apply.
+/// All eight addresses are keyed by this Apply, including its argument labels;
+/// these are distinct from a nested argument Apply's whole-result labels.
+/// The labels assert no typed port, endpoint equality, path, Function
+/// applicability, semantics, role, beta/Slots/profile, owner/receiver, original
+/// xi, inference result or admission. All existing premises remain pending,
+/// including `OriginalAssocType_X(beta,p0,j_call;s0,c0)`; there is no discharge.
+#[derive(Debug)]
+pub struct PendingApplyEndpointSkeleton<'view, 'artifact> {
+    source: &'view ExprId,
+    callee: &'artifact ExprId,
+    argument: &'artifact ExprId,
+    call: &'view RawCall<'artifact>,
+    addresses: [ApplyStructuralAddress<'view>; 8],
+}
+
+impl<'view, 'artifact> PendingApplyEndpointSkeleton<'view, 'artifact> {
+    pub fn source(&self) -> &'view ExprId {
+        self.source
+    }
+
+    pub fn callee(&self) -> &'artifact ExprId {
+        self.callee
+    }
+
+    pub fn argument(&self) -> &'artifact ExprId {
+        self.argument
+    }
+
+    /// Existing raw metadata and joins, with every premise unchanged.
+    pub fn call(&self) -> &'view RawCall<'artifact> {
+        self.call
+    }
+
+    pub fn addresses(&self) -> &[ApplyStructuralAddress<'view>; 8] {
+        &self.addresses
     }
 }
 
