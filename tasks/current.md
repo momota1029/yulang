@@ -387,6 +387,33 @@ provenance analogue only; it supplies no ordinary Call `beta`/`Slots(beta)`,
 typed `p0`, owner/receiver path, complete contribution or original `xi`.
 Frozen Oracle remains historical evidence, and `ORIGINAL_ASSOC` stays open.
 
+The compiler-referee-reviewed [Frozen Oracle receiver-anchor trace](../notes/progress/2026-10-08-frozen-oracle-receiver-registration-archaeology.md)
+finds an additional historical declaration/body mechanism:
+`ReceiverMethodLoweringAnchors` are retained in a method-`DefId` pending
+conformance record, then body value/effect snapshots are captured before
+deferred requirement edges are applied. The exported snapshot plus tail count
+does not recover receiver/tail identities, while the full descriptor retains
+them. This is a receiver/body provenance analogue, not an ordinary Call
+producer: anchors are constructed after body/Function constraints and supply
+no original `beta`/`Slots(beta)`, typed `p0`, complete contribution, or shared
+`xi`. It closes no semantic gate.
+
+The unreviewed [Frozen Oracle typed-provenance route](../notes/progress/2026-10-08-frozen-oracle-typed-provenance-route.md)
+traces explicit `ArgEffectContract` metadata from source annotation through
+parameter identity and compiled-runtime remapping to call-spine hygiene, and
+separately traces finalized typed-ACT identity/scheme transport. Its local
+port discriminator shows the guard marker alone does not retain whether an
+effect atom came from the argument-effect or return-effect port. Neither
+route supplies the original Call contribution or proves a current-language
+rule; `ORIGINAL_ASSOC` remains open.
+
+The unreviewed [Frozen Oracle call-boundary novelty stop](../notes/progress/2026-10-08-frozen-oracle-call-boundary-mechanisms.md)
+checks upstream CST/body dispatch and occurrence export against existing
+ordinary-App archaeology. The additional seams return to the already traced
+App producer; boundary handles exist before subtype submission, while typed
+occurrence roots and App/span metadata are added later. This is a bounded
+dispatch-avoidance result, not a repository-wide absence claim or source rule.
+
 The compiler-referee-reviewed [SIG-RULES completion-separation attempt](../notes/progress/2026-10-07-signature-licensing-underdetermination.md)
 constructed no admissible pair of complete licensing meanings. Under equal
 original primitive relations, clause graphs and certified transport at the
