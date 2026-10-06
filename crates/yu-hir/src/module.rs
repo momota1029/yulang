@@ -1041,7 +1041,14 @@ struct Admitted {
     id: Arc<DefId>,
     visibility: HirVisibility,
     name: HirName,
-    parameter: Option<HirName>,
+    parameter: Option<AdmittedParameter>,
+}
+
+#[derive(Clone)]
+struct AdmittedParameter {
+    name: HirName,
+    #[cfg(any(feature = "shadow", test))]
+    source: Option<yu_syntax::SourceNodeKey>,
 }
 
 impl RootPlan {
@@ -1084,7 +1091,7 @@ fn plan_root(
             kind: RootPlanKind::Unsupported(HirErrorKind::UnsupportedItem),
         });
     }
-    let Some((visibility, name, parameter)) = plain_binding_header(&node) else {
+    let Some((visibility, name, parameter)) = plain_binding_header(&node, counters) else {
         return Ok(RootPlan {
             ordinal,
             node,
@@ -1182,13 +1189,17 @@ fn lower_plan(
     let parameters = admitted
         .parameter
         .as_ref()
-        .map(|name| {
-            vec![HirParameter {
+        .map(|admitted| {
+            let parameter = HirParameter {
                 id: HirParameterId::new(definition_root.clone(), 0),
-                name: name.clone(),
-                range: name.range.clone(),
-            }]
-            .into_boxed_slice()
+                name: admitted.name.clone(),
+                range: admitted.name.range.clone(),
+            };
+            #[cfg(any(feature = "shadow", test))]
+            if let (Some(source), Some(key)) = (&mut counters.source_identity, &admitted.source) {
+                source.record_parameter(parameter.id.clone(), key.clone());
+            }
+            vec![parameter].into_boxed_slice()
         })
         .unwrap_or_default();
     let body_occurrence = if parameters.is_empty() {
@@ -1501,7 +1512,10 @@ fn lower_simple_chain(
     }
 }
 
-fn plain_binding_header(node: &SyntaxNode) -> Option<(HirVisibility, HirName, Option<HirName>)> {
+fn plain_binding_header(
+    node: &SyntaxNode,
+    _counters: &LoweringCounters,
+) -> Option<(HirVisibility, HirName, Option<AdmittedParameter>)> {
     let header = node
         .children()
         .find(|child| child.kind() == SyntaxKind::BindingHeader)?;
@@ -1541,7 +1555,11 @@ fn plain_binding_header(node: &SyntaxNode) -> Option<(HirVisibility, HirName, Op
             };
             (
                 identifier_pattern_name(head)?,
-                Some(identifier_pattern_name(argument)?),
+                Some(AdmittedParameter {
+                    name: identifier_pattern_name(argument)?,
+                    #[cfg(any(feature = "shadow", test))]
+                    source: _counters.source_nodes.get(argument).cloned(),
+                }),
             )
         }
         _ => return None,

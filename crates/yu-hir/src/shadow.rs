@@ -1,7 +1,7 @@
 //! Opt-in immutable source artifact. Syntax provenance carries no type or role judgment.
 use crate::{
-    DefinitionRootId, HirAvailabilityError, HirModule, HirOccurrenceId, ModuleIdentity,
-    SemanticImports,
+    DefinitionRootId, HirAvailabilityError, HirModule, HirOccurrenceId, HirParameterId,
+    ModuleIdentity, SemanticImports,
 };
 use crate::{range_of, range_of_token};
 use std::{
@@ -34,6 +34,7 @@ pub(crate) struct HirSourceIdentity {
     parse_root: SourceNodeKey,
     definitions: HashMap<DefinitionRootId, SourceNodeKey>,
     occurrences: HashMap<HirOccurrenceId, SourceNodeKey>,
+    parameters: HashMap<HirParameterId, SourceNodeKey>,
 }
 
 pub(crate) fn source_keys(parsed: &ParsedFile) -> HashMap<SyntaxNode, SourceNodeKey> {
@@ -52,10 +53,14 @@ impl HirSourceIdentity {
             parse_root: parsed.source_root().key(),
             definitions: HashMap::new(),
             occurrences: HashMap::new(),
+            parameters: HashMap::new(),
         }
     }
     pub(crate) fn record_definition(&mut self, id: DefinitionRootId, key: SourceNodeKey) {
         self.definitions.insert(id, key);
+    }
+    pub(crate) fn record_parameter(&mut self, id: HirParameterId, key: SourceNodeKey) {
+        self.parameters.insert(id, key);
     }
     pub(crate) fn record_occurrence(&mut self, id: HirOccurrenceId, key: SourceNodeKey) {
         self.occurrences.insert(id, key);
@@ -210,6 +215,28 @@ impl ShadowArtifact {
         self.source_position(
             source
                 .occurrences
+                .get(id)
+                .ok_or(SourceIdentityError::MissingSource)?,
+        )
+    }
+    /// Joins an admitted HIR parameter to its exact IdentifierPattern node.
+    /// This source identity carries no typed slot or role judgment.
+    pub fn parameter_source_position(
+        &self,
+        hir: &HirModule,
+        id: &HirParameterId,
+    ) -> Result<PositionId, SourceIdentityError> {
+        if !hir.owns_parameter(id) {
+            return Err(SourceIdentityError::ForeignHirArtifact);
+        }
+        let source = hir
+            .source_identity
+            .as_ref()
+            .ok_or(SourceIdentityError::MissingSource)?;
+        self.check_source_parse(source)?;
+        self.source_position(
+            source
+                .parameters
                 .get(id)
                 .ok_or(SourceIdentityError::MissingSource)?,
         )
@@ -2105,6 +2132,101 @@ mod tests {
         );
         assert_eq!(
             shadow.occurrence_source_position(&hir, &value(&hir)),
+            Err(SourceIdentityError::MissingSource)
+        );
+    }
+
+    #[test]
+    fn source_identity_correspondence_joins_exact_parameters_with_repeated_names() {
+        let parsed = parsed("my f x = x; my g x = x");
+        let hir =
+            lower_module_with_source_identity(hir_identity(), &parsed, SemanticImports::empty())
+                .unwrap();
+        let ordinary =
+            crate::lower_module(hir_identity(), &parsed, SemanticImports::empty()).unwrap();
+        assert_eq!(hir, ordinary);
+        assert!(ordinary.source_identity.is_none());
+        let shadow = ShadowArtifact::from_parsed(parsed.clone()).unwrap();
+        let mut positions = Vec::new();
+        for item in hir.items() {
+            let crate::HirItem::Binding(binding) = item else {
+                panic!("binding")
+            };
+            let parameter = &binding.parameters()[0];
+            let position = shadow
+                .parameter_source_position(&hir, parameter.id())
+                .unwrap();
+            assert_eq!(
+                shadow.position(&position).unwrap().kind(),
+                SyntaxKind::IdentifierPattern
+            );
+            assert_eq!(
+                shadow.position(&position).unwrap().range(),
+                parameter.range()
+            );
+            positions.push(position);
+        }
+        assert_ne!(positions[0], positions[1]);
+
+        // The skeleton's smaller admitted envelope retains the same exact node.
+        let parsed = self::parsed("my f x = x");
+        let hir =
+            lower_module_with_source_identity(hir_identity(), &parsed, SemanticImports::empty())
+                .unwrap();
+        let shadow = ShadowArtifact::from_parsed(parsed).unwrap();
+        let crate::HirItem::Binding(binding) = &hir.items()[0] else {
+            panic!("binding")
+        };
+        let skeleton = shadow.skeleton().unwrap();
+        let parameter = skeleton
+            .expressions()
+            .iter()
+            .find_map(|expression| match expression.form() {
+                Form::Lambda { parameter, .. } => Some(parameter),
+                _ => None,
+            })
+            .expect("lambda parameter");
+        assert_eq!(
+            shadow
+                .parameter_source_position(&hir, binding.parameters()[0].id())
+                .unwrap(),
+            *skeleton.binder(parameter).unwrap().position()
+        );
+    }
+
+    #[test]
+    fn source_identity_correspondence_rejects_foreign_parameters_and_missing_source() {
+        let parsed = parsed("my f x = x");
+        let mut hir =
+            lower_module_with_source_identity(hir_identity(), &parsed, SemanticImports::empty())
+                .unwrap();
+        let foreign =
+            lower_module_with_source_identity(hir_identity(), &parsed, SemanticImports::empty())
+                .unwrap();
+        let ordinary =
+            crate::lower_module(hir_identity(), &parsed, SemanticImports::empty()).unwrap();
+        let parameter = |hir: &HirModule| match &hir.items()[0] {
+            crate::HirItem::Binding(binding) => binding.parameters()[0].id().clone(),
+            _ => panic!("binding"),
+        };
+        let shadow = ShadowArtifact::from_parsed(parsed.clone()).unwrap();
+        assert_eq!(
+            shadow.parameter_source_position(&hir, &parameter(&foreign)),
+            Err(SourceIdentityError::ForeignHirArtifact)
+        );
+        assert_eq!(
+            shadow.parameter_source_position(&ordinary, &parameter(&ordinary)),
+            Err(SourceIdentityError::MissingSource)
+        );
+        let foreign_shadow = ShadowArtifact::from_parsed(self::parsed("my f x = x")).unwrap();
+        assert_eq!(
+            foreign_shadow.parameter_source_position(&hir, &parameter(&hir)),
+            Err(SourceIdentityError::ForeignParse)
+        );
+        let id = parameter(&hir);
+        hir.source_identity.as_mut().unwrap().parameters.remove(&id);
+        assert_eq!(
+            shadow.parameter_source_position(&hir, &id),
             Err(SourceIdentityError::MissingSource)
         );
     }
