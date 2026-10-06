@@ -88,6 +88,7 @@ pub struct SkeletonSourceCrosswalk<'a> {
     definitions: HashMap<usize, (&'a Expression, &'a BinderId)>,
     parameters: HashMap<usize, (&'a Expression, &'a BinderId)>,
     uses: HashMap<usize, &'a UseId>,
+    applications: HashMap<usize, &'a Expression>,
 }
 
 impl<'a> SkeletonSourceCrosswalk<'a> {
@@ -115,6 +116,40 @@ impl<'a> SkeletonSourceCrosswalk<'a> {
         self.artifact.position(position)?;
         Ok(self.uses.get(&position.0.index).copied())
     }
+
+    /// Borrow the retained Apply at its exact CST call-tail position.
+    /// This shadow lexical/source lookup is not production NameResolution and
+    /// supplies no typed path, owner, receiver, beta, slot, profile, role,
+    /// annotation meaning, Q result or semantic evidence.
+    pub fn application_at_position(
+        &self,
+        position: &PositionId,
+    ) -> Result<Option<&'a Expression>, ShadowError> {
+        self.artifact.position(position)?;
+        Ok(self.applications.get(&position.0.index).copied())
+    }
+
+    /// Return only the already retained direct Use callee's lexical links.
+    /// Grouped and computed callees do not acquire a resolution through this lookup.
+    pub fn application_direct_use_at_position(
+        &self,
+        position: &PositionId,
+    ) -> Result<Option<(&'a UseId, &'a BinderId)>, ShadowError> {
+        let Some(expression) = self.application_at_position(position)? else {
+            return Ok(None);
+        };
+        let Form::Apply { callee, .. } = expression.form() else {
+            unreachable!("validated crosswalk application");
+        };
+        let skeleton = self
+            .artifact
+            .skeleton()
+            .expect("application index requires validated skeleton");
+        let Form::Use { occurrence, binder } = skeleton.expression(callee)?.form() else {
+            return Ok(None);
+        };
+        Ok(Some((occurrence, binder)))
+    }
 }
 
 impl ShadowArtifact {
@@ -126,6 +161,7 @@ impl ShadowArtifact {
             definitions: HashMap::new(),
             parameters: HashMap::new(),
             uses: HashMap::new(),
+            applications: HashMap::new(),
         };
         if let Ok(skeleton) = self.skeleton() {
             for expression in skeleton.expressions() {
@@ -162,6 +198,11 @@ impl ShadowArtifact {
                                 .index,
                             occurrence,
                         );
+                    }
+                    Form::Apply { .. } => {
+                        crosswalk
+                            .applications
+                            .insert(expression.position().0.index, expression);
                     }
                     _ => {}
                 }
@@ -2023,6 +2064,10 @@ fn nested_chain(node: &SyntaxNode) -> Result<SyntaxNode, ShadowError> {
 #[cfg(test)]
 #[path = "tests/shadow_raw_source_inventory.rs"]
 mod raw_source_inventory_tests;
+
+#[cfg(test)]
+#[path = "tests/shadow_resolved_application_identity.rs"]
+mod shadow_resolved_application_identity;
 
 #[cfg(test)]
 mod tests {
