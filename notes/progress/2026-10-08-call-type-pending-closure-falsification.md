@@ -2,7 +2,7 @@
 
 Date: 2026-10-08
 Baseline: `fd6434993f02d85221642ab2c4047eb63798f9ca`
-Status: frozen unreviewed research; no semantic or implementation authority
+Status: frozen research; compiler-referee reviewed, no findings; no semantic or implementation authority
 Claim class: sorted algebraic nonimplication for the raw equations; conditional finite-tree lemma
 Exclusive lease: this note only
 
@@ -264,3 +264,13 @@ integrity and dependency recheck are returned in the freeze handoff.
 - Checks already run: governing/prior-note reads, baseline equality, path absence, eight dependency byte/hash comparisons; final narrow integrity check in handoff. No executable semantic checks.
 - Proposed one-line commit message: `research: separate local continuation typing from pending Bind closure`.
 - Shared-record deltas left for primary/curator: optionally link this reduced-premise witness and the explicit suffix-preservation premise; retain `CALL_TYPE`, `DESC_CLAUSES`, `ADMISSION_CLAUSES` and `SEM_JOINT` open. No task, index, authority, theory, manifest, lockfile, other worker's file or question-board bundle changed.
+
+## Independent review
+
+The compiler-referee found no blocking, major or minor issues. The sorted
+one-request witness preserves the fixed tuple, response, state and suffix and
+correctly distinguishes raw-algebra nonimplication from a `SEM_JOINT` or
+admitted-source counterexample. The conditional finite-tree induction retains
+its explicit suffix-preservation and request-legality premises. Exhaustive
+semantic realization, source admission, recursive/latent providers and
+production correspondence remain unverified.

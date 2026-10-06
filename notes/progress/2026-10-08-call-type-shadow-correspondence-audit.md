@@ -2,7 +2,7 @@
 
 Date: 2026-10-08 (assignment date)
 Baseline: `fd6434993f02d85221642ab2c4047eb63798f9ca`
-Status: frozen research-only audit; independent review pending
+Status: frozen research-only audit; compiler-referee reviewed, no findings
 Claim class: bounded source/code correspondence and conditional structural derivation
 Exclusive lease: this note only
 Authority: no semantic selection, production implementation or gate closure
@@ -293,3 +293,12 @@ subsecond reported tool durations. No compute or performance claim follows.
   question bundle or other worker path was edited.
 
 The producer stops writing before submitting this artifact for frozen review.
+
+## Independent review
+
+The compiler-referee found no blocking, major or minor issues. The review
+confirmed that the audited retained Apply structure supplies source syntax and
+provider identities only; its eight structural addresses are not typed ports.
+The recorded test coverage preserves pending premises and does not discharge
+them. Exhaustive operation/handler/elimination producers, complete history,
+source adequacy and production conformance were not audited.

@@ -143,6 +143,21 @@ notation finding was repaired locally. This is a conditional localization,
 not a source counterexample or `CALL_TYPE` closure; the clause-construction
 gates remain open.
 
+Three complementary [CALL_TYPE follow-ups](../notes/progress/2026-10-08-call-type-closure-construction-attempt.md)
+now sharpen that exact cut. The constructive note lists a sufficient
+conditional package for Name/Return, inert Delay, actual receiver phases and
+typed Bind closure, but obtains none of those laws from the open clauses. The
+[pending-closure falsifier](../notes/progress/2026-10-08-call-type-pending-closure-falsification.md)
+shows in a sorted algebra that typing the local continuation does not imply
+typing its saved suffix; the example is explicitly not a `SEM_JOINT` or
+admitted-source counterexample. The [shadow correspondence audit](../notes/progress/2026-10-08-call-type-shadow-correspondence-audit.md)
+finds no additional structural identity loss in the retained ordinary Apply
+path: source syntax and endpoint addresses still do not produce typed ports
+or the independently interpreted callee/provider/world and pending-Bind
+judgments. All three notes passed bounded compiler-referee review with no
+findings; `CALL_TYPE`, `DESC_CLAUSES`, `ADMISSION_CLAUSES` and `SEM_JOINT`
+remain open.
+
 The compiler-referee-reviewed [principal factorization attempt](../notes/progress/2026-10-07-principal-whole-relation-factorization-attempt.md)
 localizes two necessary source-to-query implications inside `ALL_VIEW`:
 independent view validity must yield a complete checking derivation at the
@@ -243,6 +258,15 @@ does not choose slot/contribution denotations or a licensing grammar. The
 remaining cuts are `CALL_TYPE` (P1), original slot/contribution introduction
 (P2), coverage meaning/assembly (P3), and exhaustive licensing/inversion
 (P4); no semantic rule or new gate edge is adopted.
+
+The bounded authority audit of [inferred Function call views](../notes/design/2026-10-05-inferred-function-call-views.md)
+confirms that the approved formation direction requires source-owned
+`beta`/`Slots(beta)`, typed ownership/receiver paths and one shared `xi`, while
+explicitly deferring their construction judgments. Source-contracts §2.1 takes
+the independently typed owner/view kernel as an input and §3.5 assumes it;
+§5.3 compares already presented clauses. Thus `ORIGINAL_ASSOC` remains an
+`OPEN-SEMANTIC` clause gap, not a derivation from `CALL_TYPE` or a demonstrated
+pair of competing complete semantics requiring a new user decision.
 
 The independently compiler-referee-reviewed [P2 constructor attack](../notes/progress/2026-10-09-original-assoc-p2-constructor-attack.md)
 grants complete Call typing only as a conditional isolation premise and traces

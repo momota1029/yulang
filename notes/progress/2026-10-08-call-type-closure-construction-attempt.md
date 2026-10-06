@@ -2,7 +2,7 @@
 
 Date: 2026-10-08
 Baseline: `fd6434993f02d85221642ab2c4047eb63798f9ca`
-Status: frozen, unreviewed research-only conditional lemma specification
+Status: frozen research-only conditional lemma specification; compiler-referee reviewed, no findings
 Gate / method: CALL_TYPE / factor the required local constructor consequences
 Exclusive lease: this file only
 Semantic and implementation authority: none
@@ -303,3 +303,13 @@ CALL_REL expansion cannot supply the missing premise.
   decision, DAG edge, shared authority rule or user-decision blocker proposed.
 
 Writing stops before submitting this artifact for frozen review.
+
+## Independent review
+
+The compiler-referee found no blocking, major or minor issues. The review
+confirmed fixed original `X`, binder tree and shared `xi`; universal admitted
+assignment/output quantification; and explicit retention of unproved phase and
+pending-Bind premises. The conditional composition does not claim a new
+`CALL_TYPE` derivation. Exhaustive descriptor/admission realization,
+source-world inhabitance, recursive/latent preservation and production
+conformance remain outside review scope.
