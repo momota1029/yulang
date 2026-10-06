@@ -20,6 +20,7 @@ fn artifact(source: &str) -> ShadowArtifact {
 fn source_call_registration_borrows_exact_parameter_declaration_owner() {
     for source in [
         "my apply f = f 1",
+        "my repeated f = f (f 1)",
         "my repeated f x = f (f x)",
         "my apply f = { my step x = f x; step }",
         "my apply f x = f x",
@@ -104,6 +105,51 @@ fn source_call_registration_borrows_exact_parameter_declaration_owner() {
         } else {
             assert_eq!(absent, 0);
             assert!(!owners.is_empty());
+            if source == "my repeated f = f (f 1)" {
+                assert_eq!(owners.len(), 2);
+                assert_eq!(owners[0].0, owners[1].0);
+                assert!(std::ptr::eq(owners[0].1, owners[1].1));
+                let registrations = arena
+                    .nodes()
+                    .iter()
+                    .filter_map(|node| node.pending_source_call_registration())
+                    .collect::<Vec<_>>();
+                assert_ne!(
+                    registrations[0].source_use_input.occurrence(),
+                    registrations[1].source_use_input.occurrence()
+                );
+                for registration in registrations {
+                    assert_eq!(
+                        registration
+                            .parameter_declaration
+                            .as_ref()
+                            .unwrap()
+                            .lambda
+                            .range(),
+                        &(0..23)
+                    );
+                    let input = &registration.source_use_input;
+                    assert_eq!(
+                        foreign
+                            .skeleton()
+                            .unwrap()
+                            .use_expression(input.occurrence())
+                            .unwrap_err(),
+                        ShadowError::ForeignArtifact
+                    );
+                    let expected = skeleton
+                        .pending()
+                        .iter()
+                        .filter(|row| row.call() == input.application().expression())
+                        .collect::<Vec<_>>();
+                    assert_eq!(registration.application_premises.len(), 7);
+                    assert_eq!(registration.application_premises.len(), expected.len());
+                    for (actual, expected) in registration.application_premises.iter().zip(expected)
+                    {
+                        assert!(std::ptr::eq(*actual, expected));
+                    }
+                }
+            }
         }
     }
 }
@@ -209,6 +255,38 @@ fn raw_inventory_carries_exact_hir_source_call_use_inputs_without_discharge() {
             for (actual, expected) in call.application_premises.iter().zip(pending) {
                 assert!(std::ptr::eq(*actual, expected));
             }
+        }
+    }
+}
+
+#[test]
+fn unary_grouped_and_computed_callees_do_not_create_outer_use_registrations() {
+    for (source, expected_calls) in [("my grouped f = (f) 1", 0), ("my computed f = (f 1) 1", 1)] {
+        let artifact = artifact(source);
+        let skeleton = artifact.skeleton().unwrap();
+        let arena = RawStructuralArena::from_artifact(&artifact).unwrap();
+        let registrations = arena
+            .nodes()
+            .iter()
+            .filter_map(|node| node.pending_source_call_registration())
+            .collect::<Vec<_>>();
+        assert_eq!(registrations.len(), expected_calls, "{source}");
+        if source == "my computed f = (f 1) 1" {
+            let [registration] = registrations.as_slice() else {
+                panic!("only the inner direct-Use call is registered")
+            };
+            let input = &registration.source_use_input;
+            assert_eq!(
+                skeleton
+                    .expression(input.application().expression())
+                    .unwrap()
+                    .range(),
+                &(17..20)
+            );
+            assert_eq!(
+                skeleton.use_expression(input.occurrence()).unwrap().range(),
+                &(17..18)
+            );
         }
     }
 }
