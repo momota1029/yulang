@@ -414,6 +414,16 @@ App producer; boundary handles exist before subtype submission, while typed
 occurrence roots and App/span metadata are added later. This is a bounded
 dispatch-avoidance result, not a repository-wide absence claim or source rule.
 
+The compiler-referee-reviewed [per-formal call-upper follow-up](../notes/progress/2026-10-08-frozen-oracle-call-upper-consumption-followup.md)
+traces the historical `DefId`-keyed list of application Function uppers into
+Lambda parameter-upper construction. Annotation-provided wildcard ports can
+be refined from that list; the nested projected branch substitutes the body
+effect and submits projected-upper constraints. A bounded two-call
+discriminator confirms the recorded uppers remain structural constraint IDs,
+without a source Call key or the original complete contribution owner/path/xi.
+This is historical interface-construction evidence only; Frozen Oracle remains
+non-authoritative and `ORIGINAL_ASSOC` and downstream gates remain open.
+
 The compiler-referee-reviewed [SIG-RULES completion-separation attempt](../notes/progress/2026-10-07-signature-licensing-underdetermination.md)
 constructed no admissible pair of complete licensing meanings. Under equal
 original primitive relations, clause graphs and certified transport at the
