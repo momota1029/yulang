@@ -253,6 +253,15 @@ bounded dispatch-avoidance result, not repository-wide absence or
 non-derivability. Oracle remains historical evidence only; `ORIGINAL_ASSOC`
 and dependent gates stay open.
 
+The compiler-referee-reviewed [Pattern-boundary follow-up](../notes/progress/2026-10-08-frozen-oracle-original-producer-mechanism-followup.md)
+traces an adjacent case-arm mechanism: after shared pattern lowering, a
+Pattern boundary joins scrutinee/pattern endpoints, then newly observed upper
+bound IDs become PatternInput provenance. Shared pattern binders start as
+`Def::Arg`, while Defined-lambda callers separately add Input/frame metadata.
+This refines historical provenance attribution only; it supplies no ordinary
+Call slot, complete typed contribution, or original shared `xi`. The trace is
+bounded and non-authoritative; `ORIGINAL_ASSOC` remains open.
+
 The compiler-referee-reviewed [SIG-RULES completion-separation attempt](../notes/progress/2026-10-07-signature-licensing-underdetermination.md)
 constructed no admissible pair of complete licensing meanings. Under equal
 original primitive relations, clause graphs and certified transport at the
