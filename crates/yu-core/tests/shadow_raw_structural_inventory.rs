@@ -17,6 +17,111 @@ fn artifact(source: &str) -> ShadowArtifact {
 }
 
 #[test]
+fn raw_inventory_carries_exact_hir_source_call_use_inputs_without_discharge() {
+    for source in [
+        "my apply x (f: T) (g: T) = f (g x)",
+        "my grouped f x = (f) x",
+        "my computed f x = (f x) x",
+    ] {
+        let first = artifact(source);
+        let foreign = artifact(source);
+        let skeleton = first.skeleton().unwrap();
+        let arena = RawStructuralArena::from_artifact(&first).unwrap();
+        let expected = skeleton.source_call_use_inputs().collect::<Vec<_>>();
+        let actual = arena
+            .nodes()
+            .iter()
+            .filter_map(|node| node.call.as_ref()?.source_use_input.as_ref())
+            .collect::<Vec<_>>();
+        assert_eq!(actual.len(), expected.len());
+        if source == "my apply x (f: T) (g: T) = f (g x)" {
+            assert_eq!(actual.len(), 2);
+        }
+        for (raw, retained) in actual.iter().zip(&expected) {
+            assert_eq!(
+                raw.application().expression(),
+                retained.application().expression()
+            );
+            assert!(std::ptr::eq(
+                raw.application().position(),
+                retained.application().position()
+            ));
+            assert!(std::ptr::eq(
+                raw.application().callee(),
+                retained.application().callee()
+            ));
+            assert!(std::ptr::eq(raw.occurrence(), retained.occurrence()));
+            assert!(std::ptr::eq(raw.binder(), retained.binder()));
+            assert!(std::ptr::eq(raw.argument(), retained.argument()));
+            let annotations = raw.parameter_annotations().collect::<Vec<_>>();
+            let retained_annotations = retained.parameter_annotations().collect::<Vec<_>>();
+            assert_eq!(annotations.len(), retained_annotations.len());
+            if source == "my apply x (f: T) (g: T) = f (g x)" {
+                assert_eq!(annotations.len(), 1);
+            }
+            for (incidence, retained) in annotations.iter().zip(retained_annotations) {
+                assert!(std::ptr::eq(*incidence, retained));
+                assert_eq!(incidence.parameter(), raw.binder());
+                assert_eq!(
+                    foreign.annotation(incidence.annotation()).unwrap_err(),
+                    ShadowError::ForeignArtifact
+                );
+            }
+            assert_eq!(
+                foreign.position(raw.application().position()).unwrap_err(),
+                ShadowError::ForeignArtifact
+            );
+            assert_eq!(
+                foreign
+                    .skeleton()
+                    .unwrap()
+                    .expression(raw.argument())
+                    .unwrap_err(),
+                ShadowError::ForeignArtifact
+            );
+            assert_eq!(
+                foreign
+                    .skeleton()
+                    .unwrap()
+                    .binder(raw.binder())
+                    .unwrap_err(),
+                ShadowError::ForeignArtifact
+            );
+            assert_eq!(
+                foreign
+                    .skeleton()
+                    .unwrap()
+                    .use_expression(raw.occurrence())
+                    .unwrap_err(),
+                ShadowError::ForeignArtifact
+            );
+        }
+        for node in arena.nodes() {
+            let Form::Apply { callee, .. } = node.form else {
+                continue;
+            };
+            let call = node.call.as_ref().unwrap();
+            assert_eq!(
+                call.source_use_input.is_some(),
+                matches!(
+                    skeleton.expression(callee).unwrap().form(),
+                    Form::Use { .. }
+                )
+            );
+            let pending = skeleton
+                .pending()
+                .iter()
+                .filter(|row| row.call() == &node.source)
+                .collect::<Vec<_>>();
+            assert_eq!(call.application_premises.len(), pending.len());
+            for (actual, expected) in call.application_premises.iter().zip(pending) {
+                assert!(std::ptr::eq(*actual, expected));
+            }
+        }
+    }
+}
+
+#[test]
 fn raw_inventory_retains_exact_annotation_occurrences_and_parameter_incidence() {
     let source = "my apply (f: T) x = f x";
     let first = artifact(source);

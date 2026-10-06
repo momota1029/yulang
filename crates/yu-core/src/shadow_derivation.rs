@@ -4,7 +4,7 @@
 use yu_hir::shadow::{
     AnnotationOccurrence, BinderId, CaptureUseIncidence, CapturedCallInput, ClosureCorrespondence,
     ExprId, Form, ParameterAnnotationIncidence, PendingPremise, Position, ResolvedCallIncidence,
-    ShadowArtifact, Skeleton, UnresolvedSourceViewPremise, UseId,
+    ShadowArtifact, Skeleton, SourceCallUseInput, UnresolvedSourceViewPremise, UseId,
 };
 
 /// Flat, immutable arena. Child offsets are local storage addresses, not lexical IDs.
@@ -217,6 +217,7 @@ impl<'a> RawStructuralArena<'a> {
                 call: matches!(expression.form(), Form::Apply { .. }).then(|| RawCall {
                     application_premises: Vec::new(),
                     direct_use: None,
+                    source_use_input: None,
                     capture: None,
                 }),
             })
@@ -241,7 +242,64 @@ impl<'a> RawStructuralArena<'a> {
             if !std::ptr::eq(use_expression, callee) {
                 return None;
             }
-            nodes.get_mut(offset)?.call.as_mut()?.direct_use = Some(incidence);
+            if nodes
+                .get_mut(offset)?
+                .call
+                .as_mut()?
+                .direct_use
+                .replace(incidence)
+                .is_some()
+            {
+                return None;
+            }
+        }
+        // Carry HIR's join, rather than interpreting annotations or reconstructing
+        // a callee through wrappers. Validation finishes before arena publication.
+        for input in skeleton.source_call_use_inputs() {
+            let application = input.application();
+            let offset = skeleton.expression_offset(application.expression()).ok()?;
+            let expression = skeleton.expression(application.expression()).ok()?;
+            let Form::Apply {
+                callee, argument, ..
+            } = expression.form()
+            else {
+                return None;
+            };
+            let Form::Use { binder, occurrence } = skeleton.expression(callee).ok()?.form() else {
+                return None;
+            };
+            if application.callee() != callee
+                || input.argument() != argument
+                || input.binder() != binder
+                || input.occurrence() != occurrence
+                || !std::ptr::eq(
+                    artifact.position(application.position()).ok()?,
+                    artifact.position(expression.position()).ok()?,
+                )
+            {
+                return None;
+            }
+            skeleton.expression(input.argument()).ok()?;
+            skeleton.binder(input.binder()).ok()?;
+            for incidence in input.parameter_annotations() {
+                let occurrence = artifact.annotation(incidence.annotation()).ok()?;
+                let annotation =
+                    annotations.get(*annotation_offsets.get(&std::ptr::from_ref(occurrence))?)?;
+                if incidence.parameter() != input.binder()
+                    || !std::ptr::eq(annotation.parameter?, incidence)
+                {
+                    return None;
+                }
+            }
+            let raw_call = nodes.get_mut(offset)?.call.as_mut()?;
+            let direct = raw_call.direct_use.as_ref()?;
+            if direct.application().expression() != application.expression()
+                || direct.occurrence() != input.occurrence()
+                || direct.binder() != input.binder()
+                || raw_call.source_use_input.replace(input).is_some()
+            {
+                return None;
+            }
         }
         for capture in skeleton.capture_uses() {
             let call = skeleton.capture_call(capture).ok()?;
@@ -297,5 +355,8 @@ pub struct RawNode<'a> {
 pub struct RawCall<'a> {
     pub application_premises: Vec<&'a PendingPremise>,
     pub direct_use: Option<ResolvedCallIncidence<'a>>,
+    /// Existing HIR reference join only: no formal, slot, typing or admission
+    /// judgment. An empty annotation iterator proves neither absence nor completeness.
+    pub source_use_input: Option<SourceCallUseInput<'a>>,
     pub capture: Option<&'a CaptureUseIncidence>,
 }
