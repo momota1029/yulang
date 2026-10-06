@@ -57,6 +57,18 @@ crosswalk inventories formal, call, annotation, capture and generalization
 routes for this exact candidate. It finds no second source-valid applicable
 position, while leaving the missing original profile introduction unproved.
 See the [formal profile producer crosswalk](../notes/progress/2026-10-06-profile-position-producer-crosswalk.md).
+A further conditional rule attempt factors the missing producer into formal-
+introduction, Call-result-introduction and exhaustiveness leaves; only the
+positive `Intro-Call-0` seed is established. A bounded adjacent-use audit
+shows repeated direct Calls can share static `p_0` while retaining distinct
+occurrence witnesses under explicit hypotheses; annotated and computed-result
+calls need separate source correspondence. Neither note closes exact P or
+supplies a source-valid counterexample. An architect audit classifies this as
+a proof/design-completion obligation; no incompatible Authority-conformant
+alternatives or new user decision are evidenced. The next gate is an
+independently justified and reviewed exhaustive original formal-profile
+introduction rule. See the [conditional formation-rule attempt](../notes/progress/2026-10-06-formal-profile-formation-rule-attempt.md)
+and [adjacent-use audit](../notes/progress/2026-10-06-profile-adjacent-use-source-falsification.md).
 
 Two reviewed follow-ups further bound this stop. The conditional local
 seed/refinement theorem preserves an independently supplied original relation

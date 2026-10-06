@@ -83,6 +83,27 @@ must show every original applicable position is elimination-introduced at
 transport and finite syntax inventory do not prove that converse. P remains
 open, including full original receiving-view preservation.
 
+The unreviewed [formal-profile interface attempt](../progress/2026-10-06-formal-profile-formation-rule-attempt.md#3-formation-interface-before-choosing-missing-rules)
+retains positive `Intro-Call-0` but leaves `I-formal`, `I-call-rest` and
+`I-exhaust` unknown. Its [conditional completeness argument](../progress/2026-10-06-formal-profile-formation-rule-attempt.md#4-conditional-completeness-theorem-and-its-premise)
+assumes independent original-source introduction soundness/inversion and
+matched whole-scope transport; it does not construct those premises or close
+P. The [architect assessment](../progress/2026-10-06-source-generation-pa-review.md#4-smallest-remaining-source-introduction-clause)
+classifies the converse as a proof/design-completion obligation: approved
+formation and protection do not entail it, and no incompatible conformant
+alternatives or necessary user decision have been established.
+
+The unreviewed [adjacent-use audit](../progress/2026-10-06-profile-adjacent-use-source-falsification.md#4-repeated-direct-calls-smallest-counting-discriminator)
+shows conditionally under Hroot/Hdirect that repeated direct calls can share
+static `p_0` while retaining distinct occurrence/elimination witnesses. This
+does not extend singleton `Role_0` refinement or establish full source typing.
+[Annotation mapping](../progress/2026-10-06-profile-adjacent-use-source-falsification.md#5-annotation-boundary-a-genuine-extra-input-not-a-slot-count)
+and [computed-result calls](../progress/2026-10-06-profile-adjacent-use-source-falsification.md#6-later-higher-order-calls-two-different-source-routes)
+require their separate source correspondences; later execution of returned
+`step` instead reuses its original body Call. None is an exact-candidate
+counterexample or a complete profile rule. No theorem edge or authority is
+promoted by these bounded attempts.
+
 The [A cut derivation](../progress/2026-10-06-admission-A-exact-candidate-attempt.md#2-construct-the-exact-source-cuts-before-asking-admission)
 is now compiler-referee-reviewed with no findings. It conditionally retains
 the captured provider and inner returning-Name carrier after the two external
