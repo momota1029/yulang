@@ -164,6 +164,8 @@ Q-independent admission, joint `xi`, or typed source receipt/capture
 correspondence. Oracle semantics remain non-authoritative and current
 source/proof gates remain open.
 
+The bounded [solved-output observation trace](../notes/progress/2026-10-06-frozen-oracle-solved-output-observation.md) finds another downstream historical mechanism: after solving, ordinary `App` sites can retain callee/argument expression IDs, solved actual/consumer types and slot-linked solver evidence. This may inform a later typed-observation join, but it consumes solved endpoints and cannot produce the current pre-query source relation. It supplies no original `beta`/`Slots(beta)`, Q-independent admission or typed receipt/receiver correspondence. The characterization is primary-authored and independent review is pending. Oracle remains non-authoritative, and all current proof and production gates remain open.
+
 One primary owns Git integration. Preserve all parallel work; stage or publish
 only exact intended paths, inspect the expected remote head and complete diff,
 and update without force. Keep all unintegrated question directories out of
