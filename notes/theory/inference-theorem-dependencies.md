@@ -21,8 +21,9 @@ constraints satisfiable.
 
 There is still no closed `FVIEW -> SRC` edge: P must generate the complete
 original applicable-position/contribution profile and same-root refinement
-interpretation from the initial Call schema; A must construct independently
-typed initial punctured contexts at the original joint `xi`. Typed packet
+interpretation from the initial Call schema; A must establish independent
+original-world/admission correspondence for its generated punctured-context
+schema at the original joint `xi`. Typed packet
 attachment/receipt, complete source inversion, all-view coverage, finite
 presentation and separate Option A/2 containment remain open. Fixed-point or
 indexed closure does not supply the missing source bases. The
@@ -48,8 +49,9 @@ For the exact captured-step component, the reviewed conditional
 requires H1 (complete source applicability), H2 (complete original
 contribution incidence), and
 [H3 (same-root receiving correspondence)](../progress/2026-10-06-profile-P-exact-candidate-construction.md#4-same-root-receiving-interpretation-the-exact-preservation-premise)
-for profile/protection preservation. All three source obligations remain
-unconstructed; H1 does not imply H2, and H1/H2 do not supply H3. H3 is a
+for profile/protection preservation. All three full original-source
+obligations remain unestablished; H1 does not imply H2, and H1/H2 do not
+supply H3. The least-generated subcase below does not discharge them. H3 is a
 sufficient witness correspondence; the stated live-witness equality tests
 this contribution's candidate protection, not all program observations.
 The reviewed [bounded inversion](../progress/2026-10-06-profile-P-completeness-falsification.md#3-restricted-last-rule-derivation)
@@ -59,15 +61,37 @@ does not generate an extra original slot. The compiler-referee found no
 findings in either P note; the spec-auditor's minor quantifier/component
 wording finding was repaired and closed by delta review. P remains open.
 
+The reviewed [least-footprint construction](../progress/2026-10-06-profile-source-normal-form-construction.md#4-exhaustive-induction-for-the-exact-source-footprint)
+now emits `G_C(beta)={p_0}` for the exact source by its explicit introduction
+recipe. Its [typed transport normal form](../progress/2026-10-06-profile-source-normal-form-construction.md#51-normal-form)
+retains Generated and Inherited leaves separately, with inherited routes
+starting at their supplied input-view coordinates. The minor inherited-
+coordinate finding was repaired and delta-closed. This constructs the
+candidate footprint, not its equality with complete original applicability:
+the [remaining converse](../progress/2026-10-06-profile-source-normal-form-construction.md#6-a-second-attempt-inversion-down-to-the-original-introduction)
+must show every original applicable position is elimination-introduced at
+`p_0`. A single original introduction may carry several positions; typed
+transport and finite syntax inventory do not prove that converse. P remains
+open, including full original receiving-view preservation.
+
 The [A cut derivation](../progress/2026-10-06-admission-A-exact-candidate-attempt.md#2-construct-the-exact-source-cuts-before-asking-admission)
 is now compiler-referee-reviewed with no findings. It conditionally retains
 the captured provider and inner returning-Name carrier after the two external
 Value entries, given P and independent typed realization inputs. It does not
 construct [OpenInit](../progress/2026-10-06-admission-A-exact-candidate-attempt.md#5-the-minimal-remaining-independent-judgment-on-this-route),
-the original two-hole context/environment and whole-inlet judgment. Reached
-source cuts do not exhaust the selected broad admission domain or Option 2
-extras. A remains open. These results promote no theorem edge, source
-constructor, source adequacy, principality or production authority.
+the original two-hole context/environment and whole-inlet judgment on that
+route. The later [simultaneous punctured-context construction](../progress/2026-10-06-initial-context-source-construction.md#5-the-puncture-and-pcinit-rule)
+and [local inversion](../progress/2026-10-06-initial-context-source-construction.md#7-bidirectional-local-inversion)
+are compiler-referee-reviewed with no findings. They generate the source-owned
+structural kernel and receipt/entry schemas under independently interpreted
+descriptor, P, import/world and local rules; a completed `TypedContext` is no
+longer a generation premise for this ordinary representation-preserving
+envelope. Both rigid holes, source bindings/captures and all witnesses stay
+on one original tuple, independently of the tested filling and pending Q.
+The [original-world/admission correspondence](../progress/2026-10-06-initial-context-source-construction.md#9-what-is-canonical-and-what-is-not-yet-proved),
+complete PCInit/A and Option A/2 containment remain open. Reached source cuts
+and the generated schema do not exhaust production admission. These results
+promote no theorem edge, source adequacy, principality or production authority.
 
 ```mermaid
 flowchart TD

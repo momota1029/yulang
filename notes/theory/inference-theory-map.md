@@ -79,8 +79,9 @@ narrows the [earlier bounded rule-inventory stop](../progress/2026-10-06-main-so
 it does not refute that stop in its named inventory.
 
 Complete original profile/contribution generation and seed-to-refined receiving-
-view interpretation (P), and independently typed initial punctured-context
-admission (A), remain missing constructors. The seed singleton is not a proof
+view interpretation (P), and independent original-world/admission
+correspondence for the generated initial punctured-context schema (A), remain
+open. The seed singleton is not a proof
 of the full `Slots(beta)` inventory; generic decorated validity and indexed
 closure do not reconstruct original source applicability or exact admission.
 Actual typed packet attachment, capture/receipt realization, both directions
@@ -109,8 +110,9 @@ the exact captured-step component, the
 [profile normal form](../progress/2026-10-06-profile-P-exact-candidate-construction.md#3-a-source-tagged-normal-form-with-its-unknown-operand-exposed)
 and [receiving preservation](../progress/2026-10-06-profile-P-exact-candidate-construction.md#4-same-root-receiving-interpretation-the-exact-preservation-premise)
 require H1 (complete source applicability), H2 (complete original contribution
-incidence) and H3 (same-root receiving correspondence). All three source
-obligations remain unconstructed. H3 is a sufficient witness correspondence;
+incidence) and H3 (same-root receiving correspondence). All three full
+original-source obligations remain unestablished; the least-generated subcase
+below does not discharge them. H3 is a sufficient witness correspondence;
 the exact live-witness test concerns this contribution's candidate protection,
 with other grants or uncovered handlers able to mask differences in program
 observations. The reviewed
@@ -122,15 +124,45 @@ Compiler-referee review found no findings in either P note; the
 spec-auditor's minor quantifier/component wording repair passed delta review.
 P remains open.
 
+**Reviewed construction — least-generated P footprint; converse still open.**
+The [exact-source induction](../progress/2026-10-06-profile-source-normal-form-construction.md#4-exhaustive-induction-for-the-exact-source-footprint)
+computes `G_C(beta)={p_0}` from an explicit introduction recipe. Its
+[typed transport normal form](../progress/2026-10-06-profile-source-normal-form-construction.md#51-normal-form)
+preserves Generated and Inherited leaves separately; inherited routes start
+at their supplied input-view coordinates and compose an original-to-input map
+when supplied. The minor coordinate-domain review finding was repaired and
+delta-closed. This is a constructive candidate footprint with conditional
+typed transport, not a complete original P theorem. The
+[source converse](../progress/2026-10-06-profile-source-normal-form-construction.md#6-a-second-attempt-inversion-down-to-the-original-introduction)
+that every original applicable position is elimination-introduced at `p_0`
+remains open. One boundary introduction can carry several original positions;
+transport, capture and endpoint substitution do not settle that inventory.
+Full original receiving-view preservation remains conditional.
+
 **Reviewed conditional A cut; independent admission remains open.** The
 [exact-cut derivation](../progress/2026-10-06-admission-A-exact-candidate-attempt.md#2-construct-the-exact-source-cuts-before-asking-admission)
 passed compiler-referee review with no findings. Given P and independently
 typed realization inputs, it retains the same captured provider and inner
 returning-Name carrier after the two external Value entries. Its
 [OpenInit premise](../progress/2026-10-06-admission-A-exact-candidate-attempt.md#5-the-minimal-remaining-independent-judgment-on-this-route),
-an original two-hole context/environment and whole-inlet judgment, remains
-unconstructed. Reached source cuts do not exhaust broad admission or Option 2
-extras. A, source inversion/adequacy, principality and production remain open;
+an original two-hole context/environment and whole-inlet judgment, was not
+constructed on that route. Reached source cuts do not exhaust broad admission
+or Option 2 extras.
+
+**Reviewed conditional construction — simultaneous punctured-context kernel.**
+The [PCInit-source schema](../progress/2026-10-06-initial-context-source-construction.md#5-the-puncture-and-pcinit-rule)
+and [bidirectional local inversion](../progress/2026-10-06-initial-context-source-construction.md#7-bidirectional-local-inversion)
+passed compiler-referee review with no findings. Source bindings, aliases,
+captures and receipt/entry schemas are generated simultaneously with both
+holes rigid and every witness on one original tuple. For the ordinary
+representation-preserving envelope, a completed `TypedContext` is no longer
+a generation premise. The inversion assumes independently interpreted
+descriptor, P, import/world and local rules; generation creates no actual
+receipt or successful filling. The
+[original-world/admission correspondence](../progress/2026-10-06-initial-context-source-construction.md#9-what-is-canonical-and-what-is-not-yet-proved),
+complete PCInit/A and exhaustive Option A/2 admission/containment remain open.
+Generated schema, original source initial challenges and production admission
+remain distinct. Source adequacy, principality and production remain open;
 no theorem edge or implementation authority follows.
 
 **Conditional theorem — source adequacy target.** The source-interface adequacy draft defines fiberwise forward coverage from source executions into a complete interface, under the same `nu` and retained joint `K,D`, including future uses, latent closures/thunks, requests and resumptions. Its exact complete-interface embedding is a semantic reference construction, not a finite solver or proof that current HIR generation emits such a presentation. See [source-to-complete-interface adequacy](../design/2026-10-02-source-interface-adequacy-theorem.md) and [typed source owner realization](../design/2026-10-02-typed-source-owner-realization.md).
