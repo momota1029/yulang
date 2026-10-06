@@ -127,6 +127,15 @@ itself invert that introduction. This is historical characterization only;
 dot selection does not construct the original `(s,c)` fiber for the fixed
 ordinary `f x` Call, and `ORIGINAL_ASSOC` remains open.
 
+The compiler-referee-reviewed [SIG-RULES completion-separation attempt](../notes/progress/2026-10-07-signature-licensing-underdetermination.md)
+constructed no admissible pair of complete licensing meanings. Under equal
+original primitive relations, clause graphs and certified transport at the
+same `X`/`xi`, the resulting relations are extensionally equal; transport
+alone cannot supply a competing source interpretation. This does not establish
+uniqueness. Both separation and licensing still stop at an independently
+typed original slot/contribution constructor, so `SIG_RULES` and
+`ORIGINAL_ASSOC` remain open without a new user-decision blocker.
+
 No real same-X licensing counterexample or competing complete-semantics
 witness was found. The remaining clause is research-side OPEN-SEMANTIC,
 not BLOCKED-BY-USER-DECISION.
