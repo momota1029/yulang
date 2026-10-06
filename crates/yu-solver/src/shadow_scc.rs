@@ -154,6 +154,28 @@ impl<'a> SccTopology<'a> {
         self.components().flat_map(SccComponentRef::members)
     }
 
+    /// Exact retained `(parent, target)` definitions of one resolved use.
+    /// Both endpoints must belong to this batch's frozen plan.
+    pub fn use_definitions(
+        &self,
+        occurrence: SccUseRef<'_>,
+    ) -> Result<(SccDefinitionRef<'a>, SccDefinitionRef<'a>), SccTopologyLookupError> {
+        if !std::sync::Arc::ptr_eq(&self.batch.collection_artifact, &occurrence.id.artifact) {
+            return Err(SccTopologyLookupError::ForeignArtifact);
+        }
+        let record = self
+            .batch
+            .definition_use_positions
+            .get(occurrence.id)
+            .and_then(|&position| self.batch.definition_uses.get(position))
+            .ok_or(SccTopologyLookupError::MissingIdentity)?;
+        let parent = SccDefinitionRef { id: &record.parent };
+        let target = SccDefinitionRef { id: &record.target };
+        self.component_of(parent)?;
+        self.component_of(target)?;
+        Ok((parent, target))
+    }
+
     /// Resolve an identity obtained from this or another observer.
     pub fn component_of(
         &self,
@@ -269,7 +291,7 @@ impl<'a> SccUseRef<'a> {
     }
 }
 
-/// Failure to resolve an opaque definition handle in a topology view.
+/// Failure to resolve an opaque definition or use handle in a topology view.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum SccTopologyLookupError {
     ForeignArtifact,

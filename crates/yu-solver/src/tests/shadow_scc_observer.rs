@@ -69,6 +69,69 @@ fn rejects_definition_handles_from_a_different_collection() {
     ));
 }
 
+#[test]
+fn retained_use_endpoints_preserve_exact_parent_target_and_component_identity() {
+    let batch = collect(module(
+        "my a = b; my b = a; my c = 42; my d = a",
+        "shadow-scc-use-endpoints.yu",
+    ));
+    let before = batch.counters();
+    let topology = batch.shadow_scc_topology();
+    let components = topology.components().collect::<Vec<_>>();
+    let members = components[0].members().collect::<Vec<_>>();
+    let incoming_parent = components[2].members().next().unwrap();
+    let mut internal_endpoints = Vec::new();
+    for occurrence in components[0].internal_uses() {
+        let (parent, target) = topology.use_definitions(occurrence).unwrap();
+        let record = batch
+            .definition_uses()
+            .iter()
+            .find(|record| record.id() == occurrence.collection_identity())
+            .unwrap();
+        assert_eq!(parent.collection_identity(), record.parent());
+        assert_eq!(target.collection_identity(), record.target());
+        assert!(components[0].same_identity(topology.component_of(parent).unwrap()));
+        assert!(components[0].same_identity(topology.component_of(target).unwrap()));
+        internal_endpoints.push((parent.collection_ordinal(), target.collection_ordinal()));
+        assert!(
+            (parent.same_identity(members[0]) && target.same_identity(members[1]))
+                || (parent.same_identity(members[1]) && target.same_identity(members[0]))
+        );
+    }
+    internal_endpoints.sort_unstable();
+    assert_eq!(internal_endpoints, vec![(0, 1), (1, 0)]);
+
+    let incoming = components[0].incoming_uses().collect::<Vec<_>>();
+    assert_eq!(incoming.len(), 1);
+    let (parent, target) = topology.use_definitions(incoming[0]).unwrap();
+    assert!(parent.same_identity(incoming_parent));
+    assert!(target.same_identity(members[0]));
+    assert!(components[2].same_identity(topology.component_of(parent).unwrap()));
+    assert!(components[0].same_identity(topology.component_of(target).unwrap()));
+    assert_eq!(before, batch.counters());
+}
+
+#[test]
+fn use_endpoint_lookup_rejects_another_collection_with_the_same_source() {
+    let hir = module("my a = b; my b = a", "shadow-scc-use-brand.yu");
+    let first = collect(hir.clone());
+    let second = collect(hir);
+    let before = first.counters();
+    let foreign = second
+        .shadow_scc_topology()
+        .components()
+        .next()
+        .unwrap()
+        .internal_uses()
+        .next()
+        .unwrap();
+    assert!(matches!(
+        first.shadow_scc_topology().use_definitions(foreign),
+        Err(crate::shadow_scc::SccTopologyLookupError::ForeignArtifact)
+    ));
+    assert_eq!(before, first.counters());
+}
+
 fn parsed(source: &str) -> yu_syntax::ParsedFile {
     let source: std::sync::Arc<yu_syntax::SourceText> = std::sync::Arc::from(source);
     let header = std::sync::Arc::new(yu_syntax::scan_header(source.clone()));
