@@ -198,6 +198,24 @@ remaining cuts are `CALL_TYPE` (P1), original slot/contribution introduction
 (P2), coverage meaning/assembly (P3), and exhaustive licensing/inversion
 (P4); no semantic rule or new gate edge is adopted.
 
+The independently compiler-referee-reviewed [P2 constructor attack](../notes/progress/2026-10-09-original-assoc-p2-constructor-attack.md)
+grants complete Call typing only as a conditional isolation premise and traces
+the remaining input cycle: source-contracts §2.1 supplies the independently
+typed owner/view kernel, while C-realization and §6.1 allowance validity retain
+or consume it. Neither route constructs original slots, typed `p0`, ownership
+or complete contribution from the approved source cut. This is a bounded
+premise-gap localization, not semantic impossibility or a closed P2 gate.
+
+The spec-audited [assembly witness-preservation falsifier](../notes/progress/2026-10-09-original-association-uniform-witness-falsifier.md)
+confirms the candidate's conditional assembly lemma under its stated
+existence/incidence premises. A separate finite presentation shows that
+uniform complete-family coverage alone does not justify replacing the full
+original witness relation by an assembly image: that extra replacement can
+drop a distinct licensed witness while preserving projected coverage. The
+candidate does not make that replacement and already leaves exhaustive
+licensing inversion open. No original-kernel counterexample or gate closure
+is established.
+
 The compiler-referee-reviewed [bounded Call falsifier cut](../notes/progress/2026-10-08-original-call-association-adversarial-cut.md)
 shows that at the fixed Name/Name source cut, the ordinary `x` formal makes
 the normalized argument a `Return`; a latent returned value adds no recursive
@@ -620,6 +638,15 @@ labels; the seven source premises, unresolved application state and solver
 counters remain unchanged. This is structural bookkeeping only, not an old-
 infer semantic differential or typed-port interpretation. The focused target
 passed 4 tests; production semantics remain unresolved.
+
+A read-only successor-frontier audit found no additional disjoint
+identity/evidence-plumbing gap in this dependency cone: Apply/operand,
+parameter declaration, annotation, and SCC identities are already retained
+and checked through solve. The missing `beta`/`Slots(beta)`, typed `p0`,
+receiver, contribution and shared `xi` require semantic producers, so no
+convenience projection was added as a substitute. The direct-Name fixture
+coverage omission remains a test coverage question, not evidence of lost
+identity.
 
 Production `SolvedModule`/collector/live solver/F5/generalizer/instantiator/
 publisher and consumers remain separate correspondence work. A final scheme
