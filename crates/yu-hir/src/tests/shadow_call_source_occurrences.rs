@@ -18,7 +18,7 @@ fn cross_check(artifact: &ShadowArtifact, expected_calls: usize) {
     );
     assert_eq!(
         skeleton.pending().len(),
-        expected_calls * 4 + skeleton.resolved_call_incidences().count()
+        expected_calls * 4 + 2 * skeleton.resolved_call_incidences().count()
     );
     for (index, occurrence) in occurrences.iter().enumerate() {
         let expression = skeleton.expression(occurrence.expression()).unwrap();
@@ -52,6 +52,7 @@ fn cross_check(artifact: &ShadowArtifact, expected_calls: usize) {
             Form::Use { .. }
         ) {
             expected.push(Premise::SourceFormalUseRuleApplicabilityAndInterpretation);
+            expected.push(Premise::SourceDirectionalOutputEffectProtectionIntroduction);
         }
         assert_eq!(
             skeleton

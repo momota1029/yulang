@@ -38,7 +38,8 @@ inversion and collecting A remain conditional on fixed independent descriptor,
 P and semantic import/world interpretations. Ordinary imports are allowed
 ambient inputs, not additional source-owned outputs of captured-step syntax.
 
-The first remaining **P** clause is original-introduction completeness:
+At the pre-correction baseline, the first remaining **P** clause was
+original-introduction completeness:
 `Applicable_original(C,d_f,R_f,p;xi) => p=p_0` with its original source witness.
 The reverse follows from the Call seed. Full protection/no annotation grant is
 fixed at applicable positions; their complete original inventory is not.
@@ -48,9 +49,9 @@ For **A**, the structural producer is now explicit, while exact full-world
 import/transition interpretation, source-form extensions and complete production
 admission correspondence remain open. Actual receipt/typed capture realization,
 all-view source inversion, finite complete presentation and Option A/2 containment
-remain separate. No `FVIEW -> SRC` edge or main-gate closure is claimed. No pair
-of conformant complete alternatives was established, so no new user decision or
-implementation authority is inferred from the remaining proof gap. The
+remain separate. No `FVIEW -> SRC` edge or main-gate closure is claimed. At
+that pre-correction baseline, no pair of conformant complete alternatives had
+been established, so no decision was inferred from that proof gap. The
 [Oracle crosswalk](../notes/progress/2026-10-06-main-source-generation-oracle-crosswalk.md)
 remains historical mechanism evidence only. A separate bounded source/production
 crosswalk inventories formal, call, annotation, capture and generalization
@@ -66,9 +67,8 @@ regression auditor, shows repeated direct Calls can share static `p_0` while
 retaining distinct occurrence witnesses under explicit hypotheses; annotated
 and computed-result calls need separate source correspondence. Neither closes
 exact P or supplies a source-valid counterexample. An architect audit
-classifies this as a proof/design-completion obligation; no incompatible
-Authority-conformant alternatives or new user decision are evidenced. The next
-gate is an independently justified exhaustive original formal-profile
+classified this as a proof/design-completion obligation at that baseline. The
+then-next gate was an independently justified exhaustive original formal-profile
 introduction rule and its inversion proof. See the [conditional formation-rule
 attempt](../notes/progress/2026-10-06-formal-profile-formation-rule-attempt.md)
 and [adjacent-use audit](../notes/progress/2026-10-06-profile-adjacent-use-source-falsification.md).
@@ -82,6 +82,21 @@ are bounded cuts through the supplied rules, not proofs of `N-formal` or
 counterexamples. The source introduction table and exhaustive inversion remain
 the next proof obligation. See the [formal inversion cut](../notes/progress/2026-10-06-i-formal-inversion-attempt.md)
 and [Call/result witness search](../notes/progress/2026-10-06-i-call-rest-source-witness-search.md).
+**Superseded target:** a later direct user correction, recorded in upstream
+commit `e6a77859e5aed22338016c38ea520c0ee3d069c1`, selects directional
+protection from a protected inferred variable to the output-effect occurrence
+of an original upper Function use, with no backflow to an existing lower
+provider effect. This retires the pending E/R framing and the unconditional
+`Applicable_original -> p_0` singleton target; it does not close full source
+generation. The local finite checker for the certified-input rule passed and
+was independently reviewed. The HIR shadow now records an unresolved
+directional-introduction obligation per direct resolved-Use call, without
+asserting its seed, typed port or protection. See the
+[directional shadow obligation](../notes/progress/2026-10-06-shadow-directional-protection-obligation.md).
+The commit's full design/source-generation records are not yet synchronized
+into this branch. Push/integration remain deferred while local and upstream
+history diverge and four unrelated staged+unstaged progress/theory paths
+require reconciliation.
 
 Two reviewed follow-ups further bound this stop. The conditional local
 seed/refinement theorem preserves an independently supplied original relation

@@ -69,7 +69,8 @@ fn shadow_resolved_call_incidence_distinguishes_nested_uses_of_one_binder() {
                 Premise::FullFunctionMembership,
                 Premise::CallViewRealization,
                 Premise::QIndependentSourceCallViewFormation,
-                Premise::SourceFormalUseRuleApplicabilityAndInterpretation
+                Premise::SourceFormalUseRuleApplicabilityAndInterpretation,
+                Premise::SourceDirectionalOutputEffectProtectionIntroduction
             ]
         );
         let other = foreign.skeleton().unwrap();
@@ -98,7 +99,7 @@ fn shadow_resolved_call_incidence_distinguishes_nested_uses_of_one_binder() {
     }
     assert!(forms.contains(&SyntaxKind::MlArgument));
     assert!(forms.contains(&SyntaxKind::CallTail));
-    assert_eq!(skeleton.pending().len(), 10);
+    assert_eq!(skeleton.pending().len(), 12);
     let stubs = skeleton
         .pending()
         .iter()

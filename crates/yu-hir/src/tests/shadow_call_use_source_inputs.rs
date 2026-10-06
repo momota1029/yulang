@@ -15,7 +15,8 @@ fn assert_pending(skeleton: &Skeleton, row: &SourceCallUseInput<'_>) {
             Premise::FullFunctionMembership,
             Premise::CallViewRealization,
             Premise::QIndependentSourceCallViewFormation,
-            Premise::SourceFormalUseRuleApplicabilityAndInterpretation
+            Premise::SourceFormalUseRuleApplicabilityAndInterpretation,
+            Premise::SourceDirectionalOutputEffectProtectionIntroduction
         ]
     );
 }
@@ -59,7 +60,7 @@ fn shadow_call_use_source_inputs_retains_nested_capture_and_whole_argument() {
     assert_eq!(&source[argument.range().clone()], "x");
     assert!(row.parameter_annotations().next().is_none());
     assert_pending(skeleton, row);
-    assert_eq!(before, 5);
+    assert_eq!(before, 6);
     assert_eq!(skeleton.pending().len(), before);
     let other = foreign.skeleton().unwrap();
     for id in [
@@ -98,7 +99,7 @@ fn shadow_call_use_source_inputs_repeated_calls_preserve_occurrences() {
     for row in &rows {
         assert_pending(skeleton, row);
     }
-    assert_eq!(skeleton.pending().len(), 10);
+    assert_eq!(skeleton.pending().len(), 12);
 }
 
 #[test]
@@ -134,7 +135,7 @@ fn shadow_call_use_source_inputs_joins_exact_noninitial_annotation_incidence() {
         );
         assert_pending(skeleton, row);
     }
-    assert_eq!(skeleton.pending().len(), 10);
+    assert_eq!(skeleton.pending().len(), 12);
 }
 
 #[test]
@@ -145,10 +146,24 @@ fn shadow_call_use_source_inputs_excludes_grouped_and_computed_callees() {
         assert_eq!(skeleton.application_source_occurrences().count(), 1);
         assert_eq!(skeleton.source_call_use_inputs().count(), 0);
         assert_eq!(skeleton.pending().len(), 4);
+        assert!(skeleton.pending().iter().all(|pending| {
+            pending.premise() != Premise::SourceDirectionalOutputEffectProtectionIntroduction
+        }));
     }
     let artifact = ShadowArtifact::from_parsed(parsed("my apply f x = (f x) x")).unwrap();
     let skeleton = artifact.skeleton().unwrap();
     assert_eq!(skeleton.application_source_occurrences().count(), 2);
-    assert_eq!(skeleton.source_call_use_inputs().count(), 1);
-    assert_eq!(skeleton.pending().len(), 9);
+    let rows = skeleton.source_call_use_inputs().collect::<Vec<_>>();
+    assert_eq!(rows.len(), 1);
+    assert_pending(skeleton, &rows[0]);
+    assert_eq!(skeleton.pending().len(), 10);
+    let directional = skeleton
+        .pending()
+        .iter()
+        .filter(|pending| {
+            pending.premise() == Premise::SourceDirectionalOutputEffectProtectionIntroduction
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(directional.len(), 1);
+    assert_eq!(directional[0].call(), rows[0].application().expression());
 }

@@ -283,7 +283,8 @@ fn shadow_annotation_positions_associates_only_grouped_parameter_identifier() {
             Premise::FullFunctionMembership,
             Premise::CallViewRealization,
             Premise::QIndependentSourceCallViewFormation,
-            Premise::SourceFormalUseRuleApplicabilityAndInterpretation
+            Premise::SourceFormalUseRuleApplicabilityAndInterpretation,
+            Premise::SourceDirectionalOutputEffectProtectionIntroduction
         ]
     );
     let other = from_source(source).unwrap();

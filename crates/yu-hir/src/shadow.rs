@@ -618,6 +618,13 @@ pub enum Premise {
     /// Actual role/entry, typed paths, profiles, receipts and independent admission
     /// remain unresolved. No semantic judgment or Q success discharges this stub.
     SourceFormalUseRuleApplicabilityAndInterpretation,
+    /// Pending directional source-producer obligation only: seed applicability,
+    /// original upper-use, exact typed output-effect occurrence/source correspondence,
+    /// original scope and whole xi = (nu, K, D) remain unresolved. This records no
+    /// formal applicability, annotation absence, seed, upper use, output port,
+    /// profile membership, no-backflow property, receipt, Flow, admission or
+    /// semantic discharge; shape or Q success supplies none of these facts.
+    SourceDirectionalOutputEffectProtectionIntroduction,
 }
 
 #[derive(Debug)]
@@ -820,14 +827,20 @@ fn build_skeleton(
         );
         artifact.validate_nested_scope(&root)?;
     }
-    let formal_use_stubs = artifact
+    let source_use_stubs = artifact
         .resolved_call_incidences()
-        .map(|incidence| PendingPremise {
-            call: incidence.application().expression().clone(),
-            premise: Premise::SourceFormalUseRuleApplicabilityAndInterpretation,
+        .flat_map(|incidence| {
+            [
+                Premise::SourceFormalUseRuleApplicabilityAndInterpretation,
+                Premise::SourceDirectionalOutputEffectProtectionIntroduction,
+            ]
+            .map(|premise| PendingPremise {
+                call: incidence.application().expression().clone(),
+                premise,
+            })
         })
         .collect::<Vec<_>>();
-    artifact.pending.extend(formal_use_stubs);
+    artifact.pending.extend(source_use_stubs);
     artifact.validate()?;
     artifact.validate_positions(raw_positions)?;
     Ok(artifact)
@@ -1949,13 +1962,14 @@ mod tests {
             );
         }
         assert_eq!(skeleton.uses().len(), 3);
-        assert_eq!(skeleton.pending().len(), 5);
+        assert_eq!(skeleton.pending().len(), 6);
         for (pending, expected) in skeleton.pending().iter().zip([
             Premise::CallableRole,
             Premise::FullFunctionMembership,
             Premise::CallViewRealization,
             Premise::QIndependentSourceCallViewFormation,
             Premise::SourceFormalUseRuleApplicabilityAndInterpretation,
+            Premise::SourceDirectionalOutputEffectProtectionIntroduction,
         ]) {
             assert_eq!(pending.call(), call);
             assert_eq!(pending.premise(), expected);
@@ -2010,7 +2024,7 @@ mod tests {
         let skeleton = artifact.skeleton().unwrap();
         assert_eq!(skeleton.expressions().len(), 7);
         assert_eq!(skeleton.uses().len(), 3);
-        assert_eq!(skeleton.pending().len(), 5);
+        assert_eq!(skeleton.pending().len(), 6);
         assert_eq!(
             skeleton
                 .binders()
@@ -2249,7 +2263,7 @@ mod tests {
         let artifact = ShadowArtifact::from_parsed(parsed(&source)).unwrap();
         let skeleton = artifact.skeleton().unwrap();
         assert_eq!(skeleton.expressions().len(), 17);
-        assert_eq!(skeleton.pending().len(), 33);
+        assert_eq!(skeleton.pending().len(), 34);
         assert_eq!(skeleton.uses().len(), 9);
         drop(artifact);
     }
@@ -2312,7 +2326,7 @@ mod tests {
             skeleton.expression(argument).unwrap().form(),
             Form::Use { .. }
         ));
-        assert_eq!(skeleton.pending().len(), 5);
+        assert_eq!(skeleton.pending().len(), 6);
     }
 
     #[test]
