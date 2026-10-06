@@ -1,7 +1,7 @@
 # Frozen Oracle declaration-slot and binder provenance
 
 Date: 2026-10-08
-Status: frozen research-only bounded historical characterization; unreviewed
+Status: frozen research-only bounded historical characterization; compiler-referee reviewed, no findings
 Yulang3 baseline: `e8a05ef15a6f896af3041e1c10a32e76593f65f1`
 Frozen Oracle: `/tmp/yulang2-oracle-rebuild`, `a58eefc31e22141574b6f20c6a5748151c6d79f1`
 Exclusive lease: this note only
@@ -254,3 +254,15 @@ independent review.
   this declaration-provenance analogue and reference-vector position
   discriminator; keep ordinary Call `ORIGINAL_ASSOC` and all dependent gates
   open. No task/index/authority/theory/question-board path was written.
+
+## Independent review
+
+The compiler-referee reviewed the complete note and all cited constructor,
+bridge and consumer windows. No blocking, major or minor findings. The
+reviewer confirmed the two-tuple discriminator under H3, the retained full
+signature qualification, and the absence of any bridge to ordinary Call
+`beta`, typed `p0`, receiver incidence, complete contribution or joint `xi`.
+Uninspected: committed-blob equality, upstream module/annotation producers,
+later shadow comparison/lifecycle, source realizability,
+serialization/generalization transport and production conformance. No edits,
+Git, builds, tests or Oracle execution occurred during review.
