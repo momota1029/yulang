@@ -246,3 +246,363 @@ fn captured_source_wrapper_rejects_adjacent_structural_shapes() {
         );
     }
 }
+
+#[test]
+fn shadow_local_bind_rejects_foreign_parse_and_adjacent_candidates() {
+    use yu_hir::shadow::lower_module_with_shadow_local_binding;
+    let parse = |source: &str| {
+        let text: Arc<SourceText> = Arc::from(source);
+        let header = Arc::new(scan_header(text.clone()));
+        parse_file(text, header, Arc::new(SyntaxEnvironment::empty()))
+    };
+    let identity = || ModuleIdentity::source_root(FileId::new(FileKey::new("shadow", "local.yu")));
+    let source = "my apply f = { my step x = f x; step }";
+    let parsed = parse(source);
+    let artifact = Arc::new(ShadowArtifact::from_parsed(parsed.clone()).unwrap());
+    let hir = lower_module_with_shadow_local_binding(
+        identity(),
+        &parsed,
+        SemanticImports::empty(),
+        artifact.clone(),
+    )
+    .unwrap();
+    let foreign = lower_module_with_shadow_local_binding(
+        identity(),
+        &parsed,
+        SemanticImports::empty(),
+        artifact.clone(),
+    )
+    .unwrap();
+    let local = |hir: &yu_hir::HirModule| {
+        let HirItem::Binding(binding) = &hir.items()[0] else {
+            panic!("binding");
+        };
+        let ResolvedExpr::Lambda { body, .. } = binding.value() else {
+            panic!("lambda");
+        };
+        assert!(matches!(body.as_ref(), ResolvedExpr::Error { .. }));
+        hir.shadow_local_binding(binding.definition_root())
+            .unwrap()
+            .unwrap()
+            .local
+            .clone()
+    };
+    assert_ne!(local(&hir), local(&foreign));
+    assert!(matches!(
+        artifact.local_source_position(&hir, &local(&foreign)),
+        Err(SourceIdentityError::ForeignHirArtifact)
+    ));
+    let foreign_artifact = Arc::new(ShadowArtifact::from_parsed(parse(source)).unwrap());
+    assert!(matches!(
+        lower_module_with_shadow_local_binding(
+            identity(),
+            &parsed,
+            SemanticImports::empty(),
+            foreign_artifact
+        ),
+        Err(HirAvailabilityError::StructuralProjection)
+    ));
+    for source in [
+        "my apply f x = f x",
+        "my apply f g = { my step x = f x; step }",
+        "my apply f = { my step x y = f x; step }",
+        "my apply f = { my step x = f(x); step }",
+        "my apply f = { my step x = f x x; step }",
+        "my apply f = { my step x = f x; step x }",
+    ] {
+        let parsed = parse(source);
+        let artifact = Arc::new(ShadowArtifact::from_parsed(parsed.clone()).unwrap());
+        assert!(
+            matches!(
+                lower_module_with_shadow_local_binding(
+                    identity(),
+                    &parsed,
+                    SemanticImports::empty(),
+                    artifact
+                ),
+                Err(HirAvailabilityError::StructuralProjection)
+            ),
+            "{source}"
+        );
+    }
+}
+
+#[test]
+fn shadow_local_bind_joins_pending_structural_projection_without_discharge() {
+    use yu_core::shadow_derivation::{PendingStructuralForm, PendingStructuralProjection};
+    use yu_hir::{NameResolution, shadow::lower_module_with_shadow_local_binding};
+    use yu_solver::PendingApplicationState;
+
+    let text: Arc<SourceText> = Arc::from("my apply f = { my step x = f x; step }");
+    let header = Arc::new(scan_header(text.clone()));
+    let parsed = parse_file(text, header, Arc::new(SyntaxEnvironment::empty()));
+    let identity = || ModuleIdentity::source_root(FileId::new(FileKey::new("shadow", "join.yu")));
+    let artifact = Arc::new(ShadowArtifact::from_parsed(parsed.clone()).unwrap());
+    let hir = Arc::new(
+        lower_module_with_shadow_local_binding(
+            identity(),
+            &parsed,
+            SemanticImports::empty(),
+            artifact.clone(),
+        )
+        .unwrap(),
+    );
+    let ordinary = lower_module(identity(), &parsed, SemanticImports::empty()).unwrap();
+    assert_eq!(hir.as_ref(), &ordinary);
+    assert_eq!(hir.diagnostics(), ordinary.diagnostics());
+    let [HirItem::Binding(binding)] = hir.items() else {
+        panic!("root binding");
+    };
+    let root = binding.definition_root();
+    let ResolvedExpr::Lambda {
+        parameter: f,
+        body: refused,
+        ..
+    } = binding.value()
+    else {
+        panic!("outer lambda");
+    };
+    assert!(matches!(refused.as_ref(), ResolvedExpr::Error { .. }));
+    assert!(
+        hir.errors()
+            .iter()
+            .any(|error| error.kind() == HirErrorKind::UnsupportedExpression)
+    );
+    let local = hir.shadow_local_binding(root).unwrap().unwrap();
+    let ResolvedExpr::Lambda {
+        parameter: x,
+        body: application,
+        ..
+    } = &local.initializer
+    else {
+        panic!("local lambda");
+    };
+    let ResolvedExpr::Apply {
+        callee, argument, ..
+    } = application.as_ref()
+    else {
+        panic!("local application");
+    };
+    assert_ne!(f, x);
+    assert_eq!(
+        hir.shadow_parameter_local_owner(x).unwrap(),
+        Some(&local.local)
+    );
+    assert_eq!(local.captures.as_ref(), std::slice::from_ref(f));
+    assert_eq!(local.continuation.local, local.local);
+
+    let skeleton = artifact.skeleton().unwrap();
+    let input = skeleton.captured_call_input().unwrap();
+    let Form::Lambda {
+        parameter: source_f,
+        body: bound,
+        ..
+    } = skeleton.expression(skeleton.body()).unwrap().form()
+    else {
+        panic!("source root lambda");
+    };
+    let Form::Bind {
+        binder: source_step,
+        value: initializer,
+        body: returned,
+    } = skeleton.expression(bound).unwrap().form()
+    else {
+        panic!("source bind");
+    };
+    let Form::Lambda {
+        parameter: source_x,
+        body: source_call,
+        captures,
+        ..
+    } = skeleton.expression(initializer).unwrap().form()
+    else {
+        panic!("source local lambda");
+    };
+    let Form::Apply {
+        callee: source_callee,
+        argument: source_argument,
+        ..
+    } = skeleton.expression(source_call).unwrap().form()
+    else {
+        panic!("source application");
+    };
+    let position = |id| artifact.occurrence_source_position(&hir, id).unwrap();
+    assert_eq!(
+        position(&local.occurrence),
+        *skeleton.expression(bound).unwrap().position()
+    );
+    assert_eq!(
+        artifact.local_source_position(&hir, &local.local).unwrap(),
+        *skeleton.binder(source_step).unwrap().position()
+    );
+    assert_eq!(
+        position(local.initializer.occurrence()),
+        *skeleton.expression(initializer).unwrap().position()
+    );
+    assert_eq!(
+        artifact.parameter_source_position(&hir, x).unwrap(),
+        *skeleton.binder(source_x).unwrap().position()
+    );
+    assert_eq!(
+        artifact.parameter_source_position(&hir, f).unwrap(),
+        *skeleton.binder(source_f).unwrap().position()
+    );
+    assert_eq!(captures.as_slice(), std::slice::from_ref(source_f));
+    assert_eq!(
+        position(&local.continuation.occurrence),
+        *skeleton.expression(returned).unwrap().position()
+    );
+    let Form::Use {
+        binder: returned_binder,
+        occurrence: returned_use,
+    } = skeleton.expression(returned).unwrap().form()
+    else {
+        panic!("returned use");
+    };
+    assert_eq!(returned_binder, source_step);
+    assert_eq!(returned_use, input.returned_use());
+    assert_eq!(
+        position(&local.continuation.occurrence),
+        *skeleton.use_position(returned_use).unwrap()
+    );
+    assert_eq!(
+        position(application.occurrence()),
+        *skeleton.expression(source_call).unwrap().position()
+    );
+    assert_eq!(
+        position(callee.occurrence()),
+        *skeleton.expression(source_callee).unwrap().position()
+    );
+    assert_eq!(
+        position(argument.occurrence()),
+        *skeleton.expression(source_argument).unwrap().position()
+    );
+    assert_eq!(position(callee.occurrence()), *input.capture_position());
+
+    let raw = RawStructuralArena::from_artifact(&artifact).unwrap();
+    let projection = PendingStructuralProjection::from_raw(&raw).unwrap();
+    let projected = |source| {
+        projection
+            .nodes()
+            .iter()
+            .find(|node| node.source == source)
+            .unwrap()
+    };
+    let PendingStructuralForm::Bind {
+        binder,
+        value,
+        body,
+    } = &projected(bound).form
+    else {
+        panic!("projected bind");
+    };
+    assert_eq!(*binder, source_step);
+    assert_eq!(projection.nodes()[*value].source, initializer);
+    assert_eq!(projection.nodes()[*body].source, returned);
+    let PendingStructuralForm::Lambda {
+        parameter,
+        body,
+        captures,
+        ..
+    } = &projected(initializer).form
+    else {
+        panic!("projected local lambda");
+    };
+    assert_eq!(*parameter, source_x);
+    assert_eq!(projection.nodes()[*body].source, source_call);
+    assert_eq!(*captures, std::slice::from_ref(source_f));
+    let PendingStructuralForm::PendingUseNormalization { binder, occurrence } =
+        &projected(returned).form
+    else {
+        panic!("projected returned use");
+    };
+    assert_eq!(*binder, source_step);
+    assert_eq!(*occurrence, returned_use);
+    let PendingStructuralForm::PendingApply {
+        callee: callee_offset,
+        argument: argument_offset,
+        call,
+    } = &projected(source_call).form
+    else {
+        panic!("projected pending application");
+    };
+    assert_eq!(projection.nodes()[*callee_offset].source, source_callee);
+    assert_eq!(projection.nodes()[*argument_offset].source, source_argument);
+    let raw_call = raw
+        .nodes()
+        .iter()
+        .find(|node| &node.source == source_call)
+        .unwrap()
+        .call
+        .as_ref()
+        .unwrap();
+    assert!(std::ptr::eq(*call, raw_call));
+    assert_eq!(call.application_premises.len(), 7);
+    assert!(
+        call.application_premises
+            .iter()
+            .all(|premise| premise.call() == source_call)
+    );
+    let premises = skeleton
+        .pending()
+        .iter()
+        .map(|premise| (premise.call().clone(), premise.premise()))
+        .collect::<Vec<_>>();
+    assert_eq!(
+        call.application_premises
+            .iter()
+            .map(|premise| (premise.call().clone(), premise.premise()))
+            .collect::<Vec<_>>(),
+        premises
+    );
+    assert_eq!(call.capture.unwrap().captured(), source_f);
+
+    let sidecar = local as *const _;
+    let assert_row = |rows: &[yu_solver::PendingApplicationOccurrence]| {
+        let [row] = rows else {
+            panic!("one pending application");
+        };
+        assert_eq!(&row.occurrence, application.occurrence());
+        assert_eq!(row.enclosing_root.as_ref(), Some(root));
+        assert_eq!(&row.callee.occurrence, callee.occurrence());
+        assert_eq!(&row.argument.occurrence, argument.occurrence());
+        assert!(
+            matches!(&row.callee.direct_name_resolution, Some(NameResolution::Parameter(id)) if id == f)
+        );
+        assert!(
+            matches!(&row.argument.direct_name_resolution, Some(NameResolution::Parameter(id)) if id == x)
+        );
+        assert_eq!(
+            row.state,
+            PendingApplicationState::ApplicationTypingRuleUnresolved
+        );
+    };
+    let batch = ConstraintBatch::collect(hir.clone()).unwrap();
+    assert_row(batch.pending_applications());
+    assert!(batch.occurrences().is_empty());
+    assert!(Arc::ptr_eq(batch.hir(), &hir));
+    assert_eq!(
+        batch.hir().shadow_local_binding(root).unwrap().unwrap() as *const _,
+        sidecar
+    );
+    let solved = SolvedModule::solve(batch).unwrap();
+    assert_row(solved.pending_applications());
+    assert!(solved.store().facts().is_empty());
+    assert!(Arc::ptr_eq(solved.hir(), &hir));
+    assert_eq!(
+        solved.hir().shadow_local_binding(root).unwrap().unwrap() as *const _,
+        sidecar
+    );
+    assert!(Arc::ptr_eq(
+        solved.shadow_captured_source(root).unwrap().unwrap(),
+        &artifact
+    ));
+    assert_eq!(
+        skeleton
+            .pending()
+            .iter()
+            .map(|premise| (premise.call().clone(), premise.premise()))
+            .collect::<Vec<_>>(),
+        premises
+    );
+}

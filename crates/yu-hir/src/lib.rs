@@ -16,6 +16,9 @@ pub use module::{
     ModuleId, ModuleIdentity, NameResolution, ResolvedExpr, SemanticImports, lower_module,
 };
 
+#[cfg(any(feature = "shadow", test))]
+pub use module::HirLocalId;
+
 /// Every top-level operator chain associated from one parsed file, in source order.
 ///
 /// This is a pre-HIR product: it deliberately has no declaration, name, type,

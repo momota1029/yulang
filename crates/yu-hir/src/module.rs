@@ -219,6 +219,23 @@ impl Hash for DefinitionRootId {
     }
 }
 
+#[cfg(any(feature = "shadow", test))]
+/// A cold shadow local identity anchored to its enclosing artifact root.
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
+pub struct HirLocalId {
+    owner: DefinitionRootId,
+    ordinal: u32,
+}
+#[cfg(any(feature = "shadow", test))]
+impl HirLocalId {
+    pub fn definition_root(&self) -> &DefinitionRootId {
+        &self.owner
+    }
+    pub fn ordinal(&self) -> u32 {
+        self.ordinal
+    }
+}
+
 /// An ordered parameter identity branded by the immutable HIR artifact that
 /// owns its definition root.
 ///
@@ -2212,4 +2229,202 @@ mod tests {
             realm.len() + path.len() + binding.id().spelling().len()
         );
     }
+}
+
+#[cfg(any(feature = "shadow", test))]
+pub(crate) fn retain_shadow_local_binding(
+    mut hir: HirModule,
+    artifact: &crate::shadow::ShadowArtifact,
+) -> Result<HirModule, HirAvailabilityError> {
+    use crate::shadow::Form;
+    let invalid = || HirAvailabilityError::StructuralProjection;
+    let skeleton = artifact.skeleton().map_err(|_| invalid())?;
+    let input = skeleton.captured_call_input().ok_or_else(invalid)?;
+    let HirItem::Binding(binding) = &hir.items[0] else {
+        return Err(invalid());
+    };
+    let ResolvedExpr::Lambda {
+        parameter: outer,
+        body: old_body,
+        ..
+    } = &binding.value
+    else {
+        return Err(invalid());
+    };
+    let errors = match old_body.as_ref() {
+        ResolvedExpr::Error { errors, .. } => errors.clone(),
+        _ => return Err(invalid()),
+    };
+    let local = HirLocalId {
+        owner: binding.definition_root.clone(),
+        ordinal: u32::try_from(0usize).map_err(|_| invalid())?,
+    };
+    let x = HirParameterId::new(
+        binding.definition_root.clone(),
+        u32::try_from(binding.parameters.len()).map_err(|_| invalid())?,
+    );
+    let root = skeleton
+        .expression(skeleton.body())
+        .map_err(|_| invalid())?;
+    let Form::Lambda { body: bind_id, .. } = root.form() else {
+        return Err(invalid());
+    };
+    let bound = skeleton.expression(bind_id).map_err(|_| invalid())?;
+    let Form::Bind {
+        value,
+        body: returned,
+        ..
+    } = bound.form()
+    else {
+        return Err(invalid());
+    };
+    let lambda = skeleton.expression(value).map_err(|_| invalid())?;
+    let Form::Lambda {
+        parameter,
+        body: call_id,
+        ..
+    } = lambda.form()
+    else {
+        return Err(invalid());
+    };
+    let call = skeleton.expression(call_id).map_err(|_| invalid())?;
+    let Form::Apply {
+        source_form,
+        callee,
+        argument,
+    } = call.form()
+    else {
+        return Err(invalid());
+    };
+    let mut pending = Vec::new();
+    for item in &hir.items {
+        match item {
+            HirItem::Binding(binding) => pending.push(&binding.value),
+            HirItem::Expression(expression) => pending.push(expression),
+            HirItem::Error { .. } => {}
+        }
+    }
+    let mut maximum = None;
+    while let Some(expression) = pending.pop() {
+        maximum = Some(
+            maximum.map_or(expression.occurrence().ordinal(), |current: u32| {
+                current.max(expression.occurrence().ordinal())
+            }),
+        );
+        match expression {
+            ResolvedExpr::Apply {
+                callee, argument, ..
+            } => {
+                pending.push(argument);
+                pending.push(callee);
+            }
+            ResolvedExpr::Lambda { body, .. } => pending.push(body),
+            ResolvedExpr::Group { inner, .. } => pending.push(inner),
+            ResolvedExpr::Integer { .. }
+            | ResolvedExpr::Name { .. }
+            | ResolvedExpr::Error { .. } => {}
+        }
+    }
+    let retained_maximum = hir
+        .source_identity
+        .as_ref()
+        .and_then(|source| source.maximum_occurrence_ordinal());
+    let mut next = maximum
+        .into_iter()
+        .chain(retained_maximum)
+        .max()
+        .ok_or_else(invalid)?
+        .checked_add(1)
+        .ok_or_else(invalid)?;
+    // Identity minting stays in HIR. Each exact-position crosswalk is checked
+    // before the candidate tree can escape this cold opt-in constructor.
+    let mut source = hir.source_identity.clone().ok_or_else(invalid)?;
+    let mut occurrence =
+        |expression: &crate::shadow::Expression| -> Result<HirOccurrenceId, HirAvailabilityError> {
+            let id = HirOccurrenceId::new(hir.artifact.clone(), next);
+            next = next.checked_add(1).ok_or_else(invalid)?;
+            if !source.record_unique_occurrence(
+                id.clone(),
+                artifact
+                    .exact_source_key(expression.position())
+                    .map_err(|_| invalid())?,
+            ) {
+                return Err(invalid());
+            }
+            Ok(id)
+        };
+    let mut name = |id: &crate::shadow::ExprId,
+                    resolution: NameResolution|
+     -> Result<ResolvedExpr, HirAvailabilityError> {
+        let expression = skeleton.expression(id).map_err(|_| invalid())?;
+        let Form::Use { binder, .. } = expression.form() else {
+            return Err(invalid());
+        };
+        let binder = skeleton.binder(binder).map_err(|_| invalid())?;
+        Ok(ResolvedExpr::Name {
+            occurrence: occurrence(expression)?,
+            name: HirName {
+                spelling: binder.name().to_owned(),
+                range: expression.range().clone(),
+            },
+            resolution,
+            range: expression.range().clone(),
+        })
+    };
+    let callee = name(callee, NameResolution::Parameter(outer.clone()))?;
+    let argument = name(argument, NameResolution::Parameter(x.clone()))?;
+    let returned = skeleton.expression(returned).map_err(|_| invalid())?;
+    let continuation = crate::shadow::ShadowLocalUse {
+        occurrence: occurrence(returned)?,
+        local: local.clone(),
+        range: returned.range().clone(),
+    };
+    let apply = ResolvedExpr::Apply {
+        occurrence: occurrence(call)?,
+        source_form: *source_form,
+        callee: Box::new(callee),
+        argument: Box::new(argument),
+        errors,
+        range: call.range().clone(),
+    };
+    let initializer = ResolvedExpr::Lambda {
+        occurrence: occurrence(lambda)?,
+        parameter: x.clone(),
+        body: Box::new(apply),
+        range: lambda.range().clone(),
+    };
+    let body = crate::shadow::ShadowLocalBind {
+        occurrence: occurrence(bound)?,
+        local: local.clone(),
+        initializer,
+        continuation,
+        captures: vec![outer.clone()].into_boxed_slice(),
+        range: bound.range().clone(),
+    };
+    source.record_parameter(
+        x.clone(),
+        artifact
+            .exact_source_key(
+                skeleton
+                    .binder(parameter)
+                    .map_err(|_| invalid())?
+                    .position(),
+            )
+            .map_err(|_| invalid())?,
+    );
+    source.record_local(
+        local.clone(),
+        artifact
+            .exact_source_key(
+                skeleton
+                    .binder(input.local_binding())
+                    .map_err(|_| invalid())?
+                    .position(),
+            )
+            .map_err(|_| invalid())?,
+    );
+    source.local_parameter_owners.insert(x, local);
+    source.local_binding = Some(body);
+    hir.source_identity = Some(source);
+    Ok(hir)
 }

@@ -658,16 +658,29 @@ coverage omission remains a test coverage question, not evidence of lost
 identity.
 
 The reviewed [captured-source lifecycle slice](../crates/yu-solver/tests/shadow_captured_source_retention.rs)
-also carries the exact approved `apply/step` `ShadowArtifact` through opt-in
-HIR collection and solver finish by borrowing its validated Arc from the HIR
-module. It checks the parse/root/parameter/capture association and retains the
-seven source premises; it does not add a local Bind or the nested Apply to
-`ResolvedExpr` or `pending_applications`. The existing `UnsupportedExpression`
-and empty-fact refusal remain, and six adjacent structural shapes are rejected
-explicitly. Compiler-referee and regression review passed after the test
-coverage repair. The two focused retention tests pass; feature-off checks for
-`yu-hir` and `yu-solver` pass. The broader source/typing/old-infer differential
-and all application semantics remain open.
+first carried the exact approved `apply/step` `ShadowArtifact` through opt-in
+HIR collection and solver finish while preserving production refusal. The next
+[local-binding identity slice](../notes/progress/2026-10-09-shadow-local-binding-source-identity.md)
+adds a cold `HirLocalId`, its local parameter owner, return-use occurrence and
+the inner `f x` Apply to the shadow HIR sidecar; under `shadow-f5`, exactly one
+`ApplicationTypingRuleUnresolved` row survives collection and solve. It keeps
+the ordinary HIR Error body and outer-parameter recipe behavior, introduces no
+local recipe or typed fact, and rejects six adjacent source shapes. M2
+compiler-referee and regression reviews passed, including delta review of the
+outer bookkeeping; the focused two-test target, feature-off package checks,
+targeted formatting and diff check passed. Frozen Oracle correspondence is
+historical identity/demand evidence only and did not reveal the missing
+original `beta`/`Slots(beta)`, typed `p0`, complete contribution or shared
+`xi`; `ORIGINAL_ASSOC` stays open. Broader source/typing/old-infer
+differential, generalization and all application semantics remain open.
+
+The follow-up [HIR-to-core structural differential](../notes/progress/2026-10-09-shadow-local-binding-source-identity.md)
+now joins the sidecar's Bind, local Lambda/parameter, returned Use, capture,
+Apply and operand identities through `ShadowArtifact` and the pending Core
+projection, then checks the same evidence after solver collection/solve. Its
+focused integration test passed and received regression-auditor closure with
+no findings. This is source/HIR/Core identity correspondence, not an old-infer
+semantic differential or a typed derivation.
 
 Production `SolvedModule`/collector/live solver/F5/generalizer/instantiator/
 publisher and consumers remain separate correspondence work. A final scheme
