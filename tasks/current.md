@@ -133,6 +133,15 @@ finds no association introduction in its displayed inventory, without proving
 repository-wide nonderivability. These reviewed localizations sharpen the
 existing open nodes and close no gate.
 
+The compiler-referee-reviewed [constructive source-cut stop](../notes/progress/2026-10-07-original-association-constructive-source-cut.md)
+confirms that even conditionally granting `CALL_TYPE` leaves the independent
+owner/view-kernel input required by source-contracts §2.1 and §3.5. The
+branch-accounted [rule-inversion certificate](../notes/progress/2026-10-07-original-association-rule-inversion-attack.md)
+labels the forward missing introduction A0 (original slot owner plus complete
+contribution) and the backward missing exhaustive licensing grammar L*. Its
+unknown-rule branch is retained, so this is a diagnostic refinement, not an
+absence theorem or new gate edge. `ORIGINAL_ASSOC` and `SIG_RULES` remain open.
+
 The reviewed [conditional Call coverage lift](../notes/progress/2026-10-07-original-association-conditional-call-lift.md)
 proves a narrow transport lemma: for any already existing original
 slot/contribution witness with an independently typed complete receiver
@@ -420,6 +429,13 @@ UseId, typed endpoints, a callable role, `beta`/`Slots(beta)`, or any semantic
 judgment. This is source identity plumbing, not successor/current-infer parity
 or application inference. See the
 [pending solver application identity record](../notes/progress/2026-10-07-shadow-solver-pending-application-identity.md).
+
+The compiler-referee-reviewed [solved application-use retention slice](../notes/progress/2026-10-07-shadow-solved-application-use-retention.md)
+moves those exact pending rows through `InferenceSession::finish` into
+`SolvedModule` and exposes the same borrowed direct-Name inventory after
+solve. Row allocation, ordering, operand positions and unresolved state are
+preserved. This closes only an evidence-lifecycle gap in the shadow lane; it
+adds no typing premise or production behavior.
 
 The grouped nested-call slice now retains the approved ordinary source shape
 `f (f 1)` through an explicit Group occurrence and both Apply occurrences in
