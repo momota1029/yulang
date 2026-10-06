@@ -11,7 +11,7 @@ remains active. A test-only finite parent/use transport prototype is authorized
 as an experiment; production inference-path replacement remains gated by the
 open soundness/principality obligations.
 
-The latest direct main-gate follow-up has independent compiler/spec review:
+The initial direct main-gate construction has independent compiler/spec review:
 [source-call construction](../notes/progress/2026-10-06-source-call-generation-construction.md)
 and [review record](../notes/progress/2026-10-06-source-call-generation-review.md).
 For the exact approved captured-step component, it constructs the singleton
@@ -27,16 +27,30 @@ not required before emitting that constraint; the earlier
 [bounded last-rule audit](../notes/progress/2026-10-06-main-source-generation-minimal-clause.md)
 must not be read as ruling out this route.
 
-The main gate remains open at two concrete constructors: **P**, the complete
-original applicable-position/contribution profile and its same-root
-seed-to-refined receiving-view interpretation, from the now-generated Call
-root/initial port; and **A**, independently typed initial punctured-context
-admission at one original joint assignment. `InitialSeedSlots={p_0}` does not
-prove the full `Slots(beta)` inventory. Neither generic compatible decorations
-nor a least/greatest/indexed closure generates those source premises. Actual
-receipt/typed capture attachment, all-view source inversion, finite complete
-presentation and Option A/2 production containment remain separate. No new
-semantic choice or implementation authority is claimed. The
+The newer [P/A construction and two-review record](../notes/progress/2026-10-06-source-generation-pa-review.md)
+closes two structural subproblems. The explicit source-footprint rules compute
+`G_C(beta)={p_0}` and give a generated/inherited provenance normal form with all
+independent packets retained. The ordinary open context rules generate their
+source-owned roots, captures, complete Call receipt/entry schema and initial
+seed constraints before satisfiability; no aggregate `TypedContext`, `ArgOpen`
+or `LamOpen` premise is needed for that structural envelope. Bidirectional
+inversion and collecting A remain conditional on fixed independent descriptor,
+P and semantic import/world interpretations. Ordinary imports are allowed
+ambient inputs, not additional source-owned outputs of captured-step syntax.
+
+The first remaining **P** clause is original-introduction completeness:
+`Applicable_original(C,d_f,R_f,p;xi) => p=p_0` with its original source witness.
+The reverse follows from the Call seed. Full protection/no annotation grant is
+fixed at applicable positions; their complete original inventory is not.
+`G_C` is not complete `Slots_original(beta)`. Original contribution completeness
+and same-root seed-to-refined full-view/solution preservation still need proof.
+For **A**, the structural producer is now explicit, while exact full-world
+import/transition interpretation, source-form extensions and complete production
+admission correspondence remain open. Actual receipt/typed capture realization,
+all-view source inversion, finite complete presentation and Option A/2 containment
+remain separate. No `FVIEW -> SRC` edge or main-gate closure is claimed. No pair
+of conformant complete alternatives was established, so no new user decision or
+implementation authority is inferred from the remaining proof gap. The
 [Oracle crosswalk](../notes/progress/2026-10-06-main-source-generation-oracle-crosswalk.md)
 remains historical mechanism evidence only.
 

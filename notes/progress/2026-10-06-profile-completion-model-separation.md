@@ -2,7 +2,7 @@
 
 Date: 2026-10-06
 Assigned baseline: `763ad96d4576ee6e2672c0cc35125e79c89fe955`
-Status: frozen, unreviewed research-only source audit and local normal-form result
+Status: independently compiler/spec-reviewed source audit and local normal-form result; see [P/A review](2026-10-06-source-generation-pa-review.md)
 Scope: the exact approved `my apply f = { my step x = f x; step }` component
 Exclusive lease: this file only
 Semantic/implementation authority: none

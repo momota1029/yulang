@@ -19,16 +19,25 @@ port is distinct from the complete original profile. The earlier
 does not bar introducing an unknown Function variable before proving the
 constraints satisfiable.
 
-There is still no closed `FVIEW -> SRC` edge: P must generate the complete
-original applicable-position/contribution profile and same-root refinement
-interpretation from the initial Call schema; A must establish independent
-original-world/admission correspondence for its generated punctured-context
-schema at the original joint `xi`. Typed packet
-attachment/receipt, complete source inversion, all-view coverage, finite
-presentation and separate Option A/2 containment remain open. Fixed-point or
-indexed closure does not supply the missing source bases. The
-[follow-up review](../progress/2026-10-06-source-call-generation-review.md)
-records two clean independent reviews and their bounded scope. The
+The reviewed [P/A continuation](../progress/2026-10-06-source-generation-pa-review.md)
+adds a constructive least-generated singleton footprint and tagged transport
+normal form. Complete P still needs the converse
+`Applicable_original(C,d_f,R_f,p;xi) => p=p_0`, original contribution completeness
+and same-root seed-to-refined full-view/solution preservation. Generated origin
+inventory, inherited packets and complete original applicability are distinct.
+
+A's ordinary source-owned open-context and receipt/entry schema now has a
+constructor and bidirectional local inversion over fixed independent descriptor,
+P and import/world interpretations. The collecting union ranges over every
+context in that envelope and every independently valid original joint world;
+generation precedes satisfiability and excludes pending Q. This discharges the
+aggregate structural `TypedContext`/`ArgOpen`/`LamOpen` premise in that envelope,
+not its semantic leaves or full production correspondence. Allowed independent
+imports are ambient inputs. Exact all-world validity/transition closure and
+omitted source forms remain open, as do typed capture/receipt realization,
+complete source inversion, all-view coverage, finite presentation and Option A/2
+containment. There is still no closed `FVIEW -> SRC` edge or implementation
+authority. No new semantic decision is established by the proof gap. The
 [Oracle crosswalk](../progress/2026-10-06-main-source-generation-oracle-crosswalk.md)
 and later frame/producer continuations remain historical evidence only.
 

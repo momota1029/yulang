@@ -2,7 +2,7 @@
 
 Date: 2026-10-06
 Baseline: `763ad96d4576ee6e2672c0cc35125e79c89fe955`
-Status: frozen research construction; compiler-referee review completed, one minor coordinate-domain finding repaired and delta-closed
+Status: independently compiler/spec-reviewed bounded construction; see [P/A review](2026-10-06-source-generation-pa-review.md)
 Claim classes: constructive least-generated source footprint; conditional
 typed-profile provenance theorem; exact remaining converse obligation
 Scope: `my apply f = { my step x = f x; step }` only
