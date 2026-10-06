@@ -95,6 +95,15 @@ classifies the converse as a proof/design-completion obligation: approved
 formation and protection do not entail it, and no incompatible conformant
 alternatives or necessary user decision have been established.
 
+The compiler-referee-reviewed [substitution-naturality countermodel](../progress/2026-10-06-profile-substitution-naturality-closure.md#4-smallest-useful-countermodel-to-the-naturality-implication)
+shows that whole-tuple graft naturality and source-origin preservation alone
+cannot prove the converse: a fixed, already supplied dependent schema can
+realize no concrete path at one fiber and a path at another. This falsifies a
+preservation-only proof route, not source validity of that schema or any
+alternative Yulang semantics. A minor overstatement about excluding all
+result-root nodes was repaired; singleton completeness still needs exhaustive
+first-introduction inversion. P stays open.
+
 The reviewed bounded [adjacent-use audit](../progress/2026-10-06-profile-adjacent-use-source-falsification.md#4-repeated-direct-calls-smallest-counting-discriminator)
 shows conditionally under Hroot/Hdirect that repeated direct calls can share
 static `p_0` while retaining distinct occurrence/elimination witnesses. This

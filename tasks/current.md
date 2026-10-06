@@ -108,6 +108,17 @@ See the [profile source construction](../notes/progress/2026-10-06-profile-sourc
 [initial-context construction](../notes/progress/2026-10-06-initial-context-source-construction.md),
 and [admission quantifier audit](../notes/progress/2026-10-06-admission-context-completion-audit.md).
 
+The reviewed [profile-substitution naturality attack](../notes/progress/2026-10-06-profile-substitution-naturality-closure.md)
+rules out one proof shortcut: whole-coordinate graft naturality and preservation
+alone do not establish singleton original applicability, because an already
+supplied dependent result-profile schema can have empty or nonempty instances
+at different fibers without changing its source identity. Compiler-referee
+review found no blocking/major issue; a minor quantifier overstatement was
+repaired. The artifact is not an independently licensed source constructor or
+a second Yulang semantics. The exact original first-introduction/inversion
+obligation remains open; more substitution cases cannot close it. No source
+decision, P/A closure, principality or implementation authority follows.
+
 The shadow lane is now active alongside theory research. The opt-in
 successor-core slice promotes one immutable HIR-owned `ParsedFile` snapshot,
 artifact-branded source positions, a narrow ordinary-application/binder/use

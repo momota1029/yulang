@@ -2,7 +2,7 @@
 
 Date: 2026-10-06
 Baseline: `f93fb06cd40c12fed6caf5051e045f206c4b2da6`
-Status: frozen research-only producer artifact; independent review pending
+Status: compiler-referee reviewed research-only producer artifact; one minor precision repair applied by primary
 Claim classes: source-preservation consequence; algebraic method countermodel;
 exact local output discriminator. Not an original-source countermodel.
 Scope: the original profile of captured `f` in
@@ -262,9 +262,13 @@ original profile schema nodes at (beta,c,result-root A_c),
 with their independent source-origin clauses and policy incidences
 ```
 
-To exclude the witness this local rule must return **no node at that result
-root**, and state that the original implicit contract contributes no other
-first introductions on this exact source beyond the immediate Call seed.
+Rejecting this particular witness requires that the local rule return **no
+`s1` node** with the stated source identity, `L(A_c,p)` interpretation and
+result-path incidence. That rejection alone does not prove singleton: an
+exhaustive source rule could admit a different result-root schema. Proving
+singleton also requires showing that the original implicit contract contributes
+no other first introductions on this exact source beyond the immediate Call
+seed.
 To include this witness it must return `s1` with the fixed source identity,
 `L(A_c,p)` interpretation and matching result-path incidence, independently
 of whether the current solver happens to have exposed a latent head. Returning
@@ -339,8 +343,9 @@ Frozen packet:
 - Exact path: `notes/progress/2026-10-06-profile-substitution-naturality-closure.md`.
 - Baseline: `f93fb06cd40c12fed6caf5051e045f206c4b2da6`.
 - Changed dependency hashes: none; direct snapshot above.
-- Claim/review: research-only, producer-checked algebraic countermodel and
-  preservation analysis; independent review pending; no gate closure.
+- Claim/review: compiler-referee-reviewed research-only algebraic countermodel
+  and preservation analysis; one minor quantifier precision repaired by the
+  primary; no gate closure.
 - Proposed checkpoint message: `research: separate profile origin preservation from substitution naturality`.
 - Shared-record deltas intentionally deferred: primary/curator may record this
   proof route as exhausted by a law-level countermodel, retaining no-fresh-
