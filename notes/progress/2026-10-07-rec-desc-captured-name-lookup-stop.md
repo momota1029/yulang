@@ -82,6 +82,19 @@ route is circular; if it follows from a separate binding/world invariant, its
 proof can become a local input to FH/REC-DESC. Neither outcome is selected in
 this note.
 
+The current clauses do not yet settle that check. FH treats `W` as a free,
+independently interpreted predicate and requires an initial certificate and
+each transition to establish/preserve it. K constructs the actual closure
+graph and proves `eta_f(g)=v_g` without validated recursive membership. The
+source adequacy candidate constructs an exact, potentially infinite interface
+for an already well-typed configuration. It does not establish that this
+recursive configuration satisfies those typed premises or that the captured
+value meets the independently interpreted `R_g`. Therefore, strengthening
+`W` to include lookup adequacy would relocate the obligation into
+initial-world and preservation proofs; no cited clause currently discharges
+it. This is a bounded dependency finding, not a theorem that no separate
+binding/world rule can do so.
+
 ## Scope and checks
 
 Inspected the exact selected source-result rule, recursive provider-knot

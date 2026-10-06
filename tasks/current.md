@@ -201,8 +201,9 @@ knot equality `eta_f(g)=v_g`. That source identity still does not establish
 `DescMem(R_g,v_g;xi,w)`. The next premise is independent semantic adequacy of
 this captured lookup at the original scopes and `(xi,w)`, followed by checking
 whether FH's independently interpreted `W` entails it without circularly
-assuming recursive member validity. The note has a bounded compiler-referee
-review; REC-DESC remains open.
+assuming recursive member validity. The bounded compiler-referee review found
+and closed one scope finding; delta review has no remaining findings.
+REC-DESC remains open.
 
 Then construct those pointwise local/member/world checks and source
 comparison/permission certificates. Generalize must choose its actual
