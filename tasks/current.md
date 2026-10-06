@@ -113,6 +113,13 @@ nonidentical interface reaches an unmatched `VIncl(A,B)` evidence leaf; this
 is not a source counterexample or proof that no other resolver case applies.
 `ALL_VIEW` and `PRINCIPAL` remain open.
 
+The compiler-referee-reviewed [Integer/Top actual-root bridge attempt](../notes/progress/2026-10-08-principal-vincl-actual-root-bridge-attempt.md)
+extracts the current integer literal's occurrence-local producer, then stops
+before a decorated nonidentity `VIncl(Int,Top)` clause. Even conditionally
+granting that inclusion leaves the actual `B_common` evidence gap under §5.3's
+unchanged non-coverage interface premise. This does not derive accepted
+`Direct`, a counterexample, or close `ALL_VIEW`/`PRINCIPAL`.
+
 ## Priority frontier: complete original source contribution
 
 Use the normalized route
@@ -298,6 +305,14 @@ shows why finitary local clauses alone do not guarantee finite refutability
 after existential witness projection. Its natural-number family violates
 pinned FH's pointwise extension premise and is explicitly not an FH
 countermodel. These records close no descriptor or recursive gate.
+
+The compiler-referee-reviewed [REC-DESC quantifier attack](../notes/progress/2026-10-08-rec-desc-finite-reflection-quantifier-attack.md)
+constructs compatible witnesses along one countable admitted path under
+pointwise serial extension and finite-incidence stability. The union preserves
+that path's recorded checks, but the independent returned-Function clause,
+captured-lookup adequacy and completion/readout law needed to read it as
+`DescMem` remain open. It does not commute existential witnesses across
+alternative paths or prove finite-failure reflection/`REC_DESC`.
 
 The bounded [latent Function clause audit](../notes/progress/2026-10-07-rec-desc-latent-function-clause-audit.md)
 locates the actual source-indexed returned-closure reference clause and its
@@ -539,6 +554,15 @@ and whitespace check passed. No broad/default-feature check or measurement was
 run. Querying one component scans retained uses for validation and lazily
 again for selection (`O(U)`); querying all `C` components is `O(C·U)`. No
 production SCC plan, counters, generalization or inference path changed.
+
+The compiler-referee-reviewed [pending use-instantiation carrier](../notes/progress/2026-10-08-shadow-pending-use-instantiation.md)
+joins each retained SCC UseId to its exact current parent, target, target
+component and finalized member scheme. Successor generalization, Q/R
+correspondence and use-time shared-contract transport remain explicit pending
+premises, including for internal recursive uses, absent skeletons and empty
+inventories. The focused `shadow_` target passed 29 tests (444 filtered), and
+feature-off `cargo check -p yu-solver`, targeted rustfmt and diff-check passed.
+No production inference route changed.
 
 The compiler-referee-reviewed [pending-application source-use view](../notes/progress/2026-10-07-shadow-pending-application-source-uses.md)
 retains the existing enclosing definition root on default-off Apply rows and
