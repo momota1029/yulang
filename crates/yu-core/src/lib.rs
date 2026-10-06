@@ -2,3 +2,6 @@
 
 #[cfg(feature = "shadow")]
 pub mod shadow;
+
+#[cfg(feature = "shadow")]
+pub mod shadow_derivation;
