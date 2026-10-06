@@ -352,6 +352,17 @@ This refines historical provenance attribution only; it supplies no ordinary
 Call slot, complete typed contribution, or original shared `xi`. The trace is
 bounded and non-authoritative; `ORIGINAL_ASSOC` remains open.
 
+The compiler-referee-reviewed [Frozen Oracle declaration-slot trace](../notes/progress/2026-10-08-frozen-oracle-static-slot-producer-archaeology.md)
+finds a distinct role/implementation declaration mechanism: declaration-order
+substitution slots, logical annotation-binder references, requirement and
+implementation identities/spans, and explicit/default/missing method routes
+feed declared-view and shadow-target consumers. A minimal tuple discriminator
+shows that the reference vector alone omits the variable's structural
+position, while the full signature retains it. This is a declaration
+provenance analogue only; it supplies no ordinary Call `beta`/`Slots(beta)`,
+typed `p0`, owner/receiver path, complete contribution or original `xi`.
+Frozen Oracle remains historical evidence, and `ORIGINAL_ASSOC` stays open.
+
 The compiler-referee-reviewed [SIG-RULES completion-separation attempt](../notes/progress/2026-10-07-signature-licensing-underdetermination.md)
 constructed no admissible pair of complete licensing meanings. Under equal
 original primitive relations, clause graphs and certified transport at the
@@ -443,6 +454,18 @@ pointwise. Its required joint binder/domain is not grounded in an actual
 descriptor clause, so it is not an FH or Yulang countermodel. Both results
 preserve the original scope and keep `DESC_CLAUSES`, `ADMISSION_CLAUSES`,
 `SEM_JOINT` and `REC-DESC` open.
+
+Three further reviewed attempts reduce the descriptor proof boundary. The
+[binder/domain audit](../notes/progress/2026-10-07-rec-desc-binder-domain-audit.md)
+confirms the candidate returned-Function clause introduces nested universal
+call obligations but does not provide the production latent-membership binder
+tree. The [two-closure construction attempt](../notes/progress/2026-10-07-rec-desc-two-closure-constructive-attempt.md)
+stops at C1, the missing ordinary constructor/root-introduction rule, while
+independent guards also remain open. The [adversarial applicability attempt](../notes/progress/2026-10-07-rec-desc-two-closure-adversarial-attempt.md)
+separates registered-root inclusion from membership of the actual returned
+provider. Their bounded compiler-referee reviews found no blocking/major
+issues; none supplies a same-source countermodel or closes
+`DESC_CLAUSES`, `ADMISSION_CLAUSES`, `SEM_JOINT` or `REC-DESC`.
 
 The compiler-referee-reviewed [REC_INIT first-read boundary](../notes/progress/2026-10-09-rec-init-boundary-attack.md)
 uses the conditional singleton `my f = f` candidate to expose the earliest
