@@ -55,6 +55,16 @@ impl<'a> PendingApplicationSourceUseRef<'a> {
 }
 
 impl ConstraintBatch {
+    /// Borrows the HIR-owned nested carrier without creating application rows.
+    pub fn shadow_captured_source(
+        &self,
+        root: &DefinitionRootId,
+    ) -> Result<
+        Option<&std::sync::Arc<yu_hir::shadow::ShadowArtifact>>,
+        yu_hir::shadow::SourceIdentityError,
+    > {
+        self.hir.shadow_captured_source(root)
+    }
     /// Direct Names in retained row order, then callee/argument order.
     /// Unresolved Names are retained; this inventory asserts no completeness
     /// and leaves each row's application typing premise unresolved.
@@ -66,6 +76,16 @@ impl ConstraintBatch {
 }
 
 impl SolvedModule {
+    /// Borrows the same carrier through the retained immutable HIR module.
+    pub fn shadow_captured_source(
+        &self,
+        root: &DefinitionRootId,
+    ) -> Result<
+        Option<&std::sync::Arc<yu_hir::shadow::ShadowArtifact>>,
+        yu_hir::shadow::SourceIdentityError,
+    > {
+        self.hir.shadow_captured_source(root)
+    }
     /// Borrow the same ordered direct Name inventory after collection is solved.
     /// Rows remain unresolved structural evidence owned by this frozen result.
     pub fn shadow_pending_application_source_uses(

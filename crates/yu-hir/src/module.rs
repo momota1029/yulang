@@ -769,6 +769,8 @@ pub struct HirModule {
     artifact: Arc<HirArtifactToken>,
     #[cfg(any(feature = "shadow", test))]
     pub(crate) source_identity: Option<crate::shadow::HirSourceIdentity>,
+    #[cfg(any(feature = "shadow", test))]
+    pub(crate) captured_source: Option<(DefinitionRootId, Arc<crate::shadow::ShadowArtifact>)>,
     identity: ModuleIdentity,
     source_revision: SourceRevision,
     items: Vec<HirItem>,
@@ -941,6 +943,8 @@ fn lower_module_with_counters(
         artifact,
         #[cfg(any(feature = "shadow", test))]
         source_identity: counters.source_identity.take(),
+        #[cfg(any(feature = "shadow", test))]
+        captured_source: None,
         identity,
         source_revision: parsed.revision(),
         items,

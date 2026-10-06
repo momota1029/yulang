@@ -31,6 +31,80 @@ pub fn lower_module_with_shadow_applications(
     crate::module::lower_module_with_shadow_applications(identity, parsed, imports)
 }
 
+/// Retains the approved nested source carrier without lowering its local call.
+/// Validation finishes before the immutable HIR module is published. Removing
+/// this opt-in boundary leaves ordinary lowering and collection unchanged.
+pub fn lower_module_with_captured_source(
+    identity: ModuleIdentity,
+    parsed: &ParsedFile,
+    imports: SemanticImports,
+    artifact: Arc<ShadowArtifact>,
+) -> Result<HirModule, HirAvailabilityError> {
+    let mut hir = lower_module_with_source_identity(identity, parsed, imports)?;
+    let invalid = || HirAvailabilityError::StructuralProjection;
+    let [crate::HirItem::Binding(binding)] = hir.items() else {
+        return Err(invalid());
+    };
+    let skeleton = artifact.skeleton().map_err(|_| invalid())?;
+    let input = skeleton.captured_call_input().ok_or_else(invalid)?;
+    let root = skeleton
+        .expression(skeleton.body())
+        .map_err(|_| invalid())?;
+    let Form::Lambda { parameter, .. } = root.form() else {
+        return Err(invalid());
+    };
+    let declaration = artifact
+        .definition_source_position(&hir, binding.definition_root())
+        .map_err(|_| invalid())?;
+    if root.position() != &declaration
+        || skeleton
+            .root_declaration_header()
+            .ok_or_else(invalid)?
+            .statement()
+            != &declaration
+        || parameter != input.outer_parameter()
+    {
+        return Err(invalid());
+    }
+    let crate::ResolvedExpr::Lambda {
+        parameter: hir_parameter,
+        ..
+    } = binding.value()
+    else {
+        return Err(invalid());
+    };
+    let parameter_position = artifact
+        .parameter_source_position(&hir, hir_parameter)
+        .map_err(|_| invalid())?;
+    if skeleton
+        .binder(parameter)
+        .map_err(|_| invalid())?
+        .position()
+        != &parameter_position
+    {
+        return Err(invalid());
+    }
+    hir.captured_source = Some((binding.definition_root().clone(), artifact));
+    Ok(hir)
+}
+
+impl HirModule {
+    /// Borrows the validated carrier for this exact HIR root. Artifact-local
+    /// call premises remain separate from solver pending-application rows.
+    pub fn shadow_captured_source(
+        &self,
+        root: &DefinitionRootId,
+    ) -> Result<Option<&Arc<ShadowArtifact>>, SourceIdentityError> {
+        if !self.owns_definition_root(root) {
+            return Err(SourceIdentityError::ForeignHirArtifact);
+        }
+        Ok(self
+            .captured_source
+            .as_ref()
+            .and_then(|(owner, artifact)| (owner == root).then_some(artifact)))
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum SourceIdentityError {
     ForeignHirArtifact,
