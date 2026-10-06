@@ -4,7 +4,8 @@
 use yu_hir::shadow::{
     AnnotationOccurrence, BinderId, CaptureUseIncidence, CapturedCallInput, ClosureCorrespondence,
     ExprId, Form, ParameterAnnotationIncidence, PendingPremise, Position, ResolvedCallIncidence,
-    ShadowArtifact, Skeleton, SourceCallUseInput, UnresolvedSourceViewPremise, UseId,
+    ShadowArtifact, Skeleton, SourceCallUseInput, SourceViewPremiseLocator,
+    UnresolvedSourceViewPremise, UseId,
 };
 
 /// Flat, immutable arena. Child offsets are local storage addresses, not lexical IDs.
@@ -219,6 +220,7 @@ impl<'a> RawStructuralArena<'a> {
                     direct_use: None,
                     source_use_input: None,
                     capture: None,
+                    captured_input: None,
                 }),
             })
             .collect::<Vec<_>>();
@@ -314,6 +316,24 @@ impl<'a> RawStructuralArena<'a> {
                 return None;
             }
         }
+        if let Some(input) = skeleton.captured_call_input() {
+            let offset = skeleton.expression_offset(input.call()).ok()?;
+            let raw_call = nodes.get_mut(offset)?.call.as_mut()?;
+            let source = raw_call.source_use_input.as_ref()?;
+            let capture = raw_call.capture?;
+            if source.application().expression() != input.call()
+                || source.occurrence() != input.callee_use()
+                || source.binder() != input.outer_parameter()
+                || skeleton.capture_call(capture).ok()? != input.call()
+                || capture.lambda() != input.local_lambda()
+                || capture.captured() != input.outer_parameter()
+                || capture.occurrence() != input.callee_use()
+                || capture.position() != input.capture_position()
+            {
+                return None;
+            }
+            raw_call.captured_input = Some(input);
+        }
         Some(Self {
             body: skeleton.body(),
             nodes,
@@ -359,4 +379,43 @@ pub struct RawCall<'a> {
     /// judgment. An empty annotation iterator proves neither absence nor completeness.
     pub source_use_input: Option<SourceCallUseInput<'a>>,
     pub capture: Option<&'a CaptureUseIncidence>,
+    captured_input: Option<CapturedCallInput<'a>>,
+}
+
+impl<'artifact> RawNode<'artifact> {
+    /// Borrowed structural registration for an exact immediate resolved Use.
+    /// This supplies no call-view judgment or premise discharge.
+    pub fn pending_source_call_registration(
+        &self,
+    ) -> Option<PendingSourceCallRegistration<'_, 'artifact>> {
+        let call = self.call.as_ref()?;
+        let source_use_input = call.source_use_input.as_ref()?;
+        Some(PendingSourceCallRegistration {
+            source: &self.source,
+            application: self.form,
+            source_use_input,
+            application_premises: &call.application_premises,
+            capture: call.capture,
+            captured_input: call.captured_input.as_ref(),
+        })
+    }
+}
+
+/// Immutable references already joined by the raw arena. Missing topology
+/// association establishes no validated match, not semantic absence. Scoped
+/// source-view requirements are distinct from ordinary application pending rows.
+#[derive(Debug)]
+pub struct PendingSourceCallRegistration<'registration, 'artifact> {
+    pub source: &'registration ExprId,
+    pub application: &'artifact Form,
+    pub source_use_input: &'registration SourceCallUseInput<'artifact>,
+    pub application_premises: &'registration [&'artifact PendingPremise],
+    pub capture: Option<&'artifact CaptureUseIncidence>,
+    pub captured_input: Option<&'registration CapturedCallInput<'artifact>>,
+}
+
+impl PendingSourceCallRegistration<'_, '_> {
+    pub fn source_view_premise_locator(&self) -> Option<SourceViewPremiseLocator<'_, '_>> {
+        Some(self.captured_input?.source_view_premise_locator())
+    }
 }

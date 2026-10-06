@@ -408,3 +408,144 @@ fn frozen_oracle_nested_apply_provenance_joins_raw_shadow_occurrences() {
         assert_eq!(call, current_call);
     }
 }
+
+#[test]
+fn pending_source_registration_preserves_exact_references_and_scoped_locator() {
+    use yu_hir::shadow::UnresolvedSourceViewPremise::*;
+    let categories = [
+        CompatibleCompleteOriginalRoleIndexedProfile,
+        IndependentlyTypedOriginalInvocationAndWholeRowCarrierPrefixResumptionInterpretation,
+        JointlyScopedOriginalConstraints,
+        SourceSlotCallbackBoundaryInputsAndCorrespondingTypedPaths,
+        IndependentInitialCallerProviderWorldAdmission,
+        SourceSeedRefinedRelationExistenceAndCoverage,
+        OriginalSignatureApplicabilityAndContributionFormation,
+    ];
+    for source in [
+        "my repeated f x = f (f x)",
+        "my apply x (f: T) (g: T) = f (g x)",
+        "my apply f = { my step x = f x; step }",
+        "my apply f x = f x",
+        "my grouped f x = (f) x",
+        "my computed f x = (f x) x",
+    ] {
+        let artifact = artifact(source);
+        let skeleton = artifact.skeleton().unwrap();
+        let arena = RawStructuralArena::from_artifact(&artifact).unwrap();
+        let scoped = skeleton.captured_call_input();
+        let mut registered = Vec::new();
+        let mut locator_count = 0;
+        for node in arena.nodes() {
+            let registration = node.pending_source_call_registration();
+            assert_eq!(
+                registration.is_some(),
+                node.call
+                    .as_ref()
+                    .is_some_and(|call| call.source_use_input.is_some())
+            );
+            let Some(registration) = registration else {
+                continue;
+            };
+            let raw = node.call.as_ref().unwrap();
+            assert!(std::ptr::eq(registration.source, &node.source));
+            assert!(std::ptr::eq(registration.application, node.form));
+            assert!(std::ptr::eq(
+                registration.source_use_input,
+                raw.source_use_input.as_ref().unwrap()
+            ));
+            assert!(std::ptr::eq(
+                registration.application_premises,
+                raw.application_premises.as_slice()
+            ));
+            let pending = skeleton
+                .pending()
+                .iter()
+                .filter(|row| row.call() == registration.source)
+                .collect::<Vec<_>>();
+            assert_eq!(registration.application_premises.len(), pending.len());
+            for (actual, expected) in registration.application_premises.iter().zip(pending) {
+                assert!(std::ptr::eq(*actual, expected));
+            }
+            assert_eq!(
+                registration.capture.map(std::ptr::from_ref),
+                raw.capture.map(std::ptr::from_ref)
+            );
+            let locator = registration.source_view_premise_locator();
+            assert_eq!(
+                locator.is_some(),
+                scoped
+                    .as_ref()
+                    .is_some_and(|input| input.call() == registration.source)
+            );
+            if let Some(locator) = locator {
+                locator_count += 1;
+                let input = locator.input();
+                let expected = scoped.as_ref().unwrap();
+                assert!(std::ptr::eq(input, registration.captured_input.unwrap()));
+                assert!(std::ptr::eq(input.call(), expected.call()));
+                assert!(std::ptr::eq(input.callee_use(), expected.callee_use()));
+                assert!(std::ptr::eq(
+                    input.outer_parameter(),
+                    expected.outer_parameter()
+                ));
+                assert!(std::ptr::eq(input.local_lambda(), expected.local_lambda()));
+                assert!(std::ptr::eq(
+                    input.local_binding(),
+                    expected.local_binding()
+                ));
+                assert!(std::ptr::eq(input.returned_use(), expected.returned_use()));
+                assert!(std::ptr::eq(
+                    input.capture_position(),
+                    expected.capture_position()
+                ));
+                assert_eq!(locator.unresolved_premises(), categories);
+                let capture = registration.capture.unwrap();
+                assert_eq!(capture.lambda(), input.local_lambda());
+                assert_eq!(capture.occurrence(), input.callee_use());
+            } else {
+                assert!(registration.captured_input.is_none());
+            }
+            registered.push((
+                registration.source.clone(),
+                registration.source_use_input.binder().clone(),
+                registration.source_use_input.occurrence().clone(),
+            ));
+        }
+        assert_eq!(locator_count, usize::from(scoped.is_some()));
+        if source == "my repeated f x = f (f x)" {
+            assert_eq!(registered.len(), 2);
+            assert_ne!(registered[0].0, registered[1].0);
+            assert_eq!(registered[0].1, registered[1].1);
+            assert_ne!(registered[0].2, registered[1].2);
+        }
+        if source == "my grouped f x = (f) x" {
+            assert!(registered.is_empty());
+        }
+        if source == "my computed f x = (f x) x" {
+            assert_eq!(registered.len(), 1);
+        }
+        if source == "my apply x (f: T) (g: T) = f (g x)" {
+            assert_eq!(registered.len(), 2);
+            for registration in arena
+                .nodes()
+                .iter()
+                .filter_map(|node| node.pending_source_call_registration())
+            {
+                let annotations = registration
+                    .source_use_input
+                    .parameter_annotations()
+                    .collect::<Vec<_>>();
+                assert_eq!(annotations.len(), 1);
+                assert!(std::ptr::eq(
+                    annotations[0],
+                    skeleton
+                        .parameter_annotations()
+                        .iter()
+                        .find(|incidence| incidence.parameter()
+                            == registration.source_use_input.binder())
+                        .unwrap()
+                ));
+            }
+        }
+    }
+}
