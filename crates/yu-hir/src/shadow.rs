@@ -294,6 +294,26 @@ impl ApplicationSourceOccurrence<'_> {
     }
 }
 
+/// Existing Apply-to-direct-Use incidence; no callable role or typed call view.
+#[derive(Debug)]
+pub struct ResolvedCallIncidence<'a> {
+    application: ApplicationSourceOccurrence<'a>,
+    occurrence: &'a UseId,
+    binder: &'a BinderId,
+}
+
+impl<'a> ResolvedCallIncidence<'a> {
+    pub fn application(&self) -> &ApplicationSourceOccurrence<'a> {
+        &self.application
+    }
+    pub fn occurrence(&self) -> &UseId {
+        self.occurrence
+    }
+    pub fn binder(&self) -> &BinderId {
+        self.binder
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct BinderId(LocalId);
 
@@ -920,6 +940,24 @@ impl Skeleton {
                     source_form: *source_form,
                     callee,
                     argument,
+                })
+            })
+    }
+
+    /// Filters the lazy source scan to applications with an already resolved direct Use.
+    /// Grouped or computed callees are not traversed to infer a callee identity.
+    pub fn resolved_call_incidences(&self) -> impl Iterator<Item = ResolvedCallIncidence<'_>> + '_ {
+        self.application_source_occurrences()
+            .filter_map(|application| {
+                let Form::Use { binder, occurrence } =
+                    &self.expressions[application.callee.0.index].form
+                else {
+                    return None;
+                };
+                Some(ResolvedCallIncidence {
+                    application,
+                    occurrence,
+                    binder,
                 })
             })
     }
