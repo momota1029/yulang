@@ -5,7 +5,7 @@ Status: independently compiler-referee/spec-auditor-reviewed historical characte
 Claim class: historical mechanism characterization; no semantic or implementation authority.
 Current authority baseline: `d07fa561c15e66875aefb4092827a7030e736a81`.
 Frozen historical source: `a58eefc31e22141574b6f20c6a5748151c6d79f1`.
-Integration baseline: `2d378d0cf84b110e034d792d680f94b9369ad90d`.
+Integration baseline: `f1fc1a6eb700b1406d6bedebb46aec7cad082774`.
 
 Companion: [main source-generation localization](2026-10-06-main-source-generation-minimal-clause.md).
 

@@ -3,7 +3,7 @@
 Date: 2026-10-06
 Research baseline: `d07fa561c15e66875aefb4092827a7030e736a81`
 Branch: `research/simple-sub-intrusion`
-Integration baseline: `2d378d0cf84b110e034d792d680f94b9369ad90d`
+Integration baseline: `f1fc1a6eb700b1406d6bedebb46aec7cad082774`
 Status: independently compiler-referee/spec-auditor-reviewed bounded result
 Claim class: bounded rule-inventory non-derivation and source-clause localization
 Semantic/implementation authority: none
@@ -403,6 +403,9 @@ Before any production adoption, the following proofs remain necessary:
    comparison at the designated exported root and witnesses at original
    scopes. The existing `V_alloc` sufficient cases do not establish all-view
    coverage. A shared witness may not be reselected per port or challenge.
+   The separately reviewed [proper-domain view boundary](2026-10-06-principality-proper-domain-view-boundary.md)
+   supplies a conditional separator from the displayed allocation route;
+   its concrete Record source-licensing premise remains open.
 
 These are not extra source semantics selected by this note. Their separation
 prevents an original source-base result from being promoted to complete

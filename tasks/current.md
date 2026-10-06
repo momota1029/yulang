@@ -178,6 +178,42 @@ pending typed-port/profile links. Focused shadow HIR tests and `yu-core` checks
 with the feature on and off pass; both exact-conformance and regression review
 found no issues. This adds no profile identity or production inference path.
 See the [annotation occurrence identity slice](../notes/progress/2026-10-06-shadow-annotation-occurrence-id.md).
+The shadow core now also retains an artifact-owned declaration Lambda for the
+existing direct-unary leaf overlap `my f x = x` and `my f x = 42`, while
+`Skeleton::body()` still returns the original leaf. The declaration identity
+is distinct and added only after body projection; its own name does not enter
+the lexical body scope. Captures stay empty and closure correspondence stays
+pending. Two HIR/F5 inventory expectations changed with pre-write spec review;
+focused HIR shadow tests (35 unit, 1 integration), two exact F5 differential
+cases, `yu-core` default/feature checks, formatting and diff checks pass.
+Compiler-referee and regression reviews found no issues. This connects
+declaration identity to the already retained body/use source structure without
+adding call typing or production routing. See the
+[unary declaration shadow slice](../notes/progress/2026-10-06-shadow-unary-declaration-root.md).
+The unary declaration root now also wraps a single ordinary Apply with direct
+Use/Integer operands for ML and CallTail source forms, preserving existing
+callee/argument/position identities and all four unresolved call premises.
+Grouped or nested chains, multiple formals and non-`my` declarations do not
+enter this added slice. Three focused shadow tests pass after the coverage
+delta; compiler-referee and regression reviews found no remaining issues.
+Production HIR/F5 still has no resolved ordinary Apply, and this does not claim
+call-semantic differential parity. See the
+[unary application shadow slice](../notes/progress/2026-10-06-shadow-unary-application-root.md).
+The conditional principality note on strict input-domain views finds that
+typed-core Function inclusion can validate a narrower target under explicit
+same-scope admission and observation premises, while the displayed A-allocation
+certificate still requires exact challenge-domain equality. A small required-
+Record-width candidate remains conditional on source licensing; it is outside
+`V_alloc(S)` independently because its value interface changes. This is not a
+current accepted-program counterexample. Independent compiler-referee review
+found no remaining issues; no Oracle was used. See the
+[proper-domain view boundary](../notes/progress/2026-10-06-principality-proper-domain-view-boundary.md).
+An independent spec-audited source-license check found no existing rule that
+derives same-value Record identity and complete Value-entry admission transport
+from mandatory width. The strict-domain example therefore remains conditional;
+this is bounded absence evidence, not source rejection or an accepted-program
+counterexample. No Oracle semantics were used. See the
+[Record source-license audit](../notes/progress/2026-10-06-principality-record-domain-source-license.md).
 The independently regression-audited [production source-path audit](../notes/progress/2026-10-06-production-nested-candidate-stop.md)
 locates the exact candidate's current Yulang3 stop: `lower_simple_chain`
 rejects the braced body as a non-atom, creates `ResolvedExpr::Error`, and F5

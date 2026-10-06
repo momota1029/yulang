@@ -512,6 +512,58 @@ fn build_skeleton(
     } else {
         artifact.project(chain, source, positions)?
     };
+    // Retain ordinary unary leaves and one application of direct leaves. Publish the
+    // declaration identity after projection so it cannot resolve in its body.
+    let header_elements = header
+        .children_with_tokens()
+        .filter(|element| {
+            !matches!(
+                element.kind(),
+                SyntaxKind::Whitespace
+                    | SyntaxKind::Newline
+                    | SyntaxKind::LineComment
+                    | SyntaxKind::BlockComment
+            )
+        })
+        .map(|element| element.kind())
+        .collect::<Vec<_>>();
+    let direct_body = match artifact.expression(&artifact.body)?.form() {
+        Form::Use { .. } | Form::IntegerLiteral { .. } => true,
+        Form::Apply {
+            callee, argument, ..
+        } => [callee, argument].into_iter().all(|id| {
+            matches!(
+                artifact.expression(id).map(Expression::form),
+                Ok(Form::Use { .. } | Form::IntegerLiteral { .. })
+            )
+        }),
+        _ => false,
+    };
+    if parameters.len() == 1
+        && header_elements == [SyntaxKind::MyKw, SyntaxKind::Pattern, SyntaxKind::Equals]
+        && direct_body
+    {
+        let (name_text, range) = identifier(name, source)?;
+        let binding = BinderId(artifact.id(artifact.binders.len()));
+        artifact.binders.push(Binder {
+            name: name_text,
+            range,
+            position: retained_position(positions, name)?,
+        });
+        let root = artifact.push_expression(
+            retained_position(positions, statement)?,
+            range_of(statement),
+            Form::Lambda {
+                binding,
+                parameter: BinderId(artifact.id(0)),
+                body: artifact.body.clone(),
+                captures: Vec::new(),
+                correspondence:
+                    ClosureCorrespondence::PendingTypedCaptureProviderReceiverAndSemanticDischarge,
+            },
+        );
+        artifact.validate_nested_scope(&root)?;
+    }
     artifact.validate()?;
     artifact.validate_positions(raw_positions)?;
     Ok(artifact)
@@ -630,7 +682,7 @@ impl Skeleton {
             }
         }
         if matches!(self.expression(&self.body)?.form, Form::Lambda { .. }) {
-            self.validate_nested_scope()?;
+            self.validate_nested_scope(&self.body)?;
         }
         self.validate_capture_uses()?;
         for pending in &self.pending {
@@ -674,10 +726,9 @@ impl Skeleton {
         Ok(())
     }
 
-    fn validate_nested_scope(&self) -> Result<(), ShadowError> {
-        // Only the selected structural slice introduces explicit lexical scope.
-        // The existing ordinary projector retains its formal-only envelope.
-        let mut tasks = vec![(self.body.clone(), BTreeSet::<usize>::new())];
+    fn validate_nested_scope(&self, root: &ExprId) -> Result<(), ShadowError> {
+        // Declaration identities are not visible in their initializer bodies.
+        let mut tasks = vec![(root.clone(), BTreeSet::<usize>::new())];
         while let Some((id, scope)) = tasks.pop() {
             match &self.expression(&id)?.form {
                 Form::Use { binder, .. } => {
