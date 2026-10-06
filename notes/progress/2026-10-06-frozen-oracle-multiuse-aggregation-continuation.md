@@ -1,7 +1,7 @@
 # Frozen Oracle multi-use frame and endpoint continuation
 
 Date: 2026-10-06
-Status: research-only historical characterization; independent review pending
+Status: research-only historical characterization; independently compiler-referee-reviewed with no findings
 Yulang3 baseline: `a5e19baaa248e31f7c3efbcca1fe01f9aa71d71b`
 Frozen Oracle: `a58eefc31e22141574b6f20c6a5748151c6d79f1`, `/tmp/yulang2-oracle-rebuild`
 Exclusive lease: this note only

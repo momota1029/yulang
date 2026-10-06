@@ -118,13 +118,15 @@ position and contain no typed endpoint/receipt; the exact unannotated captured
 formal does not use this channel. This is mechanism evidence only and does not
 close the current source producer or authorize Oracle semantics. See the
 [argument-effect contract channel](../notes/progress/2026-10-06-frozen-oracle-argument-effect-contract-channel.md).
-Further frozen-Oracle archaeology traced multi-use accumulation: no-scheme
-formal occurrences reuse one value endpoint, each application keeps its own
-Function-upper constraint, and guarded per-`DefId` call-upper/frame state
-retains distinct occurrence IDs while reusing a frame-local subtraction ID.
-This is conditional routine-level history, not current Handler semantics or a
-source rule; public/erased endpoint selection remains untraced. See the
-[multi-use Oracle archaeology](../notes/progress/2026-10-06-frozen-oracle-multiuse-aggregation-archaeology.md).
+Further frozen-Oracle archaeology traced multi-use paths with an important
+split: no-scheme formal uses share one value endpoint, each application emits
+its own Function-upper constraint, and eligible unannotated calls use a
+frame-local subtraction route; the `call_uppers` vector belongs to an
+annotation-dependent path. A continuation traced frame selection and wrapper
+endpoint precedence. These are conditional historical mechanics, not current
+Handler semantics or a source rule. Independent compiler-referee review found
+no issues. See the [multi-use accumulation record](../notes/progress/2026-10-06-frozen-oracle-multiuse-aggregation-archaeology.md)
+and [frame/endpoint continuation](../notes/progress/2026-10-06-frozen-oracle-multiuse-aggregation-continuation.md).
 The compiler-referee-reviewed [Q-independent capture source-rule attempt](../notes/progress/2026-10-06-q-independent-capture-source-rule-attempt.md)
 separates O, original query-independent contract/receipt formation, from A,
 captured evidence-environment attachment and lookup preserving the whole
