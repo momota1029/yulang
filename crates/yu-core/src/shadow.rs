@@ -2,8 +2,8 @@
 //! This module performs no parsing, identity minting, solving or production routing.
 
 pub use yu_hir::shadow::{
-    AnnotationId, AnnotationOccurrence, Binder, BinderId, CaptureUseIncidence,
-    ClosureCorrespondence, Correspondence, ExprId, Expression, Form, MAX_RAW_ELEMENTS,
-    MAX_SYNTAX_DEPTH, PendingPremise, Position, PositionId, Premise, ShadowArtifact, ShadowError,
-    Skeleton, UseId,
+    AnnotationId, AnnotationOccurrence, ApplicationSourceOccurrence, Binder, BinderId,
+    CaptureUseIncidence, ClosureCorrespondence, Correspondence, ExprId, Expression, Form,
+    MAX_RAW_ELEMENTS, MAX_SYNTAX_DEPTH, PendingPremise, Position, PositionId, Premise,
+    ShadowArtifact, ShadowError, Skeleton, UseId,
 };

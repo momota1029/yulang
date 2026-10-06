@@ -2,7 +2,7 @@
 
 Date: 2026-10-06
 Baseline: `8e11d3fdd743983f4cc052eabf40a2f901a8dc2f`
-Status: research-only conditional factoring; not independently reviewed
+Status: research-only conditional factoring; architecture audit found no scope issue; semantic proof not independently reviewed
 Scope: exact `apply/step` candidate's call constructor and Q-independent source generation
 Implementation/semantic authority: none
 
@@ -44,6 +44,18 @@ the actual callable's role/entry. Every relation row retains the same `xi`;
 the bind and call constructors compose rows rather than projecting and
 recombining their coordinates. This is a direct constructor composition, not
 a proof that the source occurrence supplies its premises.
+
+The typed-core package still leaves a separate gate after this conditional
+constructor: a finite symbolic presentation of the complete `ExecuteCallable`
+image and higher-order/store challenge relations (§9, final paragraph). The
+constructor equation is therefore not a complete finite source-call relation,
+an effective subtype algorithm, or evidence that arbitrary admitted source
+histories have been covered. Source generation must provide the needed finite
+presentation and its coverage/typing certificates.
+
+An independent architect audit found no scope overclaim in this factoring and
+confirmed this separate finite-presentation gate remains open. It did not
+certify a source-generation rule, admission theorem, or production behavior.
 
 ## Exact missing source bridge
 

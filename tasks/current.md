@@ -130,6 +130,22 @@ its decorated inputs are supplied. The missing producer is the source-to-typed
 incidence map and joint admissible fiber, not an absent operational constructor;
 this does not derive `F_cb`, `beta`/profile, receipt, `Phi_C`, or `Omega_S`.
 See the [conditional call-image boundary record](../notes/progress/2026-10-06-source-call-image-producer-boundary.md).
+The conditional constructor still does not provide a finite symbolic
+`ExecuteCallable` presentation or higher-order/store challenge relation. An
+independently reviewed formal countermodel further isolates event-to-instance
+coverage: preserving every compatible dynamic instance does not establish a
+representative for each independently admitted source entry history. This
+does not refute source-contracts §3.5, which proves coverage under its separate
+admission, typing and source-conformance hypotheses; the missing proof is that
+the exact source producer supplies them. See the
+[source-entry coverage record](../notes/progress/2026-10-06-source-entry-instance-coverage.md).
+The shadow lane now exposes a lazy `ApplicationSourceOccurrence` crosswalk for
+existing Apply expression/source/callee/argument identities. The default-off
+API leaves all call judgments pending and adds no call-view/profile semantics;
+three focused HIR tests, rustfmt, diff-check, and `yu-core` checks with shadow
+both disabled and enabled pass. Independent regression review found no blocking
+or major issues.
+See the [shadow call-source crosswalk](../notes/progress/2026-10-06-shadow-call-source-occurrence.md).
 The default-off shadow artifact now assigns separate branded identities to
 retained annotation occurrences, while preserving their raw CST positions and
 pending typed-port/profile links. Focused shadow HIR tests and `yu-core` checks

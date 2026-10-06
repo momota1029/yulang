@@ -265,6 +265,35 @@ impl Eq for LocalId {}
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ExprId(LocalId);
 
+/// Read-only source incidence of an already retained `Form::Apply`.
+/// The expression identity is unchanged; this supplies no semantic call view.
+#[derive(Debug)]
+pub struct ApplicationSourceOccurrence<'a> {
+    expression: ExprId,
+    position: &'a PositionId,
+    source_form: SyntaxKind,
+    callee: &'a ExprId,
+    argument: &'a ExprId,
+}
+
+impl ApplicationSourceOccurrence<'_> {
+    pub fn expression(&self) -> &ExprId {
+        &self.expression
+    }
+    pub fn position(&self) -> &PositionId {
+        self.position
+    }
+    pub fn source_form(&self) -> SyntaxKind {
+        self.source_form
+    }
+    pub fn callee(&self) -> &ExprId {
+        self.callee
+    }
+    pub fn argument(&self) -> &ExprId {
+        self.argument
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct BinderId(LocalId);
 
@@ -816,6 +845,32 @@ impl PendingPremise {
 impl Skeleton {
     pub fn capture_uses(&self) -> &[CaptureUseIncidence] {
         &self.capture_uses
+    }
+
+    /// Lazily scans retained expressions without forming or discharging a call view.
+    pub fn application_source_occurrences(
+        &self,
+    ) -> impl Iterator<Item = ApplicationSourceOccurrence<'_>> + '_ {
+        self.expressions
+            .iter()
+            .enumerate()
+            .filter_map(|(index, expression)| {
+                let Form::Apply {
+                    source_form,
+                    callee,
+                    argument,
+                } = &expression.form
+                else {
+                    return None;
+                };
+                Some(ApplicationSourceOccurrence {
+                    expression: ExprId(self.id(index)),
+                    position: &expression.position,
+                    source_form: *source_form,
+                    callee,
+                    argument,
+                })
+            })
     }
 
     pub fn body(&self) -> &ExprId {
