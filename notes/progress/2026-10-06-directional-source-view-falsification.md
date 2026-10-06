@@ -2,11 +2,17 @@
 
 Date: 2026-10-06
 Baseline: `38dab1fb926f819d1b2a25835d990d32b3915038`
-Status: frozen producer/falsifier research; independent review pending
+Status: independently reviewed source-path discriminator and bounded checker
 Claim class: source-constructor placement discriminator and bounded failed
              falsification of the repaired fragment constructor
 Semantic/implementation authority: none
 Exclusive lease: this note and `tools/research_directional_source_view.py`
+
+The new independent reviews and their exact scope are recorded in the
+[receipt/supplier review](2026-10-06-directional-receipt-supplier-review.md).
+The later [SV construction](2026-10-06-directional-source-view-instantiation-construction.md)
+supplies the selected typed-row receipt/result/capture association, including
+Pending prefixes; the executable below remains only a path-placement check.
 
 ## 1. Result
 
@@ -327,7 +333,7 @@ Commit-ready paths, contingent on primary lease/diff adjudication:
 
 - This note and `tools/research_directional_source_view.py` only.
 - Baseline: `38dab1fb926f819d1b2a25835d990d32b3915038`.
-- Status: unreviewed producer/falsifier research. No independent certification.
+- Status at producer freeze: unreviewed producer/falsifier research; subsequent independent review is recorded above and does not enlarge the checker envelope.
 - Proposed subject: `research: test directional formal fragment result-path placement`.
 - Proposed shared-record delta: distinguish generated result-prefix map schema
   from source-typed paired constructor totality; record the factory-placement

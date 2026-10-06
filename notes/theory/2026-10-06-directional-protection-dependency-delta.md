@@ -2,7 +2,7 @@
 
 Date: 2026-10-06
 Baseline: `7c92667fac06bd8414d72bf0a11843d3b6dc8ea8`
-Status: primary-owned navigation/claim-class update; local and bounded whole-relation continuations independently reviewed
+Status: primary-owned navigation; local, whole-relation, receipt/prefix and rule-origin continuations independently reviewed
 Authority: direct current user wording, not new approval of the old E/R proposal
 
 Read this delta before the original-introduction portions of
@@ -40,15 +40,17 @@ promoted or refuted by that change of target.
 | Shape-only/undirected reconstruction | The companion derivation gives a local two-input obstruction from the selected positive and negative cases; it is not a complete source-language countermodel. |
 | Generated witness conservation | Coherent original-scope renaming and deterministic whole-row extension are shown for the local rule. No global solution-preservation or source principality theorem follows. |
 | Selected original seed/use producer | S1 composes the actual selected ordinary formal registration, annotation-absence policy, same-root Name/capture and Call to derive seed-at-exposure and upper output. Lower-first information remains a separate active predicate. Generic seed formation and recursive/generalized supplier coverage remain open. |
-| Role refinement and protection | S2 preserves the directional certificates under a compliant same-root refinement. `NonHandlerFormal` is not protection release. Existence, eligibility, multi-use aggregation and complete semantic refinement coverage are not proved. |
+| Role refinement and protection | S2 preserves directional certificates under a compliant same-root refinement. SC-normalization now substitutes the source-entailed `NonHandlerFormal` constant throughout the exact completed singleton's original active relation. This is not protection release, incomplete-prefix coverage, kernel replacement or generic multi-use aggregation. |
 | Physical replay and logical applicability | S3 proves fair order-independent closure for fixed certified source facts and whole-use maps. A late delivered earlier seed is covered; a genuinely later semantic seed needs an independently justified applicability clause. |
-| Active whole-relation normalization | DREL-1 instantiates checked inlining/materialization with incidence-sensitive primitives, original scopes and equal recursive operators. DREL-2 remains the independent source seed/refined primitive obligation; no source relation is defined into existence. |
-| Static upper fragment and typed transport | The user rule yields the exact partial `Gamma_dir` without completed P. Common typed image composition preserves it together with inherited provider packets after source-certified receipt/view and capture/read association. Producing those associations remains open. |
-| Completion-parametric fragment factorization | DFRAG makes conditional realization/tagged transport uniform over an independent compatible-completion family, with one original `xi` and one shared-contract completion. Full-profile completion is not needed for this transport proof's form; `SourceViewInst`, typed capture association, family nonemptiness and full-profile/source coverage remain open. |
+| Active whole-relation normalization | DREL-1 retains incidence-sensitive primitives and original scopes/operators. RS-active constructs its whole derivation decoration. SC-normalization closes one complete-source DREL-2 equality-substitution instance; independently changed seed/refined kernels and unrestricted source correspondence remain open. |
+| Static upper fragment and typed transport | The user rule yields the exact partial `Gamma_dir` without completed P. SV now derives the selected slot's prospective receipt association, actual-transition result rebind, and typed binding/capture/read from the source-slot invocation law and common transport; inherited provider packets and actual role/entry stay intact. |
+| Completion-parametric fragment factorization | DFRAG stays uniform over an independent compatible-completion family, using one original `xi` and one shared-contract completion. SV supplies its selected source-view/environment association on original typed prefix/resumption rows, including nonreturning carriers. Family nonemptiness and full-profile/source/admission coverage remain open. |
+| Recursive/generalized origin supplier | RS constructs one component ledger and whole eligible-use map from actual finite rule occurrences, preserving comparison premises and already justified §22 origins. Actual recursive validation, semantic generalized-view/binder eligibility, source §22 classification and complete guard/permission coverage are distinct remaining leaves. |
+| Lexical source/import supplier | LX derives the source-reference partition from correctly resolved binder ancestry and retained environment references. This removes opaque lexical capture identity; it does not select semantic generalized binders, fixed anchors or view granularity. |
 | All original profile and contribution generation | Must retain source-directed exposure provenance and then cover every applicable rule. Not an unconditional effect-position traversal and not a syntax-counting singleton theorem. |
-| Typed capture, receipt, owner and Observe realization | Still requires its actual source/typed premises. No lexical or endpoint-shape fabrication is licensed. |
+| Typed capture, receipt, owner and Observe realization | Selected SV constructs receipt and reached result/capture/read association. Pending evidence is not an observation or returned value; an event still needs actual matching `Observe`/`Receive` and live owner/receiver. No generic source-profile/admission or liveness theorem follows. |
 | Complete original descriptor/context/world admission | Existing ordinary open-context kernel remains conditional at fixed meanings; full-world/production correspondence remains open. |
-| Full seed/refined source-solution preservation and all-view principality | Still open. A locally generated protection record does not discharge them. |
+| Full seed/refined source-solution preservation and all-view principality | Beyond SC-normalization's selected completed-source equality rewrite, still open. No independent view-class expansion or full source-profile/semantic refinement coverage follows. |
 | Production Option A/2 and cutover | Unchanged, open and unauthorized. No full `FVIEW -> SRC`, `PROD`, or `PRIN` edge is promoted. |
 | Pure structural FMP, other reviewed theorem scopes | Unchanged. Historical proofs do not acquire the new primitive automatically and do not lose unrelated conclusions. |
 
@@ -86,7 +88,38 @@ has no findings and isolates the one-fragment source-view/receipt join from
 the task of completing all profile positions. The theorem does not choose a
 new profile family or a witness per use, prove its nonemptiness, identify
 different full boundary objects, or claim unchanged full handler visibility.
-Its source-to-view and capture premises remain genuine source obligations.
+At that checkpoint its source-to-view and capture premises were genuine source
+obligations. The selected SV construction below now supplies them on its
+independently typed original prefix/resumption envelope; generic formation
+and full compatible-profile coverage are not inferred.
+
+## Reviewed receipt/prefix and rule-origin continuation
+
+The [new independent review record](../progress/2026-10-06-directional-receipt-supplier-review.md)
+covers [SV](../progress/2026-10-06-directional-source-view-instantiation-construction.md),
+[RS/SC-normalization](../progress/2026-10-06-directional-recursive-generalization-supplier.md),
+and the [source-path falsification](../progress/2026-10-06-directional-source-view-falsification.md).
+Both reviewers found and then closed SV's missing suspension/divergence case.
+The accepted theorem preserves a prospective result-path packet and exact
+pending suffix, constructing actual rebound/capture/read witnesses only at
+their original transitions. Its extension/erasure includes all original
+admitted finite prefixes and raw resumptions on the same row and carrier.
+
+The newly closed dependency is the selected source-slot invocation law plus
+the known Value carrier-result path to its concrete receipt/result/environment
+supplier. It is not a `Q -> admission` edge. RS removes an opaque origin-map
+certificate after actual rule derivations and eligible views exist, and
+SC-normalization substitutes an entailed role in every original active kernel.
+The original scopes, one `xi,w`, inherited providers/results and complete
+comparison predicates remain in all three constructions.
+
+The remaining recursive boundary is source validation/discharge and semantic
+view/binder eligibility, not recursive copying itself. Neither all-world
+initial admission nor all-view principality is constructed by this delta.
+No source-generation witness becomes mandatory for production-only members.
+LX removes lexical capture/import identity as an opaque premise. The audited
+authority exclusions narrow the remaining construction without proving actual
+semantic underspecification or requiring a new user choice.
 
 All-world admission and Option A/2 alternatives are transported pointwise only
 when their independent interpretations are already given. Common allowance

@@ -3,11 +3,16 @@
 Date: 2026-10-06
 Baseline: `38dab1fb926f819d1b2a25835d990d32b3915038`
 Branch: `research/simple-sub-intrusion`
-Status: repaired research producer submission; frozen for independent delta review
+Status: independently reviewed selected source-kernel prefix/resumption theorem
 Claim class: source-derived selected-slot realization; total dependent schema
             construction; paired source-kernel prefix/resumption erase/reflect
 Semantic/implementation authority: none
 Exclusive lease: this note only
+
+Independent compiler-referee and spec-auditor reviews, including the repaired
+nonreturning/suspending cases, are recorded in the
+[receipt/supplier review](2026-10-06-directional-receipt-supplier-review.md).
+No blocking, major or minor finding remains within that reviewed envelope.
 
 ## 1. Result and the premise which changes the preceding cut
 
@@ -695,9 +700,9 @@ the rebound proof required Return while its whole-row quantifier included
 divergent/suspended carriers. This repair adds the Pending/Rebound sum,
 prospective suffix packet, pointwise request/resumption/divergent-prefix
 lifting, transition guards for result/capture/read, and the original
-source-semantic discriminator. It does not narrow admission. It is a producer
-repair awaiting independent delta review, not a claim that either review has
-certified the new bytes.
+source-semantic discriminator. It does not narrow admission. Both independent
+delta reviews accepted the repaired frozen proof; see the review record above
+for the exact hashes, original finding and unchanged source/admission limits.
 
 Checks: pinned source reads, exact section/rule inventory, source-prefix
 discriminators, paired whole-prefix/resumption derivation, lease/branch reads,
@@ -712,12 +717,12 @@ Commit packet:
 - Path: `notes/progress/2026-10-06-directional-source-view-instantiation-construction.md`.
 - Baseline: `38dab1fb926f819d1b2a25835d990d32b3915038`; premises read only from that revision.
 - Dependency changes: none by this producer; current-HEAD revalidation belongs to the primary.
-- Status: repaired source-derived research awaiting independent delta review, not full inference/adequacy or production authority.
+- Status at producer freeze: repaired source-derived research awaiting independent delta review; subsequently accepted within the recorded envelope, not full inference/adequacy or production authority.
 - Proposed message: `research: derive paired directional receipt result and capture views`.
 - Primary/curator delta: if independently accepted, distinguish the complete prefix/resumption Pending supplier and the actual-transition SourceViewInst/environment supplier from still-open source relation/profile/admission coverage; preserve every broader gate and prior package status.
 
-The independent reviewers must test the source-formed inferred-slot application
+The independent reviewers tested the source-formed inferred-slot application
 of callback-delivery §4, the carrier-result prefix, the paired original
 whole-prefix/resumption proof, dormant evidence versus actual bindings, and
-the bounded typed-row quantifier which retains nonreturning admission. The producer's
-argument is not independent certification.
+the bounded typed-row quantifier which retains nonreturning admission. The
+producer's argument alone was not treated as independent certification.
