@@ -2,12 +2,19 @@
 
 Date: 2026-10-06
 Baseline: `bb45955082ad885ea63687908b8cf852912c99ed`
-Status: frozen research checkpoint; independent review pending
+Status: compiler-referee/spec-auditor reviewed at the pinned baseline; bounded pre-correction source-witness search
 Claim class: bounded non-derivability from supplied constructors; conditional provenance lemma
 Scope: `I-call-rest` / `N-call` for the exact approved captured-step component
 Semantic and implementation authority: none
 
 ## 1. Objective and result
+
+This note is pinned before the direct directional-protection correction
+recorded in upstream commit `e6a77859e5aed22338016c38ea520c0ee3d069c1`.
+That correction supersedes the exact singleton `Applicable_original -> p0`
+as the current unconditional target. The finite call/result cut remains
+bounded evidence about the pinned constructors; it does not classify the new
+directional protection record as a separate original slot.
 
 Search for a source-valid original introduction at an effect position beyond
 the direct Call's immediate complete invocation, or isolate its derivation
@@ -248,7 +255,7 @@ route. This report establishes no need to reopen an accepted user decision.
 - Exact lease: `notes/progress/2026-10-06-i-call-rest-source-witness-search.md`.
 - Baseline: `bb45955082ad885ea63687908b8cf852912c99ed`.
 - Changed dependency hashes: none at the dependency check; pinned blobs in §2.
-- Claim/review status: frozen bounded obstruction and conditional provenance lemma; independent review pending; no original-profile gate closure or authority.
+- Claim/review status: compiler-referee and spec-auditor reviewed at the pinned pre-correction baseline; bounded obstruction and conditional provenance lemma; no current-gate closure or authority.
 - Checks already run: pinned section reads, eleven-node constructor accounting, finite witness descent, baseline identity and narrow dependency diff; no tests/builds/Oracle/Git mutations.
 - Proposed commit message: `research: localize I-call-rest to original result-profile introduction`.
 - Shared-record deltas left to primary/curator: link this bounded obstruction if accepted; retain `I-call-rest`/`N-call` and `I-exhaust` as open; keep the formal-binder lane separate; do not promote full P, source adequacy, principality, admission or implementation status.

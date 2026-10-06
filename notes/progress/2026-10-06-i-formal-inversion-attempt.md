@@ -1,12 +1,19 @@
 # Original formal-profile introduction: finite inversion stop
 
 Date: 2026-10-06
-Status: Unreviewed research; bounded derivation obstruction and conditional transport ancestry; no semantic or implementation authority
+Status: Compiler-referee/spec-auditor reviewed at the pinned baseline; bounded derivation obstruction and conditional transport ancestry; no semantic or implementation authority
 Baseline: `bb45955082ad885ea63687908b8cf852912c99ed`
 Lease: this file only
 Method: finite derivation inversion; no executable model or Oracle execution
 
 ## 1. Objective and result
+
+This is a pre-directional-correction record pinned to `bb4595508`. The direct
+user correction recorded later in upstream commit
+`e6a77859e5aed22338016c38ea520c0ee3d069c1` supersedes the exact singleton
+`Applicable_original -> p0` target as the current source-generation objective.
+The bounded inversion below remains a statement about its pinned inputs; it
+does not decide the newer directional exposure producer.
 
 Attempt `I-formal` / `N-formal` from the independently specified original
 source rules for the selected component:
@@ -232,7 +239,7 @@ All ten dependencies matched the baseline bytes at the initial hash check:
 - Exact leased path: `notes/progress/2026-10-06-i-formal-inversion-attempt.md`.
 - Baseline: `bb45955082ad885ea63687908b8cf852912c99ed`.
 - Changed dependency hashes: none observed; direct hashes recorded above.
-- Claim/review status: unreviewed bounded inversion obstruction; conditional transport ancestry; `I-formal` and `N-formal` remain open; no independent review claimed.
+- Claim/review status: compiler-referee and spec-auditor reviewed at the pinned pre-correction baseline; one wording minor repaired; bounded inversion obstruction and conditional transport ancestry; no current-gate closure or implementation authority.
 - Checks already run: pinned dependency bytes/hashes, targeted original-source reads, leased-note relative-link existence and whitespace check, final dependency recheck; no tests/builds/Oracle/probes.
 - Proposed checkpoint message: `research: record original formal-profile inversion cut`.
 - Shared-record deltas left for primary/curator: link the bounded formal-binder cut if useful; keep `N-formal` and the source-introduction table open; do not promote complete P, source adequacy, principality or production authority. No shared file was edited.
