@@ -3,7 +3,7 @@
 Date: 2026-10-06
 Baseline: `c8a673342b5697db11427dfdb8204da1c075cf74`
 Branch: `research/simple-sub-intrusion`
-Status: producer-authored research; independent review unclaimed; frozen on submission
+Status: compiler-referee reviewed; no findings; research-only
 Claim class: bounded authority audit and conditional witness derivation; exact obstruction
 Lease: this file only
 Scope: `I-formal` / `I-call-rest` for the selected captured-step component
@@ -246,8 +246,9 @@ Adopting a new source-origin clause requires the separate design gate.
 - Baseline SHA: `c8a673342b5697db11427dfdb8204da1c075cf74`.
 - Changed dependency hashes: none observed in the eighteen-input snapshot;
   primary must revalidate before integration.
-- Review status: producer-authored bounded audit/conditional derivation;
-  independent review unclaimed; original P and all downstream gates remain open.
+- Review status: independent compiler-referee found no issues in the frozen
+  bounded audit/conditional derivation; original P and all downstream gates
+  remain open.
 - Checks already run: targeted pinned-section reads and eighteen baseline/live
   byte/hash checks; narrow final output checks supplied with the handoff;
   no tests/builds/Oracle invocation.
@@ -257,4 +258,5 @@ Adopting a new source-origin clause requires the separate design gate.
   original static-profile proof object and local witness-reflection criterion;
   retain I-formal/I-call-rest/I-exhaust and P open. No automatic task/index/theory,
   authority or question-board change is proposed.
-- Writes stop before submission; primary owns review and Git integration.
+- Frozen and independently reviewed; primary owns later shared-record
+  synchronization and Git integration.
