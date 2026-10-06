@@ -94,6 +94,15 @@ same original witness, and that derivation must produce accepted `Direct`
 evidence at the actual `B_common` export. The note gives only a conditional
 composition; it does not close `ALL_VIEW` or `PRINCIPAL`.
 
+The compiler-referee-reviewed [actual-export constructor attempt](../notes/progress/2026-10-08-principal-actual-export-rule-attempt.md)
+constructs a finite candidate §5.3 certificate for matched acyclic allocation
+views, including a strictly wider public allowance and paired Option 2 extras.
+Acceptance remains conditional on resolution conformance and complete
+independent descriptor/admission contracts. A checked `Value` with a
+nonidentical interface reaches an unmatched `VIncl(A,B)` evidence leaf; this
+is not a source counterexample or proof that no other resolver case applies.
+`ALL_VIEW` and `PRINCIPAL` remain open.
+
 ## Priority frontier: complete original source contribution
 
 Use the normalized route
@@ -141,6 +150,13 @@ labels the forward missing introduction A0 (original slot owner plus complete
 contribution) and the backward missing exhaustive licensing grammar L*. Its
 unknown-rule branch is retained, so this is a diagnostic refinement, not an
 absence theorem or new gate edge. `ORIGINAL_ASSOC` and `SIG_RULES` remain open.
+
+The compiler-referee-reviewed [direct construction attempt](../notes/progress/2026-10-08-original-association-direct-construction-attempt.md)
+forward-derives the approved source/Name/Normalize/application skeleton and
+separately expands the complete invocation conditionally. It stops first at
+complete `CALL_TYPE`; even granting that leaves the original independently
+typed owner/view introduction unsupplied. This is a constructive prefix and
+localized stop, not a source-rule adoption or nonderivability result.
 
 The reviewed [conditional Call coverage lift](../notes/progress/2026-10-07-original-association-conditional-call-lift.md)
 proves a narrow transport lemma: for any already existing original

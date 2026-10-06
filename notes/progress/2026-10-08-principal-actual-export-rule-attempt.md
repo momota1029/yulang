@@ -1,7 +1,7 @@
 # Actual common-export evidence: constructor extraction and first checking cut
 
 Date: 2026-10-08
-Status: unreviewed conditional derivation and bounded constructor audit
+Status: compiler-referee reviewed conditional derivation and bounded constructor audit
 Baseline: `162aac715e04bc54985737887bcfc9bf98e20a3f`
 Branch: `research/simple-sub-intrusion`
 Exclusive lease: this note only
@@ -272,14 +272,18 @@ repository-wide absence or source counterexample is claimed. Initial large
 navigation outputs were truncated; decisive governing sections were reread
 in bounded ranges.
 
+Review: compiler_referee PASS on the frozen constructor extraction, actual
+`B_common` boundary, conditional resolver premise and `VIncl(A,B)` stop.
+
 Checks: bounded `cat`, `rg`, `sed`; read-only Git HEAD/branch/status; one Python
 process comparing baseline `git show` bytes with live dependency bytes and
 SHA-256; final leased-note scope/whitespace inspection. Zero builds/tests,
 formatters, heavyweight processes, children or Git mutations. No numeric
 CPU/RAM/wall-time limit was supplied beyond bounded reads and zero builds/tests.
 Peak RSS, CPU and total reasoning wall time were not measured. The output is
-one note; no executable artifact needs a deterministic run. Writes stop at
-submission; no independent review is claimed.
+one note; no executable artifact needs a deterministic run. Writes stopped at
+submission; this review does not certify unrestricted source adequacy, resolver
+completeness or production conformance.
 
 Recommended next action: assign one known, independently established
 representation-preserving value inclusion to its existing actual-root resolver
@@ -311,7 +315,7 @@ for routing only; no unfinished worker artifact was a premise.
 - Exact leased path: `notes/progress/2026-10-08-principal-actual-export-rule-attempt.md`.
 - Baseline SHA: `162aac715e04bc54985737887bcfc9bf98e20a3f`.
 - Changed dependency hashes: none at final recheck.
-- Claim/review status: frozen unreviewed conditional derivation and bounded
+- Claim/review status: frozen compiler-referee-reviewed conditional derivation and bounded
   unmatched-constructor audit; research-only, no independent certification.
 - Checks already run: exact governing-section reads, committed-answer/baseline
   byte equality and SHA-256 checks, final leased-path/whitespace inspection.

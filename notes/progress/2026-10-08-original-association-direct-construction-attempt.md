@@ -1,6 +1,6 @@
 # ORIGINAL_ASSOC: direct construction at the nested ordinary Call
 
-Status: research-only constructive prefix and localized derivation stop; unreviewed
+Status: compiler-referee reviewed research-only constructive prefix and localized derivation stop
 Gate: ORIGINAL_ASSOC, with CALL_TYPE and SIG_RULES dependencies retained
 Baseline: `162aac715e04bc54985737887bcfc9bf98e20a3f`
 Implementation authority: none
@@ -268,8 +268,8 @@ probe cannot supply that premise.
   `notes/progress/2026-10-08-original-association-direct-construction-attempt.md`.
 - Baseline SHA: `162aac715e04bc54985737887bcfc9bf98e20a3f`.
 - Changed dependency hashes: none; frozen values above match baseline.
-- Review status: unreviewed research artifact; producer writes frozen before
-  handoff. No independent-review claim, authority promotion or gate closure.
+- Review status: compiler_referee PASS on the frozen claim and derivation
+  boundary. No authority promotion or gate closure.
 - Checks: direct clause instantiation; pinned/live dependency equality;
   leased-file whitespace check. No executable semantic test or build.
 - Proposed commit message:
