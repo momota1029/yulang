@@ -1,7 +1,7 @@
 # Initial admission: context quantifiers and semantic import cut
 
 Date: 2026-10-06
-Status: unreviewed research-only source/authority audit; no semantic selection
+Status: independently compiler/spec-reviewed conditional construction and source/authority audit; see [P/A review](2026-10-06-source-generation-pa-review.md); no semantic selection
 Baseline: `763ad96d4576ee6e2672c0cc35125e79c89fe955`
 Method: two attacks — quantifier inversion and open-hole substitution discriminator
 Write lease: this file only; no compiler, authority, question-board or Git mutation

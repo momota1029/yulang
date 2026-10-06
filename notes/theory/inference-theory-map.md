@@ -78,17 +78,29 @@ assignment. No successful typing proof is needed before generation. This
 narrows the [earlier bounded rule-inventory stop](../progress/2026-10-06-main-source-generation-minimal-clause.md);
 it does not refute that stop in its named inventory.
 
-Complete original profile/contribution generation and seed-to-refined receiving-
-view interpretation (P), and independent original-world/admission
-correspondence for the generated initial punctured-context schema (A), remain
-open. The seed singleton is not a proof
-of the full `Slots(beta)` inventory; generic decorated validity and indexed
-closure do not reconstruct original source applicability or exact admission.
-Actual typed packet attachment, capture/receipt realization, both directions
-of source inversion, all-view principality, complete finite presentation and
-Option A/2 containment remain open. No new user choice is proved necessary,
-no production rule is authorized, and no `FVIEW -> SRC` edge is closed. See
-the [two-review record](../progress/2026-10-06-source-call-generation-review.md).
+The newer [P/A construction and independent review](../progress/2026-10-06-source-generation-pa-review.md)
+constructs the exact source's least-generated footprint `G_C(beta)={p_0}` and
+a tagged generated/inherited transport normal form. It retains independent
+provider/result packets and establishes FullProtection/no annotation grant at
+independently applicable unannotated original positions. It does not prove that
+all original applicability is generated: the first P cut is
+`Applicable_original(C,d_f,R_f,p;xi) => p=p_0` with its original witness.
+Complete original contributions and same-root full-view/solution preservation
+remain obligations beyond record conservativity.
+
+For A, ordinary source-owned open roots, closures, aliases, suffixes and the
+Call's dependent receipt/actual-entry schema are now generated before solving.
+The local inversion and all-context collecting union are conditional on fixed
+independent descriptor/P/import/world interpretations. A completed context
+typing judgment or opaque `ArgOpen`/`LamOpen` certificate is no longer an input
+to that structural generation. Ordinary independent imports are permitted
+ambient leaves, not source-owned outputs to manufacture. Exact full-world
+interpretation and transition closure, omitted source extensions and complete
+production A correspondence remain open. Neither the generated singleton nor
+the structural A kernel closes complete P/A, actual typed capture/receipt,
+all-view source inversion/principality, finite presentation or Option A/2
+containment. No conformant semantic separation or necessary new user choice is
+proved, no production rule is authorized, and no `FVIEW -> SRC` edge is closed.
 The [Oracle crosswalk](../progress/2026-10-06-main-source-generation-oracle-crosswalk.md)
 and newer frame/producer traces remain historical mechanism evidence.
 

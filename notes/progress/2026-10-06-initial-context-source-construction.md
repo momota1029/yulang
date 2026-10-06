@@ -1,7 +1,7 @@
 # Initial punctured contexts by simultaneous source generation
 
 Date: 2026-10-06
-Status: Research construction and conditional local inversion; compiler-referee review completed with no findings
+Status: independently compiler/spec-reviewed conditional local construction/inversion; see [P/A review](2026-10-06-source-generation-pa-review.md)
 Implementation authority: none
 Baseline: `763ad96d4576ee6e2672c0cc35125e79c89fe955`
 Lease: this progress note only; no compiler, authority, shared-status or Git changes
