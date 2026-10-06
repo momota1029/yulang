@@ -592,6 +592,11 @@ pub struct CapturedCallInput<'a> {
 }
 
 impl CapturedCallInput<'_> {
+    /// Locates unresolved theorem inputs for this already validated topology.
+    /// This does not supply any of those inputs or change pending premises.
+    pub fn source_view_premise_locator(&self) -> SourceViewPremiseLocator<'_, '_> {
+        SourceViewPremiseLocator { input: self }
+    }
     pub fn outer_parameter(&self) -> &BinderId {
         self.outer_parameter
     }
@@ -612,6 +617,46 @@ impl CapturedCallInput<'_> {
     }
     pub fn capture_position(&self) -> &PositionId {
         self.capture_position
+    }
+}
+
+/// Unresolved upstream inputs of the scoped SourceViewInst construction.
+/// These categories are requirements for future producers, never judgments.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum UnresolvedSourceViewPremise {
+    CompatibleCompleteOriginalRoleIndexedProfile,
+    IndependentlyTypedOriginalInvocationAndWholeRowCarrierPrefixResumptionInterpretation,
+    JointlyScopedOriginalConstraints,
+    SourceSlotCallbackBoundaryInputsAndCorrespondingTypedPaths,
+    IndependentInitialCallerProviderWorldAdmission,
+    SourceSeedRefinedRelationExistenceAndCoverage,
+}
+
+/// Borrows only the validated structural input. No invocation/profile identity,
+/// typed evidence, receipt, receiver, Flow, Q result, source acceptance, or
+/// SourceViewInst is constructed or asserted, including input existence.
+#[derive(Debug)]
+pub struct SourceViewPremiseLocator<'input, 'artifact> {
+    input: &'input CapturedCallInput<'artifact>,
+}
+
+impl<'input, 'artifact> SourceViewPremiseLocator<'input, 'artifact> {
+    pub fn input(&self) -> &'input CapturedCallInput<'artifact> {
+        self.input
+    }
+
+    /// Exact upstream inventory for the scoped construction, separate from
+    /// the existing seven PendingPremise rows and from broader production gates.
+    pub fn unresolved_premises(&self) -> &'static [UnresolvedSourceViewPremise] {
+        use UnresolvedSourceViewPremise::*;
+        &[
+            CompatibleCompleteOriginalRoleIndexedProfile,
+            IndependentlyTypedOriginalInvocationAndWholeRowCarrierPrefixResumptionInterpretation,
+            JointlyScopedOriginalConstraints,
+            SourceSlotCallbackBoundaryInputsAndCorrespondingTypedPaths,
+            IndependentInitialCallerProviderWorldAdmission,
+            SourceSeedRefinedRelationExistenceAndCoverage,
+        ]
     }
 }
 

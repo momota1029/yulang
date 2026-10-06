@@ -704,6 +704,7 @@ mod tests {
     mod shadow_legacy_apply_structure;
     mod shadow_resolved_call_incidence;
     mod shadow_source_core;
+    mod shadow_source_view_premise_locator;
 
     use std::{collections::HashMap, sync::Arc};
 
