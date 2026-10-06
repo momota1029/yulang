@@ -160,6 +160,18 @@ pending typed-port/profile links. Focused shadow HIR tests and `yu-core` checks
 with the feature on and off pass; both exact-conformance and regression review
 found no issues. This adds no profile identity or production inference path.
 See the [annotation occurrence identity slice](../notes/progress/2026-10-06-shadow-annotation-occurrence-id.md).
+The shadow core now also retains an artifact-owned declaration Lambda for the
+existing direct-unary leaf overlap `my f x = x` and `my f x = 42`, while
+`Skeleton::body()` still returns the original leaf. The declaration identity
+is distinct and added only after body projection; its own name does not enter
+the lexical body scope. Captures stay empty and closure correspondence stays
+pending. Two HIR/F5 inventory expectations changed with pre-write spec review;
+focused HIR shadow tests (35 unit, 1 integration), two exact F5 differential
+cases, `yu-core` default/feature checks, formatting and diff checks pass.
+Compiler-referee and regression reviews found no issues. This connects
+declaration identity to the already retained body/use source structure without
+adding call typing or production routing. See the
+[unary declaration shadow slice](../notes/progress/2026-10-06-shadow-unary-declaration-root.md).
 The independently regression-audited [production source-path audit](../notes/progress/2026-10-06-production-nested-candidate-stop.md)
 locates the exact candidate's current Yulang3 stop: `lower_simple_chain`
 rejects the braced body as a non-atom, creates `ResolvedExpr::Error`, and F5

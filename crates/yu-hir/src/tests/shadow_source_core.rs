@@ -45,7 +45,8 @@ const COMPOSE: &str = "my compose f g x = f (g x)";
 #[test]
 fn shadow_source_core_retains_integer_spelling_and_range_without_judgment() {
     let artifact = shadow_from_source("my f x = 42").expect("bounded integer source skeleton");
-    assert_eq!(artifact.binders.len(), 1);
+    // The retained declaration Lambda adds its own binder after the parameter.
+    assert_eq!(artifact.binders.len(), 2);
     assert_eq!(artifact.binders[0].name, "x");
     assert_eq!(artifact.binders[0].range, 5..6);
     let body = artifact.expression(&artifact.body).unwrap();
@@ -54,9 +55,112 @@ fn shadow_source_core_retains_integer_spelling_and_range_without_judgment() {
         panic!("integer literal")
     };
     assert_eq!(spelling, "42");
-    assert_eq!(artifact.expressions.len(), 1);
+    assert_eq!(artifact.expressions.len(), 2);
     assert!(artifact.uses.is_empty());
     assert!(artifact.pending.is_empty());
+}
+
+#[test]
+fn shadow_source_core_unary_leaf_retains_declaration_owner_and_existing_body() {
+    for source in ["my f x = x", "my f x = 42", "my x x = x"] {
+        let parsed = parsed(source);
+        let raw = SyntaxNode::new_root(parsed.green().clone());
+        let declaration = raw
+            .children()
+            .find(|node| node.kind() == SyntaxKind::BindingStatement)
+            .unwrap();
+        let patterns = declaration
+            .descendants()
+            .filter(|node| node.kind() == SyntaxKind::IdentifierPattern)
+            .collect::<Vec<_>>();
+        assert_eq!(patterns.len(), 2);
+        let artifact = ShadowArtifact::from_parsed(parsed).unwrap();
+        let skeleton = artifact.skeleton().unwrap();
+        let lambdas = skeleton
+            .expressions()
+            .iter()
+            .filter(|expression| matches!(expression.form(), Form::Lambda { .. }))
+            .collect::<Vec<_>>();
+        let [lambda] = lambdas.as_slice() else {
+            panic!("one declaration Lambda")
+        };
+        let Form::Lambda {
+            binding,
+            parameter,
+            body,
+            captures,
+            correspondence,
+        } = lambda.form()
+        else {
+            unreachable!()
+        };
+        assert_ne!(binding, parameter);
+        assert_eq!(skeleton.binder_index(parameter).unwrap(), 0);
+        assert_eq!(skeleton.binder_index(binding).unwrap(), 1);
+        assert_eq!(body, skeleton.body());
+        assert_eq!(lambda.range(), &range_of(&declaration));
+        assert_eq!(
+            nested_shadow_locator(&artifact, lambda.position()),
+            nested_source_locator(&declaration)
+        );
+        for (id, node) in [(binding, &patterns[0]), (parameter, &patterns[1])] {
+            let binder = skeleton.binder(id).unwrap();
+            assert_eq!(binder.range(), &range_of(node));
+            assert_eq!(
+                nested_shadow_locator(&artifact, binder.position()),
+                nested_source_locator(node)
+            );
+        }
+        assert!(captures.is_empty());
+        assert!(skeleton.capture_uses().is_empty());
+        assert!(skeleton.pending().is_empty());
+        assert_eq!(
+            *correspondence,
+            ClosureCorrespondence::PendingTypedCaptureProviderReceiverAndSemanticDischarge
+        );
+        match skeleton.expression(body).unwrap().form() {
+            Form::Use { binder, occurrence } => {
+                assert_eq!(binder, parameter);
+                assert_ne!(binder, binding);
+                assert_eq!(
+                    skeleton.use_expression(occurrence).unwrap().position(),
+                    skeleton.expression(body).unwrap().position()
+                );
+            }
+            Form::IntegerLiteral { spelling } => assert_eq!(spelling, "42"),
+            _ => panic!("unchanged direct leaf body"),
+        }
+        let other = ShadowArtifact::from_parsed(super::parsed(source)).unwrap();
+        assert_eq!(
+            other.skeleton().unwrap().binder(binding).unwrap_err(),
+            ShadowError::ForeignArtifact
+        );
+        assert_eq!(
+            other.position(lambda.position()).unwrap_err(),
+            ShadowError::ForeignArtifact
+        );
+    }
+}
+
+#[test]
+fn shadow_source_core_unary_declaration_does_not_enter_its_body_scope() {
+    assert!(
+        matches!(shadow_from_source("my f x = f"), Err(ShadowError::UnboundName { range }) if range == (9..10))
+    );
+    for source in [
+        "my f x = (x)",
+        "my f x = x x",
+        "my f x y = x",
+        "our f x = x",
+    ] {
+        let skeleton = shadow_from_source(source).unwrap();
+        assert!(
+            skeleton
+                .expressions()
+                .iter()
+                .all(|expression| !matches!(expression.form(), Form::Lambda { .. }))
+        );
+    }
 }
 
 #[test]

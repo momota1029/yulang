@@ -41,7 +41,8 @@ fn shadow_and_current_f5_preserve_leaf_parameter_source_and_resolution() {
             .iter()
             .all(|expression| !matches!(expression.form(), Form::Apply { .. }))
     );
-    assert_eq!(skeleton.binders().len(), 1);
+    // Shadow retains a distinct declaration binder after the original parameter.
+    assert_eq!(skeleton.binders().len(), 2);
     assert_eq!(skeleton.uses().len(), 1);
     let shadow_body = skeleton.expression(skeleton.body()).unwrap();
     let Form::Use { binder, occurrence } = shadow_body.form() else {
@@ -141,7 +142,8 @@ fn shadow_and_current_f5_preserve_integer_leaf_source_and_provenance() {
         .skeleton()
         .expect("integer leaf skeleton is supported");
     assert!(skeleton.pending().is_empty());
-    assert_eq!(skeleton.binders().len(), 1);
+    // Shadow retains a distinct declaration binder after the original parameter.
+    assert_eq!(skeleton.binders().len(), 2);
     assert!(skeleton.uses().is_empty());
     let shadow_parameter = &skeleton.binders()[0];
     assert_eq!(shadow_parameter.name(), "x");
