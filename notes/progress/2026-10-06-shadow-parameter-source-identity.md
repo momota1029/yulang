@@ -49,6 +49,16 @@ HIR producer and sibling HIR tests. A pre-write spec audit approved the
 expected-output synchronization as a correction to stale structural metadata;
 no semantic rule, premise row or production path changed.
 
+The follow-up `SkeletonSourceCrosswalk::parameter_at_position` now composes
+that exact HIR parameter position with the existing Lambda expression and
+parameter `BinderId`, borrowing both retained identities. It validates
+artifact ownership, leaves foreign positions as errors, returns absence for
+unrelated/unsupported positions, and leaves declaration/use indexes and all
+pending rows unchanged. A regression auditor reviewed this addition against
+the feature gate, current skeleton constructors and direct solver consumers;
+no issue was found. Its focused test run passed four crosswalk tests, including
+the existing declaration/use crosswalk cases.
+
 Broader package/workspace suites, feature-off checks, semantic source
 adequacy, production inference and inference differential behavior remain
 unverified. This slice advances source-identity plumbing only; soundness,

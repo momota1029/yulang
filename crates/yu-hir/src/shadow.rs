@@ -86,6 +86,7 @@ pub const MAX_RAW_ELEMENTS: usize = 65_536;
 pub struct SkeletonSourceCrosswalk<'a> {
     artifact: &'a ShadowArtifact,
     definitions: HashMap<usize, (&'a Expression, &'a BinderId)>,
+    parameters: HashMap<usize, (&'a Expression, &'a BinderId)>,
     uses: HashMap<usize, &'a UseId>,
 }
 
@@ -102,6 +103,14 @@ impl<'a> SkeletonSourceCrosswalk<'a> {
         Ok(self.definitions.get(&position.0.index).copied())
     }
 
+    pub fn parameter_at_position(
+        &self,
+        position: &PositionId,
+    ) -> Result<Option<(&'a Expression, &'a BinderId)>, ShadowError> {
+        self.artifact.position(position)?;
+        Ok(self.parameters.get(&position.0.index).copied())
+    }
+
     pub fn use_at_position(&self, position: &PositionId) -> Result<Option<&'a UseId>, ShadowError> {
         self.artifact.position(position)?;
         Ok(self.uses.get(&position.0.index).copied())
@@ -115,13 +124,29 @@ impl ShadowArtifact {
         let mut crosswalk = SkeletonSourceCrosswalk {
             artifact: self,
             definitions: HashMap::new(),
+            parameters: HashMap::new(),
             uses: HashMap::new(),
         };
         if let Ok(skeleton) = self.skeleton() {
             for expression in skeleton.expressions() {
                 match expression.form() {
-                    Form::Lambda { binding, .. }
-                    | Form::Bind {
+                    Form::Lambda {
+                        binding, parameter, ..
+                    } => {
+                        crosswalk
+                            .definitions
+                            .insert(expression.position().0.index, (expression, binding));
+                        crosswalk.parameters.insert(
+                            skeleton
+                                .binder(parameter)
+                                .expect("validated skeleton parameter")
+                                .position()
+                                .0
+                                .index,
+                            (expression, parameter),
+                        );
+                    }
+                    Form::Bind {
                         binder: binding, ..
                     } => {
                         crosswalk
@@ -2232,6 +2257,132 @@ mod tests {
     }
 
     const NESTED: &str = "my apply f = { my step x = f x; step }";
+
+    #[test]
+    fn shadow_source_crosswalk_joins_exact_hir_parameter_to_retained_lambda() {
+        let parsed = parsed("my f x = x x");
+        let hir =
+            lower_module_with_source_identity(hir_identity(), &parsed, SemanticImports::empty())
+                .unwrap();
+        let artifact = ShadowArtifact::from_parsed(parsed).unwrap();
+        let skeleton = artifact.skeleton().unwrap();
+        let pending_before = skeleton.pending().len();
+        assert_eq!(pending_before, 7);
+        let crosswalk = artifact.skeleton_source_crosswalk();
+        let crate::HirItem::Binding(binding) = &hir.items()[0] else {
+            panic!("binding")
+        };
+        let position = artifact
+            .parameter_source_position(&hir, binding.parameters()[0].id())
+            .unwrap();
+        let (lambda, parameter) = crosswalk.parameter_at_position(&position).unwrap().unwrap();
+        let Form::Lambda {
+            binding: declaration,
+            parameter: expected,
+            ..
+        } = lambda.form()
+        else {
+            panic!("lambda")
+        };
+        assert!(std::ptr::eq(parameter, expected));
+        assert_eq!(skeleton.binder(parameter).unwrap().position(), &position);
+        let (represented, retained_declaration) = crosswalk
+            .definition_at_position(lambda.position())
+            .unwrap()
+            .unwrap();
+        assert!(std::ptr::eq(represented, lambda));
+        assert!(std::ptr::eq(retained_declaration, declaration));
+        for expression in skeleton.expressions() {
+            if let Form::Use { occurrence, .. } = expression.form() {
+                assert!(std::ptr::eq(
+                    crosswalk
+                        .use_at_position(skeleton.use_position(occurrence).unwrap())
+                        .unwrap()
+                        .unwrap(),
+                    occurrence,
+                ));
+            }
+        }
+        assert!(
+            crosswalk
+                .parameter_at_position(&artifact.root())
+                .unwrap()
+                .is_none()
+        );
+        assert_eq!(skeleton.pending().len(), pending_before);
+
+        // Equal spellings in separate artifacts retain separate binder identities.
+        let foreign = ShadowArtifact::from_parsed(self::parsed("my f x = x x")).unwrap();
+        let foreign_crosswalk = foreign.skeleton_source_crosswalk();
+        let foreign_skeleton = foreign.skeleton().unwrap();
+        let foreign_parameter = foreign_skeleton
+            .expressions()
+            .iter()
+            .find_map(|expression| match expression.form() {
+                Form::Lambda { parameter, .. } => Some(parameter),
+                _ => None,
+            })
+            .unwrap();
+        let foreign_position = foreign_skeleton
+            .binder(foreign_parameter)
+            .unwrap()
+            .position();
+        let (_, joined_foreign) = foreign_crosswalk
+            .parameter_at_position(foreign_position)
+            .unwrap()
+            .unwrap();
+        assert_ne!(parameter, joined_foreign);
+        assert_eq!(
+            skeleton.binder(parameter).unwrap().name(),
+            foreign_skeleton.binder(joined_foreign).unwrap().name()
+        );
+        assert!(matches!(
+            crosswalk.parameter_at_position(foreign_position),
+            Err(ShadowError::ForeignArtifact)
+        ));
+    }
+
+    #[test]
+    fn shadow_source_crosswalk_preserves_nested_pending_and_unsupported_envelope() {
+        let artifact = ShadowArtifact::from_parsed(parsed(NESTED)).unwrap();
+        let skeleton = artifact.skeleton().unwrap();
+        let crosswalk = artifact.skeleton_source_crosswalk();
+        assert_eq!(skeleton.pending().len(), 7);
+        let mut count = 0;
+        for expression in skeleton.expressions() {
+            if let Form::Lambda { parameter, .. } = expression.form() {
+                let (lambda, retained) = crosswalk
+                    .parameter_at_position(skeleton.binder(parameter).unwrap().position())
+                    .unwrap()
+                    .unwrap();
+                assert!(std::ptr::eq(lambda, expression));
+                assert!(std::ptr::eq(retained, parameter));
+                count += 1;
+            }
+        }
+        assert_eq!(count, 2);
+        assert_eq!(skeleton.pending().len(), 7);
+
+        let parsed = parsed("my f x = x; my g x = x");
+        let hir =
+            lower_module_with_source_identity(hir_identity(), &parsed, SemanticImports::empty())
+                .unwrap();
+        let unsupported = ShadowArtifact::from_parsed(parsed).unwrap();
+        assert!(unsupported.skeleton().is_err());
+        let empty = unsupported.skeleton_source_crosswalk();
+        let mut positions = Vec::new();
+        for item in hir.items() {
+            let crate::HirItem::Binding(binding) = item else {
+                panic!("binding")
+            };
+            let position = unsupported
+                .parameter_source_position(&hir, binding.parameters()[0].id())
+                .unwrap();
+            assert!(empty.parameter_at_position(&position).unwrap().is_none());
+            positions.push(position);
+        }
+        assert_ne!(positions[0], positions[1]);
+    }
 
     #[test]
     fn shadow_annotation_positions_rejects_missing_annotation_reference() {
