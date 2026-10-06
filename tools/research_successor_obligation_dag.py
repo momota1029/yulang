@@ -70,6 +70,8 @@ REFS = {
     "rebuild": "notes/design/2026-10-04-scc-intrusion-cross-edit-rebuild-addendum.md",
     "lifecycle": "notes/progress/2026-10-05-scc-generalized-boundary-contract.md",
     "newrec": "notes/progress/2026-10-07-successor-recursive-synthesis.md",
+    "recdreflection": "notes/progress/2026-10-07-rec-desc-finite-reflection-localization.md",
+    "recbridge": "notes/progress/2026-10-07-rec-desc-observation-finite-bridge.md",
     "newassoc": "notes/progress/2026-10-07-successor-source-association-falsification.md",
     "newglobal": "notes/progress/2026-10-07-successor-global-synthesis.md",
     "review": "notes/progress/2026-10-07-successor-full-attack-review.md",
@@ -191,8 +193,8 @@ n("SEM_JOINT", "OPEN-PROOF", "Joint independent interpretation of descriptor/wor
   "Complete original clause specifications and their original scopes/quantifiers; mutually referencing predicates remain one semantic family.",
   "Construct a common independently justified interpretation of descriptor, carrier, world, local constructor and admission predicates satisfying every clause, with any required guarded/step-indexed or other realization proof. Do not pick per-node predicates, define membership as source image, or assume a greatest fixed point. This interprets definitions, not source-world inhabitance.", "source compat newrec newglobal")
 n("REC_DESC", "OPEN-PROOF", "Independent recursive descriptor finite-elimination law", "REC_K FH SEM_JOINT",
-  "Actual returned f/g handles, independently defined ordinary DescMem and all-world admission; never define DescMem as source-image membership.",
-  "Derive that all legal finite destructor/use histories with jointly valid local checks imply the original recursive descriptor membership, including latent Return handles. This exact implication supplies the missing bridge after FH.", "newrec k source")
+  "Fix the actual provider, original descriptor, and original scoped (xi,w); independently define DescMem and the query-independent admission domain. Keep actual latent Return handles, current resumed state, pending suffix, and compatible event-local assignments. Never define DescMem as source-image membership or use it to admit its own failure witness.",
+  "Prove exact finite-failure reflection: S(xi,w) and not DescMem(R,v;xi,w) imply an independently admitted finite history d with not L(d;xi,w), where L is FH's complete joint local judgment at the same original scope and shared assignment. Cover root/static or zero-step obligations, every future use of the actual returned handle, and exact admission. Preserve quantifiers: if FH is forall h exists e. L(h,e), reflection must yield exists h forall e. not L(h,e) over the authorized compatible extensions; one failing extension is insufficient. FH then gives DescMem by classical contradiction. Reflection remains unproved and establishes neither M_E, carrier/world membership nor simultaneous CompleteMem discharge.", "newrec k source recdreflection recbridge")
 n("REC_LOCAL", "OPEN-PROOF", "Actual pointwise simultaneous local member certificates", "SEM_JOINT INTRO GUARD_COVER",
   "Same actual provider knot and original scoped (xi,w); the predicates are fixed by SEM_JOINT; this local theorem quantifies over every independently valid initial world without assuming such a world is inhabited.",
   "Construct actual receipt/entry/rebind/body/returned-handle local preservation checks and compatible event extensions pointwise for every member in the fixed independent admission domain. This is not initial-world existence or complete KV satisfaction; INIT_VALID and MEMBER_DISCHARGE are separate.", "newrec k core")
