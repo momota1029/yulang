@@ -167,6 +167,9 @@ proved characterization. It discharges only `DescMem`; `M_E`, carrier/world
 clauses and simultaneous `CompleteMem` remain separate for
 `MEMBER_DISCHARGE`. The bounded localization and authority audit are recorded
 in [REC-DESC finite reflection](../notes/progress/2026-10-07-rec-desc-finite-reflection-localization.md).
+The companion [typed-observation/history bridge](../notes/progress/2026-10-07-rec-desc-observation-finite-bridge.md)
+derives finite translation only for descriptor clauses that independently
+expose the required finite-domain, admission and full-local-check premises.
 
 Then construct those pointwise local/member/world checks and source
 comparison/permission certificates. Generalize must choose its actual
