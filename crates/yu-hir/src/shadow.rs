@@ -64,6 +64,26 @@ impl ShadowArtifact {
     pub fn root(&self) -> PositionId {
         self.position_id(0)
     }
+    /// Direct-root binding syntax in source order, independently of `skeleton()`.
+    /// Header, pattern, name and body syntax remain accessible through the
+    /// retained children; no component membership or declaration role is inferred.
+    pub fn raw_declaration_positions(&self) -> impl Iterator<Item = PositionId> + '_ {
+        self.positions[0].children.iter().filter_map(|id| {
+            let position = &self.positions[id.0.index];
+            (position.is_node && position.kind == SyntaxKind::BindingStatement).then(|| id.clone())
+        })
+    }
+    /// Exact identifier-expression occurrences in retained source order.
+    /// These are syntax positions, with resolution and use classification pending.
+    pub fn raw_identifier_expression_positions(&self) -> impl Iterator<Item = PositionId> + '_ {
+        self.positions
+            .iter()
+            .enumerate()
+            .filter_map(|(index, position)| {
+                (position.is_node && position.kind == SyntaxKind::IdentifierExpression)
+                    .then(|| self.position_id(index))
+            })
+    }
     pub fn annotations(&self) -> &[AnnotationOccurrence] {
         &self.annotations
     }
@@ -1551,6 +1571,10 @@ fn nested_chain(node: &SyntaxNode) -> Result<SyntaxNode, ShadowError> {
     }
     Ok(chains.pop().expect("one nested chain"))
 }
+
+#[cfg(test)]
+#[path = "tests/shadow_raw_source_inventory.rs"]
+mod raw_source_inventory_tests;
 
 #[cfg(test)]
 mod tests {
