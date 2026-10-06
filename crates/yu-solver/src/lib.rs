@@ -207,6 +207,8 @@ use yu_types::{
 };
 
 mod scc;
+#[cfg(feature = "shadow-scc-observer")]
+pub mod shadow_scc;
 use scc::{SccComponentId, SccPlan};
 #[cfg(test)]
 mod intrusion_transport;
@@ -1230,6 +1232,13 @@ impl ConstraintBatch {
         )?);
         batch.finish_scc_plan_accounting();
         Ok(batch)
+    }
+
+    /// Borrows the already-frozen F0–F2 topology for experimental inspection.
+    /// This view does not run F4/F5, clone the plan, or touch query counters.
+    #[cfg(feature = "shadow-scc-observer")]
+    pub fn shadow_scc_topology(&self) -> shadow_scc::SccTopology<'_> {
+        shadow_scc::SccTopology::new(self.scc_plan())
     }
     pub fn hir(&self) -> &Arc<HirModule> {
         &self.hir
@@ -16253,6 +16262,8 @@ mod tests {
     mod intrusion_transport;
     mod legacy_identity_differential;
     mod research_function_realization;
+    #[cfg(feature = "shadow-scc-observer")]
+    mod shadow_scc_observer;
     use std::sync::Arc;
     use yu_hir::{FileId, FileKey, ModuleIdentity, SemanticImports, lower_module};
     use yu_syntax::{SourceText, SyntaxEnvironment, parse_file, scan_header};
