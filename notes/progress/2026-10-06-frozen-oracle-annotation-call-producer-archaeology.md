@@ -32,21 +32,24 @@ For a postfix expression annotation, `lower_type_annotation_tail` builds a
 temporary `AnnType` from the CST `TypeExpr`, applies any annotation-selected
 effect upcasts, asks `AnnConstraintLowerer::connect_computation_detailed` to
 connect the current value/effect endpoints, then appends the returned
-subtraction constraints to the current function frame
+subtraction constraints to the current function frame when one exists
 (`crates/infer/src/lowering/expr/tail.rs:52–86`). A typed local binding follows
 the same shape after lowering its RHS: `connect_local_binding_annotation`
 builds the annotation, applies the upcasts, connects the binding value and
-computation effect, and appends the resulting constraints to the frame
+computation effect, and appends the resulting constraints when a frame exists
 (`crates/infer/src/lowering/expr/block_local.rs:905–930`).
 
-At a defined lambda boundary, the frame combines annotation-produced and
+At a Defined lambda boundary, the frame combines annotation-produced and
 body-produced subtraction weights, then the lambda's Function return effect
-and value are wrapped with those weights (`tail.rs:1058–1080`,
+and value are wrapped with those weights (`tail.rs:1058–1080`; anonymous
+lambda output exports only latent weights at `tail.rs:1064–1067`, and frame
+accumulation is conditional on a current frame at `tail.rs:1079–1080`,
 `lambda.rs:946–975`). The effect-upcast step resolves annotation effect paths
 through the cast registry and inserts resolved `#effect-up` calls while
 preserving the public value endpoint (`method_body.rs:1789–1821`). Thus the
 historical producer is a sequence of local CST-to-`AnnType` elaboration,
-constraint connection, frame accumulation, and Function construction. It is
+constraint connection, conditional frame accumulation, and Defined Function
+construction. It is
 not a persistent annotation-to-call-slot relation: the inspected chain does
 not attach a durable source annotation ID to a complete Function profile or
 its original source contribution.
@@ -82,8 +85,9 @@ The earlier archaeology established shared binder variables, ordinary call
 constraints, environment-aware generalization, coordinated freshening, and a
 separate runtime evidence environment. This follow-up makes two additional
 historical producer shapes concrete: annotation constraints flow into a
-defined function's output frame; and one formal's eligible call sites can
-share a frame-local subtraction identity. These are useful old-side
+Defined function's output frame when the relevant frame exists; and one
+formal's eligible call sites can share a frame-local subtraction identity.
+These are useful old-side
 mechanism locations for future correspondence work.
 
 They do not fill the current missing source producer. The new lane did not
