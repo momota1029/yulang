@@ -3,7 +3,7 @@
 Date: 2026-10-06
 Baseline: `38dab1fb926f819d1b2a25835d990d32b3915038`
 Branch supplied by primary: `research/simple-sub-intrusion`
-Status: initial RS/SC construction independently accepted; bounded lexical-ownership delta unreviewed
+Status: initial RS/SC construction and bounded lexical-ownership delta independently reviewed by compiler referee and spec auditor; no findings
 Initial published version: `5b6cd9b594b297954f73eb1cdb36b05b0f28ac1c`
 Initial accepted SHA-256: `f50ab22c2e0c17776e7db4f2e31e553e2de42d7fb0c86aad01f3cb340e58f2a2`
 Delta scope: structural lexical ownership/import derivation and exact residual source clauses;
@@ -806,7 +806,8 @@ Commit packet:
 - Exact path: `notes/progress/2026-10-06-directional-recursive-generalization-supplier.md`.
 - Baseline: `38dab1fb926f819d1b2a25835d990d32b3915038`.
 - Claim/review: accepted initial RS/SC scope at `5b6cd9b5`; this lexical-ownership
-  derivation and direct-authority residual delta is unreviewed; no implementation authority.
+  derivation and direct-authority residual delta are independently reviewed;
+  no implementation authority.
 - Proposed delta commit: `research: derive lexical imports and narrow recursive source residual clauses`.
 - Shared-record delta intentionally deferred: replace the opaque whole-origin
   map prerequisite by RS's constructive derivation-level result where its

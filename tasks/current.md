@@ -116,12 +116,18 @@ inferred public types and internal evidence-rich views remain distinct.
 
 The separately compiler-referee-reviewed DFRAG follow-up has no findings.
 It factors full-profile completion out of this fragment's transport proof.
-The first source cut is the exact association
-`SourceViewInst(r_A,d_f,e_f; k,beta,u,p0,sigma)` between the original formal
-receipt, its received/rebound evidence view and the original upper occurrence.
-It is a required source judgment, not a new flag or a derivation from value
-identity. The following closure-environment/read association is still required.
-All completions and uses retain the same original joint relation and packets.
+The conditional [SourceViewInst construction](../notes/progress/2026-10-06-directional-source-view-instantiation-construction.md)
+is now independently compiler-referee and spec-auditor reviewed with no
+findings. Given an independently typed original invocation, one compatible
+complete original profile containing the fragment, and the source-slot/Call
+premises, it constructs the formal receipt and derives
+`SourceViewInst(r_A,d_f,e_f; k,beta,u,p0,sigma)` only at an actual result/rebind
+transition; it preserves Pending evidence for suspension and divergence. The
+same conditional source transitions attach and read the captured evidence
+environment. This does not produce the compatible profile or its existence,
+independent admission, full source-solution coverage, or unrestricted receiver
+liveness. It closes no full `FVIEW -> SRC` edge. All derivations retain one
+original joint relation and packets.
 
 For A/admission, the all-world domain remains independently defined; the new
 transport is uniform over an already supplied domain, including contexts not
@@ -151,18 +157,19 @@ converse as a prerequisite. Instead:
    original scope through recursive formation, generalization and use. The
    new rule does not choose all variable-to-variable, nested-result or late-seed
    propagation policies by analogy.
-2. Continue from the [reviewed one-Apply output-link derivation](../notes/progress/2026-10-06-directional-event-output-link-construction.md#3-proof-tree-and-first-unproved-source-judgment): execution preserves a reached request, but does not connect it to original `p_0`. The [conditional two-event discriminator](../notes/progress/2026-10-06-directional-event-output-link-falsification.md#explicit-conditional-hypotheses) shows static output/capture/row data cannot determine `Path` once typed observation/receipt premises vary; its universal negative premise is supplied and unproved from source. DFRAG reduces the first fragment obligation to source-view instantiation and capture association, without requiring a completed profile for the transport proof. Derive the source `P_output` contribution-to-executing-view incidence and actual typed capture/rebind/read, receipt/receiver and live observation. Lexical capture and equal endpoint shapes alone do not supply those facts.
+2. Continue from the [reviewed one-Apply output-link derivation](../notes/progress/2026-10-06-directional-event-output-link-construction.md#3-proof-tree-and-first-unproved-source-judgment): execution preserves a reached request, but does not connect it to original `p_0`. The [conditional two-event discriminator](../notes/progress/2026-10-06-directional-event-output-link-falsification.md#explicit-conditional-hypotheses) shows static output/capture/row data cannot determine `Path` once typed observation/receipt premises vary; its universal negative premise is supplied and unproved from source. DFRAG plus conditional SourceViewInst supply the fragment's typed receipt/rebind/capture/read constructors when a compatible original typed row is given. Still derive the upstream source producer for complete-profile formation and admitted typed invocation rows, the `P_output` contribution-to-executing-view incidence, actual event observation and same-view receipt, and the source conditions for a live original receiver. Lexical capture and equal endpoint shapes alone establish none of those upstream or event-observation facts.
 
-   The bounded rule inventory now localizes the first unsupplied constructor to
-   a source-certified parameter-boundary introduction joining the formal
-   receipt/rebound evidence root `e_f` to the original upper fragment
-   `(k,beta,u,p0,sigma)`. The resolved Name/Call and directional rule generate
-   the static fragment; Value-entry receipt, transport, `Receive`, and
-   representation-preserving `VIncl` do not construct that association by
-   themselves. This is still a source-elaboration proof obligation; no
-   incompatible approved meanings or need for a new user decision have been
-   shown. The structural `captured_call_input()` shadow join is only an input
-   locator for the exact nested candidate and discharges none of this premise.
+   Under the reviewed conditional typed-source envelope, SourceViewInst and
+   the actual capture/read attachment have constructors. The remaining source
+   producer gap is upstream: generate/admit the compatible complete original
+   profile and typed invocation rows, and show the approved source program
+   realizes those premises while preserving the original whole solution
+   relation. Outside that supplied envelope, the source-certified association
+   cannot be inferred from endpoint/type equality, `VIncl` success or the
+   static fragment alone. No incompatible approved meanings or need for a new
+   user decision have been shown. The structural
+   `captured_call_input()` shadow join remains only an input locator and
+   discharges none of the profile/admission premises.
 3. Preserve the full seed/refined source solution relation, not just its
    deterministic record extension. Keep one original `xi=(nu,K,D)` throughout.
 4. Complete independently interpreted descriptor/context/world admission,
@@ -182,7 +189,13 @@ Pure normalized structural FMP is already closed in its reviewed pure scope;
 do not reprove it or treat it as full effect/source inference. General guarded
 joint residual solving/projection, common allowance/all-view extension,
 complete Function admission and production conformance remain distinct gates.
-Recursive `Supply22`/origin/generalized-use and actual guard coverage remain
+The [bounded recursive-generalization supplier construction](../notes/progress/2026-10-06-directional-recursive-generalization-supplier.md)
+is now independently compiler-referee and spec-auditor reviewed with no
+findings: for its declared source/proof inputs, it preserves the whole active
+relation under one coherent generalization action and normalizes the exact
+approved completed-source singleton. This does not supply recursive source
+formation or guard discharge. General recursive `Supply22`/origin/generalized-
+use coverage, effective residual presentation and actual guard coverage remain
 open as recorded in the preserved ledger. State/reference/world realization,
 SCC generalized-interface equality/lifecycle and the later effect/handler and
 method-resolution requirements are unchanged.
@@ -228,6 +241,16 @@ the mechanism does not produce current `U_c`, original `beta/Slots(beta)`,
 Q-independent admission, joint `xi`, or typed source receipt/capture
 correspondence. Oracle semantics remain non-authoritative and current
 source/proof gates remain open.
+
+The independently compiler-referee-reviewed [Frozen Oracle parameter/capture archaeology](../notes/progress/2026-10-06-frozen-oracle-source-view-producer-archaeology.md)
+adds a separate historical route: adapter invocation can introduce runtime
+guard markers on an argument, and DefId-derived environment slots preserve the
+post-adaptation wrapper through simple parameter binding, nested closure
+capture and local read. This explains evidence introduction and structural
+preservation separately. It does not construct the current original
+upper-occurrence/formal-receipt association or produce the profile/admitted
+typed rows required by conditional SourceViewInst. Oracle remains historical
+evidence only; no current proof gate closes from this correspondence.
 
 The bounded [solved-output observation trace](../notes/progress/2026-10-06-frozen-oracle-solved-output-observation.md) finds another downstream historical mechanism: after solving, ordinary `App` sites can retain callee/argument expression IDs, solved actual/consumer types and slot-linked solver evidence. This may inform a later typed-observation join, but it consumes solved endpoints and cannot produce the current pre-query source relation. It supplies no original `beta`/`Slots(beta)`, Q-independent admission or typed receipt/receiver correspondence. The characterization is primary-authored and independent review is pending. Oracle remains non-authoritative, and all current proof and production gates remain open.
 

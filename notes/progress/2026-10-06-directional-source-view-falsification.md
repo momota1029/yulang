@@ -2,7 +2,7 @@
 
 Date: 2026-10-06
 Baseline: `38dab1fb926f819d1b2a25835d990d32b3915038`
-Status: frozen producer/falsifier research; independent review pending
+Status: frozen, bounded source-path discriminator independently compiler-referee reviewed; no findings in the discriminator scope
 Claim class: source-constructor placement discriminator and bounded failed
              falsification of the repaired fragment constructor
 Semantic/implementation authority: none
@@ -290,8 +290,9 @@ Command, from repository root:
 timeout 60s python3 tools/research_directional_source_view.py
 ```
 
-One bounded pilot and one final check passed, in one Python process each,
-with an internal 256 MiB address-space cap, 55 CPU-second cap and external
+One bounded pilot, one final check and one primary post-merge verification
+passed, in one Python process each (three Python processes total), with an
+internal 256 MiB address-space cap, 55 CPU-second cap and external
 60-second wall cap. Memory availability was inspected before the pilot;
 no heavy compiler/build process was started. The process inventory command
 failed in this environment, so it provided no reliable concurrency evidence;
@@ -327,13 +328,18 @@ Commit-ready paths, contingent on primary lease/diff adjudication:
 
 - This note and `tools/research_directional_source_view.py` only.
 - Baseline: `38dab1fb926f819d1b2a25835d990d32b3915038`.
-- Status: unreviewed producer/falsifier research. No independent certification.
+- Status: compiler-referee reviewed only for the path-placement discriminator;
+  this does not certify the full producer construction or source semantics.
 - Proposed subject: `research: test directional formal fragment result-path placement`.
 - Proposed shared-record delta: distinguish generated result-prefix map schema
   from source-typed paired constructor totality; record the factory-placement
   discriminator and failed falsification of the repaired local candidate.
 - Shared records deferred to primary/curator: `tasks/current.md`,
   `tasks/research-lab.md`, `notes/design/INDEX.md` and theory maps.
+
+The compiler referee found no blocking, major or minor findings in the bounded
+path-placement discriminator. Review does not certify source admission,
+constructor totality, or semantic parity.
 
 No production code, current expectations, questions, authoritative design,
 shared-status path, other worker output, Git index or branch ref was changed.

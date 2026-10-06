@@ -3,7 +3,7 @@
 Date: 2026-10-06
 Baseline: `38dab1fb926f819d1b2a25835d990d32b3915038`
 Branch: `research/simple-sub-intrusion`
-Status: repaired research producer submission; frozen for independent delta review
+Status: frozen, independently compiler-referee and spec-auditor reviewed; no findings within the conditional theorem envelope
 Claim class: source-derived selected-slot realization; total dependent schema
             construction; paired source-kernel prefix/resumption erase/reflect
 Semantic/implementation authority: none
@@ -696,8 +696,14 @@ divergent/suspended carriers. This repair adds the Pending/Rebound sum,
 prospective suffix packet, pointwise request/resumption/divergent-prefix
 lifting, transition guards for result/capture/read, and the original
 source-semantic discriminator. It does not narrow admission. It is a producer
-repair awaiting independent delta review, not a claim that either review has
-certified the new bytes.
+repair whose frozen bytes were independently reviewed. The artifact SHA-256 is
+`10bf4a3cf03f3c686640d135b7c5822a9726f5c527fe1ef29f5fc05ec793343a` at
+`ef32d475bd7448bcf68d8e702d017cba50a15202`. A compiler referee found no
+blocking, major or minor findings within the theorem envelope; a spec auditor
+found no authority findings. Their closure covers the source-slot composition,
+pending/result distinction, divergence/resumption, receiver lifetime, shared
+row quantification, and retained limits on profile formation, admission,
+source adequacy, principality and production. These broader gates remain open.
 
 Checks: pinned source reads, exact section/rule inventory, source-prefix
 discriminators, paired whole-prefix/resumption derivation, lease/branch reads,
@@ -712,12 +718,10 @@ Commit packet:
 - Path: `notes/progress/2026-10-06-directional-source-view-instantiation-construction.md`.
 - Baseline: `38dab1fb926f819d1b2a25835d990d32b3915038`; premises read only from that revision.
 - Dependency changes: none by this producer; current-HEAD revalidation belongs to the primary.
-- Status: repaired source-derived research awaiting independent delta review, not full inference/adequacy or production authority.
+- Status: independently reviewed conditional source-derived research; not full inference/adequacy or production authority.
 - Proposed message: `research: derive paired directional receipt result and capture views`.
-- Primary/curator delta: if independently accepted, distinguish the complete prefix/resumption Pending supplier and the actual-transition SourceViewInst/environment supplier from still-open source relation/profile/admission coverage; preserve every broader gate and prior package status.
+- Primary/curator delta: record the complete prefix/resumption Pending supplier and actual-transition SourceViewInst/environment supplier separately from still-open source relation/profile/admission coverage; preserve every broader gate and prior package status.
 
-The independent reviewers must test the source-formed inferred-slot application
-of callback-delivery §4, the carrier-result prefix, the paired original
-whole-prefix/resumption proof, dormant evidence versus actual bindings, and
-the bounded typed-row quantifier which retains nonreturning admission. The producer's
-argument is not independent certification.
+Review closure applies to these frozen bytes and the theorem's stated
+conditional envelope. No implementation or Oracle execution was part of the
+reviews.

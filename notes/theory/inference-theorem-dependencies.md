@@ -36,6 +36,28 @@ existence and full-profile coverage open. Those source associations are
 premises of the fragment proof. Completion of unrelated profile positions is
 not a dependency of its tagged transport lemma. No full gate is promoted.
 
+The independently compiler-referee and spec-auditor-reviewed [conditional
+SourceViewInst construction](../progress/2026-10-06-directional-source-view-instantiation-construction.md)
+supplies those association constructors when an independently typed original
+invocation and one compatible complete original profile containing the
+fragment are already given. It derives the rebound `SourceViewInst` only at an
+actual result/rebind transition; pending, suspended and divergent prefixes
+retain prospective evidence without a fabricated result. The same source
+envelope constructs captured evidence attachment/read. It does not generate
+the complete profile, prove compatible completion or initial admission, or
+establish full source-solution coverage, unrestricted liveness, principality
+or production conformance. Thus the prior conditional fragment dependency is
+closed under these supplied premises, while no unrestricted `FVIEW -> SRC`
+edge is promoted.
+
+The compiler-referee and spec-auditor-reviewed [recursive-generalization
+supplier construction](../progress/2026-10-06-directional-recursive-generalization-supplier.md)
+preserves the whole active relation for its declared retained-derivation
+inputs and normalizes the exact approved completed-source singleton. Its
+lexical import result is structural; general recursive source formation,
+simultaneous member-environment discharge, semantic eligibility, §22 coverage,
+effective residual presentation and operational inference remain open.
+
 The reviewed [source-call construction](../progress/2026-10-06-source-call-generation-construction.md)
 closes only the exact singleton's static role/address/source-incidence schema
 and exhibits interpreted existential Call constraints on the existing
@@ -342,13 +364,15 @@ The independently spec-reviewed [Frozen Oracle producer follow-up](../progress/2
 
 The separately [reviewed provider-attachment trace](../progress/2026-10-06-frozen-oracle-source-producer-provider-attachment.md#historical-mechanism-and-source-correspondence-stop) sharpens only that runtime side mechanism: statically recognized operation requirements create capture slots, provider environments fill them, and closure entry activates them. A fixture supplies slot/handler mappings manually. This is downstream of inference and supplies no current source-derived typed attachment or original profile producer; Oracle remains historical evidence only.
 
+The independently compiler-referee-reviewed [Frozen Oracle parameter/capture trace](../progress/2026-10-06-frozen-oracle-source-view-producer-archaeology.md#correspondence-cut-independence-and-coverage) identifies a distinct boundary consumer: after solved endpoints and hygiene plans are available, adapter invocation can create runtime guard markers and mark an argument; DefId-derived environment slots then preserve the post-adaptation wrapper through parameter binding, nested closure capture and a matching Local read. This is a conditional historical preservation route, not a producer for the original upper-occurrence/formal receipt or for the compatible complete profile/admitted typed rows required by conditional SourceViewInst. Oracle semantics remain non-authoritative; no theorem edge is added.
+
 The primary-authored, unreviewed [solved-output observation trace](../progress/2026-10-06-frozen-oracle-solved-output-observation.md) identifies a distinct late mechanism: ordinary `App` sites join expression identity to solved actual/consumer endpoints, type-slot references and graph evidence in `RuntimeEvidenceTask`. Because this record is made from `SolvedTask` after solving, it is only an analogue for downstream typed observation; it cannot establish Q-independent source formation, original `beta`/`Slots(beta)`, or typed receipt/receiver incidence. It does not close any `FVIEW -> SRC` edge or proof gate, and Oracle semantics remain non-authoritative.
 
 The compiler-referee-reviewed [Frozen Oracle reachable-input trace](../progress/2026-10-06-frozen-oracle-missing-producer-reachable-inputs.md), [solver-transfer trace](../progress/2026-10-06-frozen-oracle-missing-producer-solver-mechanism.md), and [annotation-state falsifier](../progress/2026-10-06-frozen-oracle-missing-producer-falsification.md) extend that historical characterization: empty parameter uppers and an unannotated pre-body guard bound the reachable formal route; a later solver branch tests a literal callee `Neg::Bot` effect port; and annotation-marker absence does not recover formal annotation state. One minor dispatch-premise precision repair is recorded in the solver note. These are conditional old-side mechanisms only, not current `U_c`, original profile/receipt, joint `(nu,K,D)`, or Q-independent admission rules. Oracle semantics remain non-authoritative; `FVIEW`-to-`SRC` and all proof/production gates remain open.
 
 The independently spec-reviewed [shadow capture-use incidence slice](../progress/2026-10-06-shadow-capture-use-incidence.md) now retains the exact lexical link from the selected local Lambda and captured outer binder to its callee-use occurrence and CST position. This is structural source identity plumbing only: typed evidence attachment, original contract/profile formation, provider/receiver realization, and semantic discharge remain open. It closes no `FVIEW`-to-`SRC` edge and has no production inference authority.
 
-The independently reviewed [shadow captured-call input join](../progress/2026-10-06-shadow-captured-call-input-join.md) composes that lexical incidence with the exact represented outer Lambda/Bind/local Lambda/Apply/return chain and direct argument use. It changes no pending premise and establishes no source typing or typed evidence association; `SourceViewInst` and all `FVIEW`-to-`SRC` obligations remain open.
+The independently reviewed [shadow captured-call input join](../progress/2026-10-06-shadow-captured-call-input-join.md) composes that lexical incidence with the exact represented outer Lambda/Bind/local Lambda/Apply/return chain and direct argument use. It changes no pending premise and establishes no source typing or typed evidence association; this shadow artifact does not supply `SourceViewInst`. The separate conditional source-kernel construction above now supplies that constructor under its explicit complete-profile and typed-invocation premises, while upstream `FVIEW`-to-`SRC` formation/admission remains open.
 
 The independently compiler-referee-reviewed [Q-independent source-rule attempt](../progress/2026-10-06-q-independent-capture-source-rule-attempt.md#two-open-premises-with-the-attachment-leaf-isolated) distinguishes O, original query-independent contract/receipt formation, from A, captured evidence-environment attachment and lookup preserving the whole original `xi=(nu,K,D)`. It anchors A's lexical occurrence but derives neither premise; A remains open even under stipulated O. The independently regression-audited [production-path characterization](../progress/2026-10-06-production-nested-candidate-stop.md#source-path) finds that current Yulang3 lowering stops at the braced body, emits `ResolvedExpr::Error`, and constructs no ordinary-call/capture HIR for the approved candidate. This records an implementation gap, not intended source rejection. `FVIEW`-to-`SRC`, exact-source production acceptance and a semantic differential remain open.
 
