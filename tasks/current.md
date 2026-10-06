@@ -208,6 +208,18 @@ effect/stack/solver encodings remain possible and unexamined. Independent
 compiler-referee review found no issues. This supplies historical mechanism
 evidence, no current `U_c`/`Delta_formal` or semantic authority. See the
 [missing-source-producer continuation](../notes/progress/2026-10-06-frozen-oracle-missing-source-producer-continuation.md).
+Further frozen-Oracle source archaeology now traces the exact reachable
+caller/skeleton inputs, the solver's literal-`Neg::Bot` argument-effect
+passthrough and empty-push normalization, and a source-annotation-location
+falsifier: absent formal annotation and formal `_` share an absent marker but
+select different historical return paths. An independent compiler-referee
+review found no blocking or major findings; one local dispatch-premise
+precision issue was repaired. These bounded historical mechanisms do not
+identify current `U_c`, `beta`/profile/receipt formation or Q-independent
+admission, and Oracle semantics remain non-authoritative. See the [reachable
+inputs](../notes/progress/2026-10-06-frozen-oracle-missing-producer-reachable-inputs.md),
+[solver transfer](../notes/progress/2026-10-06-frozen-oracle-missing-producer-solver-mechanism.md),
+and [annotation-state falsifier](../notes/progress/2026-10-06-frozen-oracle-missing-producer-falsification.md).
 Further frozen-Oracle archaeology traced multi-use paths with an important
 split: no-scheme formal uses share one value endpoint, each application emits
 its own Function-upper constraint, and eligible unannotated calls use a
