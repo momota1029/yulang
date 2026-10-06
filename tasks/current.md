@@ -155,13 +155,23 @@ one common interpretation. None is a source-validity witness. REC_LOCAL is
 pointwise in that fixed semantics; INIT_VALID constructs the actual base,
 and MEMBER_DISCHARGE establishes the complete simultaneous environment.
 
-The next descriptor proof cut is the ordinary finite-elimination law: derive that all legal
-finite eliminations with the required local checks imply original recursive
-DescMem, including returned latent Function handles. Then construct those
-pointwise local/member/world checks and the source comparison/permission
-certificates. Generalize must choose its actual semantically eligible
-view/binder/anchor arrangement; lexical identity, empty outer captures and
-final scheme shape are insufficient.
+The next descriptor proof cut is to localize the independent ordinary
+descriptor clauses and prove exact-quantifier finite-failure reflection:
+after separate root/static checks, any failed `DescMem` must have a finite,
+independently admitted history that negates the full local-check judgment at
+the original `(xi,w)`. FH then gives `DescMem` by contradiction. Root/zero-step
+conditions, inert Return of the same latent handle, current resumed state,
+original pending suffix and compatible event-local extensions must remain in
+the reflected domain. This is the outstanding finite-elimination law, not a
+proved characterization. It discharges only `DescMem`; `M_E`, carrier/world
+clauses and simultaneous `CompleteMem` remain separate for
+`MEMBER_DISCHARGE`. The bounded localization and authority audit are recorded
+in [REC-DESC finite reflection](../notes/progress/2026-10-07-rec-desc-finite-reflection-localization.md).
+
+Then construct those pointwise local/member/world checks and source
+comparison/permission certificates. Generalize must choose its actual
+semantically eligible view/binder/anchor arrangement; lexical identity, empty
+outer captures and final scheme shape are insufficient.
 
 For section 22, retain direct forbidden/ground consequences as closed. The
 exact unresolved oriented insertion is `B(z)<:v` at `v=z,c,R_h`, with

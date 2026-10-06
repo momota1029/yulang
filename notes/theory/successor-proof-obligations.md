@@ -509,11 +509,12 @@ Each gate below lists its direct premises, directly reused closed lemmas, smalle
 **Independent recursive descriptor finite-elimination law — OPEN-PROOF**. Production relevance: required-before-cutover.
 
 - Direct prerequisite gates: [REC_K](#rec-k), [FH](#fh), [SEM_JOINT](#sem-joint).
-- Premises retained: Actual returned f/g handles, independently defined ordinary DescMem and all-world admission; never define DescMem as source-image membership.
+- Premises retained: Same actual providers and latent Return handles, original descriptor and scoped (xi,w), independently interpreted ordinary DescMem and query-independent all-world admission. Separately establish static/root obligations or explicit zero-step checks; retain current resumed state, pending suffix and compatible scope-authorized event extensions. Never define DescMem as source-image membership or assume it to admit its failure witness.
 - Already closed lemmas reused directly: [REC_K](#rec-k), [FH](#fh).
-- Minimal remaining lemma / exact closed scope: Derive that all legal finite destructor/use histories with jointly valid local checks imply the original recursive descriptor membership, including latent Return handles. This exact implication supplies the missing bridge after FH.
+- Minimal remaining lemma / exact closed scope: Prove exact-quantifier finite-failure reflection: S(xi,w) and not DescMem(R,v;xi,w) imply an independently admitted finite history failing FH's complete joint local judgment. Retain the same actual latent Return handles and original assignment/current state; cover every active root, zero-step and future-use clause. Negate the whole judgment with its original witness scopes: if FH gives forall h exists e L(h,e), reflection must give exists h forall e not L(h,e) over the exact compatible extensions, rather than one failing extension. Under classical logic, independently established S and FH then yield DescMem; reflection remains unproved.
+- Boundary: Reflection yields only DescMem. M_E membership, carrier/world clauses and simultaneous CompleteMem remain separate obligations for [MEMBER_DISCHARGE](#member-discharge).
 - Unblocks: [MEMBER_DISCHARGE](#member-discharge).
-- Sources: [newrec](../../notes/progress/2026-10-07-successor-recursive-synthesis.md); [k](../../notes/progress/2026-10-06-recursive-source-validation-construction.md); [source](../../notes/design/2026-10-05-source-contracts-and-common-allowance.md).
+- Sources: [reflection](../../notes/progress/2026-10-07-rec-desc-finite-reflection-localization.md#result), [coverage](../../notes/progress/2026-10-07-rec-desc-finite-reflection-localization.md#quantifier-and-coverage-conditions); [newrec](../../notes/progress/2026-10-07-successor-recursive-synthesis.md); [k](../../notes/progress/2026-10-06-recursive-source-validation-construction.md); [source](../../notes/design/2026-10-05-source-contracts-and-common-allowance.md).
 
 ### REC-LOCAL
 
