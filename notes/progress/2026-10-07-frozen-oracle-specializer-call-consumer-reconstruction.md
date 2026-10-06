@@ -1,7 +1,7 @@
 # Frozen Oracle: source application consumer reconstruction in Specializer2
 
 Date: 2026-10-07
-Status: unreviewed, research-only bounded historical characterization
+Status: independently compiler-referee-reviewed bounded historical characterization; two minor scope/locator repairs integrated
 Yulang3 baseline: `5afa7643f9bfe85366119a1faacf042bb0f010c6`
 Frozen Oracle: `a58eefc31e22141574b6f20c6a5748151c6d79f1`
 Exclusive lease: this file only
@@ -15,14 +15,16 @@ same original `X` and `xi`. Earlier Oracle traces locate source application
 constraint generation and later provenance projection, but not that complete
 pre-solve association.
 
-This bounded pass follows a distinct historical consumer: the second-pass
-`Specializer2` reconstructs a typed Function consumer for each retained
+This bounded pass follows a distinct historical consumer: on the ordinary,
+non-effect-operation App branch that returns successfully, the second-pass
+`Specializer2` reconstructs a typed Function consumer for the retained
 `poly::Expr::App`. It consumes the already materialized callee type and
 argument contract, adds a callee actual-to-expected subtype obligation, and
-types the call result. The consumer's provenance owner is the **callee
-expression**, while the App's own `ExprId` is used as the output/runtime-shape
-site. This is a concrete source-oriented reconstruction mechanism, but it is
-downstream of inference and cannot supply the missing original source producer.
+types the call result. Direct effect-operation Apps take a separate route.
+The consumer's provenance owner is the **callee expression**, while the App's
+own `ExprId` is used to record the result and runtime-shape site. This is a
+concrete source-oriented reconstruction mechanism, but it is downstream of
+inference and cannot supply the missing original source producer.
 
 ## Historical mechanism
 
@@ -52,10 +54,11 @@ All paths below are relative to the pinned Frozen Oracle tree.
    and asks `callee_argument_effect_contract` for a formal-indexed argument
    boundary contract. This is a separate emitter path, after task solving.
 
-This gives a historical sequence of: retained source App → materialized callee
-consumer → sidecar-owned actual/expected subtype → result and emitted Apply.
-The call's typed expectation is rebuilt using solved/materialized information;
-it is not an original pre-query certificate.
+On the ordinary non-effect-operation route, this gives a historical sequence
+of: retained source App → materialized callee consumer → sidecar-owned
+actual/expected subtype → result and emitted Apply. The call's typed
+expectation is rebuilt using solved/materialized information; it is not an
+original pre-query certificate.
 
 ## Boundary against the current obligation
 
@@ -73,9 +76,11 @@ some source identities. It does **not** establish any of the following:
 In particular, the App's own expression identity does not become the owner key
 for the callee comparison in this routine; the keys shown are the callee's
 `ExpressionActual` and `ExpressionExpected`. The later boundary emitter can
-recover a source formal by walking the App spine and declaration lambda chain,
-but that route is a downstream contract consumer, not evidence that the
-original source relation exhaustively generated or licensed the contract.
+recover a source formal by finding the call-spine head and applied argument
+index, then walking the declaration's lambda chain and reading its
+formal-indexed sidecar (`specialize2/emit.rs:1149–1163,1173–1183,1192–1237`).
+That route is a downstream contract consumer, not evidence that the original
+source relation exhaustively generated or licensed the contract.
 
 These are historical implementation assignments only. The solver,
 materializer, sidecar producer and specializer share one implementation's
@@ -85,9 +90,11 @@ is inferred.
 
 ## Scope and checks
 
-Read only the exact pinned `task_solver.rs`, `emit.rs`, and `poly/provenance.rs`
-windows listed above. The Oracle checkout resolves to the stated pin and was
-clean at inspection. SHA-256 digests:
+Read the exact pinned `task_solver.rs`, `emit.rs`, and `poly/provenance.rs`
+windows listed above, plus the App dispatch/result registration and the
+formal-lookup helper windows cited in the boundary paragraph. The Oracle
+checkout resolves to the stated pin and was clean at inspection. SHA-256
+digests:
 
 | Oracle file | SHA-256 |
 | --- | --- |
@@ -95,7 +102,12 @@ clean at inspection. SHA-256 digests:
 | `crates/specialize/src/specialize2/emit.rs` | `7318b132cef4217ae089d084577fb28f3abed34a5728474ee8569e4079d71e7c` |
 | `crates/poly/src/provenance.rs` | `9b1dc3fa436d92c39c2732ec401f10b3747e3e0f1bb921dc23b96fb19039e519` |
 
-No build, test, execution, mutation, timing or performance measurement was
-performed. Independent review is pending. Claim class is bounded historical
-characterization; `ORIGINAL_ASSOC` and all dependent theorem and production
-gates remain open.
+The compiler-referee independently reviewed the frozen claim and found no
+blocking or major issue. It confirmed the ordinary App consumer/provenance
+route and identified two minor issues, both repaired here: effect-operation
+Apps were outside the described branch, and the formal-lookup claim needed its
+helper locators. The reviewer also left the full materializer/graph proof,
+sidecar production and broader source/production paths uninspected. No build,
+test, execution, mutation, timing or performance measurement was performed.
+Claim class remains bounded historical characterization; `ORIGINAL_ASSOC` and
+all dependent theorem and production gates remain open.
