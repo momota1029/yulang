@@ -9,11 +9,12 @@
 
 use std::sync::Arc;
 use yu_hir::{
-    FileId, FileKey, HirItem, ModuleIdentity, NameResolution, ResolvedExpr, SemanticImports,
-    lower_module,
+    FileId, FileKey, HirErrorKind, HirItem, ModuleIdentity, NameResolution, ResolvedExpr,
+    SemanticImports, lower_module,
+    shadow::lower_module_with_shadow_applications,
     shadow::{Form, ShadowArtifact},
 };
-use yu_solver::{ConstraintBatch, SolvedModule};
+use yu_solver::{ConstraintBatch, PendingApplicationState, SolvedModule};
 use yu_syntax::{SourceText, SyntaxEnvironment, SyntaxKind, parse_file, scan_header};
 
 #[test]
@@ -201,4 +202,99 @@ fn shadow_and_current_f5_preserve_integer_leaf_source_and_provenance() {
             .iter()
             .any(|edge| edge.cause().occurrence().occurrence() == &body_occurrence)
     );
+}
+
+#[test]
+fn pending_solver_applications_join_exact_shadow_call_and_use_occurrences() {
+    let source: Arc<SourceText> = Arc::from("my apply x = x(x 1)");
+    let header = Arc::new(scan_header(source.clone()));
+    let parsed = parse_file(source, header, Arc::new(SyntaxEnvironment::empty()));
+    let identity = ModuleIdentity::source_root(FileId::new(FileKey::new(
+        "shadow-f5-differential",
+        "nested-pending-application.yu",
+    )));
+    let shadow_hir = Arc::new(
+        lower_module_with_shadow_applications(identity.clone(), &parsed, SemanticImports::empty())
+            .expect("opt-in HIR retains the nested application structure"),
+    );
+    let current_hir = lower_module(identity, &parsed, SemanticImports::empty())
+        .expect("current HIR characterizes the production support boundary");
+    assert!(
+        current_hir
+            .errors()
+            .iter()
+            .any(|error| error.kind() == HirErrorKind::UnsupportedExpression)
+    );
+    assert!(
+        current_hir
+            .diagnostics()
+            .iter()
+            .any(|diagnostic| { diagnostic.kind() == HirErrorKind::UnsupportedExpression })
+    );
+
+    let shadow = ShadowArtifact::from_parsed(parsed).expect("shared parse shadow artifact");
+    let skeleton = shadow.skeleton().expect("nested application skeleton");
+    let crosswalk = shadow.skeleton_source_crosswalk();
+    let batch = ConstraintBatch::collect(shadow_hir.clone())
+        .expect("shadow applications remain collectible as pending structure");
+    let rows = batch.pending_applications();
+    assert_eq!(rows.len(), 2);
+    assert!(
+        rows.iter()
+            .all(|row| { row.state == PendingApplicationState::ApplicationTypingRuleUnresolved })
+    );
+    assert!(batch.occurrences().is_empty());
+
+    let mut use_ids = Vec::new();
+    for row in rows {
+        let application_position = shadow
+            .occurrence_source_position(&shadow_hir, &row.occurrence)
+            .expect("solver retains a HIR identity from the shared parse");
+        let application = crosswalk
+            .application_at_position(&application_position)
+            .expect("application position belongs to this source artifact")
+            .expect("the retained source position is an Apply");
+        let Form::Apply {
+            callee, argument, ..
+        } = application.form()
+        else {
+            panic!("crosswalk returns an Apply");
+        };
+        for (operand, retained) in [(&row.callee, callee), (&row.argument, argument)] {
+            let operand_position = shadow
+                .occurrence_source_position(&shadow_hir, &operand.occurrence)
+                .expect("operand identity belongs to the shared parse");
+            assert_eq!(
+                skeleton.expression(retained).unwrap().position(),
+                &operand_position
+            );
+        }
+
+        let callee_position = shadow
+            .occurrence_source_position(&shadow_hir, &row.callee.occurrence)
+            .unwrap();
+        let use_id = crosswalk
+            .use_at_position(&callee_position)
+            .expect("callee position is in the source artifact")
+            .expect("each nested callee is a distinct retained source use");
+        let (registered_use, binder) = crosswalk
+            .application_direct_use_at_position(&application_position)
+            .expect("application position is in the source artifact")
+            .expect("the retained application is a direct resolved Use");
+        assert_eq!(use_id, registered_use);
+        let Some(NameResolution::Parameter(parameter)) = row.callee.direct_name_resolution.as_ref()
+        else {
+            panic!("the source callee resolves to the formal parameter");
+        };
+        let parameter_position = shadow
+            .parameter_source_position(&shadow_hir, parameter)
+            .expect("formal parameter identity belongs to this HIR artifact");
+        let (_, source_binder) = crosswalk
+            .parameter_at_position(&parameter_position)
+            .expect("parameter position is in the source artifact")
+            .expect("formal parameter has a retained shadow binder");
+        assert_eq!(binder, source_binder);
+        use_ids.push(use_id);
+    }
+    assert_ne!(use_ids[0], use_ids[1]);
 }

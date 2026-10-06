@@ -2,11 +2,11 @@
 
 Date: 2026-10-07
 Baseline: `39f00ce1eeb84a71df333c4cb10771137c95491e`
-Status: default-off structural slice implemented, focused-verified, compiler-referee reviewed
+Status: default-off structural slice and source-core differential join implemented, focused-verified, compiler-referee and regression reviewed
 Authority: user's authorization for shadow/experimental identity and evidence plumbing
 Semantic authority: none added
 Implementation: `crates/yu-solver/src/lib.rs`, gated by `shadow-f5`
-Review: compiler_referee PASS; one test-only parameter-identity weakness repaired and focused test rerun
+Review: compiler_referee PASS; one test-only parameter-identity weakness repaired and focused test rerun; regression_auditor PASS on the source-core differential addition
 
 ## Slice
 
@@ -27,6 +27,15 @@ semantic acceptance are not inferred here. The HIR-only collector also has no
 shadow `UseId`, so this row retains exact Name occurrence/resolution instead
 of synthesizing one.
 
+The focused differential test starts from one `ParsedFile`, sends it through
+the opt-in HIR lowering, the production lowering boundary and the shadow
+artifact, then joins each pending solver row's Apply/callee/argument HIR
+identity to the corresponding source-core positions. It also joins each
+direct callee to the source `UseId` and Binder and distinguishes the two
+nested call uses. Production refusal is checked by error kind; the test does
+not certify exact diagnostic text or span. Its structural joins are not
+inferred-result parity.
+
 ## Review and verification
 
 The compiler referee inspected the feature boundary, source identities,
@@ -43,8 +52,10 @@ Checks run:
 - `RUSTC_WRAPPER= CARGO_BUILD_JOBS=2 cargo check -p yu-solver` — passed with the feature off.
 - `git diff --check -- crates/yu-solver/src/lib.rs` — passed.
 - `rustfmt --emit stdout --edition 2024 --config skip_children=true crates/yu-solver/src/lib.rs`; changed lines inspected against the formatted output. Existing unrelated formatting drift was preserved.
+- `RUSTC_WRAPPER= CARGO_BUILD_JOBS=2 cargo test -p yu-solver --features shadow-f5 --test shadow_f5_differential pending_solver_applications_join_exact_shadow_call_and_use_occurrences -- --test-threads=1` — 1 passed.
+- `rustfmt --edition 2024 --check --config skip_children=true crates/yu-solver/tests/shadow_f5_differential.rs` and `git diff --check` — passed.
 
-No broad suite, current-inference comparison, performance sample, Oracle run,
+No broad suite, inferred-result comparison, performance sample, Oracle run,
 manifest change, production routing change or Git mutation was made. The new
 sidecar is not successor/current-infer parity. Ordinary application typing,
 source adequacy, soundness, principality and production cutover remain open.

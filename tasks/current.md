@@ -334,9 +334,14 @@ resolution where available. Collection remains a refusal characterization:
 these rows create no application facts, Function recipes or operand
 components; existing definition-root bookkeeping stays intact. The feature-on
 focused test covers a nested `f(f 1)` identity join and unchanged refusal, and
-the feature-off solver check passes. Compiler-referee review found a test-only
-identity assertion weakness; it was repaired to compare full parameter
-identities and the focused test passed again. The row does not retain shadow
+the feature-off solver check passes. A second focused differential test starts
+from one parsed file and joins every pending row's Apply/callee/argument HIR
+identity to source-core positions, including distinct direct callee UseIds and
+their Binder. Production refusal is checked by error kind, not exact diagnostic
+text or span. Compiler-referee review found a test-only identity assertion
+weakness; it was repaired to compare full parameter identities and the focused
+test passed again. Regression review found no major issue and notes that a
+complete row reorder would still pass. The row does not retain shadow
 UseId, typed endpoints, a callable role, `beta`/`Slots(beta)`, or any semantic
 judgment. This is source identity plumbing, not successor/current-infer parity
 or application inference. See the
