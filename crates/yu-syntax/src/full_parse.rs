@@ -63,9 +63,80 @@ pub struct ParsedFile {
     syntax: Arc<SyntaxEnvironment>,
     operators: Arc<OperatorTable>,
     green: GreenNode,
+    parse_identity: Arc<()>,
+}
+
+/// Exact immutable node identity within one parse product. Clones preserve the
+/// parse brand and retain the green allocation, preventing allocation reuse.
+#[derive(Clone)]
+pub struct SourceNodeKey {
+    parse: Arc<()>,
+    green: GreenNode,
+    start: rowan::TextSize,
+}
+
+impl std::fmt::Debug for SourceNodeKey {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("SourceNodeKey")
+            .finish_non_exhaustive()
+    }
+}
+
+impl PartialEq for SourceNodeKey {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.parse, &other.parse)
+            && std::ptr::eq(&*self.green, &*other.green)
+            && self.start == other.start
+    }
+}
+impl Eq for SourceNodeKey {}
+impl std::hash::Hash for SourceNodeKey {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        std::hash::Hash::hash(&Arc::as_ptr(&self.parse), state);
+        std::hash::Hash::hash(&(&*self.green as *const rowan::GreenNodeData), state);
+        std::hash::Hash::hash(&self.start, state);
+    }
+}
+
+/// A parse-owned node producer. Only root construction and descent mint keys;
+/// arbitrary caller-supplied Rowan nodes cannot acquire a parse brand.
+#[derive(Clone, Debug)]
+pub struct SourceNode {
+    parse: Arc<()>,
+    node: crate::SyntaxNode,
+}
+impl SourceNode {
+    pub fn syntax(&self) -> &crate::SyntaxNode {
+        &self.node
+    }
+    pub fn key(&self) -> SourceNodeKey {
+        SourceNodeKey {
+            parse: self.parse.clone(),
+            green: self.node.green().into_owned(),
+            start: self.node.text_range().start(),
+        }
+    }
+    pub fn children(&self) -> impl Iterator<Item = Self> + '_ {
+        self.node.children().map(|node| Self {
+            parse: self.parse.clone(),
+            node,
+        })
+    }
 }
 
 impl ParsedFile {
+    /// Starts an exact node-identity walk belonging to this parse product.
+    pub fn source_root(&self) -> SourceNode {
+        SourceNode {
+            parse: self.parse_identity.clone(),
+            node: crate::SyntaxNode::new_root(self.green.clone()),
+        }
+    }
+    pub fn owns_source_key(&self, key: &SourceNodeKey) -> bool {
+        Arc::ptr_eq(&self.parse_identity, &key.parse)
+    }
+
     pub fn source(&self) -> &SourceText {
         &self.source
     }
@@ -266,6 +337,7 @@ pub fn parse_file(
         syntax,
         operators: Arc::new(operators),
         green,
+        parse_identity: Arc::new(()),
     }
 }
 
@@ -278,6 +350,58 @@ mod tests {
         structural_diagnostic::StructuralKind,
         syntax_diagnostic::SyntaxDiagnosticCause,
     };
+
+    #[test]
+    fn source_node_keys_preserve_clone_brand_and_reject_reused_green_root() {
+        let source: Arc<SourceText> = Arc::from("my x = 1");
+        let parsed = parse_file(
+            source.clone(),
+            Arc::new(crate::scan_header(source)),
+            Arc::new(SyntaxEnvironment::empty()),
+        );
+        let clone = parsed.clone();
+        assert_eq!(parsed.source_root().key(), clone.source_root().key());
+        let mut foreign = parsed.clone();
+        foreign.parse_identity = Arc::new(());
+        assert_eq!(
+            parsed.source_root().syntax(),
+            foreign.source_root().syntax()
+        );
+        assert_ne!(parsed.source_root().key(), foreign.source_root().key());
+        assert!(!parsed.owns_source_key(&foreign.source_root().key()));
+        let first = parsed.source_root().children().next().unwrap().key();
+        let same = clone.source_root().children().next().unwrap().key();
+        assert_eq!(first, same);
+        fn send_sync<T: Send + Sync>() {}
+        send_sync::<SourceNodeKey>();
+        send_sync::<ParsedFile>();
+    }
+
+    #[test]
+    fn source_node_keys_expose_shared_zero_width_ambiguity() {
+        let source: Arc<SourceText> = Arc::from("my f x = x");
+        let mut parsed = parse_file(
+            source.clone(),
+            Arc::new(crate::scan_header(source)),
+            Arc::new(SyntaxEnvironment::empty()),
+        );
+        let root = parsed.source_root();
+        let leaf = root
+            .syntax()
+            .descendants()
+            .find(|node| node.kind() == crate::SyntaxKind::IdentifierExpression)
+            .unwrap();
+        let green = leaf.green().into_owned();
+        let empty = green.splice_children(0..green.children().count(), []);
+        parsed.green = parsed.green.splice_children(
+            0..parsed.green.children().count(),
+            [empty.clone().into(), empty.into()],
+        );
+        let root = parsed.source_root();
+        let children = root.children().collect::<Vec<_>>();
+        assert_eq!(children.len(), 2);
+        assert_eq!(children[0].key(), children[1].key());
+    }
 
     #[test]
     fn public_parser_pair_preserves_headers_and_multiple_statements() {

@@ -704,6 +704,8 @@ impl HirDiagnostic {
 #[derive(Clone, Debug)]
 pub struct HirModule {
     artifact: Arc<HirArtifactToken>,
+    #[cfg(any(feature = "shadow", test))]
+    pub(crate) source_identity: Option<crate::shadow::HirSourceIdentity>,
     identity: ModuleIdentity,
     source_revision: SourceRevision,
     items: Vec<HirItem>,
@@ -789,6 +791,18 @@ pub fn lower_module(
     lower_module_with_counters(identity, parsed, _imports, &mut counters)
 }
 
+#[cfg(any(feature = "shadow", test))]
+pub(crate) fn lower_module_with_source_identity(
+    identity: ModuleIdentity,
+    parsed: &ParsedFile,
+    imports: SemanticImports,
+) -> Result<HirModule, HirAvailabilityError> {
+    let mut counters = LoweringCounters::default();
+    counters.source_identity = Some(crate::shadow::HirSourceIdentity::new(parsed));
+    counters.source_nodes = crate::shadow::source_keys(parsed);
+    lower_module_with_counters(identity, parsed, imports, &mut counters)
+}
+
 fn lower_module_with_counters(
     identity: ModuleIdentity,
     parsed: &ParsedFile,
@@ -822,6 +836,13 @@ fn lower_module_with_counters(
             }
             RootPlanKind::DirectExpression | RootPlanKind::Unsupported(_) => None,
         };
+        #[cfg(any(feature = "shadow", test))]
+        if let (Some(source), Some(definition)) = (&mut counters.source_identity, &definition_root)
+        {
+            if let Some(key) = counters.source_nodes.get(&plan.node) {
+                source.record_definition(definition.clone(), key.clone());
+            }
+        }
         if definition_root.is_some() {
             counters.definition_root_allocation_bytes += std::mem::size_of::<DefinitionRootId>();
         }
@@ -842,6 +863,8 @@ fn lower_module_with_counters(
     }
     Ok(HirModule {
         artifact,
+        #[cfg(any(feature = "shadow", test))]
+        source_identity: counters.source_identity.take(),
         identity,
         source_revision: parsed.revision(),
         items,
@@ -865,6 +888,10 @@ fn next_occurrence(
 
 #[derive(Default)]
 struct LoweringCounters {
+    #[cfg(any(feature = "shadow", test))]
+    source_identity: Option<crate::shadow::HirSourceIdentity>,
+    #[cfg(any(feature = "shadow", test))]
+    source_nodes: HashMap<SyntaxNode, yu_syntax::SourceNodeKey>,
     recovery_visits: usize,
     syntax_emissions: usize,
     copied_spelling_bytes: usize,
@@ -1421,6 +1448,12 @@ fn lower_simple_chain(
     };
     if !matches!(expression, HirExpr::Value { children, .. } if children.is_empty()) {
         return Ok(SimpleChainLowering::Unsupported { range: chain_range });
+    }
+    #[cfg(any(feature = "shadow", test))]
+    if let Some(source) = &mut counters.source_identity {
+        if let Some(key) = counters.source_nodes.get(&atom.source) {
+            source.record_occurrence(occurrence.clone(), key.clone());
+        }
     }
     match atom.kind {
         SyntaxKind::IntegerLiteral => Ok(SimpleChainLowering::Resolved {

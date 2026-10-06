@@ -171,6 +171,8 @@ impl OwnedAssociatedExpr {
 
 #[derive(Debug)]
 struct OwnedAtom {
+    #[cfg(any(feature = "shadow", test))]
+    source: SyntaxNode,
     kind: SyntaxKind,
     spelling: String,
     range: Range<usize>,
@@ -196,6 +198,8 @@ fn direct_atom(node: &SyntaxNode) -> Option<OwnedAtom> {
         return None;
     }
     Some(OwnedAtom {
+        #[cfg(any(feature = "shadow", test))]
+        source: child.clone(),
         kind: child.kind(),
         spelling: token.text().to_owned(),
         range: range_of_token(&token),

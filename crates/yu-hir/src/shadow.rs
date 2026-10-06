@@ -1,17 +1,73 @@
 //! Opt-in immutable source artifact. Syntax provenance carries no type or role judgment.
+use crate::{
+    DefinitionRootId, HirAvailabilityError, HirModule, HirOccurrenceId, ModuleIdentity,
+    SemanticImports,
+};
 use crate::{range_of, range_of_token};
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap},
     ops::Range,
     sync::Arc,
 };
-use yu_syntax::{ParsedFile, SyntaxKind, SyntaxNode, SyntaxToken};
+use yu_syntax::{ParsedFile, SourceNodeKey, SyntaxKind, SyntaxNode, SyntaxToken};
+
+/// Experimental identity retention during the existing lowering path.
+/// This adds no inference or source-role judgment.
+pub fn lower_module_with_source_identity(
+    identity: ModuleIdentity,
+    parsed: &ParsedFile,
+    imports: SemanticImports,
+) -> Result<HirModule, HirAvailabilityError> {
+    crate::module::lower_module_with_source_identity(identity, parsed, imports)
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum SourceIdentityError {
+    ForeignHirArtifact,
+    ForeignParse,
+    MissingSource,
+    AmbiguousSource,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct HirSourceIdentity {
+    parse_root: SourceNodeKey,
+    definitions: HashMap<DefinitionRootId, SourceNodeKey>,
+    occurrences: HashMap<HirOccurrenceId, SourceNodeKey>,
+}
+
+pub(crate) fn source_keys(parsed: &ParsedFile) -> HashMap<SyntaxNode, SourceNodeKey> {
+    let mut keys = HashMap::new();
+    let mut stack = vec![parsed.source_root()];
+    while let Some(node) = stack.pop() {
+        keys.insert(node.syntax().clone(), node.key());
+        stack.extend(node.children());
+    }
+    keys
+}
+
+impl HirSourceIdentity {
+    pub(crate) fn new(parsed: &ParsedFile) -> Self {
+        Self {
+            parse_root: parsed.source_root().key(),
+            definitions: HashMap::new(),
+            occurrences: HashMap::new(),
+        }
+    }
+    pub(crate) fn record_definition(&mut self, id: DefinitionRootId, key: SourceNodeKey) {
+        self.definitions.insert(id, key);
+    }
+    pub(crate) fn record_occurrence(&mut self, id: HirOccurrenceId, key: SourceNodeKey) {
+        self.occurrences.insert(id, key);
+    }
+}
 
 /// Complete caller-selected parse snapshot and its bounded structural projections.
 #[derive(Debug)]
 pub struct ShadowArtifact {
     identity: Arc<()>,
     parsed: ParsedFile,
+    source_positions: HashMap<SourceNodeKey, Option<PositionId>>,
     positions: Vec<Position>,
     annotations: Vec<AnnotationOccurrence>,
     skeleton: Result<Skeleton, ShadowError>,
@@ -37,6 +93,7 @@ impl ShadowArtifact {
         let mut artifact = Self {
             identity: identity.clone(),
             parsed,
+            source_positions: HashMap::new(),
             positions: Vec::new(),
             annotations: Vec::new(),
             skeleton: Err(ShadowError::MalformedSource),
@@ -51,6 +108,67 @@ impl ShadowArtifact {
             &artifact.annotations,
         );
         Ok(artifact)
+    }
+    /// Joins an admitted HIR declaration to its exact raw-CST position.
+    pub fn definition_source_position(
+        &self,
+        hir: &HirModule,
+        id: &DefinitionRootId,
+    ) -> Result<PositionId, SourceIdentityError> {
+        if !hir.owns_definition_root(id) {
+            return Err(SourceIdentityError::ForeignHirArtifact);
+        }
+        let source = hir
+            .source_identity
+            .as_ref()
+            .ok_or(SourceIdentityError::MissingSource)?;
+        self.check_source_parse(source)?;
+        self.source_position(
+            source
+                .definitions
+                .get(id)
+                .ok_or(SourceIdentityError::MissingSource)?,
+        )
+    }
+    /// Joins a retained HIR leaf occurrence to its exact raw-CST position.
+    /// Synthesized/error occurrences without an exact leaf report MissingSource.
+    pub fn occurrence_source_position(
+        &self,
+        hir: &HirModule,
+        id: &HirOccurrenceId,
+    ) -> Result<PositionId, SourceIdentityError> {
+        if !hir.owns_occurrence(id) {
+            return Err(SourceIdentityError::ForeignHirArtifact);
+        }
+        let source = hir
+            .source_identity
+            .as_ref()
+            .ok_or(SourceIdentityError::MissingSource)?;
+        self.check_source_parse(source)?;
+        self.source_position(
+            source
+                .occurrences
+                .get(id)
+                .ok_or(SourceIdentityError::MissingSource)?,
+        )
+    }
+    fn check_source_parse(&self, source: &HirSourceIdentity) -> Result<(), SourceIdentityError> {
+        if self.parsed.owns_source_key(&source.parse_root) {
+            Ok(())
+        } else {
+            Err(SourceIdentityError::ForeignParse)
+        }
+    }
+    /// Exact parse-owned node lookup, rejecting reused zero-width node keys.
+    pub fn source_position(&self, key: &SourceNodeKey) -> Result<PositionId, SourceIdentityError> {
+        if !self.parsed.owns_source_key(key) {
+            return Err(SourceIdentityError::ForeignParse);
+        }
+        match self.source_positions.get(key) {
+            Some(Some(id)) => Ok(id.clone()),
+            Some(None) => Err(SourceIdentityError::AmbiguousSource),
+            None => Err(SourceIdentityError::MissingSource),
+        }
     }
     pub fn parsed(&self) -> &ParsedFile {
         &self.parsed
@@ -113,13 +231,25 @@ impl ShadowArtifact {
             index,
         })
     }
+    fn retain_source_position(&mut self, key: SourceNodeKey, id: PositionId) {
+        self.source_positions
+            .entry(key)
+            .and_modify(|position| *position = None)
+            .or_insert(Some(id));
+    }
     fn retain(&mut self, root: SyntaxNode) -> HashMap<SyntaxNode, Option<PositionId>> {
         // CST handles identify occurrences in this exact root, including equal text.
         // This temporary index is dropped once lexical projection is complete.
         let mut nodes = HashMap::new();
+        let source_keys = source_keys(&self.parsed);
         let mut stack = vec![(RawElement::Node(root), None, 0)];
         while let Some((element, parent, ordinal)) = stack.pop() {
             let id = self.position_id(self.positions.len());
+            if let Some(node) = element.as_node() {
+                if let Some(key) = source_keys.get(node) {
+                    self.retain_source_position(key.clone(), id.clone());
+                }
+            }
             if let Some(node) = element.as_node()
                 && matches!(
                     node.kind(),
@@ -1584,6 +1714,133 @@ mod tests {
         let source: Arc<SourceText> = Arc::from(source);
         let header = Arc::new(scan_header(source.clone()));
         parse_file(source, header, Arc::new(SyntaxEnvironment::empty()))
+    }
+
+    fn hir_identity() -> ModuleIdentity {
+        ModuleIdentity::source_root(crate::FileId::new(crate::FileKey::new(
+            "test",
+            "source-identity.yu",
+        )))
+    }
+
+    #[test]
+    fn source_identity_correspondence_joins_exact_declaration_and_use() {
+        let parsed = parsed("my f x = x; my same = f; my another = f");
+        let hir =
+            lower_module_with_source_identity(hir_identity(), &parsed, SemanticImports::empty())
+                .unwrap();
+        let shadow = ShadowArtifact::from_parsed(parsed.clone()).unwrap();
+        let mut uses = Vec::new();
+        for item in hir.items() {
+            let crate::HirItem::Binding(binding) = item else {
+                panic!("binding")
+            };
+            let declaration = shadow
+                .definition_source_position(&hir, binding.definition_root())
+                .unwrap();
+            assert_eq!(
+                shadow.position(&declaration).unwrap().kind(),
+                SyntaxKind::BindingStatement
+            );
+            let body = match binding.value() {
+                crate::ResolvedExpr::Lambda { body, .. } => body.as_ref(),
+                body => body,
+            };
+            let position = shadow
+                .occurrence_source_position(&hir, body.occurrence())
+                .unwrap();
+            assert_eq!(
+                shadow.position(&position).unwrap().kind(),
+                SyntaxKind::IdentifierExpression
+            );
+            uses.push(position);
+        }
+        assert_eq!(uses.len(), 3);
+        assert_ne!(uses[1], uses[2]);
+        assert_eq!(
+            hir,
+            crate::lower_module(hir_identity(), &parsed, SemanticImports::empty()).unwrap()
+        );
+        fn send_sync<T: Send + Sync>() {}
+        send_sync::<HirModule>();
+        send_sync::<ShadowArtifact>();
+        send_sync::<SourceNodeKey>();
+    }
+
+    #[test]
+    fn source_identity_correspondence_rejects_foreign_hir_parse_and_missing_sidecar() {
+        let parsed = parsed("my x = 1");
+        let hir =
+            lower_module_with_source_identity(hir_identity(), &parsed, SemanticImports::empty())
+                .unwrap();
+        let foreign_hir =
+            lower_module_with_source_identity(hir_identity(), &parsed, SemanticImports::empty())
+                .unwrap();
+        let default_hir =
+            crate::lower_module(hir_identity(), &parsed, SemanticImports::empty()).unwrap();
+        let root = |hir: &HirModule| match &hir.items()[0] {
+            crate::HirItem::Binding(binding) => binding.definition_root().clone(),
+            _ => panic!("binding"),
+        };
+        let shadow = ShadowArtifact::from_parsed(parsed.clone()).unwrap();
+        assert_eq!(
+            shadow.definition_source_position(&hir, &root(&foreign_hir)),
+            Err(SourceIdentityError::ForeignHirArtifact)
+        );
+        assert_eq!(
+            shadow.definition_source_position(&default_hir, &root(&default_hir)),
+            Err(SourceIdentityError::MissingSource)
+        );
+        let foreign_shadow = ShadowArtifact::from_parsed(self::parsed("my x = 1")).unwrap();
+        assert_eq!(
+            foreign_shadow.definition_source_position(&hir, &root(&hir)),
+            Err(SourceIdentityError::ForeignParse)
+        );
+        assert_eq!(
+            foreign_shadow.source_position(&parsed.source_root().key()),
+            Err(SourceIdentityError::ForeignParse)
+        );
+    }
+
+    #[test]
+    fn source_identity_correspondence_reports_missing_and_ambiguous_keys() {
+        let parsed = parsed("my x = 1");
+        let key = parsed.source_root().key();
+        let mut shadow = ShadowArtifact::from_parsed(parsed).unwrap();
+        shadow.retain_source_position(key.clone(), shadow.root());
+        assert_eq!(
+            shadow.source_position(&key),
+            Err(SourceIdentityError::AmbiguousSource)
+        );
+        shadow.source_positions.remove(&key);
+        assert_eq!(
+            shadow.source_position(&key),
+            Err(SourceIdentityError::MissingSource)
+        );
+    }
+
+    #[test]
+    fn source_identity_correspondence_rejects_foreign_occurrence_and_missing_synthetic_source() {
+        let parsed = parsed("my f x = x");
+        let hir =
+            lower_module_with_source_identity(hir_identity(), &parsed, SemanticImports::empty())
+                .unwrap();
+        let foreign =
+            lower_module_with_source_identity(hir_identity(), &parsed, SemanticImports::empty())
+                .unwrap();
+        let shadow = ShadowArtifact::from_parsed(parsed).unwrap();
+        let value = |hir: &HirModule| match &hir.items()[0] {
+            crate::HirItem::Binding(binding) => binding.value().occurrence().clone(),
+            _ => panic!("binding"),
+        };
+        assert_eq!(
+            shadow.occurrence_source_position(&hir, &value(&foreign)),
+            Err(SourceIdentityError::ForeignHirArtifact)
+        );
+        assert_eq!(
+            shadow.occurrence_source_position(&hir, &value(&hir)),
+            Err(SourceIdentityError::MissingSource)
+        );
     }
 
     const NESTED: &str = "my apply f = { my step x = f x; step }";

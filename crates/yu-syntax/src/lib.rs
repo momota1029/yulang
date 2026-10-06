@@ -31,8 +31,8 @@ pub use diagnostics_schema::{
     ExpectedSyntax, GrammarSlot, GrammarSlotRole, SyntaxDiagnosticIdentity, SyntaxDiagnosticKind,
 };
 pub use full_parse::{
-    ParsedFile, StructuralProjectionError, StructuralRecovery, StructuralRecoveryKind,
-    SyntaxDiagnosticError, parse_file,
+    ParsedFile, SourceNode, SourceNodeKey, StructuralProjectionError, StructuralRecovery,
+    StructuralRecoveryKind, SyntaxDiagnosticError, parse_file,
 };
 pub use operator_table::{OperatorDefinition, OperatorOrigin, OperatorTable};
 pub use syntax_diagnostic::{OperatorConflictDiagnostic, SyntaxDiagnostic, SyntaxDiagnosticCause};

@@ -1094,6 +1094,16 @@ inferred semantics with old infer. The second slice received compiler-referee
 PASS after a minor wording repair in its parallel discriminator note. See
 `crates/yu-hir/src/tests/shadow_annotation_positions.rs` and the
 [annotation-profile falsification](../notes/progress/2026-10-06-annotation-profile-source-falsification.md).
+The next default-off identity slice now carries exact parse-branded source-node
+keys from declaration roots and retained HIR leaf occurrences into raw-CST
+shadow positions. It rejects foreign HIR/parse artifacts and missing or
+ambiguous source evidence; it does not join by spelling, diagnostic range or
+independent ordinal. Ordinary lowering leaves the sidecar absent. Focused
+syntax/HIR checks pass; compiler-referee review found no correctness issue,
+and regression review found no concrete regression. Full synthetic duplicate
+tree integration and some sibling lookup forms remain uncovered. No solver,
+SCC, callback semantics or production inference path consumes this bridge yet.
+See the [shadow source identity correspondence](../notes/progress/2026-10-06-shadow-source-identity-correspondence.md).
 The constructive source derivation still stops before mapping the raw
 annotation occurrence to its completed typed endpoint/profile under the shared
 `(nu,K,D)` assignment. A distinct retained-parser control falsifies occurrence
