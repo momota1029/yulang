@@ -78,6 +78,22 @@ The compiler referee's initial shared-witness and equivariance findings were
 repaired and independently re-reviewed; the separate spec audit retained
 all conditional boundaries. FH is not claimed as recursive discharge.
 
+The compiler-referee-reviewed [ordinary Call typing attempts](../notes/progress/2026-10-07-call-type-local-law-constructive-attempt.md)
+reduce a Value-entry identity receiver to the independent whole-carrier
+elimination needed to type its returned value, and retain a separate pending
+suffix obligation. The complementary [rejected separation](../notes/progress/2026-10-07-call-type-local-law-falsification.md)
+shows the displayed raw Call equations alone do not entail the descriptor
+fact, but its erasure fails the complete `SEM_JOINT`/local-typing premise; it
+is not a Yulang source counterexample. `DESC_CLAUSES`, `ADMISSION_CLAUSES`,
+`SEM_JOINT`, and `CALL_TYPE` remain open.
+
+The compiler-referee-reviewed [principal factorization attempt](../notes/progress/2026-10-07-principal-whole-relation-factorization-attempt.md)
+localizes two necessary source-to-query implications inside `ALL_VIEW`:
+independent view validity must yield a complete checking derivation at the
+same original witness, and that derivation must produce accepted `Direct`
+evidence at the actual `B_common` export. The note gives only a conditional
+composition; it does not close `ALL_VIEW` or `PRINCIPAL`.
+
 ## Priority frontier: complete original source contribution
 
 Use the normalized route
@@ -461,6 +477,16 @@ and whitespace check passed. No broad/default-feature check or measurement was
 run. Querying one component scans retained uses for validation and lazily
 again for selection (`O(U)`); querying all `C` components is `O(C·U)`. No
 production SCC plan, counters, generalization or inference path changed.
+
+The compiler-referee-reviewed [pending-application source-use view](../notes/progress/2026-10-07-shadow-pending-application-source-uses.md)
+retains the existing enclosing definition root on default-off Apply rows and
+borrows each direct Name operand with its row, callee/argument position,
+occurrence and unchanged resolution. This exposes lexical occurrences absent
+from today's one-Use-per-binding SCC collector without minting production
+dependency edges or claiming complete dependency coverage. The focused F5
+differential target passed 4 tests, the focused unsupported-application test
+passed, and the feature-off solver check passed; broad tests and old-infer
+application equivalence remain unverified.
 
 Production `SolvedModule`/collector/live solver/F5/generalizer/instantiator/
 publisher and consumers remain separate correspondence work. A final scheme

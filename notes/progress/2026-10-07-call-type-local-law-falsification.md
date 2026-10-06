@@ -3,7 +3,7 @@
 Date: 2026-10-07
 Baseline: `035f7f8e97f5544ccd028bd1f167b83054134fdc`
 Branch supplied by primary: `research/simple-sub-intrusion`
-Status: frozen unreviewed research; failed separation at the complete-premise boundary
+Status: compiler-referee reviewed research; failed separation at the complete-premise boundary
 Claim class: logical nonimplication for a displayed reduced premise set; no countermodel to complete SEM_JOINT and no Yulang source counterexample
 Exclusive lease: this note only
 Implementation and semantic authority: none

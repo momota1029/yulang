@@ -2,7 +2,7 @@
 
 Date: 2026-10-07
 Baseline: `035f7f8e97f5544ccd028bd1f167b83054134fdc`
-Status: frozen research-only derivation attempt; unreviewed
+Status: frozen research-only derivation attempt; compiler-referee review passed
 Method: construct the ordinary typing proof through actual entry, then isolate its first unavailable semantic rule
 Exclusive lease: this note only
 Claim class: conditional operational reduction and bounded premise localization

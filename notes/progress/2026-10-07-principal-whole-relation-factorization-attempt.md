@@ -1,7 +1,7 @@
 # Whole-relation principal factorization: the source-to-query proof cut
 
 Date: 2026-10-07
-Status: frozen unreviewed research attempt; conditional composition and bounded proof-cut characterization
+Status: compiler-referee reviewed conditional composition and bounded proof-cut characterization
 Baseline: `035f7f8e97f5544ccd028bd1f167b83054134fdc`
 Branch: `research/simple-sub-intrusion`
 Exclusive lease: this note only
