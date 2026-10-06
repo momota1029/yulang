@@ -56,6 +56,24 @@ in `tasks/current.md`.
 - No performance samples; additions are cold/opt-in and production type
   layouts remain unchanged. No workspace-wide suite was run.
 
+## HIR-to-core structural differential extension
+
+A follow-up test joins every retained LocalBind identity to the existing
+source artifact and core projection: Bind occurrence and binder, initializer
+Lambda and `x` parameter, returned `step` Use, captured `f`, inner Apply and
+both operand Uses. Core Bind child offsets and the pending Apply borrow the
+same source nodes and preserve the seven unresolved premises. After solver
+collection and solve, the same HIR sidecar remains attached and exactly one
+unresolved application row remains; ordinary HIR still refuses the block and
+typed facts remain empty. This is a source/HIR/core structural differential,
+not an old-infer semantic comparison.
+
+- Regression-auditor closure review: no findings; scope covered exact source
+  joins, core projection, collection/solve retention, refusal and rejection
+  controls.
+- `RUSTC_WRAPPER= CARGO_BUILD_JOBS=2 cargo test -p yu-solver --features shadow-f5 --test shadow_captured_source_retention shadow_local_bind_joins_pending_structural_projection_without_discharge -- --test-threads=1` — 1 passed.
+- `rustfmt --edition 2024 --config skip_children=true --check crates/yu-solver/tests/shadow_captured_source_retention.rs` and scoped `git diff --check` — passed.
+
 ## Remaining boundary
 
 This closes one shadow source-identity and pending-evidence lifecycle slice.

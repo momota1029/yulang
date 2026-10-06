@@ -674,6 +674,14 @@ original `beta`/`Slots(beta)`, typed `p0`, complete contribution or shared
 `xi`; `ORIGINAL_ASSOC` stays open. Broader source/typing/old-infer
 differential, generalization and all application semantics remain open.
 
+The follow-up [HIR-to-core structural differential](../notes/progress/2026-10-09-shadow-local-binding-source-identity.md)
+now joins the sidecar's Bind, local Lambda/parameter, returned Use, capture,
+Apply and operand identities through `ShadowArtifact` and the pending Core
+projection, then checks the same evidence after solver collection/solve. Its
+focused integration test passed and received regression-auditor closure with
+no findings. This is source/HIR/Core identity correspondence, not an old-infer
+semantic differential or a typed derivation.
+
 Production `SolvedModule`/collector/live solver/F5/generalizer/instantiator/
 publisher and consumers remain separate correspondence work. A final scheme
 projection is not a complete generalized SCC interface. Feature-gated shadow
