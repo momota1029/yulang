@@ -8,7 +8,7 @@
 //! call views, soundness, or principality.
 
 use std::sync::Arc;
-use yu_core::shadow_derivation::RawStructuralArena;
+use yu_core::shadow_derivation::{ApplyStructuralPosition, RawStructuralArena};
 use yu_hir::{
     FileId, FileKey, HirErrorKind, HirItem, ModuleIdentity, NameResolution, ResolvedExpr,
     SemanticImports, lower_module,
@@ -336,6 +336,7 @@ fn assert_pending_solver_application_source_join(text: &str) {
     }
     let mut parameter_ids = Vec::new();
     let mut use_ids = Vec::new();
+    let mut endpoint_views = Vec::new();
     for row in rows {
         let application_position = shadow
             .occurrence_source_position(&shadow_hir, &row.occurrence)
@@ -350,6 +351,64 @@ fn assert_pending_solver_application_source_join(text: &str) {
         else {
             panic!("crosswalk returns an Apply");
         };
+        let node = raw
+            .nodes()
+            .iter()
+            .find(|node| std::ptr::eq(skeleton.expression(&node.source).unwrap(), application))
+            .expect("the exact solver Apply has a retained raw node");
+        let endpoints = raw
+            .pending_apply_endpoint_skeleton(&node.source)
+            .expect("the supported Apply retains its structural endpoint skeleton");
+        assert!(std::ptr::eq(endpoints.source(), &node.source));
+        assert_eq!(
+            skeleton.expression(endpoints.source()).unwrap().position(),
+            &application_position
+        );
+        assert!(std::ptr::eq(endpoints.callee(), callee));
+        assert!(std::ptr::eq(endpoints.argument(), argument));
+        assert!(std::ptr::eq(
+            endpoints.call(),
+            node.call
+                .as_ref()
+                .expect("the retained Apply has raw call metadata")
+        ));
+        assert_eq!(
+            endpoints.addresses().map(|address| address.position()),
+            [
+                ApplyStructuralPosition::CalleeValue,
+                ApplyStructuralPosition::CalleeEffect,
+                ApplyStructuralPosition::ArgumentValue,
+                ApplyStructuralPosition::ArgumentEffect,
+                ApplyStructuralPosition::CandidateFunctionReturnEffect,
+                ApplyStructuralPosition::CandidateFunctionResult,
+                ApplyStructuralPosition::WholeApplyValue,
+                ApplyStructuralPosition::WholeApplyEffect,
+            ]
+        );
+        for (index, address) in endpoints.addresses().iter().enumerate() {
+            assert!(std::ptr::eq(address.application(), endpoints.source()));
+            for previous in &endpoints.addresses()[..index] {
+                assert_ne!(address, previous);
+            }
+        }
+        let pending = skeleton
+            .pending()
+            .iter()
+            .filter(|premise| premise.call() == endpoints.source())
+            .collect::<Vec<_>>();
+        assert_eq!(pending.len(), 7);
+        assert_eq!(endpoints.call().application_premises.len(), pending.len());
+        for (actual, expected) in endpoints.call().application_premises.iter().zip(pending) {
+            assert!(std::ptr::eq(*actual, expected));
+        }
+        let source_input = endpoints
+            .call()
+            .source_use_input
+            .as_ref()
+            .expect("each supported direct callee retains its source call input");
+        assert_eq!(source_input.application().expression(), endpoints.source());
+        assert!(std::ptr::eq(source_input.application().callee(), callee));
+        assert!(std::ptr::eq(source_input.argument(), argument));
         for (operand, retained) in [(&row.callee, callee), (&row.argument, argument)] {
             let operand_position = shadow
                 .occurrence_source_position(&shadow_hir, &operand.occurrence)
@@ -385,11 +444,7 @@ fn assert_pending_solver_application_source_join(text: &str) {
             .expect("parameter position is in the source artifact")
             .expect("formal parameter has a retained shadow binder");
         assert_eq!(binder, source_binder);
-        let registration = raw
-            .nodes()
-            .iter()
-            .find(|node| std::ptr::eq(skeleton.expression(&node.source).unwrap(), application))
-            .expect("the exact Apply source expression is retained in the raw arena")
+        let registration = node
             .pending_source_call_registration()
             .expect("the direct source use has a pending structural registration");
         assert!(std::ptr::eq(
@@ -414,7 +469,37 @@ fn assert_pending_solver_application_source_join(text: &str) {
         };
         assert_eq!(parameter, source_binder);
         use_ids.push(use_id);
+        endpoint_views.push(endpoints);
     }
+    // Retained solver order is outer then inner. These addresses label syntax
+    // bookkeeping only; they establish no typed endpoint or port equality.
+    let [outer, inner] = endpoint_views.as_slice() else {
+        panic!("exactly two retained Apply rows");
+    };
+    let outer_argument = skeleton.expression(outer.argument()).unwrap();
+    let inner_source = match outer_argument.form() {
+        Form::Group { inner } => inner,
+        Form::Apply { .. } => outer.argument(),
+        _ => panic!("the outer argument retains the inner Apply, optionally grouped"),
+    };
+    assert_eq!(inner_source, inner.source());
+    assert_ne!(outer.source(), inner.source());
+    for outer_address in outer.addresses() {
+        for inner_address in inner.addresses() {
+            assert_ne!(outer_address, inner_address);
+        }
+    }
+    assert_ne!(outer.addresses()[2], inner.addresses()[6]);
+    assert_ne!(outer.addresses()[3], inner.addresses()[7]);
+    assert_eq!(outer.addresses()[2].application(), outer.source());
+    assert_eq!(outer.addresses()[3].application(), outer.source());
+    assert_eq!(inner.addresses()[6].application(), inner.source());
+    assert_eq!(inner.addresses()[7].application(), inner.source());
+    assert!(
+        rows.iter()
+            .all(|row| { row.state == PendingApplicationState::ApplicationTypingRuleUnresolved })
+    );
+    assert_eq!(solved.counters(), counters);
     assert_ne!(use_ids[0], use_ids[1]);
     assert_eq!(parameter_ids[0], parameter_ids[1]);
     assert!(

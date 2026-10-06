@@ -583,6 +583,15 @@ differential target passed 4 tests, the focused unsupported-application test
 passed, and the feature-off solver check passed; broad tests and old-infer
 application equivalence remain unverified.
 
+The compiler-referee-reviewed [pending Apply endpoint crosswalk](../notes/progress/2026-10-08-shadow-apply-endpoint-crosswalk.md)
+extends the solver differential across retained Apply rows, HIR source
+positions and core's existing eight-label endpoint-skeleton view. Nested and
+grouped calls distinguish the outer argument labels from the inner whole-Apply
+labels; the seven source premises, unresolved application state and solver
+counters remain unchanged. This is structural bookkeeping only, not an old-
+infer semantic differential or typed-port interpretation. The focused target
+passed 4 tests; production semantics remain unresolved.
+
 Production `SolvedModule`/collector/live solver/F5/generalizer/instantiator/
 publisher and consumers remain separate correspondence work. A final scheme
 projection is not a complete generalized SCC interface. Feature-gated shadow
