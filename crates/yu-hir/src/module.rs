@@ -1543,8 +1543,39 @@ fn lower_shadow_application(
     sink: &mut ErrorSink,
     attachment: HirErrorAttachment,
 ) -> Result<Option<ResolvedExpr>, HirAvailabilityError> {
-    // Validate the complete associated shape before minting child identities or
-    // resolving either leaf. Unsupported applications publish no partial Apply.
+    // Preflight the whole bounded tree before publishing occurrences or errors.
+    let Some(plan) = shadow_application_plan(parsed, chain, true)? else {
+        return Ok(None);
+    };
+    lower_shadow_application_plan(
+        parsed,
+        plan,
+        namespace,
+        counters,
+        occurrence,
+        scope,
+        next_occurrence_ordinal,
+        sink,
+        attachment,
+    )
+    .map(Some)
+}
+
+#[cfg(any(feature = "shadow", test))]
+struct ShadowApplicationPlan {
+    callee: SyntaxNode,
+    tail: SyntaxNode,
+    argument: SyntaxNode,
+    nested: Option<Box<ShadowApplicationPlan>>,
+    range: Range<usize>,
+}
+
+#[cfg(any(feature = "shadow", test))]
+fn shadow_application_plan(
+    parsed: &ParsedFile,
+    chain: &SyntaxNode,
+    allow_nested: bool,
+) -> Result<Option<ShadowApplicationPlan>, HirAvailabilityError> {
     let associated = associate_chain_owned(parsed, chain.clone())
         .map_err(|error| match error {
             AssociationError::ExactOperatorEnvironment => {
@@ -1568,7 +1599,7 @@ fn lower_shadow_application(
         return Ok(None);
     };
     let leaf = |shape: &HirExpr| matches!(shape, HirExpr::Value { kind: SyntaxKind::IdentifierExpression | SyntaxKind::IntegerLiteral, children, .. } if children.is_empty());
-    if !leaf(callee_shape) || !leaf(argument_shape) {
+    if !leaf(callee_shape) {
         return Ok(None);
     }
     let children = chain.children().collect::<Vec<_>>();
@@ -1578,19 +1609,70 @@ fn lower_shadow_application(
     if tail.kind() != source_form || range_of(callee_node) != *callee_shape.range() {
         return Ok(None);
     }
+    let argument_kind = if leaf(argument_shape) {
+        match argument_shape {
+            HirExpr::Value { kind, .. } => *kind,
+            _ => unreachable!(),
+        }
+    } else if allow_nested
+        && source_form == SyntaxKind::CallTail
+        && matches!(
+            argument_shape,
+            HirExpr::Value {
+                kind: SyntaxKind::MlArgument | SyntaxKind::CallTail,
+                ..
+            }
+        )
+    {
+        SyntaxKind::OperatorChain
+    } else {
+        return Ok(None);
+    };
     let argument_nodes = tail
         .descendants()
-        .filter(|node| {
-            matches!(
-                node.kind(),
-                SyntaxKind::IdentifierExpression | SyntaxKind::IntegerLiteral
-            ) && range_of(node) == *argument_shape.range()
-        })
+        .filter(|node| node.kind() == argument_kind && range_of(node) == *argument_shape.range())
         .collect::<Vec<_>>();
     let [argument_node] = argument_nodes.as_slice() else {
         return Ok(None);
     };
-    let Some(key) = counters.source_nodes.get(tail).cloned() else {
+    let nested = if argument_kind == SyntaxKind::OperatorChain {
+        let Some(plan) = shadow_application_plan(parsed, argument_node, false)? else {
+            return Ok(None);
+        };
+        Some(Box::new(plan))
+    } else {
+        None
+    };
+    Ok(Some(ShadowApplicationPlan {
+        callee: callee_node.clone(),
+        tail: tail.clone(),
+        argument: argument_node.clone(),
+        nested,
+        range,
+    }))
+}
+
+#[cfg(any(feature = "shadow", test))]
+fn lower_shadow_application_plan(
+    parsed: &ParsedFile,
+    plan: ShadowApplicationPlan,
+    namespace: &HashMap<String, Vec<DefId>>,
+    counters: &mut LoweringCounters,
+    occurrence: HirOccurrenceId,
+    scope: &ScopeStack,
+    next_occurrence_ordinal: &mut u32,
+    sink: &mut ErrorSink,
+    attachment: HirErrorAttachment,
+) -> Result<ResolvedExpr, HirAvailabilityError> {
+    let ShadowApplicationPlan {
+        callee: callee_node,
+        tail,
+        argument: argument_node,
+        nested,
+        range,
+    } = plan;
+    let source_form = tail.kind();
+    let Some(key) = counters.source_nodes.get(&tail).cloned() else {
         return Err(HirAvailabilityError::StructuralProjection);
     };
     let mut errors = vec![sink.lowering(
@@ -1599,12 +1681,22 @@ fn lower_shadow_application(
         range.clone(),
     )?];
     let mut lower_operand = |node: &SyntaxNode| -> Result<ResolvedExpr, HirAvailabilityError> {
+        let mut tokens = node
+            .children_with_tokens()
+            .filter_map(|element| element.into_token())
+            .filter(|token| matches!(token.kind(), SyntaxKind::Identifier | SyntaxKind::Integer));
+        let token = tokens
+            .next()
+            .ok_or(HirAvailabilityError::StructuralProjection)?;
+        if tokens.next().is_some() {
+            return Err(HirAvailabilityError::StructuralProjection);
+        }
         let child_occurrence = next_occurrence(&occurrence.artifact, next_occurrence_ordinal)?;
         let atom = crate::OwnedAtom {
             source: node.clone(),
             kind: node.kind(),
-            spelling: parsed.source()[range_of(node)].to_owned(),
-            range: range_of(node),
+            spelling: token.text().to_owned(),
+            range: crate::range_of_token(&token),
         };
         let SimpleChainLowering::Resolved {
             expression,
@@ -1618,21 +1710,44 @@ fn lower_shadow_application(
         }
         Ok(expression)
     };
-    let callee = lower_operand(callee_node)?;
-    let argument = lower_operand(argument_node)?;
+    let callee = lower_operand(&callee_node)?;
+    let argument = if let Some(nested) = nested {
+        let child_occurrence = next_occurrence(&occurrence.artifact, next_occurrence_ordinal)?;
+        let argument = lower_shadow_application_plan(
+            parsed,
+            *nested,
+            namespace,
+            counters,
+            child_occurrence,
+            scope,
+            next_occurrence_ordinal,
+            sink,
+            attachment,
+        )?;
+        if let ResolvedExpr::Apply {
+            errors: nested_errors,
+            ..
+        } = &argument
+        {
+            errors.extend(nested_errors.iter().copied());
+        }
+        argument
+    } else {
+        lower_operand(&argument_node)?
+    };
     counters
         .source_identity
         .as_mut()
         .expect("shadow route retains source identity")
         .record_occurrence(occurrence.clone(), key);
-    Ok(Some(ResolvedExpr::Apply {
+    Ok(ResolvedExpr::Apply {
         occurrence,
         source_form,
         callee: Box::new(callee),
         argument: Box::new(argument),
         errors: errors.into_boxed_slice(),
         range,
-    }))
+    })
 }
 
 fn lower_simple_chain(

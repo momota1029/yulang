@@ -2,18 +2,25 @@
 
 Date: 2026-10-07
 Baseline: `327c3a72ec8fed7b67321fe5f9e909dc06167190`
-Status: implemented M2 shadow slice plus M1 HIR-to-core structural crosswalk; reviews passed; focused checks passed
-Claim class: exact source/occurrence structure for one leaf-only application
+Nested HIR extension baseline: `1870b1330160e83b71756f60300900f3e2ff4545`
+Status: implemented M2 shadow slice plus M1 HIR-to-core crosswalk and one-level nested HIR extension; reviews passed; focused checks passed
+Claim class: exact source/occurrence structure for leaf and bounded nested applications
 Semantic and production inference authority: none
 
 ## Result
 
-The new opt-in `yu_hir::shadow::lower_module_with_shadow_applications` retains
-one ordinary `MlArgument` or `CallTail` application with identifier/integer
-leaf operands as `ResolvedExpr::Apply`. The application, callee and argument
-have distinct occurrence identities. The application occurrence joins to its
-exact tail node; leaf occurrences join to their exact source nodes. Existing
+The opt-in `yu_hir::shadow::lower_module_with_shadow_applications` retains a
+leaf-only ordinary `MlArgument` or `CallTail` application and, for a `CallTail`,
+one ungrouped nested unary application in its argument. Each source call has a
+distinct `ResolvedExpr::Apply` occurrence; call occurrences join to their exact
+tail nodes, and operand occurrences join to exact source nodes. Existing
 `ScopeStack` and namespace resolution construct operand `NameResolution`.
+
+The nested preflight accepts `f(f 1)` and rejects deeper, grouped, multi-argument,
+annotated, block and computed shapes before publishing identities or
+diagnostics. Operand names and ranges come from the unique identifier/integer
+payload token while the full expression node remains the source identity key,
+so leading whitespace and comments do not alter lexical resolution.
 
 Every retained Apply carries an `UnsupportedExpression` diagnostic, and
 unresolved/ambiguous operand diagnostics remain attached. Evaluation and
@@ -24,9 +31,8 @@ unification; only the experimental producer entrypoint/helper is shadow-gated.
 
 Default `lower_module` and `lower_module_with_source_identity` still return the
 existing error shape and diagnostic for these applications, with equality
-between those two paths. Unsupported nested, grouped, multi-argument,
-annotated, block and computed shapes fall back atomically before child
-occurrence allocation, name resolution, diagnostic insertion or sidecar
+between those two paths. Unsupported nested shapes fall back atomically before
+child occurrence allocation, name resolution, diagnostic insertion or sidecar
 registration.
 
 This changes the public HIR enum surface by adding a structural variant, while
@@ -49,6 +55,13 @@ diagnostics, including `UnsupportedExpression` on this call. The test's
 positive output remains structural and pending; it does not establish a typed
 invocation, inference parity or semantic discharge.
 
+The nested extension retains `f(f 1)` as two Apply nodes, with separate
+occurrences for both calls and all three operands. Whitespace and block-comment
+variants preserve the same parameter resolution. Each call carries its own
+`UnsupportedExpression`; the enclosing call also retains the nested error ID.
+The extension has not yet been crosswalked through `RawStructuralArena` or
+`PendingStructuralProjection` for the nested shape.
+
 ## Review and repair
 
 The M2 compiler-referee review found no correctness issue in identity
@@ -57,6 +70,12 @@ unification. The regression review found two minor test gaps: the solver test
 did not first establish that its input retained Apply, and unsupported-shape
 tests did not assert the absence of a source-sidecar identity. The primary
 added those assertions. The reviewed implementation itself did not change.
+
+For the nested extension, the M1 compiler-referee found a MAJOR: slicing an
+`IdentifierExpression` range included leading trivia in the name. One repair
+extracts the unique payload token while preserving node identity and adds
+whitespace/comment regressions. A fresh compiler-referee delta review closed
+that finding with no residual issues in its dependency cone.
 
 ## Verification
 
@@ -69,7 +88,12 @@ added those assertions. The reviewed implementation itself did not change.
 - `RUSTC_WRAPPER= CARGO_BUILD_JOBS=2 cargo test -p yu-core --features shadow --test shadow_current_inference_correspondence opt_in_leaf_application_joins_exact_shadow_and_pending_core_identities -- --test-threads=1` — 1 passed.
 - `rustfmt --check --edition 2024 --config skip_children=true crates/yu-core/tests/shadow_current_inference_correspondence.rs` — passed.
 - The compiler-referee and regression-auditor reviews of the M1 test found no correctness issues; regression review's minor scope-comment mismatch was repaired in the companion test comment.
+- `RUSTC_WRAPPER= CARGO_BUILD_JOBS=2 cargo test -p yu-hir --features shadow --test shadow_application_resolution -- --test-threads=1` — 5 passed, including nested identities, trivia resolution, atomic rejection and unchanged default/identity-only routes.
+- `rustfmt --check --edition 2024 --config skip_children=true crates/yu-hir/src/module.rs crates/yu-hir/tests/shadow_application_resolution.rs` — passed.
+- `git diff --check -- crates/yu-hir/src/module.rs crates/yu-hir/tests/shadow_application_resolution.rs` — passed.
 
-No broad suite or performance measurement was run. The validation only covers
-the opt-in leaf-only shape, direct solver refusal, and the stated HIR feature
-configurations.
+No broad suite or performance measurement was run. Solver refusal and
+HIR-to-core correspondence remain verified only for the earlier leaf-only
+shape; the new nested extension is verified at HIR only. Production inference,
+typing, semantic acceptance and all soundness/principality/source-adequacy
+gates remain open.

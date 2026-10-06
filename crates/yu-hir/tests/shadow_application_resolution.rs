@@ -182,6 +182,149 @@ fn both_operand_resolution_errors_remain_explicit_and_scopes_do_not_escape() {
 }
 
 #[test]
+fn nested_argument_application_retains_each_call_and_operand_identity() {
+    let parsed = parsed("my invoke f = f(f 1)");
+    assert!(parsed.syntax_diagnostics().unwrap().is_empty());
+    assert_normal_paths_unchanged(&parsed, 0);
+    let hir = shadow(&parsed);
+    let artifact = ShadowArtifact::from_parsed(parsed).unwrap();
+    let outer = value(&hir, 0);
+    let ResolvedExpr::Apply {
+        callee,
+        argument,
+        errors,
+        ..
+    } = outer
+    else {
+        panic!("outer structural application")
+    };
+    let ResolvedExpr::Apply {
+        callee: inner_callee,
+        argument: inner_argument,
+        errors: inner_errors,
+        ..
+    } = argument.as_ref()
+    else {
+        panic!("nested structural application")
+    };
+    assert_eq!(errors.len(), 2);
+    assert_eq!(inner_errors.len(), 1);
+    for error in errors.iter().chain(inner_errors.iter()) {
+        assert_eq!(
+            hir.errors()[error.index() as usize].kind(),
+            HirErrorKind::UnsupportedExpression
+        );
+    }
+    let expressions = [
+        outer,
+        callee.as_ref(),
+        argument.as_ref(),
+        inner_callee.as_ref(),
+        inner_argument.as_ref(),
+    ];
+    for (index, expression) in expressions.iter().enumerate() {
+        assert!(hir.owns_occurrence(expression.occurrence()));
+        for other in &expressions[..index] {
+            assert_ne!(expression.occurrence(), other.occurrence());
+        }
+    }
+    for (expression, kind, range) in [
+        (outer, SyntaxKind::CallTail, 15..20),
+        (callee.as_ref(), SyntaxKind::IdentifierExpression, 14..15),
+        (argument.as_ref(), SyntaxKind::MlArgument, 18..19),
+        (
+            inner_callee.as_ref(),
+            SyntaxKind::IdentifierExpression,
+            16..17,
+        ),
+        (inner_argument.as_ref(), SyntaxKind::IntegerLiteral, 18..19),
+    ] {
+        let position = artifact
+            .occurrence_source_position(&hir, expression.occurrence())
+            .unwrap();
+        assert_eq!(artifact.position(&position).unwrap().kind(), kind);
+        assert_eq!(*artifact.position(&position).unwrap().range(), range);
+    }
+    let (
+        ResolvedExpr::Name {
+            resolution: outer_resolution,
+            ..
+        },
+        ResolvedExpr::Name {
+            resolution: inner_resolution,
+            ..
+        },
+    ) = (callee.as_ref(), inner_callee.as_ref())
+    else {
+        panic!("resolved callee names")
+    };
+    assert!(matches!(outer_resolution, NameResolution::Parameter(_)));
+    assert_eq!(outer_resolution, inner_resolution);
+    assert_eq!(
+        hir.diagnostics()
+            .iter()
+            .filter(|diagnostic| diagnostic.kind() == HirErrorKind::UnsupportedExpression)
+            .count(),
+        2
+    );
+}
+
+#[test]
+fn nested_callee_trivia_preserves_parameter_resolution() {
+    for source in [
+        "my invoke f = f( f 1)",
+        "my invoke f = f( /* callee */ f 1)",
+    ] {
+        let parsed = parsed(source);
+        assert!(parsed.syntax_diagnostics().unwrap().is_empty(), "{source}");
+        assert_normal_paths_unchanged(&parsed, 0);
+        let hir = shadow(&parsed);
+        let ResolvedExpr::Apply {
+            callee, argument, ..
+        } = value(&hir, 0)
+        else {
+            panic!("outer structural application: {source}")
+        };
+        let ResolvedExpr::Apply {
+            callee: inner_callee,
+            ..
+        } = argument.as_ref()
+        else {
+            panic!("nested structural application: {source}")
+        };
+        let (
+            ResolvedExpr::Name {
+                resolution: outer_resolution,
+                ..
+            },
+            ResolvedExpr::Name {
+                resolution: inner_resolution,
+                ..
+            },
+        ) = (callee.as_ref(), inner_callee.as_ref())
+        else {
+            panic!("resolved callee names: {source}")
+        };
+        assert!(matches!(outer_resolution, NameResolution::Parameter(_)));
+        assert_eq!(outer_resolution, inner_resolution, "{source}");
+        assert_eq!(
+            hir.diagnostics()
+                .iter()
+                .filter(|diagnostic| diagnostic.kind() == HirErrorKind::UnsupportedExpression)
+                .count(),
+            2,
+            "{source}"
+        );
+        assert!(
+            hir.diagnostics()
+                .iter()
+                .all(|diagnostic| diagnostic.kind() != HirErrorKind::UnresolvedName),
+            "{source}"
+        );
+    }
+}
+
+#[test]
 fn unsupported_applications_are_rejected_atomically() {
     for source in [
         "my invoke f = f 1 2",
@@ -192,6 +335,14 @@ fn unsupported_applications_are_rejected_atomically() {
         "my invoke f = f 1 as Int",
         "my invoke f = { f 1 }",
         "my invoke f = f[1] 2",
+        "my invoke f = f(f(f 1))",
+        "my invoke f = f(f 1 2)",
+        "my invoke f = f((f) 1)",
+        "my invoke f = f(f (1))",
+        "my invoke f = f(f 1, 2)",
+        "my invoke f = f(f 1 as Int)",
+        "my invoke f = f({ f 1 })",
+        "my invoke f = f(f[1] 2)",
     ] {
         let parsed = parsed(source);
         let hir = shadow(&parsed);

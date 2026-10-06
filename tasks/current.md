@@ -170,6 +170,15 @@ in [REC-DESC finite reflection](../notes/progress/2026-10-07-rec-desc-finite-ref
 The companion [typed-observation/history bridge](../notes/progress/2026-10-07-rec-desc-observation-finite-bridge.md)
 derives finite translation only for descriptor clauses that independently
 expose the required finite-domain, admission and full-local-check premises.
+The follow-up [root and inert-Return attempt](../notes/progress/2026-10-07-rec-desc-root-return-clause-attempt.md)
+separates FH's zero-interaction base (`W`, with no interaction check) from a
+conditional all-extension failure proof for a fixed immediate Return clause;
+the independent descriptor/readout premises remain absent. The separate
+[finite-reflection adversarial analysis](../notes/progress/2026-10-07-rec-desc-finite-reflection-adversarial.md)
+shows why finitary local clauses alone do not guarantee finite refutability
+after existential witness projection. Its natural-number family violates
+pinned FH's pointwise extension premise and is explicitly not an FH
+countermodel. These records close no descriptor or recursive gate.
 
 Then construct those pointwise local/member/world checks and source
 comparison/permission certificates. Generalize must choose its actual
@@ -274,14 +283,15 @@ This adds no typing or old-inference parity claim and leaves production support
 and all semantic gates open.
 
 The [opt-in resolved application slice](../notes/progress/2026-10-07-shadow-application-resolution.md)
-adds a leaf-only ordinary `Apply` to the experimental HIR route, joined to
-exact application/operand source identities and existing name resolution. It
-retains an explicit unsupported semantic diagnostic; solver collection emits
-no facts. A focused HIR-to-core crosswalk now follows the same identities into
-raw and pending structural projections, preserving call-local premise rows.
-Default and identity-only lowering remain unchanged. The additive public enum
-variant and feature-unification boundary are reviewed; nested/computed
-application, typing and inference remain pending.
+adds leaf-only and one-level ungrouped nested ordinary `Apply` structures to
+the experimental HIR route, joined to exact call/operand source identities and
+existing name resolution. Each retained call keeps an explicit unsupported
+semantic diagnostic; solver collection emits no facts. The HIR-to-core
+crosswalk is verified for the leaf-only shape; the new nested shape is verified
+at HIR only. Whitespace/comment trivia does not alter name resolution, and
+unsupported deeper/grouped/computed shapes remain atomic. Default and
+identity-only lowering remain unchanged. Typing, inference, semantic
+acceptance, soundness, principality and source adequacy remain pending.
 
 Production `SolvedModule`/collector/live solver/F5/generalizer/instantiator/
 publisher and consumers remain separate correspondence work. A final scheme
