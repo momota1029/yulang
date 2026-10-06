@@ -332,9 +332,10 @@ observation: it does not establish correspondence to the independently
 branded successor HIR shadow, generalized interfaces, Q/R identity, or
 freshening. Keep those gates open. See the
 [shadow SCC topology observer](../notes/progress/2026-10-06-shadow-scc-topology-observer.md).
-Checkpoint commit: `c647dc006`. Push is deferred because this branch is three
-commits behind its upstream and the task/theory worktree files still have
-staged and unstaged versions that need separate reconciliation.
+Checkpoint commits: `c647dc006`, `098629118`, `46772a7a8`, `b7411dc34`. Push is
+deferred because this branch is three commits behind its upstream, and four
+remaining progress/theory paths still have staged and unstaged versions that
+need separate reconciliation.
 The default-off shadow artifact now assigns separate branded identities to
 retained annotation occurrences, while preserving their raw CST positions and
 pending typed-port/profile links. Focused shadow HIR tests and `yu-core` checks
