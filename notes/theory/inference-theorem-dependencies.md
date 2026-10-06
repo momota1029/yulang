@@ -9,18 +9,27 @@ Solid arrows are **logical dependencies**: the downstream result is proved using
 
 ## Dependency graph
 
-The reviewed [main-source localization](../progress/2026-10-06-main-source-generation-minimal-clause.md)
-does not add a closed `FVIEW -> SRC` edge. It derives only the exact ordinary
-skeleton and proves bounded non-derivation of the first original formal-use
-interpretation in the named rule inventory. The missing local source rule is
-`U_c` from shared formal/call/ordinary-argument/annotation/scope evidence;
-typed footprint and independent typed-hole/environment admission remain
-separate definitions, with finite symbolic presentation and source-entry
-coverage as further proof obligations. The already selected singleton role
-outcome is not reopened. The [Oracle crosswalk](../progress/2026-10-06-main-source-generation-oracle-crosswalk.md)
-is historical mechanism evidence only, including the separate annotation
-certificate and Scheme-freshening channels. Claim classes, limits and the
-two independent reviews are in the [review record](../progress/2026-10-06-main-source-generation-review.md).
+The reviewed [source-call construction](../progress/2026-10-06-source-call-generation-construction.md)
+closes only the exact singleton's static role/address/source-incidence schema
+and exhibits interpreted existential Call constraints on the existing
+decorated domain. Its record projection is conservative and canonical up to
+one renaming; this is not full source principality. The generated initial
+port is distinct from the complete original profile. The earlier
+[bounded source inventory audit](../progress/2026-10-06-main-source-generation-minimal-clause.md)
+does not bar introducing an unknown Function variable before proving the
+constraints satisfiable.
+
+There is still no closed `FVIEW -> SRC` edge: P must generate the complete
+original applicable-position/contribution profile and same-root refinement
+interpretation from the initial Call schema; A must construct independently
+typed initial punctured contexts at the original joint `xi`. Typed packet
+attachment/receipt, complete source inversion, all-view coverage, finite
+presentation and separate Option A/2 containment remain open. Fixed-point or
+indexed closure does not supply the missing source bases. The
+[follow-up review](../progress/2026-10-06-source-call-generation-review.md)
+records two clean independent reviews and their bounded scope. The
+[Oracle crosswalk](../progress/2026-10-06-main-source-generation-oracle-crosswalk.md)
+and later frame/producer continuations remain historical evidence only.
 
 ```mermaid
 flowchart TD

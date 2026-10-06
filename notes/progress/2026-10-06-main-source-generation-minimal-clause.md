@@ -8,6 +8,14 @@ Status: independently compiler-referee/spec-auditor-reviewed bounded result
 Claim class: bounded rule-inventory non-derivation and source-clause localization
 Semantic/implementation authority: none
 
+Follow-up: the independently reviewed
+[source-call construction](2026-10-06-source-call-generation-construction.md)
+constructs the initial role/address/source-incidence slice and an interpreted
+existential Call constraint. This bounded inventory audit does not prohibit
+constraint generation before a successful typing proof. The follow-up narrows
+the remaining source constructors to complete original profile interpretation
+and independent initial admission; it does not declare the main gate closed.
+
 ## 1. Result and precise limits
 
 The existing rule inventory does **not** derive the main original

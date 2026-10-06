@@ -11,23 +11,34 @@ remains active. A test-only finite parent/use transport prototype is authorized
 as an experiment; production inference-path replacement remains gated by the
 open soundness/principality obligations.
 
-The latest direct main-gate attack has independent compiler/spec review:
-[minimal source clause](../notes/progress/2026-10-06-main-source-generation-minimal-clause.md)
-and [review record](../notes/progress/2026-10-06-main-source-generation-review.md).
-The ordinary exact-candidate skeleton supplies shared `A_f`, the whole
-`Comp(empty,A_x)` argument obligation, and lexical incidence. A bounded
-last-rule audit shows the inventoried generators do not first introduce the
-original inferred-formal interpretation. The earliest missing rule emits an
-independently interpreted local `U_c` from that one unannotated formal/use,
-connecting its already selected protected seed and ordinary-value refinement
-on the same joint relation. Original typed footprint and independent
-typed-hole/environment admission remain separately undefined; this is no
-main-gate closure, impossibility theorem or new semantic decision. Finite
-symbolic presentation and admitted-entry coverage also remain open. The
+The latest direct main-gate follow-up has independent compiler/spec review:
+[source-call construction](../notes/progress/2026-10-06-source-call-generation-construction.md)
+and [review record](../notes/progress/2026-10-06-source-call-generation-review.md).
+For the exact approved captured-step component, it constructs the singleton
+role/record factor and one canonical initial `call.effect` address with its
+source Function-elimination incidence and initial protected/no-grant policy.
+The construction is unique up to joint renaming and conservative at that
+static record projection; it is not a full original profile or source
+principality theorem. It also constructs an interpreted existential call
+constraint with one complete Function variable, the actual Name-return
+argument root, all represented callee members and the complete invocation
+image over the supplied decorated basis. A successful typing derivation is
+not required before emitting that constraint; the earlier
+[bounded last-rule audit](../notes/progress/2026-10-06-main-source-generation-minimal-clause.md)
+must not be read as ruling out this route.
+
+The main gate remains open at two concrete constructors: **P**, the complete
+original applicable-position/contribution profile and its same-root
+seed-to-refined receiving-view interpretation, from the now-generated Call
+root/initial port; and **A**, independently typed initial punctured-context
+admission at one original joint assignment. `InitialSeedSlots={p_0}` does not
+prove the full `Slots(beta)` inventory. Neither generic compatible decorations
+nor a least/greatest/indexed closure generates those source premises. Actual
+receipt/typed capture attachment, all-view source inversion, finite complete
+presentation and Option A/2 production containment remain separate. No new
+semantic choice or implementation authority is claimed. The
 [Oracle crosswalk](../notes/progress/2026-10-06-main-source-generation-oracle-crosswalk.md)
-additionally separates formal annotation certificates from Scheme freshening
-and checks their known-callee/equal-Function adaptation path; it grants no
-current source or implementation authority.
+remains historical mechanism evidence only.
 
 The shadow lane is now active alongside theory research. The opt-in
 successor-core slice promotes one immutable HIR-owned `ParsedFile` snapshot,
