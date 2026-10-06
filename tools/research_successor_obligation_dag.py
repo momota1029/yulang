@@ -15,7 +15,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 BASELINE = "ac2864a48868b017a8b6fedc6a665f24d0c2daff"
-REVALIDATED = "1777ccec8369915ad2829f324e3e6d6dd08f697c"
+REVALIDATED = "28650389ce9738b8dc76432210fb8fb017a90cc4"
 STATUSES = {
     "CLOSED", "CONDITIONAL-CLOSED", "IMPLEMENTATION-ONLY", "OPEN-PROOF",
     "OPEN-SEMANTIC", "BLOCKED-BY-USER-DECISION",
@@ -45,6 +45,9 @@ REFS = {
     "sv": "notes/progress/2026-10-06-directional-source-view-instantiation-construction.md",
     "svcompose": "notes/progress/2026-10-07-source-view-to-original-attachment-composition.md",
     "attachattack": "notes/progress/2026-10-07-attachment-coverage-adversarial-attempt.md",
+    "assocctor": "notes/progress/2026-10-07-original-association-constructor-derivation-attempt.md",
+    "associnvert": "notes/progress/2026-10-07-original-association-inversion-attack.md",
+    "assockernel": "notes/progress/2026-10-07-original-association-source-kernel-audit.md",
     "rs": "notes/progress/2026-10-06-directional-recursive-generalization-supplier.md",
     "k": "notes/progress/2026-10-06-recursive-source-validation-construction.md",
     "pg": "notes/progress/2026-10-06-source-generalization-eligibility-attack.md",
@@ -76,6 +79,7 @@ REFS = {
     "shadowcore": "crates/yu-core/src/shadow_derivation.rs",
     "owner": "notes/progress/2026-10-06-shadow-call-parameter-declaration-owner.md",
     "retention": "notes/progress/2026-10-07-shadow-nested-unary-retention.md",
+    "bindergroups": "notes/progress/2026-10-07-shadow-pending-binder-use-groups.md",
     "solver": "crates/yu-solver/src/lib.rs",
     "hir": "crates/yu-hir/src/lib.rs",
     "oracle": "notes/progress/2026-10-06-frozen-oracle-presolve-application-types.md",
@@ -211,7 +215,7 @@ n("SIG_RULES", "OPEN-SEMANTIC", "Exhaustive original signature licensing judgmen
   "Give comparison-independent introduction and transport clauses for exactly which original slot/contribution incidences are licensed, including annotated, inherited, generalized and mixed uses. Slots is this original domain, not a fresh per-call label table.", "sig profile lic fview")
 n("ORIGINAL_ASSOC", "OPEN-SEMANTIC", "OriginalAssocType_X inhabited original source-owned fiber", "CALL_TYPE SIG_RULES",
   "Original I_orig(X), beta/p0/upper/exposure and complete F_C(X); same xi, original scopes/providers and contribution dependencies.",
-  "Derive exists (t,w) in I_orig(X) whose original slot, typed p0, source ownership and complete invocation contribution cover F_C(X) with its actual stage/view incidence. Retain all witnesses; choose neither c=j nor s=p nor a slot count.", "assoc newassoc")
+  "Derive exists (t,w) in I_orig(X) whose original slot, typed p0, source ownership and complete invocation contribution cover F_C(X) with its actual stage/view incidence. Retain all witnesses; choose neither c=j nor s=p nor a slot count. At the selected five-node Call proof cut, independently interpret and introduce that original owner/view-kernel slot and contribution; neither H_gen nor supplied H_typed proves H_assoc.", "assoc newassoc assocctor assockernel")
 n("ATTACH", "OPEN-PROOF", "Attach_C source constructor correspondence", "ORIGINAL_ASSOC",
   "The inhabited original fiber and exact source constructor/transport derivation, at the same X.",
   "Construct Attach_C using the original incidence witness and invert its source constructor, preserving all original arms/scopes and independently typed contribution; structural call/declaration labels are only locators.", "assoc newassoc")
@@ -220,7 +224,7 @@ n("LIC_FORWARD", "OPEN-PROOF", "Attachment implies original licensing", "ATTACH 
   "For each actual Attach constructor derive Lic_C at identical original s,c,beta,p,X and retain every original dependency. No successful Q or endpoint shape premise.", "lic assoc")
 n("LIC_INVERT", "OPEN-PROOF", "Exhaustive original licensing inversion", "SIG_RULES ATTACH",
   "All original licensing last rules, including own upper/inherited transport/generalized/annotated arms and conservative licensed contributions.",
-  "Invert every original Lic_C witness to its licensed attachment/source-origin arm. Do not require a source execution for each Option 2 extra observation, erase static exposure because no event/return occurred, or assert Slots singleton from one exposure. The latest bounded attack found no original licensed-unattached witness.", "lic newassoc attachattack option2")
+  "Invert every original Lic_C witness to its licensed attachment/source-origin arm. Last-rule accounting must reach inside the independently interpreted owner/view kernel instead of stopping at its supplied primitive witness. Do not require a source execution for each Option 2 extra observation, erase static exposure because no event/return occurred, or assert Slots singleton from one exposure. The latest bounded attack found no original licensed-unattached witness.", "lic newassoc attachattack associnvert assockernel option2")
 n("PROFILE", "OPEN-PROOF", "Complete original beta/Slots/profile construction and inversion", "LIC_FORWARD LIC_INVERT",
   "One jointly constrained original profile coordinate; all licensed incidences, policies and inherited tags on that same source relation.",
   "Assemble exactly the original licensed slot domain with well-typed positions/contributions and prove forward/backward coverage, preserving all dependencies and allowed slot sharing. Local mandatory p0 alone is insufficient.", "profile sig newglobal")
@@ -342,7 +346,7 @@ n("RESOURCE", "OPEN-SEMANTIC", "Exact practical resource/admission and failure b
   "Choose justified support/resource limits and early rejection/failure ownership with no partial publication, then prove termination and behavior inside that envelope. Timeout is not UNSAT or complete acceptance.", "charter newglobal")
 n("HIR_WIRING", "IMPLEMENTATION-ONLY", "Settled source-to-HIR and complete production pipeline wiring", "RAW_SOURCE PROJECTION FRESH_LIFE RESOURCE",
   "Reviewed semantic contract and explicit implementation authority for its exact supported forms; user has authorized only settled shadow slices here.",
-  "Implement complete source coverage table and lower/emitter/solver/generalizer/instantiator/publisher/consumer correspondence. Existing Apply shadow/parameter-owner and nested unary retention plumbing is structural; production Lambda/Name paths do not cover whole Call.", "hir solver shadowcore owner retention")
+  "Implement complete source coverage table and lower/emitter/solver/generalizer/instantiator/publisher/consumer correspondence. Existing Apply shadow/parameter-owner, nested unary retention and pending binder-use grouping are structural; grouping existing registrations proves no complete-use coverage. Production Lambda/Name paths do not cover whole Call.", "hir solver shadowcore owner retention bindergroups")
 n("ORACLE_COMPAT", "OPEN-PROOF", "Successor capability and observation compatibility", "RAW_SOURCE RESOLVE_FP OBS_INCLUSION",
   "Declared final well-typed source envelope and current Authority; Frozen Oracle is historical evidence only.",
   "Prove required final acceptance/observations and justify each intended delta; use differential fixtures as evidence. Oracle algorithms/projections/IDs do not define successor typing or licensing.", "charter oracle newglobal")

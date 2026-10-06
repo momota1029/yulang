@@ -58,6 +58,15 @@ premises, leaving original static `(s,c)` interpretation untouched. The
 cannot erase a static exposure by absence of execution and supplies no
 licensed-unattached source witness. Both are retained at those scopes.
 
+The later reviewed [five-node Call constructor cut](../progress/2026-10-07-original-association-constructor-derivation-attempt.md),
+[primitive-kernel inversion attack](../progress/2026-10-07-original-association-inversion-attack.md)
+and [bounded source/kernel clause inventory](../progress/2026-10-07-original-association-source-kernel-audit.md)
+sharpen the same ORIGINAL_ASSOC/LIC_INVERT leaves. The original contribution
+contract and static slot require an independent source introduction on the
+same X/xi. Realization's primitive witness copy cannot replace internal
+licensing last-rule accounting. H_gen/H_typed do not imply H_assoc; no
+same-X counterexample or new theorem edge is supplied by these attacks.
+
 The complete Call has both callee evaluation and designated receiver
 invocation. A computed-callee prefix cannot inherit the target formal's
 upper `p0` merely by sharing the complete-root contribution. The exact selected

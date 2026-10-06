@@ -3,7 +3,7 @@
 Date: 2026-10-07
 Status: independently reviewed research and verified shadow implementation; publication verification described below
 Audit baseline: `ac2864a48868b017a8b6fedc6a665f24d0c2daff`
-Revalidated remote checkpoint: `1777ccec8369915ad2829f324e3e6d6dd08f697c`
+Revalidated remote checkpoint: `28650389ce9738b8dc76432210fb8fb017a90cc4`
 Branch: `research/simple-sub-intrusion`
 Mode: M3 for proof promotion; one primary Git/build owner, disjoint producer leases
 Production authority: none; no production inference cutover
@@ -130,6 +130,29 @@ the canonical nodes. The primary copied/restored only its own four dirty
 paths to permit the merge. Other worker changes were not reverted, and the
 pre-normalization task/map snapshots preserve the latest integrated bytes.
 
+Immediately before the connected-API ref update, the remote advanced again to
+`28650389c` (from `1777ccec8`). No ref update had occurred. The primary inspected
+the two new commits: three reviewed original-association attacks, and a
+default-off pending binder-use grouping slice. A second non-rewriting merge
+retains all their files. The two navigation conflicts were resolved by keeping
+the canonical DAG and integrating every new substantive remote finding there
+and in task/map prose; the original pre-normalization snapshots remain pinned
+to `1777ccec8`.
+
+The independent spec-auditor's narrow delta review found no new source
+Authority, closure or admitted counterexample. It accepted the five-node Call
+proof cut, the distinction between H_gen/H_typed/H_assoc, and the need to invert
+inside the original owner/view kernel instead of copying its primitive witness.
+ORIGINAL_ASSOC and LIC_INVERT now cite those exact bounded refinements. All
+node identities, statuses, prerequisite edges and production limits are unchanged.
+
+The compiler-referee separately checked the new binder grouping against the
+reviewed typed-query/source-join implementation. It found no incompatibility:
+the iterator only borrows existing branded registrations in retained-node order,
+with no new source completeness or semantic evidence. A valid empty group is
+not a semantic absence claim. The final focused dependency regression passed
+as recorded below.
+
 ## Complete-DAG review and repair
 
 Initial compiler review found a major inventory error: REC_DESC, REC_LOCAL,
@@ -169,15 +192,17 @@ selected SV/RS/K and selected role-normalization scopes are not reopened.
 
 Both reviewers validated generated-output equality, acyclicity and the mapped
 families. That check explicitly says `semantic_proof_checked=false`. They
-did not rerun Cargo or infer source semantics from finite examples. Final
-metadata changes only connect the completed reviews and do not expand their
-mathematical or implementation scope.
+did not rerun Cargo or infer source semantics from finite examples. Subsequent
+metadata connects the completed reviews; the later narrowly reviewed remote
+annotations refine the same open clauses without expanding any closure scope.
 
 Final staging found three Markdown hard-break spaces in the generated DAG
 header. The generator now emits blank lines there instead. This formatting-only
-delta changes the generator/Markdown hashes above, preserves the exact reviewed
-JSON and every node/edge, and passed generated-output equality and staged
-whitespace validation. The hashes in the table identify the reviewed freeze.
+delta changed the generator/Markdown hashes above while preserving the reviewed
+JSON and every node/edge. The later remote integration changes the revalidation
+metadata, references and bounded frontier explanations only. Generated-output
+equality and staged whitespace validation passed. The hashes in the table
+identify the original reviewed freeze rather than its later navigation metadata.
 
 ## Primary synthesis and downstream attacks
 
@@ -266,6 +291,17 @@ check-graph` also passed. Exact-file Rustfmt checks passed. The three
 research checkers passed in independent review under recorded limits; the
 canonical generator passed with the exact final 89/194/32 output.
 
+After the final `28650389c` dependency merge, this narrow regression passed:
+
+```text
+cargo test -p yu-core --features shadow --test shadow_binder_use_groups --test shadow_directional_incidence_join --test shadow_typed_evidence -- --test-threads=1
+```
+
+**8 tests passed**: four new remote grouping tests plus the one source join and
+three finite-query tests. This adds four distinct cases to the earlier 29; the
+four rerun cases are not double-counted. HIR and production implementations did
+not change in that remote delta, so no broad or repeated HIR build was added.
+
 No workspace-wide inference acceptance suite, live Oracle execution or
 production cutover test ran. The new implementation has no production
 inference caller. Known unrelated expectations were not edited or weakened.
@@ -275,9 +311,9 @@ inference caller. Known unrelated expectations were not edited or weakened.
 Local `b13cd4560` preserves the research lanes; `a84fcb326` integrates remote
 `1777ccec8`. HTTPS `git push` failed because the shell had no GitHub write
 credential. Publication therefore uses the authorized connected GitHub
-git-object/ref API: upload the exact reviewed trees, reproduce the research
-checkpoint and its merge with the inspected remote head, then append the final
-integration commit. Update the target with expected-head checking and
+git-object/ref API: upload the exact reviewed trees and reproduce the research
+checkpoint, integration commits and merges with each inspected remote head.
+Update the target with expected-head checking and
 `force=false`. Final fetch must verify the published trees byte-for-byte.
 API commit metadata may differ; preserve the original local checkpoint commits
 under a separate branch before selecting the published target. This retains

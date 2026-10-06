@@ -2,7 +2,7 @@
 
 Date: 2026-10-07
 
-Audit baseline: `ac2864a48868b017a8b6fedc6a665f24d0c2daff`; read-only dependency revalidation through `1777ccec8369915ad2829f324e3e6d6dd08f697c`.
+Audit baseline: `ac2864a48868b017a8b6fedc6a665f24d0c2daff`; read-only dependency revalidation through `28650389ce9738b8dc76432210fb8fb017a90cc4`.
 
 Status: canonical **research navigation**, not an Authoritative semantic design.
 
@@ -566,9 +566,9 @@ Each gate below lists its direct premises, directly reused closed lemmas, smalle
 - Direct prerequisite gates: [CALL_TYPE](#call-type), [SIG_RULES](#sig-rules).
 - Premises retained: Original I_orig(X), beta/p0/upper/exposure and complete F_C(X); same xi, original scopes/providers and contribution dependencies.
 - Already closed lemmas reused directly: None.
-- Minimal remaining lemma / exact closed scope: Derive exists (t,w) in I_orig(X) whose original slot, typed p0, source ownership and complete invocation contribution cover F_C(X) with its actual stage/view incidence. Retain all witnesses; choose neither c=j nor s=p nor a slot count.
+- Minimal remaining lemma / exact closed scope: Derive exists (t,w) in I_orig(X) whose original slot, typed p0, source ownership and complete invocation contribution cover F_C(X) with its actual stage/view incidence. Retain all witnesses; choose neither c=j nor s=p nor a slot count. At the selected five-node Call proof cut, independently interpret and introduce that original owner/view-kernel slot and contribution; neither H_gen nor supplied H_typed proves H_assoc.
 - Unblocks: [ATTACH](#attach), [TYPED_SOURCE_INCIDENCE](#typed-source-incidence).
-- Sources: [assoc](../../notes/progress/2026-10-06-attach-law-construction-attempt.md); [newassoc](../../notes/progress/2026-10-07-successor-source-association-falsification.md).
+- Sources: [assoc](../../notes/progress/2026-10-06-attach-law-construction-attempt.md); [newassoc](../../notes/progress/2026-10-07-successor-source-association-falsification.md); [assocctor](../../notes/progress/2026-10-07-original-association-constructor-derivation-attempt.md); [assockernel](../../notes/progress/2026-10-07-original-association-source-kernel-audit.md).
 
 ### ATTACH
 
@@ -599,9 +599,9 @@ Each gate below lists its direct premises, directly reused closed lemmas, smalle
 - Direct prerequisite gates: [SIG_RULES](#sig-rules), [ATTACH](#attach).
 - Premises retained: All original licensing last rules, including own upper/inherited transport/generalized/annotated arms and conservative licensed contributions.
 - Already closed lemmas reused directly: None.
-- Minimal remaining lemma / exact closed scope: Invert every original Lic_C witness to its licensed attachment/source-origin arm. Do not require a source execution for each Option 2 extra observation, erase static exposure because no event/return occurred, or assert Slots singleton from one exposure. The latest bounded attack found no original licensed-unattached witness.
+- Minimal remaining lemma / exact closed scope: Invert every original Lic_C witness to its licensed attachment/source-origin arm. Last-rule accounting must reach inside the independently interpreted owner/view kernel instead of stopping at its supplied primitive witness. Do not require a source execution for each Option 2 extra observation, erase static exposure because no event/return occurred, or assert Slots singleton from one exposure. The latest bounded attack found no original licensed-unattached witness.
 - Unblocks: [PROFILE](#profile).
-- Sources: [lic](../../notes/progress/2026-10-06-attach-c-licensing-inversion-falsification.md); [newassoc](../../notes/progress/2026-10-07-successor-source-association-falsification.md); [attachattack](../../notes/progress/2026-10-07-attachment-coverage-adversarial-attempt.md); [option2](../../questions/2026-10-05-production-function-bound-membership/approved-answer.md).
+- Sources: [lic](../../notes/progress/2026-10-06-attach-c-licensing-inversion-falsification.md); [newassoc](../../notes/progress/2026-10-07-successor-source-association-falsification.md); [attachattack](../../notes/progress/2026-10-07-attachment-coverage-adversarial-attempt.md); [associnvert](../../notes/progress/2026-10-07-original-association-inversion-attack.md); [assockernel](../../notes/progress/2026-10-07-original-association-source-kernel-audit.md); [option2](../../questions/2026-10-05-production-function-bound-membership/approved-answer.md).
 
 ### PROFILE
 
@@ -995,9 +995,9 @@ Each gate below lists its direct premises, directly reused closed lemmas, smalle
 - Direct prerequisite gates: [RAW_SOURCE](#raw-source), [PROJECTION](#projection), [FRESH_LIFE](#fresh-life), [RESOURCE](#resource).
 - Premises retained: Reviewed semantic contract and explicit implementation authority for its exact supported forms; user has authorized only settled shadow slices here.
 - Already closed lemmas reused directly: None.
-- Minimal remaining lemma / exact closed scope: Implement complete source coverage table and lower/emitter/solver/generalizer/instantiator/publisher/consumer correspondence. Existing Apply shadow/parameter-owner and nested unary retention plumbing is structural; production Lambda/Name paths do not cover whole Call.
+- Minimal remaining lemma / exact closed scope: Implement complete source coverage table and lower/emitter/solver/generalizer/instantiator/publisher/consumer correspondence. Existing Apply shadow/parameter-owner, nested unary retention and pending binder-use grouping are structural; grouping existing registrations proves no complete-use coverage. Production Lambda/Name paths do not cover whole Call.
 - Unblocks: [CUTOVER](#cutover).
-- Sources: [hir](../../crates/yu-hir/src/lib.rs); [solver](../../crates/yu-solver/src/lib.rs); [shadowcore](../../crates/yu-core/src/shadow_derivation.rs); [owner](../../notes/progress/2026-10-06-shadow-call-parameter-declaration-owner.md); [retention](../../notes/progress/2026-10-07-shadow-nested-unary-retention.md).
+- Sources: [hir](../../crates/yu-hir/src/lib.rs); [solver](../../crates/yu-solver/src/lib.rs); [shadowcore](../../crates/yu-core/src/shadow_derivation.rs); [owner](../../notes/progress/2026-10-06-shadow-call-parameter-declaration-owner.md); [retention](../../notes/progress/2026-10-07-shadow-nested-unary-retention.md); [bindergroups](../../notes/progress/2026-10-07-shadow-pending-binder-use-groups.md).
 
 ### CUTOVER
 

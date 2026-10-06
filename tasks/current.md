@@ -105,6 +105,18 @@ Its companion [coverage attack](../notes/progress/2026-10-07-attachment-coverage
 rejects erasing a retained static exposure merely because execution never
 returns or emits an outward event; it supplies no exhaustive inverse.
 
+The remote [constructor derivation](../notes/progress/2026-10-07-original-association-constructor-derivation-attempt.md)
+minimizes the missing producer to the five-node
+`call(result(name f),result(name x))` proof cut. Source generation `H_gen`,
+the stronger supplied typed/profile/history envelope `H_typed`, and the
+sought `H_assoc` remain distinct. The [primitive-stop inversion attack](../notes/progress/2026-10-07-original-association-inversion-attack.md)
+shows that source-base realization preserves the supplied original owner/view
+kernel witness; licensing inversion must still enter that kernel's own rules.
+The [bounded clause/sort audit](../notes/progress/2026-10-07-original-association-source-kernel-audit.md)
+finds no association introduction in its displayed inventory, without proving
+repository-wide nonderivability. These reviewed localizations sharpen the
+existing open nodes and close no gate.
+
 No real same-X licensing counterexample or competing complete-semantics
 witness was found. The remaining clause is research-side OPEN-SEMANTIC,
 not BLOCKED-BY-USER-DECISION.
@@ -184,6 +196,13 @@ absence. The historical Call crosswalk remains compatibility evidence only. The
 remote nested-unary retention extension preserves those declaration owners
 through already supported unannotated ordinary trees, with grouped/computed
 callee controls and all ordered pending rows retained.
+
+The remote [pending binder-use grouping](../notes/progress/2026-10-07-shadow-pending-binder-use-groups.md)
+borrows existing direct-Use registrations under exact artifact-branded binder
+identity. It preserves distinct Apply/Use identities and retained-node order;
+empty groups establish neither semantic absence nor complete-use coverage.
+The final compiler dependency audit found no conflict with typed evidence or
+the source-plumbing test, and all pending semantic premises remain pending.
 
 The new [finite typed evidence query](../notes/progress/2026-10-07-successor-typed-evidence-query.md)
 computes supplied `Path`/`Inc_C` by typed reachability and exact current

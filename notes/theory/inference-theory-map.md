@@ -47,6 +47,11 @@ identifies the semantic frontier without redoing those transports. Complete
 Call interpretation already exists. Its source-owned original slot/contribution
 fiber, independent licensing clauses, attachment/licensing inversion, complete
 profile assembly and joint row nonemptiness remain the source formation route.
+
+The reviewed [five-node Call cut](../progress/2026-10-07-original-association-constructor-derivation-attempt.md)
+and [primitive-kernel inversion boundary](../progress/2026-10-07-original-association-inversion-attack.md)
+refine that same original-fiber obligation. The [bounded clause audit](../progress/2026-10-07-original-association-source-kernel-audit.md)
+supplies no missing source introduction or exhaustive internal licensing inverse.
 The latest [source-view composition](../progress/2026-10-07-source-view-to-original-attachment-composition.md)
 removes no additional original static slot/contribution premise, and the
 [execution-erasure coverage attack](../progress/2026-10-07-attachment-coverage-adversarial-attempt.md)
@@ -137,6 +142,9 @@ need proof. Printed member schemes or reused arena ordinals are insufficient.
 Current [shadow source/core](../../crates/yu-core/src/shadow_derivation.rs)
 retains locators and pending semantics. [Parameter-owner plumbing](../progress/2026-10-06-shadow-call-parameter-declaration-owner.md)
 and Frozen Oracle differential joins add only exact structural provenance.
+The retained [binder-use grouping](../progress/2026-10-07-shadow-pending-binder-use-groups.md)
+likewise groups only existing direct-Use registrations and leaves complete
+source-use coverage and all semantic judgments open.
 The actual [production solver](../../crates/yu-solver/src/lib.rs) still owns
 collection, worklists, F5 generalization, fresh instantiation and publication.
 Complete HIR/source coverage, State/world equations, method/role/associated/
