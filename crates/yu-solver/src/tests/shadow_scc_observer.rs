@@ -1,6 +1,130 @@
 use super::{collect, module};
 
 #[test]
+fn pending_successor_generalization_preserves_singleton_without_uses() {
+    use crate::shadow_scc::{PendingSccGeneralizationPremise, SccTopologyLookupError};
+    let hir = module("my a = 42", "shadow-scc-pending-singleton.yu");
+    let batch = collect(hir.clone());
+    let foreign = collect(hir);
+    let before = batch.counters();
+    let topology = batch.shadow_scc_topology();
+    let component = topology.components().next().unwrap();
+    let pending = component.pending_successor_generalization();
+    assert_eq!(
+        pending.premise(),
+        PendingSccGeneralizationPremise::SuccessorGeneralizationRuleUnresolved
+    );
+    assert!(pending.component().same_identity(component));
+    let member = pending.component().members().next().unwrap();
+    assert!(member.same_identity(component.canonical_definition()));
+    assert!(
+        pending
+            .component()
+            .same_identity(topology.component_of(member).unwrap())
+    );
+    assert_eq!(pending.component().members().count(), 1);
+    assert_eq!(pending.component().internal_uses().count(), 0);
+    assert_eq!(pending.component().incoming_uses().count(), 0);
+    let foreign_pending = foreign
+        .shadow_scc_topology()
+        .components()
+        .next()
+        .unwrap()
+        .pending_successor_generalization();
+    assert!(
+        !pending
+            .component()
+            .same_identity(foreign_pending.component())
+    );
+    assert!(matches!(
+        topology.component_of(foreign_pending.component().canonical_definition()),
+        Err(SccTopologyLookupError::ForeignArtifact)
+    ));
+    assert_eq!(before, batch.counters());
+}
+
+#[test]
+fn pending_successor_generalization_borrows_mutual_component_without_skeleton() {
+    use crate::shadow_scc::{PendingSccGeneralizationPremise, SccTopologyLookupError};
+    let parsed = parsed("my a = b; my b = a; my caller = a");
+    let batch = source_batch(&parsed);
+    let foreign = source_batch(&parsed);
+    let shadow = yu_hir::shadow::ShadowArtifact::from_parsed(parsed).unwrap();
+    assert!(shadow.skeleton().is_err());
+    let crosswalk = shadow.skeleton_source_crosswalk();
+    let before = batch.counters();
+    let topology = batch.shadow_scc_topology();
+    for component in topology.components() {
+        let pending = component.pending_successor_generalization();
+        assert_eq!(
+            pending.premise(),
+            PendingSccGeneralizationPremise::SuccessorGeneralizationRuleUnresolved
+        );
+        assert!(pending.component().same_identity(component));
+        let members = component.members().collect::<Vec<_>>();
+        let retained = pending.component().members().collect::<Vec<_>>();
+        assert_eq!(retained.len(), members.len());
+        for (member, original) in retained.iter().zip(&members) {
+            assert!(member.same_identity(*original));
+            assert!(component.same_identity(topology.component_of(*member).unwrap()));
+            assert!(
+                topology
+                    .definition_shadow_ref(&crosswalk, *member)
+                    .unwrap()
+                    .is_none()
+            );
+        }
+        let original_uses = component
+            .internal_uses()
+            .chain(component.incoming_uses())
+            .collect::<Vec<_>>();
+        let retained_uses = pending
+            .component()
+            .internal_uses()
+            .chain(pending.component().incoming_uses())
+            .collect::<Vec<_>>();
+        assert_eq!(retained_uses.len(), original_uses.len());
+        for (occurrence, original) in retained_uses.iter().zip(&original_uses) {
+            assert!(occurrence.same_identity(*original));
+            let (parent, target) = topology.use_definitions(*occurrence).unwrap();
+            let (original_parent, original_target) = topology.use_definitions(*original).unwrap();
+            assert!(parent.same_identity(original_parent));
+            assert!(target.same_identity(original_target));
+            assert!(component.same_identity(topology.component_of(target).unwrap()));
+            assert!(
+                topology
+                    .use_shadow_ref(&crosswalk, *occurrence)
+                    .unwrap()
+                    .is_none()
+            );
+        }
+    }
+    let mutual = topology
+        .components()
+        .next()
+        .unwrap()
+        .pending_successor_generalization();
+    assert_eq!(mutual.component().members().count(), 2);
+    assert_eq!(mutual.component().internal_uses().count(), 2);
+    assert_eq!(mutual.component().incoming_uses().count(), 1);
+    let foreign_use = foreign
+        .shadow_scc_topology()
+        .components()
+        .next()
+        .unwrap()
+        .pending_successor_generalization()
+        .component()
+        .internal_uses()
+        .next()
+        .unwrap();
+    assert!(matches!(
+        topology.use_definitions(foreign_use),
+        Err(SccTopologyLookupError::ForeignArtifact)
+    ));
+    assert_eq!(before, batch.counters());
+}
+
+#[test]
 fn borrows_current_component_and_use_topology_without_solver_queries() {
     let batch = collect(module(
         "my a = b; my b = a; my c = 42; my d = a",

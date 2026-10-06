@@ -207,6 +207,12 @@ pub struct SccComponentRef<'a> {
 }
 
 impl<'a> SccComponentRef<'a> {
+    /// Retain this current component while successor generalization is unresolved.
+    /// Empty uses or absent shadow syntax do not discharge the premise.
+    pub fn pending_successor_generalization(self) -> PendingSccGeneralizationRef<'a> {
+        PendingSccGeneralizationRef { component: self }
+    }
+
     /// Compare exact component identity, including its collection artifact.
     pub fn same_identity(self, other: Self) -> bool {
         self.id == other.id
@@ -245,6 +251,30 @@ impl<'a> SccComponentRef<'a> {
             .iter()
             .map(|id| SccUseRef { id })
     }
+}
+
+/// Structural carrier of a current component, not a generalized interface.
+/// This asserts neither eligibility nor equality with a successor generalized SCC.
+#[derive(Clone, Copy)]
+pub struct PendingSccGeneralizationRef<'a> {
+    component: SccComponentRef<'a>,
+}
+
+impl<'a> PendingSccGeneralizationRef<'a> {
+    pub fn component(self) -> SccComponentRef<'a> {
+        self.component
+    }
+
+    /// The semantic rule remains unresolved for every current component.
+    pub fn premise(self) -> PendingSccGeneralizationPremise {
+        PendingSccGeneralizationPremise::SuccessorGeneralizationRuleUnresolved
+    }
+}
+
+/// No successor eligibility, binder arrangement, or freshening is established.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum PendingSccGeneralizationPremise {
+    SuccessorGeneralizationRuleUnresolved,
 }
 
 /// Opaque definition identity borrowed from a collected batch.

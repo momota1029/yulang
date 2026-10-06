@@ -145,6 +145,14 @@ original pre-query `(beta,p0,j_call;s,c)` association, `Slots(beta)`, a complete
 contribution, or the shared `(nu,K,D)`; Oracle remains non-authoritative and
 `ORIGINAL_ASSOC` stays open.
 
+The bounded [Frozen Oracle ordinary-call source producer archaeology](../notes/progress/2026-10-07-frozen-oracle-ordinary-call-source-producer-archaeology.md)
+traces header pattern extraction into `Def::Arg`, lexical `RefId` resolution,
+ordinary App construction and the historical `(selected frame, formal DefId)`
+subtraction marker. These records retain source/use/frame identities and live
+inference endpoints, but no original static slot or complete receiver
+contribution under the original shared `xi`. This is bounded historical
+characterization only; `ORIGINAL_ASSOC` and all dependent gates remain open.
+
 A focused reread of the already documented application-boundary producer adds
 its per-argument CST range and the origin-before-demand / eager-drain /
 conditional-span-after-demand ordering. The compiler-referee-reviewed
@@ -387,6 +395,14 @@ collection-brand and frozen-plan validation. This supports future generalized
 SCC identity plumbing but does not form a successor interface, map Q/R, or
 freshen uses. Compiler-referee review passed; all 10 focused SCC observer tests
 and the feature-off core/solver check passed.
+
+The [pending SCC generalization carrier](../notes/progress/2026-10-07-shadow-pending-scc-generalization.md)
+retains one exact current component behind the unconditional premise
+`SuccessorGeneralizationRuleUnresolved`. It preserves current members, use
+endpoints and artifact identity even for empty-use components or absent source
+skeletons. Compiler-referee review and the focused 12-test observer run passed;
+feature-off solver check passed. It introduces no successor eligibility,
+generalized interface, Q/R mapping, beta/Slots, freshening or production route.
 
 Production `SolvedModule`/collector/live solver/F5/generalizer/instantiator/
 publisher and consumers remain separate correspondence work. A final scheme
