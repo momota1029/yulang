@@ -17,6 +17,98 @@ fn artifact(source: &str) -> ShadowArtifact {
 }
 
 #[test]
+fn source_call_registration_borrows_exact_parameter_declaration_owner() {
+    for source in [
+        "my apply f = f 1",
+        "my repeated f x = f (f x)",
+        "my apply f = { my step x = f x; step }",
+        "my apply f x = f x",
+    ] {
+        let first = artifact(source);
+        let foreign = artifact(source);
+        let skeleton = first.skeleton().unwrap();
+        let crosswalk = first.skeleton_source_crosswalk();
+        let arena = RawStructuralArena::from_artifact(&first).unwrap();
+        let mut owners = Vec::new();
+        let mut absent = 0;
+        for registration in arena
+            .nodes()
+            .iter()
+            .filter_map(|node| node.pending_source_call_registration())
+        {
+            let binder = registration.source_use_input.binder();
+            let expected = crosswalk
+                .parameter_at_position(skeleton.binder(binder).unwrap().position())
+                .unwrap();
+            let Some(declaration) = registration.parameter_declaration else {
+                assert!(expected.is_none());
+                absent += 1;
+                continue;
+            };
+            let (lambda, parameter) = expected.unwrap();
+            assert!(std::ptr::eq(declaration.lambda, lambda));
+            assert!(std::ptr::eq(declaration.parameter, parameter));
+            assert_eq!(parameter, binder);
+            let Form::Lambda {
+                parameter: declared,
+                ..
+            } = lambda.form()
+            else {
+                panic!("parameter owner is a retained Lambda")
+            };
+            assert!(std::ptr::eq(parameter, declared));
+            assert_eq!(
+                foreign.skeleton().unwrap().binder(parameter).unwrap_err(),
+                ShadowError::ForeignArtifact
+            );
+            assert_eq!(
+                foreign
+                    .skeleton_source_crosswalk()
+                    .parameter_at_position(skeleton.binder(parameter).unwrap().position())
+                    .unwrap_err(),
+                ShadowError::ForeignArtifact
+            );
+            for (previous_binder, previous_lambda) in &owners {
+                if *previous_binder == binder {
+                    assert!(std::ptr::eq(*previous_lambda, lambda));
+                }
+            }
+            if source.contains("my step") {
+                assert_eq!(skeleton.binder(parameter).unwrap().name(), "f");
+                assert_eq!(lambda.range().start, 0);
+            }
+            owners.push((binder, lambda));
+        }
+        // These existing projections retain source binders but no Lambda
+        // declaration. Missing metadata does not establish semantic absence.
+        if source == "my repeated f x = f (f x)" {
+            assert_eq!(absent, 2);
+            assert!(owners.is_empty());
+            let registrations = arena
+                .nodes()
+                .iter()
+                .filter_map(|node| node.pending_source_call_registration())
+                .collect::<Vec<_>>();
+            assert_eq!(
+                registrations[0].source_use_input.binder(),
+                registrations[1].source_use_input.binder()
+            );
+            assert!(
+                registrations
+                    .iter()
+                    .all(|registration| registration.parameter_declaration.is_none())
+            );
+        } else if source == "my apply f x = f x" {
+            assert_eq!(absent, 1);
+            assert!(owners.is_empty());
+        } else {
+            assert_eq!(absent, 0);
+            assert!(!owners.is_empty());
+        }
+    }
+}
+
+#[test]
 fn raw_inventory_carries_exact_hir_source_call_use_inputs_without_discharge() {
     for source in [
         "my apply x (f: T) (g: T) = f (g x)",

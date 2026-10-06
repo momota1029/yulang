@@ -3,8 +3,8 @@
 
 use yu_hir::shadow::{
     AnnotationOccurrence, BinderId, CaptureUseIncidence, CapturedCallInput, ClosureCorrespondence,
-    ExprId, Form, ParameterAnnotationIncidence, PendingPremise, Position, ResolvedCallIncidence,
-    ShadowArtifact, Skeleton, SourceCallUseInput, SourceViewPremiseLocator,
+    ExprId, Expression, Form, ParameterAnnotationIncidence, PendingPremise, Position,
+    ResolvedCallIncidence, ShadowArtifact, Skeleton, SourceCallUseInput, SourceViewPremiseLocator,
     UnresolvedSourceViewPremise, UseId,
 };
 
@@ -189,6 +189,7 @@ impl<'a> RawStructuralArena<'a> {
     pub fn from_artifact(artifact: &'a ShadowArtifact) -> Option<Self> {
         let skeleton = artifact.skeleton().ok()?;
         skeleton.expression(skeleton.body()).ok()?;
+        let crosswalk = artifact.skeleton_source_crosswalk();
         let mut annotation_offsets = std::collections::HashMap::new();
         let mut annotations = Vec::with_capacity(artifact.annotations().len());
         for occurrence in artifact.annotations() {
@@ -229,6 +230,7 @@ impl<'a> RawStructuralArena<'a> {
                     application_premises: Vec::new(),
                     direct_use: None,
                     source_use_input: None,
+                    parameter_declaration: None,
                     capture: None,
                     captured_input: None,
                 }),
@@ -292,7 +294,25 @@ impl<'a> RawStructuralArena<'a> {
                 return None;
             }
             skeleton.expression(input.argument()).ok()?;
-            skeleton.binder(input.binder()).ok()?;
+            let binder = skeleton.binder(input.binder()).ok()?;
+            let parameter_declaration =
+                match crosswalk.parameter_at_position(binder.position()).ok()? {
+                    Some((lambda, parameter)) => {
+                        let Form::Lambda {
+                            parameter: declared,
+                            ..
+                        } = lambda.form()
+                        else {
+                            return None;
+                        };
+                        if parameter != input.binder() || declared != parameter {
+                            return None;
+                        }
+                        skeleton.binder(parameter).ok()?;
+                        Some(RawParameterDeclaration { lambda, parameter })
+                    }
+                    None => None,
+                };
             for incidence in input.parameter_annotations() {
                 let occurrence = artifact.annotation(incidence.annotation()).ok()?;
                 let annotation =
@@ -312,6 +332,7 @@ impl<'a> RawStructuralArena<'a> {
             {
                 return None;
             }
+            raw_call.parameter_declaration = parameter_declaration;
         }
         for capture in skeleton.capture_uses() {
             let call = skeleton.capture_call(capture).ok()?;
@@ -507,8 +528,18 @@ pub struct RawCall<'a> {
     /// Existing HIR reference join only: no formal, slot, typing or admission
     /// judgment. An empty annotation iterator proves neither absence nor completeness.
     pub source_use_input: Option<SourceCallUseInput<'a>>,
+    /// Exact source Lambda declaration only; no semantic formal or annotation claim.
+    pub parameter_declaration: Option<RawParameterDeclaration<'a>>,
     pub capture: Option<&'a CaptureUseIncidence>,
     captured_input: Option<CapturedCallInput<'a>>,
+}
+
+/// Borrowed declaration ownership for an exact resolved BinderId. This supplies
+/// no callable role, annotation completeness, typed path or premise discharge.
+#[derive(Clone, Copy, Debug)]
+pub struct RawParameterDeclaration<'a> {
+    pub lambda: &'a Expression,
+    pub parameter: &'a BinderId,
 }
 
 impl<'artifact> RawNode<'artifact> {
@@ -523,6 +554,7 @@ impl<'artifact> RawNode<'artifact> {
             source: &self.source,
             application: self.form,
             source_use_input,
+            parameter_declaration: call.parameter_declaration.as_ref(),
             application_premises: &call.application_premises,
             capture: call.capture,
             captured_input: call.captured_input.as_ref(),
@@ -538,6 +570,7 @@ pub struct PendingSourceCallRegistration<'registration, 'artifact> {
     pub source: &'registration ExprId,
     pub application: &'artifact Form,
     pub source_use_input: &'registration SourceCallUseInput<'artifact>,
+    pub parameter_declaration: Option<&'registration RawParameterDeclaration<'artifact>>,
     pub application_premises: &'registration [&'artifact PendingPremise],
     pub capture: Option<&'artifact CaptureUseIncidence>,
     pub captured_input: Option<&'registration CapturedCallInput<'artifact>>,
