@@ -323,3 +323,129 @@ fn reverse_dag_joins_source_by_identity_despite_dependency_first_order() {
     }
     assert_eq!(before, batch.counters());
 }
+
+#[test]
+fn skeleton_crosswalk_maps_admitted_unary_definition_and_rejects_foreign_inputs() {
+    use crate::shadow_scc::{SccShadowLookupError, SccSourceLookupError};
+    use yu_hir::shadow::{Form, ShadowArtifact, SourceIdentityError};
+    let parsed = parsed("my f x = x");
+    let batch = source_batch(&parsed);
+    let topology = batch.shadow_scc_topology();
+    let shadow = ShadowArtifact::from_parsed(parsed.clone()).unwrap();
+    let crosswalk = shadow.skeleton_source_crosswalk();
+    let before = batch.counters();
+    let definition = topology.definitions().next().unwrap();
+    let (expression, binder) = topology
+        .definition_shadow_ref(&crosswalk, definition)
+        .unwrap()
+        .unwrap();
+    assert!(matches!(expression.form(), Form::Lambda { binding, .. } if binding == binder));
+    assert_eq!(
+        expression.position(),
+        &topology
+            .definition_source_position(&shadow, definition)
+            .unwrap()
+    );
+    let foreign = source_batch(&parsed);
+    assert!(matches!(
+        topology.definition_shadow_ref(
+            &crosswalk,
+            foreign.shadow_scc_topology().definitions().next().unwrap()
+        ),
+        Err(SccShadowLookupError::Source(
+            SccSourceLookupError::ForeignCollection
+        ))
+    ));
+    let reparsed = ShadowArtifact::from_parsed(self::parsed("my f x = x")).unwrap();
+    assert!(matches!(
+        topology.definition_shadow_ref(&reparsed.skeleton_source_crosswalk(), definition),
+        Err(SccShadowLookupError::Source(
+            SccSourceLookupError::SourceIdentity(SourceIdentityError::ForeignParse)
+        ))
+    ));
+    assert_eq!(before, batch.counters());
+}
+
+#[test]
+fn skeleton_crosswalk_absence_preserves_reverse_dag_and_repeated_scc_uses() {
+    let parsed = parsed(
+        "my head = middle; my middle = tail; my tail = 42; my repeat = head; my again = head",
+    );
+    let batch = source_batch(&parsed);
+    let shadow = yu_hir::shadow::ShadowArtifact::from_parsed(parsed.clone()).unwrap();
+    assert!(shadow.skeleton().is_err());
+    let crosswalk = shadow.skeleton_source_crosswalk();
+    let topology = batch.shadow_scc_topology();
+    let before = batch.counters();
+    let definitions = topology.definitions().collect::<Vec<_>>();
+    assert_eq!(
+        definitions
+            .iter()
+            .map(|d| d.collection_ordinal())
+            .collect::<Vec<_>>(),
+        vec![2, 1, 0, 3, 4]
+    );
+    for definition in definitions {
+        assert!(
+            topology
+                .definition_shadow_ref(&crosswalk, definition)
+                .unwrap()
+                .is_none()
+        );
+    }
+    let uses = topology
+        .components()
+        .flat_map(|c| c.internal_uses().chain(c.incoming_uses()))
+        .collect::<Vec<_>>();
+    assert_eq!(uses.len(), 4);
+    let positions = uses
+        .iter()
+        .map(|u| topology.use_source_position(&shadow, *u).unwrap())
+        .collect::<Vec<_>>();
+    for (index, occurrence) in uses.iter().enumerate() {
+        assert!(
+            topology
+                .use_shadow_ref(&crosswalk, *occurrence)
+                .unwrap()
+                .is_none()
+        );
+        assert!(!positions[..index].contains(&positions[index]));
+    }
+    assert_eq!(before, batch.counters());
+}
+
+#[test]
+fn nested_skeleton_candidates_do_not_add_current_scc_members() {
+    let parsed = parsed("my apply f = { my step x = f x; step }");
+    let batch = source_batch(&parsed);
+    let shadow = yu_hir::shadow::ShadowArtifact::from_parsed(parsed.clone()).unwrap();
+    let skeleton = shadow.skeleton().unwrap();
+    let crosswalk = shadow.skeleton_source_crosswalk();
+    assert_eq!(
+        skeleton
+            .expressions()
+            .iter()
+            .filter(|e| matches!(
+                e.form(),
+                yu_hir::shadow::Form::Lambda { .. } | yu_hir::shadow::Form::Bind { .. }
+            ))
+            .count(),
+        3
+    );
+    let topology = batch.shadow_scc_topology();
+    let definitions = topology.definitions().collect::<Vec<_>>();
+    assert_eq!(definitions.len(), 1);
+    assert!(
+        topology
+            .definition_shadow_ref(&crosswalk, definitions[0])
+            .unwrap()
+            .is_some()
+    );
+    assert_eq!(
+        topology
+            .components()
+            .flat_map(|c| c.internal_uses().chain(c.incoming_uses()))
+            .count(),
+        0
+    );
+}

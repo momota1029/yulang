@@ -946,3 +946,85 @@ fn shadow_source_core_nested_candidate_matches_independent_cst_projection() {
     // provider/receiver, receipt, O/A, Q registration and nu/K/D remain open;
     // it claims neither a semantic theorem nor production-infer parity.
 }
+
+#[test]
+fn shadow_source_core_crosswalk_checks_positions_and_preserves_repeated_uses() {
+    let artifact = ShadowArtifact::from_parsed(parsed("my f x = x x")).unwrap();
+    let skeleton = artifact.skeleton().unwrap();
+    let crosswalk = artifact.skeleton_source_crosswalk();
+    let lambda = skeleton
+        .expressions()
+        .iter()
+        .find(|e| matches!(e.form(), Form::Lambda { .. }))
+        .unwrap();
+    let (represented, binding) = crosswalk
+        .definition_at_position(lambda.position())
+        .unwrap()
+        .unwrap();
+    assert!(std::ptr::eq(represented, lambda));
+    assert!(matches!(lambda.form(), Form::Lambda { binding: expected, .. } if expected == binding));
+    let uses = skeleton
+        .expressions()
+        .iter()
+        .filter_map(|e| match e.form() {
+            Form::Use { occurrence, .. } => Some(occurrence),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(uses.len(), 2);
+    assert_ne!(uses[0], uses[1]);
+    for occurrence in uses {
+        assert!(std::ptr::eq(
+            crosswalk
+                .use_at_position(skeleton.use_position(occurrence).unwrap())
+                .unwrap()
+                .unwrap(),
+            occurrence
+        ));
+    }
+    assert!(
+        crosswalk
+            .definition_at_position(&artifact.root())
+            .unwrap()
+            .is_none()
+    );
+    let foreign = ShadowArtifact::from_parsed(parsed("my f x = x x")).unwrap();
+    assert_eq!(
+        crosswalk.use_at_position(&foreign.root()),
+        Err(ShadowError::ForeignArtifact)
+    );
+    assert!(matches!(
+        crosswalk.definition_at_position(&foreign.root()),
+        Err(ShadowError::ForeignArtifact)
+    ));
+}
+
+#[test]
+fn shadow_source_core_crosswalk_retains_nested_candidates_without_module_membership() {
+    let artifact =
+        ShadowArtifact::from_parsed(parsed("my apply f = { my step x = f x; step }")).unwrap();
+    let skeleton = artifact.skeleton().unwrap();
+    let crosswalk = artifact.skeleton_source_crosswalk();
+    let definitions = skeleton
+        .expressions()
+        .iter()
+        .filter(|e| matches!(e.form(), Form::Lambda { .. } | Form::Bind { .. }))
+        .collect::<Vec<_>>();
+    assert_eq!(definitions.len(), 3);
+    for expression in definitions {
+        assert!(std::ptr::eq(
+            crosswalk
+                .definition_at_position(expression.position())
+                .unwrap()
+                .unwrap()
+                .0,
+            expression
+        ));
+    }
+    let unsupported = ShadowArtifact::from_parsed(parsed("my a = 42")).unwrap();
+    assert!(unsupported.skeleton().is_err());
+    let empty = unsupported.skeleton_source_crosswalk();
+    for position in unsupported.raw_declaration_positions() {
+        assert!(empty.definition_at_position(&position).unwrap().is_none());
+    }
+}

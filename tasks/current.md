@@ -59,6 +59,14 @@ witness and a source-generated upper Function exposure at the same original
 scope. No completed original P, Q success or solved result traversal is needed
 for this local introduction. The provider-lower edge cannot trigger the rule.
 
+The bounded [ordinary Apply output bridge](../notes/progress/2026-10-06-directional-apply-output-bridge-attempt.md)
+connects the reviewed source-call schema to that directional rule at the
+generated complete-invocation output occurrence, conditional on the selected
+seed-at-exposure witness and reviewed Call premises. It reaches the static
+`NewProtection` record only; complete original profile, event contribution,
+typed receipt and live-receiver observation remain open. This is a frozen
+unreviewed research submission, not a source-wide rule or production result.
+
 The new author-checked arguments are local soundness/completeness of this
 incidence producer, no-backflow, coherent-renaming invariance, deterministic
 whole-row extension and a two-input impossibility of recovering the rule
@@ -137,6 +145,22 @@ judgment, production route, or theorem follows. See the [directional pending
 obligation](../notes/progress/2026-10-06-shadow-directional-protection-obligation.md),
 [F5 freshening capture](../notes/progress/2026-10-06-shadow-f5-test-freshening-trace.md),
 and [SCC source identity checkpoint](../notes/progress/2026-10-06-shadow-scc-source-identity-join.md).
+
+The reviewed [SCC-to-skeleton crosswalk](../crates/yu-solver/src/shadow_scc.rs)
+provides checked borrowed lookups from current F0–F2 definition/use identities
+into already represented shadow Lambda/Bind/Use identities. Unsupported
+projections remain explicit absence; this establishes no successor SCC
+membership, dependency edge, generalized interface or semantic judgment.
+Focused HIR and solver shadow tests and feature-off package checks passed.
+
+The compiler-referee-reviewed Frozen Oracle [provider-attachment archaeology](../notes/progress/2026-10-06-frozen-oracle-source-producer-provider-attachment.md)
+adds a downstream historical mechanism: evidence-VM closure requirements
+produce capture slots, and provider environments attach/fill them before
+nonempty closure entry. Its fixture supplies slot/handler mappings manually;
+the mechanism does not produce current `U_c`, original `beta/Slots(beta)`,
+Q-independent admission, joint `xi`, or typed source receipt/capture
+correspondence. Oracle semantics remain non-authoritative and current
+source/proof gates remain open.
 
 One primary owns Git integration. Preserve all parallel work; stage or publish
 only exact intended paths, inspect the expected remote head and complete diff,

@@ -16,6 +16,36 @@ pub struct SccTopology<'a> {
 }
 
 impl<'a> SccTopology<'a> {
+    /// Exact structural correspondence only; absence does not remove an SCC member.
+    pub fn definition_shadow_ref<'s>(
+        &self,
+        crosswalk: &yu_hir::shadow::SkeletonSourceCrosswalk<'s>,
+        definition: SccDefinitionRef<'_>,
+    ) -> Result<
+        Option<(&'s yu_hir::shadow::Expression, &'s yu_hir::shadow::BinderId)>,
+        SccShadowLookupError,
+    > {
+        let position = self
+            .definition_source_position(crosswalk.artifact(), definition)
+            .map_err(SccShadowLookupError::Source)?;
+        crosswalk
+            .definition_at_position(&position)
+            .map_err(SccShadowLookupError::Shadow)
+    }
+
+    /// Retains the collection use even when no skeleton use represents it.
+    pub fn use_shadow_ref<'s>(
+        &self,
+        crosswalk: &yu_hir::shadow::SkeletonSourceCrosswalk<'s>,
+        occurrence: SccUseRef<'_>,
+    ) -> Result<Option<&'s yu_hir::shadow::UseId>, SccShadowLookupError> {
+        let position = self
+            .use_source_position(crosswalk.artifact(), occurrence)
+            .map_err(SccShadowLookupError::Source)?;
+        crosswalk
+            .use_at_position(&position)
+            .map_err(SccShadowLookupError::Shadow)
+    }
     pub(crate) fn new(batch: &'a ConstraintBatch) -> Self {
         Self {
             batch,
@@ -206,4 +236,11 @@ pub enum SccSourceLookupError {
     ForeignCollection,
     MissingIdentity,
     SourceIdentity(yu_hir::shadow::SourceIdentityError),
+}
+
+/// Source/artifact rejection remains distinct from an unrepresented position.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum SccShadowLookupError {
+    Source(SccSourceLookupError),
+    Shadow(yu_hir::shadow::ShadowError),
 }

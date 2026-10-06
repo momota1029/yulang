@@ -76,7 +76,69 @@ pub struct ShadowArtifact {
 pub const MAX_SYNTAX_DEPTH: usize = 128;
 pub const MAX_RAW_ELEMENTS: usize = 65_536;
 
+/// Borrowed exact-position index of the existing structural projection.
+/// Presence supplies neither module membership nor a semantic judgment.
+pub struct SkeletonSourceCrosswalk<'a> {
+    artifact: &'a ShadowArtifact,
+    definitions: HashMap<usize, (&'a Expression, &'a BinderId)>,
+    uses: HashMap<usize, &'a UseId>,
+}
+
+impl<'a> SkeletonSourceCrosswalk<'a> {
+    pub fn artifact(&self) -> &'a ShadowArtifact {
+        self.artifact
+    }
+
+    pub fn definition_at_position(
+        &self,
+        position: &PositionId,
+    ) -> Result<Option<(&'a Expression, &'a BinderId)>, ShadowError> {
+        self.artifact.position(position)?;
+        Ok(self.definitions.get(&position.0.index).copied())
+    }
+
+    pub fn use_at_position(&self, position: &PositionId) -> Result<Option<&'a UseId>, ShadowError> {
+        self.artifact.position(position)?;
+        Ok(self.uses.get(&position.0.index).copied())
+    }
+}
+
 impl ShadowArtifact {
+    /// Build once per borrowed observation, including an empty index when the
+    /// bounded skeleton is unavailable. Raw source identities remain queryable.
+    pub fn skeleton_source_crosswalk(&self) -> SkeletonSourceCrosswalk<'_> {
+        let mut crosswalk = SkeletonSourceCrosswalk {
+            artifact: self,
+            definitions: HashMap::new(),
+            uses: HashMap::new(),
+        };
+        if let Ok(skeleton) = self.skeleton() {
+            for expression in skeleton.expressions() {
+                match expression.form() {
+                    Form::Lambda { binding, .. }
+                    | Form::Bind {
+                        binder: binding, ..
+                    } => {
+                        crosswalk
+                            .definitions
+                            .insert(expression.position().0.index, (expression, binding));
+                    }
+                    Form::Use { occurrence, .. } => {
+                        crosswalk.uses.insert(
+                            skeleton
+                                .use_position(occurrence)
+                                .expect("validated skeleton use position")
+                                .0
+                                .index,
+                            occurrence,
+                        );
+                    }
+                    _ => {}
+                }
+            }
+        }
+        crosswalk
+    }
     /// Publishes atomically after iterative structural preflight. Unsupported
     /// lexical/application projection remains an error inside the complete snapshot.
     pub fn from_parsed(parsed: ParsedFile) -> Result<Self, ShadowError> {
