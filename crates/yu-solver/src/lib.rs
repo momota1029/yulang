@@ -7208,7 +7208,31 @@ pub struct SolvedModule {
 ///
 /// F3b preserves the frozen F0--F2 admission and projection behavior while
 /// placing its mutable state behind the future SCC-closure boundary.
+// Private correspondence evidence: row ordinals belong only to this capture session.
+#[cfg(all(test, feature = "shadow-f5"))]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum ShadowFreshBinderKind {
+    Quantified,
+    Recursive,
+}
+
+#[cfg(all(test, feature = "shadow-f5"))]
+struct ShadowFreshRoute {
+    use_id: DefinitionUseId,
+    target: DefinitionOrderId,
+    rows: Vec<(ShadowFreshBinderKind, u32, u32)>,
+}
+
+#[cfg(all(test, feature = "shadow-f5"))]
+#[derive(Default)]
+struct ShadowFreshCapture {
+    pending: Option<ShadowFreshRoute>,
+    routes: Vec<ShadowFreshRoute>,
+}
+
 struct InferenceSession {
+    #[cfg(all(test, feature = "shadow-f5"))]
+    shadow_fresh_capture: Option<ShadowFreshCapture>,
     f5c_draft_work: F5cDraftWorkMeter,
     batch: ConstraintBatch,
     store: ConstraintStore,
@@ -9345,6 +9369,8 @@ impl InferenceSession {
             route_attempt_physical_change: false,
             incoming_route_accounting_active: false,
             incoming_route_event_sample_failed: false,
+            #[cfg(all(test, feature = "shadow-f5"))]
+            shadow_fresh_capture: None,
             #[cfg(test)]
             incoming_term_event_snapshots: [None; 6],
             #[cfg(test)]
@@ -14683,6 +14709,10 @@ impl InferenceSession {
     }
 
     fn route_incoming(&mut self, id: &DefinitionUseId) -> Result<usize, SolveAvailabilityError> {
+        #[cfg(all(test, feature = "shadow-f5"))]
+        if let Some(capture) = &mut self.shadow_fresh_capture {
+            capture.pending = None;
+        }
         let use_record = Self::validated_route_use(&self.batch, id)?.clone();
         #[cfg(test)]
         incoming_sample_trace::begin_attempt();
@@ -14747,6 +14777,10 @@ impl InferenceSession {
             self.instantiation_scratch.lane_growths = pending.3;
             #[cfg(test)]
             incoming_sample_trace::end_attempt();
+            #[cfg(all(test, feature = "shadow-f5"))]
+            if let Some(capture) = &mut self.shadow_fresh_capture {
+                capture.pending = None;
+            }
             return sample_result.and(result);
         }
         #[cfg(test)]
@@ -14756,6 +14790,13 @@ impl InferenceSession {
         }
         #[cfg(test)]
         incoming_sample_trace::end_attempt();
+        #[cfg(all(test, feature = "shadow-f5"))]
+        if let Some(capture) = &mut self.shadow_fresh_capture {
+            let pending = capture.pending.take();
+            if !event_sample_failed && result.is_ok() {
+                capture.routes.push(pending.expect("successful inner route stages evidence"));
+            }
+        }
         if event_sample_failed {
             Err(SolveAvailabilityError::IdentityExhausted)
         } else {
@@ -14979,6 +15020,33 @@ impl InferenceSession {
             if let Err(error) = self.sample_failed_instantiation_growth(&mut scratch) {
                 self.incoming_route_event_sample_failed = true;
                 result = Err(error);
+            }
+        }
+        #[cfg(all(test, feature = "shadow-f5"))]
+        if result.is_ok() {
+            if let Some(capture) = &mut self.shadow_fresh_capture {
+                let view = finalization.scheme_view(&scheme).expect("validated scheme");
+                let rows = (0..view.quantifier_count())
+                    .map(|ordinal| (ShadowFreshBinderKind::Quantified, ordinal))
+                    .chain(
+                        view.recursive_bounds()
+                            .iter()
+                            .map(|bound| {
+                                (ShadowFreshBinderKind::Recursive, bound.binder().ordinal())
+                            }),
+                    )
+                    .filter_map(|(kind, ordinal)| {
+                        scratch
+                            .substitution
+                            .get(&ordinal)
+                            .map(|&row| (kind, ordinal, row))
+                    })
+                    .collect();
+                capture.pending = Some(ShadowFreshRoute {
+                    use_id: id.clone(),
+                    target: use_record.target.clone(),
+                    rows,
+                });
             }
         }
         scratch.clear();

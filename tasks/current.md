@@ -2150,7 +2150,12 @@ remain in the linked progress records above and
   [live closure work bound](../notes/progress/2026-10-06-bounded-live-closure-work-count.md).
 
 The conditional results do not close these unrestricted gates or authorize
-compiler implementation.
+production inference replacement. The separately authorized default-off shadow
+lane may retain settled structure and identity evidence while leaving semantic
+judgments pending. The current F5 test-only freshening trace records actual
+Q/R-to-fresh-row routing under that boundary; it does not establish successor
+identity or semantics. See the
+[shadow freshening trace](../notes/progress/2026-10-06-shadow-f5-test-freshening-trace.md).
 
 ## Governing designs and preserved history
 
