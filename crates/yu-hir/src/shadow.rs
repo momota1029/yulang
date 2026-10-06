@@ -1022,8 +1022,8 @@ fn build_skeleton(
     } else {
         artifact.project(chain, source, positions)?
     };
-    // Retain ordinary unary leaves and one application of direct leaves. Publish the
-    // declaration identity after projection so it cannot resolve in its body.
+    // Publish the declaration identity after projection so it cannot resolve in
+    // its body. Annotation-bearing sources retain their direct-body eligibility.
     let header_elements = header
         .children_with_tokens()
         .filter(|element| {
@@ -1051,7 +1051,17 @@ fn build_skeleton(
     };
     if parameters.len() == 1
         && header_elements == [SyntaxKind::MyKw, SyntaxKind::Pattern, SyntaxKind::Equals]
-        && direct_body
+        && (direct_body
+            || (artifact.parameter_annotations.is_empty()
+                && artifact.expressions.iter().all(|expression| {
+                    matches!(
+                        expression.form(),
+                        Form::Use { .. }
+                            | Form::IntegerLiteral { .. }
+                            | Form::Group { .. }
+                            | Form::Apply { .. }
+                    )
+                })))
     {
         let (name_text, range) = identifier(name, source)?;
         let binding = BinderId(artifact.id(artifact.binders.len()));

@@ -161,6 +161,26 @@ fn shadow_source_core_unary_declaration_does_not_enter_its_body_scope() {
         "my f x = x(x x)",
         "my f x = x((x))",
         "my f x = x(42)(x)",
+    ] {
+        let skeleton = shadow_from_source(source).unwrap();
+        let lambdas = skeleton
+            .expressions()
+            .iter()
+            .filter(|expression| matches!(expression.form(), Form::Lambda { .. }))
+            .collect::<Vec<_>>();
+        let [lambda] = lambdas.as_slice() else {
+            panic!("one unary declaration owner")
+        };
+        let Form::Lambda {
+            parameter, body, ..
+        } = lambda.form()
+        else {
+            unreachable!()
+        };
+        assert_eq!(body, skeleton.body());
+        assert_eq!(skeleton.binder(parameter).unwrap().name(), "x");
+    }
+    for source in [
         "my f x y = x y",
         "our f x = x x",
         "pub f x = x x",
@@ -199,6 +219,145 @@ fn shadow_source_core_unary_declaration_does_not_enter_its_body_scope() {
             (SyntaxKind::ParenthesizedExpression, Form::Group { .. }) => {}
             _ => panic!("call argument shape matches source boundary"),
         }
+    }
+}
+
+#[test]
+fn shadow_source_core_unary_nested_repeated_use_preserves_identity_and_inventory() {
+    let source = "my repeated f = f (f 1)";
+    let parsed = parsed(source);
+    let raw = SyntaxNode::new_root(parsed.green().clone());
+    let artifact = ShadowArtifact::from_parsed(parsed).unwrap();
+    let skeleton = artifact.skeleton().unwrap();
+    let lambdas = skeleton
+        .expressions()
+        .iter()
+        .filter(|expression| matches!(expression.form(), Form::Lambda { .. }))
+        .collect::<Vec<_>>();
+    let [lambda] = lambdas.as_slice() else {
+        panic!("one outer declaration Lambda")
+    };
+    let Form::Lambda {
+        binding,
+        parameter,
+        body,
+        captures,
+        correspondence,
+    } = lambda.form()
+    else {
+        unreachable!()
+    };
+    assert_eq!(body, skeleton.body());
+    assert_eq!(lambda.range(), &(0..23));
+    assert_eq!(skeleton.binder(binding).unwrap().range(), &(3..11));
+    assert_eq!(skeleton.binder(parameter).unwrap().range(), &(12..13));
+    assert!(captures.is_empty());
+    assert!(skeleton.capture_uses().is_empty());
+    assert_eq!(
+        *correspondence,
+        ClosureCorrespondence::PendingTypedCaptureProviderReceiverAndSemanticDischarge
+    );
+    let Form::Apply {
+        callee: outer_use,
+        argument: group,
+        source_form,
+    } = skeleton.expression(body).unwrap().form()
+    else {
+        panic!("outer Apply")
+    };
+    assert_eq!(*source_form, SyntaxKind::MlArgument);
+    let Form::Group { inner } = skeleton.expression(group).unwrap().form() else {
+        panic!("retained argument Group")
+    };
+    let Form::Apply {
+        callee: inner_use,
+        argument: integer,
+        source_form,
+    } = skeleton.expression(inner).unwrap().form()
+    else {
+        panic!("inner Apply")
+    };
+    assert_eq!(*source_form, SyntaxKind::MlArgument);
+    assert_eq!(skeleton.expression(body).unwrap().range(), &(16..23));
+    assert_eq!(skeleton.expression(group).unwrap().range(), &(18..23));
+    assert_eq!(skeleton.expression(inner).unwrap().range(), &(19..22));
+    assert!(
+        matches!(skeleton.expression(integer).unwrap().form(), Form::IntegerLiteral { spelling } if spelling == "1")
+    );
+    let mut uses = Vec::new();
+    for (id, range) in [(outer_use, 16..17), (inner_use, 19..20)] {
+        let expression = skeleton.expression(id).unwrap();
+        let Form::Use { binder, occurrence } = expression.form() else {
+            panic!("retained direct Use")
+        };
+        assert_eq!(binder, parameter);
+        assert_ne!(binder, binding);
+        assert_eq!(expression.range(), &range);
+        assert_eq!(
+            skeleton.use_position(occurrence).unwrap(),
+            expression.position()
+        );
+        uses.push(occurrence);
+    }
+    assert_ne!(uses[0], uses[1]);
+    for expression in skeleton.expressions() {
+        let position = artifact.position(expression.position()).unwrap();
+        let node = raw
+            .descendants()
+            .find(|node| node.kind() == position.kind() && range_of(node) == *position.range())
+            .unwrap();
+        assert_eq!(
+            nested_shadow_locator(&artifact, expression.position()),
+            nested_source_locator(&node)
+        );
+    }
+    let ordinary = [
+        Premise::CallableRole,
+        Premise::FullFunctionMembership,
+        Premise::CallViewRealization,
+        Premise::QIndependentSourceCallViewFormation,
+        Premise::SourceEventContributionAndTypedOutputObservation,
+    ];
+    let source_use = [
+        Premise::SourceFormalUseRuleApplicabilityAndInterpretation,
+        Premise::SourceDirectionalOutputEffectProtectionIntroduction,
+    ];
+    let expected = [inner, body]
+        .into_iter()
+        .flat_map(|call| ordinary.map(|premise| (call, premise)))
+        .chain(
+            [inner, body]
+                .into_iter()
+                .flat_map(|call| source_use.map(|premise| (call, premise))),
+        )
+        .collect::<Vec<_>>();
+    assert_eq!(
+        skeleton
+            .pending()
+            .iter()
+            .map(|row| (row.call(), row.premise()))
+            .collect::<Vec<_>>(),
+        expected
+    );
+}
+
+#[test]
+fn shadow_source_core_annotated_unary_keeps_direct_body_eligibility() {
+    for (source, expected) in [
+        ("my apply (f: T) = f", 1),
+        ("my apply (f: T) = f 1", 1),
+        ("my apply (f: T) = f (f 1)", 0),
+    ] {
+        let skeleton = shadow_from_source(source).unwrap();
+        assert_eq!(skeleton.parameter_annotations().len(), 1);
+        assert_eq!(
+            skeleton
+                .expressions()
+                .iter()
+                .filter(|expression| matches!(expression.form(), Form::Lambda { .. }))
+                .count(),
+            expected
+        );
     }
 }
 
